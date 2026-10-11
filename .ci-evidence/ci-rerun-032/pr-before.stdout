@@ -1,0 +1,331 @@
+url: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084"
+id: 4815343073
+node_id: PR_kwDOTNDTtM8AAAABHwRN4Q
+html_url: "https://github.com/Singularityszn/pubmax/pull/2084"
+diff_url: "https://github.com/Singularityszn/pubmax/pull/2084.diff"
+patch_url: "https://github.com/Singularityszn/pubmax/pull/2084.patch"
+issue_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/2084"
+number: 2084
+state: open
+locked: false
+title: "fix(data): enrich London pub hours, dog policies and prices"
+user:
+  login: karanmrn
+  id: 31683167
+  node_id: MDQ6VXNlcjMxNjgzMTY3
+  avatar_url: "https://avatars.githubusercontent.com/u/31683167?v=4"
+  gravatar_id: ""
+  url: "https://api.github.com/users/karanmrn"
+  html_url: "https://github.com/karanmrn"
+  followers_url: "https://api.github.com/users/karanmrn/followers"
+  following_url: "https://api.github.com/users/karanmrn/following{/other_user}"
+  gists_url: "https://api.github.com/users/karanmrn/gists{/gist_id}"
+  starred_url: "https://api.github.com/users/karanmrn/starred{/owner}{/repo}"
+  subscriptions_url: "https://api.github.com/users/karanmrn/subscriptions"
+  organizations_url: "https://api.github.com/users/karanmrn/orgs"
+  repos_url: "https://api.github.com/users/karanmrn/repos"
+  events_url: "https://api.github.com/users/karanmrn/events{/privacy}"
+  received_events_url: "https://api.github.com/users/karanmrn/received_events"
+  type: User
+  user_view_type: public
+  site_admin: false
+body: "## Intent\n\nUse 100$ for the rest of the tasks, we need to enrich london data. Stick to tavily to extract whatever we can.\n\ndone continue\n\nis verythign working properly? Pls finish everything\n\nI am going to work , pls complete everyhting and you all the permissions\n\nI have credits, thats how you are running, just keep finishing the tasks\n\nuse the plugins , we have firecrawl so use the credits\n\nfinish the rest using GNHF\n\n## What Changed\n\n- Refresh London pub hours and dog-policy evidence, expanding source records from 299 to 369 and removing a generic chain dog statement.\n- Publish two Thirsty Bear cider pint prices and extend reconciliation records and regression coverage while preserving the historical withdrawal audit.\n- Add Firecrawl coverage snapshots, source decisions, review excerpts, credit accounting and local reader evidence, with documented publication limits.\n\n## Risk Assessment\n\n✅ Low: The bounded enrichment preserves existing hours schedules and price rows, retains source ownership and exclusions, and introduces no runtime subsystem.\n\n## Testing\n\nThe supplied baseline passed. A keyless production build, focused suites, live API checks, and desktop/mobile screenshots verified runtime delivery. Retained accounting reconciled, while the original cached-menu extraction remains untested.\n\n- Live validation: ✅ go - 7 of 8 scenarios driven live against the product\n\n| Scenario | Result | Live | Evidence |\n| --- | --- | --- | --- |\n| Open enriched curated pubs and receive their source facts under the correct venue IDs. | ✅ pass | live | Kew Greyhound opening hours; Live detail responses and price preservation; Published source ownership |\n| Open Sydenham’s Greyhound and see Monday–Thursday hours while Friday–Sunday remain Not stated. | ✅ pass | live | Sydenham Greyhound unstated days |\n| Open Brixton Brewery Tap Room and see Dogs welcome with dated pub-website credit on desktop and mobile. | ✅ pass | live | Brixton dog policy on desktop; Brixton dog policy on mobile |\n| Open other Greyhound pubs and The Bull’s Head without receiving another pub’s facts or the withdrawn generic dog statement. | ✅ pass | live | Live detail responses and price preservation; Generic chain dog-policy withdrawal |\n| Read existing venue details and the published bundle after merging, preserving all 297 baseline hours schedules and 7,595 previous price rows. | ✅ pass | live | Live detail responses and price preservation |\n| Read the published price bundle and find only two additions: Inches Cider pint £5.95 and Whisky Cider pint £4.95. | ✅ pass | live | Live detail responses and price preservation |\n| Open UK base pub records and retain their identities without presenting collected website hours as runtime coverage. | ✅ pass | live | Live detail responses and price preservation |\n| Replay the original retained Thirsty Bear menu through the shared harvest reader and reproduce its accepted named pint rows. | ⏸️ untested | no | I replayed the committed five-line excerpt through both shared reader interfaces. It returned no publishable named drinks. The excerpt does not include the full retained input or preprocessing used by… |\n\n![Kew Greyhound opening hours](https://github.com/user-attachments/assets/b8097ae9-0d85-453c-911a-fad0666fc63e)\n![Sydenham Greyhound unstated days](https://github.com/user-attachments/assets/ec92be6c-d2e3-4fad-b43c-c32d97fdb17c)\n![Brixton dog policy on desktop](https://github.com/user-attachments/assets/db663169-e357-494b-9b85-c5925f7ea7e8)\n![Brixton dog policy on mobile](https://github.com/user-attachments/assets/2ef6bdeb-5b7a-48b5-97fa-6676e2d094e0)\n<details>\n<summary>Evidence: Live detail responses and price preservation</summary>\n\n```text\n{\n  \"root\": \"http://127.0.0.1:50643\",\n  \"commit\": \"41958b27d6ea67655af645326e8e04ada1f3b37b\",\n  \"checkedAt\": \"2026-10-10T23:48:28.848Z\",\n  \"sourceDetails\": [\n    {\n      \"id\": \"venue-112egvu\",\n      \"name\": \"Brixton Brewery Tap Room\",\n      \"status\": 200,\n      \"sourceFacts\": {\n        \"sourceUrl\": \"https://brixtonbrewery.com/pages/taproom\",\n        \"readOn\": \"2026-10-09\",\n        \"dogs\": {\n          \"policy\": \"welcome\",\n          \"evidence\": \"Dogs welcome.\"\n        }\n      }\n    },\n    {\n      \"id\": \"venue-1j2l3mv\",\n      \"name\": \"Kings Arms\",\n      \"status\": 200,\n      \"sourceFacts\": {\n        \"sourceUrl\": \"https://www.greeneking.co.uk/pubs/greater-london/kings-arms-greenwich\",\n        \"readOn\": \"2026-10-05\",\n        \"hours\": {\n          \"hours\": {\n            \"0\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"22:30\"\n              }\n            ],\n            \"1\": [\n              {\n                \"opens\": \"11:30\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"2\": [\n              {\n                \"opens\": \"11:30\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"3\": [\n              {\n                \"opens\": \"11:30\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"4\": [\n              {\n                \"opens\": \"11:30\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"5\": [\n              {\n                \"opens\": \"11:30\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"6\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ]\n          },\n          \"statedDays\": [\n            0,\n            1,\n            2,\n            3,\n            4,\n            5,\n            6\n          ],\n          \"evidence\": \"Opening Hours Today (Mon) 11:30am - 11:00pm Tuesday 11:30am - 11:00pm Wednesday 11:30am - 11:00pm Thursday 11:30am - 11:00pm Friday 11:30am - 11:00pm Saturday 9:00am - 11:00pm Sunday 9:00am - 10:30pm\"\n        }\n      },\n      \"openingHours\": {\n        \"0\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"22:30\"\n          }\n        ],\n        \"1\": [\n          {\n            \"opens\": \"11:30\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"2\": [\n          {\n            \"opens\": \"11:30\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"3\": [\n          {\n            \"opens\": \"11:30\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"4\": [\n          {\n            \"opens\": \"11:30\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"5\": [\n          {\n            \"opens\": \"11:30\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"6\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"venue-170rkc0\",\n      \"name\": \"The Coach and Horses\",\n      \"status\": 200,\n      \"sourceFacts\": {\n        \"sourceUrl\": \"https://www.the-coach-and-horses.co.uk/\",\n        \"readOn\": \"2026-10-09\",\n        \"hours\": {\n          \"hours\": {\n            \"0\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"22:30\"\n              }\n            ],\n            \"1\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"2\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"3\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"4\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"5\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"6\": [\n              {\n                \"opens\": \"09:00\",\n                \"closes\": \"23:00\"\n              }\n            ]\n          },\n          \"statedDays\": [\n            0,\n            1,\n            2,\n            3,\n            4,\n            5,\n            6\n          ],\n          \"evidence\": \"Opening Times\\n\\n- Monday: 09:00 -23:00\\n- Tuesday: 09:00 - 23:00\\n- Wednesday: 09:00 -23:00\\n- Thursday: 09:00 -23:00\\n- Friday: 09:00 - 23:00\\n- Saturday: 09:00 - 23:00\\n- Sunday: 09:00 - 22:30\"\n        }\n      },\n      \"openingHours\": {\n        \"0\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"1\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"2\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"3\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"4\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"5\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"6\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"venue-l98etf\",\n      \"name\": \"The Admiral Hardy, Greenwich\",\n      \"status\": 200,\n      \"sourceFacts\": {\n        \"sourceUrl\": \"https://admiralhardygreenwich.co.uk/\",\n        \"readOn\": \"2026-10-09\",\n        \"hours\": {\n          \"hours\": {\n            \"0\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"22:00\"\n              }\n            ],\n            \"1\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"2\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"3\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"4\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"5\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n            \"6\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ]\n          },\n          \"statedDays\": [\n            0,\n            1,\n            2,\n            3,\n            4,\n            5,\n            6\n          ],\n          \"evidence\": \"Opening Hours\\n\\nMon-Sat: 12pm-11pm\\n\\nSun: 12pm-10pm\"\n        }\n      },\n      \"openingHours\": {\n        \"0\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"22:00\"\n          }\n        ],\n        \"1\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"2\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"3\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"4\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"5\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"6\": [\n          {\n            \"opens\": \"12:00\",\n            \"closes\": \"23:00\"\n          }\n        ]\n      }\n    },\n    {\n      \"id\": \"venue-1gpckx6\",\n      \"name\": \"Duke of Wellington\",\n      \"status\": 200,\n      \"sourceFacts\": {\n        \"sourceUrl\": \"https://thedukew1h.co.uk/\",\n        \"readOn\": \"2026-10-09\",\n        \"hours\": {\n          \"hours\": {\n            \"0\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"22:00\"\n              }\n            ],\n            \"1\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"22:00\"\n              }\n            ],\n            \"2\": [\n              {\n                \"opens\": \"12:00\",\n                \"closes\": \"23:00\"\n              }\n            ],\n\n\n... [758140 bytes truncated] ...\n\n\n          \"lng\": -0.3064,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w364312014\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w364312014\",\n          \"name\": \"White Hart\",\n          \"address\": \"1, High Street, Kingston upon Thames, KT1 4DA\",\n          \"lat\": 51.41176,\n          \"lng\": -0.31168,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w379967724\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w379967724\",\n          \"name\": \"The Dog and Fox\",\n          \"address\": \"24, High Street, London, SW19 5EA\",\n          \"lat\": 51.42516,\n          \"lng\": -0.21772,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w432769894\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w432769894\",\n          \"name\": \"The Orange Tree\",\n          \"address\": \"45, Kew Road, Richmond, TW9 2NQ\",\n          \"lat\": 51.46428,\n          \"lng\": -0.30163,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w43914785\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w43914785\",\n          \"name\": \"Lullingstone Castle\",\n          \"address\": \"2, High Street, Swanley, BR8 8BE\",\n          \"lat\": 51.3953,\n          \"lng\": 0.17674,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w539369586\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w539369586\",\n          \"name\": \"The White Bear\",\n          \"address\": \"138, Kennington Park Road, London, SE11 4DJ\",\n          \"lat\": 51.48686,\n          \"lng\": -0.10803,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w608184600\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w608184600\",\n          \"name\": \"The Iron Duke\",\n          \"address\": \"11, Avery Row, London, W1K 4AN\",\n          \"lat\": 51.51271,\n          \"lng\": -0.14588,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w619265567\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w619265567\",\n          \"name\": \"The Bedford Arms\",\n          \"address\": \"Village Road, Rickmansworth, WD3 6EQ\",\n          \"lat\": 51.67401,\n          \"lng\": -0.52847,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w739178496\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w739178496\",\n          \"name\": \"The Pride of Paddington\",\n          \"address\": \"1-3, Craven Road, London, W2 3BP\",\n          \"lat\": 51.51497,\n          \"lng\": -0.17633,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w81679283\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w81679283\",\n          \"name\": \"The Old Nun's Head\",\n          \"address\": \"15, Nunhead Green, London, SE15 3QQ\",\n          \"lat\": 51.46527,\n          \"lng\": -0.05949,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w837636082\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w837636082\",\n          \"name\": \"Green Man\",\n          \"address\": \"Wildcroft Road, London, SW15 3NG\",\n          \"lat\": 51.45344,\n          \"lng\": -0.2216,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w847530472\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w847530472\",\n          \"name\": \"The Huntley\",\n          \"address\": \"134-136, Gower Street, London, WC1E 6BP\",\n          \"lat\": 51.52515,\n          \"lng\": -0.13504,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w86725862\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w86725862\",\n          \"name\": \"The Royal George\",\n          \"address\": \"130, Hersham Road, Walton-on-Thames, KT12 5QJ\",\n          \"lat\": 51.37069,\n          \"lng\": -0.40174,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w885138744\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w885138744\",\n          \"name\": \"Queen Victoria\",\n          \"address\": \"Coppice Row, Theydon Bois, CM16 7ES\",\n          \"lat\": 51.67219,\n          \"lng\": 0.0998,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    },\n    {\n      \"path\": \"/api/uk-base/venue-uk-w922196016\",\n      \"status\": 200,\n      \"body\": {\n        \"pub\": {\n          \"id\": \"venue-uk-w922196016\",\n          \"name\": \"Coach and Horses\",\n          \"address\": \"22, High Street, Rickmansworth, WD3 1ER\",\n          \"lat\": 51.63939,\n          \"lng\": -0.46644,\n          \"curatedVenueId\": \"\",\n          \"kind\": \"pub\"\n        }\n      }\n    }\n  ],\n  \"failures\": [],\n  \"baselineHours\": {\n    \"before\": 297,\n    \"after\": 361,\n    \"differences\": []\n  },\n  \"pricePublication\": {\n    \"status\": 200,\n    \"before\": 7595,\n    \"after\": 7597,\n    \"lost\": [],\n    \"additions\": [\n      {\n        \"venueId\": \"venue-uk-n1707216586\",\n        \"name\": \"The Thirsty Bear\",\n        \"category\": \"beer\",\n        \"priceGbp\": 5.95,\n        \"lane\": \"site-harvest\",\n        \"standing\": \"listed\",\n        \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n        \"publisher\": \"thethirstybear.com\",\n        \"observedAt\": \"2026-10-09T17:02:22.329Z\",\n        \"basis\": null,\n        \"sampleSize\": null,\n        \"servingSize\": \"pint\",\n        \"drinkLabel\": \"Inches Cider\",\n        \"drinkSubtype\": \"beer-cider\"\n      },\n      {\n        \"venueId\": \"venue-uk-n1707216586\",\n        \"name\": \"The Thirsty Bear\",\n        \"category\": \"beer\",\n        \"priceGbp\": 4.95,\n        \"lane\": \"site-harvest\",\n        \"standing\": \"listed\",\n        \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n        \"publisher\": \"thethirstybear.com\",\n        \"observedAt\": \"2026-10-09T17:02:22.329Z\",\n        \"basis\": null,\n        \"sampleSize\": null,\n        \"servingSize\": \"pint\",\n        \"drinkLabel\": \"Whisky Cider\",\n        \"drinkSubtype\": \"beer-cider\"\n      }\n    ],\n    \"thirstyBear\": [\n      {\n        \"venueId\": \"venue-uk-n1707216586\",\n        \"name\": \"The Thirsty Bear\",\n        \"category\": \"beer\",\n        \"priceGbp\": 6.56,\n        \"lane\": \"estimate\",\n        \"standing\": \"estimate\",\n        \"sourceUrl\": null,\n        \"publisher\": null,\n        \"observedAt\": \"2026-10-05T23:53:08.357Z\",\n        \"basis\": \"regional_baseline:southwark\",\n        \"sampleSize\": 174\n      },\n      {\n        \"venueId\": \"venue-uk-n1707216586\",\n        \"name\": \"The Thirsty Bear\",\n        \"category\": \"beer\",\n        \"priceGbp\": 5.95,\n        \"lane\": \"site-harvest\",\n        \"standing\": \"listed\",\n        \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n        \"publisher\": \"thethirstybear.com\",\n        \"observedAt\": \"2026-10-09T17:02:22.329Z\",\n        \"basis\": null,\n        \"sampleSize\": null,\n        \"servingSize\": \"pint\",\n        \"drinkLabel\": \"Inches Cider\",\n        \"drinkSubtype\": \"beer-cider\"\n      },\n      {\n        \"venueId\": \"venue-uk-n1707216586\",\n        \"name\": \"The Thirsty Bear\",\n        \"category\": \"beer\",\n        \"priceGbp\": 4.95,\n        \"lane\": \"site-harvest\",\n        \"standing\": \"listed\",\n        \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n        \"publisher\": \"thethirstybear.com\",\n        \"observedAt\": \"2026-10-09T17:02:22.329Z\",\n        \"basis\": null,\n        \"sampleSize\": null,\n        \"servingSize\": \"pint\",\n        \"drinkLabel\": \"Whisky Cider\",\n        \"drinkSubtype\": \"beer-cider\"\n      }\n    ]\n  }\n}\n```\n</details>\n\n- Evidence: Published source ownership (local file: <code>~/.no-mistakes/evidence/01M4M2GE2SQZXEHYVGXZXTHEG1/live-source-ownership.json</code>)\n\n<details>\n<summary>Evidence: Generic chain dog-policy withdrawal</summary>\n\n```text\n{\n  \"url\": \"http://127.0.0.1:50643/api/venue/venue-1j8bjz9\",\n  \"status\": 200,\n  \"name\": \"The Bull's Head\",\n  \"siteFacts\": {\n    \"sourceUrl\": \"https://www.chefandbrewer.com/pubs/greater-london/bulls-head\",\n    \"readOn\": \"2026-10-05\",\n    \"hours\": {\n      \"hours\": {\n        \"0\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"22:00\"\n          }\n        ],\n        \"1\": [\n          {\n            \"opens\": \"11:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"2\": [\n          {\n            \"opens\": \"11:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"3\": [\n          {\n            \"opens\": \"11:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"4\": [\n          {\n            \"opens\": \"11:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"5\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ],\n        \"6\": [\n          {\n            \"opens\": \"09:00\",\n            \"closes\": \"23:00\"\n          }\n        ]\n      },\n      \"statedDays\": [\n        0,\n        1,\n        2,\n        3,\n        4,\n        5,\n        6\n      ],\n      \"evidence\": \"Opening Hours Today (Mon) 11:00am - 11:00pm Tuesday 11:00am - 11:00pm Wednesday 11:00am - 11:00pm Thursday 11:00am - 11:00pm Friday 9:00am - 11:00pm Saturday 9:00am - 11:00pm Sunday 9:00am - 10:00pm\"\n    }\n  }\n}\n```\n</details>\n\n- Evidence: Retained accounting and historical audit checks (local file: <code>~/.no-mistakes/evidence/01M4M2GE2SQZXEHYVGXZXTHEG1/retained-data-contracts.json</code>)\n\n<details>\n<summary>Evidence: Abbreviated price-excerpt replay limitation</summary>\n\n```text\n{\n  \"checkedAt\": \"2026-10-10T23:53:11.982Z\",\n  \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n  \"input\": \"Half / Pint\\nInches Cider\\n£3.4 / £5.95\\nWhisky Cider\\n£3 / £4.95\",\n  \"declaredRows\": [\n    {\n      \"host\": \"thethirstybear.com\",\n      \"venueId\": \"venue-uk-n1707216586\",\n      \"osmId\": \"node/1707216586\",\n      \"name\": \"The Thirsty Bear\",\n      \"postcode\": \"SE1 9LX\",\n      \"lat\": 51.50707,\n      \"lng\": -0.10812,\n      \"category\": \"beer\",\n      \"priceGbp\": 5.95,\n      \"drinkLabel\": \"Inches Cider\",\n      \"servingSize\": \"pint\",\n      \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n      \"observedAt\": \"2026-10-09T17:02:22.329Z\",\n      \"pubsOnHost\": 1,\n      \"linesOnPage\": 24,\n      \"reader\": \"firecrawl\"\n    },\n    {\n      \"host\": \"thethirstybear.com\",\n      \"venueId\": \"venue-uk-n1707216586\",\n      \"osmId\": \"node/1707216586\",\n      \"name\": \"The Thirsty Bear\",\n      \"postcode\": \"SE1 9LX\",\n      \"lat\": 51.50707,\n      \"lng\": -0.10812,\n      \"category\": \"beer\",\n      \"priceGbp\": 4.95,\n      \"drinkLabel\": \"Whisky Cider\",\n      \"servingSize\": \"pint\",\n      \"sourceUrl\": \"https://www.thethirstybear.com/drinks\",\n      \"observedAt\": \"2026-10-09T17:02:22.329Z\",\n      \"pubsOnHost\": 1,\n      \"linesOnPage\": 24,\n      \"reader\": \"firecrawl\"\n    }\n  ],\n  \"sharedReading\": {\n    \"reading\": {\n      \"kept\": [\n        {\n          \"priceGbp\": 5.95,\n          \"category\": \"whisky\",\n          \"verbatim\": \"£5.95\",\n          \"context\": \"Half / Pint\\nInches Cider\\n£3.4 / £5.95\\nWhisky Cider\\n£3 / £4.95\",\n          \"drinkLabel\": \".4 /\"\n        },\n        {\n          \"priceGbp\": 4.95,\n          \"category\": \"beer\",\n          \"verbatim\": \"£4.95\",\n          \"context\": \"Half / Pint\\nInches Cider\\n£3.4 / £5.95\\nWhisky Cider\\n£3 / £4.95\",\n          \"drinkLabel\": \"/\"\n        }\n      ],\n      \"drops\": [\n        \"half-measure-not-a-pint\",\n        \"half-measure-not-a-pint\"\n      ]\n    },\n    \"review\": []\n  },\n  \"harvestExtraction\": {\n    \"drinks\": [],\n    \"reading\": {\n      \"kept\": [\n        {\n          \"priceGbp\": 5.95,\n          \"category\": \"whisky\",\n          \"verbatim\": \"£5.95\",\n          \"context\": \"Half / Pint\\nInches Cider\\n£3.4 / £5.95\\nWhisky Cider\\n£3 / £4.95\",\n          \"drinkLabel\": \".4 /\"\n        },\n        {\n          \"priceGbp\": 4.95,\n          \"category\": \"beer\",\n          \"verbatim\": \"£4.95\",\n          \"context\": \"Half / Pint\\nInches Cider\\n£3.4 / £5.95\\nWhisky Cider\\n£3 / £4.95\",\n          \"drinkLabel\": \"/\"\n        }\n      ],\n      \"drops\": [\n        \"half-measure-not-a-pint\",\n        \"half-measure-not-a-pint\"\n      ]\n    },\n    \"review\": []\n  }\n}\n```\n</details>\n\n## Pipeline\n\nUpdates from [git push no-mistakes](https://github.com/kunchenguid/no-mistakes)\n\n<!-- no-mistakes-pipeline-attestation:v1 {\"head_sha\":\"e1f6a99f2e7d8854b3021c67428b171ff66f2aaf\",\"steps\":[{\"step\":\"intent\",\"status\":\"completed\"},{\"step\":\"rebase\",\"status\":\"completed\"},{\"step\":\"review\",\"status\":\"completed\"},{\"step\":\"test\",\"status\":\"completed\"},{\"step\":\"document\",\"status\":\"completed\"},{\"step\":\"lint\",\"status\":\"completed\"},{\"step\":\"push\",\"status\":\"completed\"},{\"step\":\"pr\",\"status\":\"running\"},{\"step\":\"ci\",\"status\":\"pending\"}]} -->\n\n<details>\n<summary>✅ **intent** - passed</summary>\n\n✅ No issues found.\n</details>\n\n<details>\n<summary>🔧 **Rebase** - 1 issue found → auto-fixed ✅</summary>\n\n- ⚠️ `data/amenities/london_pub_website_hours_dogs.json` - merge conflict rebasing onto origin/main\n\n🔧 Fix applied.\n✅ Re-checked - no issues remain.\n</details>\n\n<details>\n<summary>✅ **Review** - passed</summary>\n\n✅ No issues found.\n</details>\n\n<details>\n<summary>✅ **Test** - passed</summary>\n\n✅ No issues found.\n- Live validation: ✅ go - 7 of 8 scenarios driven live against the product\n\n| Scenario | Result | Live | Evidence |\n| --- | --- | --- | --- |\n| Open enriched curated pubs and receive their source facts under the correct venue IDs. | ✅ pass | live | Kew Greyhound opening hours; Live detail responses and price preservation; Published source ownership |\n| Open Sydenham’s Greyhound and see Monday–Thursday hours while Friday–Sunday remain Not stated. | ✅ pass | live | Sydenham Greyhound unstated days |\n| Open Brixton Brewery Tap Room and see Dogs welcome with dated pub-website credit on desktop and mobile. | ✅ pass | live | Brixton dog policy on desktop; Brixton dog policy on mobile |\n| Open other Greyhound pubs and The Bull’s Head without receiving another pub’s facts or the withdrawn generic dog statement. | ✅ pass | live | Live detail responses and price preservation; Generic chain dog-policy withdrawal |\n| Read existing venue details and the published bundle after merging, preserving all 297 baseline hours schedules and 7,595 previous price rows. | ✅ pass | live | Live detail responses and price preservation |\n| Read the published price bundle and find only two additions: Inches Cider pint £5.95 and Whisky Cider pint £4.95. | ✅ pass | live | Live detail responses and price preservation |\n| Open UK base pub records and retain their identities without presenting collected website hours as runtime coverage. | ✅ pass | live | Live detail responses and price preservation |\n| Replay the original retained Thirsty Bear menu through the shared harvest reader and reproduce its accepted named pint rows. | ⏸️ untested | no | I replayed the committed five-line excerpt through both shared reader interfaces. It returned no publishable named drinks. The excerpt does not include the full retained input or preprocessing used by… |\n\n- `npm run verify:no-mistakes`\n- <code>Supplied baseline: `npm run verify:no-mistakes` passed before this phase; not rerun.</code>\n- <code>`node scripts/run-with-restored-next-env.mjs npm run build` with isolated `NEXT_DIST_DIR`, restored public data, and provider credentials removed.</code>\n- <code>`npm run start -- --port 50643 --hostname 127.0.0.1` against the isolated production build.</code>\n- <code>`node node_modules/vitest/vitest.mjs run __tests__/siteHarvestReconciliation.test.ts __tests__/ukPriceBundle.test.ts __tests__/ukPriceCrawl.test.ts --maxWorkers=1`.</code>\n- <code>`node .test-london/api-check.cjs`: live curated details, UK base records, lookalike boundaries, and served bundle comparisons.</code>\n- <code>`node .test-london/ownership.cjs`: live published ownership checks and preserved baseline tuples.</code>\n- <code>`npm run e2e:cli -- -s=london-enrichment`: opening details, expanding hours, checking dog policy, capturing screenshots, and resizing to 390×844.</code>\n- <code>`TYPESAFE_API_KEY= node --conditions=react-server --import tsx .test-london/contracts.mts`: retained accounting, refusals, historical reconciliation, and evidence hash checks.</code>\n- <code>`TYPESAFE_API_KEY= node --conditions=react-server --import tsx .test-london/reader-replay.mts`: diagnostic replay of the abbreviated committed excerpt.</code>\n- <code>Live `GET /api/venue/venue-1j8bjz9` confirmed the generic dog statement was withdrawn while hours remained.</code>\n- `Closed the test browser and server, removed disposable Chromium and generated build files, and confirmed a clean worktree.`\n</details>\n\n<details>\n<summary>✅ **Document** - passed</summary>\n\n✅ No issues found.\n</details>\n\n<details>\n<summary>✅ **Lint** - passed</summary>\n\n✅ No issues found.\n</details>\n\n<details>\n<summary>✅ **Push** - passed</summary>\n\n✅ No issues found.\n</details>\n\n<!-- codesmith:footer -->\n---\n<a href=\"https://app.blacksmith.sh/Singularityszn/codesmith/pubmax/pr/2084?autoLogin=true&ref=codesmith_pr_footer\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pr-comments-assets.blacksmith.sh/codesmith/view-with-codesmith-dark-v3.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://pr-comments-assets.blacksmith.sh/codesmith/view-with-codesmith-light-v3.svg\"><img alt=\"View with [code]smith\" src=\"https://pr-comments-assets.blacksmith.sh/codesmith/view-with-codesmith-dark-v3.svg\"></picture></a> <a href=\"https://backend.blacksmith.sh/track/enable-autofix?expires=1794268972&installation_model_id=430946&pr_number=2084&ref=codesmith_pr_footer&repository=Singularityszn%2Fpubmax&return_to=https%3A%2F%2Fgithub.com%2FSingularityszn%2Fpubmax%2Fpull%2F2084&signature=ab6b04aa01d9922106dc677502f09be767bf5f19b92fded6df6f43b74fb54e9e\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://pr-comments-assets.blacksmith.sh/codesmith/autofix-with-codesmith-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://pr-comments-assets.blacksmith.sh/codesmith/autofix-with-codesmith-light.svg\"><img alt=\"Autofix with [code]smith\" src=\"https://pr-comments-assets.blacksmith.sh/codesmith/autofix-with-codesmith-dark.svg\"></picture></a>\n<sup>Need help on this PR? Tag <code>@codesmith-bot</code> with what you need. Autofix is disabled.</sup>\n\n<!-- codesmith:autofix:disabled -->\n<!-- /codesmith:footer -->"
+created_at: "2026-10-11T00:02:48Z"
+updated_at: "2026-10-11T00:03:16Z"
+closed_at: null
+merged_at: null
+merge_commit_sha: d3a4d25268526d2955955221fa26f4a084cf45d6
+assignees: []
+requested_reviewers: []
+requested_teams: []
+labels: []
+milestone: null
+draft: false
+commits_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084/commits"
+review_comments_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084/comments"
+review_comment_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls/comments{/number}"
+comments_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/2084/comments"
+statuses_url: "https://api.github.com/repos/Singularityszn/pubmax/statuses/e1f6a99f2e7d8854b3021c67428b171ff66f2aaf"
+head:
+  label: "Singularityszn:fm/pubmax-london-enrich-100"
+  ref: fm/pubmax-london-enrich-100
+  sha: e1f6a99f2e7d8854b3021c67428b171ff66f2aaf
+  user:
+    login: Singularityszn
+    id: 313185644
+    node_id: O_kgDOEqrVbA
+    avatar_url: "https://avatars.githubusercontent.com/u/313185644?v=4"
+    gravatar_id: ""
+    url: "https://api.github.com/users/Singularityszn"
+    html_url: "https://github.com/Singularityszn"
+    followers_url: "https://api.github.com/users/Singularityszn/followers"
+    following_url: "https://api.github.com/users/Singularityszn/following{/other_user}"
+    gists_url: "https://api.github.com/users/Singularityszn/gists{/gist_id}"
+    starred_url: "https://api.github.com/users/Singularityszn/starred{/owner}{/repo}"
+    subscriptions_url: "https://api.github.com/users/Singularityszn/subscriptions"
+    organizations_url: "https://api.github.com/users/Singularityszn/orgs"
+    repos_url: "https://api.github.com/users/Singularityszn/repos"
+    events_url: "https://api.github.com/users/Singularityszn/events{/privacy}"
+    received_events_url: "https://api.github.com/users/Singularityszn/received_events"
+    type: Organization
+    user_view_type: public
+    site_admin: false
+  repo:
+    id: 1288754100
+    node_id: R_kgDOTNDTtA
+    name: pubmax
+    full_name: Singularityszn/pubmax
+    private: false
+    owner:
+      login: Singularityszn
+      id: 313185644
+      node_id: O_kgDOEqrVbA
+      avatar_url: "https://avatars.githubusercontent.com/u/313185644?v=4"
+      gravatar_id: ""
+      url: "https://api.github.com/users/Singularityszn"
+      html_url: "https://github.com/Singularityszn"
+      followers_url: "https://api.github.com/users/Singularityszn/followers"
+      following_url: "https://api.github.com/users/Singularityszn/following{/other_user}"
+      gists_url: "https://api.github.com/users/Singularityszn/gists{/gist_id}"
+      starred_url: "https://api.github.com/users/Singularityszn/starred{/owner}{/repo}"
+      subscriptions_url: "https://api.github.com/users/Singularityszn/subscriptions"
+      organizations_url: "https://api.github.com/users/Singularityszn/orgs"
+      repos_url: "https://api.github.com/users/Singularityszn/repos"
+      events_url: "https://api.github.com/users/Singularityszn/events{/privacy}"
+      received_events_url: "https://api.github.com/users/Singularityszn/received_events"
+      type: Organization
+      user_view_type: public
+      site_admin: false
+    html_url: "https://github.com/Singularityszn/pubmax"
+    description: null
+    fork: false
+    url: "https://api.github.com/repos/Singularityszn/pubmax"
+    forks_url: "https://api.github.com/repos/Singularityszn/pubmax/forks"
+    keys_url: "https://api.github.com/repos/Singularityszn/pubmax/keys{/key_id}"
+    collaborators_url: "https://api.github.com/repos/Singularityszn/pubmax/collaborators{/collaborator}"
+    teams_url: "https://api.github.com/repos/Singularityszn/pubmax/teams"
+    hooks_url: "https://api.github.com/repos/Singularityszn/pubmax/hooks"
+    issue_events_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/events{/number}"
+    events_url: "https://api.github.com/repos/Singularityszn/pubmax/events"
+    assignees_url: "https://api.github.com/repos/Singularityszn/pubmax/assignees{/user}"
+    branches_url: "https://api.github.com/repos/Singularityszn/pubmax/branches{/branch}"
+    tags_url: "https://api.github.com/repos/Singularityszn/pubmax/tags"
+    blobs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/blobs{/sha}"
+    git_tags_url: "https://api.github.com/repos/Singularityszn/pubmax/git/tags{/sha}"
+    git_refs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/refs{/sha}"
+    trees_url: "https://api.github.com/repos/Singularityszn/pubmax/git/trees{/sha}"
+    statuses_url: "https://api.github.com/repos/Singularityszn/pubmax/statuses/{sha}"
+    languages_url: "https://api.github.com/repos/Singularityszn/pubmax/languages"
+    stargazers_url: "https://api.github.com/repos/Singularityszn/pubmax/stargazers"
+    contributors_url: "https://api.github.com/repos/Singularityszn/pubmax/contributors"
+    subscribers_url: "https://api.github.com/repos/Singularityszn/pubmax/subscribers"
+    subscription_url: "https://api.github.com/repos/Singularityszn/pubmax/subscription"
+    commits_url: "https://api.github.com/repos/Singularityszn/pubmax/commits{/sha}"
+    git_commits_url: "https://api.github.com/repos/Singularityszn/pubmax/git/commits{/sha}"
+    comments_url: "https://api.github.com/repos/Singularityszn/pubmax/comments{/number}"
+    issue_comment_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/comments{/number}"
+    contents_url: "https://api.github.com/repos/Singularityszn/pubmax/contents/{+path}"
+    compare_url: "https://api.github.com/repos/Singularityszn/pubmax/compare/{base}...{head}"
+    merges_url: "https://api.github.com/repos/Singularityszn/pubmax/merges"
+    archive_url: "https://api.github.com/repos/Singularityszn/pubmax/{archive_format}{/ref}"
+    downloads_url: "https://api.github.com/repos/Singularityszn/pubmax/downloads"
+    issues_url: "https://api.github.com/repos/Singularityszn/pubmax/issues{/number}"
+    pulls_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls{/number}"
+    milestones_url: "https://api.github.com/repos/Singularityszn/pubmax/milestones{/number}"
+    notifications_url: "https://api.github.com/repos/Singularityszn/pubmax/notifications{?since,all,participating}"
+    labels_url: "https://api.github.com/repos/Singularityszn/pubmax/labels{/name}"
+    releases_url: "https://api.github.com/repos/Singularityszn/pubmax/releases{/id}"
+    deployments_url: "https://api.github.com/repos/Singularityszn/pubmax/deployments"
+    created_at: "2026-07-03T23:49:17Z"
+    updated_at: "2026-10-10T23:02:15Z"
+    pushed_at: "2026-10-11T00:01:51Z"
+    git_url: "git://github.com/Singularityszn/pubmax.git"
+    ssh_url: "git@github.com:Singularityszn/pubmax.git"
+    clone_url: "https://github.com/Singularityszn/pubmax.git"
+    svn_url: "https://github.com/Singularityszn/pubmax"
+    homepage: "https://pubmaxxing.com"
+    size: 1390621
+    stargazers_count: 0
+    watchers_count: 0
+    language: TypeScript
+    has_issues: true
+    has_projects: true
+    has_downloads: false
+    has_wiki: false
+    has_pages: false
+    has_discussions: false
+    forks_count: 0
+    mirror_url: null
+    archived: false
+    disabled: false
+    open_issues_count: 36
+    license: null
+    allow_forking: true
+    is_template: false
+    web_commit_signoff_required: false
+    has_pull_requests: true
+    pull_request_creation_policy: all
+    topics: []
+    visibility: public
+    forks: 0
+    open_issues: 36
+    watchers: 0
+    default_branch: main
+base:
+  label: "Singularityszn:main"
+  ref: main
+  sha: e73be8f6f5d85e465704aaf883c5614e11efc3a2
+  user:
+    login: Singularityszn
+    id: 313185644
+    node_id: O_kgDOEqrVbA
+    avatar_url: "https://avatars.githubusercontent.com/u/313185644?v=4"
+    gravatar_id: ""
+    url: "https://api.github.com/users/Singularityszn"
+    html_url: "https://github.com/Singularityszn"
+    followers_url: "https://api.github.com/users/Singularityszn/followers"
+    following_url: "https://api.github.com/users/Singularityszn/following{/other_user}"
+    gists_url: "https://api.github.com/users/Singularityszn/gists{/gist_id}"
+    starred_url: "https://api.github.com/users/Singularityszn/starred{/owner}{/repo}"
+    subscriptions_url: "https://api.github.com/users/Singularityszn/subscriptions"
+    organizations_url: "https://api.github.com/users/Singularityszn/orgs"
+    repos_url: "https://api.github.com/users/Singularityszn/repos"
+    events_url: "https://api.github.com/users/Singularityszn/events{/privacy}"
+    received_events_url: "https://api.github.com/users/Singularityszn/received_events"
+    type: Organization
+    user_view_type: public
+    site_admin: false
+  repo:
+    id: 1288754100
+    node_id: R_kgDOTNDTtA
+    name: pubmax
+    full_name: Singularityszn/pubmax
+    private: false
+    owner:
+      login: Singularityszn
+      id: 313185644
+      node_id: O_kgDOEqrVbA
+      avatar_url: "https://avatars.githubusercontent.com/u/313185644?v=4"
+      gravatar_id: ""
+      url: "https://api.github.com/users/Singularityszn"
+      html_url: "https://github.com/Singularityszn"
+      followers_url: "https://api.github.com/users/Singularityszn/followers"
+      following_url: "https://api.github.com/users/Singularityszn/following{/other_user}"
+      gists_url: "https://api.github.com/users/Singularityszn/gists{/gist_id}"
+      starred_url: "https://api.github.com/users/Singularityszn/starred{/owner}{/repo}"
+      subscriptions_url: "https://api.github.com/users/Singularityszn/subscriptions"
+      organizations_url: "https://api.github.com/users/Singularityszn/orgs"
+      repos_url: "https://api.github.com/users/Singularityszn/repos"
+      events_url: "https://api.github.com/users/Singularityszn/events{/privacy}"
+      received_events_url: "https://api.github.com/users/Singularityszn/received_events"
+      type: Organization
+      user_view_type: public
+      site_admin: false
+    html_url: "https://github.com/Singularityszn/pubmax"
+    description: null
+    fork: false
+    url: "https://api.github.com/repos/Singularityszn/pubmax"
+    forks_url: "https://api.github.com/repos/Singularityszn/pubmax/forks"
+    keys_url: "https://api.github.com/repos/Singularityszn/pubmax/keys{/key_id}"
+    collaborators_url: "https://api.github.com/repos/Singularityszn/pubmax/collaborators{/collaborator}"
+    teams_url: "https://api.github.com/repos/Singularityszn/pubmax/teams"
+    hooks_url: "https://api.github.com/repos/Singularityszn/pubmax/hooks"
+    issue_events_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/events{/number}"
+    events_url: "https://api.github.com/repos/Singularityszn/pubmax/events"
+    assignees_url: "https://api.github.com/repos/Singularityszn/pubmax/assignees{/user}"
+    branches_url: "https://api.github.com/repos/Singularityszn/pubmax/branches{/branch}"
+    tags_url: "https://api.github.com/repos/Singularityszn/pubmax/tags"
+    blobs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/blobs{/sha}"
+    git_tags_url: "https://api.github.com/repos/Singularityszn/pubmax/git/tags{/sha}"
+    git_refs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/refs{/sha}"
+    trees_url: "https://api.github.com/repos/Singularityszn/pubmax/git/trees{/sha}"
+    statuses_url: "https://api.github.com/repos/Singularityszn/pubmax/statuses/{sha}"
+    languages_url: "https://api.github.com/repos/Singularityszn/pubmax/languages"
+    stargazers_url: "https://api.github.com/repos/Singularityszn/pubmax/stargazers"
+    contributors_url: "https://api.github.com/repos/Singularityszn/pubmax/contributors"
+    subscribers_url: "https://api.github.com/repos/Singularityszn/pubmax/subscribers"
+    subscription_url: "https://api.github.com/repos/Singularityszn/pubmax/subscription"
+    commits_url: "https://api.github.com/repos/Singularityszn/pubmax/commits{/sha}"
+    git_commits_url: "https://api.github.com/repos/Singularityszn/pubmax/git/commits{/sha}"
+    comments_url: "https://api.github.com/repos/Singularityszn/pubmax/comments{/number}"
+    issue_comment_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/comments{/number}"
+    contents_url: "https://api.github.com/repos/Singularityszn/pubmax/contents/{+path}"
+    compare_url: "https://api.github.com/repos/Singularityszn/pubmax/compare/{base}...{head}"
+    merges_url: "https://api.github.com/repos/Singularityszn/pubmax/merges"
+    archive_url: "https://api.github.com/repos/Singularityszn/pubmax/{archive_format}{/ref}"
+    downloads_url: "https://api.github.com/repos/Singularityszn/pubmax/downloads"
+    issues_url: "https://api.github.com/repos/Singularityszn/pubmax/issues{/number}"
+    pulls_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls{/number}"
+    milestones_url: "https://api.github.com/repos/Singularityszn/pubmax/milestones{/number}"
+    notifications_url: "https://api.github.com/repos/Singularityszn/pubmax/notifications{?since,all,participating}"
+    labels_url: "https://api.github.com/repos/Singularityszn/pubmax/labels{/name}"
+    releases_url: "https://api.github.com/repos/Singularityszn/pubmax/releases{/id}"
+    deployments_url: "https://api.github.com/repos/Singularityszn/pubmax/deployments"
+    created_at: "2026-07-03T23:49:17Z"
+    updated_at: "2026-10-10T23:02:15Z"
+    pushed_at: "2026-10-11T00:01:51Z"
+    git_url: "git://github.com/Singularityszn/pubmax.git"
+    ssh_url: "git@github.com:Singularityszn/pubmax.git"
+    clone_url: "https://github.com/Singularityszn/pubmax.git"
+    svn_url: "https://github.com/Singularityszn/pubmax"
+    homepage: "https://pubmaxxing.com"
+    size: 1390621
+    stargazers_count: 0
+    watchers_count: 0
+    language: TypeScript
+    has_issues: true
+    has_projects: true
+    has_downloads: false
+    has_wiki: false
+    has_pages: false
+    has_discussions: false
+    forks_count: 0
+    mirror_url: null
+    archived: false
+    disabled: false
+    open_issues_count: 36
+    license: null
+    allow_forking: true
+    is_template: false
+    web_commit_signoff_required: false
+    has_pull_requests: true
+    pull_request_creation_policy: all
+    topics: []
+    visibility: public
+    forks: 0
+    open_issues: 36
+    watchers: 0
+    default_branch: main
+_links:
+  self:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084"
+  html:
+    href: "https://github.com/Singularityszn/pubmax/pull/2084"
+  issue:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/issues/2084"
+  comments:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/issues/2084/comments"
+  review_comments:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084/comments"
+  review_comment:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/pulls/comments{/number}"
+  commits:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084/commits"
+  statuses:
+    href: "https://api.github.com/repos/Singularityszn/pubmax/statuses/e1f6a99f2e7d8854b3021c67428b171ff66f2aaf"
+author_association: MEMBER
+auto_merge: null
+assignee: null
+active_lock_reason: null
+merged: false
+mergeable: true
+rebaseable: true
+mergeable_state: unstable
+merged_by: null
+comments: 4
+review_comments: 0
+maintainer_can_modify: false
+commits: 2
+additions: 20901
+deletions: 4711
+changed_files: 15

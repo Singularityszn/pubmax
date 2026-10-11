@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { CATEGORY_META, MAP_LENS_DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 
 import {
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
   COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
 } from "./helpers/communitySheetFixture";
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 /**
  * ONE PRICE DOOR PER TRUST STATE, on the venue Overview at 390 (captain's rule
@@ -151,6 +153,220 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
 });
+
+test("keeps the price neutral until the selected pub's drops answer", async ({ page }) => {
+  let releaseRead: () => void = () => {};
+  const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  await page.route("**/api/pint-drops**", async (route) => {
+    const selected = new URL(route.request().url()).searchParams.get("venueId") === HATTON;
+    if (selected) await heldRead;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ drops: selected ? [row({ priceGbp: 4.7 })] : [] }),
+    });
+  });
+  try {
+    await page.goto(`/map?sel=${HATTON}`);
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await expect(sheet).toBeVisible({ timeout: 30_000 });
+    const peek = sheet.locator(".mobileVenuePeekSummary");
+    await expect(peek).toContainText("Checking prices", { timeout: 10_000 });
+    await expect(peek).not.toContainText(/est\.|No price yet/);
+    await expect(sheet.locator(".venueInspector")).not.toContainText(/est\. £/);
+    releaseRead();
+    await expect(peek).toContainText("£4.70", { timeout: 20_000 });
+    await expect(peek).not.toContainText("Checking prices");
+  } finally {
+    releaseRead();
+  }
+});
+
+test("city-wide confirmed pint stays visible while selected venue details load", async ({ page }) => {
+  await installDeterministicMapBasemap(page);
+  let detailRequested = false;
+  let detailSettled = false;
+  let releaseRead: () => void = () => {};
+  const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  const confirmedDrops = STATES.confirmed.drops.map((drop) => ({ ...drop, priceGbp: 4.7 }));
+  await page.route("**/api/pint-drops**", async (route) => {
+    const venueId = new URL(route.request().url()).searchParams.get("venueId");
+    if (venueId === HATTON) await heldRead;
+    await route.fulfill({ json: { drops: !venueId || venueId === HATTON ? confirmedDrops : [] } });
+  });
+  await page.route(`**/api/venue/${HATTON}*`, async (route) => {
+    detailRequested = true;
+    await heldRead;
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    const payload = await response.json();
+    await route.fulfill({ json: {
+      ...payload,
+      venue: {
+        ...payload.venue, prices: [], cheapestPrice: null, cheapestPint: "", averagePrice: null,
+        sourcedPrice: null, bundlePrices: {},
+      },
+    } });
+    detailSettled = true;
+  });
+  try {
+    const cityDrops = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/pint-drops" && !url.searchParams.has("venueId");
+    });
+    await page.goto("/map");
+    await cityDrops;
+    const searchButton = page.getByRole("button", { name: "Search the map", exact: true });
+    await expect(async () => {
+      await searchButton.click();
+      await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.getByRole("combobox", { name: "Search pubs" }).fill(COMMUNITY_SHEET_FIXTURE_VENUE_NAME);
+    const option = page.getByRole("listbox", { name: "Search suggestions" })
+      .getByRole("option", { name: new RegExp(COMMUNITY_SHEET_FIXTURE_VENUE_NAME) }).first();
+    await expect(option).toBeVisible({ timeout: 30_000 });
+    await option.click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(HATTON);
+    await expect.poll(() => detailRequested).toBe(true);
+    const peek = page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary');
+    await expect(peek).toBeVisible({ timeout: 30_000 });
+    await expect(peek).toContainText("£4.70");
+    await expect(peek).toContainText("current recorded price");
+    await expect(peek.locator('[data-pint-trust="confirmed"]')).toBeVisible();
+    await expect(peek).not.toContainText(/Checking prices|No price yet|est\./);
+    expect(detailSettled).toBe(false);
+    releaseRead();
+    await expect.poll(() => detailSettled).toBe(true);
+    await expect(peek).toContainText("£4.70");
+    await expect(peek.locator('[data-pint-trust="confirmed"]')).toBeVisible();
+    await expect(peek).not.toContainText("Checking prices");
+  } finally {
+    releaseRead();
+  }
+});
+
+const RESELECTED_PRICE_CASES: Array<{
+  name: string;
+  query: string;
+  category: DrinkCategory;
+  shown: "category" | "pint" | "unknown";
+}> = [
+  ...MAP_LENS_DRINK_CATEGORIES.filter((category) => category !== "beer").map((category) => ({
+    name: category, query: `drink=${category}`, category, shown: "category" as const,
+  })),
+  { name: "no-alcohol with alcohol-free", query: "experience=no-alcohol", category: "alcohol-free", shown: "category" },
+  { name: "no-alcohol with soft drink", query: "experience=no-alcohol", category: "soft-drink", shown: "category" },
+  { name: "missing wine", query: "drink=wine", category: "wine", shown: "unknown" },
+  { name: "pint", query: "", category: "wine", shown: "pint" },
+];
+
+for (const fixture of RESELECTED_PRICE_CASES) {
+  test(`reselected mobile summary preserves ${fixture.name} while pint prices refresh`, async ({ page }) => {
+    await installDeterministicMapBasemap(page);
+    let targetReads = 0;
+    let releaseRead: () => void = () => {};
+    const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+    const submittedAt = Date.now() - DAY_MS;
+    const prices = fixture.shown === "unknown" ? [] : [{
+      venueId: HATTON, drinkCategory: fixture.category, priceGbp: 6,
+      submittedAt, source: "community", corroborations: 2,
+    }];
+    await page.route("**/api/price-submit**", async (route) => {
+      const venueId = new URL(route.request().url()).searchParams.get("venueId");
+      await route.fulfill({ json: {
+        prices: venueId && venueId !== HATTON ? [] : prices, signals: [], truncated: false,
+      } });
+    });
+    await page.route(`**/api/venue/${HATTON}*`, async (route) => {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      const payload = await response.json();
+      await route.fulfill({ json: {
+        ...payload,
+        venue: {
+          ...payload.venue, prices: [], cheapestPrice: null, cheapestPint: "", averagePrice: null,
+          sourcedPrice: null, latestContributorPrice: null,
+          bundlePrices: { estimate: {
+            priceGbp: 6.5, computedAt: new Date(submittedAt).toISOString(),
+            basis: "regional_baseline:camden", sampleSize: 8,
+          } },
+        },
+      } });
+    });
+    await page.route("**/api/pint-drops**", async (route) => {
+      const selected = new URL(route.request().url()).searchParams.get("venueId") === HATTON;
+      if (selected) targetReads += 1;
+      const renewed = selected && targetReads > 1;
+      if (renewed) await heldRead;
+      await route.fulfill({ json: { drops: renewed ? [row({ priceGbp: 4.7 })] : [] } });
+    });
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const peek = sheet.locator(".mobileVenuePeekSummary");
+    const expectLensEvidence = async () => {
+      await expect(peek).not.toContainText("Checking prices");
+      if (fixture.shown === "category") {
+        await expect(peek).toContainText("£6.00");
+        await expect(peek).toContainText(CATEGORY_META[fixture.category].label);
+        await expect(peek).not.toContainText(/£6\.50|£4\.70/);
+      } else {
+        await expect(peek).toContainText("Unknown");
+        await expect(peek).toContainText("no wine price logged");
+        await expect(peek).not.toContainText(/£6\.00|£6\.50|£4\.70/);
+      }
+    };
+    const selectThroughSearch = async (name: string, id: string) => {
+      await sheet.getByRole("button", { name: /^Close (?:(?:pub|venue) detail|and return to the map)$/ }).click();
+      await expect(sheet).toBeHidden();
+      await page.getByRole("button", { name: "Search the map", exact: true }).click();
+      const search = page.getByRole("combobox", { name: "Search pubs" });
+      await expect(search).toBeVisible();
+      await search.fill(name);
+      const option = page.getByRole("listbox", { name: "Search suggestions" })
+        .getByRole("option", { name: new RegExp(name) }).first();
+      await expect(option).toBeVisible({ timeout: 30_000 });
+      await option.click();
+      await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(id);
+      await expect(peek).toBeVisible();
+    };
+    try {
+      const initialRead = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/pint-drops" && url.searchParams.get("venueId") === HATTON;
+      });
+      await page.goto(`/map?sel=${HATTON}&${fixture.query}`);
+      await initialRead;
+      await expect(peek).toBeVisible({ timeout: 30_000 });
+      if (fixture.shown === "pint") await expect(peek).toContainText("£6.50");
+      else await expectLensEvidence();
+      const otherRead = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/pint-drops" && url.searchParams.get("venueId") === "venue-1vle947";
+      });
+      await selectThroughSearch("Sir Christopher Hatton", "venue-1vle947");
+      await otherRead;
+      await selectThroughSearch(COMMUNITY_SHEET_FIXTURE_VENUE_NAME, HATTON);
+      await expect.poll(() => targetReads).toBe(2);
+      if (fixture.shown === "pint") {
+        await expect(peek).toContainText("Checking prices");
+        await expect(peek).not.toContainText(/£6\.50|£6\.00|£4\.70/);
+      } else await expectLensEvidence();
+      const renewedRead = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/pint-drops" && url.searchParams.get("venueId") === HATTON;
+      });
+      releaseRead();
+      await renewedRead;
+      if (fixture.shown === "pint") {
+        await expect(peek).toContainText("£4.70");
+        await expect(peek).not.toContainText(/Checking prices|£6\.50/);
+      } else await expectLensEvidence();
+    } finally {
+      releaseRead();
+      // Finish in-flight fixture reads before the context disposes their responses.
+      await page.unrouteAll({ behavior: "wait" });
+    }
+  });
+}
 
 for (const state of Object.keys(STATES) as StateName[]) {
   test(`${state}: exactly one price door, the composer folded, nothing retired on screen`, async ({

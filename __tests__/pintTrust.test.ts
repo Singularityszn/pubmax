@@ -522,6 +522,7 @@ describe("the regression fence in source", () => {
     expect(read("components/map/inspector/VenueOverviewTab.tsx")).toContain("trustChipStateFor(lane, priceStanding.standing)");
     expect(read("lib/pubMap.ts")).toContain("trustChipStateFor(lane,");
     expect(read("components/map/canvas/geojson.ts")).toContain("pintTrustPinStanding(signals?.pintTrust)");
-    expect(read("components/PubMap.tsx")).toContain("data-pint-trust={peekPrice.trust ?? undefined}");
+    expect(read("components/PubMap.tsx")).toMatch(/<VenuePeekPintPrice[\s\S]*?pintTrust=\{peekDropSignal\?\.pintTrust \?\? null\}/);
+    expect(read("components/map/VenuePeekPintPrice.tsx")).toContain("data-pint-trust={price.trust ?? undefined}");
   });
 });

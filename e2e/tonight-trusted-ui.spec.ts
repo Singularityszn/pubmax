@@ -262,3 +262,39 @@ test.describe("Discover secondary lanes still self-fetch", () => {
     expect(urls.some((u) => u.includes("kind=deal"))).toBe(true);
   });
 });
+
+
+test("the phone create action leaves pub recommendation text readable", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockWhatsOn(page);
+  for (const width of [390, 320, 430]) {
+    await page.setViewportSize({ width, height: 626 });
+    await page.goto("/tonight");
+    await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+    await expect(page.locator(".createFab")).toBeVisible();
+    const coveredText = await page.evaluate(() => {
+      const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+      const covered: string[] = [];
+      for (const row of document.querySelectorAll(".tonightHypedRow")) {
+        const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (!node.textContent?.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          if ([...range.getClientRects()].some((rect) =>
+            rect.left < fab.right && rect.right > fab.left &&
+            rect.top < fab.bottom && rect.bottom > fab.top,
+          )) covered.push(node.textContent.trim());
+        }
+      }
+      return covered;
+    });
+    expect(coveredText, `Pub text covered at ${width}px`).toEqual([]);
+  }
+});

@@ -1,0 +1,17 @@
+<style>/* 20px checkbox with a 44px hit area, on the wrapper around the input */
+.checkbox-control {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.checkbox-control::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%; /* physical centering: direction-independent */
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+}
+</style><label for="done">Mark done</label><div class="checkbox-control"><input id="done" type="checkbox"></div>

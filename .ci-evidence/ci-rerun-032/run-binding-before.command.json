@@ -1,0 +1,16 @@
+{
+  "name": "run-binding-before",
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/runs/38097088260",
+    "--jq",
+    "[.id,.head_sha,.run_attempt,.status,.conclusion,.path,.event] | @tsv",
+    "--full"
+  ],
+  "startedAt": "2026-10-11T01:19:20.307116+00:00",
+  "completedAt": "2026-10-11T01:19:20.753655+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "8ba2f09a88de3d40cf2163bb84ec5497e4f6a5262052d031c0487f70c7441ddc",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

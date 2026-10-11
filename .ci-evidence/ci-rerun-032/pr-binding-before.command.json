@@ -1,0 +1,16 @@
+{
+  "name": "pr-binding-before",
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/pulls/2084",
+    "--jq",
+    "[.head.sha,.state,.draft,.merged,.merge_commit_sha,.base.sha] | @tsv",
+    "--full"
+  ],
+  "startedAt": "2026-10-11T01:19:19.339834+00:00",
+  "completedAt": "2026-10-11T01:19:20.306965+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "ab202146f95e78b48105c01ff5ddecceb61b95df84d81c4787a5f45f5fdd9916",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

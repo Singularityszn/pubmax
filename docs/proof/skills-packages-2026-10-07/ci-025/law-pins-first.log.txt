@@ -1,0 +1,337 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'playwright' test -c artifacts/ci-025/playwright.config.ts e2e/smoke.spec.ts e2e/admin-document-guard.spec.ts e2e/account-switch-identity.spec.ts e2e/plan-capability-recovery.spec.ts e2e/plan-held-acceptance.spec.ts e2e/map-surface-history.spec.ts e2e/surface-back-and-home.spec.ts e2e/mobile-map-chrome-fit.spec.ts e2e/visit-reports.spec.ts e2e/landing-find-my-pint.spec.ts e2e/out-tab.spec.ts --project=chromium --workers=1
+[WebServer] npm notice run pubmaxxing@0.1.0 start
+[WebServer] npm notice run node -e "const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\n\u2717 '+d+'/BUILD_ID is missing \u2014 there is no completed production build to serve.\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\n'), process.exit(1))" && next start --port 3497
+[WebServer] (node:10284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ▲ Next.js 16.4.0
+[WebServer] - Local:         http://localhost:3497
+[WebServer] - Network:       http://192.168.0.41:3497
+[WebServer] ✓ Ready in 50ms
+[WebServer] ✓ Running next.config.mjs took 140ms
+
+Running 112 tests using 1 worker
+
+(node:10323) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    1 [chromium] › e2e/account-switch-identity.spec.ts:96:7 › account switch on one device › a second account owns the device the moment it signs in (975ms)
+  ✓    2 [chromium] › e2e/account-switch-identity.spec.ts:152:7 › account switch on one device › a second account with no handle yet is never called by the first one's name (422ms)
+  ✓    3 [chromium] › e2e/account-switch-identity.spec.ts:183:7 › account switch on a desktop viewport › sign-out clears every device identity artifact (869ms)
+  ✓    4 [chromium] › e2e/account-switch-identity.spec.ts:225:7 › account switch on a desktop viewport › the desktop account menu follows the live session (879ms)
+  ✓    5 [chromium] › e2e/account-switch-identity.spec.ts:270:7 › switching between two accounts on one device › the device remembers both accounts, and each keeps its own token (516ms)
+  ✓    6 [chromium] › e2e/account-switch-identity.spec.ts:296:7 › switching between two accounts on one device › one tap swaps every artifact, and leaks nothing of the account left behind (1.4s)
+  ✓    7 [chromium] › e2e/account-switch-identity.spec.ts:375:7 › switching between two accounts on one device › a refused token leaves the account listed as needing sign-in (1.6s)
+  ✓    8 [chromium] › e2e/account-switch-identity.spec.ts:425:7 › switching between two accounts on one device › signing out of this account hands the device to the other one (852ms)
+  ✓    9 [chromium] › e2e/account-switch-identity.spec.ts:456:7 › switching between two accounts on one device › signing out of all accounts empties the device (812ms)
+  ✓   10 [chromium] › e2e/account-switch-identity.spec.ts:478:7 › switching between two accounts on one device › Add account opens the ordinary sign-in page with its form (1.2s)
+  ✓   11 [chromium] › e2e/account-switch-identity.spec.ts:499:7 › switching accounts on a phone › the signed-in card on /login is the same switcher (909ms)
+  ✓   12 [chromium] › e2e/account-switch-identity.spec.ts:533:7 › switching accounts on a phone › the way out is scoped on a phone too (852ms)
+  ✓   13 [chromium] › e2e/admin-document-guard.spec.ts:5:5 › anonymous GET /admin is a 401, and the moderator console never paints (244ms)
+  ✓   14 [chromium] › e2e/admin-document-guard.spec.ts:29:5 › a moderator session cookie opens /admin (229ms)
+  ✓   15 [chromium] › e2e/admin-document-guard.spec.ts:72:5 › token entry reloads /admin through the document guard (376ms)
+  ✓   16 [chromium] › e2e/admin-document-guard.spec.ts:87:5 › reported and hidden Pint Drop cards keep their evidence and distinct decisions (907ms)
+  ✓   17 [chromium] › e2e/landing-find-my-pint.spec.ts:36:5 › landing nav speaks the app's vocabulary and the footer keeps Social (243ms)
+  ✓   18 [chromium] › e2e/landing-find-my-pint.spec.ts:50:7 › landing hierarchy › keeps the near-me answer primary and the receipt door first in the quiet row (234ms)
+  ✓   19 [chromium] › e2e/landing-find-my-pint.spec.ts:80:7 › landing hierarchy › shows one real pub with its price, publisher, day and archive line, and asks Still £X? of it quietly (253ms)
+  ✓   20 [chromium] › e2e/landing-find-my-pint.spec.ts:120:7 › landing hierarchy › Still £X? lands on that pub with the Pint Drop composer already holding £X (1.2s)
+  ✓   21 [chromium] › e2e/landing-find-my-pint.spec.ts:149:9 › landing hierarchy › hero fills the viewport and the primary sits above the fold at 1440 (255ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":875,"ts":1791663266662}
+  ✓   22 [chromium] › e2e/landing-find-my-pint.spec.ts:149:9 › landing hierarchy › hero fills the viewport and the primary sits above the fold at 390 (252ms)
+  ✓   23 [chromium] › e2e/landing-find-my-pint.spec.ts:149:9 › landing hierarchy › hero fills the viewport and the primary sits above the fold at 320 (261ms)
+  ✓   24 [chromium] › e2e/landing-find-my-pint.spec.ts:200:7 › landing hierarchy › keeps the answer card Near me control clear of the compose action (243ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1304,"ts":1791663267493}
+  ✓   25 [chromium] › e2e/landing-find-my-pint.spec.ts:215:7 › landing hierarchy › reads the same order on a phone as on a desktop: kicker, heading, line, picture, primary, quiet row, pub, rail (246ms)
+  ✓   26 [chromium] › e2e/map-surface-history.spec.ts:88:7 › one Map surface history owner › venue to planner leaves exactly one desktop drawer (585ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":545,"ts":1791663268732}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":613,"ts":1791663268802}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":191,"ts":1791663268921}
+  ✓   27 [chromium] › e2e/map-surface-history.spec.ts:120:7 › one Map surface history owner › planner to venue leaves exactly one desktop drawer (875ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":938,"ts":1791663269579}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":807,"ts":1791663269704}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1046,"ts":1791663269777}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1135,"ts":1791663269778}
+  ✓   28 [chromium] › e2e/map-surface-history.spec.ts:134:7 › one Map surface history owner › clearing a restored query after closing its Venue does not reopen it (947ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663270302}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":744,"ts":1791663270496}
+  ✓   29 [chromium] › e2e/map-surface-history.spec.ts:199:7 › one Map surface history owner › loaded crawl browser Back restores populated planner (1.5s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":993,"ts":1791663271702}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":612,"ts":1791663271877}
+  ✓   30 [chromium] › e2e/map-surface-history.spec.ts:248:7 › one Map surface history owner › immediate Back after venue to planner transition keeps correct surface with real predecessor (874ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663272780}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1547,"ts":1791663272820}
+  ✓   31 [chromium] › e2e/map-surface-history.spec.ts:273:7 › one Map surface history owner › Escape restores populated planner from venue (572ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":324,"ts":1791663273104}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1176,"ts":1791663273448}
+  ✓   32 [chromium] › e2e/map-surface-history.spec.ts:299:7 › one Map surface history owner › phone fling-dismiss leaves venue sheet for Map (1.3s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":689,"ts":1791663274394}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1094,"ts":1791663276069}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/places","method":"GET","status":200,"durationMs":271,"ts":1791663276405}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":892,"ts":1791663276438}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":954,"ts":1791663277643}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1144,"ts":1791663277831}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":935,"ts":1791663277887}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":870,"ts":1791663277908}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":525,"ts":1791663278217}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1373,"ts":1791663278410}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":562,"ts":1791663278720}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663278773}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663278774}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663278802}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1236,"ts":1791663278929}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663279178}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791663279179}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663279200}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663279201}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":982,"ts":1791663279785}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":796,"ts":1791663279890}
+  ✓   33 [chromium] › e2e/map-surface-history.spec.ts:335:7 › one Map surface history owner › captures light and dark proof at required viewports (5.6s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":921,"ts":1791663280142}
+  ✓   34 [chromium] › e2e/out-tab.spec.ts:76:9 › out tab @320 › shows the Out tab, renders /out, and the create action reaches each row (1.1s)
+  ✓   35 [chromium] › e2e/out-tab.spec.ts:76:9 › out tab @390 › shows the Out tab, renders /out, and the create action reaches each row (981ms)
+  ✓   36 [chromium] › e2e/out-tab.spec.ts:76:9 › out tab @430 › shows the Out tab, renders /out, and the create action reaches each row (1.1s)
+  ✓   37 [chromium] › e2e/out-tab.spec.ts:188:5 › shows every sourced listing, matched or not, when GET /api/out is ready (252ms)
+  ✓   38 [chromium] › e2e/out-tab.spec.ts:266:7 › out supply honesty @390 › prints every row, keeps the map as the primary, and credits the provider (259ms)
+  ✓   39 [chromium] › e2e/out-tab.spec.ts:311:7 › out supply honesty @390 › leads a night with no confirmed pub matches with the honest line, then the rest (260ms)
+  ✓   40 [chromium] › e2e/out-tab.spec.ts:370:7 › out supply honesty @390 › keeps an unmatched mapped pub's listing and source link without claiming absence (242ms)
+  ✓   41 [chromium] › e2e/out-tab.spec.ts:417:7 › out supply honesty @390 › says the check could not run rather than calling the places unlisted (242ms)
+  ✓   42 [chromium] › e2e/out-tab.spec.ts:440:7 › out supply honesty @390 › keeps the honest empty state when the providers return nothing (237ms)
+  ✓   43 [chromium] › e2e/out-tab.spec.ts:487:5 › shows Open plans when one sendable plan exists (1.1s)
+  ✓   44 [chromium] › e2e/out-tab.spec.ts:542:5 › pairs a pub beside a gig, named on the row and linked to its pin (252ms)
+  ✓   45 [chromium] › e2e/out-tab.spec.ts:587:5 › starts each desktop listing group at the top of its grid row (248ms)
+  ✓   46 [chromium] › e2e/out-tab.spec.ts:636:5 › sets the desktop listing surface on the section title's own edge (265ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663286705}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":4,"ts":1791663286705}
+  ✓   47 [chromium] › e2e/out-tab.spec.ts:683:7 › out tab screenshots @390 › commits light and dark 390 frames (599ms)
+  -   48 [chromium] › e2e/plan-capability-recovery.spec.ts:111:7 › signed-in Plan capability recovery › a signed-in host who lost the capability cookie recovers it on the Plan page
+  ✓   49 [chromium] › e2e/plan-capability-recovery.spec.ts:168:7 › signed-in Plan capability recovery › a signed-out browser never spends a recovery write (21.4s)
+  ✓   50 [chromium] › e2e/plan-held-acceptance.spec.ts:35:5 › held pub shows one describe box, names the area, and release un-anchors while keeping the city (656ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663309911}
+  ✓   51 [chromium] › e2e/plan-held-acceptance.spec.ts:136:5 › Keep on Near then Make it Stop 1 shows one describe box and names the area (1.5s)
+  ✓   52 [chromium] › e2e/smoke.spec.ts:26:5 › landing / serves, shows hero + Demo honesty label + a direct map CTA (456ms)
+  ✓   53 [chromium] › e2e/smoke.spec.ts:53:5 › landing hero headline renders the display face at a deliberate (>=600) weight (239ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663311694}
+  ✓   54 [chromium] › e2e/smoke.spec.ts:75:5 › /map mounts the map region (canvas OR fallback) (317ms)
+  ✓   55 [chromium] › e2e/smoke.spec.ts:94:5 › /feed mounts the social feed scaffold without uncaught errors (235ms)
+  ✓   56 [chromium] › e2e/smoke.spec.ts:104:5 › /feed redirects to Social and renders its reachable boundary state (issue #36) (261ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1988,"ts":1791663312300}
+  ✓   57 [chromium] › e2e/smoke.spec.ts:123:5 › /bar-tab/[id] renders the venue Bar Tab for a real venue id (issue #36) (337ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663312872}
+  ✓   58 [chromium] › e2e/smoke.spec.ts:138:5 › /discover renders the cheap-pint leaderboard section (274ms)
+  ✓   59 [chromium] › e2e/smoke.spec.ts:147:5 › /pubs lists scraped pubs with drink card art (302ms)
+  ✓   60 [chromium] › e2e/smoke.spec.ts:164:5 › /u/[handle] renders a public profile for any handle without crashing (233ms)
+  ✓   61 [chromium] › e2e/smoke.spec.ts:174:5 › nav does not overflow at 390px — sign-in button never clips (GH #18) (241ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663313926}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":888,"ts":1791663315236}
+  ✓   62 [chromium] › e2e/smoke.spec.ts:215:5 › mobile map shell controls stay inside the coordinated chrome at 390px (2.2s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663316098}
+  ✘   63 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (376ms)
+(node:10869) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663316950}
+  ✘   64 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (retry #1) (524ms)
+(node:10887) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":1,"ts":1791663317808}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":0,"ts":1791663318783}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":727,"ts":1791663318969}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/places","method":"GET","status":200,"durationMs":242,"ts":1791663319635}
+  ✓   65 [chromium] › e2e/smoke.spec.ts:348:5 › mobile venue sheet reaches Train, holds no price action in the strip, and gates the one price door (2.1s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663319913}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1183,"ts":1791663321529}
+  ✓   66 [chromium] › e2e/smoke.spec.ts:431:5 › theme toggle flips html[data-theme], persists to localStorage, survives reload (3.4s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663323293}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1056,"ts":1791663324769}
+  ✓   67 [chromium] › e2e/surface-back-and-home.spec.ts:96:7 › every surface offers a way back and a way home › the first sheet over the map has Home and no Back (2.2s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663325493}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791663327299}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663327299}
+  ✓   68 [chromium] › e2e/surface-back-and-home.spec.ts:106:7 › every surface offers a way back and a way home › a second sheet gains a Back that names where it goes (2.1s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663327565}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":2192,"ts":1791663328131}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":773,"ts":1791663328767}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663330071}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663330072}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663330207}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663330208}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663330209}
+  ✓   69 [chromium] › e2e/surface-back-and-home.spec.ts:118:7 › every surface offers a way back and a way home › Back steps to the parent, Home leaves from any depth (3.4s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663330943}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":543,"ts":1791663331915}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663332833}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663332834}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663332872}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663332873}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663332874}
+  ✓   70 [chromium] › e2e/surface-back-and-home.spec.ts:133:7 › every surface offers a way back and a way home › Back restores the section the reader left, not a default (2.4s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663333304}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":612,"ts":1791663334335}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663335567}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663335567}
+  ✓   71 [chromium] › e2e/surface-back-and-home.spec.ts:148:7 › every surface offers a way back and a way home › the browser's Back agrees with the Back arrow (2.6s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663335850}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1055,"ts":1791663337314}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663337325}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663337326}
+  ✓   72 [chromium] › e2e/surface-back-and-home.spec.ts:161:7 › every surface offers a way back and a way home › Escape is the keyboard's Back, one level at a time (1.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663337604}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663337757}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791663337758}
+  ✓   73 [chromium] › e2e/surface-back-and-home.spec.ts:177:7 › the desktop panels take the same pair › the venue drawer's way out is quiet, and the planner has one at all (426ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663338042}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":528,"ts":1791663339026}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":519,"ts":1791663339551}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/places","method":"GET","status":200,"durationMs":167,"ts":1791663339801}
+  ✓   74 [chromium] › e2e/visit-reports.spec.ts:23:5 › a signed-out visitor sees the account gate before visit-report fields mount (2.7s)
+(node:11038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663342607}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":2013,"ts":1791663346706}
+  ✓   75 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:84:5 › cold /map/london paints tappable pins within the pin-ready SLA (6.0s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663347374}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":538,"ts":1791663348309}
+mobile-map-chrome-layout 390px {"topbar":{"top":10,"right":378,"bottom":62,"left":12,"width":366,"height":52},"utility":{"top":74,"right":378,"bottom":118,"left":334,"width":44,"height":44},"locate":{"top":644,"right":378,"bottom":696,"left":326,"width":52,"height":52},"plan":{"top":710,"right":378,"bottom":758,"left":12,"width":366,"height":48},"barControls":[{"top":14,"right":80.625,"bottom":58,"left":25,"width":55.625,"height":44,"label":"Open PUBMAXX landing page"},{"top":14,"right":234,"bottom":58,"left":82.625,"width":151.375,"height":44,"label":"Map area: London. Change city"},{"top":14,"right":280,"bottom":58,"left":236,"width":44,"height":44,"label":"Search the map"},{"top":14,"right":326,"bottom":58,"left":282,"width":44,"height":44,"label":"Filters"},{"top":14,"right":372,"bottom":58,"left":328,"width":44,"height":44,"label":"More map controls"}],"chipRow":{"top":68,"right":378,"bottom":112,"left":12,"width":366,"height":44},"chipControls":[{"top":68,"right":97.46875,"bottom":112,"left":12,"width":85.46875,"height":44,"label":"Drink shown on the map: Pints. Choose another drink"},{"top":68,"right":251.21875,"bottom":112,"left":103.46875,"width":147.75,"height":44,"label":"On tonight: 1 listing"}],"areaLabel":{"top":30.234375,"right":130.875,"bottom":41.75,"left":88.625,"width":42.25,"height":11.515625,"clientWidth":42,"scrollWidth":42},"areaCaret":{"top":34,"right":140.875,"bottom":38,"left":134.875,"width":6,"height":4},"tonightChip":{"top":68,"right":251.21875,"bottom":112,"left":103.46875,"width":147.75,"height":44},"tonightLabel":{"top":82,"right":210.03125,"bottom":98,"left":140.46875,"width":69.5625,"height":16,"clientWidth":70,"scrollWidth":70},"tonightCount":{"top":80.40625,"right":236.21875,"bottom":99.59375,"left":217.03125,"width":19.1875,"height":19.1875},"barClientWidth":364,"barScrollWidth":364,"chipClientWidth":366,"chipScrollWidth":366,"documentClientWidth":390,"documentScrollWidth":390}
+  ✓   76 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:374:7 › 390px phone chrome is one bar sharing the shell boundary (1.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663349004}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":709,"ts":1791663350130}
+[WebServer] [pubmax-client-error] {"kind":"error","name":"TypeError","message":"navigator.geolocation.watchPosition is not a function","route":"/map","shell":"web","ts":"2026-10-10T20:15:50.972Z"}
+  ✓   77 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:592:7 › 390px phone map controls receive their own taps (4.5s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663353448}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":720,"ts":1791663354576}
+mobile-map-chrome-layout 430px {"topbar":{"top":10,"right":418,"bottom":62,"left":12,"width":406,"height":52},"utility":{"top":74,"right":418,"bottom":118,"left":374,"width":44,"height":44},"locate":{"top":732,"right":418,"bottom":784,"left":366,"width":52,"height":52},"plan":{"top":798,"right":418,"bottom":846,"left":12,"width":406,"height":48},"barControls":[{"top":14,"right":80.625,"bottom":58,"left":25,"width":55.625,"height":44,"label":"Open PUBMAXX landing page"},{"top":14,"right":274,"bottom":58,"left":82.625,"width":191.375,"height":44,"label":"Map area: London. Change city"},{"top":14,"right":320,"bottom":58,"left":276,"width":44,"height":44,"label":"Search the map"},{"top":14,"right":366,"bottom":58,"left":322,"width":44,"height":44,"label":"Filters"},{"top":14,"right":412,"bottom":58,"left":368,"width":44,"height":44,"label":"More map controls"}],"chipRow":{"top":68,"right":418,"bottom":112,"left":12,"width":406,"height":44},"chipControls":[{"top":68,"right":97.46875,"bottom":112,"left":12,"width":85.46875,"height":44,"label":"Drink shown on the map: Pints. Choose another drink"},{"top":68,"right":251.21875,"bottom":112,"left":103.46875,"width":147.75,"height":44,"label":"On tonight: 1 listing"}],"areaLabel":{"top":30.234375,"right":130.875,"bottom":41.75,"left":88.625,"width":42.25,"height":11.515625,"clientWidth":42,"scrollWidth":42},"areaCaret":{"top":34,"right":140.875,"bottom":38,"left":134.875,"width":6,"height":4},"tonightChip":{"top":68,"right":251.21875,"bottom":112,"left":103.46875,"width":147.75,"height":44},"tonightLabel":{"top":82,"right":210.03125,"bottom":98,"left":140.46875,"width":69.5625,"height":16,"clientWidth":70,"scrollWidth":70},"tonightCount":{"top":80.40625,"right":236.21875,"bottom":99.59375,"left":217.03125,"width":19.1875,"height":19.1875},"barClientWidth":404,"barScrollWidth":404,"chipClientWidth":406,"chipScrollWidth":406,"documentClientWidth":430,"documentScrollWidth":430}
+  ✓   78 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:374:7 › 430px phone chrome is one bar sharing the shell boundary (1.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663355585}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":598,"ts":1791663356583}
+[WebServer] [pubmax-client-error] {"kind":"error","name":"TypeError","message":"navigator.geolocation.watchPosition is not a function","route":"/map","shell":"web","ts":"2026-10-10T20:15:57.595Z"}
+  ✓   79 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:592:7 › 430px phone map controls receive their own taps (4.7s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663360036}
+mobile-map-chrome-layout 320px {"topbar":{"top":10,"right":308,"bottom":62,"left":12,"width":296,"height":52},"utility":{"top":74,"right":308,"bottom":118,"left":264,"width":44,"height":44},"locate":{"top":368,"right":308,"bottom":420,"left":256,"width":52,"height":52},"plan":{"top":434,"right":308,"bottom":482,"left":12,"width":296,"height":48},"barControls":[{"top":0,"right":0,"bottom":0,"left":0,"width":0,"height":0,"label":"Open PUBMAXX landing page"},{"top":14,"right":164,"bottom":58,"left":25,"width":139,"height":44,"label":"Map area: London. Change city"},{"top":14,"right":210,"bottom":58,"left":166,"width":44,"height":44,"label":"Search the map"},{"top":14,"right":256,"bottom":58,"left":212,"width":44,"height":44,"label":"Filters"},{"top":14,"right":302,"bottom":58,"left":258,"width":44,"height":44,"label":"More map controls"}],"chipRow":{"top":68,"right":308,"bottom":112,"left":12,"width":296,"height":44},"chipControls":[{"top":68,"right":97.46875,"bottom":112,"left":12,"width":85.46875,"height":44,"label":"Drink shown on the map: Pints. Choose another drink"},{"top":68,"right":251.21875,"bottom":112,"left":103.46875,"width":147.75,"height":44,"label":"On tonight: 1 listing"}],"areaLabel":{"top":30.234375,"right":73.25,"bottom":41.75,"left":31,"width":42.25,"height":11.515625,"clientWidth":42,"scrollWidth":42},"areaCaret":{"top":34,"right":83.25,"bottom":38,"left":77.25,"width":6,"height":4},"tonightChip":{"top":68,"right":251.21875,"bottom":112,"left":103.46875,"width":147.75,"height":44},"tonightLabel":{"top":82,"right":210.03125,"bottom":98,"left":140.46875,"width":69.5625,"height":16,"clientWidth":70,"scrollWidth":70},"tonightCount":{"top":80.40625,"right":236.21875,"bottom":99.59375,"left":217.03125,"width":19.1875,"height":19.1875},"barClientWidth":294,"barScrollWidth":294,"chipClientWidth":296,"chipScrollWidth":296,"documentClientWidth":320,"documentScrollWidth":320}
+  ✓   80 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:374:7 › 320px phone chrome is one bar sharing the shell boundary (1.2s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663361217}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1138,"ts":1791663361569}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":559,"ts":1791663362201}
+[WebServer] [pubmax-client-error] {"kind":"error","name":"TypeError","message":"navigator.geolocation.watchPosition is not a function","route":"/map","shell":"web","ts":"2026-10-10T20:16:03.174Z"}
+  ✓   81 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:592:7 › 320px phone map controls receive their own taps (4.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663365972}
+[WebServer] [pubmax-client-error] {"kind":"error","name":"TypeError","message":"navigator.geolocation.watchPosition is not a function","route":"/map","shell":"web","ts":"2026-10-10T20:16:07.594Z"}
+  ✓   82 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:683:5 › 320px keeps the whole place name and the map-edge lane tappable (2.1s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663367999}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":2437,"ts":1791663368815}
+  ✓   83 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:770:5 › 320px limited map keeps its topbar and city menu inside the viewport (1.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663369803}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":832,"ts":1791663371063}
+  ✓   84 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:810:5 › 390px recorded map journey reaches Filters and a painted pin (7.5s)
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":943,"ts":1791663377300}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663377330}
+  ✓   85 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:980:7 › 390px right-edge floating controls never overlap (2.2s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663379682}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":2021,"ts":1791663379766}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1233,"ts":1791663381314}
+  ✓   86 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:980:7 › 430px right-edge floating controls never overlap (2.2s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":1,"ts":1791663381700}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":632,"ts":1791663382763}
+  ✓   87 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:980:7 › 320px right-edge floating controls never overlap (2.2s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663384051}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":713,"ts":1791663385178}
+  ✓   88 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1068:7 › 390px the map credit owns its taps beside the Pub Pal pill (2.5s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663386361}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/places","method":"GET","status":200,"durationMs":10203,"ts":1791663387146}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1578,"ts":1791663388345}
+  ✓   89 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1068:7 › 430px the map credit owns its taps beside the Pub Pal pill (2.7s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663389097}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":882,"ts":1791663390409}
+  ✓   90 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1068:7 › 320px the map credit owns its taps beside the Pub Pal pill (2.4s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663391499}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":912,"ts":1791663392834}
+  ✓   91 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1196:7 › 641px desktop credit and Share keep their hits (2.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663394296}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":341,"ts":1791663395242}
+  ✓   92 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1196:7 › 1440px desktop credit and Share keep their hits (2.6s)
+  ✓   93 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1236:11 › story and credit placement › 390px story and credit stay clear with consent answered (3.1s)
+  ✓   94 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1236:11 › story and credit placement › 390px story and credit stay clear with consent visible (2.3s)
+  ✓   95 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1236:11 › story and credit placement › 430px story and credit stay clear with consent answered (2.6s)
+  ✓   96 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1236:11 › story and credit placement › 430px story and credit stay clear with consent visible (2.2s)
+  ✓   97 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1236:11 › story and credit placement › 320px story and credit stay clear with consent answered (2.5s)
+  ✓   98 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1236:11 › story and credit placement › 320px story and credit stay clear with consent visible (3.1s)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663412822}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791663412823}
+  ✓   99 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1350:7 › 390px consent choices stay reachable in the default berth (549ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663413353}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791663413354}
+  ✓  100 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1350:7 › 430px consent choices stay reachable in the default berth (506ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663413837}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791663413837}
+  ✓  101 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1350:7 › 320px consent choices stay reachable in the default berth (435ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663414146}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791663414147}
+  ✓  102 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1466:7 › 390px the create action is measured, and leaves the screen when hidden (314ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663414461}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791663414462}
+  ✓  103 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1466:7 › 430px the create action is measured, and leaves the screen when hidden (295ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791663414758}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":0,"ts":1791663414758}
+  ✓  104 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1466:7 › 320px the create action is measured, and leaves the screen when hidden (366ms)
+  ✓  105 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1580:7 › 390px /near prices stay clear of the create action (333ms)
+  ✓  106 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1580:7 › 430px /near prices stay clear of the create action (310ms)
+  ✓  107 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1580:7 › 320px /near prices stay clear of the create action (307ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":1,"ts":1791663416310}
+  ✓  108 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1635:7 › 390px phone chrome leads with Tonight, never Social (2.0s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663418103}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1597,"ts":1791663418310}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":630,"ts":1791663419145}
+  ✓  109 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1635:7 › 430px phone chrome leads with Tonight, never Social (1.6s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663419700}
+  ✓  110 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1635:7 › 320px phone chrome leads with Tonight, never Social (1.1s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":778,"ts":1791663420882}
+  ✓  111 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1657:7 › 390px tab highlight stays inside the dock pill (330ms)
+  ✓  112 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1657:7 › 430px tab highlight stays inside the dock pill (257ms)
+  ✓  113 [chromium] › e2e/mobile-map-chrome-fit.spec.ts:1657:7 › 320px tab highlight stays inside the dock pill (267ms)
+
+
+  1) [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px 
+
+    Error: expect(received).toBeLessThan(expected)
+
+    Expected: < 788
+    Received:   838
+
+      339 |   expect(navBox!.x).toBeGreaterThanOrEqual(0);
+      340 |   expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
+    > 341 |   expect(closeBox!.y + closeBox!.height).toBeLessThan(navBox!.y);
+          |                                          ^
+      342 |   expect(tabsBox!.y + tabsBox!.height).toBeLessThan(navBox!.y);
+      343 |
+      344 |   await closeButton.click();
+        at /Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/e2e/smoke.spec.ts:341:42
+
+    Error Context: artifacts/ci-025/test-results/smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(received).toBeLessThan(expected)
+
+    Expected: < 788
+    Received:   838
+
+      339 |   expect(navBox!.x).toBeGreaterThanOrEqual(0);
+      340 |   expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
+    > 341 |   expect(closeBox!.y + closeBox!.height).toBeLessThan(navBox!.y);
+          |                                          ^
+      342 |   expect(tabsBox!.y + tabsBox!.height).toBeLessThan(navBox!.y);
+      343 |
+      344 |   await closeButton.click();
+        at /Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/e2e/smoke.spec.ts:341:42
+
+    Error Context: artifacts/ci-025/test-results/smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium-retry1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/ci-025/test-results/smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium-retry1/trace.zip
+    Usage:
+
+        npx playwright show-trace artifacts/ci-025/test-results/smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium-retry1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px 
+  1 skipped
+  110 passed (2.9m)

@@ -17,6 +17,8 @@ import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 /**
  * The ONE line a provisional price prints. Captain decision 2026-09-04 (issue
@@ -25,6 +27,8 @@ import type { Venue } from "@/lib/venues";
  * of it would be a second policy.
  */
 export const PROVISIONAL_PRICE_LINE = "Logged once, needs a second drinker";
+
+export const PRICE_PENDING_LINE = "Checking prices…";
 
 /**
  * The ONE line an AGED report prints. Captain's cut 5 Sept 2026: a drop past
@@ -131,13 +135,23 @@ export type VenuePriceLane =
     }
   | { lane: "estimate"; estimate: EstimatedPriceInput };
 
+/** Hold an estimate or an absence until the pub's price reads settle. */
+export function venuePriceFallbackPending(
+  lane: VenuePriceLane | null,
+  priceReadStatus: VenuePriceReadStatus,
+  dropReadStatus: VenueDropReadStatus = "ready",
+): boolean {
+  if (lane && lane.lane !== "estimate") return false;
+  return priceReadStatus === "idle" || priceReadStatus === "loading" || dropReadStatus === "idle";
+}
+
 /**
- * Which price lane a venue's price area renders, or null when it has no price
- * on record at all and the first-drop nudge takes the space instead.
+ * Which price lane the supplied records support, or null when none does.
  *
- * A `null` answer is the ONE definition of "no price yet" this tree has. Every
- * surface that words that absence asks here, so none of them can go on saying
- * it over a pub whose lane has since started answering.
+ * A null lane alone does not establish absence while records are loading.
+ * `venuePriceFallbackPending` holds an empty or estimated fallback during
+ * those reads. The per-venue read policies also distinguish failed reads
+ * from successful empty reads.
  *
  * `sourcedPrice` is passed in rather than read off the venue because the
  * render component already holds it as a prop; both callers derive it the same

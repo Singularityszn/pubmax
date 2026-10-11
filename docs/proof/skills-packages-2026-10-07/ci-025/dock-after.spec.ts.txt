@@ -1,0 +1,51 @@
+import { test, expect } from '@playwright/test';
+test('capture streaming dock ownership', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    (window as any).dockStates = [];
+    const frame = window.requestAnimationFrame.bind(window);
+    const pending: FrameRequestCallback[] = [];
+    window.requestAnimationFrame = cb => { pending.push(cb); return pending.length; };
+    (window as any).releaseFrames = () => { window.requestAnimationFrame = frame; for (const cb of pending) frame(cb); }; 
+    let last = '';
+    const sample = () => {
+      const lists = [...document.querySelectorAll('.mobileTabList')].map(el => ({
+        html: el.outerHTML,
+        ancestors: [...function* () { for (let n = el.parentElement; n; n = n.parentElement) yield { tag: n.tagName, id: n.id, hidden: n.hidden, class: n.className }; }()],
+        box: el.getBoundingClientRect().toJSON(),
+      }));
+      const signature = JSON.stringify(lists.map(l => [l.ancestors, l.box]));
+      if (signature !== last) { (window as any).dockStates.push({ time: performance.now(), path: location.pathname, lists }); last = signature; }
+    };
+    new MutationObserver(sample).observe(document, { childList: true, subtree: true, attributes: true });
+  });
+  await page.goto('/you');
+  const primary = page.getByRole('navigation', { name: 'Primary', exact: true });
+  await expect(primary).toHaveCount(1);
+  const list = primary.locator('.mobileTabList');
+  await expect(list).toHaveCount(1);
+  await expect(list).toBeVisible();
+  await expect(list.locator('.mobileTabHighlight')).toHaveCount(1);
+  const fit = await list.evaluate(el => ({ list: el.getBoundingClientRect(), highlight: el.querySelector('.mobileTabHighlight')!.getBoundingClientRect() }));
+  expect(fit.highlight.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);
+  expect(fit.highlight.right).toBeLessThanOrEqual(fit.list.right + 0.5);
+  expect(fit.highlight.top).toBeGreaterThanOrEqual(fit.list.top - 0.5);
+  expect(fit.highlight.bottom).toBeLessThanOrEqual(fit.list.bottom + 0.5);
+  await expect(page.locator('.mobileTabList')).toHaveCount(2);
+  const streaming = await page.evaluate(() => ({ raw: document.querySelectorAll('.mobileTabList').length, hidden: [...document.querySelectorAll('.mobileTabList')].filter(el => el.closest('[hidden]')).length }));
+  expect(streaming).toEqual({ raw: 2, hidden: 1 });
+  await page.evaluate(() => (window as any).releaseFrames());
+  await expect(page.locator('.mobileTabList')).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Primary', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Primary', exact: true }).getByRole('link', { name: 'You', exact: true })).toHaveAttribute('aria-current', 'page');
+  const states = await page.evaluate(() => (window as any).dockStates);
+  await primary.getByRole('link', { name: 'Tonight', exact: true }).click();
+  await expect(primary.getByRole('link', { name: 'Tonight', exact: true })).toHaveAttribute('aria-current', 'page');
+  await primary.getByRole('link', { name: 'You', exact: true }).click();
+  await expect(page).toHaveURL(/\/u\/you$/);
+  await expect(primary.getByRole('link', { name: 'You', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(primary).toHaveCount(1);
+  await expect(list).toHaveCount(1);
+  console.log(JSON.stringify({ streaming, fit, states, hydratedNavigation: 'You -> Tonight -> You passed' }));
+});

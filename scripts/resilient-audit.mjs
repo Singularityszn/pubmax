@@ -29,7 +29,7 @@ const AUDIT_LEVELS = ["high", "critical"];
 //   - No patched braces exists: 3.0.3 is the latest release, so there is no
 //     version an `overrides` entry could pin.
 //   - micromatch 4.0.8 (latest) still depends on braces ^3.0.3, and
-//     @next/eslint-plugin-next 16.3.8 (latest) pins fast-glob 3.3.1.
+//     @next/eslint-plugin-next 16.4.0 pins fast-glob 3.3.1.
 //   - npm's suggested fix is eslint-config-next 14.2.35, a downgrade that
 //     does not match Next 16.
 //   REVISIT AND REMOVE THIS ENTRY when either lands:
