@@ -8,7 +8,7 @@ async function readPinSnapshot(page: Page) {
   return page.evaluate(() => {
     const current = window as typeof window & {
       __pubmaxPaintedMapTapPoints?: () => TapPoint[];
-      __pubmaxMapCamera?: { read: () => unknown };
+      __pubmaxMapCamera?: { read: () => { moving: boolean; settling: boolean } };
     };
     const pins = current.__pubmaxPaintedMapTapPoints?.()
       .filter((point) => point.kind === "pin") ?? [];
@@ -64,12 +64,18 @@ for (const width of [390, 900, 1440]) {
     const selectedHistoryLength = await page.evaluate(() => history.length);
     let previousHeading = await heading.textContent();
     const selectionHeadings = [previousHeading!];
+    let previousVenueIntentTime = -1;
     for (let selection = 0; selection < 2; selection += 1) {
       let next: TapPoint | undefined;
+      let acceptedVenueIntentTime = -1;
       await expect.poll(async () => {
         const snapshot = await readPinSnapshot(page);
         const candidates = snapshot.pins.filter((point) => !selections.includes(point.id));
-        next = candidates[0];
+        const latestVenueIntentTime = snapshot.venueIntentMarks.at(-1)?.startTime ?? -1;
+        const cameraReady = latestVenueIntentTime > previousVenueIntentTime &&
+          snapshot.camera?.moving === false && snapshot.camera.settling === false;
+        next = cameraReady ? candidates[0] : undefined;
+        if (next) acceptedVenueIntentTime = latestVenueIntentTime;
         testInfo.annotations.push({
           type: "pin-camera-snapshot",
           description: JSON.stringify({
@@ -77,13 +83,15 @@ for (const width of [390, 900, 1440]) {
             url: snapshot.url,
             camera: snapshot.camera,
             venueIntentMarks: snapshot.venueIntentMarks,
+            cameraReady,
             candidateCount: candidates.length,
             candidate: next ?? null,
           }),
         });
-        return candidates.length;
+        return cameraReady ? candidates.length : 0;
       }).toBeGreaterThan(0);
       if (!next) throw new Error("The successful pin snapshot did not contain a new venue.");
+      previousVenueIntentTime = acceptedVenueIntentTime;
       await page.mouse.click(next.x, next.y);
       await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(next.id);
       await expect(sheet).toBeVisible();

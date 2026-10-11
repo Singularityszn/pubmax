@@ -228,7 +228,6 @@ const nextConfig = {
     root: projectRoot,
   },
   experimental: {
-    cssChunking: { type: "graph", requestCost: 100000 },
     // Next's route-aware compiler API uses the TypeScript 6 `typescript` package.
     // npm run typecheck separately calls TypeScript 7's native CLI explicitly.
     useTypeScriptCli: false,
