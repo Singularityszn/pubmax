@@ -1,0 +1,14 @@
+{
+  "name": "tracked-status-before",
+  "argv": [
+    "git",
+    "status",
+    "--porcelain",
+    "--untracked-files=no"
+  ],
+  "startedAt": "2026-10-11T01:19:17.111161+00:00",
+  "completedAt": "2026-10-11T01:19:17.152636+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

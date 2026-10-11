@@ -53,6 +53,14 @@
   /* Member: the phone map's planning pill. */
   --plan-activation-h: 48px;
   --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
+  /* The bottom card keeps the pill's berth through every read state
+     (components/mobile/MapPeekSheet.tsx): an 8px frame, the answer row, a
+     4px gap, the pill, an 8px frame. The pill keeps its berth; the card only
+     adds what is above it. The answer row is in rem, 44px at the 16px root, so
+     a text size that grows the root grows the row once, and every berth that
+     reads --map-peek-h moves with it. */
+  --map-peek-row-h: 2.75rem;
+  --map-peek-h: calc(var(--map-peek-row-h) + 68px);
 
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom
@@ -109,6 +117,24 @@
 
 body {
   --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
+}
+
+/* With the bottom card on screen the stack's plan member is the CARD: its top
+   edge is the pill's berth less the card's 8px frame, plus the card's height.
+   The map-edge column clears it by the same 14px it cleared the bare pill. The
+   consent card takes the pill's slot and stands the bottom card down, so this
+   never applies beside it. */
+body:has(.mapStage):has(.mapPeek):not(:has(.analyticsConsentPrompt)) {
+  --float-stack-top-plan: calc(var(--plan-activation-bottom) - 8px + var(--map-peek-h));
+  --map-corner-bottom: calc(var(--float-stack-top-plan) + 14px);
+  --float-stack-top-map-corner: calc(var(--map-corner-bottom) + var(--map-corner-locate-size));
+}
+/* The Pub Pal pill parks above the card, and the column follows it, as it did
+   above the bare pill. */
+body:has(.mapStage):has(.mapPeek):has(.palSummon):not(:has(.analyticsConsentPrompt)) {
+  --float-stack-top-map-corner: calc(
+    var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
+  );
 }
 
 body:has(.mapStage) {

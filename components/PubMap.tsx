@@ -1,8 +1,8 @@
 "use client";
 
-import { CalendarClock, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
-import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -14,6 +14,7 @@ const PubPalMascot = dynamic(
 );
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
+import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
@@ -52,12 +53,9 @@ import {
 import {
   venueBundlePrices,
   venuePriceLane,
-  venuePriceFallbackPending,
-  PRICE_PENDING_LINE,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
-import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -97,7 +95,7 @@ import {
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
-import { UK_BOUNDS } from "@/components/map/canvas/tokens";
+import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
@@ -200,6 +198,7 @@ const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips")
   ssr: false,
 });
 const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
+const MapCredits = dynamic(() => import("@/components/map/MapCredits"), { ssr: false });
 const MapPriceFilterChips = dynamic(() => import("@/components/map/MapPriceFilterChips"), {
   ssr: false,
 });
@@ -613,6 +612,8 @@ import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
 import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
+import { buildTonightChip } from "@/lib/mapChromeTiers";
+import { buildMapPeek, type MapPeekModel } from "@/lib/mapPeek";
 import {
   filtersForCuratedCrawl,
   generatedMapDrinkLane,
@@ -654,7 +655,6 @@ import {
   nightAreaSlugOf,
   searchParamsQuery,
   searchParamValue,
-  peekPriceChip,
   settledBoundsFor,
   shouldResolveOpeningLocation as shouldResolveOpeningLocationFor,
   suggestedRouteWanted,
@@ -1137,6 +1137,65 @@ function useRememberedAreaInView(
   return !metAView || rememberedAreaNamesView(area, bounds, viewCenter, viewer);
 }
 
+/**
+ * The phone map's resting answer: the cheapest listed price among the venues in
+ * the settled view, ranked by the same stack as List view's cheapest sort.
+ * `ready` follows the projection landing for THIS city, so a map that has not
+ * said what it is showing claims nothing. The first-visit arrival card holds
+ * the same berth, so the peek steps aside while it shows, and the card is a
+ * phone surface, so a desktop map has none.
+ */
+function useMapPeek(
+  input: Omit<Parameters<typeof buildMapPeek>[0], "ready"> & {
+    cityId: CityId;
+    projection: { cityId: CityId } | null;
+    hidden: boolean;
+    phone: boolean;
+    unavailable: boolean;
+  },
+): MapPeekModel | null {
+  const { cityId, projection, hidden, phone, unavailable, venues, lensPrices, lensStatus, venueSignals, reader } = input;
+  const ready = projection?.cityId === cityId;
+  const peek = useMemo(
+    () => buildMapPeek({ ready, venues, lensPrices, lensStatus, venueSignals, reader }),
+    [lensPrices, lensStatus, reader, ready, venueSignals, venues],
+  );
+  return hidden || !phone ? null : unavailable ? { status: "unavailable" } : peek;
+}
+
+/**
+ * What's On is a lens on the night, one row down from the map: the chip that
+ * used to sit beside the drink lane is gone so the phone map rests on three
+ * layers. It heads the phone Filters sheet and opens the same Tonight sheet.
+ */
+function MobileMapTonightLens({
+  rowCount,
+  nearReader,
+  onOpen,
+}: {
+  rowCount: number;
+  nearReader: boolean;
+  onOpen: () => void;
+}) {
+  const tonightLens = buildTonightChip(rowCount, nearReader);
+  if (!tonightLens) return null;
+  return (
+    <button
+      type="button"
+      className="mobileMapTonightLens"
+      aria-label={tonightLens.ariaLabel}
+      onClick={onOpen}
+    >
+      <CalendarClock size={18} aria-hidden="true" />
+      <span className="mobileMapTonightLensText">
+        <strong>{tonightLens.label}</strong>
+        <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{nearReader ? " near you" : " in London"}</small>
+      </span>
+      <ChevronRight size={18} aria-hidden="true" className="mobileMapTonightLensChevron" />
+    </button>
+  );
+}
+
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
@@ -1397,7 +1456,7 @@ export default function PubMap({
   );
   // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
   // location hint the selecting tap wrote alongside sel when the link has one.
-  // The selection comes from the incoming URL. The hint is optional:
+  // The selection comes from the URL or a resume seed. The hint is optional:
   // without it the cold restore asks /api/uk-base/[id] and an id nothing knows
   // ends in the unknown-pub notice rather than a skeleton.
   const [ukBaseRestore] = useState(() =>
@@ -1919,6 +1978,7 @@ export default function PubMap({
   } | null>(null);
   const [renderedMapState, setRenderedMapState] =
     useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
+  const [basemapProvider, setBasemapProvider] = useState<BasemapProvider | null>(null);
   const handleRenderedMapStateChange = useCallback(
     (next: MapRenderedState) => {
       setRenderedMapState((current) =>
@@ -3278,6 +3338,18 @@ export default function PubMap({
       venueSignals,
     ],
   );
+  const mapPeek = useMapPeek({
+    cityId,
+    projection: visibleVenueState,
+    hidden: showMapArrivalCard || coffeePilotLensOn,
+    phone: mobileViewport,
+    unavailable: mapCanvasErrored || mapCanvasUnavailable,
+    venues: mapVenueListVenues,
+    lensPrices: activeLensPrices,
+    lensStatus: drinkIndexStatus,
+    venueSignals,
+    reader: userLocation,
+  });
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
   const [ukBaseStatus, setUkBaseStatus] =
     useState<UkBaseStreamStatus>("loading");
@@ -4909,24 +4981,27 @@ export default function PubMap({
     ukPlaces.length,
   ]);
   const limitedCoverageSearch = arrival.limitedCoverage;
-  const sharedMapSearchProps = {
-    cityId,
-    query: filters.query,
-    onQueryChange: changeMapSearchQuery,
-    venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
-    localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
-    places: ukPlaces,
-    includeLocalResults: !limitedCoverageSearch,
-    ukBasePubs: residentUkBasePubs,
-    userLocation,
-    mapCenter: mapViewport.center,
-    onSelectVenue: selectVenueFromSearch,
-    onSelectUkBasePub: selectUkBasePubFromSearch,
-    onSelectPlace: selectPlaceFromSearch,
-    onSelectCity: selectCityFromSearch,
-    onFlyToArea: selectSearchArea,
-    onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
-  } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
+  function mapSearchPropsForCoverage() {
+    return {
+      cityId,
+      query: filters.query,
+      onQueryChange: changeMapSearchQuery,
+      venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
+      localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
+      places: ukPlaces,
+      includeLocalResults: !limitedCoverageSearch,
+      ukBasePubs: residentUkBasePubs,
+      userLocation,
+      mapCenter: mapViewport.center,
+      onSelectVenue: selectVenueFromSearch,
+      onSelectUkBasePub: selectUkBasePubFromSearch,
+      onSelectPlace: selectPlaceFromSearch,
+      onSelectCity: selectCityFromSearch,
+      onFlyToArea: selectSearchArea,
+      onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
+    } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
+  }
+  const sharedMapSearchProps = mapSearchPropsForCoverage();
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
@@ -4990,6 +5065,13 @@ export default function PubMap({
     setSearchAreaTarget(null);
     setMapOverlay(next);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent, setPlanningOpen]);
+
+  // The bottom card's way into the list: it answers "cheapest in this view",
+  // so the list it opens leads with the same ranking.
+  const openVenueListFromPeek = useCallback(() => {
+    setMapListSortMode("cheapest");
+    setMapListOpen(true);
+  }, []);
 
   const openChooseArea = useCallback((locationNote?: string | null, openingFlow = false) => {
     setChooseAreaLocationNote(locationNote ?? null);
@@ -5781,23 +5863,9 @@ export default function PubMap({
       dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
-    const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
-    function isPeekPricePending() {
-      return selectedVenueIsPub && !selectedLensPrice && (
-        selectedDetailStatus === "loading" ||
-        venuePriceFallbackPending(
-          activeLensPrices === null ? peekLane : null,
-          communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle",
-          pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle",
-        )
-      );
-    }
-    const pricePending = isPeekPricePending();
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-        {pricePending ? (
-          <span role="status">{PRICE_PENDING_LINE}</span>
-        ) : activeLensPrices !== null ? (
+        {activeLensPrices !== null ? (
           <span>
             {selectedLensPrice ? (
               <PriceBadge
@@ -5820,41 +5888,19 @@ export default function PubMap({
                 )}
             </small>
           </span>
-        ) : peekPrice ? (
-          <span
-            data-pint-trust={peekPrice.trust ?? undefined}
-            data-venue-id={peekPrice.trust ? selectedVenue.id : undefined}
-          >
-            {/* The chip's colour is the figure's price BAND (lib/priceBand.ts),
-                whether observed or modelled; the trust state rides the data
-                attribute and the caption, never a hue. */}
-            {peekPrice.observed ? (
-              <PriceBadge band={priceBand(peekPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))}>
-                {peekPrice.figure}
-              </PriceBadge>
-            ) : (
-              /* NO PRICE BADGE. Nobody observed a modelled figure, so it may
-                 not wear the mark an observed price wears. */
-              <strong className={priceBandClass(priceBand(peekPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))) || undefined}>
-                {peekPrice.figure}
-              </strong>
-            )}
-            <small>{peekPrice.caption}</small>
-          </span>
-        ) : selectedVenueIsPub && !firstDropNudgeMayClaimAbsence(pintDrops.venueDropStatus.get(selectedVenue.id)) ? (
-          <span role="status">
-            <small>{DROP_READ_UNAVAILABLE_LINE}</small>
-          </span>
-        ) : selectedVenueIsPub ? (
-          <button
-            type="button"
-            className="mobileVenuePeekDrop"
-            onClick={openComposerForLog}
-          >
-            <strong>No price yet.</strong>
-            <small>Be the first →</small>
-          </button>
-        ) : null}
+        ) : (
+          <VenuePeekPintPrice
+            venueId={selectedVenue.id}
+            isPub={selectedVenueIsPub}
+            lane={peekLane}
+            bundle={peekBundle}
+            pintTrust={peekDropSignal?.pintTrust ?? null}
+            detailLoading={selectedDetailStatus === "loading"}
+            priceReadStatus={communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle"}
+            dropReadStatus={pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle"}
+            onLog={openComposerForLog}
+          />
+        )}
         <span>
           <strong
             className={
@@ -6061,6 +6107,7 @@ export default function PubMap({
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
+          <MapCredits provider={basemapProvider} />
         </TabsContent>
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
@@ -6167,6 +6214,13 @@ export default function PubMap({
   function renderMobileFiltersPanel() {
     return (
       <div className="mobileMapFilters">
+        {isLondon ? (
+          <MobileMapTonightLens
+            rowCount={whatsOnTonight.rows.length}
+            nearReader={userLocation != null}
+            onOpen={() => changeMapOverlay("tonight")}
+          />
+        ) : null}
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6322,9 +6376,8 @@ export default function PubMap({
         nearMeError={nearbyError}
         onDismissNearMeError={() => setNearbyError(null)}
         nearbyCount={nearbyMapResultForView?.venueIds.length ?? 0}
-        tonightCount={whatsOnTonight.rows.length}
-        tonightNearReader={userLocation != null}
         tflCount={tflStatus.issueCount}
+        tflUrgentCount={tflStatus.urgentCount}
         tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
         priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
         drinkFiltersActive={drinkFiltersActive}
@@ -6357,6 +6410,9 @@ export default function PubMap({
         venueListOpen={mapListOpen}
         bandNoticeOpen={showBandChip}
         onPlan={openPlanning}
+        peek={mapPeek}
+        onPeekOpenVenue={selectVenue}
+        onPeekOpenList={openVenueListFromPeek}
         searchProps={{
           ...sharedMapSearchProps,
           id: "mobileMapSearchInput",
@@ -6502,6 +6558,7 @@ export default function PubMap({
           loadedCityId === cityId &&
           visibleVenueState?.cityId === cityId
         }
+        mapUnavailable={mapCanvasErrored || mapCanvasUnavailable}
         onSelectVenue={selectVenue}
         onSelectUkBasePub={handleUkBasePubClick}
         onPrefetchVenue={prefetchVenueDetail}
@@ -6753,6 +6810,7 @@ export default function PubMap({
         initialLandmarkId={seed.landmarkId}
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
+        onBasemapProviderChange={setBasemapProvider}
         onMapConstructed={handleMapCanvasConstructed}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport

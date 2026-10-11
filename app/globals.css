@@ -2749,6 +2749,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     place-content: start center;
     padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
   }
+
+  /* Scrolling venue prices and links must clear the floating Create action. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallback {
+    padding-right: max(32px, var(--create-fab-lane));
+  }
 }
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
     margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 20px)));
@@ -5586,12 +5591,11 @@ button:disabled {
      notice used to clear the tab bar alone, so its Retry sat UNDER that bar:
      measured at 390, the button's own centre point was owned by
      BUTTON.mobilePlanActivation, and the control the copy tells a reader to tap
-     was not tappable. Read that member's own top edge rather than restating a
-     number, and reserve it whenever the bar is in the document. */
+     was not tappable. Read the plan member's published top edge rather than
+     restating a number: it is the bottom card's top while the card is up, and
+     the bare bar's top otherwise. */
   .mapSoftRetry {
-    bottom: calc(
-      var(--plan-activation-bottom) + var(--plan-activation-h) + 10px
-    );
+    bottom: calc(var(--float-stack-top-plan) + 10px);
   }
 
   /* The tab bar stays up beside an open planning/detail sheet, but the sheet

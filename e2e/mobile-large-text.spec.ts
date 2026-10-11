@@ -30,25 +30,17 @@ for (const scale of [1.3, 1.5, 2]) {
     await page.setViewportSize({ width: 412, height: 840 });
     await installNativeShell(page, "android");
     await page.route("**/api/citymcp/status", (route) => route.fulfill({
-      json: { signals: [{ headline: "Transport update", kind: "transport" }] },
-    }));
-    const observedAt = new Date().toISOString();
-    await page.route("**/api/whats-on**", (route) => route.fulfill({
       json: {
-        servedAt: new Date().toISOString(),
-        rows: [{
-          id: "large-text-quiz", venueId: "venue-xjf3n0", placeName: "The Arnos Arms",
-          kind: "quiz", title: "Pub quiz", startsAt: new Date(Date.now() + 3_600_000).toISOString(),
-          source: { label: "Question One", url: "https://questionone.com/" },
-          observedAt, confidence: "listed",
-        }],
-        asOf: observedAt, sourceObservedAt: observedAt, sourceFreshnessKind: "dataset-generated",
+        signals: [{ headline: "Transport update", kind: "transport" }],
+        // The map-edge badge counts only urgent tube lines (lib/mapChromeTiers.ts
+        // isUrgentTubeStatus); routine updates stay in the sheet.
+        tubeLines: [{ line: "Weaver", status: "Part Suspended" }],
       },
     }));
     await page.goto("/map");
     await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
-    const badges = page.locator(".mobileMapTonightChipCount, .mobileMapTflButton .mobileMapCornerBadge");
-    await expect(badges).toHaveCount(2);
+    const badges = page.locator(".mobileMapTflButton .mobileMapCornerBadge");
+    await expect(badges).toHaveCount(1);
     for (const badge of await badges.all()) await expect(badge).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     const geometry = await badges.evaluateAll((elements, fontScale) => elements.map((element) => {
@@ -114,6 +106,106 @@ for (const scale of [1.3, 1.5, 2]) {
       expect(geometry.body, `body width on ${route}`).toBeLessThanOrEqual(413);
     });
   }
+}
+
+// The bottom card grows with its text. Every size in it is rem, so Android's
+// text zoom, which grows the root, grows the card once, and the controls above
+// it follow --map-peek-h. The route checks above model that zoom the same way.
+// The iOS shell enlarges text through -webkit-text-size-adjust with the root
+// left at 16px, so the card does not grow there yet: that gap needs a native
+// iOS check and is not modelled here.
+for (const scale of [1.3, 1.5, 2]) {
+  test(`Android ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 840 });
+    await installNativeShell(page, "android");
+    const applyScale = (fontScale: number) => {
+      const root = document.documentElement;
+      root.setAttribute("data-text-scale", "large");
+      root.style.fontSize = `${fontScale * 100}%`;
+    };
+    await page.addInitScript(applyScale, scale);
+    await page.goto("/map");
+    const card = page.locator(".mapPeek");
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await page.evaluate(applyScale, scale);
+    await page.evaluate(() => document.fonts.ready);
+    // The tallest answer the card holds: a lens label wrapped under
+    // "Cheapest in this view", over the figure line with a walk.
+    const geometry = await card.evaluate((element) => {
+      const answer = element.querySelector<HTMLElement>(".mapPeekAnswer")!;
+      answer.innerHTML =
+        '<span class="mapPeekEyebrow"><span>Cheapest in this view</span><span class="mapPeekLabel">· Alcohol-free</span></span>' +
+        '<span class="mapPeekLine"><span class="mapPeekPrice">£12.00</span>' +
+        '<span class="mapPeekName">The Marquis of Granby</span><span class="mapPeekWalk">12 min walk</span></span>';
+      const rect = (selector: string) => {
+        const found = document.querySelector<HTMLElement>(selector);
+        if (!found || getComputedStyle(found).visibility === "hidden") return null;
+        const box = found.getBoundingClientRect();
+        return box.width > 0 && box.height > 0
+          ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height }
+          : null;
+      };
+      const textBox = (found: HTMLElement) => {
+        const range = document.createRange();
+        range.selectNodeContents(found);
+        const box = range.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom };
+      };
+      // A text range ends at the font's whole descent below the baseline,
+      // which a 1rem line box never holds; what paints is the glyphs' own ink.
+      const context = document.createElement("canvas").getContext("2d")!;
+      const inkBottom = (found: HTMLElement) => {
+        const style = getComputedStyle(found);
+        context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const metrics = context.measureText(found.textContent ?? "");
+        return textBox(found).bottom - metrics.fontBoundingBoxDescent + metrics.actualBoundingBoxDescent;
+      };
+      const eyebrow = answer.querySelector<HTMLElement>(".mapPeekEyebrow")!;
+      const line = answer.querySelector<HTMLElement>(".mapPeekLine")!;
+      const price = answer.querySelector<HTMLElement>(".mapPeekPrice")!;
+      return {
+        root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        figureFont: parseFloat(getComputedStyle(price).fontSize),
+        card: rect(".mapPeek")!,
+        answer: rect(".mapPeekAnswer")!,
+        door: rect(".mapPeek .mobilePlanActivation"),
+        contentTop: eyebrow.getBoundingClientRect().top,
+        contentBottom: line.getBoundingClientRect().bottom,
+        eyebrowLines: Math.round(
+          eyebrow.getBoundingClientRect().height / parseFloat(getComputedStyle(eyebrow).lineHeight),
+        ),
+        labelText: textBox(answer.querySelector<HTMLElement>(".mapPeekLabel")!),
+        figureInk: Math.max(
+          ...[price, ...answer.querySelectorAll<HTMLElement>(".mapPeekName, .mapPeekWalk")].map(inkBottom),
+        ),
+        lineTop: line.getBoundingClientRect().top,
+        nearMe: rect(".mobileMapLocateFab"),
+        create: rect(".createFab"),
+      };
+    });
+    expect(geometry.root, "the root grows with the text").toBeCloseTo(16 * scale);
+    expect(geometry.figureFont, "the figure's text is enlarged").toBeCloseTo(16 * scale);
+    // 68px of frame, gap and door, and an answer row of 44px at the scale.
+    expect(geometry.card.height).toBeCloseTo(68 + 44 * scale, 0);
+    expect(geometry.answer.height).toBeCloseTo(44 * scale, 0);
+    expect(geometry.eyebrowLines, "the eyebrow is at most two lines").toBeLessThanOrEqual(2);
+    expect(geometry.labelText.bottom, "the label's text never runs into the figure line").toBeLessThanOrEqual(geometry.lineTop + 1);
+    expect(geometry.contentTop, "the eyebrow stays inside the answer row").toBeGreaterThanOrEqual(geometry.answer.top - 1);
+    expect(geometry.contentBottom, "the figure line stays inside the answer row").toBeLessThanOrEqual(geometry.answer.bottom + 1);
+    expect(geometry.door, "the plan door rides in the card").not.toBeNull();
+    expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
+    expect(geometry.figureInk, "the figure line's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
+    expect(geometry.nearMe, "Near me is painted").not.toBeNull();
+    expect(geometry.create, "the Create action is painted").not.toBeNull();
+    for (const [name, other] of [["Near me", geometry.nearMe!], ["Create", geometry.create!]] as const) {
+      const overlap =
+        geometry.card.left < other.right &&
+        other.left < geometry.card.right &&
+        geometry.card.top < other.bottom &&
+        other.top < geometry.card.bottom;
+      expect(overlap, `the grown card clears ${name}: ${JSON.stringify([geometry.card, other])}`).toBe(false);
+    }
+  });
 }
 
 for (const scale of [1.3, 1.5, 2]) {

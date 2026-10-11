@@ -1,4 +1,15 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import BoroughPage from "@/app/borough/[slug]/page";
+import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import type { CommunityPrice } from "@/lib/communityPrice";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
 import {
@@ -14,6 +25,24 @@ import {
 } from "@/lib/venuePriceLane";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
+
+const boroughData = vi.hoisted(() => ({ venues: [] as Venue[] }));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/lib/pintPriceLandingDataset.server", () => ({
+  loadPintPriceLandingVenues: async () => boroughData.venues,
+}));
+vi.mock("@/lib/historic", () => ({ loadHistoricPubs: async () => [] }));
+vi.mock("@/lib/areaNews.server", () => ({
+  loadAreaNews: async () => ({ status: "ready", version: 1, generatedAt: "", entries: [] }),
+}));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: null, handle: null, identityResolved: true, loading: false, configured: false,
+  }),
+}));
 
 describe("a pub's price while its reads settle", () => {
   const estimate: VenuePriceLane = {
@@ -447,5 +476,89 @@ describe("the provisional lane", () => {
 
   it("owns the one line, and nothing else writes those words", () => {
     expect(PROVISIONAL_PRICE_LINE).toBe("Logged once, needs a second drinker");
+  });
+});
+
+describe("the borough price cell", () => {
+  const listed = {
+    priceGbp: 5.4,
+    sourceUrl: "https://pub.example/menu",
+    observedAt: new Date().toISOString(),
+  };
+  const estimate = {
+    priceGbp: 6.1,
+    basis: "regional_baseline:camden",
+    sampleSize: 42,
+    computedAt: new Date().toISOString(),
+  };
+
+  it.each([
+    { name: "contributor over sourced and baseline", pub: withSourced(makeVenue({ cheapestPrice: 6.2, latestContributorPrice: 4.7 })), figure: "£4.70" },
+    { name: "zero contributor price", pub: makeVenue({ latestContributorPrice: 0 }), figure: "£0.00" },
+    { name: "sourced over baseline", pub: withSourced(makeVenue({ cheapestPrice: 6.2 })), figure: "£6.20" },
+    { name: "listed over baseline", pub: makeVenue({ cheapestPrice: 6.2, bundlePrices: { listed } } as Partial<Venue>), figure: "£5.40" },
+    { name: "baseline over estimate", pub: makeVenue({ cheapestPrice: 6.2, bundlePrices: { estimate } } as Partial<Venue>), figure: "£6.20" },
+    { name: "estimate without an observed price", pub: makeVenue({ bundlePrices: { estimate } } as Partial<Venue>), figure: "£6.10" },
+    { name: "no price in any lane", pub: makeVenue(), figure: "No price" },
+  ])("renders $name without claiming a priced pub is empty", async ({ pub, figure }) => {
+    boroughData.venues = [pub];
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(await BoroughPage({
+      params: Promise.resolve({ slug: "barking-and-dagenham" }),
+    }));
+    const cell = view.querySelector(".boroughTable tbody .boroughPriceCell");
+    expect(cell).not.toBeNull();
+    expect(cell?.textContent).toBe(figure);
+    expect(cell?.querySelectorAll(".boroughNoPrice")).toHaveLength(figure === "No price" ? 1 : 0);
+  });
+});
+
+describe("the base-pub price summary", () => {
+  const pub: UkBasePub = {
+    id: "venue-uk-n123", name: "The Test Arms", address: "1 Test Street",
+    lat: 53.8008, lng: -1.5491, curatedVenueId: "", kind: "pub",
+  };
+  const price: CommunityPrice = {
+    venueId: pub.id, drinkCategory: "beer", priceGbp: 4.6,
+    submittedAt: Date.now(), source: "community", corroborations: 1,
+  };
+
+  function renderPrice(rows: CommunityPrice[], status: VenuePriceReadStatus) {
+    const state: CommunityPricesState = {
+      byVenueId: new Map([[pub.id, rows]]),
+      signalsByVenueId: new Map(), freshestByVenueId: new Map(),
+      noAlcoholIndexStatus: "idle", loadNoAlcoholIndex: () => {},
+      loadDrinkCategoryIndex: () => {}, drinkCategoryIndexStatus: new Map(),
+      provisionalBaseVenueIds: new Set(), loadProvisionalBaseVenues: () => {},
+      loadVenue: () => {}, venuePriceStatus: new Map([[pub.id, status]]),
+      submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null, pintTrust: null, confirmationOutcome: null }),
+      submitVenueSignal: async () => ({ ok: true }), submitting: false,
+      reportPrice: () => {}, reportedIds: new Set(),
+    };
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(createElement(UnverifiedPubSheet, {
+      pub, communityPrices: state,
+    }));
+    return view;
+  }
+
+  it("shows a lone community report before no-price framing", () => {
+    const view = renderPrice([price], "ready");
+    expect(view.textContent).toContain("£4.60");
+    expect(view.textContent).toContain("Community price");
+    expect(view.textContent).not.toContain("No price yet");
+    expect(view.textContent).not.toContain("Nobody has logged");
+  });
+
+  it("claims no price only after a successful empty read", () => {
+    const ready = renderPrice([], "ready");
+    expect(ready.textContent).toContain("No price yet");
+    expect(ready.textContent).toContain("Nobody has logged");
+    for (const status of ["loading", "degraded"] as const) {
+      const view = renderPrice([], status);
+      expect(view.textContent).not.toContain("No price yet");
+      expect(view.textContent).not.toContain("Nobody has logged");
+      expect(view.textContent).toContain(status === "loading" ? "Checking community prices" : "Prices unread");
+    }
   });
 });
