@@ -36,6 +36,7 @@ const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-reval
 // five went from 792 KB at their natural size to well under a tenth of that at
 // the width the 344x168 card really draws.
 const RESIZE_QUALITY = 72;
+const AVIF_QUALITY = 55;
 
 /**
  * The width this request asked for, or null for the original bytes.
@@ -52,7 +53,7 @@ function requestedWidth(params: URLSearchParams): number | null {
 }
 
 /**
- * Resize to the asked-for width and re-encode as WebP.
+ * Resize to the asked-for width and explicit format. The URL owns the cache key.
  *
  * Never ENLARGES: `withoutEnlargement` means a source narrower than the ask is
  * answered at its own width, so a small photograph is never blown up into more
@@ -65,14 +66,16 @@ function requestedWidth(params: URLSearchParams): number | null {
 async function resized(
   body: Uint8Array,
   width: number,
+  format: "webp" | "avif",
 ): Promise<{ bytes: Uint8Array; type: string } | null> {
   try {
-    const out = await sharp(body)
+    const image = sharp(body)
       .rotate()
-      .resize({ width, withoutEnlargement: true })
-      .webp({ quality: RESIZE_QUALITY })
-      .toBuffer();
-    return { bytes: new Uint8Array(out), type: "image/webp" };
+      .resize({ width, withoutEnlargement: true });
+    const out = await (format === "avif"
+      ? image.avif({ quality: AVIF_QUALITY, effort: 4 })
+      : image.webp({ quality: RESIZE_QUALITY })).toBuffer();
+    return { bytes: new Uint8Array(out), type: `image/${format}` };
   } catch {
     return null;
   }
@@ -139,6 +142,7 @@ export async function GET(request: Request): Promise<Response> {
   const initial = validate(src);
   if (!initial) return new Response("Bad image source.", { status: 400 });
   const width = requestedWidth(params);
+  const format = params.get("f") === "avif" ? "avif" : "webp";
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -218,7 +222,7 @@ export async function GET(request: Request): Promise<Response> {
       original.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const answer = width ? await resized(original, width) : null;
+    const answer = width ? await resized(original, width, format) : null;
     return new Response(new Blob([(answer?.bytes ?? original) as BlobPart]), {
       status: 200,
       headers: {

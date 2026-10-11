@@ -41,15 +41,20 @@ export function proxiedVenueImageUrl(url: string): string {
  */
 export const VENUE_IMAGE_WIDTHS = [384, 640, 1080, 1920] as const;
 export type VenueImageWidth = (typeof VENUE_IMAGE_WIDTHS)[number];
+export type VenueImageFormat = "webp" | "avif";
 
 export function isVenueImageWidth(value: number): value is VenueImageWidth {
   return (VENUE_IMAGE_WIDTHS as readonly number[]).includes(value);
 }
 
 /** The proxy URL for one width. */
-export function proxiedVenueImageUrlAtWidth(url: string, width: VenueImageWidth): string {
+export function proxiedVenueImageUrlAtWidth(
+  url: string,
+  width: VenueImageWidth,
+  format: VenueImageFormat = "webp",
+): string {
   const base = proxiedVenueImageUrl(url);
-  return base ? `${base}&w=${width}` : "";
+  return base ? `${base}&w=${width}${format === "avif" ? "&f=avif" : ""}` : "";
 }
 
 /**
@@ -88,11 +93,12 @@ export function venueImageWidthFor(
  */
 export function venueImageLoader(
   maxWidth?: VenueImageWidth,
+  format: VenueImageFormat = "webp",
 ): (args: { src: string; width: number }) => string {
   return ({ src, width }) => {
     const source = proxiedImageSource(src);
     const answer = venueImageWidthFor(src, width, maxWidth);
-    return source && answer ? proxiedVenueImageUrlAtWidth(source, answer) : src;
+    return source && answer ? proxiedVenueImageUrlAtWidth(source, answer, format) : src;
   };
 }
 

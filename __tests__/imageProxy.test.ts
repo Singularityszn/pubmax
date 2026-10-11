@@ -240,11 +240,25 @@ describe("GET /api/image-proxy", () => {
 // load was the slowest on the site. Nothing had ever asked the source for a
 // smaller picture.
 describe("the proxy resizes to a width the page really draws", () => {
-  it("answers a closed width as WebP, narrowed to the ask", async () => {
+  it("answers an explicit AVIF variant at the same closed width with a separate cache key", async () => {
+    const bytes = await photograph(680, 453);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
+
+    const res = await GET(req("https://example.com/p.jpg", "&w=640&f=avif"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/avif");
+    expect(res.headers.get("cache-control")).toContain("s-maxage=604800");
+    expect(await sharp(new Uint8Array(await res.arrayBuffer())).metadata()).toMatchObject({
+      width: 640,
+      height: 426,
+    });
+  });
+
+  it.each(["", "&f=webp", "&f=unknown"])("answers a closed width as WebP for format query '%s'", async (format) => {
     const bytes = await photograph(1632, 636);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
 
-    const res = await GET(req("https://example.com/p.jpg", "&w=384"));
+    const res = await GET(req("https://example.com/p.jpg", `&w=384${format}`));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/webp");
 
@@ -253,11 +267,11 @@ describe("the proxy resizes to a width the page really draws", () => {
     expect(out.byteLength).toBeLessThan(bytes.byteLength);
   });
 
-  it("serves the original bytes when no width is asked for", async () => {
+  it.each(["", "&f=avif"])("serves the original bytes without a width for query '%s'", async (query) => {
     const bytes = await photograph(680, 453);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
 
-    const res = await GET(req("https://example.com/p.jpg"));
+    const res = await GET(req("https://example.com/p.jpg", query));
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(new Uint8Array(await res.arrayBuffer()).byteLength).toBe(bytes.byteLength);
   });
@@ -274,22 +288,22 @@ describe("the proxy resizes to a width the page really draws", () => {
     }
   });
 
-  it("never enlarges a picture smaller than the ask", async () => {
+  it.each(["webp", "avif"])("never enlarges a %s picture smaller than the ask", async (format) => {
     const bytes = await photograph(200, 120);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(bytes));
 
-    const res = await GET(req("https://example.com/p.jpg", "&w=1920"));
+    const res = await GET(req("https://example.com/p.jpg", `&w=1920&f=${format}`));
     const out = new Uint8Array(await res.arrayBuffer());
     expect((await sharp(out).metadata()).width).toBe(200);
   });
 
-  it("falls back to the original bytes when the resize fails", async () => {
+  it.each(["webp", "avif"])("returns the original bytes when the %s resize fails", async (format) => {
     // A failure here is about us rather than about the picture: the reader gets
     // the heavy image they got before this existed, never a broken one.
     const notAnImage = new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04]);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(upstream(notAnImage));
 
-    const res = await GET(req("https://example.com/p.jpg", "&w=384"));
+    const res = await GET(req("https://example.com/p.jpg", `&w=384&f=${format}`));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(notAnImage);
