@@ -18,7 +18,7 @@ import { CATEGORY_META, isMapLensDrinkCategory, type DrinkCategory } from "@/lib
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import type { NightContext } from "@/lib/nightPlanning";
-import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
+import type { MapOverlay, MapSheetDetent, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
@@ -536,6 +536,18 @@ export function drinkFiltersActiveFor(input: {
       input.drinkSubtype ||
       input.topShelfOnly ||
       input.requireCocktails,
+  );
+}
+
+/** Keep the visible canvas interactive beside a venue, except at the phone's full detent. */
+export function venueMapCanvasInteractive(input: {
+  detailOpen: boolean;
+  drawerSideLaneViewport: boolean;
+  mobileViewport: boolean;
+  mobileVenueSheetSnap: MapSheetDetent;
+}): boolean {
+  return input.detailOpen && (
+    input.drawerSideLaneViewport || (input.mobileViewport && input.mobileVenueSheetSnap !== "full")
   );
 }
 

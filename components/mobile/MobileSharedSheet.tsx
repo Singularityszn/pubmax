@@ -46,6 +46,7 @@ export default function MobileSharedSheet({
   kicker,
   initialSnap = "half",
   requestedSnap,
+  onSnapChange,
   onClose,
   onDismiss = onClose,
   closeLabel,
@@ -62,6 +63,8 @@ export default function MobileSharedSheet({
   kicker?: string;
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
+  /** Reports the actual detent, including drag and expand/collapse actions. */
+  onSnapChange?: (snap: MapSheetDetent) => void;
   /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
   /** Gesture dismiss: Back to parent when one exists, otherwise Home. */
@@ -127,9 +130,7 @@ export default function MobileSharedSheet({
   useEffect(() => {
     interruptAndSettleRef.current = interruptAndSettle;
   }, [interruptAndSettle]);
-  // A second pick settles where the host asked for it. A base pub asks for
-  // peek so the map stays live for the next pin; settling it to half inerted
-  // the map behind the sheet, and the third pin could not be reached.
+  // A second pick keeps the host's requested height. Base pubs ask for peek.
   useEffect(() => {
     if (venueRevealSettleSequenceRef.current === venueRevealSettleSequence) return;
     venueRevealSettleSequenceRef.current = venueRevealSettleSequence;
@@ -212,10 +213,12 @@ export default function MobileSharedSheet({
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetSnap]);
 
-  // Modal focus trap at half and full: keyboard focus must not walk the inert
-  // page behind an unreachable surface. Venue peek and half keep the visible map
-  // tappable (mobileMapShell.css), so peek is also the tested exception to
-  // trapping — enough map stays live that trapping would lie.
+  useEffect(() => {
+    if (kind) onSnapChange?.(sheetSnap);
+  }, [kind, onSnapChange, sheetSnap]);
+
+  // The host exempts the visible map beside a venue at peek and half. Keep the
+  // trap mounted through half/full transitions so collapse retains focus.
   //
   // The policy is "map-surface", not "strict-modal": this sheet is a map surface
   // with body-level siblings that outrank it. The primary tab bar stays reachable
