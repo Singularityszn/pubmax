@@ -373,6 +373,7 @@ describe("Admin Social post moderation queue", () => {
     expect(retry).toBeTruthy();
 
     const readsBefore = state.fetchEvents.filter((event) => event === "social:GET").length;
+    const sessionsBefore = state.fetchEvents.filter((event) => event === "session:GET").length;
 
     await act(async () => {
       retry!.click();
@@ -389,6 +390,8 @@ describe("Admin Social post moderation queue", () => {
     expect(busyRetry?.disabled).toBe(true);
     const readsDuring = state.fetchEvents.filter((event) => event === "social:GET").length;
     expect(readsDuring - readsBefore).toBe(1);
+    const sessionsDuring = state.fetchEvents.filter((event) => event === "session:GET").length;
+    expect(sessionsDuring - sessionsBefore).toBe(1);
 
     await act(async () => {
       releaseResponse();

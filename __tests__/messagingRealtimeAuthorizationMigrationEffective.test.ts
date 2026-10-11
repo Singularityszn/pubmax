@@ -131,7 +131,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null || process.env.PUBMAX_MESSAGING_REALTIME_NO_PG === "1")(
+describe.skipIf(skipReason !== null)(
   "0148 messaging realtime authorization",
   () => {
     it("BEFORE the migration there is no policy for these channels at all", () => {
