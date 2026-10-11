@@ -91,30 +91,30 @@ describe("a pull that opens the list", () => {
 });
 
 describe("a pull whose answer changes", () => {
-  let capture: Element | null;
+  const capture: { element: Element | null } = { element: null };
   const captureMethods = ["setPointerCapture", "hasPointerCapture", "releasePointerCapture"] as const;
   let originalMethods: Array<PropertyDescriptor | undefined>;
   let originalElementFromPoint: PropertyDescriptor | undefined;
 
   beforeEach(() => {
-    capture = null;
+    capture.element = null;
     originalMethods = captureMethods.map((name) => Object.getOwnPropertyDescriptor(Element.prototype, name));
     originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint");
     Object.defineProperties(Element.prototype, {
       setPointerCapture: {
         configurable: true,
         value: function (this: Element) {
-          const previous = capture;
-          capture = this;
+          const previous = capture.element;
+          capture.element = this;
           if (previous && previous !== this) previous.dispatchEvent(pointerEvent("lostpointercapture", 480));
         },
       },
-      hasPointerCapture: { configurable: true, value: function (this: Element) { return capture === this; } },
+      hasPointerCapture: { configurable: true, value: function (this: Element) { return capture.element === this; } },
       releasePointerCapture: {
         configurable: true,
         value: function (this: Element) {
-          if (capture !== this) return;
-          capture = null;
+          if (capture.element !== this) return;
+          capture.element = null;
           this.dispatchEvent(pointerEvent("lostpointercapture", 420));
         },
       },
@@ -132,11 +132,11 @@ describe("a pull whose answer changes", () => {
   });
 
   function routePointer(type: string, clientY: number) {
-    if (capture && !capture.isConnected) {
-      capture = null;
+    if (capture.element && !capture.element.isConnected) {
+      capture.element = null;
       document.dispatchEvent(pointerEvent("lostpointercapture", clientY));
     }
-    (capture ?? document).dispatchEvent(pointerEvent(type, clientY));
+    (capture.element ?? document).dispatchEvent(pointerEvent(type, clientY));
   }
 
   for (const quiet of ["loading", "none", "unread", "partial"] as const) {
@@ -161,7 +161,7 @@ describe("a pull whose answer changes", () => {
             render(fromAnswer ? { status: quiet } : ANSWER);
             act(() => {
               routePointer("pointermove", 420);
-              const clickTarget = capture ?? card;
+              const clickTarget = capture.element ?? card;
               routePointer(release, 420);
               clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
               vi.advanceTimersByTime(2000);
@@ -237,7 +237,7 @@ describe("a pull whose answer changes", () => {
           button.firstElementChild!.dispatchEvent(pointerEvent("pointerdown", 500));
           if (release === "dragged") routePointer("pointermove", 480);
           vi.advanceTimersByTime(100);
-          const clickTarget = capture ?? button;
+          const clickTarget = capture.element ?? button;
           routePointer(release === "cancelled" ? "pointercancel" : "pointerup", release === "dragged" ? 480 : 500);
           clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
           vi.advanceTimersByTime(2000);
