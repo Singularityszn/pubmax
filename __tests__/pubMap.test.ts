@@ -25,6 +25,7 @@ import {
   ambientBannerLaneOpen,
   builtStopCountFor,
   coordinatedMapOverlay,
+  venueMapCanvasInteractive,
   coffeePilotSelection,
   crawlJourneysWanted,
   londonRestaurantSelection,
@@ -72,6 +73,18 @@ import type { Filters, Venue } from "@/lib/venues";
 // Reference curated crawl from the default (london) city set — buildMapSeed
 // resolves ?crawl= against curatedCrawlByIdForCity for DEFAULT_CITY_ID.
 const soho = curatedCrawls.find((c) => c.id === "victorian-soho") as CuratedCrawl;
+
+describe("visible map beside a venue", () => {
+  it.each([
+    { detailOpen: true, drawerSideLaneViewport: false, mobileViewport: true, mobileVenueSheetSnap: "half" as const, expected: true },
+    { detailOpen: true, drawerSideLaneViewport: false, mobileViewport: true, mobileVenueSheetSnap: "full" as const, expected: false },
+    { detailOpen: true, drawerSideLaneViewport: true, mobileViewport: false, mobileVenueSheetSnap: "full" as const, expected: true },
+    { detailOpen: true, drawerSideLaneViewport: false, mobileViewport: false, mobileVenueSheetSnap: "half" as const, expected: false },
+    { detailOpen: false, drawerSideLaneViewport: true, mobileViewport: false, mobileVenueSheetSnap: "half" as const, expected: false },
+  ])("answers $expected for $mobileViewport/$drawerSideLaneViewport/$mobileVenueSheetSnap with open=$detailOpen", ({ expected, ...input }) => {
+    expect(venueMapCanvasInteractive(input)).toBe(expected);
+  });
+});
 
 function makeVenue(overrides: Partial<Venue> = {}): Venue {
   return {
