@@ -400,9 +400,8 @@
     );
   }
 
-  /* The drink the map is under. It never scrolls away and it never truncates
-     to a fragment: a lane label is the name of the prices on the pins, so the
-     Tonight chip beside it wraps its label before this chip gives up a letter. */
+  /* The drink label names the prices on the pins. This chip keeps its width
+     while Tonight's entry lives in the Filters sheet. */
   .mobileMapDrinkChip {
     display: inline-flex;
     align-items: center;

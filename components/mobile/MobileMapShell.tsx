@@ -268,9 +268,9 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   builtStopCount?: number;
   planInteractive: boolean;
   /**
-   * The bottom card's answer for the settled view, or null when the card has no
-   * business there (a pub or a story is open, or the map is not the reader's).
-   * Null leaves the plan door standing alone at its own berth.
+   * The bottom card's answer for the settled view. A null model leaves the
+   * plan door alone. An open pub or story hides the mounted card through CSS
+   * so the map-edge controls keep their positions.
    */
   peek?: MapPeekModel | null;
   /** Opens the pub the card names. */

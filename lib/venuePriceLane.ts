@@ -146,12 +146,12 @@ export function venuePriceFallbackPending(
 }
 
 /**
- * Which price lane a venue's price area renders, or null when it has no price
- * on record at all and the first-drop nudge takes the space instead.
+ * Which price lane the supplied records support, or null when none does.
  *
- * A `null` answer is the ONE definition of "no price yet" this tree has. Every
- * surface that words that absence asks here, so none of them can go on saying
- * it over a pub whose lane has since started answering.
+ * A null lane alone does not establish absence while records are loading.
+ * `venuePriceFallbackPending` holds an empty or estimated fallback during
+ * those reads. The per-venue read policies also distinguish failed reads
+ * from successful empty reads.
  *
  * `sourcedPrice` is passed in rather than read off the venue because the
  * render component already holds it as a prop; both callers derive it the same

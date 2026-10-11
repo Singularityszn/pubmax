@@ -240,8 +240,8 @@ export function mapSelectionNotice(input: {
 /**
  * A restored `?sel=venue-uk-*` arrival. The `at=` hint scopes the cold shard
  * fetch to one cell and seeds the camera, but the id alone is enough to ask
- * `/api/uk-base/[id]`: the map's own session restore and an old shared link
- * both carry the id with no hint, and neither may be left on a skeleton.
+ * `/api/uk-base/[id]`. An old shared link can carry the id without a hint
+ * and must not leave the sheet on a skeleton.
  */
 export type UkBaseRestore = {
   id: string;
@@ -1074,8 +1074,8 @@ export function searchParamsQuery(
 }
 
 /**
- * The one price the phone peek prints, or null when the pub genuinely has no
- * price on record and the chip may invite the first drop.
+ * The selected-venue price chip, or null when the supplied lane has no figure.
+ * `VenuePeekPintPrice` applies the pending-read guard before rendering it.
  *
  * The lane is decided by `venuePriceLane` alone; this only says how the winning
  * lane reads inside a chip that holds ONE figure and ONE short caption. An

@@ -13,7 +13,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [A camera move has an OWNER, and the map a reader is looking at loads first.](../docs/rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
 - [Nothing moves this camera but the reader, and there is ONE compass.](../docs/rules/components-map-canvas-and-pins.md#nothing-moves-this-camera-but-the-reader-and-there-is-one-compass)
 - [Map density is a contract, not a styling choice.](../docs/rules/components-map-canvas-and-pins.md#map-density-is-a-contract-not-a-styling-choice)
-- [A god component is decomposed IN PLACE, because the map's own tests read its SOURCE.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
+- [Map decomposition keeps source fences with their owner.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
 - [A pin's COLOUR may be a hint; a pin's FIGURE may not.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not)
 - [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
 - [A CLUSTER IS A PAPER DISC WITH A BAND RING AND THE CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM STREET ZOOM.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-paper-disc-with-a-band-ring-and-the-cheapest-price-and-a-priced-p)

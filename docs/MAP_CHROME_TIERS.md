@@ -1,18 +1,16 @@
-# Map chrome tiers — target architecture + adoption notes
+# Map chrome tiers
 
-From the #352 systemic review: at full merge the 390px map was headed for seven
-peer chips — instrument-panel, not answer. This branch implements the
-three-tier hierarchy on main. `lib/mapChromeTiers.ts` is the single source of
-truth; the shell renders its descriptors.
+`lib/mapChromeTiers.ts` owns the control descriptors. `MobileMapShell` renders
+them within the phone map's resting-layer contract below.
 
 | Tier | Surface | Treatment |
 |---|---|---|
 | 1 | **Near me** | The only primary-weight chip (`.mobileMapChipPrimary`, filled accent); on phone a round map-edge FAB |
-| 2 | **Filters** | Quiet icon-button in the one top bar. Absorbs drinks + price + zone + venue-type toggles; refinement count is the badge |
-| 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable). **List view** lives in the Layers sheet shortcut grid. |
+| 2 | **Filters** | Quiet icon-button in the one top bar. The refinement count is the badge. The drink lane has its own control and sheet. |
+| 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge). |
 
 The [phone map resting-layer contract](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-owns Tonight's placement, the bottom card and the TfL badge policy.
+owns Tonight's placement, List access, the bottom card and the TfL badge policy.
 Mobile map action geometry belongs to `components/mobile/mobileMapShell.css`.
 
 ## Narrow desktop state
@@ -24,23 +22,6 @@ inside the viewport and clear of the Tonight Arc. The media queries in
 `components/map/mapToolbar.css` and `components/map/citySwitcher.css` own the
 exact boundary and layout.
 
-## Adoption notes for in-flight branches (mechanical rebases)
-
-- **#309 near-me sheet** (`feat/instant-answer`): its Near-me chip behavior
-  replaces `onNearMe`'s recenter-only success with the answer sheet — keep the
-  Tier-1 chip mount exactly as here (`.mobileMapChipPrimary`), wire its sheet
-  open into the existing `onNearMe` callback. No new chip.
-- **#329 zone lens** (`feat/zone-price-lens`): do NOT mount the Zone chip on
-  mobile. The zone picker already renders inside the mobile filters sheet on
-  that branch — that becomes its only mobile home. Add `zoneActive` as a third
-  refinement input to `buildFiltersChip` (one-line: extend the input type and
-  the count/aria parts). Desktop toolbar chip unchanged.
-- **#346 list view** (`fix/a11y-findings`): mount the List toggle inside the
-  Layers sheet's `.mobileLayerShortcuts`, reusing its existing handler; drop its
-  standalone placement and keep `.mobileMapUtilityCorner` reserved for TfL.
-
-## Props change (shell)
-
-`MobileMapShell` now takes `drinkFiltersActive` + `priceCapActive` instead of
-the combined `filtersActive`; `priceLabel` stays (feeds the Filters aria label
-and the sheet). `PubMap.tsx:1611` splits its existing boolean — no logic change.
+The current shell props live in
+[`MobileMapShell.tsx`](../components/mobile/MobileMapShell.tsx). Its caller is
+[`PubMap.tsx`](../components/PubMap.tsx).

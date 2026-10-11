@@ -25,6 +25,8 @@ The map builds its state from the URL in layers:
 
 The city that loads is selected by the Next.js route segment (`/map/[city]`).
 The `/map` route loads London. Crawl-state rewrites preserve the pathname.
+Legacy `/map/uk` and `/map/uk/1` routes redirect permanently to `/map?uk=1`
+through `next.config.mjs`.
 
 ## History and filter synchronisation
 
@@ -42,7 +44,10 @@ the same length.
 
 Separate route visits and earlier root entries keep their own URLs. A clean
 arrival restored from a saved session stays clean until the reader changes
-the crawl state. Regression cases live in
+the crawl state. Saved session filters, viewport and area can return, but a
+saved venue selection does not reopen its sheet. Initial selection comes from
+the URL or a resume seed (`restoredSessionFrame` in `lib/pubMap.ts`).
+Regression cases live in
 [`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
 
 ## Fail-soft for an unknown `?sel=`
@@ -64,10 +69,9 @@ could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
 ## First-visit arrival card
 
 After the pins reveal, a first visit to the map shows one arrival card
-(`components/map/MapArrivalCard.tsx`). Any answer holds it back on that
-device for 30 days. The answer is kept in `localStorage` under
-`pubmax:map-first-visit-arrival:v1` as `dismissed:<epoch ms>`; the bare
-`dismissed` that earlier builds wrote never expires (`lib/mapFirstVisitArrival.ts`).
+(`components/map/MapArrivalCard.tsx`). The
+[arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
+owns its dismissal window and storage compatibility.
 
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
