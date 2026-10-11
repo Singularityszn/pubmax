@@ -1,0 +1,21 @@
+Effective RLS (Postgres 16 + PostgREST 14)	Checkout	2026-10-11T01:19:28.1159609Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d3a4d25268526d2955955221fa26f4a084cf45d6:refs/remotes/pull/2084/merge
+Effective RLS (Postgres 16 + PostgREST 14)	Checkout	2026-10-11T01:19:59.6068017Z  * [new ref]         d3a4d25268526d2955955221fa26f4a084cf45d6 -> pull/2084/merge
+Effective RLS (Postgres 16 + PostgREST 14)	Checkout	2026-10-11T01:20:03.1478346Z HEAD is now at d3a4d25 Merge e1f6a99f2e7d8854b3021c67428b171ff66f2aaf into e73be8f6f5d85e465704aaf883c5614e11efc3a2
+Effective RLS (Postgres 16 + PostgREST 14)	Checkout	2026-10-11T01:20:03.1626935Z d3a4d25268526d2955955221fa26f4a084cf45d6
+Effective RLS (Postgres 16 + PostgREST 14)	Setup Node	2026-10-11T01:20:05.9278703Z node: v22.23.3
+Effective RLS (Postgres 16 + PostgREST 14)	Setup Node	2026-10-11T01:20:05.9278976Z npm: 10.9.9
+Effective RLS (Postgres 16 + PostgREST 14)	Install PostgreSQL 16 and PostgREST 14	2026-10-11T01:20:29.0001151Z   https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
+Effective RLS (Postgres 16 + PostgREST 14)	Install PostgreSQL 16 and PostgREST 14	2026-10-11T01:20:37.6115161Z initdb (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg24.04+2)
+Effective RLS (Postgres 16 + PostgREST 14)	Install PostgreSQL 16 and PostgREST 14	2026-10-11T01:20:37.7387599Z postgres (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg24.04+2)
+Effective RLS (Postgres 16 + PostgREST 14)	Install PostgreSQL 16 and PostgREST 14	2026-10-11T01:20:37.7639479Z psql (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg24.04+2)
+Effective RLS (Postgres 16 + PostgREST 14)	Install PostgreSQL 16 and PostgREST 14	2026-10-11T01:20:37.7673262Z PostgREST 14.16
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	﻿2026-10-11T01:20:37.7803367Z ##[group]Run npm run test:rls
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:21:37.2221627Z  ✓ __tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts > 0161 selected drink evidence storage > reproduces the missing per-stop column before migration 25ms
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:21:37.2238446Z  ✓ __tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts > 0161 selected drink evidence storage > adds nullable, bounded evidence without changing existing stops or access policy 72ms
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:21:37.4018982Z  ✓ __tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts > 0161 selected drink evidence storage > round trips wine evidence and rejects oversized, extra, or wrong-shaped data 51ms
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:21:37.8305392Z  ✓ __tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts > 0161 selected drink evidence storage > keeps linked-member table reads within the closed display-value contract 181ms
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:21:37.8319339Z  ✓ __tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts > 0161 selected drink evidence storage > rollback drops only evidence storage and preserves the route 51ms
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:22:20.2437943Z  Test Files  57 passed (57)
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:22:20.2439717Z       Tests  554 passed (554)
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:22:30.5009917Z  Test Files  1 passed (1)
+Effective RLS (Postgres 16 + PostgREST 14)	Run effective RLS session tests	2026-10-11T01:22:30.5010519Z       Tests  10 passed (10)

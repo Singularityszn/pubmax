@@ -1,0 +1,14 @@
+{
+  "name": "original-job-before",
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/jobs/114345108558",
+    "--full"
+  ],
+  "startedAt": "2026-10-11T01:19:18.733786+00:00",
+  "completedAt": "2026-10-11T01:19:19.339692+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "14dc19c6daaa1e1e773a83c99558725e3dbec42a21265c6a1d426164919b036f",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

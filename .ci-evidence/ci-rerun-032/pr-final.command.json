@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/pulls/2084",
+    "--jq",
+    "{number,state,draft,merged,head_sha:.head.sha,merge_commit_sha}",
+    "--full"
+  ],
+  "time": "2026-10-11T01:23:20.506771+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "d555a0a9b041e0a147b331e6852ee614143a8d646b51fba87fdea4494cc481c6",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

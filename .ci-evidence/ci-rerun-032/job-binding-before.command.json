@@ -1,0 +1,16 @@
+{
+  "name": "job-binding-before",
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/jobs/114345108558",
+    "--jq",
+    "[.id,.run_id,.head_sha,.run_attempt,.status,.conclusion,.name] | @tsv",
+    "--full"
+  ],
+  "startedAt": "2026-10-11T01:19:20.753794+00:00",
+  "completedAt": "2026-10-11T01:19:21.261233+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "adee708d4513ab9d31ee5134ee4929c1d2fd06a95b937609f60b73c014821e23",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

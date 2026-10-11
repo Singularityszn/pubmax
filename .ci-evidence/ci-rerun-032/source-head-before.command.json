@@ -1,0 +1,13 @@
+{
+  "name": "source-head-before",
+  "argv": [
+    "git",
+    "rev-parse",
+    "HEAD"
+  ],
+  "startedAt": "2026-10-11T01:19:17.101879+00:00",
+  "completedAt": "2026-10-11T01:19:17.111045+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "221515aeafdf9d17b93700c0486673eee4eb9f611baff2f0faa4bafd2ce5c3c9",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
