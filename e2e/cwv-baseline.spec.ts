@@ -470,8 +470,12 @@ test.describe("Native CWV driver regression", () => {
       await route.continue();
     });
     const meet = page.getByRole("button", { name: "Meet your Pub Pal", exact: true });
+    let meetClicked = false;
     await expect(async () => {
-      if (await meet.isVisible()) await meet.click();
+      if (!meetClicked && await meet.isVisible()) {
+        await meet.click();
+        meetClicked = true;
+      }
       await expect(page.locator("main.palOnboarding")).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(
