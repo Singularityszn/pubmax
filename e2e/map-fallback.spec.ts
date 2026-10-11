@@ -59,11 +59,44 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15000 })
     .toBeGreaterThan(0);
   await expect(page.locator(".mapFallbackVenueName").first()).not.toBeEmpty();
+
+  // The bottom card lifts Create after the fallback appears. Check the settled
+  // price text itself, since the row centre can remain tappable under an overlap.
+  await expect(page.locator(".mobileMapChrome")).toBeVisible();
+  await expect(page.locator(".mapPeek")).toBeVisible();
+  await expect(page.getByTestId("create-fab")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (const row of await page.locator(".mapFallbackVenue").all()) {
+    await row.scrollIntoViewIfNeeded();
+    const coveredPrices = await row.evaluate((button) => {
+      const meta = button.querySelector(".mapFallbackVenueMeta");
+      const text = Array.from(meta?.childNodes ?? []).find((node) =>
+        node.textContent?.includes("£"),
+      );
+      const priceStart = text?.textContent?.indexOf("£") ?? -1;
+      if (!text || priceStart < 0) return ["missing listed price"];
+      const range = document.createRange();
+      range.setStart(text, priceStart);
+      range.setEnd(text, text.textContent!.length);
+      const rects = Array.from(range.getClientRects());
+      if (rects.length === 0) return ["price not painted"];
+      return rects.flatMap((rect) => {
+        const points = [rect.left + 1, (rect.left + rect.right) / 2, rect.right - 1];
+        return points.flatMap((x) => {
+          const hit = document.elementFromPoint(x, (rect.top + rect.bottom) / 2);
+          return hit && button.contains(hit) ? [] : [hit?.getAttribute("aria-label") ?? hit?.className ?? "offscreen"];
+        });
+      });
+    });
+    expect(coveredPrices, await row.innerText()).toEqual([]);
+  }
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
     const directory = "docs/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: `${directory}/webgl-fallback-390x844-light.png` });
   }
+  await page.locator(".mapFallbackBrowse").click();
+  await expect(page).toHaveURL(/\/pubs$/);
 });
 
 // The desktop half of the same card. The search toolbar and the city chip float

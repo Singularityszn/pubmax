@@ -2749,6 +2749,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     place-content: start center;
     padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
   }
+
+  /* Scrolling venue prices and links must clear the floating Create action. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallback {
+    padding-right: max(32px, var(--create-fab-lane));
+  }
 }
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
     margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 20px)));
