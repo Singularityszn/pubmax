@@ -1,33 +1,20 @@
 # London source enrichment, 9 October 2026
 
-This pass adds 87 first-party source records, including 81 hours records and 20 dog statements. The existing producer writes them to `data/amenities/london_pub_website_hours_dogs.json`.
+This directory records the 9 October first-party source collection. The existing producer publishes its hours and dog-policy evidence to `data/amenities/london_pub_website_hours_dogs.json`.
 
-All 176 previous hours records remain unchanged. The shared-chain guard removes one previous generic dog statement. Identical Bohem Brewery hours passages remain excluded. Two directory pages on edan.io are excluded from publication.
+The rebased publication retains non-conflicting main records and newer exact-source observations. The shared-chain guard removes one previous generic dog statement. Identical Bohem Brewery hours passages remain excluded. Two directory pages on edan.io are excluded from publication.
 
 The Thirsty Bear publishes two regular cider pint prices: Inches Cider at GBP 5.95 and Whisky Cider at GBP 4.95. The source explicitly labels the columns "Half / Pint". Both rows pass the existing keyless price reader and retain their source URL and read time. The existing bundle producer publishes both named drinks. All 7,595 previous bundle rows remain unchanged.
 
 ## Coverage
 
-The denominator is the same 3,641 London shard pub identities before and after the pass. The table uses exact published ownership mappings.
-
-| Field | Before | After | Remaining gaps |
-| --- | ---: | ---: | ---: |
-| Opening hours | 3,076 | 3,109 | 532 |
-| Recorded business-status check | 3,008 | 3,008 | 633 |
-| Address | 3,496 | 3,496 | 145 |
-| Phone | 2,923 | 2,923 | 718 |
-| Website | 2,892 | 2,892 | 749 |
-| Google place ID | 3,008 | 3,008 | 633 |
-| Source image URL | 460 | 460 | 3,181 |
-| Listed non-estimate pint | 44 | 45 | 3,596 |
-| Legacy snapshot pint | 568 | 568 | 3,073 |
-| Either observed pint lane | 599 | 600 | 3,041 |
+[`coverage.json`](coverage.json) owns the original before/after inventory. Its `identityAligned` pair uses exact published ownership mappings over the same London shard identities. These snapshots predate the rebase and do not measure coverage of the rebased publication.
 
 The original preflight undercounted prices and images. It treated `curatedRef.id` as a runtime venue ID and omitted UK base IDs. Some references contain OSM source IDs. `coverage.json` preserves those original snapshots beside the corrected before/after pair. The correction uses existing published UK base ownership tuples. It adds no name or distance match.
 
-These are field-inventory counts, not browser or deployment proof. Hours from another lane can already fill a field, so 81 new source records close only 33 inventory gaps. A status-check record does not establish that a pub is operational. An image URL does not prove image rights or rendering. Estimates do not earn observed-price coverage.
+These are field-inventory counts, not browser or deployment proof. Hours from another lane can already fill a field, so a source record need not close an inventory gap. A status-check record does not establish that a pub is operational. An image URL does not prove image rights or rendering. Estimates do not earn observed-price coverage.
 
-The source file grows from 178 to 265 rows, and from 176 to 257 hours records. Dog-welcome statements grow from 19 to 38 after the chain withdrawal. Exact published ownership assigns 57 new rows to curated venues and 30 to UK base venues. The curated detail reader receives the source facts. UK base source facts remain collected evidence because that reader does not consume this hours file. This pass adds no new runtime reader.
+The published source totals are in `counts` in [`london_pub_website_hours_dogs.json`](../../../amenities/london_pub_website_hours_dogs.json). The original collection totals and ownership split remain under `sourceFacts` in `coverage.json`. The curated detail reader receives the source facts. UK base source facts remain collected evidence because that reader does not consume this hours file. This pass adds no new runtime reader.
 
 ## Credit plan and spend
 
@@ -76,7 +63,9 @@ The Simmons estate offer remains rejected. Mr Fogg's combined menu includes othe
 
 ## Validation and delivery
 
-The existing hours producer and UK price bundle producer generated the changed data. The historical Sydney price audit remains unchanged. A separate later-publication entry accounts for the two new ledger rows. Its test checks the preserved historical prefix, exact additions, evidence hash and final ledger and bundle counts.
+The existing hours producer generated the original collection artifact. The rebase merged retained records by source and OSM ownership, without new collection. The UK price bundle producer generated the price publication. The [bundle reference](../../../../public/data/uk_prices/README.md#the-rules-that-keep-it-honest) owns the reconciliation publication contract.
+
+The original collection checks recorded the following results:
 
 - `PUBMAX_VERIFY_COMMITTED_DATA=1 npm run validate-data` passed all 22 datasets.
 - Nine focused data suites passed 240 tests with one worker.
@@ -84,4 +73,4 @@ The existing hours producer and UK price bundle producer generated the changed d
 - Three local curated-detail reads returned the new source evidence under the correct IDs.
 - Every baseline hours record and previous bundle row passed the before/after comparison.
 
-Full `npm run verify`, no-mistakes, CI and PR delivery remain pending Firstmate's heavy-slot allocation and pipeline instruction. This commit is the implementation handoff. No merge or deployment occurred.
+These checks predate the rebase and do not validate the rebased publication. These records establish no full `npm run verify`, CI, PR delivery, merge or deployment result for the rebased head.
