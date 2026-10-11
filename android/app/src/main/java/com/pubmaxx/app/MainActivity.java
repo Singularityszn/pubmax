@@ -28,6 +28,7 @@ public class MainActivity extends BridgeActivity {
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(PageSystemBars.class);
         super.onCreate(savedInstanceState);
         if (bridge == null) return;
         bridge.setWebViewClient(new OfflineRetryWebViewClient(bridge));

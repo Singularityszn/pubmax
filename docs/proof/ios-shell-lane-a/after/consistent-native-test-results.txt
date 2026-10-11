@@ -1,0 +1,54 @@
+
+consistent-assets-warm.log
+
+Test Case '-[LaneUITests.LaneUITests testEdgeSwipe]' started.
+LANE_EDGE {
+Test Case '-[LaneUITests.LaneUITests testEdgeSwipe]' passed (16.242 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 16.242 (16.244) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 16.242 (16.244) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 16.242 (16.245) seconds
+** TEST SUCCEEDED **
+
+consistent-offline-interactions.log
+
+Test Case '-[LaneUITests.LaneUITests testOfflineShellInteractions]' started.
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:90: error: -[LaneUITests.LaneUITests testOfflineShellInteractions] : XCTAssertTrue failed
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:92: error: -[LaneUITests.LaneUITests testOfflineShellInteractions] : XCTAssertTrue failed
+Test Case '-[LaneUITests.LaneUITests testOfflineShellInteractions]' failed (21.527 seconds).
+	 Executed 1 test, with 2 failures (0 unexpected) in 21.527 (21.530) seconds
+	 Executed 1 test, with 2 failures (0 unexpected) in 21.527 (21.530) seconds
+	 Executed 1 test, with 2 failures (0 unexpected) in 21.527 (21.531) seconds
+
+retry-exact-final.log
+
+Test Case '-[LaneUITests.LaneUITests testRetryButton]' started.
+LANE_RETRY http://localhost:3491/places?lane-retry=local#pubs
+Test Case '-[LaneUITests.LaneUITests testRetryButton]' passed (6.597 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.597 (6.600) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.597 (6.600) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.597 (6.600) seconds
+** TEST SUCCEEDED **
+
+native-targeted-final.log
+
+ Test Files  5 passed (5)
+      Tests  101 passed (101)
+
+consistent-second-warm.log
+
+Test Case '-[LaneUITests.LaneUITests testEdgeSwipe]' started.
+LANE_EDGE {
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:49: error: -[LaneUITests.LaneUITests testEdgeSwipe] : XCTAssertEqual failed: ("Optional("/map")") is not equal to ("Optional("/places")")
+Test Case '-[LaneUITests.LaneUITests testEdgeSwipe]' failed (16.257 seconds).
+	 Executed 1 test, with 1 failure (0 unexpected) in 16.257 (16.260) seconds
+	 Executed 1 test, with 1 failure (0 unexpected) in 16.257 (16.261) seconds
+	 Executed 1 test, with 1 failure (0 unexpected) in 16.257 (16.261) seconds
+
+consistent-offline-second.log
+
+Test Case '-[LaneUITests.LaneUITests testOfflineShellInteractions]' started.
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:90: error: -[LaneUITests.LaneUITests testOfflineShellInteractions] : XCTAssertTrue failed
+Test Case '-[LaneUITests.LaneUITests testOfflineShellInteractions]' failed (21.264 seconds).
+	 Executed 1 test, with 1 failure (0 unexpected) in 21.264 (21.267) seconds
+	 Executed 1 test, with 1 failure (0 unexpected) in 21.264 (21.267) seconds
+	 Executed 1 test, with 1 failure (0 unexpected) in 21.264 (21.267) seconds

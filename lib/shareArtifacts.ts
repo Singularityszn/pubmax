@@ -186,6 +186,8 @@ export type PassportShareInput = {
   displayName: string;
   pubs: number;
   boroughs: number;
+  /** The borough count includes the City of London when true. */
+  cityVisited?: boolean;
   pints: number;
   isEmpty: boolean;
 };
@@ -195,10 +197,10 @@ export function buildPassportShareText(input: PassportShareInput): string {
     return "Start a Pint Passport on PUBMAXXING. Every pint stamps a page.";
   }
   const { displayName, pubs, boroughs, pints } = input;
-  return `${displayName} · ${countNoun(pubs, "pub")} · ${countNoun(
-    boroughs,
-    "borough",
-  )} · ${countNoun(pints, "pint")} on PUBMAXXING`;
+  const areas = input.cityVisited
+    ? `${boroughs > 1 ? `${countNoun(boroughs - 1, "borough")} + ` : ""}the City of London`
+    : countNoun(boroughs, "borough");
+  return `${displayName} · ${countNoun(pubs, "pub")} · ${areas} · ${countNoun(pints, "pint")} on PUBMAXXING`;
 }
 
 // ── Saved list ───────────────────────────────────────────────────────────────

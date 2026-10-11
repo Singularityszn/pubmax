@@ -26,13 +26,13 @@ at 1440 and 1280 with a venue drawer open over a mapped two-stop route.
 
 | Key | The question | Where it stands |
 |---|---|---|
-| `consent-before-answer` | The analytics consent card is the first thing a new reader meets at 320 and 360, over the answer card on `/` and over the first list on `/near` and `/tonight`. PlanAstra section 3 moves it to the third screen. | Its own lane. A flow decision rather than a defect, so no sweep may take it in passing. |
 | `map-kind-chips-behind-filters` | The kind chips row at 641px and up belongs behind a desktop `Filters` control (PlanAstra item 9). | A map lane. It needs a new control and it moves every spec that clicks a chip today. |
 
 ## Closed
 
 | Key | Answer | Where |
 |---|---|---|
+| `consent-before-answer` | [Consent timing contract](../rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked) | Regression: `e2e/consent-after-first-answer.spec.ts`. |
 | The zoom buttons at 1280 | They were never missing: measured 17 September 2026 they are painted, 44×44, at 1024 and 1280 and `elementFromPoint` at "Zoom in"'s own centre answered `div.mapToolbarRow`, so the button was dead rather than absent. The column reads the toolbar's own published berth now (`components/map/mapToolbar.css`). The `Recenter` control this row named is in no viewport's DOM. | The UI-review follow-ups lane; fence `e2e/map-desktop-arrival-chrome.spec.ts`. |
 | `head-primary-on-form-screens` | A form screen paints no head primary: the form's own submit, beside the field it submits, is the one painted control. | Captain, 7 September 2026; applied in #1597 and written into `docs/design/LAUNCH_SCREENS.md`'s rules list. |
 | The profile editor's own form buttons | Every text button on `/u/you` is the Button primitive in its quiet variant, and the surface's stylesheet paints none of them. A destructive action is the primitive's `danger` fill rather than a box of its own. | The design-review follow-ups lane; proof `docs/proof/design-review-followups/`. |

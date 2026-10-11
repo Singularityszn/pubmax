@@ -1,0 +1,91 @@
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
+import { WebSocketServer } from 'ws';
+import { chromium } from '@playwright/test';
+
+const mode = process.argv[2];
+const root = resolve('artifacts/review-r5-r6');
+const hitPath = '.agents/skills/better-accessibility/hit-areas.md';
+const streamPath = '.agents/skills/text-to-speech/references/streaming.md';
+const hit = readFileSync(hitPath, 'utf8');
+const streaming = readFileSync(streamPath, 'utf8');
+const css = hit.match(/```css\n([\s\S]*?)```/)[1];
+const html = hit.match(/```html\n([\s\S]*?)```/)?.[1] ?? '<label for="done">Mark done</label><div class="checkbox-control"><input id="done" type="checkbox"></div>';
+const section = streaming.split('## Eleven v4 Turbo WebSocket')[1].split('## WebSocket Streaming')[0];
+const javascript = section.match(/```javascript\n([\s\S]*?)```/)[1];
+writeFileSync(`${root}/${mode}-checkbox.html`, `<style>${css}</style>${html}`);
+writeFileSync(`${root}/${mode}-dialogue.js`, javascript);
+const cases = [];
+const record = (name, details, passed) => cases.push({ name, ...details, passed });
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+try {
+  const page = await browser.newPage({ viewport: { width: 320, height: 568 } });
+  await page.setContent(`<style>${css}\n.checkbox-control {margin:80px} input {width:20px;height:20px;margin:0}</style>${html}`);
+  const control = page.locator('.checkbox-control');
+  const box = await control.boundingBox();
+  const input = page.getByRole('checkbox');
+  for (const [x, y] of [[-21,-21],[21,-21],[-21,21],[21,21]]) {
+    if (await input.isChecked()) { await input.focus(); await page.keyboard.press('Space'); }
+    assert.equal(await input.isChecked(), false);
+    await page.mouse.click(box.x + box.width / 2 + x, box.y + box.height / 2 + y);
+    record(`checkbox expanded corner ${x},${y}`, { checked: await input.isChecked() }, await input.isChecked());
+  }
+  if (await input.isChecked()) { await input.focus(); await page.keyboard.press('Space'); }
+    assert.equal(await input.isChecked(), false);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  record('checkbox centre', { checked: await input.isChecked() }, await input.isChecked());
+  await input.focus();
+  if (await input.isChecked()) { await input.focus(); await page.keyboard.press('Space'); }
+    assert.equal(await input.isChecked(), false);
+  await page.keyboard.press('Space');
+  record('checkbox keyboard', { checked: await input.isChecked() }, await input.isChecked());
+} finally { await browser.close(); }
+
+const childRunner = `${root}/dialogue-child.cjs`;
+writeFileSync(childRunner, `const fs = require('node:fs');
+const vm = require('node:vm');
+const RealWebSocket = require('ws');
+const code = fs.readFileSync(process.argv[2], 'utf8').replace(/^import .*;\\r?\\n/gm, '');
+class WebSocket extends RealWebSocket { constructor() { super(process.argv[3]); } }
+vm.runInNewContext(code, { fs, WebSocket, Buffer, process, console }, { filename: 'dialogue-example.js' });
+`);
+const fixtures = [
+  { name: 'audio then final', frames: [{ audio: 'aGVsbG8=' }, { is_final: true }], ok: true, bytes: 'hello' },
+  { name: 'audio on final frame', frames: [{ audio: 'aGVsbG8=', is_final: true }], ok: true, bytes: 'hello' },
+  { name: 'API error', frames: [{ error: 'generation_failed', message: 'fixture rejection' }], ok: false },
+  { name: 'API error after partial audio', frames: [{ audio: 'aGVsbG8=' }, { error: 'generation_failed' }], ok: false },
+  { name: 'close without final', frames: [], ok: false },
+  { name: 'partial audio without final', frames: [{ audio: 'aGVsbG8=' }], ok: false },
+  { name: 'transport failure', frames: [], ok: false, transport: true },
+];
+for (const [index, fixture] of fixtures.entries()) {
+  const dir = `${root}/${mode}-protocol-${index}`;
+  mkdirSync(dir, { recursive: true });
+  const server = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+  await new Promise(resolve => server.once('listening', resolve));
+  server.on('connection', socket => {
+    socket.on('message', message => {
+      if (!JSON.parse(message.toString()).close_socket) return;
+      if (fixture.transport) { socket.terminate(); return; }
+      for (const frame of fixture.frames) socket.send(JSON.stringify(frame));
+      socket.close();
+    });
+  });
+  const result = await new Promise(resolve => {
+    const child = spawn(process.execPath, [childRunner, `${root}/${mode}-dialogue.js`, `ws://127.0.0.1:${server.address().port}`], { cwd: dir, env: { PATH: process.env.PATH } });
+    let stdout = '', stderr = '';
+    child.stdout.on('data', data => stdout += data);
+    child.stderr.on('data', data => stderr += data);
+    const timeout = setTimeout(() => child.kill('SIGTERM'), 5000);
+    child.on('close', (code, signal) => { clearTimeout(timeout); resolve({ code, signal, stdout, stderr }); });
+  });
+  await new Promise(resolve => server.close(resolve));
+  const output = readFileSync(`${dir}/output.mp3`).toString();
+  record(fixture.name, { ...result, output, expectedSuccess: fixture.ok }, fixture.ok ? result.code === 0 && output === fixture.bytes : result.code !== 0 && result.code !== null);
+}
+const result = { mode, sourceHead: '78e165a059a839a826add8edb844410658d15bd3', cases };
+writeFileSync(`${root}/${mode}-recipes.json`, JSON.stringify(result, null, 2));
+console.log(JSON.stringify(cases.map(({ name, passed, code, checked }) => ({ name, passed, code, checked })), null, 2));
+assert.equal(cases.every(c => c.passed), true, 'Every expanded checkbox target activates its input and dialogue failure exits nonzero');

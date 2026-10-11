@@ -1,0 +1,47 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'playwright' test -c artifacts/ci-025/playwright.config.ts e2e/smoke.spec.ts -g opens at the peek snap --repeat-each=5
+[WebServer] npm notice run pubmaxxing@0.1.0 start
+[WebServer] npm notice run node -e "const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\n\u2717 '+d+'/BUILD_ID is missing \u2014 there is no completed production build to serve.\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\n'), process.exit(1))" && next start --port 3497
+[WebServer] (node:12352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ▲ Next.js 16.4.0
+[WebServer] - Local:         http://localhost:3497
+[WebServer] - Network:       http://192.168.0.41:3497
+[WebServer] ✓ Ready in 49ms
+[WebServer] ✓ Running next.config.mjs took 145ms
+
+Running 5 tests using 1 worker
+
+(node:12385) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":832,"ts":1791663536688}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":171,"ts":1791663537096}
+  ✓  1 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (2.0s)
+(node:12406) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":1,"ts":1791663538217}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":1,"ts":1791663539197}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":652,"ts":1791663539306}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":3400,"ts":1791663539637}
+  ✓  2 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (2.1s)
+(node:12439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663540717}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":0,"ts":1791663541681}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":879,"ts":1791663542022}
+  ✓  3 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (2.2s)
+(node:12458) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663543266}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":0,"ts":1791663544231}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1219,"ts":1791663544892}
+  ✓  4 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (2.2s)
+(node:12486) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791663545804}
+[WebServer] {"level":"info","event":"http.request","route":"hygiene","method":"GET","status":200,"durationMs":0,"ts":1791663546782}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":946,"ts":1791663547174}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/places","method":"GET","status":200,"durationMs":143,"ts":1791663547530}
+  ✓  5 [chromium] › e2e/smoke.spec.ts:281:5 › mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px (2.3s)
+
+  5 passed (13.2s)

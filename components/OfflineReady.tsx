@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-// Registers the offline service worker (public/sw.js — issue #32, PRD § The
-// Spill). Renders nothing and nags about nothing: registration is silent,
+// Registers the offline service worker where navigator.serviceWorker is available
+// (public/sw.js, issue #32, PRD section The Spill). Registration is silent,
 // updates install in the background.
 //
 // The ?v= query carries the per-deploy build id (inlined from next.config.mjs
@@ -11,9 +11,9 @@ import { useEffect } from "react";
 // browser treats it as a new worker. public/sw.js owns activation and cache
 // migration. public/sw-plan-cache.js documents Plan cache retirement.
 //
-// REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP. The first-pins gate
-// below exists so installing the worker cannot tax the map's cold path, and it
-// is kept for exactly that. What it may not be is the ONLY key: the native
+// WHERE SUPPORTED, REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP.
+// The first-pins gate exists so installing the worker cannot tax the map's
+// cold path, and it is kept for exactly that. What it may not be is the ONLY key: the native
 // shell cold-starts on /tonight (lib/entryDecision.ts), so a reader whose
 // sessions are Tonight, Out, Social or You never opened /map, never fired
 // `pubmax:first-pins`, and got no offline shell at all — in an app whose

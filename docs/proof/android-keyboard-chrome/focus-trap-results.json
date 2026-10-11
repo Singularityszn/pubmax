@@ -1,0 +1,24 @@
+{
+  "before": {
+    "keyboardHidden": true,
+    "inert": true,
+    "exempt": true,
+    "last": "<a class=\"routeStopDirections\" href=\"https://www.google.com/maps/dir/?api=1&amp;destination=51.5262,-0.0556257&amp;travelmode=walking\" target=\"_blank\" rel=\"noop",
+    "first": "<button type=\"button\" class=\"mobileSharedSheetDetent\" aria-label=\"Expand sheet\"><span class=\"mobileSharedSheetGrab\" aria-hidden=\"true\"></span></button>",
+    "tabPrevented": true,
+    "activeIsLast": true,
+    "activeIsFirst": false
+  },
+  "after": {
+    "keyboardHidden": true,
+    "inert": true,
+    "exempt": true,
+    "tabPrevented": true,
+    "activeIsLast": false,
+    "activeIsFirst": true
+  },
+  "reverseAfter": {
+    "tabPrevented": true,
+    "activeIsLast": true
+  }
+}

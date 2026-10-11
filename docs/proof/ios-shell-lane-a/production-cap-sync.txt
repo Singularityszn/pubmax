@@ -1,0 +1,20 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'cap' sync ios
+✔ Copying web assets from web-stub to ios/App/App/public in 4.12ms
+✔ Creating capacitor.config.json in ios/App/App in 248.17μs
+✔ copy ios in 37.33ms
+✔ Updating iOS plugins in 3.00ms
+[info] All Capacitor plugins have a Package.swift file and will be included in Package.swift
+[info] Writing Package.swift
+[info] Found 9 Capacitor plugins for ios:
+       @capacitor-community/in-app-review@8.0.0
+       @capacitor/app@8.1.2
+       @capacitor/browser@8.0.5
+       @capacitor/camera@8.2.5
+       @capacitor/haptics@8.0.2
+       @capacitor/push-notifications@8.1.3
+       @capacitor/share@8.0.3
+       @capacitor/splash-screen@8.0.2
+       @capacitor/text-zoom@8.0.1
+✔ update ios in 29.21ms
+[info] Sync finished in 0.112s

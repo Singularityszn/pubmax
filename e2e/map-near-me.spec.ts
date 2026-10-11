@@ -37,7 +37,7 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(tonightBody),
+        body: JSON.stringify({ ...tonightBody, servedAt: new Date().toISOString() }),
       }),
     );
     await page.route("**/api/citymcp/status", (route) =>
@@ -147,7 +147,7 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [] }),
+      body: JSON.stringify({ servedAt: new Date().toISOString(), rows: [] }),
     }),
   );
   await page.route("**/api/citymcp/status", (route) =>

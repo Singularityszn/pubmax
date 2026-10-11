@@ -1,0 +1,30 @@
+ FAIL  __tests__/vercelIgnoreCoverage.test.ts > .vercelignore covers what a deploy would otherwise upload > no top-level directory over 5 MB is both unlisted and not a deploy input
+AssertionError: expected { '.ios-lane-a': '3376 MB' } to deeply equal {}
+
+- Expected
++ Received
+
+- {}
++ {
++   ".ios-lane-a": "3376 MB",
++ }
+
+ ❯ __tests__/vercelIgnoreCoverage.test.ts:121:23
+    119|       }
+    120|     }
+    121|     expect(offenders).toEqual({});
+       |                       ^
+    122|   });
+    123|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1801 passed | 1 skipped (1803)
+      Tests  1 failed | 21424 passed | 1 skipped (21426)
+   Start at  12:41:18
+   Duration  337.17s (tests 64%, import 17%, environment 10%, transform 4%, worker 3%, setup 2%)
+
+    Isolate  1803 workers spawned · ~143ms startup each (spawn + environment, per file)
+             at least ~64.13s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -150,6 +150,7 @@ export function buildVenueIdIndex(dataset) {
 // record keeps its heritage NAME: the dataset spelling is what drifted, so
 // adopting it would rename the pub and move its page.
 export const VENUE_ID_BY_CACHE_KEY = {
+  "the black friar, blackfriars": "venue-eltcmh",
   "the george inn": "venue-16ze6b1",
   "owl and pussycat": "venue-t3ii33",
 };

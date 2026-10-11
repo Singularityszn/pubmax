@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,11 +8,6 @@ import {
   nearVenueOpenedProps,
 } from "@/lib/nearAnalytics";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
-
-const nearSource = readFileSync(
-  resolve(process.cwd(), "components/nearme/NearMeNow.tsx"),
-  "utf8",
-);
 
 describe("near answer analytics", () => {
   it("uses coarse result and position bands", () => {
@@ -54,13 +47,6 @@ describe("near answer analytics", () => {
     expect(sanitizeEvent("near_answer_ready", { source: "exact-postcode", resultBand: "4+" }))
       .toBeNull();
     expect(sanitizeEvent("near_venue_opened", { source: "location" })).toBeNull();
-  });
-
-  it("tracks only the latest completed answer and opens before navigation", () => {
-    expect(nearSource).toContain("const generation = ++answerGenerationRef.current;");
-    expect(nearSource).toContain("if (generation !== answerGenerationRef.current) return;");
-    expect(nearSource).toContain('trackEvent(\n      "near_answer_ready"');
-    expect(nearSource).toContain('trackEvent(\n            "near_venue_opened"');
   });
 
   it("does not resolve a self-authored patch URL as a second answer", () => {

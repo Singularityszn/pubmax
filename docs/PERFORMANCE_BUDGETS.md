@@ -1087,11 +1087,11 @@ The seams:
 - **`experimental.staleTimes` in `next.config.mjs`** is the window. See the
   [Router Cache policy](rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
   for its safety conditions, the `/admin` document guard, and test coverage.
-- **`lib/surfaceDataCache.ts`** is the data half: one browser-only
-  stale-while-revalidate store, so a return paints its last answer and refreshes
-  behind it. It refuses auth and identity keys outright and empties at an
-  account boundary. On the same lap set, Tonight's LISTINGS - not just its shell
-  - reached the screen on a return in 197 ms p50 / 344 ms p95, from 417 / 660.
+- **`lib/surfaceDataCache.ts`** is the data half. The
+  [browser cache policy](rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
+  owns reuse, revalidation, service-night validity, and account boundaries.
+  On the same lap set, Tonight's listings reached the screen on a return in
+  197 ms p50 / 344 ms p95, from 417 / 660.
 - **`components/nav/IntentLink.tsx`** warms a dynamic destination on intent
   instead of prefetching it on sight. A Tonight arrival used to fire about twenty
   `/plan?occasion=…` and `/pal/chat?ask=…` server renders in front of the

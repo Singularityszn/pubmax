@@ -1,0 +1,63 @@
+{
+  "id": "1791453188520",
+  "value": {
+    "url": "http://localhost:3491/tonight?lane-offline-assets=1",
+    "rows": [
+      {
+        "name": "pubmax-sw-shell-local-ios-lane-a",
+        "count": 4,
+        "css": []
+      },
+      {
+        "name": "pubmax-sw-preview-plan-v2-local-ios-lane-a",
+        "count": 0,
+        "css": []
+      },
+      {
+        "name": "pubmax-sw-swr-local-ios-lane-a",
+        "count": 130,
+        "css": [
+          "http://localhost:3491/_next/static/chunks/1xmsjcayswq3s.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/1tdx3bo07w749.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/0wce-m5-fgbga.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/01i7rih-tk7ru.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2pbqnq-3h8plj.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/1anv9ow2z2u_t.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/40tb4rh4ze17k.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/1yp5aj_p2tu1b.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/0jkfyteovepf4.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3gi2c6m95j6uo.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3a18hkh-9yj1h.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/15bivawrnh3cb.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3770f31r99x6_.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/1aftg54rch60b.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/1wiyydr_4giu4.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2497ux0g_2-_v.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3h_ycx02q-g5u.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3e6ambd4-6w9d.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/43qca9gy0r71s.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2k_bb9lyjzeb0.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3dgy9l5se9-98.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/0v_af26g-_2dz.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/0t_rosu9rvfv0.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/0xj5x9dq33krl.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/20265yerwz_dh.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2uc_1usgf2rq_.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/439ozdi89m_b0.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2b9gv-bxy2wkw.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/16wvk__o0_3g-.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/3leg91mcspfk3.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2jx2_ay1-xlhc.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/0shw88-6ih2ek.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/1f0t4qpfs_zy7.css?dpl=835b91ab6ffe",
+          "http://localhost:3491/_next/static/chunks/2wdddhjhuqgxq.css?dpl=835b91ab6ffe"
+        ]
+      },
+      {
+        "name": "pubmax-sw-data-local-ios-lane-a",
+        "count": 1,
+        "css": []
+      }
+    ]
+  }
+}

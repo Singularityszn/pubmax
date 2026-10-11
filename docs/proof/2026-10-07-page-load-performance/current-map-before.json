@@ -1,0 +1,62 @@
+{
+  "baseURL": "http://localhost:34732",
+  "controlledDelay": "MapLibre worker assets held until the behavior assertion completes",
+  "before": {
+    "paintedPoints": 0,
+    "firstPinsMarked": true,
+    "pinRevealMarked": false
+  },
+  "atPoiStart": {
+    "paintedPoints": 0,
+    "firstPinsMarked": true,
+    "pinRevealMarked": false
+  },
+  "workerRows": [
+    {
+      "path": "/vendor/maplibre/maplibre-gl-worker.mjs",
+      "time": 1791404997889
+    }
+  ],
+  "rows": [
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.core.json",
+      "time": 1791404997908
+    },
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.manifest.json",
+      "time": 1791404997944
+    },
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.cell.51.500_-0.125.json",
+      "time": 1791404997967
+    },
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.core.json",
+      "time": 1791404997967
+    },
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.cell.51.525_-0.125.json",
+      "time": 1791404997967
+    },
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.cell.51.525_-0.150.json",
+      "time": 1791404997967
+    },
+    {
+      "phase": "focus",
+      "path": "/data/london_pois.json",
+      "time": 1791404998454
+    },
+    {
+      "phase": "focus",
+      "path": "/data/tfl_lines.json",
+      "time": 1791404998455
+    }
+  ]
+}

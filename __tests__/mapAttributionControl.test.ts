@@ -1,78 +1,108 @@
-// The map's ODbL credit is a control, not a rendering defect.
-//
-// DEFECT (UI audit, 2026-09-01, production, 390x844): four info glyphs rendered
-// stacked on a white rounded blob at the map's bottom right.
-//
-// Read off the live control: ONE attribution control, ONE button, computed
-// 44x44 with `background-size: auto` and `background-repeat: repeat`. MapLibre
-// ships the glyph as a 24px background SVG on a 24px button and never
-// constrains the repeat, because it never needs to. Raising the button to this
-// app's 44px tap floor tiled that glyph 2 x 2, and the control behind it stayed
-// MapLibre's 24 x 20 white sliver, so the button overflowed its own container.
-//
-// The credit itself is untouched: OSM_ATTRIBUTION is still passed as
-// customAttribution on the map, so it survives every style swap and every city.
+// @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { AttributionControl } from "maplibre-gl";
+// The map's ODbL credit: one licence line, painted on the map as MapLibre's
+// compact (i) and repeated as copy under the Key in More map controls.
+//
+// History. UI audit, 2026-09-01, production, 390x844: four info glyphs rendered
+// stacked on a white rounded blob, because raising MapLibre's 24px button to the
+// 44px tap floor tiled its 24px background glyph 2 x 2. That was fixed by
+// shaping the control, and the rendered circle, its berth above the bottom card
+// and the credit's place under the Key are proven in a browser
+// (e2e/drink-chip-controls.spec.ts, e2e/mobile-map-chrome-fit.spec.ts).
+//
+// What may NOT change is the credit itself: OSM_ATTRIBUTION is the map's
+// customAttribution, and the phone's copy reads the same constant.
 
+import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { OSM_ATTRIBUTION } from "@/components/map/canvas/tokens";
+import MapCredits from "@/components/map/MapCredits";
 
-const REPO_ROOT = join(__dirname, "..");
-const shellCss = readFileSync(
-  join(REPO_ROOT, "components/mobile/mobileMapShell.css"),
-  "utf8",
-);
-const canvasTsx = readFileSync(
-  join(REPO_ROOT, "components/PubMapCanvas.tsx"),
-  "utf8",
-);
-
-function ruleFor(selector: string): string {
-  const at = shellCss.indexOf(selector);
-  expect(at, `${selector} present`).toBeGreaterThan(-1);
-  const open = shellCss.indexOf("{", at);
-  return shellCss.slice(open, shellCss.indexOf("}", open));
-}
-
-describe("the attribution glyph is drawn once", () => {
-  const button = ruleFor(".appShell .mapStage .maplibregl-ctrl-attrib-button");
-
-  it("keeps the 44px tap floor", () => {
-    expect(button).toContain("min-width: 44px;");
-    expect(button).toContain("min-height: 44px;");
-  });
-
-  it("stops the 24px glyph tiling across it", () => {
-    expect(button).toContain("background-repeat: no-repeat;");
-    expect(button).toContain("background-position: center;");
-    expect(button).toContain("background-size: 24px 24px;");
-  });
-});
-
-describe("the collapsed credit takes this lane's own shape", () => {
-  const control = ruleFor(
-    ".maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show)",
+describe("the emitted map attribution", () => {
+  it.each([320, 390, 430, 641, 1440])(
+    "keeps the pub credit through disclosure and style changes at %ipx",
+    (width) => {
+      const canvas = document.createElement("div");
+      Object.defineProperty(canvas, "offsetWidth", { value: width });
+      const listeners = new Map<string, (event: { dataType: string }) => void>();
+      const map = {
+        style: { stylesheet: {}, tileManagers: {} },
+        getCanvasContainer: () => canvas,
+        _getUIString: () => "Toggle attribution",
+        on: (event: string, listener: (event: { dataType: string }) => void) => listeners.set(event, listener),
+        off: (event: string) => listeners.delete(event),
+      };
+      const control = new AttributionControl({
+        compact: true,
+        customAttribution: OSM_ATTRIBUTION,
+      });
+      const element = control.onAdd(map as unknown as Parameters<AttributionControl["onAdd"]>[0]);
+      document.body.append(element);
+      try {
+        const button = element.querySelector<HTMLElement>("summary")!;
+        const credit = element.querySelector(".maplibregl-ctrl-attrib-inner")!;
+        expect(element.querySelectorAll("summary")).toHaveLength(1);
+        expect(button.getAttribute("aria-label")).toBe("Toggle attribution");
+        for (const expanded of [true, false, true]) {
+          expect(element.classList.contains("maplibregl-compact-show")).toBe(expanded);
+          expect(credit.textContent).toBe("Pub data © OpenStreetMap contributors (ODbL)");
+          button.click();
+        }
+        map.style = { stylesheet: {}, tileManagers: {} };
+        listeners.get("styledata")!({ dataType: "style" });
+        button.click();
+        expect(element.classList.contains("maplibregl-compact-show")).toBe(true);
+        expect(credit.textContent).toBe("Pub data © OpenStreetMap contributors (ODbL)");
+      } finally {
+        control.onRemove();
+      }
+      expect(element.isConnected).toBe(false);
+      expect(listeners.size).toBe(0);
+    },
   );
-
-  it("is a 44px circle on the raised surface, like the compass beside it", () => {
-    expect(control).toContain("width: 44px;");
-    expect(control).toContain("height: 44px;");
-    expect(control).toContain("border-radius: 50%;");
-    expect(control).toContain("background: var(--color-surface-raised);");
-  });
-
-  it("shapes only the COLLAPSED state, so the expanded credit stays readable", () => {
-    expect(shellCss).toContain(":not(.maplibregl-compact-show)");
-  });
 });
 
 describe("the credit itself is unchanged", () => {
-  it("still rides the map as customAttribution", () => {
-    expect(canvasTsx).toContain("customAttribution: OSM_ATTRIBUTION,");
+  it("names CARTO when the fallback basemap is active", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { basemap: "carto" }));
+    expect(html).toContain("CARTO");
+    expect(html).toContain("https://carto.com/about-carto/");
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).not.toContain("OpenFreeMap");
+    expect(html).not.toContain("OpenMapTiles");
+  });
+
+  it("names OpenStreetMap and its licence", () => {
     expect(OSM_ATTRIBUTION).toContain("OpenStreetMap contributors");
     expect(OSM_ATTRIBUTION).toContain("ODbL");
+  });
+
+  it("reads the same constant in the phone's copy, with the basemap's own line", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { provider: "openfreemap" }));
+    expect(html).toContain("Map credits");
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).toContain("OpenFreeMap");
+    expect(html).toContain("OpenMapTiles");
+    expect(html).toContain("https://www.openstreetmap.org/copyright");
+  });
+
+  it("names CARTO when its fallback style is active", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { provider: "carto" }));
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).toContain("CARTO");
+    expect(html).not.toContain("OpenFreeMap");
+    expect(html).not.toContain("OpenMapTiles");
+    expect(html).toContain("https://carto.com/about-carto/");
+    expect(html).toContain("https://www.openstreetmap.org/about/");
+  });
+
+  it("makes no basemap provider claim before a style has loaded", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { provider: null }));
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).not.toContain("OpenFreeMap");
+    expect(html).not.toContain("CARTO");
   });
 });

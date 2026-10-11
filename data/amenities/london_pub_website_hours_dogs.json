@@ -3,23 +3,29 @@
   "extractor": "lib/harvest/pubSiteHoursAndDogs.ts, no model",
   "spendUsd": 0,
   "skipCounts": {
-    "page-stated-neither": 144,
-    "unsettled-http-503": 1,
-    "unsettled-not-json": 1,
-    "chain-page": 6,
-    "unsettled-empty-page": 4,
-    "unsettled-read": 1,
-    "chain-hours-passage": 32,
-    "chain-dogs-passage": 13
+    "kept-unsettled": 178,
+    "chain-hours-passage": 2,
+    "chain-dogs-passage": 3
   },
   "counts": {
-    "rows": 299,
-    "dogsWelcome": 31,
+    "rows": 369,
+    "dogsWelcome": 48,
     "dogsNotAllowed": 0,
-    "hours": 297,
-    "withVenueId": 299
+    "hours": 361,
+    "withVenueId": 369
   },
   "rows": [
+    {
+      "osmId": "node/10087011293",
+      "name": "Brixton Brewery Tap Room",
+      "venueId": "venue-112egvu",
+      "sourceUrl": "https://brixtonbrewery.com/pages/taproom",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dogs welcome."
+      }
+    },
     {
       "osmId": "node/10266440541",
       "name": "Kings Arms",
@@ -84,11 +90,263 @@
       }
     },
     {
+      "osmId": "node/10266440578",
+      "name": "The Coach and Horses",
+      "venueId": "venue-170rkc0",
+      "sourceUrl": "https://www.the-coach-and-horses.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "09:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n- Monday: 09:00 -23:00\n- Tuesday: 09:00 - 23:00\n- Wednesday: 09:00 -23:00\n- Thursday: 09:00 -23:00\n- Friday: 09:00 - 23:00\n- Saturday: 09:00 - 23:00\n- Sunday: 09:00 - 22:30"
+      }
+    },
+    {
+      "osmId": "node/10266440600",
+      "name": "The Admiral Hardy",
+      "venueId": "venue-l98etf",
+      "sourceUrl": "https://admiralhardygreenwich.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nMon-Sat: 12pm-11pm\n\nSun: 12pm-10pm"
+      }
+    },
+    {
+      "osmId": "node/10582361575",
+      "name": "The Duke of Wellington",
+      "venueId": "venue-1gpckx6",
+      "sourceUrl": "https://thedukew1h.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening times**\n\n- Tuesday-Friday 12pm-11pm\n- Saturday 10am -11pm\n- Sunday-Monday 12pm-10pm"
+      }
+    },
+    {
+      "osmId": "node/10728654718",
+      "name": "The Chequers",
+      "venueId": "venue-1xgdsel",
+      "sourceUrl": "https://www.thechequersbarkingside.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nOpening Times\n\nMon\n\n12:00-00:00\n\nTue\n\n12:00-00:00\n\nWed\n\n12:00-00:00\n\nThu\n\n12:00-00:00\n\nFri\n\n12:00-00:00\n\nSat\n\n12:00-00:00\n\nSun\n\n12:00-00:00"
+      }
+    },
+    {
       "osmId": "node/10937912505",
       "name": "Shuffleboard Bar London",
       "venueId": "venue-n99s5t",
       "sourceUrl": "https://shuffleboardbars.com/london/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -143,7 +401,18 @@
           5,
           6
         ],
-        "evidence": "Opening Hours\n- Monday to Sunday: 12pm – 11pm"
+        "evidence": "Opening Hours\n\n- Monday to Sunday: 12pm – 11pm"
+      }
+    },
+    {
+      "osmId": "node/11019827413",
+      "name": "The Prince of Wales",
+      "venueId": "venue-9fb18e",
+      "sourceUrl": "https://www.princeofwalessurbiton.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
       }
     },
     {
@@ -277,7 +546,7 @@
       "name": "The Betjeman Arms",
       "venueId": "venue-eevtj0",
       "sourceUrl": "https://www.thebetjemanarms.co.uk/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -332,7 +601,7 @@
           5,
           6
         ],
-        "evidence": "Opening Hours\n- Monday: 8am - 11pm\n- Tuesday: 8am - 11pm\n- Wednesday: 8am - 11pm\n- Thursday: 8am - 11pm\n- Friday: 8am - 11pm\n- Saturday: 8am - 11pm\n- Sunday: 8am - 10:30pm"
+        "evidence": "Opening Hours**\n- Monday: 8am - 11pm\n- Tuesday: 8am - 11pm\n- Wednesday: 8am - 11pm\n- Thursday: 8am - 11pm\n- Friday: 8am - 11pm\n- Saturday: 8am - 11pm\n- Sunday: 8am - 10:30pm"
       }
     },
     {
@@ -399,11 +668,74 @@
       }
     },
     {
+      "osmId": "node/11402769342",
+      "name": "The White Swan",
+      "venueId": "venue-97kc5j",
+      "sourceUrl": "https://www.whiteswanrichmond.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times**\n\nMon-Sat    12pm – 11pm\n\nSunday    12pm – 10.30pm"
+      }
+    },
+    {
       "osmId": "node/12007863407",
       "name": "Three Compasses",
       "venueId": "venue-wp5tqm",
       "sourceUrl": "https://www.threecompasseshornsey.com/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -458,7 +790,7 @@
           5,
           6
         ],
-        "evidence": "Opening times\nMonday–Thursday: 3pm–11pm \nFriday: 3pm–12am \nSaturday: 12pm–12am \nSunday: 12pm–11pm"
+        "evidence": "Opening times\n\nMonday–Thursday: 3pm–11pm\n\nFriday: 3pm–12am\n\nSaturday: 12pm–12am\n\nSunday: 12pm–11pm"
       }
     },
     {
@@ -466,7 +798,7 @@
       "name": "VennStreet Records",
       "venueId": "venue-19vsru5",
       "sourceUrl": "https://www.vennstreetrecords.com/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -521,7 +853,70 @@
           5,
           6
         ],
-        "evidence": "Opening Times\nMon: 5pm - 12am \nTues: 5pm - 12am \nWeds: 5pm - 12am \nThurs: 5pm - 2am \nFri: 5pm - 2am \nSat: 4:30pm - 2am \nSun: 5pm - 12am"
+        "evidence": "Opening Times\n\nMon: 5pm - 12am\n\nTues: 5pm - 12am\n\nWeds: 5pm - 12am\n\nThurs: 5pm - 2am\n\nFri: 5pm - 2am\n\nSat: 4:30pm - 2am\n\nSun: 5pm - 12am"
+      }
+    },
+    {
+      "osmId": "node/1216069730",
+      "name": "The Hollybush",
+      "venueId": "venue-uk-n1216069730",
+      "sourceUrl": "https://www.mcmullens.co.uk/local-pub/hollybush/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:30"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n|     |     |\n| --- | --- |\n| Monday | 11:00–23:00 |\n| Tuesday | 11:00–23:00 |\n| Wednesday | 11:00–23:00 |\n| Thursday | 11:00–00:00 |\n| Friday | 11:00–00:30 |\n| Saturday | 11:00–00:30 |\n| Sunday | 12:00–22:00"
       }
     },
     {
@@ -825,6 +1220,136 @@
       }
     },
     {
+      "osmId": "node/1275835684",
+      "name": "Masons Arms",
+      "venueId": "venue-jjzydh",
+      "sourceUrl": "https://www.masons-arms-battersea.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "10:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "10:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "10:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "10:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 10:00 - 23:00 |  |  |\n| Tuesday | 10:00 - 23:00 |  |  |\n| Wednesday | 10:00 - 23:00 |  |  |\n| Thursday | 10:00 - 00:00 |  |  |\n| Friday | 10:00 - 00:00 |  |  |\n| Saturday | 10:00 - 00:00 |  |  |\n| Sunday | 10:00 - 22:30"
+      }
+    },
+    {
+      "osmId": "node/12842476349",
+      "name": "The Greyhound",
+      "venueId": "venue-sw8bso",
+      "sourceUrl": "https://www.thegreyhoundkew.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nMonday to Saturday\n\n11am – 11pm\n\nSunday\n\n11am – 10pm"
+      }
+    },
+    {
       "osmId": "node/12890502854",
       "name": "Richard I",
       "venueId": "venue-14alocj",
@@ -885,6 +1410,69 @@
           6
         ],
         "evidence": "Opening Times Monday - Saturday11:00 - 23:00 Sunday12:00 - 22:30"
+      }
+    },
+    {
+      "osmId": "node/12961239334",
+      "name": "The North Pole",
+      "venueId": "venue-1ie3w8u",
+      "sourceUrl": "https://www.northpolegreenwich.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "00:30"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours:**\n\nSunday - Wednesday 12pm - 12am\n\nThursday 12pm - 12.30am\n\nFriday - Saturday 12pm - 1am"
       }
     },
     {
@@ -956,10 +1544,6 @@
       "venueId": "venue-1j8bjz9",
       "sourceUrl": "https://www.chefandbrewer.com/pubs/greater-london/bulls-head",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Dog Friendly"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -1018,6 +1602,195 @@
       }
     },
     {
+      "osmId": "node/13327212416",
+      "name": "Three Colts Tavern",
+      "venueId": "venue-1g0y58p",
+      "sourceUrl": "https://www.threecoltstavern.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "OPENING Hours\n\n**BAR HOURS:**\n\n**Monday** — 4 pm – 10 pm (from 12 on bank holidays)\n\n**Tuesday – Thursday** — 4 pm – 11 pm\n\n**Friday – Saturday** — 12 pm – 1 am\n\n**Sunday** — 12 pm – 10 pm"
+      }
+    },
+    {
+      "osmId": "node/13409071887",
+      "name": "The Mulberry Bush",
+      "venueId": "venue-1czoydz",
+      "sourceUrl": "https://www.mulberrybushpub.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "21:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Saturday 11:00 - 23:00\n\nSunday12:00 - 21:00"
+      }
+    },
+    {
+      "osmId": "node/13652843572",
+      "name": "Erin's",
+      "venueId": "venue-18orf8o",
+      "sourceUrl": "https://whelanspubs.co.uk/erins/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:30",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:30",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening times\n\n- **Monday – Thursday** 11.30am – 11pm\n- **Friday & Saturday** 11.30am – 1am\n- **Sunday** 12pm – 10.30pm"
+      }
+    },
+    {
       "osmId": "node/13691299423",
       "name": "The Last Drop Inn",
       "venueId": "venue-x4txk3",
@@ -1073,6 +1846,17 @@
           6
         ],
         "evidence": "OPENING HOURS Monday: Closed Tuesday: 17:00 - 22:30 Wednesday. 17:00 - 22:30 Thursday: 17:00 - 22:30 Friday: 14:00 - 23:00 Saturday: 14:00 - 23:00 Sunday: 14:00 - 22:30"
+      }
+    },
+    {
+      "osmId": "node/13740121985",
+      "name": "The Golden Ark Micropub",
+      "venueId": "venue-5z22my",
+      "sourceUrl": "https://thegoldenark.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
       }
     },
     {
@@ -1192,6 +1976,69 @@
           6
         ],
         "evidence": "Opening hours (Bar)\n- Monday: 5pm-10.30pm\n- Tuesday - Friday: 11am-11pm\n- Saturday: 11am-11pm"
+      }
+    },
+    {
+      "osmId": "node/14178896047",
+      "name": "The Ship",
+      "venueId": "venue-mz6byd",
+      "sourceUrl": "https://www.shipsoho.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 12:00 - 23:00 |  |  |\n| Tuesday | 12:00 - 23:00 |  |  |\n| Wednesday | 12:00 - 23:00 |  |  |\n| Thursday | 12:00 - 23:00 |  |  |\n| Friday | 12:00 - 23:00 |  |  |\n| Saturday | 11:00 - 23:30 |  |  |\n| Sunday | 12:00 - 22:30"
       }
     },
     {
@@ -1341,6 +2188,132 @@
       }
     },
     {
+      "osmId": "node/14181043735",
+      "name": "The Mad Hatter Hotel",
+      "venueId": "venue-kiq0j5",
+      "sourceUrl": "https://www.madhatterhotel.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "08:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "08:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 07:00 - 23:00 |  |  |\n| Tuesday | 07:00 - 23:00 |  |  |\n| Wednesday | 07:00 - 23:00 |  |  |\n| Thursday | 07:00 - 23:00 |  |  |\n| Friday | 07:00 - 23:00 |  |  |\n| Saturday | 08:00 - 23:00 |  |  |\n| Sunday | 08:00 - 22:30"
+      }
+    },
+    {
+      "osmId": "node/14181043751",
+      "name": "Bunch of Grapes",
+      "venueId": "venue-9x822c",
+      "sourceUrl": "https://www.bunchofgrapesborough.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours**\n- Monday: 11:00 - 23:00\n- Tuesday: 11:00 - 23:00\n- Wednesday: 11:00 - 23:00\n- Thursday: 11:00 - 23:30\n- Friday: 11:00 - 23:30\n- Saturday: 11:00 - 23:30\n- Sunday: 11:00 - 22:00"
+      }
+    },
+    {
       "osmId": "node/14196786774",
       "name": "True Craft",
       "venueId": "venue-ua94gq",
@@ -1471,6 +2444,69 @@
       }
     },
     {
+      "osmId": "node/14206898649",
+      "name": "The Elephant's Head",
+      "venueId": "venue-11wwbzz",
+      "sourceUrl": "https://www.elephantsheadcamden.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nOpening Times\n\nMon\n\n12:00-02:00\n\nTue\n\n12:00-02:00\n\nWed\n\n12:00-02:00\n\nThu\n\n12:00-02:00\n\nFri\n\n12:00-02:00\n\nSat\n\n12:00-02:00\n\nSun\n\n12:00-02:00"
+      }
+    },
+    {
       "osmId": "node/14210573147",
       "name": "Brook & Badger",
       "venueId": "venue-x4gpfi",
@@ -1534,11 +2570,74 @@
       }
     },
     {
+      "osmId": "node/14226401826",
+      "name": "Punch Tavern",
+      "venueId": "venue-1cuyir7",
+      "sourceUrl": "https://www.urbanpubsandbars.com/venues/punch-tavern",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nMonday -\n\n11:00-23:30\n\nTuesday -\n\n11:00-23:30\n\nWednesday -\n\n11:00-23:30\n\nThursday -\n\n11:00-00:00\n\nFriday -\n\n11:00-00:00\n\nSaturday -\n\n11:00-00:00\n\nSunday -\n\n12:00-22:00"
+      }
+    },
+    {
       "osmId": "node/14229421747",
       "name": "The Guinea",
       "venueId": "venue-1hlds4u",
       "sourceUrl": "https://www.theguinea.co.uk/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -1593,7 +2692,7 @@
           5,
           6
         ],
-        "evidence": "Opening Times\nMonday - Saturday11:00 - 23:00\nSunday11:00 - 21:00"
+        "evidence": "Opening Times\n\nMonday - Saturday11:00 - 23:00\n\nSunday11:00 - 21:00"
       }
     },
     {
@@ -1786,6 +2885,73 @@
       }
     },
     {
+      "osmId": "node/1561417481",
+      "name": "Hung, Drawn and Quartered",
+      "venueId": "venue-1xrchxh",
+      "sourceUrl": "https://www.hung-drawn-and-quartered.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "18:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 12:00 - 23:00 |  |  |\n| Tuesday | 12:00 - 23:00 |  |  |\n| Wednesday | 12:00 - 23:00 |  |  |\n| Thursday | 12:00 - 23:00 |  |  |\n| Friday | 12:00 - 23:00 |  |  |\n| Saturday | 12:00 - 23:00 |  |  |\n| Sunday | 12:00 - 18:00"
+      }
+    },
+    {
       "osmId": "node/1601053417",
       "name": "The Plough",
       "venueId": "venue-13xdb1p",
@@ -1916,11 +3082,74 @@
       }
     },
     {
+      "osmId": "node/1693229102",
+      "name": "The Duchess & Dressmaker",
+      "venueId": "venue-uk-n1693229102",
+      "sourceUrl": "https://www.mcmullens.co.uk/local-pub/duchess-dressmaker/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "10:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "10:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "10:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n|     |     |\n| --- | --- |\n| Monday | 10:00–23:00 |\n| Tuesday | 10:00–23:00 |\n| Wednesday | 10:00–23:00 |\n| Thursday | 10:00–23:00 |\n| Friday | 10:00–01:00 |\n| Saturday | 10:00–01:00 |\n| Sunday | 10:00–22:00"
+      }
+    },
+    {
       "osmId": "node/1737829080",
       "name": "The Wandle",
       "venueId": "venue-rfo6aw",
       "sourceUrl": "https://www.wandleearlsfield.com/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "dogs": {
         "policy": "welcome",
         "evidence": "Dog Friendly"
@@ -1979,7 +3208,7 @@
           5,
           6
         ],
-        "evidence": "Opening Hours\nToday (Wed)\n12:00pm - 11:00pm\nThursday\n12:00pm - 11:00pm\nFriday\n12:00pm - 12:00am\nSaturday\n12:00pm - 12:00am\nSunday\n12:00pm - 10:00pm\nMonday\n12:00pm - 11:00pm\nTuesday\n12:00pm - 11:00pm"
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n12:00pm - 12:00am\n\nSaturday\n\n12:00pm - 12:00am\n\nSunday\n\n12:00pm - 10:00pm\n\nMonday\n\n12:00pm - 11:00pm\n\nTuesday\n\n12:00pm - 11:00pm\n\nWednesday\n\n12:00pm - 11:00pm\n\nThursday\n\n12:00pm - 11:00pm"
       }
     },
     {
@@ -1987,7 +3216,7 @@
       "name": "Halfway House",
       "venueId": "venue-zgbi1z",
       "sourceUrl": "https://www.thehalfway.com/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -2042,7 +3271,7 @@
           5,
           6
         ],
-        "evidence": "Opening Times\nMonday - Thursday11am - 11pm\nFriday - Saturday11am - 12am\nSunday11am - 11pm"
+        "evidence": "Opening Times\n\nMonday - Thursday11am - 11pm\n\nFriday - Saturday11am - 12am\n\nSunday11am - 11pm"
       }
     },
     {
@@ -2050,7 +3279,7 @@
       "name": "The Pineapple",
       "venueId": "venue-95n21p",
       "sourceUrl": "https://www.thepineapplepubnw5.com/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -2105,7 +3334,7 @@
           5,
           6
         ],
-        "evidence": "PUB Hours\nMon - Thurs 12pm - 11pm\nFri & Sat 12pm - midnight\nSun 12pm - 10:30pm"
+        "evidence": "PUB Hours**\n\n**Mon - Thurs** 12pm - 11pm\n\n**Fri & Sat** 12pm - midnight\n\n**Sun** 12pm - 10:30pm"
       }
     },
     {
@@ -2235,11 +3464,145 @@
       }
     },
     {
+      "osmId": "node/1969846667",
+      "name": "The Magpie",
+      "venueId": "venue-uk-n1969846667",
+      "sourceUrl": "https://www.magpiesunbury.com/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "21:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "21:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n12:00pm - 11:00pm\n\nSaturday\n\n12:00pm - 11:00pm\n\nSunday\n\n12:00pm - 9:00pm\n\nMonday\n\n12:00pm - 9:00pm\n\nTuesday\n\n12:00pm - 10:00pm\n\nWednesday\n\n12:00pm - 11:00pm\n\nThursday\n\n12:00pm - 11:00pm"
+      }
+    },
+    {
+      "osmId": "node/2018688106",
+      "name": "BrewDog",
+      "venueId": "venue-1fc93op",
+      "sourceUrl": "https://brewdog.com/pages/bars/canary-wharf",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\n**Monday:** 12pm - 11pm\n\n**Tuesday:** 12pm - 11pm\n\n**Wednesday:** 12pm - 11pm\n\n**Thursday:** 12pm - 11pm\n\n**Friday:** 12pm - 11pm\n\n**Saturday:** 12pm - 11pm\n\n**Sunday:** 12pm - 10pm"
+      }
+    },
+    {
       "osmId": "node/2080592567",
       "name": "Tavern Pub",
       "venueId": "venue-gqjboc",
       "sourceUrl": "https://hikensingtonforumhotel.co.uk/food-drink/the-tavern-a-traditional-english-pub-in-the-heart-of-london",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -2294,7 +3657,137 @@
           5,
           6
         ],
-        "evidence": "Opening Hours\n- Monday - Thursday: 11:00 AM - 11:00 PM\n- Friday - Saturday: 11:00 AM - 12:00 AM\n- Sunday: 12:00 PM - 10:30 PM"
+        "evidence": "Opening Hours\n\n- **Monday - Thursday:** 11:00 AM - 11:00 PM\n- **Friday - Saturday:** 11:00 AM - 12:00 AM\n- **Sunday:** 12:00 PM - 10:30 PM"
+      }
+    },
+    {
+      "osmId": "node/2097977437",
+      "name": "Black Swan",
+      "venueId": "venue-uk-n2097977437",
+      "sourceUrl": "https://www.blackswanockham.com/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n12:00pm - 11:00pm\n\nSaturday\n\n12:00pm - 11:00pm\n\nSunday\n\n12:00pm - 10:00pm\n\nMonday\n\n12:00pm - 11:00pm\n\nTuesday\n\n12:00pm - 11:00pm\n\nWednesday\n\n12:00pm - 11:00pm\n\nThursday\n\n12:00pm - 11:00pm"
+      }
+    },
+    {
+      "osmId": "node/211260547",
+      "name": "Royal Oak",
+      "venueId": "venue-15f2fv7",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/royal-oak",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:30"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n11:00am - 12:30am\n\nSaturday\n\n11:00am - 12:30am\n\nSunday\n\n12:00pm - 10:30pm\n\nMonday\n\n11:30am - 11:00pm\n\nTuesday\n\n11:30am - 11:00pm\n\nWednesday\n\n11:30am - 11:00pm\n\nThursday\n\n11:30am - 11:00pm"
       }
     },
     {
@@ -2302,7 +3795,7 @@
       "name": "White Haus",
       "venueId": "venue-12zdma9",
       "sourceUrl": "https://www.whitehauslondon.com/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [],
@@ -2352,7 +3845,70 @@
           5,
           6
         ],
-        "evidence": "OPENING HOURS\nMon - Wed : 11 AM - 11 PM\nThu - Fri : 11 AM - 1 AM\nSat : 12 PM - 1 AM\nSun : Closed"
+        "evidence": "OPENING HOURS**\n\n**Mon - Wed :** 11 AM - 11 PM\n\n**Thu - Fri** **:** 11 AM - 1 AM\n\n**Sat** **:** 12 PM - 1 AM\n\n**Sun** **:** Closed"
+      }
+    },
+    {
+      "osmId": "node/2267462478",
+      "name": "The Bluecoats Pub",
+      "venueId": "venue-b1b1ls",
+      "sourceUrl": "https://thebluecoatspub.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "16:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "16:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nMon-Thurs : 4pm — 11pm\n\nFri : 4pm — 12am\n\nSat : 12pm — 12am\n\nSun : 12pm — 10pm"
       }
     },
     {
@@ -2419,6 +3975,311 @@
       }
     },
     {
+      "osmId": "node/2395017747",
+      "name": "The Greyhound",
+      "venueId": "venue-9ko48u",
+      "sourceUrl": "https://thegreyhoundsydenham.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "evidence": "OPENING HOURS\n\n**Monday to Thursday** 12pm til 11pm"
+      }
+    },
+    {
+      "osmId": "node/242938605",
+      "name": "The Green W7",
+      "venueId": "venue-uk-n242938605",
+      "sourceUrl": "https://www.thegreenw7.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "BAR HOURS\n\n### **MonDAY to Thursday**\n\n**11AM to 11.30PM**\n\n### **FRIDAY & Saturday**\n\n**11AM to 12AM**\n\n**SUNDAY**\n\n**11 AM to 11PM"
+      }
+    },
+    {
+      "osmId": "node/248546654",
+      "name": "The Moby Dick",
+      "venueId": "venue-uk-n248546654",
+      "sourceUrl": "https://www.mobydickgreenlanddock.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog friendly"
+      }
+    },
+    {
+      "osmId": "node/249257137",
+      "name": "The Plough",
+      "venueId": "venue-rk0ldh",
+      "sourceUrl": "https://www.ploughnorthfields.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 12:00 - 23:00 |  |  |\n| Tuesday | 12:00 - 23:00 |  |  |\n| Wednesday | 12:00 - 23:00 |  |  |\n| Thursday | 12:00 - 00:00 |  |  |\n| Friday | 12:00 - 01:00 |  |  |\n| Saturday | 12:00 - 01:00 |  |  |\n| Sunday | 12:00 - 22:30"
+      }
+    },
+    {
+      "osmId": "node/2492718707",
+      "name": "Brewdog Paddington",
+      "venueId": "venue-1ikrfhk",
+      "sourceUrl": "https://brewdog.com/pages/bars/paddington",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\n**Monday:** 12pm - 10pm\n\n**Tuesday:** 12pm - 11pm\n\n**Wednesday:** 12pm - 11pm\n\n**Thursday:** 12pm - 11pm\n\n**Friday:** 12pm - 11pm\n\n**Saturday:** 12pm - 11pm\n\n**Sunday:** 12pm - 10pm"
+      }
+    },
+    {
+      "osmId": "node/2525354717",
+      "name": "The Bear",
+      "venueId": "venue-uk-n2525354717",
+      "sourceUrl": "https://www.thebearoxshott.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Sunday11:00 - 23:00"
+      }
+    },
+    {
       "osmId": "node/25471087",
       "name": "Marquess of Anglesey",
       "venueId": "venue-iddog8",
@@ -2479,6 +4340,69 @@
           6
         ],
         "evidence": "Opening Times\nMonday - Thursday10am - 11pm\nFriday - Saturday 10am - 12am\nSunday 12pm - 11pm"
+      }
+    },
+    {
+      "osmId": "node/25510381",
+      "name": "Crown & Cushion",
+      "venueId": "venue-uk-n25510381",
+      "sourceUrl": "https://www.thecrownandcushion-london.foodanddrinksites.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Open Hours\n\nMonday11:00am - 11:00pm\n\nTuesday11:00am - 11:00pm\n\nWednesday11:00am - 11:00pm\n\nThursday11:00am - 11:00pm\n\nFriday11:00am - 11:00pm\n\nSaturday11:00am - 11:00pm\n\nSunday11:00am - 10:30pm"
       }
     },
     {
@@ -2600,7 +4524,7 @@
       "name": "Crown & Anchor",
       "venueId": "venue-1je46ir",
       "sourceUrl": "https://crownandanchorbrixton.co.uk/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -2655,7 +4579,7 @@
           5,
           6
         ],
-        "evidence": "Opening Hours\n- Monday: 4 pm – 11 pm\n- Tuesday to Thursday: 4 pm – 12 am\n- Friday: 3:30 pm - 1 am\n- Saturday: 12 pm to 1 am\n- Sunday: 12 pm to 10 pm"
+        "evidence": "Opening Hours\n\n- Monday: 4 pm – 11 pm\n- Tuesday to Thursday: 4 pm – 12 am\n- Friday: 3:30 pm - 1 am\n- Saturday: 12 pm to 1 am\n- Sunday: 12 pm to 10 pm"
       }
     },
     {
@@ -2719,6 +4643,69 @@
           6
         ],
         "evidence": "Opening Times\nMonday - Saturday - 09:30-22:30\nSunday - 09:30-22:00"
+      }
+    },
+    {
+      "osmId": "node/26979398",
+      "name": "Queen's Head",
+      "venueId": "venue-1m28qgb",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/queens-head",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n12:00pm - 12:00am\n\nSaturday\n\n12:00pm - 12:00am\n\nSunday\n\n12:00pm - 10:00pm\n\nMonday\n\n12:00pm - 10:00pm\n\nTuesday\n\n12:00pm - 10:00pm\n\nWednesday\n\n12:00pm - 10:00pm\n\nThursday\n\n12:00pm - 10:00pm"
       }
     },
     {
@@ -3098,7 +5085,7 @@
       "name": "The Windmill",
       "venueId": "venue-13ouo08",
       "sourceUrl": "https://www.windmillclapham.co.uk/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -3153,7 +5140,7 @@
           5,
           6
         ],
-        "evidence": "Opening Times\nMonday - Friday: 7am - 11pm Saturday: 8am - 11pm Sunday: 8am - 11pm"
+        "evidence": "Opening Times\n\nMonday - Friday: 7am - 11pm\nSaturday: 8am - 11pm\nSunday: 8am - 11pm"
       }
     },
     {
@@ -3588,6 +5575,17 @@
       }
     },
     {
+      "osmId": "node/299106201",
+      "name": "The Builders Arms",
+      "venueId": "venue-1c7qz55",
+      "sourceUrl": "https://www.buildersarmscroydon.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      }
+    },
+    {
       "osmId": "node/301516360",
       "name": "The Princess of Shoreditch",
       "venueId": "venue-1f653sa",
@@ -3699,6 +5697,199 @@
           6
         ],
         "evidence": "Opening Hours\nMonday - Tuesday : 5 pm - 10 pm \nWednesday - Thursday: 5 pm – 11 pm \nFriday: 12 pm – 11 pm \nSaturday: 12 pm - 11 pm"
+      }
+    },
+    {
+      "osmId": "node/313234121",
+      "name": "The Black Dog",
+      "venueId": "venue-1pvfl2x",
+      "sourceUrl": "https://theblackdogvauxhall.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nMon-Sat: 12pm–11.00pm\n\nSun: 12pm–10pm"
+      }
+    },
+    {
+      "osmId": "node/314396579",
+      "name": "The Jolly Coopers",
+      "venueId": "venue-uwqipn",
+      "sourceUrl": "https://jollycoopers.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "20:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours**\n\nMonday: 12:00 - 22:00\n\nTuesday: 12:00 - 22:00\n\nWednesday: 12:00 - 22:00\n\nThursday: 12:00 - 23:00\n\nFriday: 12:00 - 23:00\n\nSaturday: 12:00 - 23:00\n\nSunday: 12:00 - 20:00"
+      }
+    },
+    {
+      "osmId": "node/3226659717",
+      "name": "The Drayton Court",
+      "venueId": "venue-djqfuo",
+      "sourceUrl": "https://www.draytoncourtlondon.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 11:00 - 23:00 |  |  |\n| Tuesday | 11:00 - 23:00 |  |  |\n| Wednesday | 11:00 - 23:00 |  |  |\n| Thursday | 11:00 - 23:00 |  |  |\n| Friday | 11:00 - 00:00 |  |  |\n| Saturday | 11:00 - 00:00 |  |  |\n| Sunday | 11:00 - 22:00"
       }
     },
     {
@@ -4467,7 +6658,7 @@
       "name": "The Phoenix",
       "venueId": "venue-13ql0b4",
       "sourceUrl": "https://www.thephoenixchelsea.co.uk/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -4522,7 +6713,7 @@
           5,
           6
         ],
-        "evidence": "Opening Times\n- Monday: 11:00-23:00\n- Tuesday: 11:00-23:00\n- Wednesday: 11:00-23:00\n- Thursday: 11:00-23:00\n- Friday: 11:00-23:00\n- Saturday: 11:00-23:00\n- Sunday: 12:00-22:30"
+        "evidence": "Opening Times\n\n- Monday: 11:00-23:00\n- Tuesday: 11:00-23:00\n- Wednesday: 11:00-23:00\n- Thursday: 11:00-23:00\n- Friday: 11:00-23:00\n- Saturday: 11:00-23:00\n- Sunday: 12:00-22:30"
       }
     },
     {
@@ -4897,6 +7088,69 @@
           6
         ],
         "evidence": "Opening Times Monday 10 am - 11 pm Tuesday 10 am - 11 pm Wednesday 10 am - 11 pm Thursday 10 am - 11 pm Friday 10 am - 12 am Saturday 10 am - 12 am Sunday 11 am - 11 pm"
+      }
+    },
+    {
+      "osmId": "node/5382875197",
+      "name": "The Golden Lion",
+      "venueId": "venue-10tonfm",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/essex/golden-lion",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:30",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:30",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:30",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n11:30am - 12:00am\n\nSaturday\n\n11:30am - 12:00am\n\nSunday\n\n11:30am - 10:30pm\n\nMonday\n\n11:30am - 11:00pm\n\nTuesday\n\n11:30am - 11:00pm\n\nWednesday\n\n11:30am - 11:00pm\n\nThursday\n\n11:30am - 11:00pm"
       }
     },
     {
@@ -5445,6 +7699,69 @@
           4
         ],
         "evidence": "OPENING TIMES:\nSunday – Thursday\n12:00pm to 11:00pm"
+      }
+    },
+    {
+      "osmId": "node/9006872322",
+      "name": "The Outpost",
+      "venueId": "venue-uk-n9006872322",
+      "sourceUrl": "https://www.threehillsbrewing.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "14:00",
+              "closes": "18:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "15:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "13:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times:**\n\nMonday - Thursday 4pm-10pm\n\nFriday - 3pm - 11pm\n\nSaturday - 1pm - 11pm\n\nSunday 2pm-6pm"
       }
     },
     {
@@ -10674,6 +12991,69 @@
       }
     },
     {
+      "osmId": "way/110479652",
+      "name": "Devonshire Arms",
+      "venueId": "venue-uk-w110479652",
+      "sourceUrl": "https://www.thedevonshirepub.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "18:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "21:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nOpening Times\n\nMon\n\n12:00 - 21:00\n\nTue\n\n12:00 - 23:00\n\nWed\n\n12:00 - 23:00\n\nThu\n\n12:00 - 23:00\n\nFri\n\n12:00 - 23:00\n\nSat\n\n12:00 - 23:00\n\nSun\n\n12:00 - 18:00"
+      }
+    },
+    {
       "osmId": "way/1106823471",
       "name": "The Bread and Roses",
       "venueId": "venue-l5qye7",
@@ -10902,6 +13282,69 @@
           6
         ],
         "evidence": "Opening Times\nMonday - Wednesday12pm - 11pm\nThursday - Saturday 12pm - 11.30pm\nSunday12pm - 10pm"
+      }
+    },
+    {
+      "osmId": "way/115595349",
+      "name": "The Hand and Flower",
+      "venueId": "venue-uk-w115595349",
+      "sourceUrl": "https://www.handandflower.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "08:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "08:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 07:00 - 23:00 |  |  |\n| Tuesday | 07:00 - 23:00 |  |  |\n| Wednesday | 07:00 - 23:00 |  |  |\n| Thursday | 07:00 - 23:00 |  |  |\n| Friday | 07:00 - 23:00 |  |  |\n| Saturday | 08:00 - 23:00 |  |  |\n| Sunday | 08:00 - 22:30"
       }
     },
     {
@@ -11287,6 +13730,73 @@
       }
     },
     {
+      "osmId": "way/126610395",
+      "name": "The Half Moon",
+      "venueId": "venue-1oz6u1o",
+      "sourceUrl": "https://www.halfmoonhernehill.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "09:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "09:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 09:00 - 23:00 |  |  |\n| Tuesday | 09:00 - 23:00 |  |  |\n| Wednesday | 09:00 - 23:00 |  |  |\n| Thursday | 09:00 - 23:00 |  |  |\n| Friday | 09:00 - 00:00 |  |  |\n| Saturday | 09:00 - 00:00 |  |  |\n| Sunday | 12:00 - 22:30"
+      }
+    },
+    {
       "osmId": "way/128292693",
       "name": "Goat Tavern",
       "venueId": "venue-dmtau6",
@@ -11350,6 +13860,64 @@
       }
     },
     {
+      "osmId": "way/1298834057",
+      "name": "Hop Inn Micropub",
+      "venueId": "venue-jf1uja",
+      "sourceUrl": "https://www.hopinnhornchurch.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "21:00"
+            }
+          ],
+          "1": [],
+          "2": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "16:00",
+              "closes": "22:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "14:00",
+              "closes": "22:30"
+            }
+          ],
+          "5": [
+            {
+              "opens": "14:00",
+              "closes": "22:30"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nMonday: Closed\n\nTuesday: 4pm - 10pm\n\nWednesday: 4pm - 10pm\n\nThursday: 2pm - 10.30pm\n\nFriday: 2pm - 10.30pm\n\nSaturday: 12 noon - 10.30pm\n\nSunday: 12 noon - 9pm"
+      }
+    },
+    {
       "osmId": "way/1327090619",
       "name": "The Nag's Head",
       "venueId": "venue-wxvqr3",
@@ -11410,6 +13978,73 @@
           6
         ],
         "evidence": "opening hours?\n- Sunday – Thursday: 10:00 AM – 11:00 PM\n- Friday: 10:00 AM – 2:00 AM\n- Saturday: 10:00 AM – 2:00 AM"
+      }
+    },
+    {
+      "osmId": "way/1333311979",
+      "name": "The George IV",
+      "venueId": "venue-12rl16z",
+      "sourceUrl": "https://www.georgeiv.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 11:00 - 23:00 |  |  |\n| Tuesday | 11:00 - 23:00 |  |  |\n| Wednesday | 11:00 - 23:00 |  |  |\n| Thursday | 11:00 - 23:00 |  |  |\n| Friday | 11:00 - 01:00 |  |  |\n| Saturday | 11:00 - 01:00 |  |  |\n| Sunday | 11:00 - 23:00"
       }
     },
     {
@@ -11656,6 +14291,132 @@
           6
         ],
         "evidence": "Opening Times\nMonday\n12:00 - 22:00\nTuesday\n12:00 - 22:00\nWednesday\n12:00 - 22:00\nThursday\n12:00 - 22:00\nFriday\n12:00 - 22:00\nSaturday\nClosed\nSunday\nClosed"
+      }
+    },
+    {
+      "osmId": "way/148803004",
+      "name": "The Greyhound",
+      "venueId": "venue-1ynmd1u",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "08:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "08:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Thursday - 7am - 11pm\nFriday: 7am - 12am\nSaturday 8am - 12am\nSunday: 8am - 11pm"
+      }
+    },
+    {
+      "osmId": "way/149385999",
+      "name": "The Bull",
+      "venueId": "venue-uk-w149385999",
+      "sourceUrl": "https://www.thebull-otford.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "09:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "10:00",
+              "closes": "22:30"
+            }
+          ],
+          "2": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "09:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "09:00",
+              "closes": "23:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "OPENING HOURS\n\nMonday: 10am – 10:30pm\n\nTuesday: 10am – 11pm\n\nWednesday: 10am – 11pm\n\nThursday: 10am – 11pm\n\nFriday: 9am – 12am\n\nSaturday: 9am – 11:30pm\n\nSunday: 9am – 10:30pm"
       }
     },
     {
@@ -12788,6 +15549,68 @@
       }
     },
     {
+      "osmId": "way/203530059",
+      "name": "The Sutton Arms",
+      "venueId": "venue-uk-w203530059",
+      "sourceUrl": "https://www.sutton-arms.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "20:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 12:00 - 23:00 |  |  |\n| Tuesday | 12:00 - 23:00 |  |  |\n| Wednesday | 12:00 - 23:00 |  |  |\n| Thursday | 12:00 - 23:00 |  |  |\n| Friday | 12:00 - 23:00 |  |  |\n| Saturday | 12:00 - 20:00 |  |  |\n| Sunday | Closed"
+      }
+    },
+    {
       "osmId": "way/204031258",
       "name": "The Alma",
       "venueId": "venue-g13t28",
@@ -13211,8 +16034,8 @@
       "osmId": "way/238385297",
       "name": "Rose & Crown",
       "venueId": "venue-1sxdho2",
-      "sourceUrl": "https://www.roseandcrownn16.co.uk/contact/",
-      "readOn": "2026-10-07",
+      "sourceUrl": "https://www.roseandcrownn16.co.uk/",
+      "readOn": "2026-10-09",
       "hours": {
         "hours": {
           "0": [
@@ -13267,7 +16090,7 @@
           5,
           6
         ],
-        "evidence": "Opening Hours\nPub Opening Hours \nMon to Thu 12pm-12am\nFri & Sat 12pm-1am \nSunday 12pm-11pm"
+        "evidence": "Opening Hours\n\n**Pub Opening Hours**\n\nMon to Thu 12pm-12am\n\nFri & Sat 12pm-1am\n\nSunday 12pm-11pm"
       }
     },
     {
@@ -13690,6 +16513,69 @@
       }
     },
     {
+      "osmId": "way/288035711",
+      "name": "The Owl & Hitchhiker",
+      "venueId": "venue-uk-w288035711",
+      "sourceUrl": "https://www.owlandhitchhiker.pub/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "16:00",
+              "closes": "00:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "16:00",
+              "closes": "00:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "16:00",
+              "closes": "00:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "16:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "16:00",
+              "closes": "02:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "02:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "OPENING HOURS\n\n## MON-THURS: 4PM-12aM\n\n## FRI: 4PM-2AM\n\n## SAT: 12PM-2AM\n\n## SUN: 12PM-10PM"
+      }
+    },
+    {
       "osmId": "way/290081133",
       "name": "The Goat Tavern",
       "venueId": "venue-1rsemdf",
@@ -13950,6 +16836,73 @@
       }
     },
     {
+      "osmId": "way/304437065",
+      "name": "Deers Rest",
+      "venueId": "venue-12sa9pm",
+      "sourceUrl": "https://www.deersrestpub.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "09:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "09:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n- Monday12pm-11pm\n- Tuesday12pm-11pm\n- Wednesday12pm-11pm\n- Thursday12pm-11pm\n- Friday12pm-11pm\n- Saturday9am-11pm\n- Sunday9am-10pm"
+      }
+    },
+    {
       "osmId": "way/30838121",
       "name": "Queen Adelaide",
       "venueId": "venue-1y2pm56",
@@ -14013,6 +16966,69 @@
       }
     },
     {
+      "osmId": "way/311753728",
+      "name": "The Cabbage Patch",
+      "venueId": "venue-b3lbot",
+      "sourceUrl": "https://www.cabbagepatch.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 12:00 - 23:00 |  |  |\n| Tuesday | 12:00 - 23:00 |  |  |\n| Wednesday | 12:00 - 23:00 |  |  |\n| Thursday | 12:00 - 00:00 |  |  |\n| Friday | 12:00 - 00:00 |  |  |\n| Saturday | 11:00 - 00:00 |  |  |\n| Sunday | 12:00 - 23:00"
+      }
+    },
+    {
       "osmId": "way/31293000",
       "name": "Hope & Anchor",
       "venueId": "venue-qky1h5",
@@ -14073,6 +17089,73 @@
           6
         ],
         "evidence": "Opening Hours\nToday (Wed)\n4:00pm - 11:00pm\nThursday\n4:00pm - 11:00pm\nFriday\n4:00pm - 1:00am\nSaturday\n12:00pm - 1:00am\nSunday\n12:00pm - 11:00pm\nMonday\n4:00pm - 11:00pm\nTuesday\n4:00pm - 11:00pm"
+      }
+    },
+    {
+      "osmId": "way/316636977",
+      "name": "The Princes Head",
+      "venueId": "venue-uk-w316636977",
+      "sourceUrl": "https://www.princeshead.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "10:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 11:00 - 23:00 |  |  |\n| Tuesday | 11:00 - 23:00 |  |  |\n| Wednesday | 11:00 - 23:00 |  |  |\n| Thursday | 12:00 - 23:00 |  |  |\n| Friday | 11:00 - 23:00 |  |  |\n| Saturday | 10:00 - 23:00 |  |  |\n| Sunday | 10:00 - 22:30"
       }
     },
     {
@@ -14412,6 +17495,69 @@
       }
     },
     {
+      "osmId": "way/364312014",
+      "name": "White Hart",
+      "venueId": "venue-uk-w364312014",
+      "sourceUrl": "https://www.whiteharthoteluk.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 07:00 - 23:00 |  |  |\n| Tuesday | 07:00 - 23:00 |  |  |\n| Wednesday | 07:00 - 23:00 |  |  |\n| Thursday | 07:00 - 23:00 |  |  |\n| Friday | 07:00 - 23:00 |  |  |\n| Saturday | 07:00 - 23:00 |  |  |\n| Sunday | 07:00 - 23:00"
+      }
+    },
+    {
       "osmId": "way/366382271",
       "name": "The Famous Royal Oak",
       "venueId": "venue-vd6d1n",
@@ -14507,6 +17653,69 @@
           6
         ],
         "evidence": "Opening Hours\n- Monday: 11am - 11pm\n- Tuesday: 11am - 12am\n- Wednesday: 11am - 12am\n- Thursday: 11am - 12am\n- Friday: 11am - 12am\n- Saturday: 11am - 12am\n- Sunday: 11am - 11pm"
+      }
+    },
+    {
+      "osmId": "way/379967724",
+      "name": "The Dog and Fox",
+      "venueId": "venue-uk-w379967724",
+      "sourceUrl": "https://www.dogandfoxwimbledon.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "08:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "07:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Thursday: 7am - 11pm\nFriday & Saturday: 7am - midnight\nSunday: 8am - 11pm"
       }
     },
     {
@@ -14931,6 +18140,69 @@
       }
     },
     {
+      "osmId": "way/426808467",
+      "name": "Swan and Bottle",
+      "venueId": "venue-wornk0",
+      "sourceUrl": "https://www.chefandbrewer.com/pubs/middlesex/swan-and-bottle",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n11:00am - 11:00pm\n\nSaturday\n\n11:00am - 11:00pm\n\nSunday\n\n11:00am - 10:00pm\n\nMonday\n\n11:00am - 10:00pm\n\nTuesday\n\n11:00am - 10:00pm\n\nWednesday\n\n11:00am - 10:00pm\n\nThursday\n\n11:00am - 10:00pm"
+      }
+    },
+    {
       "osmId": "way/430938730",
       "name": "The Coborn",
       "venueId": "venue-17nbxyh",
@@ -14994,6 +18266,69 @@
       }
     },
     {
+      "osmId": "way/432769894",
+      "name": "The Orange Tree",
+      "venueId": "venue-uk-w432769894",
+      "sourceUrl": "https://www.orangetreerichmond.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "08:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "08:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Wednesday: 7am - 11pm\nThursday - Friday: 7am - 12am\nSaturday: 8am - 12am\nSunday: 8am - 11pm"
+      }
+    },
+    {
       "osmId": "way/434179033",
       "name": "Catford Bridge Tavern",
       "venueId": "venue-fo6wxd",
@@ -15054,6 +18389,69 @@
           6
         ],
         "evidence": "We are open Monday12:00 pm – 11:00 pm Tuesday12:00 pm – 11:00 pm Wednesday12:00 pm – 11:00 pm Thursday12:00 pm – 11:00 pm Friday12:00 pm – 12:00 am Saturday12:00 pm - 12:00 am Sunday12pm - 10.30pm"
+      }
+    },
+    {
+      "osmId": "way/43914785",
+      "name": "Lullingstone Castle",
+      "venueId": "venue-uk-w43914785",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/kent/lullingstone-castle",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Hours\n\nToday (Fri)\n\n12:00pm - 12:00am\n\nSaturday\n\n12:00pm - 11:00pm\n\nSunday\n\n12:00pm - 10:30pm\n\nMonday\n\n12:00pm - 11:00pm\n\nTuesday\n\n12:00pm - 11:00pm\n\nWednesday\n\n12:00pm - 11:00pm\n\nThursday\n\n12:00pm - 11:00pm"
       }
     },
     {
@@ -15372,6 +18770,69 @@
       }
     },
     {
+      "osmId": "way/481262557",
+      "name": "The Alexandra",
+      "venueId": "venue-iwod6",
+      "sourceUrl": "https://www.alexandrawimbledon.com/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Thursday11:00 – 23:00\n\nFriday - Saturday11:00 – 01:00\n\nSunday12:00 – 23:00"
+      }
+    },
+    {
       "osmId": "way/507095501",
       "name": "The Bell",
       "venueId": "venue-p7cec3",
@@ -15595,6 +19056,69 @@
           6
         ],
         "evidence": "opening hours: \nMonday-Thursday: 4pm-11pm \nFriday: 2pm-12am \nSaturday: 12pm-12am \nSunday: 12pm-10.30pm"
+      }
+    },
+    {
+      "osmId": "way/539369586",
+      "name": "The White Bear",
+      "venueId": "venue-uk-w539369586",
+      "sourceUrl": "https://www.whitebearkennington.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Saturday12:00 - 23:00\n\nSunday12:00 - 22:00"
       }
     },
     {
@@ -15980,6 +19504,17 @@
       }
     },
     {
+      "osmId": "way/586607947",
+      "name": "The White Swan",
+      "venueId": "venue-17kcm1",
+      "sourceUrl": "https://www.whiteswantwickenham.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      }
+    },
+    {
       "osmId": "way/606507213",
       "name": "Chesham Arms",
       "venueId": "venue-dxasie",
@@ -15988,6 +19523,131 @@
       "dogs": {
         "policy": "welcome",
         "evidence": "Dog friendly!!!"
+      }
+    },
+    {
+      "osmId": "way/608184600",
+      "name": "The Iron Duke",
+      "venueId": "venue-uk-w608184600",
+      "sourceUrl": "https://www.irondukemayfair.co.uk/",
+      "readOn": "2026-10-09",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
+      "hours": {
+        "hours": {
+          "0": [],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "22:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "22:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n### Opening Times\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 11:00 - 22:00 |  |  |\n| Tuesday | 11:00 - 23:00 |  |  |\n| Wednesday | 11:00 - 23:00 |  |  |\n| Thursday | 11:00 - 23:00 |  |  |\n| Friday | 11:00 - 23:00 |  |  |\n| Saturday | 12:00 - 22:00 |  |  |\n| Sunday | Closed"
+      }
+    },
+    {
+      "osmId": "way/619265567",
+      "name": "The Bedford Arms",
+      "venueId": "venue-uk-w619265567",
+      "sourceUrl": "https://www.bedfordarms.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Sat: 11am - 11pm\nSunday: 11am - 10.30pm"
       }
     },
     {
@@ -16114,7 +19774,7 @@
       "name": "The Artillery Arms",
       "venueId": "venue-myhgdk",
       "sourceUrl": "https://www.artillery-arms.co.uk/",
-      "readOn": "2026-10-07",
+      "readOn": "2026-10-09",
       "dogs": {
         "policy": "welcome",
         "evidence": "Dog Friendly"
@@ -16173,7 +19833,7 @@
           5,
           6
         ],
-        "evidence": "Opening Times\nOpening Hours\nOpening hours\nDay | Opening Time | Second opening Time | Third opening Time |\n--- | --- | --- | --- |\nMonday | 12:00 - 23:00 | | |\nTuesday | 12:00 - 23:00 | | |\nWednesday | 12:00 - 23:00 | | |\nThursday | 12:00 - 23:00 | | |\nFriday | 12:00 - 23:00 | | |\nSaturday | 12:00 - 23:00 | | |\nSunday | 12:00 - 22:30"
+        "evidence": "Opening Times\n\n### Opening Hours\n\n| Day | Opening Time | Second opening Time | Third opening Time |\n| --- | --- | --- | --- |\n| Monday | 12:00 - 23:00 |  |  |\n| Tuesday | 12:00 - 23:00 |  |  |\n| Wednesday | 12:00 - 23:00 |  |  |\n| Thursday | 12:00 - 23:00 |  |  |\n| Friday | 12:00 - 23:00 |  |  |\n| Saturday | 12:00 - 23:00 |  |  |\n| Sunday | 12:00 - 22:30"
       }
     },
     {
@@ -16426,6 +20086,69 @@
           6
         ],
         "evidence": "Opening Times Monday 9:00am - 12:00am Tuesday 9:00am - 12:00am Wednesday 9:00am - 12:00am Thursday 9:00am - 12:00am Friday 9:00am - 12:00am Saturday 9:00am - 12:00am Sunday 9:00am - 12:00am"
+      }
+    },
+    {
+      "osmId": "way/739178496",
+      "name": "The Pride of Paddington",
+      "venueId": "venue-uk-w739178496",
+      "sourceUrl": "https://www.theprideofpaddington.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "08:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "07:00",
+              "closes": "23:30"
+            }
+          ],
+          "2": [
+            {
+              "opens": "07:00",
+              "closes": "23:30"
+            }
+          ],
+          "3": [
+            {
+              "opens": "07:00",
+              "closes": "23:30"
+            }
+          ],
+          "4": [
+            {
+              "opens": "07:00",
+              "closes": "23:30"
+            }
+          ],
+          "5": [
+            {
+              "opens": "07:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "08:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Thursday 7am - 11.30pm\nFriday - 7am - midnight\nSaturday - 8am - midnight\nSunday - 8am - 10.30pm"
       }
     },
     {
@@ -17067,6 +20790,69 @@
       }
     },
     {
+      "osmId": "way/81679283",
+      "name": "The Old Nun's Head",
+      "venueId": "venue-uk-w81679283",
+      "sourceUrl": "https://www.theoldnunshead.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "00:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "12:00",
+              "closes": "01:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "PUB Hours\n\nSunday to Wednesday 12pm-11pm\n\nThursday 12pm-12am\n\nFriday to Saturday 12pm-1am"
+      }
+    },
+    {
       "osmId": "way/824789669",
       "name": "The Britannia",
       "venueId": "venue-1dsf0ly",
@@ -17256,6 +21042,118 @@
       }
     },
     {
+      "osmId": "way/837636082",
+      "name": "Green Man",
+      "venueId": "venue-uk-w837636082",
+      "sourceUrl": "https://www.greenmanputney.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "10:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "10:00",
+              "closes": "23:30"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "23:30"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\nMonday - Tuesday10am - 11pm\n\nWednesday - Thursday10am - 11pm\n\nFriday10am - 11.30pm\n\nSaturday11am - 11:30pm\n\nSunday12pm - 10:30pm"
+      }
+    },
+    {
+      "osmId": "way/847530472",
+      "name": "The Huntley",
+      "venueId": "venue-uk-w847530472",
+      "sourceUrl": "https://studentsunionucl.org/eat-drink-shop/bars/huntley",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "1": [
+            {
+              "opens": "17:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "17:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "17:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "17:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "17:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "evidence": "Opening Hours\n\nMonday - Thursday \\| 17:00 - 23:00\n\nFriday \\| 17:00 - 00:00"
+      }
+    },
+    {
       "osmId": "way/863516669",
       "name": "The Crosse Keys",
       "venueId": "venue-zottpx",
@@ -17319,6 +21217,69 @@
       }
     },
     {
+      "osmId": "way/86725862",
+      "name": "The Royal George",
+      "venueId": "venue-uk-w86725862",
+      "sourceUrl": "https://www.royalgeorgepub.co.uk/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening hours**\n\nMonday - Thursday : 11am - 11pm\n\nFriday & Saturday 11am - Midnight\n\nSunday : Midday - 11pm"
+      }
+    },
+    {
       "osmId": "way/875103908",
       "name": "Fox & Hounds",
       "venueId": "venue-1102tlh",
@@ -17379,6 +21340,69 @@
           6
         ],
         "evidence": "Opening Times Monday 10 am - 11 pm Tuesday 10 am - 11 pm Wednesday 10 am - 11 pm Thursday 10 am - 11 pm Friday 10 am - 12 am Saturday 10 am - 12 am Sunday 10 am - 11 pm"
+      }
+    },
+    {
+      "osmId": "way/885138744",
+      "name": "Queen Victoria",
+      "venueId": "venue-uk-w885138744",
+      "sourceUrl": "https://www.mcmullens.co.uk/local-pub/queen-victoria/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "11:30",
+              "closes": "22:00"
+            }
+          ],
+          "1": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "12:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "11:30",
+              "closes": "23:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "Opening Times\n\n|     |     |\n| --- | --- |\n| Monday | 12:00–23:00 |\n| Tuesday | 12:00–23:00 |\n| Wednesday | 12:00–23:00 |\n| Thursday | 12:00–23:00 |\n| Friday | 11:30–23:00 |\n| Saturday | 11:30–23:00 |\n| Sunday | 11:30–22:00"
       }
     },
     {
@@ -17635,6 +21659,69 @@
           6
         ],
         "evidence": "Opening Times Monday 8:00am - 11:00pm Tuesday 8:00am - 11:00pm Wednesday 8:00am - 11:00pm Thursday 8:00am - 11:00pm Friday 8:00am - 11:00pm Saturday 8:00am - 11:00pm Sunday 8:00am - 10:30pm"
+      }
+    },
+    {
+      "osmId": "way/922196016",
+      "name": "Coach and Horses",
+      "venueId": "venue-uk-w922196016",
+      "sourceUrl": "https://www.thecoachandhorses.info/",
+      "readOn": "2026-10-09",
+      "hours": {
+        "hours": {
+          "0": [
+            {
+              "opens": "10:00",
+              "closes": "22:30"
+            }
+          ],
+          "1": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "2": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "3": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "4": [
+            {
+              "opens": "11:00",
+              "closes": "23:00"
+            }
+          ],
+          "5": [
+            {
+              "opens": "11:00",
+              "closes": "00:00"
+            }
+          ],
+          "6": [
+            {
+              "opens": "10:00",
+              "closes": "00:00"
+            }
+          ]
+        },
+        "statedDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "evidence": "OPENING HOURS**\n\n**Monday to Thursday**\n\n11am to 11pm\n\n**Friday**\n\n11am to Midnight\n\n**Saturday**\n\n10am to Midnight\n\n**Sunday** 10am to 10:30pm"
       }
     },
     {
@@ -17962,6 +22049,11 @@
       "host": "bohembrewery.com",
       "kind": "hours",
       "passage": "opening hours monday - 16:30 - 22:00 tuesday - 16:30 - 23:00 wednesday - 16:30 - 23:00 thursday - 16:30 - 23:00 friday - 16:30 - 23:30 saturday - 14:00 - 23:30 sunday - 14:00 - 22:00"
+    },
+    {
+      "host": "chefandbrewer.com",
+      "kind": "dogs",
+      "passage": "dog friendly"
     },
     {
       "host": "craftunionpubs.com",
