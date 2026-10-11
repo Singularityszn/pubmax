@@ -500,16 +500,16 @@ describe("the phone peek chip over a lone Pint Drop", () => {
 
   it("is the ONLY thing the peek words as an absence", () => {
     const source = readFileSync(
-      join(process.cwd(), "components/PubMap.tsx"),
+      join(process.cwd(), "components/map/VenuePeekPintPrice.tsx"),
       "utf8",
     );
     // The chip decides first, and the "No price yet" button is reachable only
     // where it answered null.
     expect(source).toContain(
-      "const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);",
+      "const price = peekPriceChip(lane, bundle, pintTrust);",
     );
     expect(source).toMatch(
-      /\) : peekPrice \? \([\s\S]*?\) : selectedVenueIsPub \? \([\s\S]*?No price yet\./,
+      /if \(price\) \{[\s\S]*?return \([\s\S]*?\);\s*\}\s*return isPub \? \([\s\S]*?No price yet\./,
     );
   });
 });
