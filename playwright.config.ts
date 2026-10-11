@@ -168,6 +168,7 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
         "**/map-deep-link-pin.spec.ts",
+        "**/venue-pin-switching.spec.ts",
         // Every WebGL journey belongs to chromium-gl. Keeping these out of the
         // plain Chromium project avoids running the same spec without SwiftShader
         // (and without its blocked service worker) before the GL project runs it.
@@ -309,6 +310,7 @@ export default defineConfig({
         // A deep-linked pin's painted position against the phone sheet's own
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
+        "**/venue-pin-switching.spec.ts",
         "**/map-console-health.spec.ts",
         "**/map-credits.spec.ts",
         // Silent basemap-source retry: needs a real error path off a real scene.
