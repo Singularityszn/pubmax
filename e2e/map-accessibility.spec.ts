@@ -439,7 +439,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const firstToolbarControl = toolbarFocusables.first();
     const lastToolbarControl = toolbarFocusables.last();
     const lastMapControl = mapHost.locator(
-      'a[href]:visible, button:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+      'a[href]:visible, button:not([disabled]):visible, details > summary:first-of-type:visible, [tabindex]:not([tabindex="-1"]):visible',
     ).last();
     await expect(firstToolbarControl).toBeVisible();
     await expect(lastToolbarControl).toBeVisible();
@@ -458,7 +458,9 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
 
+    // MapLibre's native attribution summary follows its zoom buttons.
     await lastMapControl.focus();
+    await expect(lastMapControl).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(firstToolbarControl).toBeFocused();
     await page.keyboard.press("Shift+Tab");
