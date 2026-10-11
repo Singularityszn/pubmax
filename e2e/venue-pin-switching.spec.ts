@@ -41,6 +41,7 @@ for (const width of [390, 900, 1440]) {
     }
 
     const selections = ["venue-eltcmh"];
+    const selectedHistoryLength = await page.evaluate(() => history.length);
     let previousHeading = await heading.textContent();
     const selectionHeadings = [previousHeading!];
     for (let selection = 0; selection < 2; selection += 1) {
@@ -53,15 +54,20 @@ for (const width of [390, 900, 1440]) {
       previousHeading = await heading.textContent();
       selections.push(next.id);
       selectionHeadings.push(previousHeading!);
+      // A new pub replaces the current venue surface without adding Back depth.
+      await expect.poll(() => page.evaluate(() => history.length)).toBe(selectedHistoryLength);
     }
     await page.screenshot({ path: testInfo.outputPath("third-pub.png") });
 
     await page.goBack();
-    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(selections[1]);
-    await expect(heading).toHaveText(selectionHeadings[1]);
-    await page.goBack();
-    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(selections[0]);
-    await expect(heading).toHaveText(selectionHeadings[0]);
+    await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
+    await expect(sheet).toBeHidden();
+    await expect.poll(() => canvas.evaluate((node) => !!node.closest("[inert]"))).toBe(false);
+
+    await page.goForward();
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(selections[2]);
+    await expect(sheet).toBeVisible();
+    await expect(heading).toHaveText(selectionHeadings[2]);
     await sheet.getByRole("button", { name: "Close pub detail", exact: true }).click();
     await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
     await expect(sheet).toBeHidden();
