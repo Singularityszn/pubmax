@@ -500,7 +500,8 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     "keeps a lone logged price in the peek during a %s read",
     (dropReadStatus) => {
       const base = venue();
-      const provisional = defined(provisionalPriceDrop([drop()], NOW));
+      const provisional = provisionalPriceDrop([drop()], NOW);
+      if (!provisional) throw new Error("The fixture must contain one provisional price.");
       const html = renderToStaticMarkup(createElement(VenuePeekPintPrice, {
         venueId: base.id,
         isPub: true,
