@@ -1,3 +1,4 @@
+import { PLAN_INTAKE_STORAGE_KEY } from "@/lib/planStorageKeys";
 import {
   NIGHT_PATCHES,
   resolveNightPatch,
@@ -23,7 +24,7 @@ import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const PLAN_INTAKE_VERSION = 1 as const;
-export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
+export { PLAN_INTAKE_STORAGE_KEY } from "@/lib/planStorageKeys";
 export const PLAN_INTAKE_DRAFT_TTL_MS = DAY_MS;
 export const PLAN_INTAKE_MAX_RAW_BYTES = 12 * 1024;
 const LONDON_TIME_ZONE = "Europe/London";

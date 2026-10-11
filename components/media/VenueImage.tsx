@@ -12,8 +12,8 @@
 // is unknown is never rendered, only the gradient fallback.
 
 import { ImageOff } from "lucide-react";
-import Image from "next/image";
-import { useState } from "react";
+import Image, { getImageProps } from "next/image";
+import { useState, type SyntheticEvent } from "react";
 
 import {
   isProxiedVenueImageUrl,
@@ -49,6 +49,8 @@ type VenueImageProps = {
    * high-density phone stops asking for a sheet-header's worth of pixels.
    */
   maxWidth?: VenueImageWidth;
+  /** Offer AVIF for decorative gallery photographs with a WebP fallback. */
+  preferAvif?: boolean;
 };
 
 export default function VenueImage({
@@ -62,6 +64,7 @@ export default function VenueImage({
   fill = false,
   sizes,
   maxWidth,
+  preferAvif = false,
 }: VenueImageProps) {
   // Per-candidate failure tracking: a resolved URL whose <img> errored is
   // excluded on the next resolution pass, so the next source in priority
@@ -69,11 +72,13 @@ export default function VenueImage({
   // the reset keys off a content signature of the source set (the repo's
   // adjust-state-during-render idiom — never an effect).
   const [failedUrls, setFailedUrls] = useState<ReadonlySet<string>>(new Set());
+  const [avifFailed, setAvifFailed] = useState(false);
   const sourcesKey = sources.map((s) => `${s.provenance}:${s.url ?? ""}`).join("|");
   const [prevSourcesKey, setPrevSourcesKey] = useState(sourcesKey);
   if (prevSourcesKey !== sourcesKey) {
     setPrevSourcesKey(sourcesKey);
     setFailedUrls(new Set());
+    setAvifFailed(false);
   }
 
   const resolved = resolveVenueImage(sources, failedUrls);
@@ -101,34 +106,59 @@ export default function VenueImage({
   const sizing = resizable
     ? { loader: venueImageLoader(maxWidth) }
     : { unoptimized: true as const };
-  const markFailed = () =>
+  const imageSizes = fill ? sizes ?? "(max-width: 640px) 100vw, 420px" : sizes;
+  const avif =
+    preferAvif && resizable && !priority && !avifFailed
+      ? getImageProps({
+          src,
+          alt,
+          ...(fill ? { fill: true } : { width, height }),
+          sizes: imageSizes,
+          loader: venueImageLoader(maxWidth, "avif"),
+        }).props
+      : null;
+  const markFailed = (event: SyntheticEvent<HTMLImageElement>) => {
+    // Retry the same source as WebP before excluding the photograph.
+    if (avif && event.currentTarget.currentSrc.includes("&f=avif")) {
+      setAvifFailed(true);
+      return;
+    }
     setFailedUrls((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
+  };
+  const image = fill ? (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes={imageSizes}
+      className="venueImage__img"
+      priority={priority}
+      {...sizing}
+      onError={markFailed}
+    />
+  ) : (
+    <Image
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      {...(sizes ? { sizes } : {})}
+      className="venueImage__img"
+      priority={priority}
+      {...sizing}
+      onError={markFailed}
+    />
+  );
 
   return (
     <figure className={`venueImage ${className}`.trim()}>
-      {fill ? (
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          sizes={sizes ?? "(max-width: 640px) 100vw, 420px"}
-          className="venueImage__img"
-          priority={priority}
-          {...sizing}
-          onError={markFailed}
-        />
+      {avif ? (
+        <picture>
+          <source type="image/avif" srcSet={avif.srcSet} sizes={avif.sizes} />
+          {image}
+        </picture>
       ) : (
-        <Image
-          src={src}
-          alt={alt}
-          width={width}
-          height={height}
-          {...(sizes ? { sizes } : {})}
-          className="venueImage__img"
-          priority={priority}
-          {...sizing}
-          onError={markFailed}
-        />
+        image
       )}
       <span className="venueImage__provenance">{provenanceLabel}</span>
       {caption ? <figcaption className="venueImage__caption">{caption}</figcaption> : null}

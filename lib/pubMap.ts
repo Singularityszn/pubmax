@@ -18,7 +18,7 @@ import { CATEGORY_META, isMapLensDrinkCategory, type DrinkCategory } from "@/lib
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import type { NightContext } from "@/lib/nightPlanning";
-import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
+import type { MapOverlay, MapSheetDetent, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
@@ -76,17 +76,7 @@ export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory
   return context.drinkCategory ?? DEFAULT_DRINK_LANE;
 }
 
-// §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
-// link)? If any are present the arrival is intentional and we never onboard.
-// Module-level (pure) so the branch lives off PubMap's complexity budget.
-// `drink=` counts (landing drink-shape taps) but is NOT a planner-open signal.
-export function hasCrawlArrivalParams(search: string): boolean {
-  // Intentional deep links (landmark/band/food/log/etc.) must also suppress
-  // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl|experience|mapNotice)=/.test(
-    search,
-  );
-}
+export { hasCrawlArrivalParams } from "@/lib/crawlArrival";
 
 // Issue #15: normalise a landmark's nearest-pub ids into crawl stops — drop
 // blanks, cap at three. Module-level (pure) so the branch lives outside the
@@ -536,6 +526,18 @@ export function drinkFiltersActiveFor(input: {
       input.drinkSubtype ||
       input.topShelfOnly ||
       input.requireCocktails,
+  );
+}
+
+/** Keep the visible canvas interactive beside a venue, except at the phone's full detent. */
+export function venueMapCanvasInteractive(input: {
+  detailOpen: boolean;
+  drawerSideLaneViewport: boolean;
+  mobileViewport: boolean;
+  mobileVenueSheetSnap: MapSheetDetent;
+}): boolean {
+  return input.detailOpen && (
+    input.drawerSideLaneViewport || (input.mobileViewport && input.mobileVenueSheetSnap !== "full")
   );
 }
 

@@ -12,7 +12,7 @@
 //   - a restored mobile Map session that was mid-Venue or mid-planner.
 //
 // Server-safe: no window/DOM/React. Composes the existing arrival predicates
-// (lib/pubMap, lib/mapLogIntent) rather than re-deriving them, and only ADDS
+// (lib/crawlArrival, lib/mapLogIntent) rather than re-deriving them, and only ADDS
 // the trusted-handoff params, so it stays a superset of today's suppression —
 // it can never make a previously-suppressed onboarding arrival re-appear.
 //
@@ -23,7 +23,7 @@
 import { hasMapLogIntent } from "@/lib/mapLogIntent";
 import type { MobileMapSessionV1 } from "@/lib/mobileShell";
 import type { PlanningIntentV1 } from "@/lib/planningIntent";
-import { hasCrawlArrivalParams } from "@/lib/pubMap";
+import { hasCrawlArrivalParams } from "@/lib/crawlArrival";
 import { parseUkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 import { isUkNationalBrowse } from "@/lib/ukNationalBrowse";
 

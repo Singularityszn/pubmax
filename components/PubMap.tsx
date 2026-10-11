@@ -98,7 +98,7 @@ import {
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
-import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE, readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import SpringDrawer from "@/components/map/SpringDrawer";
 const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
@@ -289,7 +289,12 @@ const CoffeePilotLoadFailed = dynamic(
   () => import("@/components/map/CoffeePilotLoadFailed"),
   { ssr: false },
 );
-const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
+const MapToolbar = dynamic(() => {
+  // Desktop search is an arrival control. Start its bytes with the toolbar,
+  // while its own lazy panel retains the failure message and retry policy.
+  void import("@/components/map/MapSearchSuggest").catch(() => undefined);
+  return import("@/components/map/MapToolbar");
+}, {
   ssr: false,
 });
 // Desktop right-rail (D3.1): off the critical map chunk and never on mobile.
@@ -343,6 +348,7 @@ import {
   revealForm,
   venueRevealPrefersReducedMotion,
   VENUE_REVEAL_CINEMA_MS,
+  type SheetSnap,
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
@@ -632,6 +638,7 @@ import {
   activeLensLabelFor,
   activeLensPricesFor,
   coordinatedMapOverlay,
+  venueMapCanvasInteractive,
   drinkFiltersActiveFor,
   drinkIndexStatusFor,
   firstIdOf,
@@ -2214,6 +2221,7 @@ export default function PubMap({
     onSheetDragMove,
     onSheetDragEnd,
   } = useSheetDrag(() => surfaceBackRef.current());
+  const [mobileVenueSheetSnap, setMobileVenueSheetSnap] = useState<SheetSnap>("half");
 
   const [venueRevealRequest, setVenueRevealRequest] =
     useState<VenueRevealRequest | null>(null);
@@ -4727,6 +4735,9 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = mapSelection.detailOpen;
+  const venueMapInteractive = venueMapCanvasInteractive({
+    detailOpen, drawerSideLaneViewport, mobileViewport, mobileVenueSheetSnap,
+  });
   useLogIntentRevealScope(detailOpen, pintDrops.composerOpen);
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
@@ -6758,6 +6769,7 @@ export default function PubMap({
         <div
           className="mapCanvasWrap"
           data-map-canvas={slotState}
+          {...(venueMapInteractive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
           data-venue-count={canvasVenues.length}
           data-venue-index={loaded ? "loaded" : venueIndexFailed ? "failed" : "loading"}
         >
@@ -6789,6 +6801,7 @@ export default function PubMap({
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
         selectedVenueId={selectedVenueId}
+        interactiveBesideVenue={venueMapInteractive}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}
         onUkBasePubsChange={setRenderedBasePubs}
@@ -7076,6 +7089,7 @@ export default function PubMap({
             }
             initialSnap="half"
             requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
+            onSnapChange={detailOpen ? setMobileVenueSheetSnap : undefined}
             onClose={mapSurfaceTrail.home}
             onDismiss={
               mapSurfaceTrail.backLabel
@@ -7214,11 +7228,11 @@ export default function PubMap({
           }
           aria-hidden={!detailOpen}
           // Not modal while a map control is live beside it: the desktop
-          // toolbar from 1024px, and the mapped-route chip in the side lane.
-          // Both are exempt surfaces of the drawer's focus trap.
+          // canvas from 769px, toolbar from 1024px, and mapped-route chip.
+          // These are exempt surfaces of the drawer's focus trap.
           aria-modal={
             detailOpen &&
-            !(railViewport || (routeMappedActive && drawerSideLaneViewport))
+            !drawerSideLaneViewport
               ? true
               : undefined
           }

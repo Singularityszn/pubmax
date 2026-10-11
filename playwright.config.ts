@@ -168,6 +168,7 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         "**/map-gestures.spec.ts",
         "**/map-deep-link-pin.spec.ts",
+        "**/venue-pin-switching.spec.ts",
         // Every WebGL journey belongs to chromium-gl. Keeping these out of the
         // plain Chromium project avoids running the same spec without SwiftShader
         // (and without its blocked service worker) before the GL project runs it.
@@ -187,6 +188,7 @@ export default defineConfig({
         "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
+        "**/plan-capability-recovery-auth.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
         // context for the map routes, and it re-emulates device, CPU and
         // network per run, which this project's fixed device would fight.
@@ -275,7 +277,7 @@ export default defineConfig({
     ...(E2E_LOGIN
       ? [{
           name: "chromium-authenticated",
-          testMatch: "**/signed-in-review.spec.ts",
+          testMatch: ["**/signed-in-review.spec.ts", "**/plan-capability-recovery-auth.spec.ts"],
           use: {
             ...devices["Desktop Chrome"],
             baseURL: AUTH_BASE_URL,
@@ -309,6 +311,7 @@ export default defineConfig({
         // A deep-linked pin's painted position against the phone sheet's own
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
+        "**/venue-pin-switching.spec.ts",
         "**/map-console-health.spec.ts",
         "**/map-credits.spec.ts",
         // Silent basemap-source retry: needs a real error path off a real scene.

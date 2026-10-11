@@ -1,3 +1,4 @@
+import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planStorageKeys";
 import type { PlanningConfidence, PlanningEvidenceSource, PlanRouteTotals } from "@/lib/planIntelligence";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import {
@@ -8,8 +9,7 @@ import { DAY_MS } from "@/lib/dayMs";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
-export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
-export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
+export { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planStorageKeys";
 const PLAN_ROUTE_DRAFT_STORAGE_VERSION = 2 as const;
 const PLAN_ROUTE_DRAFT_MAX_RAW_BYTES = 40 * 1024;
 export const PLAN_ROUTE_DRAFT_TTL_MS = DAY_MS;

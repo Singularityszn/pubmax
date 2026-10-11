@@ -384,7 +384,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect.poll(() => baseRows.count(), { timeout: 5_000 }).toBe(0);
   });
 
-  test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
+  test("cycles desktop drawer, map and toolbar focus and restores chosen venue on Escape", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -409,7 +409,18 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
-    await expect(drawer).toHaveAttribute("aria-modal", "true");
+    // The visible map and toolbar stay interactive beside the desktop drawer.
+    const toolbar = page.locator(".mapToolbar");
+    const mapHost = page.locator(".maplibreMap");
+    await expect(mapHost).toHaveAttribute("data-focus-trap-exempt", "");
+    await expect(toolbar).toHaveAttribute("data-focus-trap-exempt", "");
+    await expect(drawer).not.toHaveAttribute("aria-modal", "true");
+    for (const surface of [canvas, toolbar]) {
+      await expect.poll(() => surface.evaluate(
+        (node) => node.closest('[inert], [aria-hidden="true"]') !== null,
+      )).toBe(false);
+    }
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(chosenVenueId);
     await expect
       .poll(
         async () => closeButton.evaluate((node) => node === document.activeElement),
@@ -422,11 +433,46 @@ test.describe("map keyboard and screen-reader venue path", () => {
     );
     const firstFocusable = focusables.first();
     const lastFocusable = focusables.last();
-    await lastFocusable.focus();
+    const toolbarFocusables = toolbar.locator(
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+    );
+    const firstToolbarControl = toolbarFocusables.first();
+    const lastToolbarControl = toolbarFocusables.last();
+    const lastMapControl = mapHost.locator(
+      'a[href]:visible, button:not([disabled]):visible, details > summary:first-of-type:visible, [tabindex]:not([tabindex="-1"]):visible',
+    ).last();
+    await expect(firstToolbarControl).toBeVisible();
+    await expect(lastToolbarControl).toBeVisible();
+    await expect.poll(() => toolbarFocusables.evaluateAll((nodes) =>
+      nodes.every((node) => (node as HTMLElement).offsetParent !== null
+        && !node.closest('[inert], [aria-hidden="true"]')),
+    )).toBe(true);
+
+    // The canvas precedes the toolbar in the page's keyboard order.
+    // Venue content can add controls, so resolve the current drawer edge.
+    await expect(async () => {
+      await lastFocusable.focus();
+      await page.keyboard.press("Tab");
+      await expect(canvas).toBeFocused({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastFocusable).toBeFocused();
+
+    // MapLibre's native attribution summary follows its zoom buttons.
+    await lastMapControl.focus();
+    await expect(lastMapControl).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(firstToolbarControl).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastMapControl).toBeFocused();
+
+    await lastToolbarControl.focus();
     await page.keyboard.press("Tab");
     await expect(firstFocusable).toBeFocused();
     await page.keyboard.press("Shift+Tab");
-    await expect(lastFocusable).toBeFocused();
+    await expect(lastToolbarControl).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(firstFocusable).toBeFocused();
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();

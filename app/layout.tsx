@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter } from "next/font/google";
 import localFont from "next/font/local";
@@ -85,6 +85,9 @@ const displayFace = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
+  // The initial request queue must first load the code that makes input safe.
+  // swap still paints the metric-matched fallback while this face loads.
+  preload: false,
   // Variable weight axis (300–700). Weight is set per-rule in CSS (headings
   // 500–700 per the display-weight discipline); the variable face carries the
   // full range, so no reflow between weights.
@@ -99,6 +102,7 @@ const bodySans = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
+  preload: false,
 });
 
 // Vendored, not fetched. next/font/google rewrites each face's file URL into a
@@ -121,7 +125,7 @@ const dataMono = localFont({
   declarations: [{ prop: "font-family", value: "JetBrains Mono" }],
   variable: "--font-data",
   display: "swap",
-  // NOT preloaded, unlike the display and body faces. next/font preloads every
+  // NOT preloaded, like the display and body faces. next/font preloads every
   // declared face from the document head, so this one cost a request and its
   // bytes on the critical path of all 35 budgeted routes while no route paints
   // its largest element in it: it is the price stamp and the numerals, and the
@@ -149,6 +153,16 @@ const dataMono = localFont({
   // used it, and no shipped rule asks for either. __tests__/fontWeights.test.ts
   // is what keeps that true.
 });
+
+// These two fixed Google calls expose the primary family first, followed by
+// Next's generated metric-matched fallback. Keep the full existing suffix.
+const initialFontFallbacks = {
+  "--font-display": displayFace.style.fontFamily.split(",").slice(1).join(",").trim(),
+  "--font-body": bodySans.style.fontFamily.split(",").slice(1).join(",").trim(),
+};
+if (!initialFontFallbacks["--font-display"] || !initialFontFallbacks["--font-body"]) {
+  throw new Error("The display and body fonts require their generated matched fallbacks.");
+}
 
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were
 // its last consumer and left the face on 2026-08-18, so the party-accent token
@@ -280,8 +294,12 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
+      style={initialFontFallbacks as CSSProperties}
     >
       <head>
+        <noscript>
+          <style nonce={nonce}>{`html{--font-display:${displayFace.style.fontFamily} !important;--font-body:${bodySans.style.fontFamily} !important;}`}</style>
+        </noscript>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,
             glyphs and sprite from tiles.openfreemap.org (see
             components/map/canvas/tokens.ts). That cross-origin handshake
@@ -408,7 +426,7 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
-                <ThemeAttribute />
+                <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -426,7 +444,7 @@ export default async function RootLayout({
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
-              <ThemeAttribute />
+              <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

@@ -6,9 +6,9 @@ import Screen from "@/components/ui/screen";
 import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
-import { inferNightContext } from "@/lib/nightPlanning";
-import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
-import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import { inferDescribeStopCount } from "@/lib/planDescribeStopCount";
+import { resolveDescribeChipSubmit } from "@/lib/planDescribeChipSubmit";
+import type { PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -17,13 +17,15 @@ export default function PlanDescribeFirst({
   onSubmit,
   onGuideMeInstead,
   onQueryChange,
+  onStopCountChange,
   onPrefillQueryChange,
   initialQuery = "",
   ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
-  onGuideMeInstead: () => void;
+  onGuideMeInstead: (stopCount?: PlanStopCount) => void;
   onQueryChange?: (query: string) => void;
+  onStopCountChange?: (stopCount: PlanStopCount) => void;
   /** External handoffs only: URL or Ask prefills while the field stays untouched. */
   onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
@@ -36,11 +38,12 @@ export default function PlanDescribeFirst({
   ready?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
-  const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
+  const [stopCount, setStopCount] = useState<PlanStopCount>(inferDescribeStopCount(initialQuery));
   // The prefill arrives AFTER mount: the composer reads the URL in an effect,
   // so an `?occasion=` deep link would otherwise land on an empty field and
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
+  useEffect(() => { onStopCountChange?.(stopCount); }, [onStopCountChange, stopCount]);
   const [touched, setTouched] = useState(false);
   const [stopCountTouched, setStopCountTouched] = useState(false);
   const appliedPrefill = useRef(initialQuery);
@@ -67,7 +70,7 @@ export default function PlanDescribeFirst({
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
     const nextQuery = initialQuery.slice(0, 500);
-    const nextStopCount = normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount);
+    const nextStopCount = inferDescribeStopCount(initialQuery);
     let cancelled = false;
     // Prefill is an external handoff. Defer its state adoption so React 19 does
     // not treat the effect as a synchronous render cascade.
@@ -92,7 +95,7 @@ export default function PlanDescribeFirst({
 
   function submitChip(value: string) {
     if (!ready) return;
-    const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
+    const chipInferredStopCount = inferDescribeStopCount(value);
     const hadTypedQuery = Boolean(query.trim());
     const resolved = resolveDescribeChipSubmit({
       query,
@@ -149,7 +152,7 @@ export default function PlanDescribeFirst({
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
-          onClick={() => { if (ready) onGuideMeInstead(); }}
+          onClick={() => { if (ready) onGuideMeInstead(stopCount); }}
         >
           Guide me instead
         </button>
@@ -175,7 +178,7 @@ export default function PlanDescribeFirst({
             setQuery(value);
             onQueryChange?.(value);
             if (!stopCountTouched) {
-              setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
+              setStopCount(inferDescribeStopCount(value));
             }
           }}
           onKeyDown={handleKeyDown}

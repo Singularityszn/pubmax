@@ -8,6 +8,7 @@ import "./map/mapCameraControls.css";
 import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import {
   Crosshair,
@@ -256,6 +257,8 @@ type PubMapCanvasProps = {
   nationalBrowse?: boolean;
   route: Venue[];
   selectedVenueId: string;
+  /** The visible map remains operable beside a venue sheet or side drawer. */
+  interactiveBesideVenue?: boolean;
   onVenueClick: (id: string) => void;
   /**
    * The reader put a finger or a cursor on the map. Not a camera move: a tap on
@@ -677,6 +680,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venueDataReady,
     route,
     selectedVenueId,
+    interactiveBesideVenue,
     onVenueClick,
     onReaderTouchedMap,
     onUkBasePubClick,
@@ -4586,7 +4590,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // content with it.
     const fallbackVenues = selectMapFallbackPubs(venues, FALLBACK_VENUE_COUNT);
     return (
-      <div className="mapCanvasWrap">
+      <div className="mapCanvasWrap" {...(interactiveBesideVenue ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}>
         {/* Force a fresh node: MapLibre's imperative light-theme background
             would otherwise survive React's div-for-div fallback swap. The card
             itself is shared with the shell's own no-canvas states
@@ -4686,6 +4690,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       <div
         ref={containerRef}
         className="maplibreMap"
+        {...(interactiveBesideVenue ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
         onPointerDownCapture={onReaderTouchedMap}
       />
       {/* The reader's dot is painted on the canvas, which says nothing to a
@@ -4734,7 +4739,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           appeared and vanished with the map's own attitude; a compass the
           reader opens the map's own control to reach is not that. */}
       {canRecenter ? (
-        <div className="mapCameraControls" aria-label="Map camera controls">
+        <div
+          className="mapCameraControls"
+          aria-label="Map camera controls"
+          {...(interactiveBesideVenue ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
+        >
           <button
             type="button"
             className="mapRecenterBtn"

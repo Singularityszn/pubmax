@@ -122,6 +122,36 @@ async function sortIt(query: string): Promise<void> {
 }
 
 describe("the Plan result", () => {
+  it("does not format hidden area reviews while describe-first text changes", async () => {
+    const formatter = vi.spyOn(Intl, "DateTimeFormat");
+    onTestFinished(() => { formatter.mockRestore(); });
+    await mountComposer();
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    for (const query of ["Q", "Quiet", "Quiet in Clapham"]) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, query);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      expect(field.value).toBe(query);
+    }
+    expect(document.querySelector(".planComposer__coverage")).toBeNull();
+    expect(formatter.mock.calls.filter(([, options]) => options?.timeZone === "UTC")).toHaveLength(0);
+  });
+
+  it("keeps area review labels when the route makes coverage visible", async () => {
+    await mountComposer();
+    await act(async () => {
+      await sortIt("Quiet in Clapham for 4");
+      await vi.dynamicImportSettled();
+    });
+    const coverage = document.querySelector(".planComposer__coverage")!;
+    expect(coverage.querySelector("summary")?.textContent).toContain("Area coverage");
+    const clapham = [...coverage.querySelectorAll("li")]
+      .find((row) => row.querySelector("strong")?.textContent === "Clapham")!;
+    expect(clapham.querySelector(".planComposer__coverageMetaLine")?.textContent).toMatch(/^Last checked /);
+    expect(clapham.querySelector("a")?.textContent).toBe("Explore map");
+  });
+
   it("reads the venue index and draws its datalist only once the composer is up", async () => {
     await mountComposer();
     expect(document.querySelector("#plan-describe-first-query")).not.toBeNull();

@@ -3,7 +3,7 @@
 import { useEffect, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), details > summary:first-of-type:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * A trap may only stand the rest of the page down when its own container is
