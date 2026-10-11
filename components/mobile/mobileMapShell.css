@@ -249,6 +249,14 @@
     border-radius: 50%;
   }
 
+  /* MapLibre's black glyph needs inversion on the collapsed dark circle.
+     The open credit keeps its vendor white backing and black glyph. */
+  html[data-theme="dark"] .appShell .mapStage
+    .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show)
+    .maplibregl-ctrl-attrib-button {
+    filter: invert(1);
+  }
+
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
   body:has(.mobileSheetPortal) .appShell .mapStage .mapCameraControls {
