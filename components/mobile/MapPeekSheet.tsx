@@ -70,7 +70,7 @@ export function peekShouldOpenList(upwardPx: number, upwardVelocityPxPerMs: numb
 const QUIET_LINES: Record<Exclude<MapPeekModel["status"], "answer">, string> = {
   loading: "Counting them up…",
   unavailable: "Browse the pub directory",
-  none: "No listed price here yet",
+  none: "No price yet",
   unread: "Could not read prices just now",
   partial: "Some prices still missing",
 };
