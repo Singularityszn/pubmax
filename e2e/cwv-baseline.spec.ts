@@ -465,9 +465,13 @@ test.describe("Native CWV driver regression", () => {
     await installVitalsProbe(page);
     await applyVitalsDevice(page, "mobile");
     await page.goto("/pal", { waitUntil: "load" });
+    await page.route("**/_next/static/chunks/*.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.continue();
+    });
     const meet = page.getByRole("button", { name: "Meet your Pub Pal", exact: true });
     await expect(async () => {
-      await meet.click();
+      if (await meet.isVisible()) await meet.click();
       await expect(page.locator("main.palOnboarding")).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(
