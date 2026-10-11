@@ -121,6 +121,49 @@ function pressEscape(): KeyboardEvent {
   return event;
 }
 
+describe("the Plan door yields the foot of the map", () => {
+  const peek = { status: "none" as const };
+  const hiddenStates = [
+    { overlay: "filters" },
+    { overlay: "search" },
+    { overlay: "drink" },
+    { overlay: "tfl" },
+    { overlay: "tonight" },
+    { overlay: "layers" },
+    { overlay: "venue" },
+    { overlay: "planner" },
+    { overlay: "landmark" },
+    { overlay: "pub-pal" },
+    { overlay: "moment" },
+    { overlay: "near-me" },
+    { overlay: "area" },
+    { overlay: "choose-area" },
+    { planOpen: true },
+    { venueListOpen: true },
+    { bandNoticeOpen: true },
+  ];
+
+  for (const state of hiddenStates) {
+    for (const withPeek of [false, true]) {
+      it(`removes the Plan button for ${JSON.stringify(state)} with card ${withPeek}`, () => {
+        const props = {
+          overlay: "none", ...state,
+          peek: withPeek ? peek : null,
+          onPeekOpenVenue: vi.fn(), onPeekOpenList: vi.fn(),
+        };
+        mount(props);
+        expect(container.querySelector(".mobilePlanActivation")).toBeNull();
+        if (withPeek) expect(container.querySelector(".mapPeek")).not.toBeNull();
+        const restored = mount({ ...props, overlay: "none", planOpen: false, venueListOpen: false, bandNoticeOpen: false });
+        const door = container.querySelector<HTMLButtonElement>(".mobilePlanActivation")!;
+        expect(door.getAttribute("aria-label")).toBe("Describe the outing");
+        act(() => door.click());
+        expect(restored.onPlan).toHaveBeenCalledTimes(1);
+      });
+    }
+  }
+});
+
 describe("the phone sheet lane belongs to the phone", () => {
   it("mounts the sheet and answers Escape when the shell owns the lane", () => {
     const props = mount({ sheetsEnabled: true, onBack: vi.fn() });
