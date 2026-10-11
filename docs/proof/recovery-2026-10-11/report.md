@@ -12,7 +12,7 @@ The full load and Social recovery shared a request generation. Recovery changed 
 | --- | --- |
 | ![Disabled Loading control](admin-before.png) | ![Available queue load control](admin-after.png) |
 
-The new browser regression failed before the fix and passed afterward. It also verifies that a subsequent full refresh completes. The existing rapid-retry component test now requires one session check as well as one Social read. All 22 moderation component tests passed.
+The new browser regression failed before the fix and passed afterward. It also verifies that a subsequent full refresh completes. The pull-request law-pinning browser job now includes this test. The existing rapid-retry component test now requires one session check as well as one Social read. All 22 moderation component tests passed.
 
 The browser used installed Chrome, the repository's Playwright package, a private Next development server on port 32189, and mocked moderation queue responses. The admin token submission used the real route. This is development evidence, not production-build evidence.
 
