@@ -15,7 +15,6 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
@@ -40,7 +39,6 @@ import { CREW_NAME_MAX, creatorNameFromAccount } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
-import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import { venueAreaClaim } from "@/lib/venueTruth";
 import {
   readRememberedArea,
@@ -128,6 +126,9 @@ import {
 // does not need them and must meet the JS ceiling in perf/route-budgets.json.
 // The stop-list and provenance styles live in app/plan/plan.css, so their
 // layout is ready before their chunks arrive. Tune details loads its own CSS.
+const PlanIntake = dynamic(() => import("@/components/plan/PlanIntake"), {
+  loading: () => <p role="status">Opening the guide…</p>,
+});
 const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
   ssr: false,
   loading: () => <div className="planStops__placeholder" aria-hidden="true" />,
@@ -1743,8 +1744,15 @@ function PlanComposerForm({
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         if (cancelled) return;
-        const patch = nearestNightPatch(coords.latitude, coords.longitude);
-        seedArea(patch?.id ?? null);
+        void import("@/lib/nearestNightPatch")
+          .then(({ nearestNightPatch }) => {
+            if (cancelled) return;
+            const patch = nearestNightPatch(coords.latitude, coords.longitude);
+            seedArea(patch?.id ?? null);
+          })
+          .catch(() => {
+            if (!cancelled) seedRememberedSoon();
+          });
       },
       () => seedRememberedSoon(),
       { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
