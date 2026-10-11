@@ -56,11 +56,11 @@
   /* The bottom card keeps the pill's berth through every read state
      (components/mobile/MapPeekSheet.tsx): an 8px frame, the answer row, a
      4px gap, the pill, an 8px frame. The pill keeps its berth; the card only
-     adds what is above it. The answer row is in rem, 44px at the 16px root, so
-     a text size that grows the root grows the row once, and every berth that
-     reads --map-peek-h moves with it. */
-  --map-peek-row-h: 2.75rem;
-  --map-peek-h: calc(var(--map-peek-row-h) + 68px);
+     adds what is above it. Android grows rem geometry with its root font.
+     iOS keeps that root unchanged, so its applied text scale grows only the
+     layout lengths. Every berth reading --map-peek-h follows the same row. */
+  --map-peek-row-h: calc(2.75rem * var(--native-text-layout-scale, 1));
+  --map-peek-h: calc(var(--map-peek-row-h) + var(--plan-activation-h) + 20px);
 
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom
@@ -113,6 +113,14 @@
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom) + var(--map-corner-locate-size)
   );
+}
+
+:root:has(.mobileMapChrome[data-plan-active="true"]) {
+  /* Both active labels need their line boxes, the 3px label gap, 12px
+     padding and 2px border. The card and every stack berth read this height. */
+  --plan-activation-h: max(48px, calc(
+    (var(--text-sm) + var(--text-2xs)) * 1.05 * var(--native-text-layout-scale, 1) + 17px
+  ));
 }
 
 body {

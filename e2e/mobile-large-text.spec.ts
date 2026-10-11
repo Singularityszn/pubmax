@@ -112,8 +112,8 @@ for (const scale of [1.3, 1.5, 2]) {
 // text zoom, which grows the root, grows the card once, and the controls above
 // it follow --map-peek-h. The route checks above model that zoom the same way.
 // The iOS shell enlarges text through -webkit-text-size-adjust with the root
-// left at 16px, so the card does not grow there yet: that gap needs a native
-// iOS check and is not modelled here.
+// left at 16px. Its layout scale grows the card separately. Actual iOS startup
+// and WebKit painting need native proof and are not modelled here.
 for (const scale of [1.3, 1.5, 2]) {
   test(`Android ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
     await page.setViewportSize({ width: 412, height: 840 });
