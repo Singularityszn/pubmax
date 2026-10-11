@@ -16,7 +16,8 @@
   position: absolute;
   top: var(--city-status-desktop-top);
   left: 50%;
-  z-index: var(--z-map-banner);
+  /* Route stop panels and modal scrims own the lane above this ambient news. */
+  z-index: var(--z-map-hover);
   display: flex;
   flex-direction: column;
   align-items: center;

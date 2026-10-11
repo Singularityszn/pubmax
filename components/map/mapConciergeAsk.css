@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  z-index: var(--z-map-ask); /* above the Tonight lane (512), below toolbar/banners — house z ledger */
+  z-index: var(--z-map-ask); /* Stacking roles are in docs/DESIGN_SYSTEM.md. */
   display: flex;
   justify-content: center;
   padding: 0 12px;
