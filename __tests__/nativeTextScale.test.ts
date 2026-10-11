@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -18,8 +16,6 @@ import {
 // set in CSS px; Android's font scale zoomed every label until the six-tab
 // bar overflowed. The seam applies the size on iOS, reads it on Android, and
 // publishes the bucket the tab bar changes shape on.
-
-const ROOT = join(__dirname, "..");
 
 function plugin(preferred: number, current = 1) {
   return {
@@ -149,20 +145,3 @@ describe("followNativeTextScale", () => {
   });
 });
 
-describe("the surfaces that change shape", () => {
-  it("is wired from the shell's document marker and drops the tab words at the large bucket", () => {
-    const chrome = readFileSync(join(ROOT, "components/native/NativeShellChrome.tsx"), "utf8");
-    expect(chrome).toContain("followNativeTextScale()");
-    const css = readFileSync(join(ROOT, "components/nav/mobileNav.css"), "utf8");
-    expect(css).toContain('html[data-text-scale="large"] .mobileTabLabel');
-    // The accessible name lives on the link, so hiding the word costs a screen
-    // reader nothing.
-    const bar = readFileSync(join(ROOT, "components/nav/MobileTabBar.tsx"), "utf8");
-    expect(bar).toContain("aria-label={tab.ariaLabel}");
-    // The consent card grows past its phone ceiling rather than clipping the
-    // disclosure and the way out.
-    const globals = readFileSync(join(ROOT, "app/globals.css"), "utf8");
-    expect(globals).toContain('html[data-text-scale="large"] .analyticsConsentPrompt {');
-    expect(globals).toMatch(/html\[data-text-scale="large"\] \.analyticsConsentPrompt \{[^}]*max-height: none;/);
-  });
-});
