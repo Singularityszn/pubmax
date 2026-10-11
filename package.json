@@ -139,7 +139,6 @@
   },
   "dependencies": {
     "@ai-sdk/otel": "^1.0.137",
-    "@alexanderolsen/libsamplerate-js": "2.1.2",
     "@arizeai/openinference-instrumentation-openai": "^4.4.1",
     "@arizeai/openinference-semantic-conventions": "^2.14.0",
     "@arizeai/openinference-vercel": "^3.3.0",
@@ -175,7 +174,6 @@
     "maplibre-gl": "6.13.0",
     "next": "^16.4.0",
     "openai": "^7.32.0",
-    "parse5": "^8.0.1",
     "posthog-js": "^1.438.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -183,14 +181,16 @@
     "sharp": "^0.35.5",
     "tailwind-merge": "^3.7.0",
     "web-push": "^3.6.7",
-    "web-vitals": "^6.2.3"
+    "web-vitals": "^6.2.3",
+    "parse5": "^8.0.1",
+    "@alexanderolsen/libsamplerate-js": "2.1.2"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@axe-core/playwright": "^4.13.0",
     "@capacitor/cli": "^8.5.3",
     "@capacitor/core": "^8.5.3",
     "@capacitor/ios": "^8.5.3",
-    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@next/env": "^16.4.0",
     "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.3",
@@ -200,7 +200,6 @@
     "@types/react-dom": "^19.3.0",
     "@types/web-push": "^3.6.4",
     "@typescript-eslint/parser": "^8.71.1",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitest/browser-playwright": "^5.0.3",
     "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^10.12.0",
@@ -212,7 +211,8 @@
     "tsx": "^4.23.15",
     "typescript": "6.0.3",
     "vitest": "^5.0.3",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "@typescript/native": "npm:typescript@^7.0.2"
   },
   "overrides": {
     "uuid": "14.0.2",
