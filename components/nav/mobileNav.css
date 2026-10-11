@@ -115,7 +115,7 @@
   );
 }
 
-:root:has(.mobilePlanActivation.isActive) {
+:root:has(.mobileMapChrome[data-plan-active="true"]) {
   /* Both active labels need their line boxes, the 3px label gap, 12px
      padding and 2px border. The card and every stack berth read this height. */
   --plan-activation-h: max(48px, calc(

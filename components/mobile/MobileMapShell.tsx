@@ -185,8 +185,8 @@ function MapChipRow({
 /**
  * The bottom card keeps its footprint through loading, empty and failed reads.
  * Without a peek model, the plan door stands alone. The card stays mounted
- * with its door while something else covers the foot. Neither is painted,
- * because the map-edge column still needs the card's complete geometry.
+ * while something else covers the foot. The Plan door is absent, and the
+ * map-edge column still reads the card's complete geometry.
  */
 function MapFoot({
   peek,
@@ -209,7 +209,7 @@ function MapFoot({
         onOpenList={onPeekOpenList}
         covered={!doorVisible}
       >
-        {door}
+        {doorVisible ? door : null}
       </MapPeekSheet>
     );
   }
@@ -406,6 +406,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     <>
       <div className="mobileMapChrome"
         aria-label="Map controls"
+        data-plan-active={planPill.active ? "true" : undefined}
       >
         {/* ONE top bar (design judgement 2026-08-01, finding 2.3). The old
             chrome stacked three containers: this bar, a Near me / Tonight /

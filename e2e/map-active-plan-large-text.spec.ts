@@ -16,7 +16,7 @@ test.setTimeout(90_000);
 for (const platform of ["ios", "android"] as const) {
   for (const theme of ["light", "dark"] as const) {
     for (const state of ["active", "picked"] as const) {
-      test(`${platform} text layout model contains the ${state} plan in ${theme}`, async ({ page, request }) => {
+      test(`${platform} text layout model contains the ${state} plan in ${theme}`, async ({ page, request }, testInfo) => {
         await installNativeShell(page, platform);
         await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
         const response = await request.get("/data/venues_slim.json");
@@ -141,6 +141,11 @@ for (const platform of ["ios", "android"] as const) {
               if (control) expect(control.bottom).toBeLessThanOrEqual(geometry.card.top);
             }
             if (scale === 1) expect(geometry.card.height).toBe(112);
+            if (scale === 2) {
+              const name = `${platform}-${theme}-${state}-${width}-2x`;
+              await testInfo.attach(`${name}-geometry`, {body: JSON.stringify(geometry), contentType: "application/json"});
+              await testInfo.attach(name, {body: await page.screenshot(), contentType: "image/png"});
+            }
           }
         }
         const restingHeight = await card.evaluate((node) => node.getBoundingClientRect().height);
@@ -148,9 +153,20 @@ for (const platform of ["ios", "android"] as const) {
         const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
         await expect(planner).toBeVisible();
         await expect(card).toBeHidden();
+        await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
         expect(await card.evaluate((node) => node.getBoundingClientRect().height)).toBe(restingHeight);
         await planner.locator(".surfaceNavHome").click();
         await expect(card).toBeVisible();
+        expect(await card.evaluate((node) => node.getBoundingClientRect().height)).toBe(restingHeight);
+        await card.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
+        const list = page.locator(".mapVenueList--open");
+        await expect(list).toHaveCount(1);
+        await expect(list).toBeVisible();
+        await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
+        expect(await card.evaluate((node) => node.getBoundingClientRect().height)).toBe(restingHeight);
+        await list.locator(".surfaceNavHome").click();
+        await expect(list).toHaveCount(0);
+        await expect(door).toBeVisible();
         expect(await card.evaluate((node) => node.getBoundingClientRect().height)).toBe(restingHeight);
       });
     }

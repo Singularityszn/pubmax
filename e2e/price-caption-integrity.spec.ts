@@ -430,6 +430,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(
       chip.getByRole("button", { name: "Dismiss Place story intro" }),
     ).toBeVisible();
+    await expect(page.locator(".mapPeek")).toHaveAttribute("data-covered", "true");
     await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
 
     const geometry = await page.evaluate(() => {
