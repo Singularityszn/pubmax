@@ -57,6 +57,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("a reopened pub's pending price read", () => {
@@ -79,6 +80,78 @@ describe("a reopened pub's pending price read", () => {
     await act(async () => answer({ ok: true, json: async () => ({ drops: [row] }) } as Response));
     expect(drops.dropsByVenueId.get("A")).toEqual(previous === "cancelled" ? [] : [row]);
     if (previous !== "cancelled") expect(container.textContent).toBe("£4.70");
+  });
+
+  it("settles a hung venue read without accepting a late answer", async () => {
+    vi.useFakeTimers();
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    let answer!: (value: Response) => void;
+    let signal: AbortSignal | undefined;
+    vi.mocked(fetch).mockImplementationOnce((_input, init) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((resolve) => { answer = resolve; });
+    });
+    await act(async () => { drops.refreshVenueDrops("A"); });
+    expect(container.textContent).toBe("Checking pub prices");
+    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    expect(drops.venueDropStatus.get("A")).toBe("unavailable");
+    expect(signal?.aborted).toBe(true);
+    expect(container.textContent).toBe("est. £6.50");
+    await act(async () => answer({ ok: true, json: async () => ({ drops: [pricedDrop("late")] }) } as Response));
+    expect(drops.venueDropStatus.get("A")).toBe("unavailable");
+    expect(drops.dropsByVenueId.get("A")).toEqual([]);
+  });
+
+  it("keeps an observed price when its refresh times out", async () => {
+    vi.useFakeTimers();
+    const row = pricedDrop("held-price");
+    vi.mocked(fetch).mockImplementation(async (input) => ({
+      ok: true, json: async () => ({ drops: String(input).includes("venueId=A") ? [row] : [] }),
+    } as Response));
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    vi.mocked(fetch).mockImplementationOnce(() => new Promise<Response>(() => {}));
+    await act(async () => { drops.refreshVenueDrops("A"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    expect(drops.venueDropStatus.get("A")).toBe("unavailable");
+    expect(drops.dropsByVenueId.get("A")).toEqual([row]);
+    expect(container.textContent).toBe("£4.70");
+  });
+
+  it("aborts a cancelled read without publishing its timeout", async () => {
+    vi.useFakeTimers();
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    let signal: AbortSignal | undefined;
+    vi.mocked(fetch).mockImplementationOnce((_input, init) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    });
+    let cancel!: () => void;
+    await act(async () => { cancel = drops.refreshVenueDrops("A"); });
+    await act(async () => { cancel(); });
+    expect(signal?.aborted).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    expect(drops.venueDropStatus.get("A")).toBe("idle");
+    expect(drops.dropsByVenueId.get("A")).toEqual([]);
+  });
+
+  it("does not let an older timeout settle a newer read", async () => {
+    vi.useFakeTimers();
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    vi.mocked(fetch).mockImplementationOnce(() => new Promise<Response>(() => {}));
+    await act(async () => { drops.refreshVenueDrops("A"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_000); });
+    let answer!: (value: Response) => void;
+    vi.mocked(fetch).mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    await act(async () => { drops.refreshVenueDrops("A"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(4_000); });
+    expect(drops.venueDropStatus.get("A")).toBe("idle");
+    expect(container.textContent).toBe("Checking pub prices");
+    const row = pricedDrop("newer-price");
+    await act(async () => answer({ ok: true, json: async () => ({ drops: [row] }) } as Response));
+    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    expect(drops.venueDropStatus.get("A")).toBe("ready");
+    expect(drops.dropsByVenueId.get("A")).toEqual([row]);
+    expect(container.textContent).toBe("£4.70");
   });
 
   it("retains observed rows during refresh and failure", async () => {
