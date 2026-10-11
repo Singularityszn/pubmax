@@ -198,6 +198,10 @@ function measureFieldsOf(form: {
   };
 }
 
+function fileOfPhoto(photo: PhotoSlot | null): File | null {
+  return photo?.file ?? null;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -648,9 +652,9 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
-    const submittedPintFile = pintPhoto?.file ?? null;
-    const submittedVenueFile = venuePhoto?.file ?? null;
-    const submittedReceiptFile = receiptPhoto?.file ?? null;
+    const submittedPintFile = fileOfPhoto(pintPhoto);
+    const submittedVenueFile = fileOfPhoto(venuePhoto);
+    const submittedReceiptFile = fileOfPhoto(receiptPhoto);
     clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {

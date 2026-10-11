@@ -4981,24 +4981,27 @@ export default function PubMap({
     ukPlaces.length,
   ]);
   const limitedCoverageSearch = arrival.limitedCoverage;
-  const sharedMapSearchProps = {
-    cityId,
-    query: filters.query,
-    onQueryChange: changeMapSearchQuery,
-    venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
-    localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
-    places: ukPlaces,
-    includeLocalResults: !limitedCoverageSearch,
-    ukBasePubs: residentUkBasePubs,
-    userLocation,
-    mapCenter: mapViewport.center,
-    onSelectVenue: selectVenueFromSearch,
-    onSelectUkBasePub: selectUkBasePubFromSearch,
-    onSelectPlace: selectPlaceFromSearch,
-    onSelectCity: selectCityFromSearch,
-    onFlyToArea: selectSearchArea,
-    onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
-  } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
+  function mapSearchPropsForCoverage() {
+    return {
+      cityId,
+      query: filters.query,
+      onQueryChange: changeMapSearchQuery,
+      venues: limitedCoverageSearch ? NO_SEARCH_VENUES : venues,
+      localities: limitedCoverageSearch ? NO_LOCALITIES : localities,
+      places: ukPlaces,
+      includeLocalResults: !limitedCoverageSearch,
+      ukBasePubs: residentUkBasePubs,
+      userLocation,
+      mapCenter: mapViewport.center,
+      onSelectVenue: selectVenueFromSearch,
+      onSelectUkBasePub: selectUkBasePubFromSearch,
+      onSelectPlace: selectPlaceFromSearch,
+      onSelectCity: selectCityFromSearch,
+      onFlyToArea: selectSearchArea,
+      onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
+    } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
+  }
+  const sharedMapSearchProps = mapSearchPropsForCoverage();
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
