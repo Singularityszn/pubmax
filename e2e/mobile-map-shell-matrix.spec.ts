@@ -85,6 +85,8 @@ for (const viewport of VIEWPORTS) {
               window.sessionStorage.setItem("pubmax-e2e-geo-calls", String(calls));
               success({ coords: { latitude: 51.515, longitude: -0.09, accuracy: 10 } } as GeolocationPosition);
             },
+            watchPosition() { return 1; },
+            clearWatch() {},
           },
         });
       }, theme);

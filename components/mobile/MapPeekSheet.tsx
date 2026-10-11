@@ -69,6 +69,7 @@ export function peekShouldOpenList(upwardPx: number, upwardVelocityPxPerMs: numb
  *  the others are a read still running, failed or incomplete. */
 const QUIET_LINES: Record<Exclude<MapPeekModel["status"], "answer">, string> = {
   loading: "Counting them up…",
+  unavailable: "Browse the pub directory",
   none: "No listed price here yet",
   unread: "Could not read prices just now",
   partial: "Some prices still missing",
@@ -224,7 +225,7 @@ export default function MapPeekSheet({
   return (
     <section
       className="mapPeek"
-      aria-label="Cheapest in this view"
+      aria-label={model.status === "unavailable" ? "Map unavailable" : "Cheapest in this view"}
       data-state={model.status}
       data-covered={covered ? "true" : undefined}
       data-dragging={running || offset !== 0 ? "true" : undefined}
@@ -263,7 +264,7 @@ export default function MapPeekSheet({
           </button>
         ) : (
           <div className="mapPeekAnswer isQuiet" role="status">
-            <span className="mapPeekEyebrow">Cheapest in this view</span>
+            <span className="mapPeekEyebrow">{model.status === "unavailable" ? "Map unavailable" : "Cheapest in this view"}</span>
             <span className="mapPeekLine">
               {model.status === "loading" ? (
                 <span className="mapPeekSkeleton" aria-hidden="true" />
@@ -277,7 +278,7 @@ export default function MapPeekSheet({
         <button
           type="button"
           className="mapPeekList"
-          aria-label="Show the pubs in this view as a list"
+          aria-label={model.status === "unavailable" ? "Browse pubs without the map" : "Show the pubs in this view as a list"}
           onClick={onOpenList}
         >
           <ChevronUp size={16} aria-hidden="true" />

@@ -47,6 +47,7 @@ type MapPeekAnswer = {
  */
 export type MapPeekModel =
   | { status: "loading" }
+  | { status: "unavailable" }
   | { status: "none" }
   | { status: "unread" }
   | { status: "partial" }
@@ -111,6 +112,7 @@ export function buildMapPeek(input: {
 /** The card's one spoken line, shared by its accessible name and the tests. */
 export function mapPeekSummary(model: MapPeekModel): string {
   if (model.status === "loading") return "Looking for the cheapest price in view";
+  if (model.status === "unavailable") return "Map unavailable. Browse the pub directory";
   if (model.status === "none") return "No listed price in this view";
   if (model.status === "unread") return "Could not read the prices in this view just now";
   if (model.status === "partial") return "No listed price in this view yet, some prices are still missing";

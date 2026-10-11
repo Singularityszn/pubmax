@@ -99,6 +99,36 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
   await expect(page).toHaveURL(/\/pubs$/);
 });
 
+test("no-WebGL List offers the pub directory instead of endless loading", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.goto("/map");
+  await expect(page.locator(".mapFallback")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapFallbackVenue").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".mapPeek")).toContainText("Map unavailable");
+  await expect(page.locator(".mapPeek")).not.toContainText("Counting them up…");
+  await expect(page.locator(".mapPeek")).not.toContainText("Cheapest in this view");
+  await page.screenshot({ path: testInfo.outputPath("fallback-settled.png") });
+  await page.locator(".mapPeekList").click();
+  const list = page.locator(".mapVenueList");
+  await expect(list).toBeVisible();
+  await expect(list).not.toContainText("Counting them up…");
+  await expect(list.getByRole("heading", { name: "Map unavailable" })).toBeVisible();
+  const browse = list.getByRole("link", { name: "Browse all pubs" });
+  await expect(browse).toBeVisible();
+  await expect(list.locator(".mapVenueListPanel")).toHaveCSS("opacity", "1");
+  await expect(browse).toBeInViewport();
+  expect((await browse.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: testInfo.outputPath("fallback-list-directory.png") });
+  await browse.click();
+  await expect(page).toHaveURL(/\/pubs$/);
+  await expect(page.locator(".pubsCard").first()).toBeVisible();
+});
+
 // The desktop half of the same card. The search toolbar and the city chip float
 // over the map at every desktop width, and a centred card read its heading and
 // first lines from behind them. Wait for the chip, because it arrives after

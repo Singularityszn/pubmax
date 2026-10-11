@@ -362,6 +362,8 @@ for (const fixture of RESELECTED_PRICE_CASES) {
       } else await expectLensEvidence();
     } finally {
       releaseRead();
+      // Finish in-flight fixture reads before the context disposes their responses.
+      await page.unrouteAll({ behavior: "wait" });
     }
   });
 }

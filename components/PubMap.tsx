@@ -1151,15 +1151,16 @@ function useMapPeek(
     projection: { cityId: CityId } | null;
     hidden: boolean;
     phone: boolean;
+    unavailable: boolean;
   },
 ): MapPeekModel | null {
-  const { cityId, projection, hidden, phone, venues, lensPrices, lensStatus, venueSignals, reader } = input;
+  const { cityId, projection, hidden, phone, unavailable, venues, lensPrices, lensStatus, venueSignals, reader } = input;
   const ready = projection?.cityId === cityId;
   const peek = useMemo(
     () => buildMapPeek({ ready, venues, lensPrices, lensStatus, venueSignals, reader }),
     [lensPrices, lensStatus, reader, ready, venueSignals, venues],
   );
-  return hidden || !phone ? null : peek;
+  return hidden || !phone ? null : unavailable ? { status: "unavailable" } : peek;
 }
 
 /**
@@ -3342,6 +3343,7 @@ export default function PubMap({
     projection: visibleVenueState,
     hidden: showMapArrivalCard || coffeePilotLensOn,
     phone: mobileViewport,
+    unavailable: mapCanvasErrored || mapCanvasUnavailable,
     venues: mapVenueListVenues,
     lensPrices: activeLensPrices,
     lensStatus: drinkIndexStatus,
@@ -6553,6 +6555,7 @@ export default function PubMap({
           loadedCityId === cityId &&
           visibleVenueState?.cityId === cityId
         }
+        mapUnavailable={mapCanvasErrored || mapCanvasUnavailable}
         onSelectVenue={selectVenue}
         onSelectUkBasePub={handleUkBasePubClick}
         onPrefetchVenue={prefetchVenueDetail}
