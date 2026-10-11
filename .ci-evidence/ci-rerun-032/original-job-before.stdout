@@ -1,0 +1,32 @@
+id: 114345108558
+run_id: 38097088260
+workflow_name: RLS session tests
+head_branch: fm/pubmax-london-enrich-100
+run_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260"
+run_attempt: 1
+node_id: CR_kwDOTNDTtM8AAAAan3_kTg
+head_sha: e1f6a99f2e7d8854b3021c67428b171ff66f2aaf
+url: "https://api.github.com/repos/Singularityszn/pubmax/actions/jobs/114345108558"
+html_url: "https://github.com/Singularityszn/pubmax/actions/runs/38097088260/job/114345108558"
+status: completed
+conclusion: failure
+created_at: "2026-10-11T00:02:52Z"
+started_at: "2026-10-11T00:02:54Z"
+completed_at: "2026-10-11T00:05:41Z"
+name: Effective RLS (Postgres 16 + PostgREST 14)
+steps[9]{name,status,conclusion,number,started_at,completed_at}:
+  Set up job,completed,success,1,"2026-10-11T00:02:55Z","2026-10-11T00:02:56Z"
+  Checkout,completed,success,2,"2026-10-11T00:02:56Z","2026-10-11T00:03:29Z"
+  Setup Node,completed,success,3,"2026-10-11T00:03:29Z","2026-10-11T00:03:34Z"
+  Install dependencies,completed,success,4,"2026-10-11T00:03:34Z","2026-10-11T00:03:57Z"
+  Install PostgreSQL 16 and PostgREST 14,completed,success,5,"2026-10-11T00:03:57Z","2026-10-11T00:04:06Z"
+  Run effective RLS session tests,completed,failure,6,"2026-10-11T00:04:06Z","2026-10-11T00:05:38Z"
+  Post Setup Node,completed,skipped,11,"2026-10-11T00:05:38Z","2026-10-11T00:05:38Z"
+  Post Checkout,completed,success,12,"2026-10-11T00:05:38Z","2026-10-11T00:05:39Z"
+  Complete job,completed,success,13,"2026-10-11T00:05:39Z","2026-10-11T00:05:39Z"
+check_run_url: "https://api.github.com/repos/Singularityszn/pubmax/check-runs/114345108558"
+labels[1]: ubuntu-latest
+runner_id: 1000011861
+runner_name: GitHub Actions 1000011861
+runner_group_id: 0
+runner_group_name: GitHub Actions

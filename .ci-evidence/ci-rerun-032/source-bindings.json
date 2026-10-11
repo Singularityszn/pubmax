@@ -1,0 +1,22 @@
+[
+  {
+    "path": ".github/workflows/rls-session.yml",
+    "sha256": "608ea6acf1f199029001ad18c6b0c5c580c9014907a1c0712d6d5d325c878c40",
+    "unchangedFromBase": true
+  },
+  {
+    "path": "__tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts",
+    "sha256": "4937e1f4c5d0e7671167bf9e00a6d7cda820f43013ad22e968dc71f4c1bb1b80",
+    "unchangedFromBase": true
+  },
+  {
+    "path": "__tests__/helpers/postgres.ts",
+    "sha256": "9e4afd8d7df7587500598c8a63357f75d3162e6877a5f2c2bdceb8fceb09165f",
+    "unchangedFromBase": true
+  },
+  {
+    "path": "supabase/migrations/20260905100000_0142_city_enrichment_progress.sql",
+    "sha256": "acdcd1923992cc64c940ff6c53e6b630bf885157e0bf78e72c7c7da2fe91f50e",
+    "unchangedFromBase": true
+  }
+]

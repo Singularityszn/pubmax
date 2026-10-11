@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/runs/38097088260/artifacts",
+    "--full"
+  ],
+  "time": "2026-10-11T01:23:20.955248+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "0367f21a8e0233c826c0dd7a77cfa6f0579ec5cc2a57b6093020b47ca1efa521",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

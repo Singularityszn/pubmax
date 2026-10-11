@@ -1,0 +1,4 @@
+rerun: ok
+run: "38097088260"
+help[1]:
+  Run `gh-axi run watch 38097088260 -R Singularityszn/pubmax` to monitor progress
