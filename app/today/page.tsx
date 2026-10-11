@@ -209,17 +209,13 @@ export default async function TodayPage() {
     now,
   });
 
-  // The personal line at the top. Composed here from the server's `now` (the
-  // route is dynamic per request, so it is genuinely current) and handed down
-  // whole, so the first paint already carries the right time of day and the
-  // right sky. The client rebuilds it only when personalization swaps the
-  // viewer's area weather in, reusing this same instant so the time-of-day band
-  // can never drift away from what was server rendered.
   const suggestedPubs = hypedPubsForPage(hyped.rows);
   const suggestedPubMapIds = mapSelectableVenueIds
     ? suggestedPubs.flatMap((pub) => pub.venueId && mapSelectableVenueIds.has(pub.venueId) ? [pub.venueId] : [])
     : null;
 
+  // The greeting uses the server render's clock. Area personalisation reuses
+  // that instant, so its time-of-day band agrees with the initial greeting.
   const dateLabel = formatConditionDate(now);
   const greeting = buildDayGreeting({ now, weather, dateLabel });
 

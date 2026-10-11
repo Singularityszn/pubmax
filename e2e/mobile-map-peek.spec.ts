@@ -108,6 +108,55 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
   expect(doorBox!.y + doorBox!.height).toBeLessThan(box.y + box.height);
 });
 
+test("320px quiet price status stays complete at 200% text with both doors usable", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: PHONE.height });
+  await page.route("**/api/price-submit?drinkCategory=alcohol-free", (route) => route.fulfill({
+    json: { prices: [], truncated: false, degraded: false },
+  }));
+  await openMap(page, { url: "/map?drink=alcohol-free" });
+  const card = page.locator('.mapPeek[data-state="none"]');
+  await expect(card).toBeVisible();
+  const status = card.locator(".mapPeekName");
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("font-size", "32px", "important");
+    document.documentElement.setAttribute("data-text-scale", "large");
+  });
+  await expect(page.locator("html")).toHaveCSS("font-size", "32px");
+  await expect(status).toHaveCSS("font-size", "30px");
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+  const geometry = await status.evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const box = element.getBoundingClientRect();
+    return {
+      inkWidth: range.getBoundingClientRect().width,
+      width: box.width,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    };
+  });
+  expect(geometry.inkWidth, "the complete quiet status fits without an ellipsis").toBeLessThanOrEqual(geometry.width + 0.5);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  await expect(status).toHaveText("No price yet");
+  await expect(card.getByText("Cheapest in this view", { exact: true })).toBeVisible();
+  for (const selector of [".mobilePlanActivation", ".mapPeekList"]) {
+    const control = card.locator(selector);
+    expect(await control.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    }), `${selector} owns its centre`).toBe(true);
+  }
+  const screenshot = testInfo.outputPath("quiet-price-320-text200.png");
+  await page.screenshot({ path: screenshot });
+  await testInfo.attach("complete quiet price status", { path: screenshot, contentType: "image/png" });
+  await card.locator(".mapPeekList").click();
+  await expect(page.locator(".mapVenueList--open")).toBeVisible();
+});
+
 // The label (an anchor's, or a lens category) rides the eyebrow row above the
 // figure, so a walk time can never squeeze it to nothing. The eyebrow is at
 // most two lines: "Cheapest in this view", never cut, and the label on its own
@@ -615,7 +664,7 @@ for (const theme of ["light", "dark"] as const) {
     await sheet.getByRole("button", { name: "Close venue detail", exact: true }).click();
     await expect(cafe).toHaveCount(0);
     await expect(page.locator(".mapPeek")).toHaveCount(0);
-    await expect(page.getByText("No listed price here yet", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("No price yet", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Show the pubs in this view as a list" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Describe the outing", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`390-${theme}-coffee-map.png`) });

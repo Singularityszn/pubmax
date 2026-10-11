@@ -166,6 +166,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
       expect(count.right).toBeLessThanOrEqual(tonight.right);
       await lens.click();
       await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible')).toHaveCount(1);
+      await page.screenshot({ path: test.info().outputPath(`map-${lane.drink}-${width}.png`) });
     }
   }
 });

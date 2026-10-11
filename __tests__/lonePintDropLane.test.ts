@@ -13,14 +13,12 @@
 // These cases run the pipeline in the order PubMap runs it: drops fold into the
 // signal through `provisionalPriceDrop`, and the overview tab renders the lane.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
+import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -498,18 +496,32 @@ describe("the phone peek chip over a lone Pint Drop", () => {
     expect(html).not.toContain("Baseline on record");
   });
 
-  it("is the ONLY thing the peek words as an absence", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/map/VenuePeekPintPrice.tsx"),
-      "utf8",
-    );
-    // The chip decides first, and the "No price yet" button is reachable only
-    // where it answered null.
-    expect(source).toContain(
-      "const price = peekPriceChip(lane, bundle, pintTrust);",
-    );
-    expect(source).toMatch(
-      /if \(price\) \{[\s\S]*?return \([\s\S]*?\);\s*\}\s*return isPub \? \([\s\S]*?No price yet\./,
-    );
-  });
+  it.each(["ready", "idle", "unavailable"] as const)(
+    "keeps a lone logged price in the peek during a %s read",
+    (dropReadStatus) => {
+      const base = venue();
+      const provisional = provisionalPriceDrop([drop()], NOW);
+      if (!provisional) throw new Error("The fixture must contain one provisional price.");
+      const html = renderToStaticMarkup(createElement(VenuePeekPintPrice, {
+        venueId: base.id,
+        isPub: true,
+        lane: venuePriceLane(base, null, null, {}, {
+          priceGbp: provisional.priceGbp as number,
+          observedAt: provisional.createdAt,
+        }),
+        bundle: {},
+        pintTrust: "logged-once",
+        detailLoading: false,
+        priceReadStatus: "ready",
+        dropReadStatus,
+        onLog: noop,
+      }));
+      expect(html).toContain("£4.50");
+      expect(html).toContain(PROVISIONAL_PRICE_LINE);
+      expect(html).not.toContain("No price yet");
+      expect(html).not.toContain("Be the first");
+      expect(html).not.toContain("Checking prices");
+      expect(html).not.toContain("could not read");
+    },
+  );
 });

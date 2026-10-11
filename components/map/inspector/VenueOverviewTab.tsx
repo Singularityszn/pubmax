@@ -167,6 +167,19 @@ export function overviewComposerOpen({
   return focusRequest > 0 || signInRequested || missionPresent || priceLogged;
 }
 
+/** A beer absence claim needs both the community-price and Pint Drop reads. */
+function overviewDrinkPriceReadStatus(
+  pub: boolean,
+  activeLane: DrinkCategory,
+  priceReadStatus: VenuePriceReadStatus,
+  dropReadStatus: VenueDropReadStatus | undefined,
+): VenuePriceReadStatus {
+  if (!pub || activeLane !== "beer") return priceReadStatus;
+  if (venuePriceFallbackPending(null, priceReadStatus, dropReadStatus)) return "loading";
+  if (dropReadStatus === "unavailable") return "degraded";
+  return priceReadStatus;
+}
+
 /**
  * What the price area below the drink rows does on this pub, and whether the
  * block above it may still word an absence.
@@ -1078,7 +1091,7 @@ export default function VenueOverviewTab({
           rows={drinkPriceRows}
           activeLane={leadLane}
           laneNoun={leadLaneNoun}
-          readStatus={venueReadStatus}
+          readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
           laneLoggedPriceShown={laneLoggedPriceShown}
           priceShownFromAnotherLane={priceShownFromAnotherLane}
           inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
@@ -1090,10 +1103,9 @@ export default function VenueOverviewTab({
           revealRecordLate={revealRecordLate}
         />
       )}
-      {/* Price honesty on overview: community override wins, then sourced
-          observation, then baseline-on-record. Never imply a live feed.
-          Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
-          it renders under its own label with date and source, never as a
+      {/* The shared price lane owns precedence. Never imply a live feed.
+          Non-pub venues carry a type-specific anchor (a cocktail, a doner).
+          It renders under its own label with date and source, never as a
           pint figure. A selected-drink lens already answered above, so a beer
           baseline must not stand in for coffee (or wine, or soft drink). */}
       {showsPriceSummary ? (

@@ -1,4 +1,5 @@
 import PriceBadge from "@/components/PriceBadge";
+import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
@@ -55,6 +56,9 @@ export default function VenuePeekPintPrice({
         <small>{price.caption}</small>
       </span>
     );
+  }
+  if (isPub && !firstDropNudgeMayClaimAbsence(dropReadStatus)) {
+    return <span role="status"><small>{DROP_READ_UNAVAILABLE_LINE}</small></span>;
   }
   return isPub ? (
     <button type="button" className="mobileVenuePeekDrop" onClick={onLog}>
