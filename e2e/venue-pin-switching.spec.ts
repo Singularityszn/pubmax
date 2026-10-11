@@ -4,14 +4,34 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 type TapPoint = { kind: "pin" | "cluster"; id: string; x: number; y: number };
 
-async function visiblePins(page: Page): Promise<TapPoint[]> {
+async function readPinSnapshot(page: Page) {
   return page.evaluate(() => {
-    const probe = (window as typeof window & {
+    const current = window as typeof window & {
       __pubmaxPaintedMapTapPoints?: () => TapPoint[];
-    }).__pubmaxPaintedMapTapPoints;
-    return probe?.().filter((point) => point.kind === "pin") ?? [];
+      __pubmaxMapCamera?: { read: () => unknown };
+    };
+    const pins = current.__pubmaxPaintedMapTapPoints?.()
+      .filter((point) => point.kind === "pin") ?? [];
+    return {
+      pins,
+      observedAt: performance.now(),
+      url: location.href,
+      camera: current.__pubmaxMapCamera?.read() ?? null,
+      venueIntentMarks: performance.getEntriesByName("pubmax:camera-intent:venue")
+        .slice(-3).map((entry) => ({ name: entry.name, startTime: entry.startTime })),
+    };
   });
 }
+
+test.afterEach(async ({ browserName }, testInfo) => {
+  const snapshots = testInfo.annotations
+    .filter((entry) => entry.type === "pin-camera-snapshot")
+    .map((entry) => JSON.parse(entry.description ?? "null"));
+  await testInfo.attach("pin-camera-snapshots.json", {
+    body: JSON.stringify({ browserName, snapshots }, null, 2),
+    contentType: "application/json",
+  });
+});
 
 for (const width of [390, 900, 1440]) {
   test(`can select three pubs without closing the venue at ${width}px`, async ({ page }, testInfo) => {
@@ -47,8 +67,20 @@ for (const width of [390, 900, 1440]) {
     for (let selection = 0; selection < 2; selection += 1) {
       let next: TapPoint | undefined;
       await expect.poll(async () => {
-        const candidates = (await visiblePins(page)).filter((point) => !selections.includes(point.id));
+        const snapshot = await readPinSnapshot(page);
+        const candidates = snapshot.pins.filter((point) => !selections.includes(point.id));
         next = candidates[0];
+        testInfo.annotations.push({
+          type: "pin-camera-snapshot",
+          description: JSON.stringify({
+            observedAt: snapshot.observedAt,
+            url: snapshot.url,
+            camera: snapshot.camera,
+            venueIntentMarks: snapshot.venueIntentMarks,
+            candidateCount: candidates.length,
+            candidate: next ?? null,
+          }),
+        });
         return candidates.length;
       }).toBeGreaterThan(0);
       if (!next) throw new Error("The successful pin snapshot did not contain a new venue.");
