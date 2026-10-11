@@ -13,8 +13,6 @@ async function visiblePins(page: Page): Promise<TapPoint[]> {
   });
 }
 
-test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
-
 for (const width of [390, 900, 1440]) {
   test(`can select three pubs without closing the venue at ${width}px`, async ({ page }, testInfo) => {
     test.setTimeout(120_000);
@@ -44,6 +42,7 @@ for (const width of [390, 900, 1440]) {
 
     const selections = ["venue-eltcmh"];
     let previousHeading = await heading.textContent();
+    const selectionHeadings = [previousHeading!];
     for (let selection = 0; selection < 2; selection += 1) {
       await expect.poll(async () => (await visiblePins(page)).filter((point) => !selections.includes(point.id)).length).toBeGreaterThan(0);
       const next = (await visiblePins(page)).find((point) => !selections.includes(point.id))!;
@@ -53,15 +52,19 @@ for (const width of [390, 900, 1440]) {
       await expect(heading).not.toHaveText(previousHeading!);
       previousHeading = await heading.textContent();
       selections.push(next.id);
+      selectionHeadings.push(previousHeading!);
     }
     await page.screenshot({ path: testInfo.outputPath("third-pub.png") });
 
     await page.goBack();
     await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(selections[1]);
+    await expect(heading).toHaveText(selectionHeadings[1]);
     await page.goBack();
     await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(selections[0]);
+    await expect(heading).toHaveText(selectionHeadings[0]);
     await sheet.getByRole("button", { name: "Close pub detail", exact: true }).click();
     await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
+    await expect(sheet).toBeHidden();
     await expect.poll(() => canvas.evaluate((node) => !!node.closest("[inert]"))).toBe(false);
   });
 }
