@@ -40,7 +40,7 @@ vi.mock("@/lib/mapWarmup", () => ({
   warmMapRoute: () => undefined,
   warmNavRoute: () => undefined,
 }));
-vi.mock("@/lib/mobileShell", () => ({ requestMobileSheetDismiss: () => undefined }));
+vi.mock("@/lib/mobileSheetDismiss", () => ({ requestMobileSheetDismiss: () => undefined }));
 vi.mock("@/lib/softKeyboard", () => ({
   readSoftKeyboardOpen: () => false,
   serverSoftKeyboardOpen: () => false,

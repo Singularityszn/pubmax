@@ -19,7 +19,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 vi.mock("@/lib/mapWarmup", () => ({
   warmNavRoute: () => undefined,
 }));
-vi.mock("@/lib/mobileShell", () => ({
+vi.mock("@/lib/mobileSheetDismiss", () => ({
   requestMobileSheetDismiss: () => undefined,
 }));
 vi.mock("@/lib/softKeyboard", () => ({

@@ -108,7 +108,6 @@ export const MOBILE_MAP_SESSION_KEY = "pubmaxx.mobile-map-session.v1";
 
 export {
   MOBILE_SHEET_DISMISS_EVENT,
-  requestMobileSheetDismiss,
 } from "@/lib/mobileSheetDismiss";
 
 const RESTORABLE_SHEETS = new Set<MapSheetKind>([

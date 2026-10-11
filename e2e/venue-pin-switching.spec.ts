@@ -45,8 +45,13 @@ for (const width of [390, 900, 1440]) {
     let previousHeading = await heading.textContent();
     const selectionHeadings = [previousHeading!];
     for (let selection = 0; selection < 2; selection += 1) {
-      await expect.poll(async () => (await visiblePins(page)).filter((point) => !selections.includes(point.id)).length).toBeGreaterThan(0);
-      const next = (await visiblePins(page)).find((point) => !selections.includes(point.id))!;
+      let next: TapPoint | undefined;
+      await expect.poll(async () => {
+        const candidates = (await visiblePins(page)).filter((point) => !selections.includes(point.id));
+        next = candidates[0];
+        return candidates.length;
+      }).toBeGreaterThan(0);
+      if (!next) throw new Error("The successful pin snapshot did not contain a new venue.");
       await page.mouse.click(next.x, next.y);
       await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(next.id);
       await expect(sheet).toBeVisible();
