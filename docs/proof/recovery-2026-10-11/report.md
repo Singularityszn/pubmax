@@ -26,9 +26,17 @@ PUBMAX_MESSAGE_IDEMPOTENCY_NO_PG=1 PUBMAX_MESSAGING_REALTIME_NO_PG=1 npx vitest 
 
 The documented global opt-out remains subject to the shared runner's explicit skip-admission policy.
 
-## Remaining proof gaps
+## Real signed-in Plan recovery
 
-Issue #1300 remains open. Its signed-in Plan capability recovery test still skips unconditionally. The shared auth helper exists, but its browser doubles cannot supply verified server identity. A real local PATCH with a fixture bearer and idempotency key returned HTTP 503, `PLAN_ACCOUNT_RECOVERY_UNAVAILABLE`, from the keyless server. Docker was stopped, so isolated Supabase Auth was unavailable. No product authentication bypass was added.
+Issue #1300's missing browser journey now runs in the existing `chromium-authenticated` project. The test uses the seeded account through the real handle-password route. The claim PUT succeeds, then the browser removes only the Plan capability cookie. A single reload sends a recovery PATCH with an idempotency key. The PATCH returns HTTP 200, the cookie returns, and the host-only invite control becomes visible without another reload.
+
+The unconditional skipped case moved from `plan-capability-recovery.spec.ts` to `plan-capability-recovery-auth.spec.ts`. Its skip and allowlist exception are removed. The signed-out refusal remains in the default project. Both cases share the existing Plan setup and cookie-loss helpers. The existing account review test shares one real-login helper with the new case.
+
+The installed Colima runtime started through its normal lifecycle. A separate Supabase CLI workdir used loopback ports 58441/58442 and applied all 194 repository migrations to a new local database. The repository's seed command created its dedicated test identity. The temporary first proof passed in 25.1 seconds. Both final authenticated tests passed in 14.7 seconds with one installed Chrome worker and the private development server on port 32191. No production credentials, remote writes, auth doubles in the signed-in journey, or authentication bypass were used.
+
+The standard authenticated project can run with `PUBMAX_E2E_LOGIN=1` and the documented seeded credentials. It remains an opt-in lane. This record proves the development browser flow. The combined final gate still owns full verification, production-build checks, push and PR. Issue #1300 remains open until that delivery is reviewed.
+
+## Remaining proof limits
 
 Issue #1313's original stale full-load overwrite scenario was not separately reproduced. The full-load serialization protects the entry it names. The confirmed session-recovery lockup is related evidence, not proof that the original scenario occurred.
 
@@ -52,4 +60,4 @@ The Gate Z performance spec has an opt-in flag but no npm command or workflow se
 
 The Node import probe and cached-Overpass refusal test were active on this host. The inventory found no test `todo`, `fixme`, `only`, or quarantine markers. Project routing keeps WebGL, keyless, screenshots, authenticated review, and production smoke in their intended runs.
 
-Focused lint and the browser skip source gate passed. Full verification and production-build evidence were pending at this record's creation.
+Focused lint passed. The browser skip source gate passed across 298 spec files. Project registration and gate wiring passed all 10 tests. Independent review found no introduced defects. Full verification and production-build evidence belong to the combined final candidate gate and remain pending in this local record.
