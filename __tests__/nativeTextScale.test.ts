@@ -144,4 +144,3 @@ describe("followNativeTextScale", () => {
     expect(p.set).toHaveBeenCalledTimes(2);
   });
 });
-
