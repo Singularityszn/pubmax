@@ -12,7 +12,7 @@ describe("MobileTflPanel resilience", () => {
   it("keeps online fault copy for an unavailable live status", () => {
     const html = renderToStaticMarkup(
       createElement(MobileTflPanel, {
-        status: { payload: null, failed: true, issueCount: 0 },
+        status: { payload: null, failed: true, issueCount: 0, urgentCount: 0 },
       }),
     );
     expect(html).toContain("TfL updates are unavailable.");
@@ -23,7 +23,7 @@ describe("MobileTflPanel resilience", () => {
     vi.stubGlobal("window", { navigator: { onLine: false } });
     const html = renderToStaticMarkup(
       createElement(MobileTflPanel, {
-        status: { payload: null, failed: true, issueCount: 0 },
+        status: { payload: null, failed: true, issueCount: 0, urgentCount: 0 },
       }),
     );
     expect(html).toContain("You look offline. We will retry when you are back.");
@@ -50,7 +50,7 @@ describe("MobileTflPanel signal sources", () => {
 
   it("links each sourced signal to its publisher, and says so when there is none (F14)", () => {
     const html = renderToStaticMarkup(
-      createElement(MobileTflPanel, { status: { payload, failed: false, issueCount: 3 } }),
+      createElement(MobileTflPanel, { status: { payload, failed: false, issueCount: 3, urgentCount: 0 } }),
     );
     expect(html).toContain('href="https://www.timeout.com/london/news/the-strokes-o2"');
     expect(html).toContain("Source: timeout.com ↗");

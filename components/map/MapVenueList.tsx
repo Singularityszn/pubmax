@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef } from "react";
+import Link from "next/link";
 import { ForkKnife, MapPin } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
@@ -14,6 +15,7 @@ import type {
 import { summarizeListGroups } from "@/lib/mapVenueList";
 import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
 import SurfaceNav from "@/components/ui/surface-nav";
+import { Button } from "@/components/ui/button";
 import { homeActionLabel } from "@/lib/surfaceStack";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
@@ -46,6 +48,7 @@ export default function MapVenueList({
   open,
   onOpenChange,
   loaded,
+  mapUnavailable = false,
   onSelectVenue,
   onSelectUkBasePub,
   onPrefetchVenue,
@@ -65,6 +68,7 @@ export default function MapVenueList({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loaded: boolean;
+  mapUnavailable?: boolean;
   onSelectVenue: (id: string) => void;
   onSelectUkBasePub: (pub: UkBasePub) => void;
   onPrefetchVenue: (id: string) => void;
@@ -129,9 +133,11 @@ export default function MapVenueList({
         <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
           <header className="mapVenueListHead">
             <div className="mapVenueListHeadMeta">
-              <h2 className="mapVenueListTitle">Venues on the map</h2>
+              <h2 className="mapVenueListTitle">{mapUnavailable ? "Map unavailable" : "Venues on the map"}</h2>
               <span className="mapVenueListCount" role="status" aria-live="polite">
-                {ukBaseStatus === "unavailable" && total === 0
+                {mapUnavailable
+                  ? "Browse without the map"
+                  : ukBaseStatus === "unavailable" && total === 0
                   ? "Unlisted pubs unavailable"
                   : awaitingRows
                   ? "Counting them up…"
@@ -151,6 +157,11 @@ export default function MapVenueList({
             />
           </header>
 
+          {mapUnavailable ? (
+            <p className="mapVenueListEmpty">
+              You can still browse every pub in the directory. <Button variant="secondary" asChild><Link href="/pubs">Browse all pubs</Link></Button>
+            </p>
+          ) : <>
           {onSortModeChange && total > 0 ? (
             <div className="mapVenueListSort" role="group" aria-label="Sort venues on the map">
               <button
@@ -300,6 +311,7 @@ export default function MapVenueList({
               ) : null}
             </div>
           )}
+          </>}
         </div>
     </section>
   );

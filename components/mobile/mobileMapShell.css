@@ -120,19 +120,27 @@
     display: none;
   }
 
-  .appShell .mapStage {
-    --mobile-map-credit-bottom: calc(var(--mobile-map-dock-clearance) + 68px);
-  }
-
   .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    /* MapLibre's compact info control sits above the 48px plan action, on the
-       LEFT edge of that band. The right edge is the Near me FAB's berth
-       (--map-corner-bottom), and the FAB painted over the credit and took every
-       tap meant for the OpenStreetMap licence. Opening the full credit uses this
-       same lane, so licence text never paints through the action beneath it. */
+    /* MapLibre's compact info control is a map control like Near me, not a
+       resting band: one 44px circle on the LEFT edge, one gap above the plan
+       member's top edge, which is the bottom card's top while the card is up.
+       The right edge is the map-edge column's berth (--map-corner-bottom), and
+       the Near me FAB painted over the credit and took every tap meant for the
+       OpenStreetMap licence. Opening the full credit grows up from this same
+       berth, so licence text never paints through the card beneath it. The
+       same copy is also the first thing under the Key in More map controls. */
     left: var(--mobile-map-stack-left);
     right: auto;
     bottom: var(--mobile-map-credit-bottom);
+    /* The berth moves when the card arrives after load. The reduced-motion
+       duration in globals.css turns the default `all` into a live `bottom`
+       transition, and until the next frame lands the credit sat on the bare
+       pill's berth, inside the card. */
+    transition-property: none;
+  }
+
+  .appShell .mapStage {
+    --mobile-map-credit-bottom: calc(var(--float-stack-top-plan) + 10px);
   }
 
   .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
@@ -168,6 +176,10 @@
       calc(var(--mobile-map-dock-clearance) + 68px),
       calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
     );
+  }
+
+  body:has(.mobilePlanActivation):has(.palSummon) .appShell .mapStage {
+    --mobile-map-credit-bottom: calc(var(--float-stack-top-pal) + 10px);
   }
 
   /* The first-visit ask is a compact pill above the map-edge column now, not a
@@ -369,10 +381,10 @@
     color: var(--color-text-soft);
   }
 
-  /* ONE docked lane under the one bar, shared by the drink chip and the P5
-     What's On cold-start chip, so the phone chrome stays a bar plus a single
-     44px row however many chips it earns. It stops short of the published
-     map-edge lane, and keeps the 44px tap floor. */
+  /* ONE docked lane under the one bar, holding the drink chip, so the phone
+     chrome stays a bar plus a single 44px row. What's On is a lens in the
+     Filters sheet now (.mobileMapTonightLens), not a second chip here. It stops
+     short of the published map-edge lane, and keeps the 44px tap floor. */
   .mobileMapChipRow {
     display: flex;
     align-items: center;
@@ -388,14 +400,13 @@
     );
   }
 
-  /* The drink the map is under. It never scrolls away and it never truncates
-     to a fragment: a lane label is the name of the prices on the pins, so it
-     shrinks its own padding before it gives up a letter. */
+  /* The drink label names the prices on the pins. This chip keeps its width
+     while Tonight's entry lives in the Filters sheet. */
   .mobileMapDrinkChip {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
     min-height: 44px;
     padding: 6px 14px;
@@ -420,50 +431,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .mobileMapTonightChip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    flex: 0 1 auto;
-    max-width: 100%;
-    min-width: 0;
-    min-height: 44px;
-    padding: 6px 14px;
-    border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--amber, #d3a44a) 20%);
-    border-radius: var(--control-radius, 14px);
-    background: color-mix(in srgb, var(--color-surface-raised) 94%, var(--amber, #d3a44a) 6%);
-    color: var(--color-text);
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
-    font: inherit;
-    font-size: var(--text-sm);
-    font-weight: 700;
-    transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  .mobileMapDrinkChip > svg { flex-shrink: 0; }
+  @media (max-width: 360px) {
+    .mobileMapDrinkChip {
+      padding-inline: var(--space-1);
+      gap: var(--space-1);
+    }
   }
-  .mobileMapTonightChip:active { transform: scale(.98); --shared-press-scale: 1; }
-  .mobileMapTonightChip.isActive {
-    border-color: color-mix(in srgb, var(--amber, #d3a44a) 45%, var(--color-border));
-    background: color-mix(in srgb, var(--amber, #d3a44a) 16%, var(--color-surface-raised));
-  }
-  .mobileMapTonightChipLabel {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .mobileMapTonightChipCount {
-    min-width: 1.2rem;
-    min-height: 1.2rem;
-    display: grid;
-    place-items: center;
-    padding: 0 5px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--amber, #d3a44a) 30%);
-    background: var(--panel-raised);
-    color: var(--ink);
-    font-family: var(--font-data);
-    font-size: var(--text-2xs);
-  }
-
   /* The refinement count on the Filters control. The button's accessible name
      already names the active refinements, so this is a decorative mark. */
   .mobileMapFiltersButton { position: relative; }
@@ -482,6 +456,47 @@
     font-family: var(--font-data);
     font-size: var(--text-2xs);
   }
+
+  /* What's On, as a lens at the head of the Filters sheet. A full-width row
+     with the 44px floor, because it opens a sheet rather than toggling one. */
+  .mobileMapTonightLens {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    box-sizing: border-box;
+    padding: 8px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--control-radius, 14px);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mobileMapTonightLens:active { transform: scale(.98); --shared-press-scale: 1; }
+  .mobileMapTonightLens:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .mobileMapTonightLensText { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
+  .mobileMapTonightLensText strong { font-size: var(--text-sm); font-weight: 700; }
+  .mobileMapTonightLensText small { font-size: .8125rem; color: var(--color-text-muted); }
+  .mobileMapTonightLensChevron { flex: 0 0 auto; color: var(--color-text-muted); }
+
+  /* The licence line in the Key tab, beside the map's own (i): body copy,
+     selectable and linked, never an icon-only control. */
+  .mobileMapCredits {
+    display: grid;
+    gap: 6px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    color: var(--color-text-muted);
+  }
+  .mobileMapCredits h3 { margin: 0; font-size: .8125rem; font-weight: 700; color: var(--color-text); }
+  .mobileMapCredits p { margin: 0; }
+  .mobileMapCredits a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
   /* The map edge owns the two controls the bar cannot hold: TfL at the top,
      Near me at the thumb. Both keep clear of the chrome, the plan pill, and
@@ -674,6 +689,222 @@
   .mobilePlanActivation small { margin-top: 3px; font-size: var(--text-2xs); font-weight: 700; opacity: .78; }
   .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--color-accent-ink); }
   .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
+
+  /* THE BOTTOM CARD. One surface at the foot of the map holds the answer to
+     "where is the cheapest listed price in this view" and the plan door. The
+     resting map is three layers: the bar, the chip row and this card. The plan door is
+     a CHILD of it and keeps its own 48px, so the card is exactly the door plus
+     the answer row above it: 8px frame, 44px answer row, 4px gap, 48px door,
+     8px frame = 112px. Its bottom edge is the door's berth less that 8px frame,
+     so the door stays where the floating pill always was and everything that
+     stacks above it (mobileNav.css) only clears 56px more.
+     Solid raised surface, never glass: it rests over the map all day, and the
+     Flat-Chrome-On-Map rule is what keeps a blurred layer from costing every
+     frame of a pan. It moves by transform only and owns no scroll. */
+  .mapPeek {
+    --map-peek-frame: 8px;
+    position: fixed;
+    left: var(--mobile-map-stack-left);
+    right: var(--mobile-map-stack-right);
+    bottom: calc(var(--plan-activation-bottom) - var(--map-peek-frame));
+    z-index: var(--z-map-toolbar);
+    box-sizing: border-box;
+    height: var(--map-peek-h);
+    display: grid;
+    grid-template-rows: var(--map-peek-row-h) auto;
+    row-gap: 4px;
+    align-content: end;
+    padding: var(--map-peek-frame);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-raised);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    /* The whole card is the gesture surface: a pull on it must never scroll
+       the page or pan the map behind it. */
+    touch-action: none;
+  }
+  /* While it is held or settling the card travels through the Create action's
+     berth, and that action lives in a different stacking context from the map
+     chrome, so the card cannot pass over it. It steps aside instead: it fades
+     out while the card moves and back in once the card is home. Opacity only,
+     and never a hit target while it is gone. */
+  .mapPeek[data-dragging="true"] { will-change: transform; }
+  body:has(.mapPeek) .createFabRoot {
+    transition: opacity 160ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+  body:has(.mapPeek[data-dragging="true"]) .createFabRoot {
+    opacity: 0;
+  }
+  /* The root never takes taps; the control opts back in, so the opt-in is
+     what has to go (createFab.css). */
+  body:has(.mapPeek[data-dragging="true"]) .createFabRoot :is(.createFab, .createFabMenu) {
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body:has(.mapPeek) .createFabRoot { transition: none; }
+  }
+  /* The grabber is a cue, not a control: the List button beside the answer is
+     the operable way in, and the card answers the pull anywhere. */
+  .mapPeekGrab {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-text-muted) 55%, transparent);
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .mapPeekRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .mapPeekAnswer {
+    display: grid;
+    align-content: center;
+    gap: 0;
+    min-width: 0;
+    min-height: var(--map-peek-row-h);
+    margin: 0;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mapPeekAnswer.isQuiet { cursor: default; }
+  /* Press feedback on pointer-down, a tint rather than a scale: the row is wide
+     and text-led, and a scaled line of copy reads as the text shaking. */
+  .mapPeekAnswer {
+    transition: background-color var(--duration-press, 130ms) var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+  .mapPeekAnswer:not(.isQuiet):active {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  }
+  .mapPeekAnswer:focus-visible,
+  .mapPeekList:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  /* The eyebrow row also carries what the figure is for (an anchor's label
+     or a lens category, whose provenance is in the accessible name), above
+     the figure, so the line below never has to squeeze it out. It is at most
+     two lines: "Cheapest in this view", never cut, and where the label does
+     not fit beside it, the label on its own line under it. A lens category
+     always fits that line whole; only an anchor or dish name longer than the
+     line ends in an ellipsis there (its full name is in the accessible name
+     and the venue sheet). Every size here is rem, as --map-peek-row-h is, so
+     two eyebrow lines and the figure line fill the answer row exactly at any
+     root font size and the text scale applies once. */
+  .mapPeekEyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 4px;
+    min-width: 0;
+    font-size: .75rem;
+    line-height: .875rem;
+    font-weight: 500;
+    letter-spacing: .01em;
+    color: var(--color-text-muted);
+  }
+  .mapPeekEyebrow > span:first-child { white-space: nowrap; }
+  .mapPeekLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .mapPeekLine {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    height: 1rem;
+    line-height: 1rem;
+  }
+  /* The line is the figure, the name and the walk, each a direct flex item.
+     The figure and the walk never shrink; the name gives way with an
+     ellipsis, down to the room it needs to be read. */
+  .mapPeekPrice {
+    flex: 0 0 auto;
+    font-family: var(--font-data);
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .mapPeekName {
+    flex: 0 1 auto;
+    min-width: 3em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .9375rem;
+    font-weight: 600;
+  }
+  .mapPeekWalk {
+    flex: 0 0 auto;
+    font-size: .8125rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+  .mapPeekHush { font-size: .9375rem; color: var(--color-text-muted); }
+  /* The loading line holds the answer's own height so the card never resizes
+     when the answer lands. */
+  .mapPeekSkeleton { display: none; }
+  .mapPeekList {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--control-radius, 14px);
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: .8125rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mapPeekList { transition: transform var(--duration-press, 130ms) var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)); }
+  .mapPeekList:active { transform: scale(.97); --shared-press-scale: 1; }
+  /* The plan door inside the card: same button, same 48px, recessed one step
+     so the card reads as one surface with one primary reading order. */
+  .mapPeek .mobilePlanActivation {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: none;
+    background: var(--panel);
+  }
+  /* A pub, a story, a sheet or the list takes the foot of the map. The card
+     stays mounted so the map-edge column does not jump behind it, and is simply
+     not painted or hit (data-covered, from the shell, covers every overlay the
+     plan door already stood down for; the selectors cover a pub or story sheet
+     the shell does not know about). */
+  .mapPeek[data-covered="true"],
+  body:has(.appShell.detail-open) .mapPeek,
+  body:has(.mobileSheetPortal) .mapPeek {
+    visibility: hidden;
+  }
+  /* The analytics disclosure takes the door's slot on the dock, and the card
+     stands down with it (see the plan door rule below). */
+  body:has(.analyticsConsentPrompt) .mapPeek { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .mapPeek { transition: none; }
+  }
 
   /* ONE ELEMENT AT THE FOOT. Site audit 13 Sep 2026 (D3): the analytics card
      used to ride above this pill, and with the top chrome and the dock the map

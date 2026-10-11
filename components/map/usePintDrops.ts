@@ -198,6 +198,10 @@ function measureFieldsOf(form: {
   };
 }
 
+function fileOfPhoto(photo: PhotoSlot | null): File | null {
+  return photo?.file ?? null;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -280,6 +284,7 @@ export function usePintDrops(
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());
+  const venueDropRequests = useRef(new Map<string, symbol>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -381,11 +386,18 @@ export function usePintDrops(
   // a failure; this now does the same, and records the read so a surface can
   // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
-    let active = true;
+    const request = Symbol();
+    venueDropRequests.current.set(venueId, request);
+    setVenueDropStatus((current) => {
+      const next = new Map(current);
+      next.set(venueId, "idle");
+      return next;
+    });
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {
-      if (!active) return;
+      if (venueDropRequests.current.get(venueId) !== request) return;
+      venueDropRequests.current.delete(venueId);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
         const kept = venueDropsAfterRead(held, read);
@@ -407,7 +419,9 @@ export function usePintDrops(
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
-      active = false;
+      if (venueDropRequests.current.get(venueId) === request) {
+        venueDropRequests.current.delete(venueId);
+      }
     };
   }, []);
 
@@ -638,9 +652,9 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
-    const submittedPintFile = pintPhoto?.file ?? null;
-    const submittedVenueFile = venuePhoto?.file ?? null;
-    const submittedReceiptFile = receiptPhoto?.file ?? null;
+    const submittedPintFile = fileOfPhoto(pintPhoto);
+    const submittedVenueFile = fileOfPhoto(venuePhoto);
+    const submittedReceiptFile = fileOfPhoto(receiptPhoto);
     clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {

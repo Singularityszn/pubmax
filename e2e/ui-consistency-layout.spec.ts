@@ -523,9 +523,17 @@ async function measureSurfaceAssertions(
     // Venue-type chips live in the Filters popover
     // (components/map/MapVenueKindFilter.tsx). The bars that share an edge
     // are the nav and the toolbar.
+    // On a phone the foot of the map is the bottom card once the first-visit ask
+    // is answered, with the plan door inside it. The door alone stands there
+    // only while the ask is up.
     const names =
       viewport.width <= 640
-        ? ["mobile map topbar", "Describe the outing"]
+        ? [
+            "mobile map topbar",
+            panels.some((candidate) => candidate.name === "bottom card")
+              ? "bottom card"
+              : "Describe the outing",
+          ]
         : ["desktop map navigation", "desktop map toolbar"];
     const stack = names
       .map((name) => panels.find((candidate) => candidate.name === name))
@@ -779,6 +787,7 @@ async function captureSurface(
     panel(page, "mobile map topbar", ".mobileMapTopbar"),
     panel(page, "Tonight Arc panel", ".tonightArcChips"),
     panel(page, "Describe the outing", ".mobilePlanActivation"),
+    panel(page, "bottom card", ".mapPeek"),
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),
     panel(page, "desktop map toolbar", ".mapToolbar"),

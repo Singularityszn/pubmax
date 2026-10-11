@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import { CalendarClock, MapPin, MoonStar, Tv, X } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
+import { TONIGHT_LISTINGS_LABEL } from "@/lib/mapChromeTiers";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
@@ -245,7 +246,7 @@ function TonightLaneCollapsed({
             onClick={onOpen}
           >
             <span className="tonightLaneCollapsedTitle">
-              On tonight <span aria-hidden="true">·</span> {rows.length}
+              {TONIGHT_LISTINGS_LABEL} <span aria-hidden="true">·</span> {rows.length}
             </span>
             <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
           </button>

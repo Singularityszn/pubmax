@@ -137,6 +137,7 @@ for (const width of [390, 768, 1440]) {
           await more.click();
           await expect(page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')).toBeVisible({ timeout: 1_000 });
         }).toPass({ timeout: 20_000 });
+        await expect(page.locator(".mobileMapCredits")).toContainText("OpenStreetMap contributors (ODbL)");
         await page.getByRole("tab", { name: "Layers", exact: true }).click();
         await expect(page.getByRole("tab", { name: "Layers", exact: true })).toHaveAttribute("aria-selected", "true");
       } else {

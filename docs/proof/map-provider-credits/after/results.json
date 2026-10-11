@@ -1,0 +1,46 @@
+[
+  {
+    "key": "390-light-openfreemap",
+    "styleUrl": "https://tiles.openfreemap.org/styles/positron",
+    "sourceAttributions": [],
+    "readableCredits": "Map credits\n\nPub data © OpenStreetMap contributors (ODbL).\n\nOpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+  },
+  {
+    "key": "390-light-carto",
+    "styleUrl": "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    "sourceAttributions": [],
+    "readableCredits": "Map credits\n\nPub data © OpenStreetMap contributors (ODbL).\n\n© CARTO, © OpenStreetMap contributors"
+  },
+  {
+    "key": "390-dark-openfreemap",
+    "styleUrl": "https://tiles.openfreemap.org/styles/dark",
+    "sourceAttributions": [],
+    "readableCredits": "Map credits\n\nPub data © OpenStreetMap contributors (ODbL).\n\nOpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+  },
+  {
+    "key": "390-dark-carto",
+    "styleUrl": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    "sourceAttributions": [],
+    "readableCredits": "Map credits\n\nPub data © OpenStreetMap contributors (ODbL).\n\n© CARTO, © OpenStreetMap contributors"
+  },
+  {
+    "key": "1440-light-openfreemap",
+    "styleUrl": "https://tiles.openfreemap.org/styles/positron",
+    "compactCredits": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+  },
+  {
+    "key": "1440-light-carto",
+    "styleUrl": "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    "compactCredits": "Pub data © OpenStreetMap contributors (ODbL) | © CARTO, © OpenStreetMap contributors"
+  },
+  {
+    "key": "1440-dark-openfreemap",
+    "styleUrl": "https://tiles.openfreemap.org/styles/dark",
+    "compactCredits": "Pub data © OpenStreetMap contributors (ODbL) | OpenFreeMap © OpenMapTiles Data from OpenStreetMap"
+  },
+  {
+    "key": "1440-dark-carto",
+    "styleUrl": "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    "compactCredits": "Pub data © OpenStreetMap contributors (ODbL) | © CARTO, © OpenStreetMap contributors"
+  }
+]

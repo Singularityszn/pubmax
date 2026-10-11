@@ -59,11 +59,74 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15000 })
     .toBeGreaterThan(0);
   await expect(page.locator(".mapFallbackVenueName").first()).not.toBeEmpty();
+
+  // The bottom card lifts Create after the fallback appears. Check the settled
+  // price text itself, since the row centre can remain tappable under an overlap.
+  await expect(page.locator(".mobileMapChrome")).toBeVisible();
+  await expect(page.locator(".mapPeek")).toBeVisible();
+  await expect(page.getByTestId("create-fab")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (const row of await page.locator(".mapFallbackVenue").all()) {
+    await row.scrollIntoViewIfNeeded();
+    const coveredPrices = await row.evaluate((button) => {
+      const meta = button.querySelector(".mapFallbackVenueMeta");
+      const text = Array.from(meta?.childNodes ?? []).find((node) =>
+        node.textContent?.includes("£"),
+      );
+      const priceStart = text?.textContent?.indexOf("£") ?? -1;
+      if (!text || priceStart < 0) return ["missing listed price"];
+      const range = document.createRange();
+      range.setStart(text, priceStart);
+      range.setEnd(text, text.textContent!.length);
+      const rects = Array.from(range.getClientRects());
+      if (rects.length === 0) return ["price not painted"];
+      return rects.flatMap((rect) => {
+        const points = [rect.left + 1, (rect.left + rect.right) / 2, rect.right - 1];
+        return points.flatMap((x) => {
+          const hit = document.elementFromPoint(x, (rect.top + rect.bottom) / 2);
+          return hit && button.contains(hit) ? [] : [hit?.getAttribute("aria-label") ?? hit?.className ?? "offscreen"];
+        });
+      });
+    });
+    expect(coveredPrices, await row.innerText()).toEqual([]);
+  }
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
     const directory = "docs/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await page.screenshot({ path: `${directory}/webgl-fallback-390x844-light.png` });
   }
+  await page.locator(".mapFallbackBrowse").click();
+  await expect(page).toHaveURL(/\/pubs$/);
+});
+
+test("no-WebGL List offers the pub directory instead of endless loading", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.goto("/map");
+  await expect(page.locator(".mapFallback")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapFallbackVenue").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".mapPeek")).toContainText("Map unavailable");
+  await expect(page.locator(".mapPeek")).not.toContainText("Counting them up…");
+  await expect(page.locator(".mapPeek")).not.toContainText("Cheapest in this view");
+  await page.screenshot({ path: testInfo.outputPath("fallback-settled.png") });
+  await page.locator(".mapPeekList").click();
+  const list = page.locator(".mapVenueList");
+  await expect(list).toBeVisible();
+  await expect(list).not.toContainText("Counting them up…");
+  await expect(list.getByRole("heading", { name: "Map unavailable" })).toBeVisible();
+  const browse = list.getByRole("link", { name: "Browse all pubs" });
+  await expect(browse).toBeVisible();
+  await expect(list.locator(".mapVenueListPanel")).toHaveCSS("opacity", "1");
+  await expect(browse).toBeInViewport();
+  expect((await browse.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: testInfo.outputPath("fallback-list-directory.png") });
+  await browse.click();
+  await expect(page).toHaveURL(/\/pubs$/);
+  await expect(page.locator(".pubsCard").first()).toBeVisible();
 });
 
 // The desktop half of the same card. The search toolbar and the city chip float
