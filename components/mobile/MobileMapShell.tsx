@@ -185,8 +185,8 @@ function MapChipRow({
 /**
  * The bottom card keeps its footprint through loading, empty and failed reads.
  * Without a peek model, the plan door stands alone. The card stays mounted
- * while something else covers the foot (the door child leaves,
- * the card is not painted), because the map-edge column is derived from it.
+ * with its door while something else covers the foot. Neither is painted,
+ * because the map-edge column still needs the card's complete geometry.
  */
 function MapFoot({
   peek,
@@ -209,7 +209,7 @@ function MapFoot({
         onOpenList={onPeekOpenList}
         covered={!doorVisible}
       >
-        {doorVisible ? door : null}
+        {door}
       </MapPeekSheet>
     );
   }
