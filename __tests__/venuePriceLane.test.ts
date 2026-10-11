@@ -306,6 +306,8 @@ describe("what a decided lane answers about itself", () => {
     const logged: ReadonlyArray<VenuePriceLane> = [
       venuePriceLane(makeVenue(), 5.4, null)!,
       venuePriceLane(makeVenue(), null, null, {}, PROVISIONAL_ROW)!,
+      { lane: "aged", agedPrice: 4.5, observedAt: null },
+      { lane: "disputed", split: { prices: [4.5, 4.7], reporters: 2 }, observedAt: null },
     ];
     const notLogged: ReadonlyArray<VenuePriceLane> = [
       venuePriceLane(sourced, null, venueSourcedPrice(sourced))!,

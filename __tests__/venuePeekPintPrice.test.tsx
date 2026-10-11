@@ -139,6 +139,15 @@ describe("held pint evidence while venue details load", () => {
     }
   });
 
+  it("names an unavailable read without claiming the pub is unpriced", async () => {
+    await render({ detailLoading: false, dropReadStatus: "unavailable" });
+    expect(host.textContent).toContain("could not read");
+    expect(host.textContent).not.toContain("Checking prices");
+    expect(host.textContent).not.toContain("No price yet");
+    expect(host.textContent).not.toContain("Be the first");
+    expect(host.querySelector("button")).toBeNull();
+  });
+
   it("keeps a non-pub's anchor visible while details load", async () => {
     await render({ isPub: false, lane: { lane: "anchor", anchorLabel: "Lunch", cheapestPrice: 12 } });
     expect(host.textContent).toBe("£12.00listed anchor price");

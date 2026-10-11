@@ -2602,6 +2602,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
+  /* The peek can mount after this notice. Its published berth must move
+     immediately, without the reduced-motion duration turning the default
+     transition property into a one-frame bottom transition. */
+  transition-property: none;
 }
 [data-theme="light"] .mapSoftRetry {
   background: color-mix(in srgb, var(--paper, #faf8f5) 94%, transparent);

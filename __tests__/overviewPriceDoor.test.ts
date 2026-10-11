@@ -56,6 +56,7 @@ import {
   venuePriceFallbackPending,
   venuePriceLane,
   venueSourcedPrice,
+  type VenueBundlePrices,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
@@ -85,7 +86,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function venue(overrides: Partial<Venue> = {}): Venue {
+function venue(overrides: Partial<Venue> & { bundlePrices?: VenueBundlePrices } = {}): Venue {
   return {
     id: VENUE_ID,
     name: "The Sir Christopher Hatton",
@@ -591,6 +592,9 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(listedHtml).toContain("Published price");
     expect(doorCount(listedHtml)).toBe(1);
     expect(listedHtml).toContain('data-price-door="log"');
+    expect(listedHtml).toContain("£6.00");
+    expect(listedHtml).toContain('href="https://pub.example/menu"');
+    expect(listedHtml).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
 
     const baselineHtml = renderOverview([], venue({ cheapestPrice: 6.2 }));
     // The fixture's baseline carries no publisher, so it cannot claim a
@@ -600,6 +604,50 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(baselineHtml).not.toContain("Baseline on record");
     expect(doorCount(baselineHtml)).toBe(1);
     expect(baselineHtml).toContain('data-price-door="log"');
+    expect(baselineHtml).toContain("£6.20");
+    expect(baselineHtml).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+  });
+
+  it("prints the sourced figure and attribution ahead of the baseline", () => {
+    const sourced: PricedVenue = {
+      ...venue({ cheapestPrice: 5.9 }),
+      sourcedPrice: { provenance: "sourced", sourceLabel: "Test menu", sourceUrl: "https://pub.example/current-menu", observedAt: "2026-09-04" },
+    };
+    const html = renderOverview([], sourced);
+    expect(html).toContain("Sourced price");
+    expect(html).toContain("£5.90");
+    expect(html).toContain('href="https://pub.example/current-menu"');
+    expect(html).toContain("Test menu");
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("holds an estimate during either read, then renders it after settlement", () => {
+    const estimated = venue({
+      bundlePrices: { estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 } },
+    });
+    for (const options of [{ priceReadStatus: "loading" as const }, { dropReadStatus: "idle" as const }]) {
+      const html = renderOverview([], estimated, options);
+      expect(html).toContain("Checking prices");
+      expect(html).not.toContain("£6.50");
+      expect(doorCount(html)).toBe(0);
+    }
+    const html = renderOverview([], estimated, { dropReadStatus: "ready" });
+    expect(html).toContain("£6.50");
+    expect(html).toContain("/how-we-estimate");
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("retains a drinker's figure during refresh and distinguishes failed reads from an empty pub", () => {
+    const held = renderOverview(FIXTURES.corroborated(), venue(), { dropReadStatus: "idle", priceReadStatus: "loading" });
+    expect(held).toContain("£4.50");
+    expect(held).not.toContain("Checking prices");
+    expect(held).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    const failed = renderOverview([], venue(), { dropReadStatus: "unavailable" });
+    expect(failed).toContain("could not read");
+    expect(failed).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(failed)).toBe(1);
   });
 
   it("a sheet handed no confirm handler still offers one door, the log door", () => {
@@ -620,6 +668,8 @@ describe("the rendered Overview carries exactly one price door", () => {
     const html = renderOverview([], bar);
     expect(doorCount(html)).toBe(0);
     expect(html).not.toContain("venuePriceSubmit");
+    expect(html).toContain("Negroni");
+    expect(html).toContain("£11.00");
   });
 });
 

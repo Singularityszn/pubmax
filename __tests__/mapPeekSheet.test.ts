@@ -55,7 +55,7 @@ describe("the bottom card's honest states", () => {
 
   it("says nothing is listed rather than showing a made-up figure", () => {
     const html = render({ status: "none" });
-    expect(html).toContain("No listed price here yet");
+    expect(html).toContain("No price yet");
     expect(html).not.toContain("£");
     expect(html).toContain('role="status"');
   });
@@ -69,10 +69,10 @@ describe("the bottom card's honest states", () => {
   it("says a failed or incomplete lens read for what it is, never as none listed", () => {
     const unread = render({ status: "unread" });
     expect(unread).toContain("Could not read prices just now");
-    expect(unread).not.toContain("No listed price");
+    expect(unread).not.toContain("No price yet");
     const partial = render({ status: "partial" });
     expect(partial).toContain("Some prices still missing");
-    expect(partial).not.toContain("No listed price");
+    expect(partial).not.toContain("No price yet");
   });
 
   it("keeps the plan door inside the card as its own button", () => {

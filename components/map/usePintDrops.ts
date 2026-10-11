@@ -104,6 +104,7 @@ export type DropMsg = {
 // its size (PlanAstra, section 2.4). `photoRefusal` (lib/pintDropReceipt.ts) is
 // the browser's whole half of that rule, quoting lib/uploadBodyLimit.ts's own
 // figure, and both composers ask it rather than each keeping a copy.
+const VENUE_DROP_READ_TIMEOUT_MS = 8_000;
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
 /**
@@ -387,6 +388,7 @@ export function usePintDrops(
   // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
     const request = Symbol();
+    const controller = new AbortController();
     venueDropRequests.current.set(venueId, request);
     setVenueDropStatus((current) => {
       const next = new Map(current);
@@ -396,6 +398,7 @@ export function usePintDrops(
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {
+      clearTimeout(deadline);
       if (venueDropRequests.current.get(venueId) !== request) return;
       venueDropRequests.current.delete(venueId);
       setDropsByVenueId((current) => {
@@ -412,13 +415,19 @@ export function usePintDrops(
         return next;
       });
     };
-    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`)
+    const deadline = setTimeout(() => {
+      settle({ status: "unavailable" });
+      controller.abort();
+    }, VENUE_DROP_READ_TIMEOUT_MS);
+    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) => {
         settle({ status: "ready", drops: data.drops ?? [] });
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
+      clearTimeout(deadline);
+      controller.abort();
       if (venueDropRequests.current.get(venueId) === request) {
         venueDropRequests.current.delete(venueId);
       }

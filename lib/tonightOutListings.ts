@@ -591,6 +591,8 @@ export const TONIGHT_QUIET_NIGHT_SENTENCE =
  * A lane nobody asked makes the whole-city claim untrue, so the sentence
  * narrows to the lane that answered and the note beside it names the one that
  * did not.
+ * Sourced pub suggestions also prevent an empty event list from describing
+ * the whole city as quiet.
  */
 export function tonightEmptyLead(
   whatsOn: TonightWhatsOnStatus,

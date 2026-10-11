@@ -6,8 +6,6 @@ import { expect, test, type Locator, type Page, type Request } from "@playwright
 // Explicit Venue acceptance, the spine's single fetch and honest freshness.
 // The grouping half of this surface is e2e/tonight-trusted-ui-grouping.spec.ts.
 
-const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
-
 // Deterministic spine: a two-venue deal family (collapses to one card), plus a
 // music and a quiz row — enough to show grouping, the secondary lanes, and an
 // acceptable Venue, without depending on live upstream data.
@@ -99,6 +97,7 @@ async function captureAnalytics(page: Page): Promise<unknown[]> {
 }
 
 async function shoot(page: Page, name: string) {
+  const SHOTS_DIR = test.info().outputPath("tonight-trusted-ui");
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   for (const scheme of ["light", "dark"] as const) {
     // The app's dark theme is driven by html[data-theme="dark"], NOT the OS media
@@ -296,5 +295,6 @@ test("the phone create action leaves pub recommendation text readable", async ({
       return covered;
     });
     expect(coveredText, `Pub text covered at ${width}px`).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath(`tonight-create-clearance-${width}.png`), fullPage: true });
   }
 });
