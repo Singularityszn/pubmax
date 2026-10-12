@@ -85,18 +85,19 @@ describe("the unoptimized handle avatar", () => {
     try {
       await act(async () => root.render(avatar("https://example.test/one.jpg")));
       const one = host.querySelector("img")!;
-      expect(replay).toHaveBeenCalledTimes(1);
+      // React commitHostMount writes src once. The guarded layout replay writes it once more.
+      expect(replay).toHaveBeenCalledTimes(2);
       await act(async () => root.render(avatar("https://example.test/one.jpg", 56)));
       expect(host.querySelector("img")).toBe(one);
-      expect(replay).toHaveBeenCalledTimes(1);
+      expect(replay).toHaveBeenCalledTimes(2);
       await act(async () => root.render(avatar("https://example.test/two.jpg")));
       expect(host.querySelector("img")).not.toBe(one);
-      expect(replay).toHaveBeenCalledTimes(2);
+      expect(replay).toHaveBeenCalledTimes(4);
       await act(async () => one.dispatchEvent(new Event("error")));
       expect(host.querySelector("img")?.src).toBe("https://example.test/two.jpg");
       await act(async () => root.render(avatar()));
       await act(async () => root.render(avatar("https://example.test/two.jpg")));
-      expect(replay).toHaveBeenCalledTimes(3);
+      expect(replay).toHaveBeenCalledTimes(6);
     } finally {
       await act(async () => root.unmount());
       host.remove();
