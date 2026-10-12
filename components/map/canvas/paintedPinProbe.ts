@@ -157,7 +157,11 @@ export function paintedMapTapPoints(
         // and ordinary pub layers precedence over the selected pub layer.
         const pubHit = pubHitOf(byLayer);
         recordPubHitProbe(point, hits, pubHit, { x, y });
-        if (!hits.some((hit) => markId(hit, kind) === id)) continue;
+        if (pubHit) {
+          if (markId(pubHit, kind) !== id) continue;
+        } else if (!hits.some((hit) => markId(hit, kind) === id)) {
+          continue;
+        }
       }
 
       points.push({ kind, id, x, y, lng, lat });
