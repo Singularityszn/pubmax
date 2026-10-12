@@ -34,13 +34,13 @@ const chipCss = read("components/ui/chip.css");
 
 function loadChipRenderer(source: string) {
   const stylesheets: string[] = [];
-  const module = { exports: {} as { renderChip: (props: { className: string; children: string }, ref: null) => ReturnType<typeof createElement> } };
+  const chipModule = { exports: {} as { renderChip: (props: { className: string; children: string }, ref: null) => ReturnType<typeof createElement> } };
   const require = createRequire(import.meta.url);
   const output = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   runInNewContext(output, {
-    module, exports: module.exports,
+    module: chipModule, exports: chipModule.exports,
     require: (specifier: string) => {
       if (specifier.endsWith(".css")) {
         stylesheets.push(read(join("components/ui", specifier)));
@@ -49,7 +49,7 @@ function loadChipRenderer(source: string) {
       return require(specifier);
     },
   });
-  return { ...module.exports, stylesheets };
+  return { ...chipModule.exports, stylesheets };
 }
 
 function unlayeredRule(css: string, selector: string): Rule {
