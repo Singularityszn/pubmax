@@ -10,7 +10,8 @@ import { describe, expect, it, vi } from "vitest";
 // app/add/[handle]/add.css, and its rendered 56px is measured in the browser by
 // e2e/add-link-account.spec.ts.
 
-vi.mock("next/image", () => ({
+vi.mock("next/image", async (importOriginal) => ({
+  ...await importOriginal<typeof import("next/image")>(),
   default: ({
     src,
     width,
