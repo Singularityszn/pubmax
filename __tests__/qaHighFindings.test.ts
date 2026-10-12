@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -11,6 +13,7 @@ import {
 import {
   MOBILE_SHEET_DISMISS_EVENT,
 } from "@/lib/mobileShell";
+import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
 
 const PUBLISHABLE_KEY = "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk";
 
@@ -59,13 +62,36 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     expect(focusTrap).toMatch(/mobileTabBar/);
   });
 
-  it("publishes a dismiss event constant from the mobile shell seam", () => {
-    const mobileSheetDismiss = readFileSync(
-      join(process.cwd(), "lib/mobileSheetDismiss.ts"),
-      "utf8",
-    );
-    expect(mobileSheetDismiss).toContain(MOBILE_SHEET_DISMISS_EVENT);
-    expect(mobileSheetDismiss).toContain("requestMobileSheetDismiss");
+  function expectDismissDispatch(request: () => void) {
+    const events: Event[] = [];
+    const listener = (event: Event) => events.push(event);
+    window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, listener);
+    try {
+      request();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toBeInstanceOf(CustomEvent);
+      expect(events[0]?.type).toBe("pubmax:mobile-sheet-dismiss");
+    } finally {
+      window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, listener);
+    }
+  }
+
+  it("rejects a dismissal function that never dispatches", () => {
+    expect(() => expectDismissDispatch(() => {})).toThrow();
+  });
+
+  it("dispatches the mobile-shell dismissal event synchronously on each request", () => {
+    expectDismissDispatch(requestMobileSheetDismiss);
+    expectDismissDispatch(requestMobileSheetDismiss);
+  });
+
+  it("does nothing when no browser window exists", () => {
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(() => requestMobileSheetDismiss()).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

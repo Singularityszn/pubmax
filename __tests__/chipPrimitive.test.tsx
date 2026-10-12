@@ -1,12 +1,26 @@
+/** @vitest-environment jsdom */
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createElement } from "react";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import postcss, { type Rule } from "postcss";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { Chip } from "@/components/ui/chip";
 import { NumberChip } from "@/components/ui/numberChip";
+import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
+import PubsFilters from "@/components/pubs/PubsFilters";
+
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/pubs", useRouter: () => ({ push }) }));
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // A NUMBER SQUARE IS ONE FAMILY. The 6 September 2026 design review measured
 // the planner's pub-stop count at 10px corners and the /pubs fare-zone picker
@@ -18,30 +32,77 @@ const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 const chipCss = read("components/ui/chip.css");
 
+function loadChipRenderer(source: string) {
+  const stylesheets: string[] = [];
+  const module = { exports: {} as { renderChip: (props: { className: string; children: string }, ref: null) => ReturnType<typeof createElement> } };
+  const require = createRequire(import.meta.url);
+  const output = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  runInNewContext(output, {
+    module, exports: module.exports,
+    require: (specifier: string) => {
+      if (specifier.endsWith(".css")) {
+        stylesheets.push(read(join("components/ui", specifier)));
+        return {};
+      }
+      return require(specifier);
+    },
+  });
+  return { ...module.exports, stylesheets };
+}
+
+function unlayeredRule(css: string, selector: string): Rule {
+  const rules = postcss.parse(css).nodes.filter((node): node is Rule => node.type === "rule" && node.selector === selector);
+  expect(rules).toHaveLength(1);
+  return rules[0]!;
+}
+
+function declarations(rule: Rule) {
+  return new Map(rule.nodes.flatMap((node) => node.type === "decl" ? [[node.prop, node.value] as const] : []));
+}
+
+function expectNumberButtons(host: HTMLElement, labels: string[]) {
+  const buttons = [...host.querySelectorAll("button")];
+  expect(buttons.map((button) => button.textContent)).toEqual(labels);
+  for (const button of buttons) {
+    expect([...button.classList]).toEqual(["uiChip", "uiChip--number"]);
+    expect(button.type).toBe("button");
+  }
+  return buttons;
+}
+
 describe("the Chip primitive", () => {
   it("is painted OUTSIDE every cascade layer, where the unlayered reset cannot beat it", () => {
     // Same reason as button.css: `button { font: inherit }` is unlayered in
     // app/globals.css and outranks every layered utility, which is why the
     // Tailwind `text-sm font-bold` this primitive used to carry rendered as the
     // inherited 16px at weight 400.
-    expect(chipCss).not.toMatch(/^\s*@layer/m);
-    expect(read("components/ui/chipBase.tsx")).toContain('import "./chip.css"');
-    expect(read("components/ui/chip.tsx")).not.toMatch(/rounded-\[|text-sm|font-bold/);
+    const loaded = loadChipRenderer(read("components/ui/chipBase.tsx"));
+    expect(loaded.stylesheets).toEqual([chipCss]);
+    expect(renderToStaticMarkup(loaded.renderChip({ className: "uiChip", children: "Solo" }, null))).toBe(
+      '<button type="button" class="uiChip">Solo</button>',
+    );
+    expect(declarations(unlayeredRule(chipCss, ".uiChip")).get("display")).toBe("inline-flex");
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(createElement(Chip, null, "Solo"));
+    expect([...host.querySelector("button")!.classList]).toEqual(["uiChip"]);
   });
 
   it("reads the one row of control tokens rather than restating a figure", () => {
-    const base = chipCss.match(/\.uiChip\s*{([^}]*)}/)?.[1] ?? "";
-    expect(base).toMatch(/min-height:\s*var\(--control-height/);
-    expect(base).toMatch(/font-size:\s*var\(--control-font-size/);
-    expect(base).toMatch(/font-weight:\s*var\(--control-font-weight/);
-    expect(base).toMatch(/background:\s*var\(--control-secondary-surface/);
-    expect(base.indexOf("font: inherit")).toBeLessThan(base.indexOf("font-size:"));
-
-    // The square differs in SHAPE alone, and its shape is the control radius.
-    const number = chipCss.match(/\.uiChip--number\s*{([^}]*)}/)?.[1] ?? "";
-    expect(number).toMatch(/min-width:\s*var\(--control-height/);
-    expect(number).toMatch(/border-radius:\s*var\(--control-radius/);
-    expect(number).not.toMatch(/border-radius:\s*(10px|var\(--radius-sm)/);
+    const rule = unlayeredRule(chipCss, ".uiChip");
+    const base = declarations(rule);
+    expect(base.get("min-height")).toBe("var(--control-height, 44px)");
+    expect(base.get("font-size")).toBe("var(--control-font-size, 0.86rem)");
+    expect(base.get("font-weight")).toBe("var(--control-font-weight, 700)");
+    expect(base.get("background")).toBe("var(--control-secondary-surface, var(--color-surface-raised))");
+    const properties = rule.nodes.flatMap((node) => node.type === "decl" ? [node.prop] : []);
+    expect(properties.indexOf("font")).toBeGreaterThanOrEqual(0);
+    expect(base.get("font")).toBe("inherit");
+    expect(properties.indexOf("font")).toBeLessThan(properties.indexOf("font-size"));
+    const number = declarations(unlayeredRule(chipCss, ".uiChip--number"));
+    expect(number.get("min-width")).toBe("var(--control-height, 44px)");
+    expect(number.get("border-radius")).toBe("var(--control-radius, 14px)");
   });
 
   it("composes classes from that sheet and nothing from a utility layer", () => {
@@ -71,39 +132,75 @@ describe("the Chip primitive", () => {
   });
 
   it("carries the chosen state on aria-pressed, so the state and the label agree", () => {
-    expect(chipCss).toMatch(/\.uiChip\[aria-pressed="true"\]/);
-    const chosen = chipCss.match(/\.uiChip\[aria-pressed="true"\]\s*{([^}]*)}/)?.[1] ?? "";
-    // The quiet active tint, never the painted primary: a chip row is a
-    // refinement and the loud fill belongs to the screen's one primary.
-    expect(chosen).toMatch(/background:\s*var\(--control-tint-surface/);
+    const chosen = declarations(unlayeredRule(chipCss, '.uiChip[aria-pressed="true"]'));
+    expect(chosen.get("background")).toBe("var(--control-tint-surface, var(--color-surface-raised))");
   });
 });
 
-describe("the two number-square surfaces share ONE renderer", () => {
-  const planner = read("components/plan/PlanStopCountPicker.tsx");
-  const pubs = read("components/pubs/PubsFilters.tsx");
-
-  it("the planner's pub-stop count is the shared number chip", () => {
-    expect(planner).toContain('from "@/components/ui/numberChip"');
-    expect(planner).toMatch(/<NumberChip\b/);
-    expect(read("components/ui/numberChip.tsx")).toContain('from "./chipBase"');
-    expect(read("components/ui/chip.tsx")).toContain('from "./chipBase"');
-    expect(planner).not.toMatch(/<button\b/);
+describe("the two number-square surfaces share number-chip behavior", () => {
+  it("rejects comment-only CSS, layered paint and bespoke number controls", () => {
+    const commentedImport = loadChipRenderer('/* import "./chip.css"; */ export function renderChip() { return null; }');
+    expect(() => expect(commentedImport.stylesheets).toEqual([chipCss])).toThrow();
+    expect(() => unlayeredRule("/* .uiChip { display: inline-flex } */", ".uiChip")).toThrow();
+    expect(() => unlayeredRule("@layer utilities { .uiChip { display: inline-flex } }", ".uiChip")).toThrow();
+    const host = document.createElement("div");
+    host.innerHTML = '<!-- import NumberChip from "@/components/ui/numberChip" --><button class="text-sm font-bold">3</button>';
+    expect(() => expectNumberButtons(host, ["3"])).toThrow();
   });
 
-  it("the /pubs fare-zone picker is the same component, not a look-alike", () => {
-    expect(pubs).toContain('from "@/components/ui/chip"');
-    expect(pubs).toMatch(/<Chip\b[\s\S]*?variant="number"/);
-    // The old bespoke square is gone from this surface. The map's own segmented
-    // zone picker keeps `.zoneChip`: it is one control divided into segments by
-    // a recorded design judgement, not a row of squares.
-    expect(pubs).not.toMatch(/"zoneChip( isOn)?"/);
+  it("renders every pub-stop choice with number-chip paint, state and actions", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const onChange = vi.fn();
+    try {
+      await act(async () => root.render(createElement(PlanStopCountPicker, { value: 3, onChange })));
+      const buttons = expectNumberButtons(host, ["1", "2", "3", "4", "5", "6"]);
+      expect(buttons.map((button) => button.getAttribute("aria-pressed"))).toEqual(["false", "false", "true", "false", "false", "false"]);
+      for (const [index, button] of buttons.entries()) {
+        await act(async () => button.click());
+        expect(onChange).toHaveBeenLastCalledWith(index + 1);
+      }
+      expect(onChange).toHaveBeenCalledTimes(6);
+      await act(async () => root.render(createElement(PlanStopCountPicker, { value: 3, ready: false, onChange })));
+      for (const button of buttons) {
+        expect(button.getAttribute("aria-disabled")).toBe("true");
+        await act(async () => button.click());
+      }
+      expect(onChange).toHaveBeenCalledTimes(6);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
   });
 
-  it("neither surface paints a square of its own any more", () => {
-    const planCss = read("app/plan/plan.css");
-    expect(planCss).not.toMatch(/\.planStopCount__choices button\s*{/);
-    // Layout still belongs to the surface; only the paint moved.
-    expect(planCss).toMatch(/\.planStopCount__choices\s*{[^}]*display: flex/);
+  it("renders fare-zone choices with the same paint and preserves the chain when navigating", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    push.mockClear();
+    try {
+      await act(async () => root.render(createElement(PubsFilters, {
+        counts: { all: 3, "nicholsonspubs.co.uk": 0, "youngs.co.uk": 3, "greene-king.co.uk": 0, other: 0 },
+        filter: "youngs.co.uk", zone: 2, zonesPresent: [1, 2, 3], showCounts: false,
+      })));
+      const group = host.querySelector<HTMLElement>('[aria-label="Filter by fare zone"]')!;
+      const buttons = expectNumberButtons(group, ["All zones", "1", "2", "3"]);
+      expect(buttons.map((button) => button.getAttribute("aria-pressed"))).toEqual(["false", "false", "true", "false"]);
+      for (const [index, button] of buttons.entries()) {
+        await act(async () => button.click());
+        expect(push).toHaveBeenLastCalledWith(index === 0 ? "/pubs?source=youngs.co.uk" : `/pubs?source=youngs.co.uk&zone=${index}`);
+      }
+      expect(push).toHaveBeenCalledTimes(4);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  });
+
+  it("leaves number-square paint to the chip sheet and keeps the planner layout", () => {
+    const sheet = postcss.parse(read("app/plan/plan.css"));
+    sheet.walkRules((rule) => expect(rule.selectors).not.toContain(".planStopCount__choices button"));
+    expect(declarations(unlayeredRule(sheet.toString(), ".planStopCount__choices")).get("display")).toBe("flex");
   });
 });

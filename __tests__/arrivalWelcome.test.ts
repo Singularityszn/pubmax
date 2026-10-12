@@ -175,8 +175,37 @@ describe("the arrival line", () => {
     expect(welcome.get("z-index")).toBe("calc(var(--z-modal, 1200) - 1)");
     expect(welcome.get("pointer-events")).toBe("none");
     expect(ownDeclarations(".arrivalWelcomeDismiss").get("pointer-events")).toBe("auto");
-    // Reduced motion keeps the greeting and drops the travel.
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
-    expect(css).toContain("arrivalWelcomeFadeIn");
+    const expectReducedMotion = (source: string) => {
+      const parsed = postcss.parse(source);
+      const media = parsed.nodes.find((node) => node.type === "atrule" && node.name === "media" && node.params === "(prefers-reduced-motion: reduce)");
+      expect(media?.type).toBe("atrule");
+      if (media?.type !== "atrule") throw new Error("Missing reduced-motion policy");
+      const reducedDeclarations = (selector: string) => new Map(
+        (media.nodes ?? []).flatMap((node) => node.type === "rule" && node.selector === selector
+          ? node.nodes.flatMap((declaration) => declaration.type === "decl" ? [[declaration.prop, declaration.value] as const] : [])
+          : []),
+      );
+      for (const [selector, animation, opacity] of [
+        [".arrivalWelcome", "arrivalWelcomeFadeIn", ["0", "1"]],
+        [".arrivalWelcome[data-leaving]", "arrivalWelcomeFadeOut", ["1", "0"]],
+      ] as const) {
+        const value = reducedDeclarations(selector).get("animation");
+        expect(value).toBeDefined();
+        expect(postcss.list.space(value!)[0]).toBe(animation);
+        const frames = parsed.nodes.find((node) => node.type === "atrule" && node.name === "keyframes" && node.params === animation);
+        expect(frames?.type).toBe("atrule");
+        if (frames?.type !== "atrule") throw new Error("Missing fade keyframes");
+        for (const [index, selector] of ["from", "to"].entries()) {
+          const frame = frames.nodes?.find((node) => node.type === "rule" && node.selector === selector);
+          expect(frame?.type).toBe("rule");
+          if (frame?.type !== "rule") throw new Error("Missing fade endpoint");
+          expect(frame.nodes.filter((node) => node.type === "decl").map((node) => [node.prop, node.value])).toEqual([["opacity", opacity[index]]]);
+        }
+      }
+      expect(reducedDeclarations(".arrivalWelcomeDismiss").get("transition")).toBe("none");
+    };
+    expect(() => expectReducedMotion("/* @media (prefers-reduced-motion: reduce) {} arrivalWelcomeFadeIn */")).toThrow();
+    expect(() => expectReducedMotion("@media (prefers-reduced-motion: reduce) { .arrivalWelcome { animation: none } }")).toThrow();
+    expectReducedMotion(css);
   });
 });

@@ -14,6 +14,7 @@
 //      and a pull request workflow has no secrets.
 
 import { readFileSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -193,23 +194,80 @@ describe("workflow credentials and pins", () => {
   });
 });
 
+function shellCommands(source: string): string[][] {
+  return JSON.parse(execFileSync("python3", ["-c", String.raw`
+import json, re, shlex, sys
+lines = []
+terminator = None
+for line in sys.stdin.read().splitlines():
+    if terminator is not None:
+        if line.strip() == terminator:
+            terminator = None
+        continue
+    lines.append(line)
+    heredoc = re.search(r"<<-?\s*(['\"]?)([A-Za-z_]\w*)\1", line)
+    if heredoc:
+        terminator = heredoc.group(2)
+lexer = shlex.shlex("\n".join(lines), posix=True, punctuation_chars=";&|()<>\n")
+lexer.whitespace = " \t\r"
+lexer.commenters = "#"
+commands, words = [], []
+for word in lexer:
+    if word and all(char in ";&|()\n" for char in word):
+        if words:
+            commands.append(words)
+            words = []
+    elif not words and re.match(r"^[A-Za-z_]\w*=", word):
+        continue
+    else:
+        words.append(word)
+if words:
+    commands.append(words)
+print(json.dumps(commands))
+`], { input: source, encoding: "utf8" })) as string[][];
+}
+
+function isPlaywrightTest(command: string[]) {
+  return command[0] === "npx" && command[1] === "playwright" && command[2] === "test";
+}
+
+function expectIsolatedAuthCommands(commands: string[][]) {
+  expect(commands.some((command) => isPlaywrightTest(command) && command.includes("--config=playwright.authenticated.config.ts"))).toBe(true);
+  expect(commands.some((command) => command[0] === "supabase" && command[1] === "start"
+    && command.indexOf("--workdir") >= 2 && Boolean(command[command.indexOf("--workdir") + 1]))).toBe(true);
+}
+
 describe("hosted runners", () => {
   it("runs visual Playwright jobs on macOS and isolated real auth on Linux", () => {
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
-        const launchesPlaywright = job.steps.some(
-          (step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run),
-        );
+        const commands = job.steps.flatMap((step) => step.run ? shellCommands(step.run) : []);
+        const launchesPlaywright = commands.some(isPlaywrightTest);
         const isolatedRealAuth = file === "e2e.yml" && jobId === "authenticated-recovery";
         expect(job["runs-on"], `${file} / ${jobId}`).toBe(
           launchesPlaywright && !isolatedRealAuth ? "macos-latest" : "ubuntu-latest",
         );
         if (isolatedRealAuth) {
-          expect(job.steps.some((step) => step.run?.includes("--config=playwright.authenticated.config.ts"))).toBe(true);
-          expect(job.steps.some((step) => step.run?.includes("supabase start --workdir"))).toBe(true);
+          expectIsolatedAuthCommands(commands);
         }
       }
     }
+  });
+
+  it("rejects comments, quoted command text and heredoc bodies as executable authentication setup", () => {
+    const commands = shellCommands([
+      "# npx playwright test --config=playwright.authenticated.config.ts",
+      "echo 'npx playwright test --config=playwright.authenticated.config.ts'",
+      "printf '%s' 'supabase start --workdir /tmp/project'",
+      "cat <<'TEXT'",
+      "supabase start --workdir /tmp/project",
+      "npx playwright test --config=playwright.authenticated.config.ts",
+      "TEXT",
+    ].join("\n"));
+    expect(commands.some(isPlaywrightTest)).toBe(false);
+    expect(() => expectIsolatedAuthCommands(commands)).toThrow();
+    expect(() => expectIsolatedAuthCommands(shellCommands("npx playwright test --config=playwright.authenticated.config.ts\nsupabase start --workdir"))).toThrow();
+    expectIsolatedAuthCommands(shellCommands("npx 'playwright' test '--config=playwright.authenticated.config.ts' && supabase start --workdir '$RUNNER_TEMP/project'"));
   });
 
   it("gives a fork pull request no repository secret", () => {
