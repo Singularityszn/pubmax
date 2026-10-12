@@ -72,11 +72,37 @@ for (const width of [390, 1440]) {
           return {
             art: rect(".pubsCardArt"),
             photo: rect(".pubsCardPhoto"),
+            body: rect(".pubsCardBody"),
+            metadata: Array.from(element.querySelectorAll(".pubsCardMeta > *"), (label) => {
+              const box = label.getBoundingClientRect();
+              const hit = document.elementFromPoint(
+                box.left + box.width / 2,
+                box.top + box.height / 2,
+              );
+              return {
+                text: label.textContent,
+                top: box.top,
+                bottom: box.bottom,
+                ownsCenter: hit !== null && label.contains(hit),
+              };
+            }),
             credit: rect(".venueImage__provenance"),
             shelf: rect(".pubsCardShelf"),
             label: rect(".pubsCardArtLabel"),
           };
         });
+        await testInfo.attach("card-metadata-clearance", {
+          body: JSON.stringify(geometry),
+          contentType: "application/json",
+        });
+        expect(geometry.art.bottom, "artwork clears the card body").toBeLessThanOrEqual(geometry.body.top);
+        expect(geometry.photo.bottom, "the photo stays inside the artwork").toBeLessThanOrEqual(geometry.art.bottom);
+        expect(geometry.metadata.length, "the card has visible metadata").toBeGreaterThan(0);
+        for (const label of geometry.metadata) {
+          expect(label.top, `${label.text} clears the artwork`).toBeGreaterThanOrEqual(geometry.art.bottom);
+          expect(label.bottom).toBeGreaterThan(label.top);
+          expect(label.ownsCenter, `${label.text} owns its center hit`).toBe(true);
+        }
         expect(geometry.credit.bottom + 4, "credit clears the drink shelf").toBeLessThanOrEqual(geometry.shelf.top);
         expect(geometry.credit.right + 4, "credit clears the upper-right label").toBeLessThanOrEqual(geometry.label.left);
         for (const bounds of [geometry.art, geometry.photo]) {
