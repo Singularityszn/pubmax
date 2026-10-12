@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import CompactSignInButton from "@/components/auth/CompactSignInButton";
+import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
@@ -126,7 +126,7 @@ export default function LandingPage({
           <NotificationBell />
           <MessagesLink />
           <ThemeToggle />
-          <CompactSignInButton />
+          <SignInButton compact />
         </div>
       </header>
 

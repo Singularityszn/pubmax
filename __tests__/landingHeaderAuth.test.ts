@@ -5,8 +5,8 @@
 // control on a phone (siteNav.css), which is why /out can look signed-in
 // while this bar still shows the signed-out pill.
 
-import { createElement, type ComponentType } from "react";
-import { renderToReadableStream, renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import SignInButton from "@/components/auth/SignInButton";
@@ -16,13 +16,9 @@ const authState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
-vi.mock("next/dynamic", async () => {
-  const { default: dynamic } = await import("next/dist/shared/lib/app-dynamic");
-  return {
-    default: (loader: () => Promise<{ default: ComponentType }>, options: { ssr?: boolean }) =>
-      options.ssr === false ? () => null : dynamic(loader, options),
-  };
-});
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined }),
   usePathname: () => "/",
@@ -64,11 +60,9 @@ function compactHeader(overrides: Record<string, unknown> = {}): string {
   return renderToStaticMarkup(createElement(SignInButton, { compact: true }));
 }
 
-async function landingNav(overrides: Record<string, unknown> = {}): Promise<string> {
+function landingNav(overrides: Record<string, unknown> = {}): string {
   authState.current = { ...session, ...overrides };
-  const stream = await renderToReadableStream(createElement(LandingPage));
-  await stream.allReady;
-  const html = await new Response(stream).text();
+  const html = renderToStaticMarkup(createElement(LandingPage));
   const nav = html.match(/<header class="lpNav"[\s\S]*?<\/header>/)?.[0];
   expect(nav, "landing header present").toBeTruthy();
   return nav ?? "";
@@ -153,8 +147,8 @@ describe("header waits for the live session", () => {
 });
 
 describe("landing header auth state", () => {
-  it("shows the signed-in control on the landing bar", async () => {
-    const nav = await landingNav({
+  it("shows the signed-in control on the landing bar", () => {
+    const nav = landingNav({
       user: {
         email: "someone@example.com",
         user_metadata: { full_name: "Night Owl" },
@@ -167,8 +161,8 @@ describe("landing header auth state", () => {
     expect(nav).not.toContain("Sign in");
   });
 
-  it("shows Sign in on the landing bar when signed out", async () => {
-    const nav = await landingNav({
+  it("shows Sign in on the landing bar when signed out", () => {
+    const nav = landingNav({
       user: null,
       handle: null,
       providerAuthState: "signed-out",

@@ -11,7 +11,7 @@ import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
-import CompactSignInButton from "@/components/auth/CompactSignInButton";
+import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
@@ -203,7 +203,7 @@ export default function SiteNav({
         {/* Compact host: a single "Sign in" disclosure below the width where
             the two full provider buttons genuinely fit (auth.css ≥1680px), so
             they can never crowd the link row into clipped fragments. */}
-        <CompactSignInButton />
+        <SignInButton compact />
       </div>
     </nav>
   );
