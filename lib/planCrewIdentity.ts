@@ -12,6 +12,7 @@ import {
   __setMemoryPlanOwnerUserId,
   claimMemoryPlanMembership,
   hashPlanMemberToken,
+  memoryPlanHostUserId,
   planMemberIdentityResult,
   planIdempotencyDigest,
   planRequestDigest,
@@ -260,6 +261,28 @@ export async function linkPlanOwnerUser(
     return existing.data?.owner_user_id === uid;
   } catch {
     return false;
+  }
+}
+
+/** Read only the host account. An unclaimed host never falls back to a guest. */
+export async function planHostUserId(planId: string): Promise<string | null> {
+  if (!isPlanId(planId)) return null;
+  if (!isSupabaseConfigured()) return memoryPlanHostUserId(planId);
+  try {
+    // Use the same active-member ordering that planMemberIdentity uses for
+    // the host role. Select the host before checking whether it is claimed.
+    const { data, error } = await requireSupabaseAdmin()
+      .from(MEMBERS)
+      .select("user_id")
+      .eq("plan_id", planId)
+      .is("membership_revoked_at", null)
+      .order("joined_at").order("id")
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return cleanUserId(data?.user_id) || null;
+  } catch {
+    return null;
   }
 }
 

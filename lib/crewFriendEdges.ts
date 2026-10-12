@@ -3,8 +3,8 @@ import "server-only";
 // Friend-graph byproduct of planning a night together (WP7).
 //
 // When a signed-in, handle-claimed account joins a classic or collaboration
-// plan, form the mutual follow pair with every other claimed committed member
-// already on that crew - unless either side blocks the other.
+// plan, form the mutual follow pair with the claimed host unless either side
+// blocks the other. Other members require an explicit follow.
 // Blocks are never downgraded.
 // Idempotent: an existing mutual pair is a no-op success.
 
@@ -22,7 +22,7 @@ import {
 } from "@/lib/profileStore";
 import {
   linkPlanMemberUser,
-  listPlanMemberUserIds,
+  planHostUserId,
 } from "@/lib/planCrewIdentity";
 import {
   socialRelationshipBetweenProfiles,
@@ -52,7 +52,7 @@ export type CrewFriendEdgeDependencies = {
   follows: FollowStore;
   relationship: SocialRelationshipServerDependencies["queryRelationship"];
   linkMember: typeof linkPlanMemberUser;
-  listMembers: typeof listPlanMemberUserIds;
+  hostUserId: typeof planHostUserId;
   memoryBlocked: (a: string, b: string) => boolean;
   supabaseConfigured: () => boolean;
 };
@@ -73,7 +73,7 @@ const defaultDependencies = (): CrewFriendEdgeDependencies => ({
     return data;
   },
   linkMember: linkPlanMemberUser,
-  listMembers: listPlanMemberUserIds,
+  hostUserId: planHostUserId,
   memoryBlocked: socialMemoryBlocked,
   supabaseConfigured: isSupabaseConfigured,
 });
@@ -154,7 +154,7 @@ export async function ensureMutualFollowPair(
 
 /**
  * After a successful plan-crew join: stamp the joiner's auth user on their
- * member row, then form mutuals with every other claimed committed member.
+ * member row, then form mutuals only with the claimed host.
  * Fail-soft: identity or edge failures never fail the join itself.
  */
 export async function formFriendEdgesForPlanJoin(input: {
@@ -185,46 +185,30 @@ export async function formFriendEdgesForPlanJoin(input: {
   try {
     await deps.linkMember(input.planId, input.joinerMemberId, userId);
   } catch {
-    // Stamp failure still allows edge formation against already-linked peers.
+    // Stamp failure still allows edge formation against the already-linked host.
   }
 
-  let peers: Array<{ memberId: string; userId: string }>;
+  let hostUserId: string | null;
   try {
-    peers = await deps.listMembers(input.planId);
+    hostUserId = await deps.hostUserId(input.planId);
   } catch {
     return empty;
   }
-
-  const outcomes: CrewFriendEdgeOutcome[] = [];
-  let formed = 0;
-  let skippedBlocked = 0;
-  let skippedUnclaimed = 0;
-
-  for (const peer of peers) {
-    if (peer.memberId === input.joinerMemberId) continue;
-    if (peer.userId === userId) continue;
-    let peerProfile: ProfileRecord | null;
-    try {
-      peerProfile = await deps.profiles.getByUserId(peer.userId);
-    } catch {
-      outcomes.push("unavailable");
-      continue;
-    }
-    if (!isClaimedLive(peerProfile)) {
-      skippedUnclaimed += 1;
-      outcomes.push("unclaimed");
-      continue;
-    }
-    const outcome = await ensureMutualFollowPair(
-      joiner.handle,
-      peerProfile.handle,
-      deps,
-    );
-    outcomes.push(outcome);
-    if (outcome === "created") formed += 1;
-    else if (outcome === "blocked") skippedBlocked += 1;
-    else if (outcome === "unclaimed") skippedUnclaimed += 1;
+  if (!hostUserId || hostUserId === userId) return empty;
+  let host: ProfileRecord | null;
+  try {
+    host = await deps.profiles.getByUserId(hostUserId);
+  } catch {
+    return { ...empty, outcomes: ["unavailable"] };
   }
-
-  return { formed, skippedBlocked, skippedUnclaimed, outcomes };
+  if (!isClaimedLive(host)) {
+    return { ...empty, skippedUnclaimed: 1, outcomes: ["unclaimed"] };
+  }
+  const outcome = await ensureMutualFollowPair(joiner.handle, host.handle, deps);
+  return {
+    formed: outcome === "created" ? 1 : 0,
+    skippedBlocked: outcome === "blocked" ? 1 : 0,
+    skippedUnclaimed: outcome === "unclaimed" ? 1 : 0,
+    outcomes: [outcome],
+  };
 }

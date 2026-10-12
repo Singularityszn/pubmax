@@ -6,6 +6,7 @@ const accounts = vi.hoisted(() => new Map([
   ["local-host", "11111111-1111-4111-8111-111111111111"],
   ["local-guest", "22222222-2222-4222-8222-222222222222"],
   ["local-stranger", "33333333-3333-4333-8333-333333333333"],
+  ["local-mate", "44444444-4444-4444-8444-444444444444"],
 ]));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -42,12 +43,12 @@ beforeEach(async () => {
   __resetMemoryNotifications();
   __resetMemoryProfiles();
   clearSocialMemoryBlocks();
-  for (const handle of ["host", "guest", "stranger"]) {
+  for (const handle of ["host", "guest", "stranger", "mate"]) {
     await memoryProfileStore.createOwned(handle, accounts.get(`local-${handle}`)!);
   }
 });
 
-async function createPlan() {
+async function createPlan(claimHost = true) {
   const created = await memoryPlanStore.create({
     title: "A local night together",
     creatorName: "Host",
@@ -58,16 +59,18 @@ async function createPlan() {
   const id = created.plan.plan.id;
   const identity = await planMemberIdentity(id, created.memberToken);
   expect(identity).not.toBeNull();
-  expect(await claimPlanMembership(id, identity!.memberId, accounts.get("local-host")!)).toBe("claimed");
+  if (claimHost) {
+    expect(await claimPlanMembership(id, identity!.memberId, accounts.get("local-host")!)).toBe("claimed");
+  }
   const invite = await planInviteToken(id);
   if (!invite.ok || !invite.inviteToken) throw new Error("Missing local invite");
   return { id, inviteToken: invite.inviteToken, memberToken: created.memberToken };
 }
 
-function join(id: string, inviteToken: string, key: string = crypto.randomUUID()) {
+function join(id: string, inviteToken: string, key: string = crypto.randomUUID(), token: string | null = "local-guest") {
   return JOIN(new Request(`http://localhost/api/plans/${id}/join`, {
     method: "POST",
-    headers: { authorization: "Bearer local-guest", "idempotency-key": key },
+    headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), "idempotency-key": key },
     body: JSON.stringify({ name: "Guest", inviteToken }),
   }), { params: Promise.resolve({ id }) });
 }
@@ -84,6 +87,82 @@ function signal(actorHandle: string) {
 }
 
 describe("plan-join Activity", () => {
+  it.each([null, "invalid"])("creates no friendship Activity without a verified joiner account (%s)", async (token) => {
+    const plan = await createPlan();
+    expect((await join(plan.id, plan.inviteToken, crypto.randomUUID(), token)).status).toBe(200);
+    expect(await memoryFollowStore.listMutuals("host")).toEqual([]);
+    expect((await inbox("local-host", "host")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-guest", "guest")).body).toEqual({ notifications: [], unread: 0 });
+  });
+
+  it.each(["classic", "collaboration"] as const)("connects a later %s joiner only with the host and leaves peer follows explicit", async (kind) => {
+    const plan = await createPlan();
+    expect((await join(plan.id, plan.inviteToken)).status).toBe(200);
+    let inviteToken = plan.inviteToken;
+    if (kind === "collaboration") {
+      const invite = await planCollaborationStore().createInvite(plan.id, plan.memberToken, {
+        expiresInMinutes: 30, idempotencyKey: crypto.randomUUID(),
+      });
+      if (!invite.ok) throw new Error(invite.error);
+      inviteToken = invite.token;
+    }
+    const key = crypto.randomUUID();
+    const joined = await join(plan.id, inviteToken, key, "local-mate");
+    expect(joined.status).toBe(200);
+    expect(await joined.json()).toMatchObject({ friendEdgesFormed: 1 });
+    expect((await join(plan.id, inviteToken, key, "local-mate")).status).toBe(200);
+    expect(await memoryFollowStore.listMutuals("mate")).toEqual(["host"]);
+    expect(await memoryFollowStore.listMutuals("guest")).toEqual(["host"]);
+    expect((await inbox("local-host", "host")).body.notifications).toEqual(expect.arrayContaining([
+      expect.objectContaining(signal("guest")), expect.objectContaining(signal("mate")),
+    ]));
+    expect((await inbox("local-host", "host")).body.notifications).toHaveLength(2);
+    expect((await inbox("local-guest", "guest")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
+    expect((await inbox("local-mate", "mate")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
+    expect((await inbox("local-stranger", "host")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-stranger", "mate")).body).toEqual({ notifications: [], unread: 0 });
+
+    const followed = await FOLLOW(new Request("http://localhost/api/profiles/guest/follow", {
+      method: "POST",
+      headers: { authorization: "Bearer local-mate" },
+      body: JSON.stringify({}),
+    }), { params: Promise.resolve({ handle: "guest" }) });
+    expect(followed.status).toBe(200);
+    expect(await memoryFollowStore.isFollowing("mate", "guest")).toBe(true);
+    expect(await memoryFollowStore.isFollowing("guest", "mate")).toBe(false);
+    expect((await inbox("local-guest", "guest")).body.notifications).toEqual(expect.arrayContaining([
+      expect.objectContaining(signal("host")), expect.objectContaining(signal("mate")),
+    ]));
+    expect((await inbox("local-guest", "guest")).body.notifications).toHaveLength(2);
+    expect((await inbox("local-mate", "mate")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
+  });
+
+  it("does not substitute a claimed peer for an unclaimed host", async () => {
+    const plan = await createPlan(false);
+    expect((await join(plan.id, plan.inviteToken)).status).toBe(200);
+    expect((await join(plan.id, plan.inviteToken, crypto.randomUUID(), "local-mate")).status).toBe(200);
+    for (const handle of ["host", "guest", "mate"]) {
+      expect(await memoryFollowStore.listMutuals(handle)).toEqual([]);
+      expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+    }
+  });
+
+  it("does not substitute an unblocked peer when the host blocks a later joiner", async () => {
+    const plan = await createPlan();
+    expect((await join(plan.id, plan.inviteToken)).status).toBe(200);
+    const host = await memoryProfileStore.getByHandle("host");
+    const mate = await memoryProfileStore.getByHandle("mate");
+    setSocialMemoryBlock(host!.id, mate!.id, true);
+    const joined = await join(plan.id, plan.inviteToken, crypto.randomUUID(), "local-mate");
+    expect(joined.status).toBe(200);
+    expect(await joined.json()).toMatchObject({ friendEdgesFormed: 0 });
+    expect(await memoryFollowStore.listMutuals("mate")).toEqual([]);
+    expect(await memoryFollowStore.listMutuals("guest")).toEqual(["host"]);
+    expect((await inbox("local-mate", "mate")).body).toEqual({ notifications: [], unread: 0 });
+    expect((await inbox("local-host", "host")).body.notifications).toEqual([expect.objectContaining(signal("guest"))]);
+    expect((await inbox("local-guest", "guest")).body.notifications).toEqual([expect.objectContaining(signal("host"))]);
+  });
+
   it("delivers the same recipient-only follow signal as an explicit follow", async () => {
     const followed = await FOLLOW(new Request("http://localhost/api/profiles/host/follow", {
       method: "POST",
