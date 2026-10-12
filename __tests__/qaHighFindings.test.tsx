@@ -292,7 +292,7 @@ describe("mounted primary navigation and map-sheet dismissal", () => {
     const render = async (strict: boolean) => act(async () => root.render(createElement(Fragment, null,
       placement === "body" ? createPortal(tabs, document.body) : tabs,
       createElement("button", { id: "outside-control" }, "Other control"),
-      createElement(MobileSharedSheet, { kind: "venue", title: "Pub detail", onClose() {}, children: "Content" }),
+      <MobileSharedSheet kind="venue" title="Pub detail" onClose={() => {}}>Content</MobileSharedSheet>,
       strict ? createElement(StrictModal, null, createElement("button", null, "Modal action")) : null,
     )));
     await render(false);
