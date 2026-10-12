@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import postcss from "postcss";
-import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 import original from "./fixtures/planStylesheet7ac2402b.json";
 
@@ -51,29 +52,49 @@ function orderedInventory(css: string) {
       const key = JSON.stringify([conditions, selector]);
       const index = occurrences[key] ?? 0;
       occurrences[key] = index + 1;
-      ordered.push([key, declarations[key][index]]);
+      const declaration = declarations[key]?.[index];
+      if (declaration === undefined) {
+        throw new Error(`Missing declaration inventory entry for ${key} at occurrence ${index}`);
+      }
+      ordered.push([key, declaration]);
     }
   });
   return ordered;
 }
 
 function labelSize(css: string, kind: "group" | "budget") {
-  const dom = new JSDOM(`<form class="planComposer"><div class="planIntake__${kind}"><label>People</label></div></form>`);
+  const rootStyle = document.documentElement.style;
+  const previousFontSize = rootStyle.getPropertyValue("font-size");
+  const previousFontPriority = rootStyle.getPropertyPriority("font-size");
+  const form = document.createElement("form");
+  form.className = "planComposer";
+  const field = document.createElement("div");
+  field.className = `planIntake__${kind}`;
+  const label = document.createElement("label");
+  label.textContent = "People";
+  field.append(label);
+  form.append(field);
+  const style = document.createElement("style");
   try {
-    dom.window.document.documentElement.style.fontSize = "16px";
-    const label = dom.window.document.querySelector("label")!;
+    rootStyle.fontSize = "16px";
+    document.body.append(form);
     const matching = postcss.root();
     postcss.parse(css).walkRules((rule) => {
       if (rule.parent?.type === "root" && rule.selectors.some((selector) => label.matches(selector))) {
         matching.append(rule.clone());
       }
     });
-    const style = dom.window.document.createElement("style");
     style.textContent = matching.toString();
-    dom.window.document.head.append(style);
-    return dom.window.getComputedStyle(label).fontSize;
+    document.head.append(style);
+    return window.getComputedStyle(label).fontSize;
   } finally {
-    dom.window.close();
+    style.remove();
+    form.remove();
+    if (previousFontSize) {
+      rootStyle.setProperty("font-size", previousFontSize, previousFontPriority);
+    } else {
+      rootStyle.removeProperty("font-size");
+    }
   }
 }
 
