@@ -12,6 +12,9 @@ vi.mock("@/lib/authedFetch", () => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ handle: "ken" }),
 }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ handle: "ken" }),
+}));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => false,
 }));

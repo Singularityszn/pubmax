@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import FoundersDiscordLink from "@/components/founding/FoundersDiscordLink";
 import { useFoundingMembership } from "@/components/founding/useFoundingMembership";
 import {

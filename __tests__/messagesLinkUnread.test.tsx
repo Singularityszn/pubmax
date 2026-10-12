@@ -20,7 +20,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => inbox.auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => inbox.auth }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: () => {
     inbox.reads += 1;

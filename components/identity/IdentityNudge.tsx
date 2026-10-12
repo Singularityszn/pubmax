@@ -15,7 +15,7 @@
 //
 import { useEffect, useRef, useState, useSyncExternalStore, type ComponentType } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import type { IdentityNudgeDialogProps } from "@/components/auth/IdentityNudgeDialog";

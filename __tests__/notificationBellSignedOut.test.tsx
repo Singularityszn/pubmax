@@ -13,7 +13,7 @@ const authState = vi.hoisted(() => ({
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: fetchMock,
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState,
 }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
