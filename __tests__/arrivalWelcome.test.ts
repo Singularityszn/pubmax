@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 import { ArrivalWelcomeLine } from "@/components/auth/ArrivalWelcome";
@@ -159,11 +160,21 @@ describe("the arrival line", () => {
       join(process.cwd(), "components/auth/arrivalWelcome.css"),
       "utf8",
     );
-    expect(css).toMatch(
-      /\.arrivalWelcome\s*\{[^}]*z-index: calc\(var\(--z-modal, 1200\) - 1\)/,
+    const sheet = postcss.parse(css);
+    const ownDeclarations = (selector: string) => new Map(
+      sheet.nodes.flatMap((rule) =>
+        rule.type === "rule" && rule.selector === selector
+          ? rule.nodes.flatMap((node) =>
+              node.type === "decl" ? [[node.prop, node.value] as const] : [],
+            )
+          : [],
+      ),
     );
-    expect(css).toMatch(/\.arrivalWelcome\s*\{[^}]*pointer-events: none/);
-    expect(css).toMatch(/\.arrivalWelcomeDismiss\s*\{[^}]*pointer-events: auto/);
+    // Nested feature guards cannot satisfy these unconditional shell policies.
+    const welcome = ownDeclarations(".arrivalWelcome");
+    expect(welcome.get("z-index")).toBe("calc(var(--z-modal, 1200) - 1)");
+    expect(welcome.get("pointer-events")).toBe("none");
+    expect(ownDeclarations(".arrivalWelcomeDismiss").get("pointer-events")).toBe("auto");
     // Reduced motion keeps the greeting and drops the travel.
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
     expect(css).toContain("arrivalWelcomeFadeIn");
