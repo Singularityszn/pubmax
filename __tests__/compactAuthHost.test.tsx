@@ -137,7 +137,12 @@ describe("landing compact account admission", () => {
 
   it("admits an established Clerk product session without Supabase configuration", async () => {
     await serverRender({ ...settled, configured: false, clerkIntegrationConfigured: true,
-      user: { id: "account-a", email: "reader@example.test", user_metadata: { full_name: "Night Owl" } } as AuthContextValue["user"],
+      user: {
+        id: "account-a", email: "reader@example.test",
+        user_metadata: { full_name: "Night Owl" },
+        app_metadata: { provider: "clerk", providers: ["clerk"] },
+        aud: "authenticated", created_at: "2026-10-12T00:00:00.000Z",
+      },
     });
     expect(marker().dataset.authConfigured).toBe("true");
     expect(host.querySelector(".lpNav .authCompactTrigger")?.getAttribute("aria-label")).toBe("Account options for Night Owl");
