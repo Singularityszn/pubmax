@@ -1490,6 +1490,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // Timers/observers this effect owns; cleanup below tears them all down so a
     // re-run (theme dep change, auto-retry, or Retry click) starts clean.
     let sizeObserver: ResizeObserver | undefined;
+    let creditObserver: ResizeObserver | undefined;
     let sizeProceedTimer: ReturnType<typeof setTimeout> | undefined;
     let autoRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let contextLostTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1577,6 +1578,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       container
         .querySelector<HTMLElement>(".maplibregl-ctrl-attrib-button")
         ?.click();
+      const creditLane = container.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right");
+      const stage = container.closest<HTMLElement>(".mapStage");
+      if (creditLane && stage) {
+        const publishCreditHeight = () => {
+          stage.style.setProperty(
+            "--mobile-map-credit-stack-h",
+            `${creditLane.getBoundingClientRect().height}px`,
+          );
+        };
+        publishCreditHeight();
+        creditObserver = new ResizeObserver(publishCreditHeight);
+        creditObserver.observe(creditLane);
+      }
     } catch (error) {
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
@@ -3688,6 +3702,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // context-lost timers are the effect's, not construct's, so they clear
       // even if we never constructed. Then run construct's teardown if it ran.
       sizeObserver?.disconnect();
+      creditObserver?.disconnect();
+      container.closest<HTMLElement>(".mapStage")?.style.removeProperty("--mobile-map-credit-stack-h");
       if (sizeProceedTimer) clearTimeout(sizeProceedTimer);
       if (autoRetryTimer) clearTimeout(autoRetryTimer);
       if (contextLostTimer) clearTimeout(contextLostTimer);

@@ -19,6 +19,7 @@ import { parseCityId } from "@/lib/cities";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -73,23 +74,25 @@ const DAILY_PRICE_CAP_REFUSAL =
 // PRD §9: enrich each public drop with a human `venueName` + a "/map?sel=…"
 // `venueMapUrl`, resolved server-side from the bundled venue index, so no public
 // feed/profile/permalink card ever surfaces the raw content-hashed `venue-…` id.
-// Batched over the whole page against the one memoized index (a single Map read
-// per drop). A drop stored under a merged or superseded venue id is answered
+// The page shares one memoized index. A drop stored under a merged or
+// superseded venue id is answered
 // under the id that venue carries now, so its name, its map link and every
 // client join on `venueId` find the pub. Never throws: an unreadable index
 // yields the friendly fallback for every id, and the drops still render.
 async function withVenueNames<T extends { venueId: string }>(
   drops: T[],
-): Promise<(T & { venueName: string; venueMapUrl: string })[]> {
+): Promise<(T & { venueName: string; venueMapUrl: string; borough?: string })[]> {
   const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
   return drops.map((drop) => {
     const venueId = aliases.canonical(drop.venueId);
     const venue = storedVenueRef(index, aliases, venueId);
+    const borough = index.get(venueId)?.borough;
     return {
       ...drop,
       venueId,
       venueName: venue ? storedVenueName(venue) : VENUE_FALLBACK_LABEL,
       venueMapUrl: venueMapUrl(venueId),
+      ...(borough && LONDON_BOROUGH_NAMES.includes(borough) ? { borough } : {}),
     };
   });
 }

@@ -3,7 +3,7 @@
 # depends on braces ^3.0.3, and fast-glob 3.3.3 still depends on that
 # micromatch. The lockfile reaches braces only from devDependencies:
 # eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch.
-# @next/eslint-plugin-next 16.3.8 (latest) and 16.4.0-canary.59 both still
+# @next/eslint-plugin-next 16.4.0 and 16.4.0-canary.59 both still
 # pin fast-glob 3.3.1, and the upstream report (micromatch/braces#70) is
 # still open with no fix commit.
 # Re-checked 2026-10-04: still no fix, so the date stays unchanged.

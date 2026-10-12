@@ -6,8 +6,9 @@
   display: block;
   position: absolute;
   right: 14px;
-  /* Clear MapLibre's expanded desktop attribution so its links own their taps. */
-  bottom: 34px;
+  /* Clear MapLibre's expanded desktop attribution so its links own their taps.
+     The berth follows the consent strip (app/globals.css). */
+  bottom: var(--map-layers-bottom);
   z-index: var(--z-map-hover);
   pointer-events: none;
 }
@@ -28,8 +29,8 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--map-layers-fab-h);
+  min-height: var(--map-layers-fab-h);
   padding: 0 14px 0 12px;
   border: 1px solid var(--control-secondary-border, var(--color-border));
   border-radius: 999px;
@@ -310,14 +311,6 @@
 .appShell.detail-open .mapLayersControl {
   opacity: 0;
   pointer-events: none;
-}
-
-@media (min-width: 641px) {
-  /* Keep Layers above the 44px attribution target and its 10px gap while the
-     consent strip occupies the map foot. The map still fills the viewport. */
-  body:has(.analyticsConsentPrompt) .appShell .mapStage .mapLayersControl {
-    bottom: calc(var(--analytics-consent-clearance, 72px) + 54px);
-  }
 }
 
 @media (max-width: 640px) {

@@ -4552,12 +4552,12 @@
     "venueStatus": "closed"
   },
   {
-    "venueId": "venue-1sw9ofl",
+    "venueId": "venue-eltcmh",
     "name": "The Black Friar, Blackfriars",
     "slug": "the-black-friar-blackfriars",
     "borough": "City of London",
     "lat": 51.5121,
-    "lng": -0.103751,
+    "lng": -0.103677,
     "hook": "pub in London, UK",
     "facts": [
       {

@@ -8,6 +8,7 @@ import "server-only";
 // derives a price, widens a trust gate, or writes anything.
 
 import { nightAreaForMapQuery } from "@/lib/nightAreas";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   CHEAPEST_NEAR_NO_ANCHOR,
   CROWD_READING_NOT_LIVE,
@@ -95,16 +96,16 @@ function matchVenue(
   // "the" before this, so "The Angel" arrives as "Angel" and must still find
   // The Angel.
   const exact =
-    venues.find((v) => v.name.toLowerCase() === text) ??
-    venues.find((v) => withoutLeadingArticle(v.name) === bare);
+    venues.find((v) => venueSearchNames(v).some((name) => name.toLowerCase() === text)) ??
+    venues.find((v) => venueSearchNames(v).some((name) => withoutLeadingArticle(name) === bare));
   if (exact) return exact;
   // Past an exact name, a place-shaped word may never land on a name-alike pub:
   // "Angel" is Islington, not The Angel Hillingdon on a prefix.
   if (isPlaceShapedWord(needle)) return null;
   return (
-    venues.find((v) => withoutLeadingArticle(v.name).startsWith(bare)) ??
+    venues.find((v) => venueSearchNames(v).some((name) => withoutLeadingArticle(name).startsWith(bare))) ??
     (mode === "loose"
-      ? (venues.find((v) => v.name.toLowerCase().includes(text)) ?? null)
+      ? (venues.find((v) => venueSearchNames(v).some((name) => name.toLowerCase().includes(text))) ?? null)
       : null)
   );
 }

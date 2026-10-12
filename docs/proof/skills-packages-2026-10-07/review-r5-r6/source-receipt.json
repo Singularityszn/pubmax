@@ -1,0 +1,17 @@
+{
+  "head": "78e165a059a839a826add8edb844410658d15bd3",
+  "startedAt": "2026-10-10T13:23:51.502235+00:00",
+  "files": {
+    ".agents/skills/better-accessibility/hit-areas.md": "232d1b6599eb3d808f1c5509bf7ac0b38bb03793fed4f57e73b43f3275df0d49",
+    ".agents/skills/text-to-speech/references/streaming.md": "afe3c7de52cdc29b93c4c96483167e48585d1e85c87a6fd4b0256d7ffa95038a",
+    "e2e/mobile-map-chrome-fit.spec.ts": "27c4bda95cf55b35a70da3d28ec7b489e4a14be8a473bb394b030f8acbdba9bf",
+    "components/mobile/mobileMapShell.css": "5c31650be3397de8e41b5f8988522d8f10189c527df3ab11ddd1c153ba1c13aa",
+    "components/PubMapCanvas.tsx": "e381ea857a95541e52275471b45ee00c3559df42bc2fdaccf45990eec44a7c80",
+    "app/globals.css": "d6a5a334f7d7dc24113c355d1a0771a25b8ea20afdf8a17f16d3f82f9082fa7e",
+    "artifacts/review-r5-r6/playwright.config.ts": "87464691a60d5c14e6a7192bc6dd935f819b76912e56c5cf1da8cb3c1a00ecd0"
+  },
+  "freeBytesBefore": 7496429568,
+  "buildDirectory": ".next-review-r5-r6",
+  "browserChannel": "chrome",
+  "port": 3482
+}

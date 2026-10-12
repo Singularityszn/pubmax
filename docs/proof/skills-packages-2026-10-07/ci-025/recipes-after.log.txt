@@ -1,0 +1,197 @@
+[
+  {
+    "media": "(400px <= width <= 700px)",
+    "expected": [
+      "400px <= width",
+      "width <= 700px"
+    ],
+    "actual": {
+      "breakpoints": [
+        "400px <= width",
+        "width <= 700px"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(700px >= width >= 400px)",
+    "expected": [
+      "700px >= width",
+      "width >= 400px"
+    ],
+    "actual": {
+      "breakpoints": [
+        "700px >= width",
+        "width >= 400px"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(20em < width < 60em)",
+    "expected": [
+      "20em < width",
+      "width < 60em"
+    ],
+    "actual": {
+      "breakpoints": [
+        "20em < width",
+        "width < 60em"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(80rem > width > 30rem)",
+    "expected": [
+      "80rem > width",
+      "width > 30rem"
+    ],
+    "actual": {
+      "breakpoints": [
+        "80rem > width",
+        "width > 30rem"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(min-width: 320px) and (max-width: 900px)",
+    "expected": [
+      "max-width: 900px",
+      "min-width: 320px"
+    ],
+    "actual": {
+      "breakpoints": [
+        "max-width: 900px",
+        "min-width: 320px"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(min-width: 20em) and (max-width: 60rem)",
+    "expected": [
+      "max-width: 60rem",
+      "min-width: 20em"
+    ],
+    "actual": {
+      "breakpoints": [
+        "max-width: 60rem",
+        "min-width: 20em"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(width >= 40rem)",
+    "expected": [
+      "width >= 40rem"
+    ],
+    "actual": {
+      "breakpoints": [
+        "width >= 40rem"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(width < 700px)",
+    "expected": [
+      "width < 700px"
+    ],
+    "actual": {
+      "breakpoints": [
+        "width < 700px"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(400px < width)",
+    "expected": [
+      "400px < width"
+    ],
+    "actual": {
+      "breakpoints": [
+        "400px < width"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(50.5em >= width)",
+    "expected": [
+      "50.5em >= width"
+    ],
+    "actual": {
+      "breakpoints": [
+        "50.5em >= width"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "media": "(.5em < width < 2.5rem)",
+    "expected": [
+      "0.5em < width",
+      "width < 2.5rem"
+    ],
+    "actual": {
+      "breakpoints": [
+        "0.5em < width",
+        "width < 2.5rem"
+      ],
+      "unreadable": []
+    },
+    "pass": true
+  },
+  {
+    "imported": {
+      "breakpoints": [
+        "300px <= width",
+        "width < 641px",
+        "width <= 800px"
+      ],
+      "unreadable": [
+        "http://unreadable.test/sheet.css"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "tokensMobile": {
+      "tokens": {
+        "--imported-token": "yes",
+        "--theme": "light",
+        "--mobile": "44px",
+        "--unreadable-token": "still-computed"
+      },
+      "unreadable": [
+        "http://unreadable.test/sheet.css"
+      ],
+      "count": 4
+    },
+    "tokensDesktop": {
+      "tokens": {
+        "--theme": "dark",
+        "--unreadable-token": "still-computed"
+      },
+      "unreadable": [
+        "http://unreadable.test/sheet.css"
+      ],
+      "count": 2
+    },
+    "pass": true
+  }
+]

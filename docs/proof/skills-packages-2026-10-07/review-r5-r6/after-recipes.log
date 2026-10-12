@@ -1,0 +1,67 @@
+[
+  {
+    "name": "checkbox expanded corner -21,-21",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "checkbox expanded corner 21,-21",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "checkbox expanded corner -21,21",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "checkbox expanded corner 21,21",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "checkbox centre",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "checkbox keyboard",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "audio then final",
+    "passed": true,
+    "code": 0
+  },
+  {
+    "name": "audio on final frame",
+    "passed": true,
+    "code": 0
+  },
+  {
+    "name": "API error",
+    "passed": true,
+    "code": 1
+  },
+  {
+    "name": "API error after partial audio",
+    "passed": true,
+    "code": 1
+  },
+  {
+    "name": "close without final",
+    "passed": true,
+    "code": 1
+  },
+  {
+    "name": "partial audio without final",
+    "passed": true,
+    "code": 1
+  },
+  {
+    "name": "transport failure",
+    "passed": true,
+    "code": 1
+  }
+]
