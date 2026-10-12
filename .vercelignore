@@ -19,6 +19,7 @@
 /coverage/
 /__tests__/
 /e2e/
+/.e2e/
 /e2e-shots/
 /.tmp-evidence/
 /artifacts/

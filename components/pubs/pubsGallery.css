@@ -236,6 +236,11 @@
   object-fit: cover;
 }
 
+.pubsCardPhoto .venueImage__provenance {
+  top: 0.5rem;
+  bottom: auto;
+}
+
 .pubsCardArtWash {
   position: absolute;
   inset: 0;
