@@ -31,7 +31,6 @@ import {
   markFoundersWelcomeShown,
 } from "@/lib/foundingMembers";
 
-import "./arrivalWelcome.css";
 
 function tabStorage(): Storage | null {
   try {

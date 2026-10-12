@@ -36,7 +36,6 @@ import {
 import { hasPromptBudgetFor } from "@/lib/promptBudget";
 
 const IDENTITY_SURFACE = "identity-nudge";
-import "./identityNudge.css";
 
 export default function IdentityNudge(): React.JSX.Element | null {
   const trigger = useSyncExternalStore(
