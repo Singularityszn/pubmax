@@ -1,0 +1,32 @@
+Command: PUBMAX_KNIP_BASE_REF=HEAD npm run verify:no-mistakes
+Exit: 0
+Native generation completed before this command.
+
+npm notice run pubmaxxing@0.1.0 verify:no-mistakes
+npm notice run pubmaxxing@0.1.0 verify
+npm notice run pubmaxxing@0.1.0 validate-data
+npm notice run pubmaxxing@0.1.0 lint
+✖ 85 problems (0 errors, 85 warnings)
+  0 errors and 8 warnings potentially fixable with the `--fix` option.
+npm notice run pubmaxxing@0.1.0 db:types:check
+types/database.ts matches the migrated schema.
+npm notice run pubmaxxing@0.1.0 typecheck
+✓ Types generated successfully
+npm notice run pubmaxxing@0.1.0 test:chatgpt-map
+npm notice run pubmaxxing@0.1.0 deadcode
+npm notice run pubmaxxing@0.1.0 coverage
+ Test Files  1802 passed | 1 skipped (1803)
+      Tests  21425 passed | 1 skipped (21426)
+   Duration  217.38s (tests 68%, import 15%, environment 9%, transform 3%, worker 3%, setup 1%)
+npm notice run pubmaxxing@0.1.0 test:rls
+ Test Files  57 passed (57)
+      Tests  554 passed (554)
+   Duration  132.66s (tests 100%)
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Duration  16.82s (tests 100%)
+npm notice run pubmaxxing@0.1.0 gate:e2e-skips
+npm notice run pubmaxxing@0.1.0 check:freshness
+FRESHNESS CHECK PASSED with 3 store feed(s) this runtime cannot measure. They are NOT reported fresh. Run with --require-store where credentials exist.
+allowScripts covers every lockfile package with an install script.
+[resilient-audit] no unwaived high/critical vulnerabilities. Waived (dev-only, see WAIVED_ADVISORIES): @next/eslint-plugin-next, braces, eslint-config-next, fast-glob, micromatch

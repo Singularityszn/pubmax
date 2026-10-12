@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   freshestCommunityPrice,
@@ -649,6 +649,13 @@ export function useCommunityPrices(): CommunityPricesState {
   const provisionalBasePending = useRef<Set<string>>(new Set());
   const provisionalBaseMarked = useRef<Set<string>>(new Set());
   const provisionalBaseBackoffUntil = useRef(0);
+  const provisionalBaseController = useRef<AbortController | null>(null);
+  const provisionalBaseQueued = useRef<readonly string[] | null>(null);
+  useEffect(() => () => {
+    provisionalBaseQueued.current = null;
+    provisionalBaseController.current?.abort();
+    provisionalBaseController.current = null;
+  }, []);
 
   const loadVenue = useCallback(
     (venueId: string) => {
@@ -838,7 +845,7 @@ export function useCommunityPrices(): CommunityPricesState {
   );
 
   const loadProvisionalBaseVenues = useCallback(
-    (venueIds: readonly string[]) => {
+    function loadProvisionalBaseVenues(venueIds: readonly string[]) {
       // Standing down after a refusal is the whole point of the backoff, so it
       // gates ahead of the viewport signature: panning is exactly what would
       // otherwise re-fire the refused chunks and keep the window saturated.
@@ -846,6 +853,12 @@ export function useCommunityPrices(): CommunityPricesState {
       // still gets its one read rather than being deduped out of existence.
       const startedAt = Date.now();
       if (startedAt < provisionalBaseBackoffUntil.current) return;
+      if (provisionalBaseController.current) {
+        // Keep the newest settled viewport. It shares this hook's two slots,
+        // rather than starting another pair for each camera settle.
+        provisionalBaseQueued.current = [...venueIds];
+        return;
+      }
       if (provisionalBaseBackoffUntil.current !== 0) {
         provisionalBaseBackoffUntil.current = 0;
         provisionalBaseSignature.current = "";
@@ -875,67 +888,88 @@ export function useCommunityPrices(): CommunityPricesState {
           unread.slice(index, index + MAX_PROVISIONAL_BASE_VENUE_IDS),
         );
       }
+      const controller = new AbortController();
+      provisionalBaseController.current = controller;
       void (async () => {
         let changed = false;
         let incomplete = false;
         let backoffMs: number | null = null;
-        // ONE chunk in flight at a time. A dense central viewport carries
-        // hundreds of base pubs, so firing every chunk at once turns a single
-        // settled camera into a burst against an unauthenticated read whose
-        // per-actor budget is sized for a session's browsing, not one frame of
-        // it. Sequential costs a beat on a badge and caps the burst at one.
-        for (const chunk of chunks) {
-          let load: ProvisionalVenueIdsLoad;
-          try {
-            const query = new URLSearchParams({ scope: "provisional-base" });
-            for (const venueId of chunk) query.append("venueId", venueId);
-            const response = await fetch(
-              `/api/price-submit?${query.toString()}`,
-            );
-            backoffMs = provisionalBaseBackoffMs(
-              response.status,
-              response.headers.get("Retry-After"),
-            );
-            // The budget is spent, and the rest of this viewport's chunks would
-            // only deepen the hole. Stop, and let the backoff hold the retry.
-            if (backoffMs !== null) break;
-            if (!response.ok) {
-              discardBody(response);
-              throw new Error("provisional base read unavailable");
+        let nextChunk = 0;
+        // Two bounded workers shorten the network waterfall without changing
+        // request size or the server's budget. A newer viewport takes the next
+        // turn once these reads finish. A refusal stops further dispatch.
+        const worker = async () => {
+          while (
+            !controller.signal.aborted &&
+            backoffMs === null &&
+            provisionalBaseQueued.current === null
+          ) {
+            const chunk = chunks[nextChunk++];
+            if (!chunk) return;
+            let load: ProvisionalVenueIdsLoad;
+            try {
+              const query = new URLSearchParams({ scope: "provisional-base" });
+              for (const venueId of chunk) query.append("venueId", venueId);
+              const response = await fetch(
+                `/api/price-submit?${query.toString()}`,
+                { signal: controller.signal },
+              );
+              const refusalBackoffMs = provisionalBaseBackoffMs(
+                response.status,
+                response.headers.get("Retry-After"),
+              );
+              // The budget is spent, and the rest of this viewport's chunks would
+              // only deepen the hole. Stop, and let the backoff hold the retry.
+              if (refusalBackoffMs !== null) {
+                backoffMs = refusalBackoffMs;
+                discardBody(response);
+                return;
+              }
+              if (!response.ok) {
+                discardBody(response);
+                throw new Error("provisional base read unavailable");
+              }
+              load = readProvisionalVenueIdsLoad(
+                await response.json(),
+                new Set(chunk),
+              );
+            } catch {
+              load = { status: "invalid", venueIds: [] };
             }
-            load = readProvisionalVenueIdsLoad(
-              await response.json(),
-              new Set(chunk),
-            );
-          } catch {
-            load = { status: "invalid", venueIds: [] };
+            if (controller.signal.aborted) return;
+            for (const venueId of chunk) {
+              provisionalBasePending.current.delete(venueId);
+            }
+            if (load.status !== "ready") {
+              // A degraded or unreadable answer is not "no marks here". Leaving
+              // these ids unknown is what lets a later settle ask again, per
+              // chunk, rather than a single bad chunk discarding the ones that
+              // did answer.
+              incomplete = true;
+              continue;
+            }
+            for (const venueId of chunk) {
+              provisionalBaseKnown.current.add(venueId);
+            }
+            for (const venueId of load.venueIds) {
+              if (provisionalBaseMarked.current.has(venueId)) continue;
+              provisionalBaseMarked.current.add(venueId);
+              changed = true;
+            }
           }
-          for (const venueId of chunk) {
-            provisionalBasePending.current.delete(venueId);
-          }
-          if (load.status !== "ready") {
-            // A degraded or unreadable answer is not "no marks here". Leaving
-            // these ids unknown is what lets a later settle ask again, per
-            // chunk, rather than a single bad chunk discarding the ones that
-            // did answer.
-            incomplete = true;
-            continue;
-          }
-          for (const venueId of chunk) {
-            provisionalBaseKnown.current.add(venueId);
-          }
-          for (const venueId of load.venueIds) {
-            if (provisionalBaseMarked.current.has(venueId)) continue;
-            provisionalBaseMarked.current.add(venueId);
-            changed = true;
-          }
-        }
+        };
+        await Promise.all([worker(), worker()]);
         // Whatever the loop broke out of, nothing is still in flight. Ids that
         // never got an answer stay UNKNOWN rather than pending, so a later read
         // can still ask for them.
         for (const venueId of unread) {
           provisionalBasePending.current.delete(venueId);
         }
+        if (controller.signal.aborted) {
+          provisionalBaseSignature.current = "";
+          return;
+        }
+        provisionalBaseController.current = null;
         // Negative reads extend the cache without republishing the base
         // source. An identical Set with a new identity would restart its
         // viewport stream and turn one settled read into a feedback loop.
@@ -946,11 +980,15 @@ export function useCommunityPrices(): CommunityPricesState {
           // Keep the signature: it is the dedupe guard, and dropping it here is
           // precisely what would let the next settle re-fire the refused chunks.
           provisionalBaseBackoffUntil.current = Date.now() + backoffMs;
+          provisionalBaseQueued.current = null;
           return;
         }
-        if (incomplete && provisionalBaseSignature.current === signature) {
+        const queued = provisionalBaseQueued.current;
+        provisionalBaseQueued.current = null;
+        if ((incomplete || queued !== null) && provisionalBaseSignature.current === signature) {
           provisionalBaseSignature.current = "";
         }
+        if (queued !== null) loadProvisionalBaseVenues(queued);
       })();
     },
     [],

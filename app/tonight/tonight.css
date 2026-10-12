@@ -29,9 +29,8 @@
   }
 }
 
-/* The head is the Screen primitive (components/ui/screen.css): kicker,
-   heading, the listing lede, one primary. The page shell already keeps the
-   gutter, so the screen does not pad it a second time, and the Now segment
+/* The page shell already keeps the gutter, so the screen does not pad it a
+   second time, and the Now segment
    above it already sets the head off from the nav, so the head's own top
    inset is trimmed to keep the rhythm the tabs share. */
 .tonightPage > .tonightDesktopGrid {
@@ -783,11 +782,6 @@
   font-weight: 650;
 }
 
-/* Tonight Conditions strip: one calm line under the header — date, weather,
-   the drink it calls for, and (with location) a nearby venue count. A single
-   raised panel, brass weather icon, no card chrome beyond the panel. Lives
-   above the listings so it reads first without shouting. Role tokens only, so
-   light and dark themes both inherit correctly. */
 /* .tonightConditions* rules live in tonightConditions.css (component-owned,
    multi-host: Tonight page + desktop rails). */
 
@@ -806,12 +800,10 @@
   min-height: min(640px, 75vh);
 }
 
-/* The head's lede waits on the listings read, and it sits above
-   the hyped pubs, so landing it on ready pushed the whole lede down the page
-   (CLS 0.10 on throttled cold loads, 3 Oct 2026 remeasure). While the first
-   read runs the head holds an empty line box for it; the same line floor stays
+/* The listing explanation follows the hyped pubs. While the first
+   read runs it holds an empty line box; the same line floor stays
    on the settled sentence when it is only one line (e.g. a single-kind lede
-   with no map prompt), so the hyped block does not jump up when the hold
+   with no map prompt), so the content below it does not jump when the hold
    swaps to copy. Sized in lines: three at 390px, two from 641px. Empty and
    error answers omit the lede entirely. A retry never brings the hold back. */
 .tonightPage .screenLede {
@@ -852,7 +844,7 @@
    defect D8 was filed for, so the editorial rail lives in the rail too.
 
    Below 1100px the rail contributes no box, so a phone and a tablet read one
-   column in DOM order: head, weather, lede, credits, cheap pints, chain
+   column in DOM order: head, lede, weather, credits, cheap pints, chain
    blocks, vibe chips, the full Deals and Music lanes, the editorial rail, the
    soft plans, the area news, the rest, and the way-onward row. */
 @media (min-width: 1100px) {
@@ -876,13 +868,13 @@
   .tonightDesktopGrid > .tonightWeather {
     display: block;
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
     min-width: 0;
   }
 
   .tonightDesktopGrid > .tonightPrimary {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
     min-width: 0;
   }
 

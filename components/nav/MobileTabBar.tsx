@@ -13,7 +13,7 @@ import {
   navPathMatches,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import { requestMobileSheetDismiss } from "@/lib/mobileShell";
+import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -25,11 +25,11 @@ import {
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
 import {
+  FOCUS_TRAP_EXEMPT_ATTRIBUTE,
   readStrictModalFocusTrap,
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
 } from "@/lib/useFocusTrap";
-import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
@@ -158,6 +158,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
       className={"mobileTabBar" + (keyboardOpen ? " isKeyboardHidden" : "")}
       role="navigation"
       aria-label="Primary"
+      {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}
       // Hidden from the reader means hidden from a screen reader too: a bar
       // that has slid off the bottom of the screen must not still be a tab stop
       // above the keyboard.

@@ -20,7 +20,6 @@ import {
   passwordUpdateErrorMessage,
 } from "@/lib/passwordPolicy";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import { discardBody } from "@/lib/responseBody";
 import { Button } from "@/components/ui/button";
 
 /**

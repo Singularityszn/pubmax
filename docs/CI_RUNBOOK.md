@@ -6,8 +6,11 @@ check layer.
 
 ## GitHub-hosted runners
 
-Every job that runs Playwright uses `macos-latest`. Every other job uses
-`ubuntu-latest`. The repository is public, so both are GitHub's free hosted
+Visual Playwright jobs use `macos-latest`. The isolated
+`e2e.yml / authenticated-recovery` job uses `ubuntu-latest` for Docker and
+a throwaway local Supabase project. It runs only the existing two real
+authentication and capability tests, with no font or geometry assertions.
+Every other job uses `ubuntu-latest`. The repository is public, so both are GitHub's free hosted
 runners. Ubuntu font metrics wrap the landing hero differently from the
 macOS metrics the law pins were proved on, so the browser jobs stay on
 macOS. PostgreSQL, Semgrep and the rest stay on Linux. The performance

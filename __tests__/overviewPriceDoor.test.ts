@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // THE OVERVIEW HAS ONE PRICE DOOR PER TRUST STATE (captain's rule from the
 // core-loop battle test L03, 5 Sept 2026: one button system, one clear
 // primary per screen).
@@ -13,10 +15,8 @@
 // doors. (3) The composer is FOLDED until the door opens it, and the door
 // folds away once it has, so the two never stand on one screen.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { createElement } from "react";
+import { act, createElement, useEffect } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,7 +24,13 @@ import VenueOverviewTab, {
   drinkInviteOwnedByPriceArea,
   overviewComposerOpen,
 } from "@/components/map/inspector/VenueOverviewTab";
-import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
+import VenueStickyBar from "@/components/map/inspector/VenueStickyBar";
+import type { PricedVenue } from "@/lib/priceUpdates";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
+import { useCommunityPrices, type CommunityPricesState } from "@/components/map/useCommunityPrices";
+import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -46,6 +52,11 @@ import {
 } from "@/lib/pintTrust";
 import {
   BASELINE_NO_PUBLISHER_CAPTION,
+  venueBundlePrices,
+  venuePriceFallbackPending,
+  venuePriceLane,
+  venueSourcedPrice,
+  type VenueBundlePrices,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
@@ -53,6 +64,13 @@ import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
+}));
+
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({
+    user: null, session: null, loading: false, configured: false,
+    handle: null, identityResolved: true, getCurrentUserId: () => null,
+  }),
 }));
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -68,7 +86,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function venue(overrides: Partial<Venue> = {}): Venue {
+function venue(overrides: Partial<Venue> & { bundlePrices?: VenueBundlePrices } = {}): Venue {
   return {
     id: VENUE_ID,
     name: "The Sir Christopher Hatton",
@@ -156,7 +174,7 @@ const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
   none: () => [],
 };
 
-function communityPrices(venueId: string): CommunityPricesState {
+function communityPrices(venueId: string, readStatus: VenuePriceReadStatus = "ready"): CommunityPricesState {
   return {
     byVenueId: new Map([[venueId, []]]),
     signalsByVenueId: new Map(),
@@ -168,7 +186,7 @@ function communityPrices(venueId: string): CommunityPricesState {
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: noop,
     loadVenue: noop,
-    venuePriceStatus: new Map([[venueId, "ready"]]),
+    venuePriceStatus: new Map([[venueId, readStatus]]),
     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null }),
     submitVenueSignal: async () => ({ ok: true }),
     submitting: false,
@@ -180,7 +198,7 @@ function communityPrices(venueId: string): CommunityPricesState {
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean } = {},
+  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus; communityState?: CommunityPricesState } = {},
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
@@ -197,7 +215,8 @@ function renderOverview(
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
-      communityPrices: communityPrices(VENUE_ID),
+      communityPrices: options.communityState ?? communityPrices(VENUE_ID, options.priceReadStatus),
+      dropReadStatus: options.dropReadStatus,
       experienceLens: "all",
       drinkLensCategory: null,
       onToggleStop: noop,
@@ -220,6 +239,221 @@ function renderOverview(
 }
 
 const doorCount = (html: string) => html.split('data-price-door="').length - 1;
+
+describe("renewed venue price reads", () => {
+  type ReadRequest = {
+    path: string;
+    resolve: (response: Response) => void;
+    reject: (error: Error) => void;
+  };
+  let container: HTMLDivElement;
+  let root: Root;
+  let reads: ReadRequest[];
+  let drops: PintDropsState;
+  let prices: CommunityPricesState;
+  const otherId = "venue-other";
+  const estimated = () => venue({
+    bundlePrices: {
+      estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 },
+    },
+  } as Partial<Venue>);
+  const observed = (): DropWithPhotos => ({
+    ...drop({ priceGbp: 4.7 }),
+    id: "fresh-drop", venueId: VENUE_ID, handle: "tester", drink: "Lager",
+    priceGbp: 4.7, passedDownNote: "", era: "", provenance: "contributor",
+    status: "visible", createdAt: daysAgo(1), pintPhotoUrl: null, venuePhotoUrl: null,
+  });
+
+  function ReadProbe({ selectedId }: { selectedId: string }) {
+    const dropState = usePintDrops();
+    const priceState = useCommunityPrices();
+    const { refreshVenueDrops } = dropState;
+    const { loadVenue } = priceState;
+    useEffect(() => {
+      loadVenue(selectedId);
+      return refreshVenueDrops(selectedId);
+    }, [selectedId, refreshVenueDrops, loadVenue]);
+    useEffect(() => {
+      drops = dropState;
+      prices = priceState;
+    }, [dropState, priceState]);
+    return null;
+  }
+
+  async function select(selectedId: string) {
+    await act(async () => { root.render(createElement(ReadProbe, { selectedId })); });
+  }
+
+  function takeRead(endpoint: string, id = VENUE_ID): ReadRequest {
+    const index = reads.findIndex((read) => read.path === `${endpoint}?venueId=${encodeURIComponent(id)}`);
+    if (index < 0) throw new Error(`No pending ${endpoint} read for ${id}`);
+    return reads.splice(index, 1)[0]!;
+  }
+
+  async function answer(read: ReadRequest, rows: DropWithPhotos[] = []) {
+    await act(async () => {
+      read.resolve(Response.json({ drops: rows, prices: [], signals: [] }));
+    });
+  }
+
+  async function fail(read: ReadRequest, kind: "http" | "network" | "json") {
+    await act(async () => {
+      if (kind === "network") read.reject(new Error("offline"));
+      else read.resolve(kind === "http" ? new Response(null, { status: 503 }) : new Response("{"));
+    });
+  }
+
+  async function loadInitial(rows: DropWithPhotos[] = []) {
+    await select(VENUE_ID);
+    await answer(takeRead("/api/price-submit"));
+    await answer(takeRead("/api/pint-drops"), rows);
+  }
+
+  function output(base = estimated()) {
+    const rows = drops.dropsByVenueId.get(VENUE_ID) ?? [];
+    const signal = drops.venueSignals.get(VENUE_ID);
+    const lane = venuePriceLane(
+      base, signal?.latestContributorPrice, venueSourcedPrice(base), venueBundlePrices(base),
+      dropLaneInput(signal?.provisionalContributorPrice, signal?.provisionalContributorAt),
+      dropLaneInput(signal?.agedContributorPrice, signal?.agedContributorAt),
+      splitLaneInput(signal?.disputedPrices, signal?.disputedAt),
+    );
+    return {
+      pending: venuePriceFallbackPending(
+        lane, prices.venuePriceStatus.get(VENUE_ID) ?? "idle", drops.venueDropStatus.get(VENUE_ID) ?? "idle",
+      ),
+      html: renderOverview(rows, base, {
+        communityState: prices, dropReadStatus: drops.venueDropStatus.get(VENUE_ID),
+      }),
+    };
+  }
+
+  beforeEach(() => {
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    reads = [];
+    vi.stubGlobal("fetch", vi.fn((input: string) => {
+      if (!input.includes("venueId=")) return Promise.resolve(Response.json({ drops: [] }));
+      return new Promise<Response>((resolve, reject) => { reads.push({ path: input, resolve, reject }); });
+    }));
+    container = document.createElement("div");
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => { root.unmount(); });
+    vi.unstubAllGlobals();
+  });
+
+  it("suppresses the estimate on reselection until the new observed drop arrives", async () => {
+    await loadInitial();
+    expect(output().pending).toBe(false);
+    expect(output().html).toContain("£6.50");
+    await select(otherId);
+    await answer(takeRead("/api/price-submit", otherId));
+    await answer(takeRead("/api/pint-drops", otherId));
+    await select(VENUE_ID);
+    expect(prices.venuePriceStatus.get(VENUE_ID)).toBe("ready");
+    expect(prices.byVenueId.get(VENUE_ID)).toEqual([]);
+    expect(output().pending).toBe(true);
+    expect(output().html).toContain("Checking prices…");
+    expect(output().html).not.toContain("£6.50");
+    await answer(takeRead("/api/pint-drops"), [observed()]);
+    expect(output().pending).toBe(false);
+    expect(output().html).toContain("£4.70");
+    expect(output().html).not.toContain("£6.50");
+    await act(async () => { drops.refreshVenueDrops(VENUE_ID); });
+    expect(output().pending).toBe(false);
+    expect(output().html).toContain("£4.70");
+    expect(drops.dropsByVenueId.get(VENUE_ID)).toEqual([observed()]);
+  });
+
+  it.each(["http", "network", "json"] as const)("settles %s failures without losing held observations or claiming an empty pub", async (kind) => {
+    await loadInitial([observed()]);
+    await act(async () => { drops.refreshVenueDrops(VENUE_ID); });
+    expect(output().pending).toBe(false);
+    expect(output().html).toContain("£4.70");
+    await fail(takeRead("/api/pint-drops"), kind);
+    expect(drops.venueDropStatus.get(VENUE_ID)).toBe("unavailable");
+    expect(drops.dropsByVenueId.get(VENUE_ID)).toEqual([observed()]);
+    expect(output().html).toContain("£4.70");
+
+    await act(async () => { drops.refreshVenueDrops(VENUE_ID); });
+    await answer(takeRead("/api/pint-drops"));
+    expect(drops.dropsByVenueId.get(VENUE_ID)).toEqual([]);
+    await act(async () => { drops.refreshVenueDrops(VENUE_ID); });
+    expect(output().pending).toBe(true);
+    expect(output(venue()).html).toContain("Checking prices…");
+    expect(output(venue()).html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    await fail(takeRead("/api/pint-drops"), kind);
+    expect(output().pending).toBe(false);
+    expect(output().html).toContain("£6.50");
+    expect(output(venue()).html).toContain("could not read");
+    expect(output(venue()).html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+  });
+
+  it.each(["older-first", "newer-first"] as const)("ignores superseded success and failure responses when completion is %s", async (order) => {
+    await loadInitial();
+    for (const outcome of ["success", "failure"] as const) {
+      let cancelOlder: () => void = noop;
+      await act(async () => { cancelOlder = drops.refreshVenueDrops(VENUE_ID); });
+      const older = takeRead("/api/pint-drops");
+      await act(async () => { drops.refreshVenueDrops(VENUE_ID); });
+      const newer = takeRead("/api/pint-drops");
+      const finishOlder = () => outcome === "success" ? answer(older) : fail(older, "network");
+      if (order === "older-first") {
+        await finishOlder();
+        expect(drops.venueDropStatus.get(VENUE_ID)).toBe("idle");
+        cancelOlder();
+        await answer(newer, [observed()]);
+      } else {
+        await answer(newer, [observed()]);
+        await finishOlder();
+        cancelOlder();
+      }
+      expect(drops.venueDropStatus.get(VENUE_ID)).toBe("ready");
+      expect(drops.dropsByVenueId.get(VENUE_ID)).toEqual([observed()]);
+    }
+  });
+
+  it("ignores canceled and superseded reads across quick venue reselection", async () => {
+    await loadInitial();
+    await act(async () => { drops.refreshVenueDrops(VENUE_ID); });
+    const older = takeRead("/api/pint-drops");
+    await select(otherId);
+    const other = takeRead("/api/pint-drops", otherId);
+    await select(VENUE_ID);
+    const current = takeRead("/api/pint-drops");
+    await answer(older, [observed()]);
+    await answer(other, [{ ...observed(), venueId: otherId }]);
+    expect(drops.venueDropStatus.get(VENUE_ID)).toBe("idle");
+    expect(drops.dropsByVenueId.get(VENUE_ID)).toEqual([]);
+    expect(drops.dropsByVenueId.get(otherId)).toBeUndefined();
+    await answer(current, [observed()]);
+    expect(output().html).toContain("£4.70");
+  });
+
+  it("cancels only its own request and settles concurrent reads for different venues", async () => {
+    await loadInitial();
+    let cancel: () => void = noop;
+    await act(async () => { cancel = drops.refreshVenueDrops(VENUE_ID); });
+    const canceled = takeRead("/api/pint-drops");
+    cancel();
+    await act(async () => {
+      drops.refreshVenueDrops(otherId);
+      drops.refreshVenueDrops(VENUE_ID);
+    });
+    const other = takeRead("/api/pint-drops", otherId);
+    const current = takeRead("/api/pint-drops");
+    await answer(canceled, [observed()]);
+    await answer(other, [{ ...observed(), venueId: otherId }]);
+    expect(drops.venueDropStatus.get(VENUE_ID)).toBe("idle");
+    expect(drops.dropsByVenueId.get(VENUE_ID)).toEqual([]);
+    expect(drops.venueDropStatus.get(otherId)).toBe("ready");
+    expect(drops.dropsByVenueId.get(otherId)).toEqual([{ ...observed(), venueId: otherId }]);
+    await answer(current, [observed()]);
+    expect(output().html).toContain("£4.70");
+  });
+});
 
 /** Every price action the battle test counted, none of which may return. */
 const RETIRED_DOORS = [
@@ -358,6 +592,9 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(listedHtml).toContain("Published price");
     expect(doorCount(listedHtml)).toBe(1);
     expect(listedHtml).toContain('data-price-door="log"');
+    expect(listedHtml).toContain("£6.00");
+    expect(listedHtml).toContain('href="https://pub.example/menu"');
+    expect(listedHtml).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
 
     const baselineHtml = renderOverview([], venue({ cheapestPrice: 6.2 }));
     // The fixture's baseline carries no publisher, so it cannot claim a
@@ -367,6 +604,50 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(baselineHtml).not.toContain("Baseline on record");
     expect(doorCount(baselineHtml)).toBe(1);
     expect(baselineHtml).toContain('data-price-door="log"');
+    expect(baselineHtml).toContain("£6.20");
+    expect(baselineHtml).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+  });
+
+  it("prints the sourced figure and attribution ahead of the baseline", () => {
+    const sourced: PricedVenue = {
+      ...venue({ cheapestPrice: 5.9 }),
+      sourcedPrice: { provenance: "sourced", sourceLabel: "Test menu", sourceUrl: "https://pub.example/current-menu", observedAt: "2026-09-04" },
+    };
+    const html = renderOverview([], sourced);
+    expect(html).toContain("Sourced price");
+    expect(html).toContain("£5.90");
+    expect(html).toContain('href="https://pub.example/current-menu"');
+    expect(html).toContain("Test menu");
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("holds an estimate during either read, then renders it after settlement", () => {
+    const estimated = venue({
+      bundlePrices: { estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 } },
+    });
+    for (const options of [{ priceReadStatus: "loading" as const }, { dropReadStatus: "idle" as const }]) {
+      const html = renderOverview([], estimated, options);
+      expect(html).toContain("Checking prices");
+      expect(html).not.toContain("£6.50");
+      expect(doorCount(html)).toBe(0);
+    }
+    const html = renderOverview([], estimated, { dropReadStatus: "ready" });
+    expect(html).toContain("£6.50");
+    expect(html).toContain("/how-we-estimate");
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("retains a drinker's figure during refresh and distinguishes failed reads from an empty pub", () => {
+    const held = renderOverview(FIXTURES.corroborated(), venue(), { dropReadStatus: "idle", priceReadStatus: "loading" });
+    expect(held).toContain("£4.50");
+    expect(held).not.toContain("Checking prices");
+    expect(held).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    const failed = renderOverview([], venue(), { dropReadStatus: "unavailable" });
+    expect(failed).toContain("could not read");
+    expect(failed).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(failed)).toBe(1);
   });
 
   it("a sheet handed no confirm handler still offers one door, the log door", () => {
@@ -376,11 +657,19 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(html).not.toContain('data-testid="confirm-pint-cta"');
   });
 
+  it("does not wait for a pub price read on a recordless café", () => {
+    const html = renderOverview([], venue({ kind: "cafe" } as Partial<Venue>), { priceReadStatus: "idle" });
+    expect(html).not.toContain("Checking prices");
+    expect(doorCount(html)).toBe(0);
+  });
+
   it("a venue that is not a pub carries no door and no composer", () => {
     const bar = venue({ kind: "bar", anchorLabel: "Negroni", cheapestPrice: 11 } as Partial<Venue>);
     const html = renderOverview([], bar);
     expect(doorCount(html)).toBe(0);
     expect(html).not.toContain("venuePriceSubmit");
+    expect(html).toContain("Negroni");
+    expect(html).toContain("£11.00");
   });
 });
 
@@ -429,29 +718,87 @@ describe("the composer is folded until the door opens it", () => {
   });
 });
 
-describe("the retired doors are gone from the source, not switched off", () => {
-  // Comments may name what was retired; only code may not carry it.
-  const read = (path: string) =>
-    readFileSync(join(process.cwd(), path), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-
-  it("the sticky bar carries no price action and no painted primary", () => {
-    const bar = read("components/map/inspector/VenueStickyBar.tsx");
-    expect(bar).not.toContain("Add price");
-    expect(bar).not.toContain("onAddPrice");
-    expect(bar).not.toContain("venueSheetStickyPrimary");
+describe("price precedence in the rendered Overview", () => {
+  const sourced = {
+    provenance: "sourced" as const, sourceLabel: "pub.example",
+    sourceUrl: "https://pub.example/prices", observedAt: daysAgo(1),
+  };
+  const listed = { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1) };
+  const estimate = { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 };
+  const sourcedVenue = (): PricedVenue => ({
+    ...venue({ cheapestPrice: 6.2, bundlePrices: { listed, estimate } } as Partial<Venue>),
+    sourcedPrice: sourced,
   });
 
-  it("the first-drop nudge carries no door of its own", () => {
-    const nudge = read("components/map/inspector/FirstDropNudge.tsx");
-    expect(nudge).not.toContain("Or leave a Pint Drop");
-    expect(nudge).not.toContain("<button");
+  it.each([
+    { name: "anchor", base: venue({ kind: "restaurant", anchorLabel: "Negroni", cheapestPrice: 11 }), drops: [], figure: "£11.00", caption: "Not a pint price.", door: null, source: null },
+    { name: "contributor over sourced, listed and baseline", base: sourcedVenue(), drops: confirmedPair(), figure: "£4.50", caption: "Latest Pint Drop price", door: "log", source: null },
+    { name: "sourced over listed, provisional and baseline", base: sourcedVenue(), drops: [drop()], figure: "£6.20", caption: "Sourced price", door: "log", source: sourced.sourceUrl },
+    { name: "listed over provisional and baseline", base: venue({ cheapestPrice: 6.2, bundlePrices: { listed, estimate } } as Partial<Venue>), drops: [drop()], figure: "£6.00", caption: "Published price", door: "log", source: listed.sourceUrl },
+    { name: "provisional over baseline", base: venue({ cheapestPrice: 6.2 }), drops: [drop()], figure: "£4.50", caption: "Logged once, needs a second drinker", door: "confirm", source: null },
+    { name: "disputed over baseline", base: venue({ cheapestPrice: 6.2 }), drops: FIXTURES.disputed(), figure: "£4.50 and £4.70", caption: "Two drinkers, two prices", door: "choose", source: null },
+    { name: "baseline over aged and estimate", base: venue({ cheapestPrice: 6.2, bundlePrices: { estimate } } as Partial<Venue>), drops: FIXTURES["aged-out"](), figure: "£6.20", caption: "Price on record", door: "log", source: null },
+    { name: "aged over estimate", base: venue({ bundlePrices: { estimate } } as Partial<Venue>), drops: FIXTURES["aged-out"](), figure: "£4.50", caption: "needs a fresh drinker", door: "confirm", source: null },
+    { name: "estimate", base: venue({ bundlePrices: { estimate } } as Partial<Venue>), drops: [], figure: "£6.50", caption: "est.", door: "log", source: null },
+  ])("prints $name with its figure, provenance and single door", ({ base, drops, figure, caption, door, source }) => {
+    const view = document.createElement("div");
+    view.innerHTML = renderOverview(drops, base);
+    const summary = view.querySelector(".contributorPrice");
+    expect(summary).not.toBeNull();
+    expect(summary?.textContent).toContain(figure);
+    expect(summary?.textContent).toContain(caption);
+    expect(view.querySelector(".firstDropNudge")).toBeNull();
+    expect(summary?.textContent).not.toContain("No price");
+    expect(view.querySelectorAll("[data-price-door]")).toHaveLength(door === null ? 0 : 1);
+    expect(view.querySelector("[data-price-door]")?.getAttribute("data-price-door") ?? null).toBe(door);
+    if (source !== null) expect(summary?.querySelector("a.priceSourceLink")?.getAttribute("href")).toBe(source);
   });
 
-  it("the Overview decides its door through the one policy, never a lane branch", () => {
-    const tab = read("components/map/inspector/VenueOverviewTab.tsx");
-    expect(tab).toContain("overviewPriceDoor(trustChipState, lane)");
-    expect(tab).not.toContain("secondDrinkerDoorOffered");
+  it.each(["ready", "unavailable", "idle"] as const)("words an absent price honestly after a %s drop read", (dropReadStatus) => {
+    const view = document.createElement("div");
+    view.innerHTML = renderOverview([], venue(), { dropReadStatus });
+    if (dropReadStatus === "ready") {
+      expect(view.querySelector(".firstDropNudgeLine")?.textContent).toBe(firstDropNudgeCopy(VENUE_ID).line);
+      expect(view.querySelectorAll("[data-price-door]")).toHaveLength(1);
+    } else if (dropReadStatus === "unavailable") {
+      expect(view.querySelector(".firstDropNudgeLine")?.textContent).toBe("We could not read this pub’s logged prices.");
+      expect(view.textContent).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+      expect(view.querySelectorAll("[data-price-door]")).toHaveLength(1);
+    } else {
+      expect(view.textContent).toContain("Checking prices");
+      expect(view.querySelector(".firstDropNudge")).toBeNull();
+      expect(view.querySelectorAll("[data-price-door]")).toHaveLength(0);
+    }
+  });
+});
+
+describe("price actions beside the Overview", () => {
+  it.each([
+    { mode: "suggest" as const, inCrawl: false, accept: false, names: ["Share"] },
+    { mode: "suggest" as const, inCrawl: false, accept: true, names: ["Make it Stop 1", "Share"] },
+    { mode: "build" as const, inCrawl: false, accept: true, names: ["Make it Stop 1", "Crawl", "Share"] },
+    { mode: "build" as const, inCrawl: true, accept: true, names: ["Make it Stop 1", "Remove", "Share"] },
+  ])("the sticky bar offers only venue actions in $mode, inCrawl=$inCrawl, accept=$accept", ({ mode, inCrawl, accept, names }) => {
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(createElement(VenueStickyBar, {
+      venue: venue(), mode, inCrawl, onToggleStop: noop,
+      onAcceptStop1: accept ? noop : undefined,
+      shareVenue: async () => {}, currentShareFeedback: null,
+    }));
+    expect(Array.from(view.querySelectorAll("button"), (button) => button.textContent?.trim())).toEqual(names);
+    expect(view.querySelectorAll(".venueSheetStickyPrimary, [data-price-door]")).toHaveLength(0);
+  });
+
+  it("the first-drop nudge adds no price action beside the supplied door", () => {
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(createElement(FirstDropNudge, { venueId: VENUE_ID }));
+    expect(view.querySelectorAll("button, a, [data-price-door]")).toHaveLength(0);
+    expect(view.textContent).toContain(firstDropNudgeCopy(VENUE_ID).line);
+    view.innerHTML = renderToStaticMarkup(createElement(FirstDropNudge, { venueId: VENUE_ID },
+      createElement("button", { "data-price-door": "log" }, "Log tonight's price"),
+    ));
+    expect(view.querySelectorAll("button, a")).toHaveLength(1);
+    expect(view.querySelector("[data-price-door]")?.textContent).toBe("Log tonight's price");
+    expect(view.textContent).not.toContain("Or leave a Pint Drop");
   });
 });

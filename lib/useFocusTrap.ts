@@ -3,7 +3,7 @@
 import { useEffect, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), details > summary:first-of-type:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * A trap may only stand the rest of the page down when its own container is
@@ -296,7 +296,9 @@ export function nextTrapFocus(input: {
 
 function visibleFocusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (node) => node.offsetParent !== null,
+    // An exempt surface can become inert while staying mounted and laid out.
+    // Read its current state on each Tab, including inherited hidden state.
+    (node) => node.offsetParent !== null && !node.closest('[inert], [aria-hidden="true"]'),
   );
 }
 

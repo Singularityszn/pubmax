@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import PlanComposer from "@/components/plan/PlanComposer";
+import PlanEntry from "@/components/plan/PlanEntry";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
@@ -75,7 +75,7 @@ export default function NewPlanPage() {
           action) is the describe-first Screen inside PlanComposer, so nothing
           is printed twice here. */}
       <SiteNav />
-      <PlanComposer />
+      <PlanEntry />
     </main>
   );
 }

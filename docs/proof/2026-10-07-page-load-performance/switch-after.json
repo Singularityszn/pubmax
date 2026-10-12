@@ -1,0 +1,38 @@
+{
+  "baseURL": "http://localhost:34732",
+  "syntheticTargetRequestDelayMs": 350,
+  "hoverLeadMs": 800,
+  "samples": [
+    {
+      "sample": 1,
+      "readsBeforeClick": 3,
+      "clickToCurrentMs": 45,
+      "targetReads": 3
+    },
+    {
+      "sample": 2,
+      "readsBeforeClick": 3,
+      "clickToCurrentMs": 41,
+      "targetReads": 3
+    },
+    {
+      "sample": 3,
+      "readsBeforeClick": 3,
+      "clickToCurrentMs": 41,
+      "targetReads": 3
+    },
+    {
+      "sample": 4,
+      "readsBeforeClick": 3,
+      "clickToCurrentMs": 44,
+      "targetReads": 3
+    },
+    {
+      "sample": 5,
+      "readsBeforeClick": 3,
+      "clickToCurrentMs": 44,
+      "targetReads": 3
+    }
+  ],
+  "medianClickToCurrentMs": 44
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip } from "@/components/ui/chip";
+import { NumberChip } from "@/components/ui/numberChip";
 import { PLAN_STOP_COUNTS, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 
 /**
@@ -9,8 +9,8 @@ import { PLAN_STOP_COUNTS, normalizePlanStopCount, type PlanStopCount } from "@/
  * "How many people?" and its own row of small numbers: two bare number rows
  * one under the other is how a group of two got read as a two-pub night.
  *
- * Each count is the shared number square (`Chip variant="number"`), the same
- * component the /pubs fare-zone picker renders: one family for every square a
+ * Each count uses the shared number entry and button renderer, which also
+ * paints the /pubs fare-zone picker: one family for every square a
  * reader taps a figure on, rather than two look-alikes at 10px and 6px.
  */
 export default function PlanStopCountPicker({
@@ -28,15 +28,14 @@ export default function PlanStopCountPicker({
       <span className="planStopCount__label">Pub stops</span>
       <div className="planStopCount__choices">
         {PLAN_STOP_COUNTS.map((count) => (
-          <Chip
+          <NumberChip
             key={count}
-            variant="number"
             aria-pressed={selected === count}
             aria-disabled={ready ? undefined : true}
             onClick={() => { if (ready) onChange(count); }}
           >
             {count}
-          </Chip>
+          </NumberChip>
         ))}
       </div>
     </div>

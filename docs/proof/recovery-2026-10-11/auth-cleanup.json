@@ -1,0 +1,30 @@
+{
+  "recordedAt": "2026-10-11T19:16:53.932328+00:00",
+  "scope": "Isolated development Auth/browser proof",
+  "colimaBefore": "stopped",
+  "colimaAfter": "stopped",
+  "ownedProject": "pubmaxx-recovery-auth-20261011",
+  "ownedSupabaseStop": {
+    "exitCode": 0,
+    "backup": true
+  },
+  "ownedNextServerStop": {
+    "exitCode": 0,
+    "port": 32191
+  },
+  "loopbackListenersAfterCleanup": {
+    "32191": false,
+    "58441": false,
+    "58442": false,
+    "54621": false,
+    "54622": false
+  },
+  "foreignProject": "pubmaxqa-nm7k",
+  "foreignContainersAndVolumes": "preserved; no per-container stop, reset or deletion",
+  "foreignConnectionCheck": "No established host connections to 54621 or 54622 before graceful VM stop",
+  "authenticationProof": {
+    "temporaryJourney": "1 passed, 25.1 seconds",
+    "finalSource": "2 passed, 14.7 seconds",
+    "productionBuild": false
+  }
+}

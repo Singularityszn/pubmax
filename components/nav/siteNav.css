@@ -69,11 +69,15 @@
   min-width: 0;
   box-sizing: border-box;
   padding: 9px 14px;
-  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
+  @supports (color: color-mix(in srgb, black, white)) {
+    border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
+  }
   border-radius: 999px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 96%, transparent), color-mix(in srgb, var(--surface-tint-river) 62%, transparent)),
-    color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  @supports (color: color-mix(in srgb, black, white)) {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 96%, transparent), color-mix(in srgb, var(--surface-tint-river) 62%, transparent)),
+      color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  }
   box-shadow: 0 16px 36px rgba(44, 30, 62, 0.12), 0 5px 14px rgba(255, 90, 95, 0.05);
   backdrop-filter: blur(14px) saturate(1.06);
   -webkit-backdrop-filter: blur(14px) saturate(1.06);
@@ -218,7 +222,9 @@
 @media (hover: hover) and (pointer: fine) {
   .siteNavLink:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    @supports (color: color-mix(in srgb, black, white)) {
+      background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    }
   }
 }
 
@@ -243,7 +249,9 @@
 .siteNavLink.isActive {
   color: var(--color-on-accent);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  @supports (color: color-mix(in srgb, black, white)) {
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+  }
 }
 
 /* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
@@ -276,7 +284,9 @@
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
+  @supports (color: color-mix(in srgb, black, white)) {
+    background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
+  }
   color: var(--ink-soft);
   font: 700 0.82rem/1 var(--font-body, system-ui, sans-serif);
   cursor: pointer;
@@ -290,8 +300,10 @@
   .siteNavMoreBtn:hover,
   .siteNavMoreBtn.isOpen {
     color: var(--ink);
-    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    @supports (color: color-mix(in srgb, black, white)) {
+      border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+      background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    }
   }
 }
 
@@ -372,7 +384,9 @@ button.siteNavMoreItem {
 
 @media (hover: hover) and (pointer: fine) {
   .siteNavMoreItem:hover {
-    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    @supports (color: color-mix(in srgb, black, white)) {
+      background: color-mix(in srgb, var(--brass) 10%, transparent);
+    }
   }
 }
 
@@ -383,7 +397,9 @@ button.siteNavMoreItem {
 
 .siteNavMoreItem.isActive {
   color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  @supports (color: color-mix(in srgb, black, white)) {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -407,7 +423,9 @@ button.siteNavMoreItem {
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
+  @supports (color: color-mix(in srgb, black, white)) {
+    background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
+  }
   color: var(--ink-soft);
   cursor: pointer;
   transition:
@@ -419,8 +437,10 @@ button.siteNavMoreItem {
 @media (hover: hover) and (pointer: fine) {
   .siteNavCmdk:hover {
     color: var(--ink);
-    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    @supports (color: color-mix(in srgb, black, white)) {
+      border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+      background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    }
   }
 }
 
@@ -460,7 +480,9 @@ button.siteNavMoreItem {
 @media (hover: hover) and (pointer: fine) {
   .siteNavBell:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+    @supports (color: color-mix(in srgb, black, white)) {
+      background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
+    }
   }
 }
 .siteNavBell:focus-visible {
@@ -847,7 +869,9 @@ button.siteNavMoreItem {
 /* Drink-scoped hover: warm toward the category rather than brass. */
 @media (hover: hover) and (pointer: fine) {
   .siteNavLink[data-cat]:hover {
-    background: color-mix(in srgb, var(--nav-cat, var(--brass)) 14%, transparent);
+    @supports (color: color-mix(in srgb, black, white)) {
+      background: color-mix(in srgb, var(--nav-cat, var(--brass)) 14%, transparent);
+    }
   }
 }
 

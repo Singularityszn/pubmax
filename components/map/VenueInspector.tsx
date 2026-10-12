@@ -476,7 +476,7 @@ export default function VenueInspector({
         disputedPrice={disputedPrice}
         // Where this pub's own drop read got to, so the price area can tell a
         // pub nobody has logged from one we could not look at (F-8).
-        dropReadStatus={pintDrops.venueDropStatus.get(venue.id)}
+        dropReadStatus={pintDrops.venueDropStatus.get(venue.id) ?? "idle"}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
         drinkLensCategory={drinkLensCategory}

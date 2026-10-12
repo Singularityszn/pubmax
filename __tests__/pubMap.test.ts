@@ -25,6 +25,7 @@ import {
   ambientBannerLaneOpen,
   builtStopCountFor,
   coordinatedMapOverlay,
+  venueMapCanvasInteractive,
   coffeePilotSelection,
   crawlJourneysWanted,
   londonRestaurantSelection,
@@ -45,6 +46,7 @@ import {
   phonePlannerOrder,
   priceLegendInput,
   reactiveLogIntentActive,
+  mapPinFilters,
   restoredSessionFrame,
   searchParamValue,
   searchParamsQuery,
@@ -71,6 +73,18 @@ import type { Filters, Venue } from "@/lib/venues";
 // Reference curated crawl from the default (london) city set — buildMapSeed
 // resolves ?crawl= against curatedCrawlByIdForCity for DEFAULT_CITY_ID.
 const soho = curatedCrawls.find((c) => c.id === "victorian-soho") as CuratedCrawl;
+
+describe("visible map beside a venue", () => {
+  it.each([
+    { detailOpen: true, drawerSideLaneViewport: false, mobileViewport: true, mobileVenueSheetSnap: "half" as const, expected: true },
+    { detailOpen: true, drawerSideLaneViewport: false, mobileViewport: true, mobileVenueSheetSnap: "full" as const, expected: false },
+    { detailOpen: true, drawerSideLaneViewport: true, mobileViewport: false, mobileVenueSheetSnap: "full" as const, expected: true },
+    { detailOpen: true, drawerSideLaneViewport: false, mobileViewport: false, mobileVenueSheetSnap: "half" as const, expected: false },
+    { detailOpen: false, drawerSideLaneViewport: true, mobileViewport: false, mobileVenueSheetSnap: "half" as const, expected: false },
+  ])("answers $expected for $mobileViewport/$drawerSideLaneViewport/$mobileVenueSheetSnap with open=$detailOpen", ({ expected, ...input }) => {
+    expect(venueMapCanvasInteractive(input)).toBe(expected);
+  });
+});
 
 function makeVenue(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -882,7 +896,7 @@ describe("restoredSessionFrame", () => {
   } as never;
   const shouldOpenPlanningInitially = () => false;
 
-  it("prefers the URL's own pub over a restored one", () => {
+  it("opens only the pub named by the URL, never a saved phone selection", () => {
     expect(
       restoredSessionFrame({
         seed: { ...(seed as object), selectedVenueId: "url-pub" } as never,
@@ -902,7 +916,7 @@ describe("restoredSessionFrame", () => {
         search: "",
         shouldOpenPlanningInitially,
       }).selectedVenueId,
-    ).toBe("saved-pub");
+    ).toBe("");
   });
 
   it("settles the city only when a resume snapshot supplies its rows", () => {
@@ -1416,5 +1430,13 @@ describe("generated plan drink selection", () => {
 
   it.each(DRINK_CATEGORIES)("preserves %s without a zero-proof override", (drinkCategory) => {
     expect(generatedMapDrinkLane({ drinkCategory, zeroProof: false })).toBe(drinkCategory);
+  });
+});
+
+
+describe("map pins during search", () => {
+  it("keeps price and story filters while a reader edits a pub name", () => {
+    const filters = { ...initialFilters, query: "Ice Wharf", maxPrice: 5, requireHeritage: true };
+    expect(mapPinFilters(filters)).toEqual({ ...filters, query: "" });
   });
 });

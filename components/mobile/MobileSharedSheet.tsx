@@ -31,8 +31,9 @@ import "@/components/mobile/mobileMapShell.css";
  * The CONTAINER height is content-driven with `max-height: <snap cap>` (CSS,
  * mobileMapShell.css), so the sheet's rendered height is min(natural content,
  * cap): short content HUGS (no void) and tall content caps and scrolls inside
- * the body while header + footer stay pinned. There is no content measuring, no
- * translateY snap panel. Bottom clearance follows `.mobileSheetPortal` in
+ * the body while header + footer stay pinned. `useSheetHeightDrag` measures
+ * header and footer chrome for the snap caps, without measuring body content.
+ * There is no translateY snap panel. Bottom clearance follows `.mobileSheetPortal` in
  * mobileMapShell.css, keeping a visible tab bar outside the scrollport.
  * A drag grows/shrinks the box height directly
  * (useSheetHeightDrag writes an inline max-height in px); a release settles to a
@@ -45,6 +46,7 @@ export default function MobileSharedSheet({
   kicker,
   initialSnap = "half",
   requestedSnap,
+  onSnapChange,
   onClose,
   onDismiss = onClose,
   closeLabel,
@@ -61,6 +63,8 @@ export default function MobileSharedSheet({
   kicker?: string;
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
+  /** Reports the actual detent, including drag and expand/collapse actions. */
+  onSnapChange?: (snap: MapSheetDetent) => void;
   /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
   /** Gesture dismiss: Back to parent when one exists, otherwise Home. */
@@ -109,6 +113,7 @@ export default function MobileSharedSheet({
     settleToRest,
     openAtSnap,
     requestDismiss,
+    recapToViewport,
     sheetHeight,
     entering,
     dragging,
@@ -125,9 +130,7 @@ export default function MobileSharedSheet({
   useEffect(() => {
     interruptAndSettleRef.current = interruptAndSettle;
   }, [interruptAndSettle]);
-  // A second pick settles where the host asked for it. A base pub asks for
-  // peek so the map stays live for the next pin; settling it to half inerted
-  // the map behind the sheet, and the third pin could not be reached.
+  // A second pick keeps the host's requested height. Base pubs ask for peek.
   useEffect(() => {
     if (venueRevealSettleSequenceRef.current === venueRevealSettleSequence) return;
     venueRevealSettleSequenceRef.current = venueRevealSettleSequence;
@@ -190,6 +193,16 @@ export default function MobileSharedSheet({
     };
   }, [initialSnap, kind, openAtSnap, requestEscape]);
 
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(recapToViewport);
+    for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
+      observer.observe(part);
+    }
+    return () => observer.disconnect();
+  }, [footerEl, kind, recapToViewport]);
+
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
   useEffect(() => {
@@ -200,10 +213,12 @@ export default function MobileSharedSheet({
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetSnap]);
 
-  // Modal focus trap at half and full: keyboard focus must not walk the inert
-  // page behind an unreachable surface. Venue peek and half keep the visible map
-  // tappable (mobileMapShell.css), so peek is also the tested exception to
-  // trapping — enough map stays live that trapping would lie.
+  useEffect(() => {
+    if (kind) onSnapChange?.(sheetSnap);
+  }, [kind, onSnapChange, sheetSnap]);
+
+  // The host exempts the visible map beside a venue at peek and half. Keep the
+  // trap mounted through half/full transitions so collapse retains focus.
   //
   // The policy is "map-surface", not "strict-modal": this sheet is a map surface
   // with body-level siblings that outrank it. The primary tab bar stays reachable
@@ -262,7 +277,8 @@ export default function MobileSharedSheet({
         }
         className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
-        aria-modal={sheetModal ? "true" : undefined}
+        // Primary navigation stays reachable outside this map surface. A
+        // strict modal elsewhere owns aria-modal and withdraws those tabs.
         aria-labelledby={titleId}
         tabIndex={-1}
         style={sectionStyle}

@@ -1,6 +1,7 @@
 // A PUBLIC REPO DOES NOT RUN CI ON A PERSONAL MACHINE.
 //
-// Jobs that run Playwright use GitHub-hosted macos-latest. Every other job
+// Visual Playwright jobs use GitHub-hosted macos-latest. The isolated real
+// authentication job uses ubuntu-latest for Docker. Every other job
 // uses ubuntu-latest. Pull request workflows do not reference the secrets
 // context, so a fork cannot read a repository secret. docs/CI_RUNBOOK.md
 // is the runbook.
@@ -9,7 +10,7 @@
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. a Playwright job uses macos-latest, every other job uses ubuntu-latest,
+//   4. visual Playwright uses macOS and the isolated real-auth job uses Linux,
 //      and a pull request workflow has no secrets.
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -193,15 +194,20 @@ describe("workflow credentials and pins", () => {
 });
 
 describe("hosted runners", () => {
-  it("runs Playwright jobs on macos-latest and every other job on ubuntu-latest", () => {
+  it("runs visual Playwright jobs on macOS and isolated real auth on Linux", () => {
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
         const launchesPlaywright = job.steps.some(
           (step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run),
         );
+        const isolatedRealAuth = file === "e2e.yml" && jobId === "authenticated-recovery";
         expect(job["runs-on"], `${file} / ${jobId}`).toBe(
-          launchesPlaywright ? "macos-latest" : "ubuntu-latest",
+          launchesPlaywright && !isolatedRealAuth ? "macos-latest" : "ubuntu-latest",
         );
+        if (isolatedRealAuth) {
+          expect(job.steps.some((step) => step.run?.includes("--config=playwright.authenticated.config.ts"))).toBe(true);
+          expect(job.steps.some((step) => step.run?.includes("supabase start --workdir"))).toBe(true);
+        }
       }
     }
   });

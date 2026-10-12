@@ -10,6 +10,7 @@
 // Persistence mirrors lib/cityPreference.ts: localStorage-backed, SSR-safe,
 // silent degradation, no-op writes skipped.
 
+import { REMEMBERED_AREA_STORAGE_KEY as STORAGE_KEY } from "@/lib/planStorageKeys";
 import { safeLocalStorage } from "@/lib/safeStorage";
 export type NightPatch = {
   id: string;
@@ -61,13 +62,12 @@ export type RememberedArea =
   | { kind: "patch"; id: string }
   | { kind: "borough"; name: string };
 
-const STORAGE_KEY = "pubmax:nightPatch:v1";
 
 function hasStorage(): boolean {
   return safeLocalStorage() !== null;
 }
 
-function parseRemembered(raw: string | null): RememberedArea | null {
+export function parseRememberedArea(raw: string | null): RememberedArea | null {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<RememberedArea> | null;
@@ -99,7 +99,7 @@ export function rememberedPatchId(area: RememberedArea | null): string | null {
 export function readRememberedArea(): RememberedArea | null {
   if (!hasStorage()) return null;
   try {
-    return parseRemembered(window.localStorage.getItem(STORAGE_KEY));
+    return parseRememberedArea(window.localStorage.getItem(STORAGE_KEY));
   } catch {
     return null;
   }

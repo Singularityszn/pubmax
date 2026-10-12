@@ -98,7 +98,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null || process.env.PUBMAX_MESSAGE_IDEMPOTENCY_NO_PG === "1")(
+describe.skipIf(skipReason !== null)(
   "0149 message send idempotency",
   () => {
     it("BEFORE the migration the column is not there, and a repeat is a second message", async () => {

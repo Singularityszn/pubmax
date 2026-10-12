@@ -57,14 +57,15 @@ keeps preview hosts private, so open them signed in to the Vercel team.
 
 ### 1.3 The Tonight lede test
 
-`/tonight` once led with a JD Wetherspoon Curry Club deal. The first screen of the
-night must be a pub or the honest quiet-night sentence.
+`/tonight` once led with a JD Wetherspoon Curry Club deal. Check the first screen
+against the [Tonight feature guide](../README.md#features) and the
+[lede contract](rules/app-proxy-csp-caching-and-file-tracing.md).
 
 | # | Step | Owner | Proof | Command or page |
 |---|---|---|---|---|
 | 1.3.1 | The lede contract holds | Fleet | The contract test passes. It fails on a `deal-jdw-` id, a JD Wetherspoon source host or a Ticketmaster `kind: "event"` row in the first screen. | `npx vitest run __tests__/tonightLedeContract.test.ts` |
 | 1.3.2 | The rendered night agrees | Fleet | The browser spec passes. | `npm run test:e2e -- e2e/tonight.spec.ts` |
-| 1.3.3 | Read the real night | Captain | Open the page at a London evening hour. The lede names a pub, or says the night is quiet. A deal, a gig or a ticket price is never first. | `<preview-url>/tonight` |
+| 1.3.3 | Read the real night | Captain | Open the page at a London evening hour. Check the lede and empty-event wording against the linked guides. | `<preview-url>/tonight` |
 
 ### 1.4 Price standings are honest
 

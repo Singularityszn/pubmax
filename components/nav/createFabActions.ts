@@ -66,12 +66,15 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
  * The sign-in, sign-up and add-account surfaces share `/login`, where the
  * floating control overlaps the form's terms link.
  *
+ * `/moment` and `/plan` are compose screens already, so a create control there
+ * only offers to start the thing the page is composing.
+ *
  * Pages that cannot be named by path carry the `pageHidesCreateFab` marker
  * class instead (createFab.css): the 404 renders under whatever address was
- * mistyped, and `/pal/chat`, threads and plan pages hide it from their own
+ * mistyped, and `/pal/chat`, threads and `/plan/[id]` hide it from their own
  * markup.
  */
-const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login"];
+const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login", "/moment", "/plan"];
 
 export function createFabVisible(pathname: string): boolean {
   return !CREATE_FAB_HIDDEN_PATHS.includes(pathname);

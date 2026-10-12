@@ -1,0 +1,38 @@
+{
+  "at": 1791460572,
+  "authorization": "Firstmate inbox 010",
+  "freeBytesBefore": 5337948160,
+  "outputs": [
+    {
+      "path": "/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.next-dev-e2e",
+      "allocatedBytes": 557109248,
+      "openFileCheck": "lsof +D returned 1 with no open files",
+      "disposition": "removed exact reproducible build output after preserving manifests and source provenance"
+    },
+    {
+      "path": "/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.next-e2e",
+      "allocatedBytes": 763834368,
+      "openFileCheck": "lsof +D returned 1 with no open files",
+      "disposition": "removed exact reproducible build output after preserving manifests and source provenance"
+    },
+    {
+      "path": "/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.next-dev-pw",
+      "allocatedBytes": 703766528,
+      "openFileCheck": "lsof +D returned 1 with no open files",
+      "disposition": "removed exact reproducible build output after preserving manifests and source provenance"
+    },
+    {
+      "path": "/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.next-prod",
+      "allocatedBytes": 668831744,
+      "openFileCheck": "lsof +D returned 1 with no open files",
+      "disposition": "removed exact reproducible build output after preserving manifests and source provenance"
+    },
+    {
+      "path": "/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.next-prod-lane-a",
+      "allocatedBytes": 794574848,
+      "openFileCheck": "lsof +D returned 1 with no open files",
+      "disposition": "removed exact reproducible build output after preserving manifests and source provenance"
+    }
+  ],
+  "freeBytesAfter": 8159162368
+}

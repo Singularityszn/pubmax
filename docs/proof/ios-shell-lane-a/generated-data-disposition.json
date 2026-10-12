@@ -1,0 +1,13 @@
+{
+  "files": 309,
+  "changedTopLevelFields": {
+    "revision": 309
+  },
+  "rowChanges": [],
+  "snapshot": ".tmp-evidence/ios-lane-a/raw-rig/generated-data.patch",
+  "cause": "DEPLOYMENT_VERSION=local-ios-lane-a used by build:slim and build:city-slim for the local production QA build",
+  "disposition": "Restored all 309 tracked generated outputs after stopping the verified owned QA servers. Every changed top-level field was revision. No venue rows changed. All four snapshots remain task-local. No generated data is committed.",
+  "consistentRigSnapshot": ".tmp-evidence/ios-lane-a/raw-rig/generated-data-consistent.patch",
+  "finalRigSnapshot": ".tmp-evidence/ios-lane-a/raw-rig/generated-data-final.patch",
+  "edgeDiagnosticSnapshot": ".tmp-evidence/ios-lane-a/raw-rig/generated-data-edge-diagnostic.patch"
+}

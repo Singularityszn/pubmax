@@ -19,7 +19,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 vi.mock("@/lib/mapWarmup", () => ({
   warmNavRoute: () => undefined,
 }));
-vi.mock("@/lib/mobileShell", () => ({
+vi.mock("@/lib/mobileSheetDismiss", () => ({
   requestMobileSheetDismiss: () => undefined,
 }));
 vi.mock("@/lib/softKeyboard", () => ({
@@ -27,7 +27,8 @@ vi.mock("@/lib/softKeyboard", () => ({
   serverSoftKeyboardOpen: () => false,
   subscribeSoftKeyboard: () => () => {},
 }));
-vi.mock("@/lib/useFocusTrap", () => ({
+vi.mock("@/lib/useFocusTrap", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/useFocusTrap")>(),
   readStrictModalFocusTrap: () => false,
   serverStrictModalFocusTrap: () => false,
   subscribeStrictModalFocusTrap: () => () => {},

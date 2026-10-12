@@ -13,19 +13,16 @@
 // identity gate. Reuses the shared auth-sheet styling and the SignInButton
 // provider-button idiom (app/auth/auth.css).
 //
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ComponentType } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import MagicLinkForm from "@/components/auth/MagicLinkForm";
-import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
-import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import type { IdentityNudgeDialogProps } from "@/components/auth/IdentityNudgeDialog";
 import {
   readOtherStrictModalFocusTrap,
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
-  useFocusTrap,
 } from "@/lib/useFocusTrap";
 import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
@@ -35,25 +32,10 @@ import {
   markIdentityNudgeAccepted,
   markIdentityNudgeDismissed,
   subscribeIdentityNudge,
-  type IdentityNudgeTrigger,
 } from "@/lib/identityNudge";
-import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
+import { hasPromptBudgetFor } from "@/lib/promptBudget";
 
 const IDENTITY_SURFACE = "identity-nudge";
-import "@/app/auth/auth.css";
-import "./identityNudge.css";
-
-// Honest, trigger-specific value copy — no dark patterns, no fake urgency.
-const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {
-  plan: {
-    title: "Keep your nights",
-    body: "Save this plan to your account and get your crew back together next time.",
-  },
-  moment: {
-    title: "Own your memories",
-    body: "Sign in and save your Moments to your account across devices.",
-  },
-};
 
 export default function IdentityNudge(): React.JSX.Element | null {
   const trigger = useSyncExternalStore(
@@ -76,6 +58,9 @@ export default function IdentityNudge(): React.JSX.Element | null {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [Dialog, setDialog] = useState<ComponentType<IdentityNudgeDialogProps> | null>(null);
+  const [dialogLoadFailed, setDialogLoadFailed] = useState(false);
+  const [dialogLoadAttempt, setDialogLoadAttempt] = useState(0);
 
   // First-paint grace: never interrupt the very first moment on a page. The
   // nudge holds until the user has been here ~8s OR interacts, so a still-armed
@@ -131,28 +116,20 @@ export default function IdentityNudge(): React.JSX.Element | null {
   );
   const canShow = eligible && !otherStrictModalOpen;
 
-  // Claim the shared one-prompt-per-session budget at the moment it shows
-  // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.
+  // Eligibility stays eager. Loading presentation must not spend a prompt or
+  // trap the page, and a late result cannot outlive a sign-in or another modal.
   useEffect(() => {
-    if (canShow) claimPromptBudget(IDENTITY_SURFACE);
-  }, [canShow]);
-
-  // A blocking dialog owes a keyboard way out. Escape does what the dismiss
-  // button does, including recording that the reader was asked. Called above
-  // the early return so the hook order never changes.
-  useDismissOnEscape(canShow && Boolean(trigger), dismissAuthNudge);
-  useFocusTrap(canShow && Boolean(trigger), dialogRef, "strict-modal");
-
-  // Modal focus starts on its labelled dialog and returns to the exact control
-  // that owned focus before the nudge opened.
-  useEffect(() => {
-    if (!canShow || !trigger) return;
-    dialogRef.current?.focus({ preventScroll: true });
-  }, [canShow, trigger]);
+    if (!canShow || !trigger || Dialog) return;
+    let active = true;
+    void import("@/components/auth/IdentityNudgeDialog").then(
+      (module) => { if (active) setDialog(() => module.default); },
+      () => { if (active) setDialogLoadFailed(true); },
+    );
+    return () => { active = false; };
+  }, [canShow, trigger, Dialog, dialogLoadAttempt]);
 
   if (!canShow || !trigger) return null;
 
-  const copy = COPY[trigger];
   const authNext = trigger === "plan" ? identityNudgeAuthNext() : undefined;
   const hasSocialProviders = hasSocialAuthProviders(socialProviders);
 
@@ -177,48 +154,35 @@ export default function IdentityNudge(): React.JSX.Element | null {
     markIdentityNudgeDismissed();
   }
 
-  return (
-    <div className="claimNightBackdrop identityNudgeBackdrop" role="presentation">
-      <div
-        ref={dialogRef}
-        className="claimNightDialog identityNudgeDialog"
-        role="dialog"
-        tabIndex={-1}
-        aria-modal="true"
-        aria-labelledby="identity-nudge-title"
-        aria-describedby="identity-nudge-body"
-      >
-        <h2 id="identity-nudge-title" className="claimNightTitle">
-          {copy.title}
-        </h2>
-        <p id="identity-nudge-body" className="claimNightLead">
-          {copy.body}
-        </p>
-
-        <SocialSignInButtons
-          availability={socialProviders}
-          disabled={authBusy}
-          onGoogle={() => startSignIn(signInWithGoogle)}
-          onApple={() => startSignIn(signInWithApple)}
-          onMicrosoft={() => startSignIn(signInWithMicrosoft)}
-          className="identityNudgeProviders"
-        />
-        {authError ? <p className="authError" role="alert">{authError}</p> : null}
-        {configured ? (
-          <MagicLinkForm
-            disabled={authBusy}
-            hasSocialProviders={hasSocialProviders}
-            signInWithEmail={(email) => signInWithEmail(email, authNext)}
-            cancelAuthAttempt={cancelAuthAttempt}
-          />
-        ) : null}
-
-        <div className="claimNightActions identityNudgeActions">
-          <button type="button" className="claimNightSkip" onClick={dismissAuthNudge}>
-            Not now
-          </button>
-        </div>
+  if (!Dialog) {
+    if (!dialogLoadFailed) return null;
+    return (
+      <div className="authCallbackNotice" role="status">
+        <span>Sign-in couldn&apos;t load.</span>
+        <button type="button" onClick={() => {
+          setDialogLoadFailed(false);
+          setDialogLoadAttempt((attempt) => attempt + 1);
+        }}>Try again</button>
+        <button type="button" onClick={dismissAuthNudge}>Not now</button>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <Dialog
+      dialogRef={dialogRef}
+      trigger={trigger}
+      configured={configured}
+      socialProviders={socialProviders}
+      hasSocialProviders={hasSocialProviders}
+      authBusy={authBusy}
+      authError={authError}
+      onGoogle={() => startSignIn(signInWithGoogle)}
+      onApple={() => startSignIn(signInWithApple)}
+      onMicrosoft={() => startSignIn(signInWithMicrosoft)}
+      signInWithEmail={(email) => signInWithEmail(email, authNext)}
+      cancelAuthAttempt={cancelAuthAttempt}
+      onDismiss={dismissAuthNudge}
+    />
   );
 }

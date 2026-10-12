@@ -1,4 +1,4 @@
-// Android hardware/gesture Back seam.
+// Android hardware/gesture Back and iOS shell edge-swipe seam.
 //
 // Without a `backButton` listener a Capacitor Android app closes on the first
 // Back, whatever is on screen: a half-open venue sheet, a plan the person was
@@ -24,7 +24,7 @@
 //      route, and its popstate listener restores the landed snapshot. This
 //      module never reaches into that hook, never calls history.go(), and
 //      never needs to know a surface exists.
-//   3. THEN LEAVE. With no panel and no history there is genuinely nothing to
+//   3. THEN LEAVE ON ANDROID. With no panel and no history there is nothing to
 //      undo, and holding the person inside a dead Back is worse than leaving.
 //      LEAVING IS BACKGROUNDING, NEVER EXITING. App.exitApp() calls finish()
 //      and destroys the activity, which costs two things: no predictive-back
@@ -52,8 +52,8 @@ export type BackContext = {
    */
   panelDismissed: boolean;
   /**
-   * The WebView reports history behind this document. Capacitor hands this to
-   * the backButton listener; it is false on the shell's own first page.
+   * The WebView reports history behind this document through Android's
+   * backButton listener or the iOS edge event. The first page has none.
    */
   canGoBack: boolean;
 };
@@ -133,17 +133,28 @@ export function performBackAction(canGoBack: boolean, deps: BackGestureDeps): Ba
 }
 
 /**
- * Register the Android Back listener. Returns an idempotent cleanup; web, SSR
- * and plugin failure are safe no-ops, exactly like activateNativeDeepLinks().
+ * Register native Back handling with an idempotent cleanup. Web and SSR are
+ * safe no-ops. Plugin failure leaves the iOS edge listener active.
  *
- * iOS registers it too and simply never fires it, so there is no platform
- * branch here to drift. That is also why `exit` may be `minimizeApp` with no
- * platform check: iOS has no Back, so the call is unreachable there.
+ * iOS sends pubmax:ios-back from the shell's left-edge recognizer. It shares
+ * panel dismissal and history handling, but stays in the app at the root.
+ * The Android plugin's backButton listener keeps its existing behaviour.
  */
 export async function activateNativeBackGesture(
   overrides: Partial<BackGestureDeps> = {},
 ): Promise<() => void> {
   if (!isNativeApp()) return () => {};
+
+  const onIosBack = (event: Event) => {
+    const canGoBack = (event as CustomEvent<{ canGoBack?: boolean }>).detail?.canGoBack === true;
+    performBackAction(canGoBack, {
+      dismiss: overrides.dismiss ?? (() => dispatchDismissKey()),
+      goBack: overrides.goBack ?? (() => window.history.back()),
+      exit: () => {},
+    });
+  };
+  window.addEventListener?.("pubmax:ios-back", onIosBack);
+  const removeIosListener = () => window.removeEventListener?.("pubmax:ios-back", onIosBack);
 
   let removeListener: (() => Promise<void>) | undefined;
   try {
@@ -161,11 +172,12 @@ export async function activateNativeBackGesture(
     removeListener = () => listener.remove();
 
     return () => {
+      removeIosListener();
       void removeListener?.();
       removeListener = undefined;
     };
   } catch {
     void removeListener?.();
-    return () => {};
+    return removeIosListener;
   }
 }

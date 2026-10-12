@@ -7,6 +7,7 @@ import { CirclePlus } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
+import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
@@ -25,8 +26,7 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 
-import "./siteNav.css";
-import "./siteNavMoment.css";
+import "./siteNavShell.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
 // discover, crawls, profile, borough, admin) so navigation never duplicates or
@@ -146,7 +146,7 @@ export default function SiteNav({
           const isActive = link.key === activeKey;
           return (
             <li key={link.key} className="siteNavItem">
-              <Link prefetch={false}
+              <IntentLink
                 href={link.key === "map" ? mapHref : link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
@@ -154,7 +154,7 @@ export default function SiteNav({
                 title={link.label}
               >
                 {link.label}
-              </Link>
+              </IntentLink>
             </li>
           );
         })}

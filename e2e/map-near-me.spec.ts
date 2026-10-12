@@ -37,7 +37,7 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(tonightBody),
+        body: JSON.stringify({ ...tonightBody, servedAt: new Date().toISOString() }),
       }),
     );
     await page.route("**/api/citymcp/status", (route) =>
@@ -147,7 +147,7 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [] }),
+      body: JSON.stringify({ servedAt: new Date().toISOString(), rows: [] }),
     }),
   );
   await page.route("**/api/citymcp/status", (route) =>
@@ -162,6 +162,7 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
           detail: "Actionable city detail",
           kind: index % 2 === 0 ? "transport" : "event",
           severity: index === 0 ? "major" : "info",
+          areas: ["London"],
         })),
         tubeLines: [{ line: "Central", status: "Severe delays" }],
       }),
@@ -179,6 +180,8 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
 
   const sheet = page.locator(".cityStatusSignalSheet");
   await expect(sheet).toBeVisible();
+  // The feed contains fourteen signals and one TfL line update.
+  await expect(sheet.locator(".cityStatusSignalRow")).toHaveCount(15);
   // The sheet enters on a transform (cityStatusBanner.css), so its first box is
   // six pixels off its resting one. Measure the surface it settles at.
   await sheet.evaluate(async (element) => {

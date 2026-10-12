@@ -1,0 +1,11 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/nativeBackStartup.test.tsx __tests__/nativeBackGesture.test.ts __tests__/nativeDeepLinks.test.ts __tests__/nativeOAuth.test.ts __tests__/nativeWrap.test.ts __tests__/deferredShellExtras.test.ts
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx
+
+
+ Test Files  6 passed (6)
+      Tests  89 passed (89)
+   Start at  11:57:09
+   Duration  485ms (environment 66%, tests 18%, transform 9%, import 4%, setup 2%, worker 1%)
+

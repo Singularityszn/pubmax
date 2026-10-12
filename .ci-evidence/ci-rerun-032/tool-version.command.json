@@ -1,0 +1,12 @@
+{
+  "name": "tool-version",
+  "argv": [
+    "gh-axi",
+    "--version"
+  ],
+  "startedAt": "2026-10-11T01:19:17.075952+00:00",
+  "completedAt": "2026-10-11T01:19:17.101755+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "196fad5565a3093a857e884d66978883793c1b7a810547fa98759044c274e851",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

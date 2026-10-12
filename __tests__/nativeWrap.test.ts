@@ -105,6 +105,11 @@ describe("Capacitor wrapped-build contract", () => {
     expect(offline).toContain("https://pubmaxxing.com");
   });
 
+  it("withholds app-bound worker access while its offline dependencies are incomplete", () => {
+    expect(capacitorConfig.ios?.limitsNavigationsToAppBoundDomains).not.toBe(true);
+    expect(plistRoot("ios/App/App/Info.plist").WKAppBoundDomains ?? []).toEqual([]);
+  });
+
   it("carries the launch field behind the WebView, so no white frame stands between them", () => {
     // WKWebView draws UIColor.systemBackground — WHITE in light appearance —
     // until the page paints, and Capacitor holds it non-opaque for the whole
@@ -205,8 +210,8 @@ describe("Capacitor wrapped-build contract", () => {
     const storyboard = xmlDocument("ios/App/App/Base.lproj/Main.storyboard");
     const initialId = storyboard.documentElement.getAttribute("initialViewController");
     const initial = storyboard.querySelector(`[id="${initialId}"]`);
-    expect(initial?.getAttribute("customClass")).toBe("CAPBridgeViewController");
-    expect(initial?.getAttribute("customModule")).toBe("Capacitor");
+    expect(initial?.getAttribute("customClass")).toBe("ShellBridgeViewController");
+    expect(initial?.getAttribute("customModule")).toBe("App");
 
     // The SceneDelegate the manifest names is compiled into the App target.
     const objects = pbxprojRoot("ios/App/App.xcodeproj/project.pbxproj").objects as PbxDict;
@@ -221,6 +226,8 @@ describe("Capacitor wrapped-build contract", () => {
       (buildFile) => object(object(buildFile).fileRef).path,
     );
     expect(compiled).toContain("SceneDelegate.swift");
+    expect(compiled).toContain("ShellBridgeViewController.swift");
+    expect(compiled).toContain("OfflineNavigation.swift");
   });
 
   it("declares microphone access on both native platforms", () => {

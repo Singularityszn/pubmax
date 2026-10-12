@@ -18,6 +18,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import postcss from "postcss";
+import { Children, createElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 const localFontCalls = vi.hoisted(
@@ -28,10 +29,23 @@ const localFontCalls = vi.hoisted(
   }>,
 );
 
+const fontFamilies = vi.hoisted(() => ({
+  display: "'Space Grotesk', 'Space Grotesk Fallback'",
+  body: "'Inter', 'Inter Fallback', system-ui",
+}));
+
 vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({ headers: async () => ({ get: () => "font-test-nonce" }) }));
 vi.mock("next/font/google", () => {
-  const face = () => ({ className: "font-mock", variable: "--font-mock" });
-  return { Space_Grotesk: face, Inter: face };
+  const face = (fontFamily: string) => ({
+    className: "font-mock",
+    variable: "--font-mock",
+    style: { fontFamily },
+  });
+  return {
+    Space_Grotesk: () => face(fontFamilies.display),
+    Inter: () => face(fontFamilies.body),
+  };
 });
 vi.mock("next/font/local", () => ({
   default: vi.fn((options: (typeof localFontCalls)[number]) => {
@@ -40,7 +54,7 @@ vi.mock("next/font/local", () => ({
   }),
 }));
 
-import "@/app/layout";
+import RootLayout from "@/app/layout";
 
 const REPO_ROOT = join(__dirname, "..");
 const layout = readFileSync(join(REPO_ROOT, "app/layout.tsx"), "utf8");
@@ -131,5 +145,40 @@ describe("the mono face carries only weights something asks for", () => {
 
   it("keeps the metric-matched fallback, so no swap reflows", () => {
     expect(layout).toContain("adjustFontFallback: true");
+  });
+});
+
+
+describe("root font loading", () => {
+  it("paints only matched Google fallbacks initially and preserves the full no-script families", async () => {
+    const doc = await RootLayout({ children: createElement("main") });
+    expect(doc.props.style).toEqual({
+      "--font-display": "'Space Grotesk Fallback'",
+      "--font-body": "'Inter Fallback', system-ui",
+    });
+    const head = Children.toArray(doc.props.children).find(
+      (child) => typeof child === "object" && child !== null && "type" in child && child.type === "head",
+    ) as ReactElement<{ children: React.ReactNode }>;
+    const noscript = Children.toArray(head.props.children).find(
+      (child) => typeof child === "object" && child !== null && "type" in child && child.type === "noscript",
+    ) as ReactElement<{ children: ReactElement<{ nonce: string; children: string }> }>;
+    expect(noscript.props.children.props.nonce).toBe("font-test-nonce");
+    expect(noscript.props.children.props.children).toBe(
+      "html{--font-display:'Space Grotesk', 'Space Grotesk Fallback' !important;--font-body:'Inter', 'Inter Fallback', system-ui !important;}",
+    );
+  });
+
+  it("refuses a Google face that provides no matched fallback", async () => {
+    vi.resetModules();
+    const original = fontFamilies.display;
+    fontFamilies.display = "'Space Grotesk'";
+    try {
+      await expect(import("@/app/layout")).rejects.toThrow(
+        "The display and body fonts require their generated matched fallbacks.",
+      );
+    } finally {
+      fontFamilies.display = original;
+      vi.resetModules();
+    }
   });
 });

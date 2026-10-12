@@ -1,0 +1,25 @@
+{
+  "head": "68f887a2bc2d7f06026b131fa40ac4a649576b61",
+  "thread": "https://github.com/Singularityszn/pubmax/pull/2074#discussion_r4218626152",
+  "retry": "2026-10-08T10:00:00.000Z",
+  "earlier": "2026-10-08T09:00:00.000Z",
+  "reused": "2026-10-08T09:00:00.000Z",
+  "httpRequests": 2,
+  "expectedReused": "2026-10-08T10:00:00.000Z"
+}
+AssertionError [ERR_ASSERTION]: A later return must retain the fresh retry answer
++ actual - expected
+
++ '2026-10-08T09:00:00.000Z'
+- '2026-10-08T10:00:00.000Z'
+              ^
+
+    at main (/Users/karanmanoharan/.treehouse/pubmaxx-bde241/1/pubmaxx/artifacts/lane-e/retry-order-repro.ts:39:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '2026-10-08T09:00:00.000Z',
+  expected: '2026-10-08T10:00:00.000Z',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

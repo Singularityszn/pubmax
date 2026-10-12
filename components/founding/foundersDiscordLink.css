@@ -9,7 +9,9 @@
   padding: 0 var(--space-4);
   border: 1px solid var(--brass);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  @supports (color: color-mix(in srgb, black, white)) {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
   color: var(--brass);
   font-size: var(--text-sm);
   font-weight: 700;

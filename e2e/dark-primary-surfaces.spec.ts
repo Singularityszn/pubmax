@@ -205,6 +205,7 @@ async function prepareDarkRoutes(
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-07-30T18:00:00.000Z",
       }),
@@ -421,7 +422,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [] }),
+      body: JSON.stringify({ servedAt: new Date().toISOString(), rows: [] }),
     }),
   );
   await page.route("**/api/citymcp/status**", (route) =>
@@ -438,6 +439,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
             detail: "Use another route where possible.",
             kind: "transport",
             severity: "major",
+            areas: ["London"],
           },
         ],
       }),

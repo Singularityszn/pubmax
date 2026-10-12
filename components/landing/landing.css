@@ -687,6 +687,20 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 
+/* Reserve the consent lane before it mounts, so the primary stays clear
+   on short phones without moving when the reader reaches a second route. */
+@media (max-width: 640px) and (max-height: 640px) {
+  .lpHero { padding-top: calc(var(--tabbar-h, 64px) + var(--space-2)); }
+  .lpHero .screenHead { gap: var(--space-1); }
+  .lpHero .screenAnswer { margin-top: 0; }
+  .lpHero .lpLondonPhoto {
+    width: min(100%, calc(
+      (100svh - var(--tabbar-h, 64px) - env(safe-area-inset-bottom, 0px)
+        - var(--analytics-consent-mobile-clearance, 56px)) * .22 * 3 / 2
+    ));
+  }
+}
+
 /* ── The London photograph ──────────────────────────────────────────────── */
 
 .lpLondonFigure {

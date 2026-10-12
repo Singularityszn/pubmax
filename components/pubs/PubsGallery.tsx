@@ -77,6 +77,7 @@ function DrinkArt({
           // of pixels over it.
           sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"
           maxWidth={640}
+          preferAvif
         />
       ) : null}
       <div className="pubsCardArtWash" aria-hidden="true" />

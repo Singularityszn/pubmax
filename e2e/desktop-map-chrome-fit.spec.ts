@@ -605,6 +605,7 @@ test("1440px loaded route opens its first venue without a deferred planner hando
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: null,
         sourceObservedAt: null,

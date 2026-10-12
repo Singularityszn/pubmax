@@ -67,6 +67,7 @@ jobs:
           --reporter=list,json
           e2e/smoke.spec.ts
           e2e/admin-document-guard.spec.ts
+          e2e/admin-load-recovery.spec.ts
           e2e/account-switch-identity.spec.ts
           e2e/plan-capability-recovery.spec.ts
           e2e/plan-held-acceptance.spec.ts
@@ -265,3 +266,112 @@ jobs:
 
       - name: Gate the full browser shard
         run: node scripts/assert-playwright-gate.mjs playwright-default-${{ matrix.shard }}.json
+
+  authenticated-recovery:
+    name: Real authenticated Plan recovery
+    # These two identity/capability tests make no font or geometry assertions.
+    # Linux supplies Docker for an isolated local Supabase project.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PUBMAX_E2E_LOGIN: "1"
+      VERCEL_ENV: development
+      PW_SKIP_KEYLESS_WEBSERVER: "1"
+      PW_AUTH_NEXT_DIST_DIR: .next-authenticated-recovery
+      PUBMAX_TRACKED_OUTPUTS: public/data
+      NODE_OPTIONS: "--max-old-space-size=4096"
+      DEPLOYMENT_VERSION: local
+      NEXT_PUBLIC_SW_VERSION: local
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.120.0
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
+
+      - name: Start isolated local authentication project
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          auth_project="$RUNNER_TEMP/pubmax-auth-recovery"
+          mkdir -p "$auth_project"
+          supabase init --workdir "$auth_project"
+          mkdir -p "$auth_project/supabase/migrations"
+          cp supabase/migrations/*.sql "$auth_project/supabase/migrations/"
+          touch "$auth_project/supabase/seed.sql"
+          supabase start --workdir "$auth_project" --exclude studio,postgres-meta,edge-runtime,logflare,vector > "$RUNNER_TEMP/supabase-auth-start.log" 2>&1
+          python3 - <<'PYENV'
+          import json, os, subprocess
+          from urllib.parse import urlparse
+          project = os.path.join(os.environ["RUNNER_TEMP"], "pubmax-auth-recovery")
+          status = json.loads(subprocess.check_output(["supabase", "status", "--workdir", project, "-o", "json"], text=True))
+          url = status["API_URL"]
+          parsed = urlparse(url)
+          assert parsed.scheme == "http" and parsed.hostname == "127.0.0.1" and not parsed.username and not parsed.password
+          private = status["SECRET_KEY"]
+          public = status["PUBLISHABLE_KEY"]
+          assert private and public
+          print("::add-mask::" + private)
+          print("::add-mask::" + public)
+          values = {"SUPABASE_URL": url, "SUPABASE_SERVICE_ROLE_KEY": private, "NEXT_PUBLIC_SUPABASE_URL": url, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": public, "NEXT_PUBLIC_SITE_URL": "http://localhost:" + str(int(os.environ["PW_PORT"]) + 2)}
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+              for key, value in values.items():
+                  assert "\n" not in value and "\r" not in value
+                  env.write(key + "=" + value + "\n")
+          PYENV
+
+      - name: Seed real review identity
+        run: npm run e2e:seed
+
+      - name: Run original real authenticated journeys
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-authenticated-recovery.json
+        run: >-
+          npx playwright test
+          --config=playwright.authenticated.config.ts
+          --project=chromium-authenticated
+          --workers=1
+          --retries=0
+          --reporter=list,json
+
+      - name: Gate real authenticated journeys
+        run: >-
+          node scripts/assert-playwright-gate.mjs playwright-authenticated-recovery.json
+          --require-zero-skipped
+
+      - name: Remove seeded identity
+        if: always()
+        run: |
+          if [ -f .e2e/qa-credentials.json ]; then npm run e2e:teardown; fi
+
+      - name: Stop isolated authentication project
+        if: always()
+        run: |
+          auth_project="$RUNNER_TEMP/pubmax-auth-recovery"
+          if [ -f "$auth_project/supabase/config.toml" ]; then
+            supabase stop --workdir "$auth_project" --no-backup
+          fi
+          rm -f .e2e/qa-credentials.json "$RUNNER_TEMP/supabase-auth-start.log"

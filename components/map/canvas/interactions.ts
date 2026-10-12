@@ -7,6 +7,8 @@ import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
 import { ukBasePubFromFeature, type UkBasePub } from "@/lib/ukBasePubs";
 import { opportunityForFeature } from "./filters";
+import { pubHitOf } from "./pubHitPriority";
+import { recordPubHitClick } from "./pubHitTrace";
 import type { HoveredVenue } from "./types";
 
 type ActivePoi = { name: string; category: PoiCategory };
@@ -55,17 +57,6 @@ export const PUB_FIRST_LAYERS = [
   "pois-transport-minor",
 ] as const;
 
-// A pill and the glass under it are the same pub, and the ordinary layers beat
-// the selected one (see the comment where this is called).
-const PUB_HIT_LAYERS = ["pubs-price-pill", "pubs-point", "pubs-point-selected"] as const;
-function pubHitOf<T>(byLayer: ReadonlyMap<string, T>): T | undefined {
-  for (const layer of PUB_HIT_LAYERS) {
-    const hit = byLayer.get(layer);
-    if (hit) return hit;
-  }
-  return undefined;
-}
-
 type ClickDeps = {
   selectLandmark: (landmark: Landmark | null) => void;
   setHoveredVenue: Dispatch<SetStateAction<HoveredVenue | null>>;
@@ -110,6 +101,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
     // overlaps another visible pin, use the ordinary layer's hit first so a
     // tap resolves to the pin under its point rather than the prior selection.
     const pubHit = pubHitOf(byLayer);
+    recordPubHitClick(event.point, features, pubHit);
     if (pubHit) {
       const id = pubHit.properties?.id;
       if (typeof id !== "string") return;

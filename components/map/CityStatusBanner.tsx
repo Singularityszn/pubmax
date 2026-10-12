@@ -1,18 +1,6 @@
 "use client";
 
-// London-only city status strip on the map.
-//
-// Fetches `/api/citymcp/status` client-side after mount and renders a compact
-// one-liner headline. Order of preference:
-//   1) top signal by severity (major > notable > info) — most actionable.
-//   2) a summary of disrupted tube lines.
-//   3) a weather one-liner ("Clear · 27°C · feels 28°C").
-//
-// If none of the above are available, or the API returned an error/empty
-// response, the banner renders nothing — the map load is never blocked and
-// nothing is claimed that we haven't received from the upstream. Follows the
-// React 19 no-setState-in-effect pattern by deferring setState with
-// Promise.resolve().then when reacting to fetch results.
+// Display contract: docs/CITYMCP_LONDON.md, Runtime API surfaces.
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
@@ -21,6 +9,9 @@ import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityS
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { firstHttp } from "@/lib/httpUrl";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { locationNamesBorough } from "@/lib/starterPacks";
+import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 
 
 type Weather = {
@@ -54,7 +45,28 @@ type StatusResponse = {
 type CityStatusBannerProps = {
   /** Explicit for parity with sibling banners; parent gates by cityId already. */
   cityId?: string;
+  /** The name earned by the settled map view. Null means no local context. */
+  viewedArea?: string | null;
+  /** False denies city-wide context while preserving matched local signals. */
+  allowCitywideStatus?: boolean;
 };
+
+function signalsInViewedArea(signals: Signal[] | undefined, viewedArea: string | null, allowCitywideStatus: boolean): Signal[] {
+  const viewedNames = viewedArea ? viewedArea.split(/\s*(?:&|,)\s*/).map(normaliseUkPlaceQuery) : [];
+  const viewedBoroughs = LONDON_BOROUGH_NAMES.filter((borough) => viewedNames.some((name) =>
+    locationNamesBorough(name, borough) && locationNamesBorough(borough, name),
+  ));
+  return (signals ?? []).filter((signal) => {
+    const areas = (signal.areas ?? []).map(normaliseUkPlaceQuery).filter(Boolean);
+    // An unlocated signal cannot establish a local fact about this view.
+    if (areas.length === 0) return false;
+    if (areas.every((area) => area === "london" || area === "greater london")) return allowCitywideStatus;
+    return areas.filter((area) => area !== "london" && area !== "greater london").some((area) =>
+      viewedNames.includes(area) || viewedBoroughs.some((borough) =>
+        locationNamesBorough(area, borough) && locationNamesBorough(borough, area)),
+    );
+  });
+}
 
 const DISMISS_KEY = "pubmax:cityStatusDismiss:v1";
 
@@ -182,11 +194,7 @@ export function isSevereCityStatus(
   return false;
 }
 
-// --- A4: the full "Tonight in London" signals feed --------------------------
-// The API hands us every signal (gigs, strikes, alerts) but the pill shows
-// one. These pure helpers bucket them for the expandable sheet; exported for
-// tests. Alerts first (safety-relevant), then transport, events, other —
-// upstream order preserved within each bucket.
+// Alerts precede transport and events to keep safety-relevant context first.
 
 export type SignalKindGroup = "alert" | "transport" | "event" | "other";
 
@@ -235,14 +243,17 @@ function formatAsOfLabel(asOf: string | null | undefined): string {
   return `Updated ${time} · CityMCP`;
 }
 
-export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
+export default function CityStatusBanner({ cityId, viewedArea = null, allowCitywideStatus = true }: CityStatusBannerProps) {
   // Only render on London — the API/tools are London-only.
   const isLondon = cityId === "london" || cityId === undefined;
   const [data, setData] = useState<StatusResponse | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(false);
-  // A4 — whether the full signals sheet is open. Collapses on Escape and on
-  // each fresh fetch (setData below always starts collapsed).
   const [expanded, setExpanded] = useState(false);
+  const [expandedArea, setExpandedArea] = useState(viewedArea);
+  if (expandedArea !== viewedArea) {
+    setExpandedArea(viewedArea);
+    setExpanded(false);
+  }
   const aborted = useRef(false);
   // An opening banner, not the first screen: it asks after the map has asked.
   const ready = useStaggeredRead(1, "map");
@@ -306,10 +317,12 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     return null;
   }
 
-  const headline = pickCityStatusHeadline(data);
+  const signals = signalsInViewedArea(data.signals, viewedArea, allowCitywideStatus);
+  const headline = pickCityStatusHeadline({ ...data, signals });
   if (!headline) return null;
+  if (!allowCitywideStatus && headline.kind !== "signal") return null;
 
-  const affectedLines = (data.tubeLines ?? []).filter(
+  const affectedLines = (allowCitywideStatus ? data.tubeLines ?? [] : []).filter(
     (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
   );
 
@@ -322,10 +335,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     setDismissed(true);
   };
 
-  const signalCount = data.signals?.length ?? 0;
+  const signalCount = signals.length;
   const hasSignals = signalCount > 0;
   const hasDetails = hasSignals || affectedLines.length > 0;
-  const groups = groupSignalsByKind(data.signals);
+  const groups = groupSignalsByKind(signals);
 
   const content = (
     <>
@@ -350,9 +363,8 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
         aria-live="polite"
       >
         {hasDetails ? (
-          /* A4: a signal headline now opens the FULL feed rather than jumping to
-             one source; identical class/children so the pill looks unchanged at
-             rest. Per-signal source links live inside the sheet. */
+          /* Keep the same class and children so the button preserves the
+             pill's appearance. Source links belong in the expanded feed. */
           <button
             type="button"
             className="cityStatusBannerLink"

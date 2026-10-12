@@ -8,6 +8,7 @@ import { choice } from "@typesafe-ai/sdk";
 
 import stationZones from "@/data/tfl_station_zones.json";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import localityGazetteer from "@/public/data/london_localities.json";
 
 import {
@@ -137,9 +138,11 @@ export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
   let bestLength = 0;
   let tied = false;
   for (const venue of venues) {
-    const full = wordsOnly(venue.name).split(" ");
-    if (full.every((word) => GENERIC_PUB_WORDS.has(word))) continue;
-    const names = full[0] === "the" ? [full, full.slice(1)] : [full];
+    const names = venueSearchNames(venue).flatMap((label) => {
+      const full = wordsOnly(label).split(" ");
+      if (full.every((word) => GENERIC_PUB_WORDS.has(word))) return [];
+      return full[0] === "the" ? [full, full.slice(1)] : [full];
+    });
     for (const name of names) {
       if (name.length < 2) continue;
       if (!namedOutsidePlace(name)) continue;
@@ -163,11 +166,11 @@ export function matchVenueByNameKeyless<T extends VenueNameMatchInput>(
 ): T | null {
   const needle = name.trim().toLowerCase();
   if (!needle) return null;
-  const exact = venues.find((v) => v.name.toLowerCase() === needle);
+  const exact = venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase() === needle));
   if (exact) return exact;
-  const starts = venues.find((v) => v.name.toLowerCase().startsWith(needle));
+  const starts = venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase().startsWith(needle)));
   if (starts) return starts;
-  return venues.find((v) => v.name.toLowerCase().includes(needle)) ?? null;
+  return venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase().includes(needle))) ?? null;
 }
 
 function queryTokens(query: string): string[] {
@@ -175,8 +178,12 @@ function queryTokens(query: string): string[] {
 }
 
 function venueTokens(venue: VenueNameMatchInput): string[] {
+  const primary = significantNameTokens(normalizeVenueIdentityName(venue.name));
+  const additional = new Set(venueSearchNames(venue).slice(1).flatMap((label) =>
+    significantNameTokens(normalizeVenueIdentityName(label))));
   return [
-    ...significantNameTokens(normalizeVenueIdentityName(venue.name)),
+    ...primary,
+    ...[...additional].filter((token) => !primary.includes(token)),
     ...significantNameTokens(normalizeVenueIdentityName(venue.area)),
   ];
 }
@@ -200,11 +207,11 @@ export function collectVenueNameCandidates<T extends VenueNameMatchInput>(
   for (const venue of venues) {
     const shared = venueTokens(venue).filter((token) => qSet.has(token)).length;
     if (shared === 0) continue;
-    const lower = venue.name.toLowerCase();
+    const labels = venueSearchNames(venue).map((label) => label.toLowerCase());
     let rank = shared * 10;
-    if (lower === needle) rank += 400;
-    else if (lower.startsWith(needle)) rank += 300;
-    else if (lower.includes(needle)) rank += 200;
+    if (labels.includes(needle)) rank += 400;
+    else if (labels.some((label) => label.startsWith(needle))) rank += 300;
+    else if (labels.some((label) => label.includes(needle))) rank += 200;
     scored.push({ venue, rank });
   }
   scored.sort((a, b) => b.rank - a.rank);
@@ -217,7 +224,7 @@ export function uniqueExactVenueNameMatch<T extends VenueNameMatchInput>(
 ): T | null {
   const needle = name.trim().toLowerCase();
   if (!needle) return null;
-  const hits = venues.filter((v) => v.name.toLowerCase() === needle);
+  const hits = venues.filter((v) => venueSearchNames(v).some((label) => label.toLowerCase() === needle));
   return hits.length === 1 ? (hits[0] ?? null) : null;
 }
 

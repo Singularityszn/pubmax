@@ -131,17 +131,15 @@ async function sampleRoute(
   routePath: string,
   temperature: VitalsTemperature,
 ): Promise<Sample> {
+  await clearSampleResidue(page, routePath);
   if (temperature === "cold") {
     await coolBrowser(page);
   } else {
     // Warm means the browser has already had this route once. The priming load
     // is not measured; it is what fills the cache the measured load reads.
-    await clearSampleResidue(page, routePath);
     await loadAndSettle(page, routePath);
+    await clearSampleResidue(page, routePath);
   }
-  // The previous sample's own interaction is not part of this one's cache
-  // temperature, and on /pal it changed which screen was measured.
-  await clearSampleResidue(page, routePath);
   await loadAndSettle(page, routePath);
   const interacted = await exercisePrimaryAction(page, routePath);
   return { ...(await readVitals(page)), interacted };
@@ -401,14 +399,84 @@ test.describe("Core Web Vitals baseline", () => {
 
 test.describe("Native CWV driver regression", () => {
   test.skip(!RECORD && !SWEEP, "Spent with the native CWV rig.");
+  for (const layersOpen of [false, true]) {
+    test(`keeps repeated desktop cold arrivals clean after ${layersOpen ? "open" : "closed"} Layers`, async ({ page }) => {
+      test.setTimeout(180_000);
+      await installVitalsProbe(page);
+      await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+      await applyVitalsDevice(page, "desktop");
+      await page.addInitScript(() => {
+        (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession =
+          localStorage.getItem("pubmaxx.mobile-map-session.v1");
+      });
+      await page.goto("/plan", { waitUntil: "load" });
+      await loadAndSettle(page, "/map");
+      await expect.poll(() => page.evaluate(() => {
+        const probe = (window as Window & {
+          __pubmaxMapCamera?: { read: () => { moving: boolean; settling: boolean } };
+        }).__pubmaxMapCamera;
+        return probe?.read();
+      }), { timeout: PRODUCT_TIMING_CEILING_MS }).toMatchObject({ moving: false, settling: false });
+      if (layersOpen) {
+        await page.getByRole("button", { name: /^Map layers:/ }).click();
+        await expect(page.locator(".mapFitLondonBtn")).toBeVisible();
+      }
+      expect(await exercisePrimaryAction(page, "/map")).toBe(true);
+      await page.route("**/map", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        await route.continue();
+      });
+      for (let run = 0; run < 2; run += 1) {
+        expect((await sampleRoute(page, "/map", "cold")).interacted).toBe(true);
+        expect(await page.evaluate(() =>
+          (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession,
+        )).toBeNull();
+      }
+      expect((await sampleRoute(page, "/map", "warm")).interacted).toBe(true);
+      expect(await page.evaluate(() =>
+        (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession,
+      )).not.toBeNull();
+    });
+  }
+  test("keeps the next cold navigation free of the measured Layers session", async ({ page }) => {
+    test.setTimeout(180_000);
+    await installVitalsProbe(page);
+    await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+    await applyVitalsDevice(page, "mobile");
+    await page.addInitScript(() => {
+      (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession =
+        localStorage.getItem("pubmaxx.mobile-map-session.v1");
+    });
+    await page.goto("/plan", { waitUntil: "load" });
+    expect((await sampleRoute(page, "/map", "cold")).interacted).toBe(true);
+    await expect(page.getByRole("button", { name: "More map controls", exact: true }))
+      .toHaveAttribute("aria-expanded", "true");
+    await expect.poll(() => page.evaluate(() => {
+      const session = JSON.parse(localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null");
+      return session?.openSheet;
+    })).toBe("layers");
+    expect((await sampleRoute(page, "/map", "cold")).interacted).toBe(true);
+    expect(await page.evaluate(() =>
+      (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession,
+    )).toBeNull();
+    await expect(page.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
+  });
   test("clears Pal interaction residue after the leaving page saves its draft", async ({ page }) => {
     await installVitalsProbe(page);
     await applyVitalsDevice(page, "mobile");
     await page.goto("/pal", { waitUntil: "load" });
+    await page.route("**/_next/static/chunks/*.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await route.continue();
+    });
     const meet = page.getByRole("button", { name: "Meet your Pub Pal", exact: true });
+    let meetClicked = false;
     await expect(async () => {
-      await meet.click();
-      await expect(meet).toHaveCount(0, { timeout: 1_000 });
+      if (!meetClicked && await meet.isVisible()) {
+        await meet.click();
+        meetClicked = true;
+      }
+      await expect(page.locator("main.palOnboarding")).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(
       (key) => key.startsWith("pubmaxx.pub-pal-onboarding.v1:"),

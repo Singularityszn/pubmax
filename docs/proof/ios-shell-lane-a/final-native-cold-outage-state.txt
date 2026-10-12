@@ -1,0 +1,28 @@
+(lldb) process attach --pid 27309
+Process 27309 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
+       frame #0: 0x0000000102ce4b5c libsystem_kernel.dylib`mach_msg2_trap + 8
+libsystem_kernel.dylib`mach_msg2_trap:
+->  0x102ce4b5c <+8>: ret    
+
+libsystem_kernel.dylib`macx_swapon:
+    0x102ce4b60 <+0>: mov    x16, #-0x30               ; =-48 
+    0x102ce4b64 <+4>: svc    #0x80
+    0x102ce4b68 <+8>: ret    
+Target 0: (App) stopped.
+Executable binary set to "/Users/karanmanoharan/Library/Developer/CoreSimulator/Devices/80131979-EDC5-4B44-B5A3-903D83429E9E/data/Containers/Bundle/Application/2297A033-4DD0-4B2A-839E-DAAEACCD2698/App.app/App".
+Architecture set to: arm64-apple-ios-simulator.
+(lldb) command source -s 0 '.ios-lane-a/final-outage-state.lldb'
+Executing commands in '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-outage-state.lldb'.
+(lldb) expr -l objc++ -- @import UIKit
+(lldb) expr -l objc++ -- @import WebKit
+(lldb) expr -l objc++ -- UIWindowScene *$laneScene = (UIWindowScene *)[[UIApplication sharedApplication].connectedScenes anyObject]
+(lldb) expr -l objc++ -- WKWebView *$laneWeb = (WKWebView *)$laneScene.windows.firstObject.rootViewController.view
+(lldb) expr -l objc++ -O -- $laneWeb.URL
+capacitor://localhost/offline.html
+
+(lldb) expr -l objc++ -- $laneWeb.configuration.limitsNavigationsToAppBoundDomains
+(BOOL) $0 = NO
+(lldb) expr -l objc++ -- (void)[$laneWeb evaluateJavaScript:@"JSON.stringify({url:location.href,title:document.title,text:document.body.innerText,serviceWorkerApi:typeof navigator.serviceWorker,externalStyles:[...document.styleSheets].filter(x=>x.href).length})" completionHandler:^(id result,NSError *error){NSLog(@"[lane-final-outage] %@ error=%@",result,error);}]
+(lldb) detach
+Process 27309 detached

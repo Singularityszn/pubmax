@@ -3,6 +3,7 @@
 // Ambiguous matches resolve to nothing: a wrong pub is worse than a branded 404.
 
 import { kebabSlug } from "@/lib/textSlug";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
 const POSTCODE_OUTWARD_RE =
   /\b([a-z]{1,2}\d{1,2}[a-z]?)\s*\d[a-z]{2}\b/i;
@@ -65,16 +66,16 @@ export type PermalinkVenueCandidate = {
 
 /** Exact permalink keys one venue may answer. */
 export function venuePermalinkKeys(venue: PermalinkVenueCandidate): string[] {
-  const nameSlug = slugifyVenueName(venue.name);
-  if (!nameSlug) return [];
-  const keys = new Set<string>([nameSlug]);
+  const nameSlugs = venueSearchNames(venue).map(slugifyVenueName).filter(Boolean);
+  const keys = new Set<string>(nameSlugs);
   const outward = postcodeOutwardFromText(venue.searchText ?? "");
   if (!outward) return [...keys];
-  for (const district of postcodeDistrictPrefixes(outward)) {
-    keys.add(`${nameSlug}-${district}`);
-    // Bare name stem (the-ship from the-ship-soho) + district for short links.
+  for (const nameSlug of nameSlugs) {
     const stem = nameSlug.replace(/-(soho|ec\d+|se\d+|n\d+|e\d+|w\d+|nw\d+|sw\d+)$/i, "");
-    if (stem && stem !== nameSlug) keys.add(`${stem}-${district}`);
+    for (const district of postcodeDistrictPrefixes(outward)) {
+      keys.add(`${nameSlug}-${district}`);
+      if (stem && stem !== nameSlug) keys.add(`${stem}-${district}`);
+    }
   }
   return [...keys];
 }
@@ -99,10 +100,6 @@ export function matchVenuePermalinkSlug(
     ? `${parsed.nameSlug}-${parsed.district}`
     : parsed.nameSlug;
 
-  // `venuePermalinkKeys` always seeds its set with `slugifyVenueName(venue.name)`
-  // (the bare name-only key), so a name-only `needle` (no district) can only
-  // ever match through that first key - there is no separate name-only case
-  // for `keys.includes(needle)` to miss.
   const hits: string[] = [];
   for (const venue of venues) {
     const keys = venuePermalinkKeys(venue);

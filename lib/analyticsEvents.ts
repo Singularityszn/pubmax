@@ -11,8 +11,9 @@
 // honest and PII-free even as new events are added.
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
-import { NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
-import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
+import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaVocabulary";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { slugifyVenueName as boroughCode } from "@/lib/venuePermalinkSlug";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
 import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";

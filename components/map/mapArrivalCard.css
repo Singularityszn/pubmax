@@ -83,49 +83,81 @@
 }
 
 @media (max-width: 640px) {
-  /* The location sentence is the visible half of a pair with the iOS
-     purpose string (docs/proof/mobile-app-design/STORE_READINESS.md), so it
-     stays on screen as the pill's second line, under the question and both
-     controls. */
+  /* ONE ROW OF TWO ANSWERS, then the location sentence. The phone ask is the
+     two ways in side by side, "Use my location" as the one filled button and
+     "Choose an area" beside it as the quiet one, so a reader who would rather
+     not share a fix has an equal, visible way on without opening a menu first.
+     The question the strip used to print ("Cheapest pints near you?") is the
+     strip's heading for a screen reader and no longer a second line of copy:
+     the two buttons already say what is being asked.
+     The location sentence is the visible half of a pair with the iOS purpose
+     string (docs/proof/mobile-app-design/STORE_READINESS.md), so it stays on
+     screen as the second line. */
+  .mapArrivalCard {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 6px 3px 8px 8px;
+  }
+
+  /* An open sheet owns the foot of the map. The ask is withheld behind it
+     rather than painted through its scrim, and is back when the sheet closes. */
+  body:has(.mobileSheetPortal) .mapArrivalCard {
+    visibility: hidden;
+  }
+
   .mapArrivalCardSay {
     display: contents;
   }
 
-  .mapArrivalCardTitle,
   .mapArrivalCardActions,
   .mapArrivalCardClose {
     grid-row: 1;
   }
 
+  .mapArrivalCardActions {
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mapArrivalCardActions button {
+    width: 100%;
+    justify-content: center;
+    padding-inline: var(--space-3, 12px);
+  }
+
+  .mapArrivalCardActions button svg {
+    display: none;
+  }
+
+  /* A heading a screen reader lands on and a sighted reader does not need. */
   .mapArrivalCardTitle {
-    text-wrap: balance;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .mapArrivalCardLead {
     grid-column: 1 / -1;
     grid-row: 2;
+    padding-left: 6px;
     font-size: 0.72rem;
     line-height: 1.25;
   }
-
-  .mapArrivalCardChooseArea,
-  .mapArrivalCardActions button svg {
-    display: none;
-  }
-
-  .mapArrivalCardActions button {
-    padding-inline: var(--space-3, 12px);
-  }
 }
 
-/* The narrowest phones keep the question to two lines beside the action. */
+/* The narrowest phones keep both answers on one row by tightening the label
+   padding, never by dropping one. */
 @media (max-width: 359px) {
-  .mapArrivalCardTitle {
-    font-size: 0.78rem;
+  .mapArrivalCardActions {
+    gap: 6px;
   }
 
   .mapArrivalCardActions button {
-    padding-inline: 10px;
+    padding-inline: 8px;
   }
 }
 

@@ -33,3 +33,39 @@ export function supabaseCspOrigins(
   const wss = https.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
   return { https, wss };
 }
+
+/** Exact local auth origins for the explicitly enabled production QA server. */
+export function localQaSupabaseConnectOrigins(
+  env: Record<string, string | undefined>,
+  documentUrl: string,
+): readonly string[] {
+  if (
+    env.NODE_ENV !== "production" ||
+    env.VERCEL_ENV !== "development" ||
+    env.PUBMAX_E2E_LOGIN !== "1" ||
+    env.VERCEL === "1"
+  ) return [];
+
+  // Accept literal loopback hosts only. Do not admit DNS aliases or URL credentials.
+  if (!/^http:\/\/(?:localhost|127\.0\.0\.1):[1-9]\d{3,4}(?:\/|$)/.test(documentUrl)) {
+    return [];
+  }
+  const publicUrl = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serverUrl = env.SUPABASE_URL?.trim();
+  // 54321 is the stock local API port. 58441 is the owned recovery stack.
+  const localApi = /^http:\/\/(?:localhost|127\.0\.0\.1):(?:54321|58441)\/?$/;
+  if (!publicUrl || !serverUrl || !localApi.test(publicUrl) || !localApi.test(serverUrl)) {
+    return [];
+  }
+
+  try {
+    const document = new URL(documentUrl);
+    const documentPort = Number(document.port);
+    if (documentPort < 1024 || documentPort > 65535) return [];
+    const publicOrigin = new URL(publicUrl).origin;
+    if (publicOrigin !== new URL(serverUrl).origin) return [];
+    return [publicOrigin, publicOrigin.replace(/^http:/, "ws:")];
+  } catch {
+    return [];
+  }
+}

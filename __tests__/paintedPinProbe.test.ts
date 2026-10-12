@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { wireClickRouting } from "@/components/map/canvas/interactions";
 import type * as maplibregl from "maplibre-gl";
 
 import {
@@ -23,6 +24,9 @@ type FakeMapOptions = {
   painted: FakeMark[];
   /** Ids a point query re-confirms. Defaults to every painted id. */
   confirmed?: string[];
+  /** Ordered point-query hits, including overlapping marks when supplied. */
+  pointHits?: FakeMark[];
+  captureClick?: (handler: (event: { point: { x: number; y: number } }) => void) => void;
   /** Ids whose viewport point is covered by other chrome. */
   covered?: string[];
   layers?: string[];
@@ -34,6 +38,8 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
   const {
     painted,
     confirmed = painted.map((mark) => mark.id),
+    pointHits,
+    captureClick,
     covered = [],
     layers = ["pubs-point", "clusters"],
     rect = { left: 0, top: 0, width: 390, height: 844 },
@@ -71,6 +77,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
   };
 
   const feature = (mark: FakeMark) => ({
+    layer: { id: mark.layer },
     properties: mark.layer === "clusters"
       ? { cluster_id: Number(mark.id) }
       : { id: mark.id },
@@ -78,6 +85,9 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
   });
 
   return {
+    on: (event: string, handler: (event: { point: { x: number; y: number } }) => void) => {
+      if (event === "click") captureClick?.(handler);
+    },
     getLayer: (id: string) => (layers.includes(id) ? { id } : undefined),
     getContainer: () => container,
     getCanvas: () => canvas,
@@ -100,6 +110,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
       );
       const inLayer = painted.filter((mark) => wanted.has(mark.layer));
       if (typeof point?.x === "number" && typeof point?.y === "number") {
+        if (pointHits) return pointHits.filter((mark) => wanted.has(mark.layer)).map(feature);
         const mark = inLayer.find(
           (item) => item.x === point.x && item.y === point.y,
         );
@@ -136,6 +147,44 @@ const CLUSTER: FakeMark = {
 };
 
 describe("paintedMapTapPoints", () => {
+  it.each([
+    ["same-layer first hit", "pubs-point", "pubs-point", false],
+    ["ordinary pub over selected pub", "pubs-point-selected", "pubs-point", true],
+    ["price pill over ordinary pub", "pubs-point", "pubs-price-pill", true],
+  ] as const)("omits a nonwinning point: %s", (_name, losingLayer, winningLayer, loserFirst) => {
+    const loser = { ...PIN_A, layer: losingLayer };
+    const winner = { ...PIN_B, layer: winningLayer };
+    const background = { ...PIN_A, layer: "landmarks-icon", id: "background" };
+    let click: ((event: { point: { x: number; y: number } }) => void) | undefined;
+    const map = makeMap({
+      painted: [loser, winner],
+      layers: [losingLayer, winningLayer, "clusters", "landmarks-icon"],
+      pointHits: [CLUSTER, background, ...(loserFirst ? [loser, winner] : [winner, loser])],
+      captureClick: (handler) => { click = handler; },
+    });
+    const points = paintedMapTapPoints(map);
+    expect(points).toEqual([
+      { kind: "pin", id: winner.id, x: winner.x, y: winner.y, lng: winner.lng, lat: winner.lat },
+    ]);
+    // Exercise the actual event router with the same ordered hit stack.
+    // Cluster and landmark hits come first in that stack but must not win.
+    const onVenueClick = vi.fn();
+    wireClickRouting(map, {
+      selectLandmark: vi.fn(),
+      setHoveredVenue: vi.fn(),
+      setActivePoi: vi.fn(),
+      onVenueClickRef: { current: onVenueClick },
+      onUkBasePubClickRef: { current: vi.fn() },
+      onRouteStopClickRef: { current: vi.fn() },
+      onTonightOpportunityClickRef: { current: vi.fn() },
+      cityLandmarksRef: { current: [] },
+      tonightOpportunitiesRef: { current: [] },
+      cinematic: vi.fn(),
+    });
+    for (const point of points) click?.({ point: { x: point.x, y: point.y } });
+    expect(onVenueClick.mock.calls.map(([id]) => id)).toEqual(points.map((point) => point.id));
+  });
+
   it("answers with the viewport point of each painted mark", () => {
     const points = paintedMapTapPoints(
       makeMap({ painted: [PIN_A, PIN_B, CLUSTER] }),

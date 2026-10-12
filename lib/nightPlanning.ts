@@ -4,6 +4,7 @@ import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 import { cleanText } from "@/lib/textClean";
+import { PLAN_QUERY_NUMBER_WORDS } from "@/lib/planDescribeStopCount";
 import {
   DEFAULT_PLAN_STOP_COUNT,
   inferPlanStopCount,
@@ -62,7 +63,6 @@ function defaultDaypart(now: Date): Daypart {
   return "get_home";
 }
 
-const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
 
 /** Names the chain in free text (Wetherspoon / Wetherspoons / Spoons). */
 const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
@@ -112,13 +112,13 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const numeric =
     lower.match(/\b(\d{1,2})\s*(?:of us|people|mates|friends)\b/) ??
     lower.match(/\b(?:for|party of|group of)\s+(\d{1,2})\b/);
-  const word = Object.entries(NUMBER_WORDS).find(([label]) =>
+  const word = Object.entries(PLAN_QUERY_NUMBER_WORDS).find(([label]) =>
     new RegExp(`\\b(?:${label}\\s+(?:of us|people|mates|friends)|(?:for|party of|group of)\\s+${label})\\b`).test(lower),
   );
   const groupSize = numeric ? Number(numeric[1]) : word?.[1] ?? null;
   if (groupSize) reasons.push({ field: "groupSize", evidence: numeric?.[1] ?? (word?.[0].replace(/^./, (c) => c.toUpperCase()) ?? ""), explanation: "Matched the stated group size." });
 
-  const stopCount = inferPlanStopCount(lower, NUMBER_WORDS);
+  const stopCount = inferPlanStopCount(lower, PLAN_QUERY_NUMBER_WORDS);
   if (stopCount !== DEFAULT_PLAN_STOP_COUNT) {
     reasons.push({ field: "stopCount", evidence: `${stopCount} stops`, explanation: "Matched the requested number of stops." });
   }

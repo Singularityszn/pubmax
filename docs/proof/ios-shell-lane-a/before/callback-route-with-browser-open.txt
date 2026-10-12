@@ -1,0 +1,8 @@
+LANE_CALLBACK_RETURN {
+    native = ios;
+    url = "http://localhost:3491/tonight?lane-callback=1";
+    worker = "http://localhost:3491/sw.js?v=local-ios-lane-a&cache-policy=plan-preview-safe-v2";
+}
+    t =    10.22s Find the Application 'com.pubmaxx.app'
+    t =    10.30s Added attachment named 'callback-return-app-active'
+    t =    10.30s Tear Down

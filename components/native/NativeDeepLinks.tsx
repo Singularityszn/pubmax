@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { activateNativeBackGesture } from "@/lib/nativeBackGesture";
 import { activateNativeDeepLinks } from "@/lib/nativeDeepLinks";
+import { nativePlatform } from "@/lib/nativePlatform";
 import {
   activateNativePushNavigation,
   refreshNativePushRegistration,
@@ -11,7 +12,7 @@ import {
 import { hasEnabledNativePush } from "@/lib/nativePushPrompt";
 
 /**
- * Renderless native app-link, notification-tap, Back and push-refresh
+ * Renderless native app-link, notification-tap, Android Back and push-refresh
  * lifecycle. Every activator has the same shape (async, resolves a cleanup,
  * no-op off-native) so adding one is adding it to this list.
  */
@@ -20,11 +21,12 @@ export default function NativeDeepLinks(): null {
     let disposed = false;
     const deactivators: Array<() => void> = [];
 
-    for (const activate of [
+    const activators: Array<() => Promise<() => void>> = [
       activateNativeDeepLinks,
       activateNativePushNavigation,
-      activateNativeBackGesture,
-    ]) {
+    ];
+    if (nativePlatform() !== "ios") activators.push(activateNativeBackGesture);
+    for (const activate of activators) {
       void activate().then((cleanup) => {
         if (disposed) cleanup();
         else deactivators.push(cleanup);

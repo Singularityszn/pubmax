@@ -36,8 +36,10 @@
 @media (hover: hover) and (pointer: fine) {
   .siteNavMoment:hover {
     color: var(--tint-ink-accent);
-    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+    @supports (color: color-mix(in srgb, black, white)) {
+      border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+      background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+    }
   }
 }
 

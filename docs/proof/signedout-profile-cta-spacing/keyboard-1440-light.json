@@ -1,0 +1,17 @@
+[
+  {
+    "focus": "INPUT",
+    "visible": true,
+    "outline": "rgb(255, 90, 95) solid 2px",
+    "outlineOffset": "2px"
+  },
+  {
+    "focus": "Email me a link",
+    "visible": true,
+    "outline": "rgb(255, 90, 95) solid 2px",
+    "outlineOffset": "2px"
+  },
+  {
+    "reverseTab": "email field"
+  }
+]

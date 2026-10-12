@@ -24,10 +24,8 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
-import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
-import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { markArrival, takeChosenIntent } from "@/lib/arrivalWelcome";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
@@ -133,6 +131,33 @@ import {
 
 export type { AuthContextValue, SignOutScope } from "@/components/auth/authContext";
 export { useAuth } from "@/components/auth/authContext";
+
+// Only a settled signed-in session can need account setup. The provider's
+// session and canonical identity reads remain eager and independent of this UI.
+function DeferredAccountOnboarding(): React.JSX.Element | null {
+  const [Onboarding, setOnboarding] = useState<(() => React.JSX.Element | null) | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void import("@/components/identity/AccountOnboarding").then(
+      (module) => { if (active) setOnboarding(() => module.default); },
+      () => { if (active) setFailed(true); },
+    );
+    return () => { active = false; };
+  }, [attempt]);
+  if (Onboarding) return <Onboarding />;
+  if (!failed) return null;
+  return (
+    <div className="authCallbackNotice" role="status">
+      <span>Account setup couldn&apos;t load.</span>
+      <button type="button" onClick={() => {
+        setFailed(false);
+        setAttempt((current) => current + 1);
+      }}>Try again</button>
+    </div>
+  );
+}
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
@@ -1256,7 +1281,7 @@ export function AuthProvider({
       <ArrivalWelcome />
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
-      <AccountOnboarding />
+      {!loading && session?.user ? <DeferredAccountOnboarding /> : null}
       <IdentityNudge />
     </AuthContext.Provider>
   );

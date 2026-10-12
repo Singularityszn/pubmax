@@ -1,0 +1,230 @@
+id: 38097088260
+name: RLS session tests
+node_id: WFR_kwLOTNDTtM8AAAAI3sNvBA
+head_branch: fm/pubmax-london-enrich-100
+head_sha: e1f6a99f2e7d8854b3021c67428b171ff66f2aaf
+path: .github/workflows/rls-session.yml
+display_title: "fix(data): enrich London pub hours, dog policies and prices"
+run_number: 3891
+event: pull_request
+status: completed
+conclusion: success
+workflow_id: 327419301
+check_suite_id: 103221228483
+check_suite_node_id: CS_kwDOTNDTtM8AAAAYCHbzww
+url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260"
+html_url: "https://github.com/Singularityszn/pubmax/actions/runs/38097088260"
+pull_requests[1]:
+  - url: "https://api.github.com/repos/Singularityszn/pubmax/pulls/2084"
+    id: 4815343073
+    number: 2084
+    head:
+      ref: fm/pubmax-london-enrich-100
+      sha: e1f6a99f2e7d8854b3021c67428b171ff66f2aaf
+      repo:
+        id: 1288754100
+        url: "https://api.github.com/repos/Singularityszn/pubmax"
+        name: pubmax
+    base:
+      ref: main
+      sha: e73be8f6f5d85e465704aaf883c5614e11efc3a2
+      repo:
+        id: 1288754100
+        url: "https://api.github.com/repos/Singularityszn/pubmax"
+        name: pubmax
+created_at: "2026-10-11T00:02:51Z"
+updated_at: "2026-10-11T01:22:34Z"
+actor:
+  login: karanmrn
+  id: 31683167
+  node_id: MDQ6VXNlcjMxNjgzMTY3
+  avatar_url: "https://avatars.githubusercontent.com/u/31683167?v=4"
+  gravatar_id: ""
+  url: "https://api.github.com/users/karanmrn"
+  html_url: "https://github.com/karanmrn"
+  followers_url: "https://api.github.com/users/karanmrn/followers"
+  following_url: "https://api.github.com/users/karanmrn/following{/other_user}"
+  gists_url: "https://api.github.com/users/karanmrn/gists{/gist_id}"
+  starred_url: "https://api.github.com/users/karanmrn/starred{/owner}{/repo}"
+  subscriptions_url: "https://api.github.com/users/karanmrn/subscriptions"
+  organizations_url: "https://api.github.com/users/karanmrn/orgs"
+  repos_url: "https://api.github.com/users/karanmrn/repos"
+  events_url: "https://api.github.com/users/karanmrn/events{/privacy}"
+  received_events_url: "https://api.github.com/users/karanmrn/received_events"
+  type: User
+  user_view_type: public
+  site_admin: false
+run_attempt: 2
+referenced_workflows: []
+run_started_at: "2026-10-11T01:19:22Z"
+triggering_actor:
+  login: karanmrn
+  id: 31683167
+  node_id: MDQ6VXNlcjMxNjgzMTY3
+  avatar_url: "https://avatars.githubusercontent.com/u/31683167?v=4"
+  gravatar_id: ""
+  url: "https://api.github.com/users/karanmrn"
+  html_url: "https://github.com/karanmrn"
+  followers_url: "https://api.github.com/users/karanmrn/followers"
+  following_url: "https://api.github.com/users/karanmrn/following{/other_user}"
+  gists_url: "https://api.github.com/users/karanmrn/gists{/gist_id}"
+  starred_url: "https://api.github.com/users/karanmrn/starred{/owner}{/repo}"
+  subscriptions_url: "https://api.github.com/users/karanmrn/subscriptions"
+  organizations_url: "https://api.github.com/users/karanmrn/orgs"
+  repos_url: "https://api.github.com/users/karanmrn/repos"
+  events_url: "https://api.github.com/users/karanmrn/events{/privacy}"
+  received_events_url: "https://api.github.com/users/karanmrn/received_events"
+  type: User
+  user_view_type: public
+  site_admin: false
+jobs_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260/jobs"
+logs_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260/logs"
+check_suite_url: "https://api.github.com/repos/Singularityszn/pubmax/check-suites/103221228483"
+artifacts_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260/artifacts"
+cancel_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260/cancel"
+rerun_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260/rerun"
+previous_attempt_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/runs/38097088260/attempts/1"
+workflow_url: "https://api.github.com/repos/Singularityszn/pubmax/actions/workflows/327419301"
+head_commit:
+  id: e1f6a99f2e7d8854b3021c67428b171ff66f2aaf
+  tree_id: 97ae1278415dc3646dddefd2f7f776b2edfc9566
+  message: "no-mistakes(document): Correct rebased enrichment documentation and verify scoped lint"
+  timestamp: "2026-10-11T00:01:45Z"
+  author:
+    name: Karan Manoharan
+    email: 31683167+karanmrn@users.noreply.github.com
+  committer:
+    name: Karan Manoharan
+    email: 31683167+karanmrn@users.noreply.github.com
+repository:
+  id: 1288754100
+  node_id: R_kgDOTNDTtA
+  name: pubmax
+  full_name: Singularityszn/pubmax
+  private: false
+  owner:
+    login: Singularityszn
+    id: 313185644
+    node_id: O_kgDOEqrVbA
+    avatar_url: "https://avatars.githubusercontent.com/u/313185644?v=4"
+    gravatar_id: ""
+    url: "https://api.github.com/users/Singularityszn"
+    html_url: "https://github.com/Singularityszn"
+    followers_url: "https://api.github.com/users/Singularityszn/followers"
+    following_url: "https://api.github.com/users/Singularityszn/following{/other_user}"
+    gists_url: "https://api.github.com/users/Singularityszn/gists{/gist_id}"
+    starred_url: "https://api.github.com/users/Singularityszn/starred{/owner}{/repo}"
+    subscriptions_url: "https://api.github.com/users/Singularityszn/subscriptions"
+    organizations_url: "https://api.github.com/users/Singularityszn/orgs"
+    repos_url: "https://api.github.com/users/Singularityszn/repos"
+    events_url: "https://api.github.com/users/Singularityszn/events{/privacy}"
+    received_events_url: "https://api.github.com/users/Singularityszn/received_events"
+    type: Organization
+    user_view_type: public
+    site_admin: false
+  html_url: "https://github.com/Singularityszn/pubmax"
+  description: null
+  fork: false
+  url: "https://api.github.com/repos/Singularityszn/pubmax"
+  forks_url: "https://api.github.com/repos/Singularityszn/pubmax/forks"
+  keys_url: "https://api.github.com/repos/Singularityszn/pubmax/keys{/key_id}"
+  collaborators_url: "https://api.github.com/repos/Singularityszn/pubmax/collaborators{/collaborator}"
+  teams_url: "https://api.github.com/repos/Singularityszn/pubmax/teams"
+  hooks_url: "https://api.github.com/repos/Singularityszn/pubmax/hooks"
+  issue_events_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/events{/number}"
+  events_url: "https://api.github.com/repos/Singularityszn/pubmax/events"
+  assignees_url: "https://api.github.com/repos/Singularityszn/pubmax/assignees{/user}"
+  branches_url: "https://api.github.com/repos/Singularityszn/pubmax/branches{/branch}"
+  tags_url: "https://api.github.com/repos/Singularityszn/pubmax/tags"
+  blobs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/blobs{/sha}"
+  git_tags_url: "https://api.github.com/repos/Singularityszn/pubmax/git/tags{/sha}"
+  git_refs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/refs{/sha}"
+  trees_url: "https://api.github.com/repos/Singularityszn/pubmax/git/trees{/sha}"
+  statuses_url: "https://api.github.com/repos/Singularityszn/pubmax/statuses/{sha}"
+  languages_url: "https://api.github.com/repos/Singularityszn/pubmax/languages"
+  stargazers_url: "https://api.github.com/repos/Singularityszn/pubmax/stargazers"
+  contributors_url: "https://api.github.com/repos/Singularityszn/pubmax/contributors"
+  subscribers_url: "https://api.github.com/repos/Singularityszn/pubmax/subscribers"
+  subscription_url: "https://api.github.com/repos/Singularityszn/pubmax/subscription"
+  commits_url: "https://api.github.com/repos/Singularityszn/pubmax/commits{/sha}"
+  git_commits_url: "https://api.github.com/repos/Singularityszn/pubmax/git/commits{/sha}"
+  comments_url: "https://api.github.com/repos/Singularityszn/pubmax/comments{/number}"
+  issue_comment_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/comments{/number}"
+  contents_url: "https://api.github.com/repos/Singularityszn/pubmax/contents/{+path}"
+  compare_url: "https://api.github.com/repos/Singularityszn/pubmax/compare/{base}...{head}"
+  merges_url: "https://api.github.com/repos/Singularityszn/pubmax/merges"
+  archive_url: "https://api.github.com/repos/Singularityszn/pubmax/{archive_format}{/ref}"
+  downloads_url: "https://api.github.com/repos/Singularityszn/pubmax/downloads"
+  issues_url: "https://api.github.com/repos/Singularityszn/pubmax/issues{/number}"
+  pulls_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls{/number}"
+  milestones_url: "https://api.github.com/repos/Singularityszn/pubmax/milestones{/number}"
+  notifications_url: "https://api.github.com/repos/Singularityszn/pubmax/notifications{?since,all,participating}"
+  labels_url: "https://api.github.com/repos/Singularityszn/pubmax/labels{/name}"
+  releases_url: "https://api.github.com/repos/Singularityszn/pubmax/releases{/id}"
+  deployments_url: "https://api.github.com/repos/Singularityszn/pubmax/deployments"
+head_repository:
+  id: 1288754100
+  node_id: R_kgDOTNDTtA
+  name: pubmax
+  full_name: Singularityszn/pubmax
+  private: false
+  owner:
+    login: Singularityszn
+    id: 313185644
+    node_id: O_kgDOEqrVbA
+    avatar_url: "https://avatars.githubusercontent.com/u/313185644?v=4"
+    gravatar_id: ""
+    url: "https://api.github.com/users/Singularityszn"
+    html_url: "https://github.com/Singularityszn"
+    followers_url: "https://api.github.com/users/Singularityszn/followers"
+    following_url: "https://api.github.com/users/Singularityszn/following{/other_user}"
+    gists_url: "https://api.github.com/users/Singularityszn/gists{/gist_id}"
+    starred_url: "https://api.github.com/users/Singularityszn/starred{/owner}{/repo}"
+    subscriptions_url: "https://api.github.com/users/Singularityszn/subscriptions"
+    organizations_url: "https://api.github.com/users/Singularityszn/orgs"
+    repos_url: "https://api.github.com/users/Singularityszn/repos"
+    events_url: "https://api.github.com/users/Singularityszn/events{/privacy}"
+    received_events_url: "https://api.github.com/users/Singularityszn/received_events"
+    type: Organization
+    user_view_type: public
+    site_admin: false
+  html_url: "https://github.com/Singularityszn/pubmax"
+  description: null
+  fork: false
+  url: "https://api.github.com/repos/Singularityszn/pubmax"
+  forks_url: "https://api.github.com/repos/Singularityszn/pubmax/forks"
+  keys_url: "https://api.github.com/repos/Singularityszn/pubmax/keys{/key_id}"
+  collaborators_url: "https://api.github.com/repos/Singularityszn/pubmax/collaborators{/collaborator}"
+  teams_url: "https://api.github.com/repos/Singularityszn/pubmax/teams"
+  hooks_url: "https://api.github.com/repos/Singularityszn/pubmax/hooks"
+  issue_events_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/events{/number}"
+  events_url: "https://api.github.com/repos/Singularityszn/pubmax/events"
+  assignees_url: "https://api.github.com/repos/Singularityszn/pubmax/assignees{/user}"
+  branches_url: "https://api.github.com/repos/Singularityszn/pubmax/branches{/branch}"
+  tags_url: "https://api.github.com/repos/Singularityszn/pubmax/tags"
+  blobs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/blobs{/sha}"
+  git_tags_url: "https://api.github.com/repos/Singularityszn/pubmax/git/tags{/sha}"
+  git_refs_url: "https://api.github.com/repos/Singularityszn/pubmax/git/refs{/sha}"
+  trees_url: "https://api.github.com/repos/Singularityszn/pubmax/git/trees{/sha}"
+  statuses_url: "https://api.github.com/repos/Singularityszn/pubmax/statuses/{sha}"
+  languages_url: "https://api.github.com/repos/Singularityszn/pubmax/languages"
+  stargazers_url: "https://api.github.com/repos/Singularityszn/pubmax/stargazers"
+  contributors_url: "https://api.github.com/repos/Singularityszn/pubmax/contributors"
+  subscribers_url: "https://api.github.com/repos/Singularityszn/pubmax/subscribers"
+  subscription_url: "https://api.github.com/repos/Singularityszn/pubmax/subscription"
+  commits_url: "https://api.github.com/repos/Singularityszn/pubmax/commits{/sha}"
+  git_commits_url: "https://api.github.com/repos/Singularityszn/pubmax/git/commits{/sha}"
+  comments_url: "https://api.github.com/repos/Singularityszn/pubmax/comments{/number}"
+  issue_comment_url: "https://api.github.com/repos/Singularityszn/pubmax/issues/comments{/number}"
+  contents_url: "https://api.github.com/repos/Singularityszn/pubmax/contents/{+path}"
+  compare_url: "https://api.github.com/repos/Singularityszn/pubmax/compare/{base}...{head}"
+  merges_url: "https://api.github.com/repos/Singularityszn/pubmax/merges"
+  archive_url: "https://api.github.com/repos/Singularityszn/pubmax/{archive_format}{/ref}"
+  downloads_url: "https://api.github.com/repos/Singularityszn/pubmax/downloads"
+  issues_url: "https://api.github.com/repos/Singularityszn/pubmax/issues{/number}"
+  pulls_url: "https://api.github.com/repos/Singularityszn/pubmax/pulls{/number}"
+  milestones_url: "https://api.github.com/repos/Singularityszn/pubmax/milestones{/number}"
+  notifications_url: "https://api.github.com/repos/Singularityszn/pubmax/notifications{?since,all,participating}"
+  labels_url: "https://api.github.com/repos/Singularityszn/pubmax/labels{/name}"
+  releases_url: "https://api.github.com/repos/Singularityszn/pubmax/releases{/id}"
+  deployments_url: "https://api.github.com/repos/Singularityszn/pubmax/deployments"

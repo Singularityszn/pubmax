@@ -281,7 +281,7 @@ test("Tonight reserves loading space without holding settled content", async ({
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [], asOf: "2026-08-14T18:00:00.000Z" }),
+      body: JSON.stringify({ servedAt: new Date().toISOString(), rows: [], asOf: "2026-08-14T18:00:00.000Z" }),
     });
   });
   await page.route("**/api/out?**", async (route) => {

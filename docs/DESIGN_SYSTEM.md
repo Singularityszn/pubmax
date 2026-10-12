@@ -507,9 +507,9 @@ defined in `:root` in `app/globals.css` (`--z-float` 50 → `--z-overlay-top`
 560 in between; see the token block for the full list with per-token comments).
 Each token's value equals the literal it replaced, so adopting one is never a
 stacking-order change. If two overlays must NOT tie, they get separate tokens
-(e.g. `--z-map-route-chip` 540 sits under `--z-map-chip` 541; `--z-map-suggest`
-512 under `--z-map-banner` 515). Component-internal stacking (0–20, local
-stacking contexts) stays as literals.
+(e.g. `--z-map-route-chip` sits under `--z-map-chip`). Map status news uses
+`--z-map-hover`, below route stop panels and modal scrims. Component-internal
+stacking (0–20, local stacking contexts) stays as literals.
 
 **Rule:** CSS animation belongs behind the reduced-motion media contract in
 `app/globals.css`; JavaScript animation must read the same preference and jump

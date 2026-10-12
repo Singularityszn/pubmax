@@ -60,12 +60,12 @@ describe("QA high findings — mobile sheet and consent layering", () => {
   });
 
   it("publishes a dismiss event constant from the mobile shell seam", () => {
-    const mobileShell = readFileSync(
-      join(process.cwd(), "lib/mobileShell.ts"),
+    const mobileSheetDismiss = readFileSync(
+      join(process.cwd(), "lib/mobileSheetDismiss.ts"),
       "utf8",
     );
-    expect(mobileShell).toContain(MOBILE_SHEET_DISMISS_EVENT);
-    expect(mobileShell).toContain("requestMobileSheetDismiss");
+    expect(mobileSheetDismiss).toContain(MOBILE_SHEET_DISMISS_EVENT);
+    expect(mobileSheetDismiss).toContain("requestMobileSheetDismiss");
   });
 });
 

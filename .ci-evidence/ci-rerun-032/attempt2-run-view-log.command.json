@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "gh-axi",
+    "run",
+    "view",
+    "38097088260",
+    "--job",
+    "114358011012",
+    "--log",
+    "--repo",
+    "Singularityszn/pubmax"
+  ],
+  "time": "2026-10-11T01:23:30.467527+00:00",
+  "exitCode": 0,
+  "stdoutSHA256": "ce8e9c378011289f5dfcea7eba85fc4eebdbcdebebf44645da1eb33d05bdd19b"
+}

@@ -1,0 +1,36 @@
+import { test, expect } from '@playwright/test';
+test('capture venue sheet entry geometry', async ({ page }) => {
+ await page.setViewportSize({ width: 390, height: 844 });
+ await page.addInitScript(() => {
+  (window as any).sheetFrames = [];
+  let started = false;
+  new MutationObserver(() => {
+   const close = document.querySelector<HTMLButtonElement>('[aria-label="Close pub detail"]');
+   const nav = document.querySelector('.mobileTabBar');
+   const drawer = document.querySelector('.mapDrawer.right.open');
+   if (started || !close || !nav || !drawer) return;
+   started = true;
+   const sample = () => {
+    const c = close.getBoundingClientRect(); const n = nav.getBoundingClientRect(); const s = getComputedStyle(drawer);
+    (window as any).sheetFrames.push({ time: performance.now(), close: c.toJSON(), nav: n.toJSON(), transform: s.transform, transition: s.transition });
+    if ((window as any).sheetFrames.length < 30) requestAnimationFrame(sample);
+   };
+   sample();
+  }).observe(document, { childList: true, subtree: true, attributes: true });
+  localStorage.setItem('pubmax-tour-v1-done', '1'); localStorage.setItem('pubmax_onboarding_dismissed','1'); sessionStorage.setItem('pubmax_onboarding_dismissed','1'); });
+ let hash = 2166136261;
+ const key = 'arnos arms|338 bowes road, arnos grove, london, n11 1an|51.61620|-0.13212';
+ for (let i = 0; i < key.length; i++) { hash ^= key.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+ await page.goto(`/map?sel=venue-${(hash >>> 0).toString(36)}`);
+ const sheet = page.locator('.mapDrawer.right');
+ await expect(sheet).toHaveClass(/open/);
+ await expect(sheet.locator('.mobileSharedSheetGrab')).toBeVisible();
+ const close = page.getByRole('button', { name: 'Close pub detail' });
+ await expect(close).toBeVisible();
+ await expect(page.getByRole('tablist', { name: 'Venue detail sections' })).toBeVisible();
+ await page.waitForFunction(() => (window as any).sheetFrames.length === 30);
+ const states = await page.evaluate(() => (window as any).sheetFrames);
+ console.log(JSON.stringify({ states }));
+ const last = (states as any[]).at(-1);
+ expect(last.close.bottom).toBeLessThan(last.nav.top);
+});

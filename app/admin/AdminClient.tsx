@@ -611,6 +611,7 @@ export default function AdminClient() {
   const [socialPostsReason, setSocialPostsReason] =
     useState<AdminQueueUnavailableReason | null>(null);
   const socialPostsRequestGeneration = useRef(0);
+  const fullLoadInFlight = useRef(false);
   const socialPostsHeadingRef = useRef<HTMLHeadingElement>(null);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
@@ -851,6 +852,9 @@ export default function AdminClient() {
   }, [venueNames.size]);
 
   const load = useCallback(async (forceSession = false) => {
+    // The ref closes the gap before React paints the disabled controls.
+    if (fullLoadInFlight.current) return;
+    fullLoadInFlight.current = true;
     const requestGeneration = ++socialPostsRequestGeneration.current;
     const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;
     setLoading(true);
@@ -983,7 +987,10 @@ export default function AdminClient() {
       setDrops([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
-      if (isLatestLoad()) setLoading(false);
+      // Social session recovery can replace its request during this load.
+      // Only this serialized full load owns the full-load busy state.
+      fullLoadInFlight.current = false;
+      setLoading(false);
     }
   }, [
     ensureAdminSession,

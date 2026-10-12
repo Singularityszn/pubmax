@@ -5,6 +5,8 @@
 // two differ. It compares only what a re-run writes, so a drift it names is
 // one a re-run fixes. Nothing here calls the network or prints a secret.
 
+import { resolveExistingTools } from "./existing-tools.mjs";
+
 const SECRET_HEADER = "x-elevenlabs-llm-secret";
 const MAX_VALUE_LENGTH = 80;
 const MAX_MISSING_PROMPT_LINES = 6;
@@ -98,9 +100,10 @@ export function agentDrift({ liveAgent, liveTools, wantedAgent, wantedTools, sec
   drifts.push(...subsetDrift(wanted, liveAgent));
 
   const liveToolIds = new Set(livePrompt.tool_ids ?? []);
+  const resolvedTools = resolveExistingTools(liveTools, [...liveToolIds], wantedTools);
   const wantedNames = new Set(Object.keys(wantedTools));
   for (const [name, wantedTool] of Object.entries(wantedTools)) {
-    const liveTool = liveTools.find((row) => row?.tool_config?.name === name);
+    const liveTool = resolvedTools[name];
     drifts.push(...toolDrift(name, wantedTool, liveTool, secret.id));
     if (liveTool && !liveToolIds.has(liveTool.id)) {
       drifts.push({ path: `tools.${name}`, wanted: "attached to the agent", live: "not attached" });

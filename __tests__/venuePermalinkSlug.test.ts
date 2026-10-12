@@ -27,6 +27,29 @@ describe("venue permalink slug helpers", () => {
     });
   });
 
+  it("resolves preserved Blackfriar spellings only when they identify one venue", () => {
+    const venue = {
+      id: "venue-eltcmh",
+      name: "The Blackfriar",
+      searchText: "174 Queen Victoria Street, London EC4V 4EG",
+    };
+    for (const name of ["the-blackfriar", "the-black-friar", "the-black-friar-blackfriars"]) {
+      for (const suffix of ["", "-ec4v", "-ec4"]) {
+        const slug = `${name}${suffix}`;
+        expect(matchVenuePermalinkSlug(slug, [venue])).toBe(venue.id);
+        expect(matchVenuePermalinkSlug(slug, [venue, {
+          ...venue, id: "another-pub", name: name.replaceAll("-", " "),
+        }])).toBeNull();
+      }
+    }
+    expect(matchVenuePermalinkSlug("the-black-friar-blackfriars", [{
+      ...venue, id: "another-pub",
+    }])).toBeNull();
+    expect(venuePermalinkKeys({ ...venue, searchText: "" })).toEqual([
+      "the-blackfriar", "the-black-friar", "the-black-friar-blackfriars",
+    ]);
+  });
+
   it("resolves the-ship-w1 to the unique W1 Ship", () => {
     const venues = [
       {

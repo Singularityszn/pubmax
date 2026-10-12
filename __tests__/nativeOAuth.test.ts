@@ -111,7 +111,7 @@ describe("the callback closes the system browser", () => {
     expect(browser.close).not.toHaveBeenCalled();
 
     open!({ url: "https://pubmaxxing.com/auth/callback?code=abc" });
-    expect(navigate).toHaveBeenLastCalledWith("/auth/callback?code=abc");
+    await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith("/auth/callback?code=abc"));
     await vi.waitFor(() => expect(browser.close).toHaveBeenCalledOnce());
     cleanup();
   });

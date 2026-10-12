@@ -47,7 +47,6 @@ import {
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import { displayHandle } from "@/lib/handleDisplay";
 
-import "@/app/auth/auth.css";
 import "./loginPage.css";
 
 /**

@@ -225,6 +225,7 @@ async function renderAfterGrace(): Promise<void> {
   await commitReactWork(() => {
     vi.advanceTimersByTime(8_000);
   });
+  await commitReactWork(async () => { await vi.dynamicImportSettled(); });
 }
 
 beforeEach(() => {
@@ -325,6 +326,7 @@ describe("IdentityNudge visibility", () => {
     await commitReactWork(async () => {
       focusTrapState.setStrictModalOpen(false);
     });
+    await commitReactWork(async () => { await vi.dynamicImportSettled(); });
     expect(container.childNodes.length).toBeGreaterThan(0);
 
     await commitReactWork(async () => {

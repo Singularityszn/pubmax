@@ -1,0 +1,9 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/1/pubmaxx
+
+
+ Test Files  5 passed (5)
+      Tests  127 passed (127)
+   Start at  13:19:25
+   Duration  5.96s (tests 93%, transform 5%, import 1%, setup 1%)
+
