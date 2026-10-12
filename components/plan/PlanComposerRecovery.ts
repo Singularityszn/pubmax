@@ -6,8 +6,7 @@ import { parseRememberedArea } from "@/lib/nightPatches";
 import { createPlanIntakeDraft, defaultLondonStartInput, parsePlanIntakeDraftWithMetadata } from "@/lib/planIntake";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { PLAN_INTAKE_STORAGE_KEY, PLANNING_INTENT_STORAGE_KEY } from "@/lib/planStorageKeys";
-import { parsePlanDescribeFromSearch } from "@/lib/planOccasion";
-import { capturePlanEntryArrival, planArrivalHasStoredContext, type PlanEntryArrival } from "@/components/plan/PlanEntryArrival";
+import { capturePlanEntryArrival, type PlanEntryArrival } from "@/components/plan/PlanEntryArrival";
 
 function removeRejectedArrival(storage: Storage | null, key: string, raw: string | null) {
   if (raw === null) return;
@@ -35,7 +34,6 @@ export function readPlanComposerRecovery(arrival = capturePlanEntryArrival()) {
     routeRaw: arrival.routeDraftV1,
     intake: intakeDraft?.draft ?? createPlanIntakeDraft(),
     hasDurableIntakeDraft: Boolean(intakeDraft),
-    requiresFullComposer: planArrivalHasStoredContext(arrival) || Boolean(parsePlanDescribeFromSearch(arrival.search)),
   };
 }
 
