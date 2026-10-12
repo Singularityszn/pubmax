@@ -66,7 +66,8 @@ node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs
 It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`,
 `auth`, `storage` and `supabase_migrations` schemas, and syncs the bucket into
 `bucket/pint-drops/`. A dump becomes visible only after `pg_restore --list` finds
-table data in it.
+table data and the bucket sync completes. A failed sync removes the partial dump
+and preserves the last complete dump while it remains within retention.
 
 ### Schedule it
 
@@ -93,16 +94,18 @@ eight weeks. Installation alone proves neither a successful backup nor durabilit
 ### Retention
 
 The copy holds personal data: account emails, password hashes, profiles, Pint
-Drops and their photos. It is not encrypted. Each run prunes dumps older than
-7 weeks, except the newest dump and the bucket files it names. Those copies
-always stay, even when they are older than 8 weeks.
+Drops and their photos. It is not encrypted. Normal pruning starts at 7 weeks.
+The newest complete dump and its photos remain as a fallback until 8 weeks.
+Every run removes data that reaches that maximum, including the newest copy.
 
-- Each run deletes every dump older than 7 weeks, however many runs there were, except the newest. The week of slack covers a weekly run that fires late because the Mac was asleep.
-- Each run also deletes a `.partial` file older than the newest dump. That is a run that was killed during `pg_dump`, and it holds the same personal data.
-- The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when no kept dump is old enough to name it. A folder left empty is removed too, because the folder names are account and conversation ids.
-- Each run prunes first, before credential renewal and the dump. A failed renewal or dump still leaves the newest-copy exception in place. A bucket file is fetched again when its recorded version (ETag) changes, even at the same size.
-- Pruning happens only when the backup runs. If the backup stops running, nothing is pruned until it runs again.
-- Delayed runs and the newest-copy exception can exceed the eight-week limit stated on the [privacy page](../app/privacy/page.tsx).
+- Each run deletes dumps older than 7 weeks, except the newest complete dump. That fallback expires when its age reaches 8 weeks. The one-week margin covers ordinary weekly scheduling jitter.
+- A dump's name supplies its UTC age. The eight-week comparison includes the exact deadline. A newer filesystem timestamp cannot extend that age.
+- A `.partial` dump expires at 8 weeks or when a newer complete dump makes it redundant. A failed renewal, dump or bucket sync removes the current partial dump.
+- Each photo's last-seen timestamp supplies its age. Photos and `.incoming` files expire at 8 weeks, even without a complete dump. Unexpired files without a dump remain until that deadline.
+- The bucket copy also removes files last seen before the oldest kept dump. Empty account and conversation folders are removed. The version index retains identifiers only for files that remain. An empty index is removed.
+- Pruning runs before credential renewal and again on exit, including after a failed renewal, dump or bucket sync. An unexpired newest complete fallback remains after a failure.
+- A bucket file is fetched again when its recorded version changes, even at the same size. The new dump is published after the bucket sync completes.
+- Pruning requires the backup process to run. A killed process, or a sleeping, powered-off or unavailable Mac, can postpone deletion beyond eight weeks. The next run applies the age limit before it requests credentials. Installation does not prove continuous deletion or backup durability.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a
 personal cloud drive. `gpg --symmetric --cipher-algo AES256 <dump>` or an

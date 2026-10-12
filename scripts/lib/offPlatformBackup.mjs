@@ -6,15 +6,16 @@
 // public, so a dump may never be a workflow artifact or a committed file. The
 // copy lives on the captain's Mac, outside every git checkout, written 0600.
 
-import { readdirSync, rmdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, readdirSync, rmdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
-// Each run deletes what is older than this, except the newest dump and the
-// bucket files it names, so a restore is always possible. The one-week margin
-// assumes fresh weekly backups. See docs/DR_RUNBOOK.md#retention for exceptions.
+// Normal pruning leaves a week of slack for the weekly schedule. The newest
+// fallback remains only until the maximum, including after failed backups.
 export const PRUNE_AFTER_WEEKS = 7;
+export const MAX_RETENTION_WEEKS = 8;
 const PRUNE_AFTER_MS = PRUNE_AFTER_WEEKS * 7 * 24 * 60 * 60 * 1000;
+const MAX_RETENTION_MS = MAX_RETENTION_WEEKS * 7 * 24 * 60 * 60 * 1000;
 // Public data, the account table and what the auth schema needs to restore
 // sign-in, storage object rows, and the migration ledger.
 export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations"];
@@ -130,14 +131,17 @@ function dumpTakenAt(file) {
 /**
  * Delete what is past retention, by age, however many runs there were.
  *
- * Dumps: every dump older than `PRUNE_AFTER_WEEKS` goes, except the newest. A
- * partial dump older than the newest dump is a run that was killed, and it goes
- * too. Other files in `dir` are never touched.
+ * Dumps: every dump older than `PRUNE_AFTER_WEEKS` goes, except the newest,
+ * which expires at `MAX_RETENTION_WEEKS`. Partial dumps expire at that maximum
+ * too, or when a newer complete dump makes them redundant. Other files in
+ * `dir` are never touched.
  *
  * Bucket files: each run stamps a file's mtime with the run's start while its
  * object is still in the bucket, so the mtime is the last run that saw it. A
  * file last seen before the oldest kept dump belongs to no dump that remains,
- * and it goes with them. With no dump at all, no bucket file is touched.
+ * and it goes with them. Every photo or incoming file also expires at the
+ * maximum, even when no complete dump remains. Unexpired orphan files stay.
+ * Version metadata keeps only identifiers of files that remain.
  *
  * Directories: an emptied directory under `bucketRoot` goes too, because the
  * bucket's folder names are account, profile and conversation ids.
@@ -147,27 +151,51 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     .filter((file) => dumpTakenAt(file) !== null)
     .sort();
   const newest = dumps.at(-1);
-  const expired = dumps.filter((file) => file !== newest && dumpTakenAt(file) < now - PRUNE_AFTER_MS);
+  const maximumCutoff = now - MAX_RETENTION_MS;
+  const expired = dumps.filter((file) =>
+    dumpTakenAt(file) <= maximumCutoff || (file !== newest && dumpTakenAt(file) < now - PRUNE_AFTER_MS),
+  );
   const newestTakenAt = newest === undefined ? null : dumpTakenAt(newest);
-  const killed =
-    newestTakenAt === null
-      ? []
-      : readdirSync(dir).filter((file) => {
-          const match = PARTIAL_DUMP_NAME.exec(file);
-          return match !== null && dumpTakenAt(match[1]) < newestTakenAt;
-        });
+  const killed = readdirSync(dir).filter((file) => {
+    const match = PARTIAL_DUMP_NAME.exec(file);
+    if (match === null) return false;
+    const takenAt = dumpTakenAt(match[1]);
+    return takenAt <= maximumCutoff || (newestTakenAt !== null && takenAt < newestTakenAt);
+  });
   for (const file of [...expired, ...killed]) rmSync(path.join(dir, file), { force: true });
 
   const kept = dumps.filter((file) => !expired.includes(file)).map(dumpTakenAt);
-  if (kept.length === 0) return { dumps: expired.length + killed.length, files: 0, directories: 0 };
-  const oldestKept = Math.min(...kept);
+  const oldestKept = kept.length === 0 ? null : Math.min(...kept);
 
   const entries = readdirSync(bucketRoot, { recursive: true }).map((relative) => {
     const entry = path.join(bucketRoot, relative);
     return { entry, stat: statSync(entry) };
   });
-  const files = entries.filter(({ stat }) => stat.isFile() && stat.mtimeMs < oldestKept);
+  const files = entries.filter(({ stat }) => stat.isFile() &&
+    (stat.mtimeMs <= maximumCutoff || (oldestKept !== null && stat.mtimeMs < oldestKept)),
+  );
   for (const { entry } of files) rmSync(entry, { force: true });
+
+  const versionsFile = path.join(path.dirname(bucketRoot), `${path.basename(bucketRoot)}.versions.json`);
+  if (existsSync(versionsFile)) {
+    let recorded = {};
+    try {
+      const parsed = JSON.parse(readFileSync(versionsFile, "utf8"));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) recorded = parsed;
+    } catch {
+      // An unreadable index cannot justify retaining personal identifiers.
+    }
+    const removed = new Set(files.map(({ entry }) => entry));
+    const retainedPaths = new Set(entries
+      .filter(({ entry, stat }) => stat.isFile() && !removed.has(entry))
+      .map(({ entry }) => path.relative(bucketRoot, entry).split(path.sep).join("/")));
+    const versions = Object.fromEntries(Object.entries(recorded).filter(([key]) => retainedPaths.has(key)));
+    if (Object.keys(versions).length === 0) rmSync(versionsFile, { force: true });
+    else {
+      chmodSync(versionsFile, 0o600);
+      writeFileSync(versionsFile, JSON.stringify(versions));
+    }
+  }
 
   let directories = 0;
   const deepestFirst = entries

@@ -1,12 +1,13 @@
 import { execFile, execFileSync } from "node:child_process";
 import { createServer, type Server } from "node:http";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from "vitest";
 import { startPostgres, type PostgresSession } from "./helpers/postgres";
 import { findPostgresBinary } from "@/scripts/rls/postgresHost.mjs";
+import { dumpFileName } from "@/scripts/lib/offPlatformBackup.mjs";
 
 const runFile = promisify(execFile);
 const ROOT = path.resolve(__dirname, "..");
@@ -20,6 +21,10 @@ let directory: string;
 let calls: { url: string; body: string; authorization?: string }[];
 let loginStatus = 201;
 let loginBody: unknown;
+let storageListStatus: number;
+let storageDownloadStatus: number;
+let filesAtRenewal: string[];
+let versionsAtRenewal: unknown;
 
 beforeAll(async () => {
   pg = await startPostgres({ label: "backup", database: "backup_fixture" });
@@ -51,10 +56,22 @@ beforeAll(async () => {
     calls.push({ url: request.url!, body, authorization: request.headers.authorization });
     response.setHeader("content-type", "application/json");
     if (request.url?.endsWith("/cli/login-role")) {
+      const privateDir = path.join(directory, "private");
+      filesAtRenewal = readdirSync(privateDir, { recursive: true }) as string[];
+      const versionsFile = path.join(privateDir, "bucket/pint-drops.versions.json");
+      versionsAtRenewal = existsSync(versionsFile) ? JSON.parse(readFileSync(versionsFile, "utf8")) : {};
       response.writeHead(loginStatus).end(JSON.stringify(loginBody));
     } else if (request.url?.includes("/object/list/")) {
+      if (storageListStatus !== 200) {
+        response.writeHead(storageListStatus).end(JSON.stringify({ message: "fixture storage failure" }));
+        return;
+      }
       response.end(JSON.stringify([{ id: "fixture", name: "fixture.jpg", metadata: { size: 5, eTag: "v1" } }]));
     } else if (request.url?.endsWith("/fixture.jpg")) {
+      if (storageDownloadStatus !== 200) {
+        response.writeHead(storageDownloadStatus).end(JSON.stringify({ message: "fixture storage failure" }));
+        return;
+      }
       response.end("photo");
     } else {
       response.writeHead(404).end();
@@ -76,6 +93,10 @@ beforeEach(() => {
   calls = [];
   loginStatus = 201;
   loginBody = { role: "cli_login_fixture", password: PASSWORD, ttl_seconds: 300 };
+  storageListStatus = 200;
+  storageDownloadStatus = 200;
+  filesAtRenewal = [];
+  versionsAtRenewal = {};
   pg.sql(`alter role cli_login_fixture password '${PASSWORD}' valid until 'infinity'`);
   const bin = path.join(directory, "bin");
   mkdirSync(bin);
@@ -127,6 +148,55 @@ async function backup(overrides: Partial<NodeJS.ProcessEnv> = {}, args: string[]
     const result = error as { code: number; stdout: string; stderr: string };
     return { status: result.code, output: result.stdout + result.stderr };
   }
+}
+
+function retentionFixture(withFallback = false, now = Date.now()) {
+  const privateDir = path.join(directory, "private");
+  const bucketRoot = path.join(privateDir, "bucket/pint-drops");
+  mkdirSync(path.join(bucketRoot, "expired-account"), { recursive: true });
+  const expired = [
+    path.join(privateDir, "pubmax-20000101T000000Z.dump"),
+    path.join(privateDir, "pubmax-20000102T000000Z.dump"),
+    path.join(privateDir, "pubmax-20000101T000000Z.dump.partial"),
+    path.join(bucketRoot, "expired-account/photo.jpg"),
+    path.join(bucketRoot, "expired-account/photo.jpg.incoming"),
+  ];
+  for (const file of expired) {
+    writeFileSync(file, "fixture-expired-artifact");
+    utimesSync(file, new Date("2000-01-01"), new Date("2000-01-01"));
+  }
+  mkdirSync(path.join(bucketRoot, "empty-account"));
+  const versionsFile = path.join(privateDir, "bucket/pint-drops.versions.json");
+  const versions: Record<string, string> = { "expired-account/photo.jpg": "expired-version" };
+  // This fallback is older than seven weeks, but has not reached eight weeks.
+  const fallbackDate = new Date(now - 52 * 24 * 60 * 60 * 1000);
+  const fallbackDump = path.join(privateDir, dumpFileName(fallbackDate));
+  const fallbackPhoto = path.join(bucketRoot, "fallback-account/photo.jpg");
+  if (withFallback) {
+    mkdirSync(path.dirname(fallbackPhoto));
+    writeFileSync(fallbackDump, "fixture-fallback-dump", { mode: 0o600 });
+    writeFileSync(fallbackPhoto, "fixture-fallback-photo", { mode: 0o600 });
+    utimesSync(fallbackPhoto, fallbackDate, fallbackDate);
+    versions["fallback-account/photo.jpg"] = "fallback-version";
+  }
+  writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
+  return { privateDir, bucketRoot, expired, versionsFile, fallbackDump, fallbackPhoto };
+}
+
+function expectExpiredArtifactsRemoved(fixture: ReturnType<typeof retentionFixture>) {
+  for (const file of fixture.expired) expect(existsSync(file)).toBe(false);
+  expect(existsSync(path.join(fixture.bucketRoot, "expired-account"))).toBe(false);
+  expect(existsSync(path.join(fixture.bucketRoot, "empty-account"))).toBe(false);
+  expect(filesAtRenewal.some((file) => file.includes("expired-account") || file.includes("200001") || file.includes("empty-account"))).toBe(false);
+  expect(JSON.stringify(versionsAtRenewal)).not.toContain("expired-account");
+}
+
+function expectFallbackRetained(fixture: ReturnType<typeof retentionFixture>) {
+  expect(readFileSync(fixture.fallbackDump, "utf8")).toBe("fixture-fallback-dump");
+  expect(readFileSync(fixture.fallbackPhoto, "utf8")).toBe("fixture-fallback-photo");
+  expect(JSON.parse(readFileSync(fixture.versionsFile, "utf8"))).toEqual({ "fallback-account/photo.jpg": "fallback-version" });
+  expect(readdirSync(fixture.privateDir).filter((file) => file.endsWith(".dump"))).toEqual([path.basename(fixture.fallbackDump)]);
+  expect(readdirSync(fixture.privateDir).some((file) => file.endsWith(".partial"))).toBe(false);
 }
 
 it("renews a read-only login and backs up all four schemas and private Storage through the executable", async () => {
@@ -215,19 +285,93 @@ it("uses the returned login with the project suffix through a session pooler", a
   expect(calls[0]?.url).toBe(`/v1/projects/${REF}/cli/login-role`);
 });
 
-it("preserves the newest backup and prunes older expired copies even when credential renewal fails", async () => {
-  const privateDir = path.join(directory, "private");
-  mkdirSync(path.join(privateDir, "bucket/pint-drops"), { recursive: true });
-  const old = path.join(privateDir, "pubmax-20000101T000000Z.dump");
-  const newest = path.join(privateDir, "pubmax-20000102T000000Z.dump");
-  writeFileSync(old, "fixture-old-dump");
-  writeFileSync(newest, "fixture-newest-dump");
+it("removes expired newest dumps, photos and identifiers before a refused renewal with no fallback", async () => {
+  const fixture = retentionFixture();
   loginStatus = 403;
   const result = await backup();
   expect(result.status).toBe(1);
-  expect(existsSync(old)).toBe(false);
-  expect(readFileSync(newest, "utf8")).toBe("fixture-newest-dump");
+  expectExpiredArtifactsRemoved(fixture);
+  expect(existsSync(fixture.versionsFile)).toBe(false);
+  expect(readdirSync(fixture.privateDir)).toEqual(["bucket"]);
+  expect(readdirSync(fixture.bucketRoot)).toEqual([]);
   expect(calls).toHaveLength(1);
+  expect(result.output).not.toContain(TOKEN);
+  expect(result.output).not.toContain(PASSWORD);
+});
+
+it.each([
+  [403, { message: TOKEN }],
+  [201, { role: "postgres", password: PASSWORD, ttl_seconds: 300 }],
+  [201, { role: "cli_login_fixture", password: PASSWORD, ttl_seconds: 0 }],
+])("preserves an unexpired fallback while expiring old data on refused or invalid renewal %s", async (status, body) => {
+  const fixture = retentionFixture(true);
+  loginStatus = status;
+  loginBody = body;
+
+  const result = await backup();
+
+  expect(result.status).toBe(1);
+  expectExpiredArtifactsRemoved(fixture);
+  expectFallbackRetained(fixture);
+  expect(calls).toHaveLength(1);
+  expect(result.output).not.toContain(TOKEN);
+  expect(result.output).not.toContain(PASSWORD);
+});
+
+it("expires a fallback that reaches eight weeks while a failed renewal is in progress", async () => {
+  const now = Date.now();
+  const fixture = retentionFixture(true, now);
+  const redirect = path.join(directory, "redirect.mjs");
+  writeFileSync(redirect, `${readFileSync(redirect, "utf8")}
+const fixtureFetch = globalThis.fetch;
+Date.now = () => ${now};
+globalThis.fetch = async (...args) => {
+  const response = await fixtureFetch(...args);
+  Date.now = () => ${now + 5 * 24 * 60 * 60 * 1000};
+  return response;
+};
+`);
+  loginStatus = 403;
+
+  const result = await backup();
+
+  expect(result.status).toBe(1);
+  expect(filesAtRenewal).toContain(path.basename(fixture.fallbackDump));
+  expect(existsSync(fixture.fallbackDump)).toBe(false);
+  expect(existsSync(fixture.fallbackPhoto)).toBe(false);
+  expect(existsSync(fixture.versionsFile)).toBe(false);
+  expect(readdirSync(fixture.bucketRoot)).toEqual([]);
+});
+
+it("keeps the unexpired fallback and removes partial output when the actual dump fails", async () => {
+  const fixture = retentionFixture(true);
+  pg.sql("revoke pg_read_all_data from supabase_read_only_user");
+  try {
+    const result = await backup();
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("pg_dump exited 1");
+    expectExpiredArtifactsRemoved(fixture);
+    expectFallbackRetained(fixture);
+    expect(calls).toHaveLength(1);
+  } finally {
+    pg.sql("grant pg_read_all_data to supabase_read_only_user");
+  }
+});
+
+it.each(["listing", "download"])("keeps the unexpired complete fallback when Storage %s fails on repeated runs", async (failure) => {
+  const fixture = retentionFixture(true);
+  if (failure === "listing") storageListStatus = 503;
+  else storageDownloadStatus = 503;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = await backup();
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("answered 503");
+    expectExpiredArtifactsRemoved(fixture);
+    expectFallbackRetained(fixture);
+    expect(result.output).not.toContain(TOKEN);
+    expect(result.output).not.toContain(PASSWORD);
+  }
 });
 
 it("does not acquire credentials or create the destination during a dry run", async () => {
