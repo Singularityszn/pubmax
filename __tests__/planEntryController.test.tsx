@@ -332,10 +332,10 @@ describe("the lightweight Plan entry", () => {
     document.body.append(host);
     await act(async () => {
       root = createRoot(host!);
-      root.render(createElement(Composer, {
-        arrival,
-        entryRequest: { mode: "wizard", query: "", capturedAt: arrival.capturedAt, stopCount: 5 },
-      }));
+      root.render(<Composer
+        arrival={arrival}
+        entryRequest={{ mode: "wizard", query: "", capturedAt: arrival.capturedAt, stopCount: 5 }}
+      />);
       await vi.dynamicImportSettled();
     });
     expect(readPlanIntakeDraft()?.answers.area).toBe("camden");

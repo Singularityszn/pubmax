@@ -18,8 +18,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: vi.fn(), push: vi.fn() }),
 }));
 vi.mock("next/link", () => ({
-  default: ({ href, children, onClick, prefetch: _prefetch, ...props }: ComponentProps<"a"> & { prefetch?: boolean }) =>
-    createElement("a", {
+  default: ({ href, children, onClick, prefetch: _prefetch, ...props }: ComponentProps<"a"> & { prefetch?: boolean }) => {
+    void _prefetch;
+    return createElement("a", {
       ...props,
       href,
       onClick: (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -27,7 +28,8 @@ vi.mock("next/link", () => ({
         event.preventDefault();
         navigation.events.push(`navigate:${href}`);
       },
-    }, children),
+    }, children);
+  },
 }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 
@@ -64,7 +66,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     postcss.parse(css).walkRules((rule) => {
       if (!postcss.list.comma(rule.selector).includes(selector)) return;
       const conditions: string[] = [];
-      for (let parent = rule.parent; parent; parent = parent.parent) {
+      for (let parent: postcss.Node["parent"] = rule.parent; parent; parent = parent.parent) {
         if (parent instanceof postcss.AtRule && parent.name === "media") conditions.unshift(parent.params);
       }
       if (conditions.length !== media.length || conditions.some((condition, index) => condition !== media[index])) return;
@@ -290,7 +292,7 @@ describe("mounted primary navigation and map-sheet dismissal", () => {
     const render = async (strict: boolean) => act(async () => root.render(createElement(Fragment, null,
       placement === "body" ? createPortal(tabs, document.body) : tabs,
       createElement("button", { id: "outside-control" }, "Other control"),
-      createElement(MobileSharedSheet, { kind: "venue", title: "Pub detail", onClose() {} }, "Content"),
+      createElement(MobileSharedSheet, { kind: "venue", title: "Pub detail", onClose() {}, children: "Content" }),
       strict ? createElement(StrictModal, null, createElement("button", null, "Modal action")) : null,
     )));
     await render(false);
