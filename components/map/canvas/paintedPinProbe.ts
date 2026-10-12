@@ -111,6 +111,12 @@ export function paintedMapTapPoints(
   const canvas = map.getCanvas();
 
   beginPubHitProbeTrace();
+  // Pending source/style updates can replace collision winners between the
+  // probe and the physical click even while the camera is stationary.
+  if (!map.loaded()) {
+    finishPubHitProbeTrace();
+    return [];
+  }
   const points: PaintedMapTapPoint[] = [];
   const collect = (
     kind: PaintedMapTapPoint["kind"],

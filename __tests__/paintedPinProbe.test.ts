@@ -33,6 +33,7 @@ type FakeMapOptions = {
   layers?: string[];
   rect?: { left: number; top: number; width: number; height: number };
   zoom?: number;
+  loaded?: boolean;
 };
 
 function makeMap(options: FakeMapOptions): maplibregl.Map {
@@ -45,6 +46,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
     layers = ["pubs-point", "clusters"],
     rect = { left: 0, top: 0, width: 390, height: 844 },
     zoom = 14,
+    loaded = true,
   } = options;
 
   const canvas = { nodeName: "CANVAS" } as unknown as HTMLCanvasElement;
@@ -93,6 +95,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
     getContainer: () => container,
     getCanvas: () => canvas,
     getZoom: () => zoom,
+    loaded: () => loaded,
     getSource: () => ({ getClusterExpansionZoom: vi.fn(async () => 14) }),
     project: ([lng, lat]: [number, number]) => {
       const mark = painted.find((item) => item.lng === lng && item.lat === lat);
@@ -149,6 +152,13 @@ const CLUSTER: FakeMark = {
 };
 
 describe("paintedMapTapPoints", () => {
+  it("publishes no tap target while source and style updates are pending", () => {
+    const map = makeMap({ painted: [PIN_A, CLUSTER], loaded: false });
+    expect(paintedMapTapPoints(map)).toEqual([]);
+    vi.spyOn(map, "loaded").mockReturnValue(true);
+    expect(paintedMapTapPoints(map).map((point) => point.id)).toEqual(["pub-a", "77"]);
+  });
+
   it.each([
     ["same-layer first hit", "pubs-point", "pubs-point", false],
     ["ordinary pub over selected pub", "pubs-point-selected", "pubs-point", true],

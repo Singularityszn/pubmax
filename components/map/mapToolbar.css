@@ -119,6 +119,12 @@
   }
 }
 
+@media (min-width: 769px) and (max-width: 1023px) {
+  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
+    right: calc(var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px));
+  }
+}
+
 .mapToolbarSearch {
   position: relative;
   min-width: 0;

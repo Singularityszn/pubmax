@@ -14,6 +14,7 @@ import {
   writePlanInviteToken,
 } from "@/lib/planInviteTokenClient";
 import {
+  clearPlanCapability,
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
@@ -152,11 +153,22 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     setRotating(true);
     setStatus("");
     try {
-      const res = await fetch(`/api/plans/${planId}/invite-rotate`, {
+      const rotate = (token: string) => fetch(`/api/plans/${planId}/invite-rotate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ memberToken }),
+        body: JSON.stringify({ memberToken: token }),
       });
+      let res = await rotate(memberToken);
+      if (res.status === 403) {
+        discardBody(res);
+        clearPlanCapability(planId);
+        const recovered = await restorePlanCapability(planId);
+        if (!recovered || recovered.role !== "host") {
+          setStatus("Couldn't make a new link.");
+          return;
+        }
+        res = await rotate(recovered.token);
+      }
       if (!res.ok) {
         discardBody(res);
         setStatus("Couldn't make a new link.");

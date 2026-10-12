@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectSoleDesktopDrawer, desktopVenueDrawer } from "./helpers/mapSurfaceDrawers";
 import { expectMapToolbarReady, selectFirstToolbarVenue } from "./helpers/mapToolbar";
 
@@ -243,6 +244,42 @@ test.describe("the desktop map after the arrival strip is answered", () => {
         expect(control.width).toBeGreaterThanOrEqual(44);
         expect(control.height).toBeGreaterThanOrEqual(44);
       }
+    });
+  }
+
+  for (const width of [769, 900, 1023] as const) {
+    test(`${width}px selected pub leaves Zoom out reachable`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await installDeterministicMapBasemap(page);
+      await page.goto("/map?sel=venue-eltcmh");
+      await expect(page.locator(".mapDrawer.right.open").getByRole("heading").first()).toHaveText("The Blackfriar");
+      const readCamera = () => page.evaluate(() => {
+        const current = window as typeof window & {
+          __pubmaxMapCamera?: { read: () => { zoom: number; moving: boolean; settling: boolean } };
+        };
+        const camera = current.__pubmaxMapCamera?.read();
+        return { camera, venueIntent: performance.getEntriesByName("pubmax:camera-intent:venue").length > 0 };
+      });
+      await expect.poll(async () => {
+        const { camera, venueIntent } = await readCamera();
+        return venueIntent && camera?.moving === false && camera.settling === false;
+      }).toBe(true);
+      const button = page.locator(".maplibregl-ctrl-zoom-out");
+      await expect(button).toBeVisible();
+      const hit = await button.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        const top = document.elementFromPoint(x, y);
+        return { x, y, width: box.width, height: box.height, ownsCenter: top === node || node.contains(top) };
+      });
+      expect(hit.width).toBeGreaterThanOrEqual(44);
+      expect(hit.height).toBeGreaterThanOrEqual(44);
+      expect(hit.ownsCenter).toBe(true);
+      const before = (await readCamera()).camera!.zoom;
+      await page.mouse.click(hit.x, hit.y);
+      await expect.poll(async () => (await readCamera()).camera?.zoom).toBeLessThan(before);
     });
   }
 });
