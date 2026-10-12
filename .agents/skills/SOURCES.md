@@ -96,6 +96,8 @@ Local corrections:
 
 The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`.
 
+Local correction: the collection entrypoint includes the required YAML `name` and `description` frontmatter. The upstream Markdown body and `skills.json` registry stay unchanged. Preserve this metadata during future refreshes.
+
 ### shadcn-labs/skills
 
 - Repo: https://github.com/shadcn-labs/skills

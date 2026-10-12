@@ -1,3 +1,8 @@
+---
+name: refactoring-ui-plugin
+description: Apply the bundled Refactoring UI design sequence when an interface review needs several of its atomic skills.
+---
+
 # Refactoring UI Skills
 
 Atomic UI/design decision-making skills extracted from the book *Refactoring UI* by Adam Wathan and Steve Schoger.
