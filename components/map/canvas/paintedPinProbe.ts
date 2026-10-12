@@ -1,6 +1,10 @@
 import type * as maplibregl from "maplibre-gl";
 
 import { lngLatOf } from "@/lib/geo";
+import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
+import { ukBasePubFromFeature } from "@/lib/ukBasePubs";
+import { PUB_FIRST_LAYERS, resolveClickHit } from "./clickHitPriority";
+import { beginPubHitProbeTrace, finishPubHitProbeTrace, pubHitTrace, recordPubHitProbe } from "./pubHitTrace";
 
 // A browser test cannot ask a canvas where its pins are, so it used to guess:
 // a grid of taps across the map, hoping one landed on a pin before the scan
@@ -42,7 +46,7 @@ export type PaintedMapTapPoint = {
 };
 
 type ProbeWindow = Window & {
-  [PAINTED_MAP_PROBE_KEY]?: () => PaintedMapTapPoint[];
+  [PAINTED_MAP_PROBE_KEY]?: (() => PaintedMapTapPoint[]) & { trace?: typeof pubHitTrace };
   [PAINTED_LONDON_PLACE_PROBE_KEY]?: () => PaintedMapTapPoint[];
 };
 
@@ -52,7 +56,6 @@ const PIN_LAYERS = [
   "pubs-point-selected",
   "pubs-price-pill",
   "pubs-point",
-  "uk-base-selected",
   "uk-base-point",
   "uk-base-unnamed-point",
 ] as const;
@@ -100,12 +103,20 @@ export function paintedMapTapPoints(
 ): PaintedMapTapPoint[] {
   const pinLayers = pinLayerIds.filter((id) => Boolean(map.getLayer(id)));
   const clusterLayers = clusterLayerIds.filter((id) => Boolean(map.getLayer(id)));
+  const clickLayers = PUB_FIRST_LAYERS.filter((id) => Boolean(map.getLayer(id)));
 
   const container = map.getContainer();
   const rect = container.getBoundingClientRect();
   const ownerDocument = container.ownerDocument;
   const canvas = map.getCanvas();
 
+  beginPubHitProbeTrace();
+  // Pending source/style updates can replace collision winners between the
+  // probe and the physical click even while the camera is stationary.
+  if (!map.loaded()) {
+    finishPubHitProbeTrace();
+    return [];
+  }
   const points: PaintedMapTapPoint[] = [];
   const collect = (
     kind: PaintedMapTapPoint["kind"],
@@ -134,15 +145,22 @@ export function paintedMapTapPoints(
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
       if (!mapCanvasReceivesTap(ownerDocument, canvas, container, x, y)) continue;
 
-      // Circle clusters have no placement box. Once the viewport query found
-      // one and the projected centre is on the map canvas, the click router's
-      // own point query will resolve it. Avoid repeating that query for every
-      // cluster while the browser is waiting for first paint. Symbol pins keep
-      // the stricter point re-query because collision placement can change
-      // their hit result.
-      if (kind === "pin") {
-        const hits = map.queryRenderedFeatures(point, { layers });
-        if (!hits.some((hit) => markId(hit, kind) === id)) continue;
+      const hits = map.queryRenderedFeatures(point, { layers: clickLayers });
+      const target = resolveClickHit(hits);
+      recordPubHitProbe(point, hits, target?.kind === "pub" ? target.feature : undefined, { x, y });
+      if (!target) continue;
+      if (kind === "cluster") {
+        if (target.kind !== "cluster" || markId(target.feature, kind) !== id || !map.getSource("pubs")) continue;
+      } else {
+        if (!layers.includes(target.feature.layer.id)) continue;
+        const targetId = target.kind === "pub"
+          ? (typeof target.feature.properties?.id === "string" ? target.feature.properties.id : null)
+          : target.kind === "base"
+            ? ukBasePubFromFeature(target.feature)?.id
+            : target.kind === "cafe" || target.kind === "restaurant"
+              ? londonVenueIdFromFeature(target.feature)
+              : null;
+        if (targetId !== id) continue;
       }
 
       points.push({ kind, id, x, y, lng, lat });
@@ -160,13 +178,17 @@ export function paintedMapTapPoints(
     map.getZoom() < PIN_PROBE_OVERVIEW_ZOOM
   ) {
     collect("cluster", clusterLayers, true);
-    if (points.length > 0) return points;
+    if (points.length > 0) {
+      finishPubHitProbeTrace();
+      return points;
+    }
   }
 
   // Pins first: where a pin and a cluster share a point the router opens the
   // pub, so a caller taking the first point takes the shorter way in.
   collect("pin", pinLayers);
   collect("cluster", clusterLayers);
+  finishPubHitProbeTrace();
   return points;
 }
 
@@ -184,9 +206,13 @@ export function paintedLondonPlaceTapPoints(map: maplibregl.Map): PaintedMapTapP
  */
 export function installPaintedPinProbe(map: maplibregl.Map): () => void {
   const probeWindow = window as ProbeWindow;
-  probeWindow[PAINTED_MAP_PROBE_KEY] = () => paintedMapTapPoints(map);
+  probeWindow[PAINTED_MAP_PROBE_KEY] = Object.assign(
+    () => paintedMapTapPoints(map),
+    { trace: pubHitTrace },
+  );
   probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY] = () => paintedLondonPlaceTapPoints(map);
   return () => {
+    pubHitTrace.stop();
     delete probeWindow[PAINTED_MAP_PROBE_KEY];
     delete probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY];
   };
