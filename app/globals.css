@@ -433,9 +433,9 @@
   --z-map-cards: 460;        /* poiLabelCard */
   --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
   --z-map-panel: 500;        /* routePanel, mapDrawer */
-  --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
-  --z-map-ask: 514;          /* mapConciergeAsk pill — above the Tonight lane (512), below cityStatusBanner */
-  --z-map-banner: 515;       /* cityStatusBanner */
+  --z-map-suggest: 512;      /* citySuggestBanner */
+  --z-map-ask: 514;          /* mapConciergeAsk pill */
+  --z-map-banner: 515;
   --z-map-camera: 530;       /* mapCameraControls */
   --z-map-route-chip: 540;   /* mappedRouteChip — below activeRoundChip, as on main */
   --z-map-chip: 541;         /* activeRoundChip */
@@ -2602,6 +2602,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
+  /* The peek can mount after this notice. Its published berth must move
+     immediately, without the reduced-motion duration turning the default
+     transition property into a one-frame bottom transition. */
+  transition-property: none;
 }
 [data-theme="light"] .mapSoftRetry {
   background: color-mix(in srgb, var(--paper, #faf8f5) 94%, transparent);
@@ -2748,6 +2752,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   .mapFallback {
     place-content: start center;
     padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
+  }
+
+  /* Scrolling venue prices and links must clear the floating Create action. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallback {
+    padding-right: max(32px, var(--create-fab-lane));
   }
 }
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
@@ -4611,6 +4620,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 :root {
   --analytics-consent-clearance: 72px;
   --analytics-consent-mobile-clearance: 3.5rem;
+  /* The desktop map's Layers berth, read by Layers (mapLayersControl.css) and
+     by the Pub Pal shortcut parked one gap above it (pubPal.css). The 54px
+     clears attribution expanded onto two lines at 641px and its 10px margin. */
+  --map-layers-fab-h: 44px;
+  --map-layers-attrib-clearance: 54px;
+  --map-layers-bottom: var(--map-layers-attrib-clearance);
 }
 
 /* DOCKED, NEVER FLOATING. The card used to be an inset, blurred, shadowed
@@ -4749,6 +4764,12 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      consent strip instead of adding a scrollable foot to the document. */
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     bottom: var(--analytics-consent-clearance, 72px);
+  }
+
+  body:has(.analyticsConsentPrompt) {
+    --map-layers-bottom: calc(
+      var(--analytics-consent-clearance, 72px) + var(--map-layers-attrib-clearance)
+    );
   }
 
   body:has(.analyticsConsentPrompt) .mapSoftRetry {
@@ -5574,12 +5595,11 @@ button:disabled {
      notice used to clear the tab bar alone, so its Retry sat UNDER that bar:
      measured at 390, the button's own centre point was owned by
      BUTTON.mobilePlanActivation, and the control the copy tells a reader to tap
-     was not tappable. Read that member's own top edge rather than restating a
-     number, and reserve it whenever the bar is in the document. */
+     was not tappable. Read the plan member's published top edge rather than
+     restating a number: it is the bottom card's top while the card is up, and
+     the bare bar's top otherwise. */
   .mapSoftRetry {
-    bottom: calc(
-      var(--plan-activation-bottom) + var(--plan-activation-h) + 10px
-    );
+    bottom: calc(var(--float-stack-top-plan) + 10px);
   }
 
   /* The tab bar stays up beside an open planning/detail sheet, but the sheet

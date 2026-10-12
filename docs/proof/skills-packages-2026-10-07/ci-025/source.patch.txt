@@ -1,0 +1,59 @@
+diff --git a/.agents/skills/explain-interface/read-the-system.md b/.agents/skills/explain-interface/read-the-system.md
+index 64076bc22..e02fa92fe 100644
+--- a/.agents/skills/explain-interface/read-the-system.md
++++ b/.agents/skills/explain-interface/read-the-system.md
+@@ -173,9 +173,14 @@ Report the count of distinct values and how often each is used. A few values reu
+ ```js
+ () => {
+   const bp = new Set(); const unreadable = []; const visited = new Set();
+-  const re = /(min|max)-width:\s*[\d.]+(px|r?em)|width\s*[<>]=?\s*[\d.]+(px|r?em)/g;
++  const patterns = [
++    /(min|max)-width:\s*[\d.]+(px|r?em)|width\s*[<>]=?\s*[\d.]+(px|r?em)/g,
++    /[\d.]+(px|r?em)\s*[<>]=?\s*width/g,
++  ];
+   const walk = list => { for (const r of list ?? []) {
+-    for (const m of (r.media?.mediaText ?? '').matchAll(re)) bp.add(m[0]);
++    for (const re of patterns) {
++      for (const m of (r.media?.mediaText ?? '').matchAll(re)) bp.add(m[0]);
++    }
+     if (r.type === CSSRule.IMPORT_RULE) {
+       if (r.styleSheet) walkSheet(r.styleSheet); else unreadable.push(r.href);
+     } else if (r.cssRules) walk(r.cssRules);
+diff --git a/e2e/mobile-map-chrome-fit.spec.ts b/e2e/mobile-map-chrome-fit.spec.ts
+index d39831981..e4ff071d1 100644
+--- a/e2e/mobile-map-chrome-fit.spec.ts
++++ b/e2e/mobile-map-chrome-fit.spec.ts
+@@ -1661,10 +1661,17 @@ for (const viewport of VIEWPORTS) {
+       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+     });
+     await page.goto("/you");
+-    await expect(page.locator(".mobileTabList")).toBeVisible();
+-    const fit = await page.evaluate(() => {
+-      const list = document.querySelector(".mobileTabList")!.getBoundingClientRect();
+-      const highlight = document.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
++    const primary = page.getByRole("navigation", { name: "Primary", exact: true });
++    await expect(primary).toHaveCount(1);
++    const list = primary.locator(".mobileTabList");
++    await expect(list).toHaveCount(1);
++    await expect(list).toBeVisible();
++    await expect(primary.getByRole("link", { name: "You", exact: true }))
++      .toHaveAttribute("aria-current", "page");
++    await expect(list.locator(".mobileTabHighlight")).toHaveCount(1);
++    const fit = await list.evaluate((element) => {
++      const list = element.getBoundingClientRect();
++      const highlight = element.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
+       return { list, highlight };
+     });
+     expect(fit.highlight.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);
+diff --git a/e2e/smoke.spec.ts b/e2e/smoke.spec.ts
+index 12c7a5b4e..150e094e0 100644
+--- a/e2e/smoke.spec.ts
++++ b/e2e/smoke.spec.ts
+@@ -317,6 +317,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
+   await expect(tablist).toBeVisible();
+   await expect(goldenThreadPrice).toHaveText("£5.50");
+ 
++  await closeButton.click({ trial: true });
+   const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
+     mobileNav.boundingBox(),
+     closeButton.boundingBox(),

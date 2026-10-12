@@ -1,0 +1,106 @@
+{
+  "mode": "after",
+  "sourceHead": "78e165a059a839a826add8edb844410658d15bd3",
+  "cases": [
+    {
+      "name": "checkbox expanded corner -21,-21",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "checkbox expanded corner 21,-21",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "checkbox expanded corner -21,21",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "checkbox expanded corner 21,21",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "checkbox centre",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "checkbox keyboard",
+      "checked": true,
+      "passed": true
+    },
+    {
+      "name": "audio then final",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "hello",
+      "expectedSuccess": true,
+      "passed": true
+    },
+    {
+      "name": "audio on final frame",
+      "code": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "output": "hello",
+      "expectedSuccess": true,
+      "passed": true
+    },
+    {
+      "name": "API error",
+      "code": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "dialogue-example.js:24\n  if (msg.error) throw new Error(JSON.stringify(msg));\n                 ^\n\nError: {\"error\":\"generation_failed\",\"message\":\"fixture rejection\"}\n    at WebSocket.<anonymous> (dialogue-example.js:24:24)\n    at WebSocket.emit (node:events:514:20)\n    at Receiver.receiverOnMessage (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:1253:20)\n    at Receiver.emit (node:events:514:20)\n    at Receiver.dataMessage (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:633:14)\n    at Receiver.getData (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:532:10)\n    at Receiver.startLoop (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:190:16)\n    at Receiver._write (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:117:10)\n    at writeOrBuffer (node:internal/streams/writable:574:12)\n    at _write (node:internal/streams/writable:503:10)\n\nNode.js v26.10.0\n",
+      "output": "",
+      "expectedSuccess": false,
+      "passed": true
+    },
+    {
+      "name": "API error after partial audio",
+      "code": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "dialogue-example.js:24\n  if (msg.error) throw new Error(JSON.stringify(msg));\n                 ^\n\nError: {\"error\":\"generation_failed\"}\n    at WebSocket.<anonymous> (dialogue-example.js:24:24)\n    at WebSocket.emit (node:events:514:20)\n    at Receiver.receiverOnMessage (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:1253:20)\n    at Receiver.emit (node:events:514:20)\n    at Receiver.dataMessage (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:633:14)\n    at Receiver.getData (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:532:10)\n    at Receiver.startLoop (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:190:16)\n    at Receiver._write (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/receiver.js:117:10)\n    at writeOrBuffer (node:internal/streams/writable:574:12)\n    at _write (node:internal/streams/writable:503:10)\n\nNode.js v26.10.0\n",
+      "output": "hello",
+      "expectedSuccess": false,
+      "passed": true
+    },
+    {
+      "name": "close without final",
+      "code": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "dialogue-example.js:30\n  if (!receivedFinal) throw new Error(\"Dialogue socket closed before the final frame\");\n                      ^\n\nError: Dialogue socket closed before the final frame\n    at WebSocket.<anonymous> (dialogue-example.js:30:29)\n    at WebSocket.emit (node:events:514:20)\n    at WebSocket.emitClose (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:292:10)\n    at Socket.socketOnClose (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:1374:15)\n    at Socket.emit (node:events:514:20)\n    at TCP.<anonymous> (node:net:362:12)\n\nNode.js v26.10.0\n",
+      "output": "",
+      "expectedSuccess": false,
+      "passed": true
+    },
+    {
+      "name": "partial audio without final",
+      "code": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "dialogue-example.js:30\n  if (!receivedFinal) throw new Error(\"Dialogue socket closed before the final frame\");\n                      ^\n\nError: Dialogue socket closed before the final frame\n    at WebSocket.<anonymous> (dialogue-example.js:30:29)\n    at WebSocket.emit (node:events:514:20)\n    at WebSocket.emitClose (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:292:10)\n    at Socket.socketOnClose (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:1374:15)\n    at Socket.emit (node:events:514:20)\n    at TCP.<anonymous> (node:net:362:12)\n\nNode.js v26.10.0\n",
+      "output": "hello",
+      "expectedSuccess": false,
+      "passed": true
+    },
+    {
+      "name": "transport failure",
+      "code": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "dialogue-example.js:30\n  if (!receivedFinal) throw new Error(\"Dialogue socket closed before the final frame\");\n                      ^\n\nError: Dialogue socket closed before the final frame\n    at WebSocket.<anonymous> (dialogue-example.js:30:29)\n    at WebSocket.emit (node:events:514:20)\n    at WebSocket.emitClose (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:292:10)\n    at Socket.socketOnClose (/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/node_modules/ws/lib/websocket.js:1374:15)\n    at Socket.emit (node:events:514:20)\n    at TCP.<anonymous> (node:net:362:12)\n\nNode.js v26.10.0\n",
+      "output": "",
+      "expectedSuccess": false,
+      "passed": true
+    }
+  ]
+}

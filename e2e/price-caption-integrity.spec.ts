@@ -430,6 +430,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     await expect(
       chip.getByRole("button", { name: "Dismiss Place story intro" }),
     ).toBeVisible();
+    await expect(page.locator(".mapPeek")).toHaveAttribute("data-covered", "true");
     await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
 
     const geometry = await page.evaluate(() => {
@@ -481,9 +482,11 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       await centreHit(chip.getByRole("button", { name: "Dismiss Place story intro" })),
       "Dismiss Place story intro takes its own tap",
     ).toMatchObject({ own: true, nearMe: false });
+    // The credit is a control on the phone map, under the chip and clear of the
+    // tab bar, and the same pub-data line is also under the Key below.
     const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
     if (!(await attributionInner.isVisible())) {
-      await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+      await attributionToggle.click();
     }
     await expect(attributionInner).toBeVisible();
     await expect(attributionInner).toContainText(OSM_PUB_ATTRIBUTION);
@@ -511,6 +514,9 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
     );
     await expect(layersSheet).toBeVisible();
+    const credits = layersSheet.locator(".mobileMapCredits");
+    await expect(credits).toBeVisible();
+    await expect(credits).toContainText(OSM_PUB_ATTRIBUTION);
     await layersSheet.getByRole("tab", { name: "Layers" }).click();
     const listShortcut = layersSheet.getByRole("button", {
       name: "List view of venues on the map",

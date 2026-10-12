@@ -52,6 +52,23 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
+import { rememberedAreaNamesView } from "@/lib/areaButton";
+
+/** Use the settled locality when Near me or an optimistic choice cannot name the view. */
+export function cityStatusAreaFor(input: {
+  mapChipLabel: string;
+  mapChosenArea: Parameters<typeof rememberedAreaNamesView>[0] | null;
+  bounds: Parameters<typeof rememberedAreaNamesView>[1];
+  viewCenter: Parameters<typeof rememberedAreaNamesView>[2];
+  viewer: Parameters<typeof rememberedAreaNamesView>[3];
+  claimedArea: { name: string } | null | undefined;
+}): string | null {
+  const { mapChipLabel, mapChosenArea, bounds, viewCenter, viewer, claimedArea } = input;
+  return mapChipLabel === "Near me" || (mapChosenArea &&
+    !rememberedAreaNamesView(mapChosenArea, bounds, viewCenter, viewer))
+    ? claimedArea?.name ?? null
+    : mapChipLabel;
+}
 
 /** A specific soft drink satisfies zero-proof without widening to all alcohol-free drinks. */
 export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory" | "zeroProof">): DrinkCategory {
@@ -76,6 +93,11 @@ export function hasCrawlArrivalParams(search: string): boolean {
 // PubMap component body and off its complexity budget.
 export function crawlStopsFromPubIds(ids: string[]): string[] {
   return ids.filter(Boolean).slice(0, 3);
+}
+
+/** Keep the map's pins while the reader edits a search, with other filters intact. */
+export function mapPinFilters(filters: Filters): Filters {
+  return filters.query ? { ...filters, query: "" } : filters;
 }
 
 // Issue #31: fold a curated crawl's style choices onto the current filters. A
@@ -235,8 +257,8 @@ export function mapSelectionNotice(input: {
 /**
  * A restored `?sel=venue-uk-*` arrival. The `at=` hint scopes the cold shard
  * fetch to one cell and seeds the camera, but the id alone is enough to ask
- * `/api/uk-base/[id]`: the map's own session restore and an old shared link
- * both carry the id with no hint, and neither may be left on a skeleton.
+ * `/api/uk-base/[id]`. An old shared link can carry the id without a hint
+ * and must not leave the sheet on a skeleton.
  */
 export type UkBaseRestore = {
   id: string;
@@ -367,7 +389,7 @@ export function shouldResolveOpeningLocation(input: {
   );
 }
 
-/** The ambient banners are an opening offer, so they step off once the reader drives. */
+/** City-wide display permission. Contract: docs/CITYMCP_LONDON.md, Runtime API surfaces. */
 export function ambientBannerLaneOpen(
   mobileViewport: boolean,
   mapCameraTouched: boolean,
@@ -809,7 +831,7 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   return {
     loadedCityId: resumeSeed ? cityId : null,
     resumeViewport: resumeSeed?.viewport ?? null,
-    selectedVenueId: seed.selectedVenueId || restoredSession?.selectedVenueId || "",
+    selectedVenueId: seed.selectedVenueId || "",
     filters: restoredSession?.filters ?? seed.filters,
     landmarkId: seed.landmarkId ?? "",
     nightArea: restoredSession?.nightArea ?? null,
@@ -1069,8 +1091,8 @@ export function searchParamsQuery(
 }
 
 /**
- * The one price the phone peek prints, or null when the pub genuinely has no
- * price on record and the chip may invite the first drop.
+ * The selected-venue price chip, or null when the supplied lane has no figure.
+ * `VenuePeekPintPrice` applies the pending-read guard before rendering it.
  *
  * The lane is decided by `venuePriceLane` alone; this only says how the winning
  * lane reads inside a chip that holds ONE figure and ONE short caption. An

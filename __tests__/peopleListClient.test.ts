@@ -160,6 +160,12 @@ function settle(): Promise<void> {
   });
 }
 
+function settleTimers(): Promise<void> {
+  return commit(async () => {
+    await vi.runAllTimersAsync();
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   clearSurfaceCache();
@@ -196,9 +202,12 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-function listResponse(rows: Array<string | { handle: string; avatarUrl?: string }>): Response {
+function listResponse(
+  rows: Array<string | { handle: string; avatarUrl?: string }>,
+  relation: "followers" | "following" = "followers",
+): Response {
   return Response.json({
-    followers: rows.map((row) => (typeof row === "string" ? { handle: row } : row)),
+    [relation]: rows.map((row) => (typeof row === "string" ? { handle: row } : row)),
   });
 }
 
@@ -207,24 +216,31 @@ function lotResponse(rows: string[] = []): Response {
 }
 
 describe("PeopleListClient recovery", () => {
-  it("shows an error after rejection and loads after online without a click", async () => {
+  it.each([
+    { relation: "followers", delayMs: 0 },
+    { relation: "followers", delayMs: 1 },
+    { relation: "following", delayMs: 0 },
+    { relation: "following", delayMs: 1 },
+  ] as const)("shows an error after a $delayMs ms $relation rejection and loads after online without a click", async ({ relation, delayMs }) => {
+    const reject = () => delayMs === 0
+      ? Promise.reject(new TypeError("Failed to fetch"))
+      : new Promise<Response>((_resolve, reject) => {
+        setTimeout(() => reject(new TypeError("Failed to fetch")), delayMs);
+      });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(reject)
+      .mockImplementationOnce(reject)
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce(listResponse(["alice"]))
+      .mockResolvedValueOnce(listResponse(["alice"], relation))
       .mockResolvedValueOnce(lotResponse());
 
     await commit(() =>
-      root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
+      root?.render(createElement(PeopleListClient, { handle: "karan", relation })),
     );
     await settle();
-    await commit(async () => {
-      await vi.advanceTimersByTimeAsync(50);
-    });
-    await settle();
+    await settleTimers();
 
     expect(container.textContent).toContain("Could not load this list. That's on us, not you.");
     expect(container.textContent).toContain("Try again");
@@ -232,10 +248,7 @@ describe("PeopleListClient recovery", () => {
     await commit(() => {
       browserWindow.dispatchEvent(new Event("online"));
     });
-    await commit(async () => {
-      await vi.advanceTimersByTimeAsync(200);
-    });
-    await settle();
+    await settleTimers();
 
     expect(container.textContent).toContain("@alice");
     expect(container.textContent).not.toContain("Try again");
@@ -293,10 +306,7 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await commit(async () => {
-      await vi.advanceTimersByTimeAsync(50);
-    });
-    await settle();
+    await settleTimers();
     expect(container.textContent).toContain("You look offline. We will retry when you are back.");
 
     await commit(() => root?.unmount());
@@ -306,10 +316,7 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await commit(async () => {
-      await vi.advanceTimersByTimeAsync(50);
-    });
-    await settle();
+    await settleTimers();
     expect(container.textContent).toContain("Could not load this list. That's on us, not you.");
   });
 });

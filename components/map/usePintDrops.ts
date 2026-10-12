@@ -104,6 +104,7 @@ export type DropMsg = {
 // its size (PlanAstra, section 2.4). `photoRefusal` (lib/pintDropReceipt.ts) is
 // the browser's whole half of that rule, quoting lib/uploadBodyLimit.ts's own
 // figure, and both composers ask it rather than each keeping a copy.
+const VENUE_DROP_READ_TIMEOUT_MS = 8_000;
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
 /**
@@ -198,6 +199,10 @@ function measureFieldsOf(form: {
   };
 }
 
+function fileOfPhoto(photo: PhotoSlot | null): File | null {
+  return photo?.file ?? null;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -280,6 +285,7 @@ export function usePintDrops(
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());
+  const venueDropRequests = useRef(new Map<string, symbol>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -381,11 +387,20 @@ export function usePintDrops(
   // a failure; this now does the same, and records the read so a surface can
   // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
-    let active = true;
+    const request = Symbol();
+    const controller = new AbortController();
+    venueDropRequests.current.set(venueId, request);
+    setVenueDropStatus((current) => {
+      const next = new Map(current);
+      next.set(venueId, "idle");
+      return next;
+    });
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {
-      if (!active) return;
+      clearTimeout(deadline);
+      if (venueDropRequests.current.get(venueId) !== request) return;
+      venueDropRequests.current.delete(venueId);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
         const kept = venueDropsAfterRead(held, read);
@@ -400,14 +415,22 @@ export function usePintDrops(
         return next;
       });
     };
-    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`)
+    const deadline = setTimeout(() => {
+      settle({ status: "unavailable" });
+      controller.abort();
+    }, VENUE_DROP_READ_TIMEOUT_MS);
+    fetch(`/api/pint-drops?venueId=${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) => {
         settle({ status: "ready", drops: data.drops ?? [] });
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
-      active = false;
+      clearTimeout(deadline);
+      controller.abort();
+      if (venueDropRequests.current.get(venueId) === request) {
+        venueDropRequests.current.delete(venueId);
+      }
     };
   }, []);
 
@@ -638,9 +661,9 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
-    const submittedPintFile = pintPhoto?.file ?? null;
-    const submittedVenueFile = venuePhoto?.file ?? null;
-    const submittedReceiptFile = receiptPhoto?.file ?? null;
+    const submittedPintFile = fileOfPhoto(pintPhoto);
+    const submittedVenueFile = fileOfPhoto(venuePhoto);
+    const submittedReceiptFile = fileOfPhoto(receiptPhoto);
     clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {

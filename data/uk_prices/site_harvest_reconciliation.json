@@ -9124,5 +9124,23 @@
         "refusedNicholsonRows": 0
       }
     }
-  }
+  },
+  "laterPublications": [
+    {
+      "sourceEvidencePath": "data/enrichment/firecrawl/london/accepted-prices.json",
+      "sourceEvidenceSha256": "d7f4cc9cae77ffd72f48d65c3c4facb10a4c27d78bee9d32269c20367616aef3",
+      "sourceUrl": "https://www.thethirstybear.com/drinks",
+      "sourceObservedAt": "2026-10-09T17:02:22.329Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "e50ef0f2fd79ba2910e7b43a19fcd7dc65cbe93e7a395390b823084e5baeff54",
+        "rowCount": 3108,
+        "rowIdentitySetSha256": "619008cf38befb61a64c499b8f64b821b75aaf860705ea14295d197dbc66ef2b"
+      },
+      "currentBundle": {
+        "rowCount": 7597,
+        "siteHarvestRows": 3087
+      }
+    }
+  ]
 }

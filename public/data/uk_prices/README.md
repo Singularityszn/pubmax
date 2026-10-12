@@ -84,7 +84,13 @@ owns the reader's category and serving-evidence rules and their limits.
 publication under `postReconciliationPublication`, alongside the original
 reconciliation. It identifies the existing capture, its observation time, the
 superseded row and the resulting ledger and bundle. Reprocessing that capture
-does not make its observation time newer. Regression coverage lives in
+does not make its observation time newer. Subsequent additions are recorded in
+`laterPublications`, preserving the original reconciliation and Sydney ledger
+prefix. Each entry identifies its source evidence file and hash, source URL,
+observation time, added rows, and resulting ledger hashes and bundle counts.
+The Thirsty Bear's retained evidence is in
+[`accepted-prices.json`](../../../data/enrichment/firecrawl/london/accepted-prices.json).
+Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 
 **One row per pub, category, printed drink name, serving and lane.**

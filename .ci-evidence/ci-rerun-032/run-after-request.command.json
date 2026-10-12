@@ -1,0 +1,11 @@
+{
+  "time": "2026-10-11T01:19:27.975094+00:00",
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/runs/38097088260",
+    "--full"
+  ],
+  "exitCode": 0,
+  "stdoutSHA256": "7a2e1be8bc53af58669a3cc55f9934947df9df75d84771d7e78911b21e0314f0"
+}
