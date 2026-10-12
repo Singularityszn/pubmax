@@ -16,6 +16,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => authState.current,
+}));
+
 const communityPrices = {
   byVenueId: new Map(),
   signalsByVenueId: new Map([
