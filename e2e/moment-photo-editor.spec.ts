@@ -55,7 +55,7 @@ const MOMENT_URL = process.env.PW_MOMENT_BASE_URL
   : "/moment";
 
 async function attachPhoto(page: Page): Promise<void> {
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('form[aria-label="Private Moment composer"]').filter({ visible: true }).locator('input[type="file"]').setInputFiles({
     name: "night.png",
     mimeType: "image/png",
     buffer: PHOTO,
