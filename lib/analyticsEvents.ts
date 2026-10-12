@@ -12,7 +12,8 @@
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
 import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaVocabulary";
-import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { slugifyVenueName as boroughCode } from "@/lib/venuePermalinkSlug";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
 import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
