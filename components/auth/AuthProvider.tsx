@@ -24,7 +24,6 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
-import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
 import IdentityNudge from "@/components/identity/IdentityNudge";

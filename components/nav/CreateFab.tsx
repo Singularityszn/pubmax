@@ -37,7 +37,6 @@ import {
 } from "@/lib/useFocusTrap";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
-import "./createFab.css";
 
 // The compose affordance. A Moment carries the route it was composed from,
 // including its query, and the router's own reading is the SSR-safe fallback

@@ -30,7 +30,6 @@ import {
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
 } from "@/lib/useFocusTrap";
-import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
