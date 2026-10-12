@@ -17,6 +17,7 @@ type FakeMark = {
   lat: number;
   x: number;
   y: number;
+  properties?: Record<string, unknown>;
 };
 
 type FakeMapOptions = {
@@ -80,7 +81,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
     layer: { id: mark.layer },
     properties: mark.layer === "clusters"
       ? { cluster_id: Number(mark.id) }
-      : { id: mark.id },
+      : { id: mark.id, name: "A pub", ...mark.properties },
     geometry: { type: "Point", coordinates: [mark.lng, mark.lat] },
   });
 
@@ -92,6 +93,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
     getContainer: () => container,
     getCanvas: () => canvas,
     getZoom: () => zoom,
+    getSource: () => ({ getClusterExpansionZoom: vi.fn(async () => 14) }),
     project: ([lng, lat]: [number, number]) => {
       const mark = painted.find((item) => item.lng === lng && item.lat === lat);
       return { x: mark?.x ?? -1, y: mark?.y ?? -1 };
@@ -283,6 +285,67 @@ describe("paintedMapTapPoints", () => {
   it("carries where the mark is, beside where it is being drawn", () => {
     const [point] = paintedMapTapPoints(makeMap({ painted: [PIN_A] }));
     expect(point).toMatchObject({ lng: PIN_A.lng, lat: PIN_A.lat });
+  });
+});
+
+describe("painted target and real click routing parity", () => {
+  const pub = { ...PIN_A, layer: "pubs-point-selected" };
+  const base = { ...PIN_A, layer: "uk-base-point", id: "venue-uk-n1" };
+  const unnamed = { ...base, layer: "uk-base-unnamed-point", id: "venue-uk-n2", properties: { unnamed: true } };
+  const cafe = { ...PIN_A, layer: "coffee-pilot-point", id: "venue-osm-n3" };
+  const restaurant = { ...PIN_A, layer: "london-restaurant-point", id: "venue-osm-n4" };
+  const route = { ...PIN_A, layer: "route-stops", id: "route-pub" };
+  const cluster = { ...CLUSTER, x: PIN_A.x, y: PIN_A.y };
+  const tonight = { ...PIN_A, layer: "tonight-point", id: "tonight-1" };
+  const landmark = { ...PIN_A, layer: "landmarks-label", id: "landmark-1" };
+  const poi = { ...PIN_A, layer: "pois-dot", id: "poi-1" };
+
+  it.each([
+    { name: "restaurant beneath selected pub", hits: [restaurant, pub], winner: pub, kind: "venue", pubs: [pub], places: [] },
+    { name: "selected UK circle without a symbol", hits: [{ ...base, layer: "uk-base-selected" }], winner: null, kind: null, pubs: [], places: [] },
+    { name: "cafe before UK base", hits: [base, cafe], winner: cafe, kind: "venue", pubs: [], places: [cafe] },
+    { name: "UK base before restaurant", hits: [restaurant, base], winner: base, kind: "base", pubs: [base], places: [] },
+    { name: "named UK before unnamed UK", hits: [unnamed, base], winner: base, kind: "base", pubs: [base], places: [] },
+    { name: "unnamed UK before restaurant", hits: [restaurant, unnamed], winner: unnamed, kind: "base", pubs: [unnamed], places: [] },
+    { name: "first UK hit within one layer", hits: [base, { ...base, id: "venue-uk-n5" }], winner: base, kind: "base", pubs: [base], places: [] },
+    { name: "first cafe hit within one layer", hits: [cafe, { ...cafe, id: "venue-osm-n6" }], winner: cafe, kind: "venue", pubs: [], places: [cafe] },
+    { name: "first restaurant hit within one layer", hits: [restaurant, { ...restaurant, id: "venue-osm-n7" }], winner: restaurant, kind: "venue", pubs: [], places: [restaurant] },
+    { name: "pub before cluster", hits: [cluster, pub], winner: pub, kind: "venue", pubs: [pub], places: [] },
+    { name: "route before cluster and cafe", hits: [cafe, cluster, route], winner: route, kind: "route", pubs: [], places: [] },
+    { name: "cluster before cafe and UK and restaurant", hits: [restaurant, base, cafe, cluster], winner: cluster, kind: "cluster", pubs: [cluster], places: [] },
+    { name: "UK before tonight and landmark and POI", hits: [poi, landmark, tonight, base], winner: base, kind: "base", pubs: [base], places: [] },
+    { name: "invalid first cafe blocks later restaurant", hits: [{ ...cafe, id: "invalid-cafe" }, restaurant], winner: null, kind: null, pubs: [], places: [] },
+    { name: "invalid first base blocks restaurant", hits: [{ ...base, properties: { name: "" } }, restaurant], winner: null, kind: null, pubs: [], places: [] },
+  ])("returns only the actual target: $name", async ({ hits, winner, kind, pubs, places }) => {
+    let click: ((event: { point: { x: number; y: number } }) => void) | undefined;
+    const map = makeMap({
+      painted: hits,
+      pointHits: hits,
+      layers: [...new Set(hits.map((hit) => hit.layer))],
+      captureClick: (handler) => { click = handler; },
+    });
+    const opened: { kind: string; id: string }[] = [];
+    wireClickRouting(map, {
+      selectLandmark: vi.fn(),
+      setHoveredVenue: vi.fn(),
+      setActivePoi: vi.fn(),
+      onVenueClickRef: { current: (id) => { opened.push({ kind: "venue", id }); } },
+      onUkBasePubClickRef: { current: (pub) => { opened.push({ kind: "base", id: pub.id }); } },
+      onRouteStopClickRef: { current: (id) => { opened.push({ kind: "route", id }); } },
+      onTonightOpportunityClickRef: { current: vi.fn() },
+      cityLandmarksRef: { current: [] },
+      tonightOpportunitiesRef: { current: [] },
+      cinematic: () => { opened.push({ kind: "cluster", id: cluster.id }); },
+    });
+    click!({ point: { x: PIN_A.x, y: PIN_A.y } });
+    await Promise.resolve();
+    expect(opened).toEqual(winner ? [{ kind, id: winner.id }] : []);
+    const pointFor = (mark: FakeMark) => ({
+      kind: mark.layer === "clusters" ? "cluster" : "pin",
+      id: mark.id, x: mark.x, y: mark.y, lng: mark.lng, lat: mark.lat,
+    });
+    expect(paintedMapTapPoints(map)).toEqual(pubs.map(pointFor));
+    expect(paintedLondonPlaceTapPoints(map)).toEqual(places.map(pointFor));
   });
 });
 

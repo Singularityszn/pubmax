@@ -1,7 +1,9 @@
 import type * as maplibregl from "maplibre-gl";
 
 import { lngLatOf } from "@/lib/geo";
-import { pubHitOf } from "./pubHitPriority";
+import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
+import { ukBasePubFromFeature } from "@/lib/ukBasePubs";
+import { PUB_FIRST_LAYERS, resolveClickHit } from "./clickHitPriority";
 import { beginPubHitProbeTrace, finishPubHitProbeTrace, pubHitTrace, recordPubHitProbe } from "./pubHitTrace";
 
 // A browser test cannot ask a canvas where its pins are, so it used to guess:
@@ -54,7 +56,6 @@ const PIN_LAYERS = [
   "pubs-point-selected",
   "pubs-price-pill",
   "pubs-point",
-  "uk-base-selected",
   "uk-base-point",
   "uk-base-unnamed-point",
 ] as const;
@@ -102,6 +103,7 @@ export function paintedMapTapPoints(
 ): PaintedMapTapPoint[] {
   const pinLayers = pinLayerIds.filter((id) => Boolean(map.getLayer(id)));
   const clusterLayers = clusterLayerIds.filter((id) => Boolean(map.getLayer(id)));
+  const clickLayers = PUB_FIRST_LAYERS.filter((id) => Boolean(map.getLayer(id)));
 
   const container = map.getContainer();
   const rect = container.getBoundingClientRect();
@@ -137,31 +139,22 @@ export function paintedMapTapPoints(
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
       if (!mapCanvasReceivesTap(ownerDocument, canvas, container, x, y)) continue;
 
-      // Circle clusters have no placement box. Once the viewport query found
-      // one and the projected centre is on the map canvas, the click router's
-      // own point query will resolve it. Avoid repeating that query for every
-      // cluster while the browser is waiting for first paint. Symbol pins keep
-      // the stricter point re-query because collision placement can change
-      // their hit result.
-      if (kind === "pin") {
-        const hits = map.queryRenderedFeatures(point, { layers });
-        const byLayer = new Map<string, (typeof hits)[number]>();
-        for (const hit of hits) {
-          const layerId = hit.layer?.id;
-          if (typeof layerId === "string" && !byLayer.has(layerId)) {
-            byLayer.set(layerId, hit);
-          }
-        }
-        // Presence is insufficient when two pub hit boxes overlap. The real
-        // click router keeps the first hit per layer and gives the price pill
-        // and ordinary pub layers precedence over the selected pub layer.
-        const pubHit = pubHitOf(byLayer);
-        recordPubHitProbe(point, hits, pubHit, { x, y });
-        if (pubHit) {
-          if (markId(pubHit, kind) !== id) continue;
-        } else if (!hits.some((hit) => markId(hit, kind) === id)) {
-          continue;
-        }
+      const hits = map.queryRenderedFeatures(point, { layers: clickLayers });
+      const target = resolveClickHit(hits);
+      recordPubHitProbe(point, hits, target?.kind === "pub" ? target.feature : undefined, { x, y });
+      if (!target) continue;
+      if (kind === "cluster") {
+        if (target.kind !== "cluster" || markId(target.feature, kind) !== id || !map.getSource("pubs")) continue;
+      } else {
+        if (!layers.includes(target.feature.layer.id)) continue;
+        const targetId = target.kind === "pub"
+          ? (typeof target.feature.properties?.id === "string" ? target.feature.properties.id : null)
+          : target.kind === "base"
+            ? ukBasePubFromFeature(target.feature)?.id
+            : target.kind === "cafe" || target.kind === "restaurant"
+              ? londonVenueIdFromFeature(target.feature)
+              : null;
+        if (targetId !== id) continue;
       }
 
       points.push({ kind, id, x, y, lng, lat });

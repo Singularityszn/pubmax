@@ -45,6 +45,7 @@ vi.mock("@/lib/analytics", () => ({
 
 import PlanEntry from "@/components/plan/PlanEntry";
 import { createPlanIntakeDraft, readPlanIntakeDraft, writePlanIntakeDraft } from "@/lib/planIntake";
+import { writeRememberedArea } from "@/lib/nightPatches";
 
 const GENERATED = {
   routeRevision: 1,
@@ -84,6 +85,7 @@ afterEach(async () => {
   host?.remove();
   host = null;
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   sessionStorage.clear();
   localStorage.clear();
@@ -95,12 +97,13 @@ async function settle(): Promise<void> {
   });
 }
 
-async function mountComposer(strict = false): Promise<void> {
+async function mountComposer(strict = false, full = false): Promise<void> {
+  const Composer = full ? (await import("@/components/plan/PlanComposer")).default : PlanEntry;
   host = document.createElement("div");
   document.body.append(host);
   await act(async () => {
     root = createRoot(host!);
-    root.render(strict ? createElement(StrictMode, null, createElement(PlanEntry)) : createElement(PlanEntry));
+    root.render(strict ? createElement(StrictMode, null, createElement(Composer)) : createElement(Composer));
   });
   await settle();
 }
@@ -245,5 +248,99 @@ describe("the lightweight Plan entry", () => {
     await act(async () => { await vi.dynamicImportSettled(); });
     await vi.waitFor(() => expect(document.querySelector("#plan-intake-title")).not.toBeNull());
     expect(document.querySelector("#plan-describe-first-query")).toBeNull();
+  });
+
+  it.each([
+    ["lightweight", "location", "shoreditch"],
+    ["full composer", "location", "shoreditch"],
+    ["lightweight", "denied", "camden"],
+    ["full composer", "denied", "camden"],
+    ["lightweight", "unavailable", "camden"],
+    ["lightweight", "outside London", "camden"],
+    ["lightweight", "resolver failure", "camden"],
+    ["lightweight", "default", null],
+    ["lightweight", "chosen area", "camden"],
+  ] as const)("retains five stops through %s guide %s seeding and generation", async (entry, delivery, area) => {
+    let locate: PositionCallback | undefined;
+    let refuse: PositionErrorCallback | undefined;
+    vi.stubGlobal("navigator", delivery === "unavailable" ? {} : { geolocation: {
+      getCurrentPosition: vi.fn((success: PositionCallback, error?: PositionErrorCallback) => {
+        locate = success;
+        refuse = error;
+      }),
+    } });
+    await mountComposer(false, entry === "full composer");
+    await act(async () => { await vi.dynamicImportSettled(); });
+    if (delivery !== "location" && delivery !== "default") {
+      writeRememberedArea({ kind: "patch", id: "camden" });
+    }
+    await act(async () => {
+      [...document.querySelectorAll<HTMLButtonElement>(".planStopCount button")]
+        .find((button) => button.textContent?.trim() === "5")!.click();
+    });
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Guide me instead")!.click();
+      await vi.dynamicImportSettled();
+    });
+    if (delivery === "resolver failure") {
+      const resolver = await import("@/lib/nearestNightPatch");
+      vi.spyOn(resolver, "nearestNightPatch").mockImplementationOnce(() => { throw new Error("location resolver unavailable"); });
+    }
+    if (delivery !== "unavailable") {
+      expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+      expect(locate).toBeTypeOf("function");
+      await act(async () => {
+        if (delivery === "chosen area") {
+          [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Camden")!.click();
+        }
+        if (delivery === "denied" || delivery === "default") {
+          refuse!({ code: 1, message: "denied", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+        } else {
+          locate!({ coords: { latitude: delivery === "outside London" ? 53.48 : 51.527, longitude: -0.08 } } as GeolocationPosition);
+        }
+        await vi.dynamicImportSettled();
+      });
+    }
+    expect(readPlanIntakeDraft()?.answers.area).toBe(area);
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+    expect(document.querySelector<HTMLButtonElement>(".planStopCount button[aria-pressed='true']")?.textContent?.trim()).toBe("5");
+    if (area === null) {
+      await act(async () => {
+        [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Clapham")!.click();
+      });
+    }
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Describe instead")!.click();
+    });
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Make a plan")!.click();
+    });
+    const generated = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generated).toHaveLength(1);
+    const body = JSON.parse(generated[0]![1]!.body as string);
+    expect(body.intake.area).toEqual({ kind: "night-patch", id: area ?? "clapham" });
+    expect(body.context.stopCount).toBe(5);
+    expect(body.intake.stopCount).toBe(5);
+  });
+
+  it("retains the wizard request's count when an accepted area seeds on mount", async () => {
+    writeRememberedArea({ kind: "patch", id: "camden" });
+    const { default: Composer } = await import("@/components/plan/PlanComposer");
+    const { capturePlanEntryArrival } = await import("@/components/plan/PlanEntryArrival");
+    const arrival = capturePlanEntryArrival();
+    host = document.createElement("div");
+    document.body.append(host);
+    await act(async () => {
+      root = createRoot(host!);
+      root.render(createElement(Composer, {
+        arrival,
+        entryRequest: { mode: "wizard", query: "", capturedAt: arrival.capturedAt, stopCount: 5 },
+      }));
+      await vi.dynamicImportSettled();
+    });
+    expect(readPlanIntakeDraft()?.answers.area).toBe("camden");
+    expect(readPlanIntakeDraft()?.answers.stopCount).toBe(5);
+    expect(document.querySelector("#plan-intake-title")?.textContent).toBe("When are you heading out?");
+    expect(document.querySelector<HTMLButtonElement>(".planStopCount button[aria-pressed='true']")?.textContent?.trim()).toBe("5");
   });
 });

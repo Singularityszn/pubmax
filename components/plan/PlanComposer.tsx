@@ -1688,7 +1688,8 @@ function PlanComposerForm({
       if (!seed) return;
       setPlanIntake((current) => {
         if (cancelled || !canSeedPlanIntakeArea(current)) return current;
-        return createPlanIntakeDraft(seed);
+        const seeded = createPlanIntakeDraft(seed);
+        return { ...seeded, answers: { ...current.answers, area: seeded.answers.area } };
       });
     }
     function seedRememberedSoon(): void {
