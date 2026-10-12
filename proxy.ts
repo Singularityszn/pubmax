@@ -7,7 +7,7 @@ import { MAP_LIST_PATH, MAP_LIST_SEARCH_PARAM } from "@/lib/mapListRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
-import { supabaseCspOrigins } from "@/lib/supabaseCsp";
+import { localQaSupabaseConnectOrigins, supabaseCspOrigins } from "@/lib/supabaseCsp";
 import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
 import { isPosterLandingSrc, posterNearHref } from "@/lib/posterLanding";
 import {
@@ -443,6 +443,8 @@ export function securityProxy(request: NextRequest) {
     }
   })();
 
+  const localQaSupabaseConnect = localQaSupabaseConnectOrigins(process.env, request.url)
+    .map((origin) => ` ${origin}`).join("");
   const clerk = clerkCspSources();
   const supabaseCsp = supabaseCspOrigins();
   const supabaseImg = supabaseCsp ? ` ${supabaseCsp.https}` : "";
@@ -508,7 +510,7 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
     // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com${supabaseConnect} wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com${supabaseConnect} wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${localQaSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
     // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
     // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",

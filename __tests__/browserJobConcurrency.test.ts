@@ -51,6 +51,7 @@ describe("browser jobs on hosted runners", () => {
 
   it("finds the jobs that start a server and Chromium", () => {
     expect(playwrightJobs.map(({ file, jobId }) => `${file} / ${jobId}`).sort()).toEqual([
+      "e2e.yml / authenticated-recovery",
       "e2e.yml / full-suite",
       "e2e.yml / law-pins",
       "e2e.yml / layout-pins",

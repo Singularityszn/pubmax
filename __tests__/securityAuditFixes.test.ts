@@ -33,7 +33,7 @@ vi.mock("@/lib/socialOAuth", async (importOriginal) => {
 import { GET as versionGet } from "@/app/api/version/route";
 import { POST as socialConnectPost } from "@/app/api/social-connections/[provider]/route";
 import { PRODUCTION_SERVER_URL, nativeServerUrl } from "../capacitor.config";
-import { supabaseCspOrigins } from "@/lib/supabaseCsp";
+import { localQaSupabaseConnectOrigins, supabaseCspOrigins } from "@/lib/supabaseCsp";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
 import { securityProxy } from "../proxy";
 import { NextRequest } from "next/server";
@@ -67,6 +67,74 @@ describe("security audit F-02 — Supabase CSP pinning", () => {
     expect(csp).not.toContain("https://*.supabase.co");
     expect(csp).not.toContain("wss://*.supabase.co");
     vi.unstubAllEnvs();
+  });
+});
+
+describe("explicit local production auth QA CSP", () => {
+  const env = {
+    NODE_ENV: "production",
+    VERCEL_ENV: "development",
+    PUBMAX_E2E_LOGIN: "1",
+    VERCEL: "",
+    NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:58441",
+    SUPABASE_URL: "http://127.0.0.1:58441",
+  };
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it.each([58441, 54321])("pins the genuine local API on port %i", (port) => {
+    const url = `http://127.0.0.1:${port}`;
+    expect(localQaSupabaseConnectOrigins({ ...env, NEXT_PUBLIC_SUPABASE_URL: url, SUPABASE_URL: url }, "http://127.0.0.1:32191/login")).toEqual([url, url.replace("http:", "ws:")]);
+  });
+
+  it("accepts matching literal localhost origins and a trailing slash", () => {
+    expect(localQaSupabaseConnectOrigins({ ...env, NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321/", SUPABASE_URL: "http://localhost:54321" }, "http://localhost:3100/login")).toEqual(["http://localhost:54321", "ws://localhost:54321"]);
+  });
+
+  it.each([
+    ["missing login opt-in", { PUBMAX_E2E_LOGIN: "" }],
+    ["not the strict production runtime", { NODE_ENV: "development" }],
+    ["missing development deployment", { VERCEL_ENV: "" }],
+    ["deployed production", { VERCEL_ENV: "production" }],
+    ["hosted Vercel process", { VERCEL: "1" }],
+    ["public/server origin mismatch", { SUPABASE_URL: "http://localhost:58441" }],
+    ["missing server origin", { SUPABASE_URL: "" }],
+    ["remote public host", { NEXT_PUBLIC_SUPABASE_URL: "http://example.com:58441" }],
+    ["unsupported local API port", { NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:58442", SUPABASE_URL: "http://127.0.0.1:58442" }],
+    ["URL credentials", { NEXT_PUBLIC_SUPABASE_URL: "http://user@127.0.0.1:58441" }],
+    ["URL query", { NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:58441?next=remote" }],
+    ["URL path", { NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:58441/auth" }],
+    ["numeric host alias", { NEXT_PUBLIC_SUPABASE_URL: "http://2130706433:58441" }],
+  ] as const)("refuses %s", (_name, changed) => {
+    expect(localQaSupabaseConnectOrigins({ ...env, ...changed }, "http://127.0.0.1:32191/login")).toEqual([]);
+  });
+
+  it.each([
+    "https://pubmaxxing.com/login", "http://example.com:32191/login",
+    "http://127.0.0.1.evil.example:32191/login", "http://user@127.0.0.1:32191/login",
+    "http://2130706433:32191/login", "http://127.0.0.1:80/login",
+  ])("refuses a nonlocal QA document: %s", (url) => {
+    expect(localQaSupabaseConnectOrigins(env, url)).toEqual([]);
+  });
+
+  it("adds only exact connect origins to a strict local document", () => {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+    const csp = securityProxy(new NextRequest("http://127.0.0.1:32191/login")).headers.get("content-security-policy") ?? "";
+    const connect = csp.split(";").find((part) => part.trim().startsWith("connect-src")) ?? "";
+    const scripts = csp.split(";").find((part) => part.trim().startsWith("script-src")) ?? "";
+    expect(connect).toContain(" http://127.0.0.1:58441");
+    expect(connect).toContain(" ws://127.0.0.1:58441");
+    expect(scripts).not.toContain("unsafe-eval");
+    expect(scripts).toContain("nonce-");
+    const images = csp.split(";").find((part) => part.trim().startsWith("img-src")) ?? "";
+    expect(images).not.toContain("http://127.0.0.1:58441");
+  });
+
+  it("does not add loopback auth to a hosted production document", () => {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+    vi.stubEnv("VERCEL_ENV", "production");
+    const csp = securityProxy(new NextRequest("https://pubmaxxing.com/login")).headers.get("content-security-policy") ?? "";
+    expect(csp).not.toContain("127.0.0.1:58441");
+    expect(csp).not.toContain("unsafe-eval");
   });
 });
 
