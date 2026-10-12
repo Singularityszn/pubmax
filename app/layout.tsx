@@ -37,6 +37,9 @@ import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
+import { readThemeInitSource } from "@/lib/themeInit.server";
+
+const themeInitSource = readThemeInitSource();
 
 // Clerk is optional. Keep its provider, revision bridge, and client auth graph
 // out of every keyless route, which is the normal map build, by loading one
@@ -316,21 +319,14 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
-        {/* The pre-paint decisions, in one render-blocking file: the native
-            shell's entry route first, then the theme and landing splash, so
-            neither the shell nor the page paints something it is about to
-            replace. One file
-            because one request - a second pre-paint script cost every web
-            route a fetch for a decision only the shell uses. Served
-            as a static file (public/theme-init.js) rather than inline so it is
-            covered by CSP `script-src 'self'` with no per-build hash. It is a
-            render-blocking classic script in <head> (NO async/defer on purpose)
-            so it runs before first paint, preserving the no-flash guarantee.
-            That synchronous load is the whole point here, so the no-sync-scripts
-            lint (which exists to prevent render-blocking body scripts) is opted
-            out for this one intentional case. */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/theme-init.js?v=splash-1" />
+        {/* Execute the canonical native-entry, theme, view and splash decisions
+            before paint, without another parser-blocking network request.
+            Dynamic documents carry the request nonce. The five static
+            documents retain their existing inline-script CSP allowance. */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeInitSource }}
+        />
         {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
             page while the user browses the explore-London loop, so tapping
             through borough/Social surfaces is instant. Conservative by design:
