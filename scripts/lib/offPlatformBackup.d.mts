@@ -1,5 +1,6 @@
 export const DEFAULT_BUCKET: string;
 export const PRUNE_AFTER_WEEKS: number;
+export const MAX_RETENTION_WEEKS: number;
 export const DUMP_SCHEMAS: string[];
 export function pgEnvFromUrl(connectionString: string): Record<string, string>;
 export function dumpFileName(date: Date): string;

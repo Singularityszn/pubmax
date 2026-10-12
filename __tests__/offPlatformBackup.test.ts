@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
@@ -19,6 +20,7 @@ import {
   dumpFileName,
   isInsideDirectory,
   listBucketObjects,
+  MAX_RETENTION_WEEKS,
   objectNeedsDownload,
   pgDumpArgs,
   pgEnvFromUrl,
@@ -84,6 +86,7 @@ describe("pruneBackupCopy keeps no copy for 8 weeks, by age, on irregular runs",
 
   it("prunes at 7 weeks, a week inside the 8 the privacy page promises", () => {
     expect(PRUNE_AFTER_WEEKS).toBe(7);
+    expect(MAX_RETENTION_WEEKS).toBe(8);
   });
 
   it("deletes dumps past the window however many runs there were, killed partial dumps, and the photos and id folders only they named", () => {
@@ -140,26 +143,96 @@ describe("pruneBackupCopy keeps no copy for 8 weeks, by age, on irregular runs",
     );
   });
 
-  it("keeps the newest dump and the photos it names when the runs stopped long ago", () => {
+  it("removes even the newest dump and its photos when the runs stopped beyond eight weeks", () => {
     run("2026-03-01T03:30:00Z");
     run("2026-05-01T03:30:00Z");
     object("old/a.jpg", "2026-03-01T03:30:00.400Z");
     object("newest/b.jpg", "2026-05-01T03:30:00.400Z");
 
-    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 1, files: 1, directories: 1 });
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 2, files: 2, directories: 2 });
 
-    expect(readdirSync(dir).sort()).toEqual(["bucket", "pubmax-20260501T033000Z.dump"]);
-    expect(tree(bucketRoot)).toEqual(["newest", path.join("newest", "b.jpg")]);
+    expect(readdirSync(dir).sort()).toEqual(["bucket"]);
+    expect(tree(bucketRoot)).toEqual([]);
   });
 
-  it("touches no bucket file and keeps the bucket folder when there is no dump", () => {
+  it("expires orphaned photos even without dumps and keeps the bucket root", () => {
     object("a.jpg", "2026-01-01T00:00:00Z");
-    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 0, files: 0, directories: 0 });
-    expect(tree(bucketRoot)).toEqual(["a.jpg"]);
-    rmSync(path.join(bucketRoot, "a.jpg"));
+    object("fresh.jpg", "2026-10-05T00:00:00Z");
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 0, files: 1, directories: 0 });
+    expect(tree(bucketRoot)).toEqual(["fresh.jpg"]);
     run("2026-10-06T03:30:00Z");
     pruneBackupCopy({ dir, bucketRoot, now });
     expect(existsSync(bucketRoot)).toBe(true);
+  });
+
+  it.each([
+    ["2026-08-11T03:30:01Z", true],
+    ["2026-08-11T03:30:00Z", false],
+    ["2026-08-11T03:29:59Z", false],
+  ] as const)("keeps the newest dump and photo from %s only before their eight-week deadline", (taken, retained) => {
+    run(taken);
+    object("account/photo.jpg", taken);
+
+    pruneBackupCopy({ dir, bucketRoot, now });
+
+    expect(existsSync(path.join(dir, dumpFileName(new Date(taken))))).toBe(retained);
+    expect(existsSync(path.join(bucketRoot, "account/photo.jpg"))).toBe(retained);
+    expect(existsSync(path.join(bucketRoot, "account"))).toBe(retained);
+  });
+
+  it("protects the unexpired newest fallback beyond seven weeks and trims deleted photo identifiers", () => {
+    run("2026-03-01T03:30:00Z");
+    run("2026-08-12T03:30:00Z");
+    object("expired-account/old.jpg", "2026-03-01T03:30:00Z");
+    object("fallback-account/photo.jpg", "2026-08-12T03:30:00Z");
+    const versionsFile = path.join(dir, "bucket/pint-drops.versions.json");
+    writeFileSync(versionsFile, JSON.stringify({
+      "expired-account/old.jpg": "old-version",
+      "missing-account/photo.jpg": "missing-version",
+      "fallback-account/photo.jpg": "fallback-version",
+    }));
+
+    pruneBackupCopy({ dir, bucketRoot, now });
+
+    expect(readdirSync(dir).sort()).toEqual(["bucket", "pubmax-20260812T033000Z.dump"]);
+    expect(tree(bucketRoot)).toEqual(["fallback-account", path.join("fallback-account", "photo.jpg")]);
+    expect(JSON.parse(readFileSync(versionsFile, "utf8"))).toEqual({ "fallback-account/photo.jpg": "fallback-version" });
+    expect(statSync(versionsFile).mode & 0o777).toBe(0o600);
+  });
+
+  it("expires partial dumps and incoming photos without completed dumps or surviving identifier metadata", () => {
+    const expired = path.join(dir, "pubmax-20260811T033000Z.dump.partial");
+    const unexpired = path.join(dir, "pubmax-20260930T033000Z.dump.partial");
+    writeFileSync(expired, "fixture-partial");
+    writeFileSync(unexpired, "fixture-partial");
+    // A recent filesystem timestamp must not extend an old dump's named age.
+    utimesSync(expired, new Date(now), new Date(now));
+    writeFileSync(path.join(dir, "notes.txt"), "operator note");
+    object("expired/account/photo.jpg.incoming", "2026-08-11T03:30:00Z");
+    object("fallback/account/photo.jpg.incoming", "2026-09-30T03:30:00Z");
+    mkdirSync(path.join(bucketRoot, "empty-account"));
+    const versionsFile = path.join(dir, "bucket/pint-drops.versions.json");
+    writeFileSync(versionsFile, JSON.stringify({ "expired/account/photo.jpg": "old-version" }));
+
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 1, files: 1, directories: 3 });
+
+    expect(existsSync(expired)).toBe(false);
+    expect(existsSync(unexpired)).toBe(true);
+    expect(existsSync(versionsFile)).toBe(false);
+    expect(readFileSync(path.join(dir, "notes.txt"), "utf8")).toBe("operator note");
+    expect(tree(bucketRoot)).toEqual([
+      "fallback", path.join("fallback", "account"), path.join("fallback", "account", "photo.jpg.incoming"),
+    ]);
+  });
+
+  it("removes identifier metadata when no photo or dump remains", () => {
+    const versionsFile = path.join(dir, "bucket/pint-drops.versions.json");
+    writeFileSync(versionsFile, JSON.stringify({ "deleted-account/photo.jpg": "old-version" }));
+
+    pruneBackupCopy({ dir, bucketRoot, now });
+
+    expect(existsSync(versionsFile)).toBe(false);
+    expect(tree(bucketRoot)).toEqual([]);
   });
 });
 
