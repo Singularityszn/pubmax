@@ -85,6 +85,7 @@ describe("browser CI policy", () => {
       "law-pins",
       "layout-pins",
       "full-suite",
+      "authenticated-recovery",
     ]);
     const envKeys = [
       workflow.env,
