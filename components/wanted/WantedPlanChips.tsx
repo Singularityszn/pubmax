@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { authedFetch } from "@/lib/authedFetch";
 import type { WantedDTO } from "@/lib/wanted";
 import { discardBody } from "@/lib/responseBody";
 
-import "./wanted.css";
+import "./wantedPlanChips.css";
 
 /** Open Wanteds as plan describe-first chips so saved places become tonight options. */
 export default function WantedPlanChips({

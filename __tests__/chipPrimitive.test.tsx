@@ -6,11 +6,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { Chip } from "@/components/ui/chip";
+import { NumberChip } from "@/components/ui/numberChip";
 
 // A NUMBER SQUARE IS ONE FAMILY. The 6 September 2026 design review measured
 // the planner's pub-stop count at 10px corners and the /pubs fare-zone picker
 // at --radius-sm on 44px squares: two look-alike controls asking the same
-// question in two shapes. Both now render components/ui/chip.tsx, painted from
+// question in two shapes. Both now use the shared chipBase renderer, painted from
 // the same --control-* row every text button reads.
 
 const ROOT = process.cwd();
@@ -24,7 +25,7 @@ describe("the Chip primitive", () => {
     // Tailwind `text-sm font-bold` this primitive used to carry rendered as the
     // inherited 16px at weight 400.
     expect(chipCss).not.toMatch(/^\s*@layer/m);
-    expect(read("components/ui/chip.tsx")).toContain('import "./chip.css"');
+    expect(read("components/ui/chipBase.tsx")).toContain('import "./chip.css"');
     expect(read("components/ui/chip.tsx")).not.toMatch(/rounded-\[|text-sm|font-bold/);
   });
 
@@ -52,6 +53,23 @@ describe("the Chip primitive", () => {
     ).toBe('<button type="button" class="uiChip uiChip--number">3</button>');
   });
 
+  it("keeps arbitrary utility-conflict merging in the generic Chip", () => {
+    expect(renderToStaticMarkup(createElement(Chip, {
+      variant: "number", className: "p-2 p-4", type: "submit", "aria-pressed": true,
+    }, "3"))).toBe(
+      '<button type="submit" class="uiChip uiChip--number p-4" aria-pressed="true">3</button>',
+    );
+  });
+
+  it("renders the closed number entry identically to the generic number variant", () => {
+    for (const type of [undefined, "button", "submit", "reset"] as const) {
+      const props = { type, "aria-pressed": true as const, "aria-disabled": true as const, title: "Pub stops" };
+      expect(renderToStaticMarkup(createElement(NumberChip, props, "3"))).toBe(
+        renderToStaticMarkup(createElement(Chip, { ...props, variant: "number" }, "3")),
+      );
+    }
+  });
+
   it("carries the chosen state on aria-pressed, so the state and the label agree", () => {
     expect(chipCss).toMatch(/\.uiChip\[aria-pressed="true"\]/);
     const chosen = chipCss.match(/\.uiChip\[aria-pressed="true"\]\s*{([^}]*)}/)?.[1] ?? "";
@@ -61,13 +79,15 @@ describe("the Chip primitive", () => {
   });
 });
 
-describe("the two number-square surfaces render ONE component", () => {
+describe("the two number-square surfaces share ONE renderer", () => {
   const planner = read("components/plan/PlanStopCountPicker.tsx");
   const pubs = read("components/pubs/PubsFilters.tsx");
 
   it("the planner's pub-stop count is the shared number chip", () => {
-    expect(planner).toContain('from "@/components/ui/chip"');
-    expect(planner).toMatch(/<Chip\b[\s\S]*?variant="number"/);
+    expect(planner).toContain('from "@/components/ui/numberChip"');
+    expect(planner).toMatch(/<NumberChip\b/);
+    expect(read("components/ui/numberChip.tsx")).toContain('from "./chipBase"');
+    expect(read("components/ui/chip.tsx")).toContain('from "./chipBase"');
     expect(planner).not.toMatch(/<button\b/);
   });
 
