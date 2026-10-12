@@ -4,7 +4,7 @@ import Link from "next/link";
 import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
 
-import "../plan.css";
+import "../planFull.css";
 
 // Branded not-found for /plan/[id] — rendered when the page calls notFound() on
 // a plan that's unknown OR expired. This is a SHARED-LINK surface (someone was

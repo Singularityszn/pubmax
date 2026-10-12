@@ -512,6 +512,8 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
   const EYEBROW_RULES: ReadonlyArray<readonly [string, readonly string[]]> = [
     ["app/plan/plan.css", [
       ".planPage__eyebrow",
+    ]],
+    ["app/plan/planFull.css", [
       ".matchGroupPrefs__eyebrow",
       ".planIntake__eyebrow",
       ".planComposer__coverageGroups h3",

@@ -9,7 +9,7 @@ import { isPlanId } from "@/lib/plan";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
 
-import "../../plan.css";
+import "../../planFull.css";
 import "./recap.css";
 
 type Props = { params: Promise<{ id: string }> };

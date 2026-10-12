@@ -22,7 +22,7 @@ import { buildPlanInviteShareText } from "@/lib/shareArtifacts";
 import { shareVibeSlug, VIBE_SLUGS } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
-import "../plan.css";
+import "../planFull.css";
 import "./planDetail.css";
 
 /** A safe, non-leaking headline for anonymous surfaces — never the user title. */

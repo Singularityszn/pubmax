@@ -119,10 +119,12 @@ import {
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 
+import "@/app/plan/planFull.css";
+
 // These parts load when the composer renders them. The describe-first arrival
 // does not need them and must meet the JS ceiling in perf/route-budgets.json.
-// The stop-list and provenance styles live in app/plan/plan.css, so their
-// layout is ready before their chunks arrive. Tune details loads its own CSS.
+// The stop-list and provenance styles load with this composer in planFull.css.
+// Their layout is ready before their chunks arrive. Tune details loads its own CSS.
 const PlanIntake = dynamic(() => import("@/components/plan/PlanIntake"), {
   loading: () => <p role="status">Opening the guide…</p>,
 });

@@ -16,7 +16,7 @@ import type { PintDrop } from "@/lib/pintDropShared";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 import { buildRecapShareText, composeRecapFromPublishedStory } from "@/lib/recapView";
 
-import "../../plan/plan.css";
+import "../../plan/planFull.css";
 import "../../plan/[id]/recap/recap.css";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
