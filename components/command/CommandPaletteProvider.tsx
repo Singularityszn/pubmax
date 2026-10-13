@@ -7,8 +7,11 @@
 // pop the palette. The dialog itself is only rendered while open, so "open"
 // state and "mounted" stay identical — see CommandPalette.tsx.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
+
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { readOtherStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStrictModalFocusTrap } from "@/lib/useFocusTrap";
 
 // The dialog is fetched when it first opens, not when the app boots. This
 // provider is mounted at the root on EVERY route, so a static import put the
@@ -52,10 +55,25 @@ export default function CommandPaletteProvider({
   children: React.ReactNode;
 }): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const otherStrictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    () => readOtherStrictModalFocusTrap(panelRef.current),
+    serverStrictModalFocusTrap,
+  );
+  // Cancel a pending lazy palette when another modal takes the page. Holding
+  // the request would open it later and steal that modal's typing focus.
+  if (isOpen && otherStrictModalOpen) setIsOpen(false);
 
-  const open = useCallback(() => setIsOpen(true), []);
+  const open = useCallback(() => {
+    if (!readOtherStrictModalFocusTrap(panelRef.current)) setIsOpen(true);
+  }, []);
   const close = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen((v) => !v), []);
+  const toggle = useCallback(() => {
+    if (!readOtherStrictModalFocusTrap(panelRef.current)) setIsOpen((v) => !v);
+  }, []);
+  // Own Back from the initial request through the lazy dialog's lifetime.
+  useDismissOnEscape(isOpen && !otherStrictModalOpen, close, panelRef);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -67,18 +85,13 @@ export default function CommandPaletteProvider({
         (event.key === "k" || event.key === "K");
       if (isPaletteKey) {
         event.preventDefault();
-        setIsOpen((v) => !v);
+        toggle();
         return;
-      }
-      // Esc closes when open (the dialog also handles this locally; both are
-      // idempotent). Left as a global safety net.
-      if (event.key === "Escape") {
-        setIsOpen((wasOpen) => (wasOpen ? false : wasOpen));
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [toggle]);
 
   const api = useMemo<CommandPaletteApi>(
     () => ({ isOpen, open, close, toggle }),
@@ -88,7 +101,7 @@ export default function CommandPaletteProvider({
   return (
     <CommandPaletteContext.Provider value={api}>
       {children}
-      {isOpen ? <CommandPalette onClose={close} /> : null}
+      {isOpen && !otherStrictModalOpen ? <CommandPalette onClose={close} panelRef={panelRef} /> : null}
     </CommandPaletteContext.Provider>
   );
 }
