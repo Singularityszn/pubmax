@@ -55,6 +55,38 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it("asks for a listed pub instead of arbitrary cards for an unanchored pint comparison", async () => {
+    const query = "Cheapest pint";
+    const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();
+    expect(body.toolsUsed).toEqual(["venue_prices"]);
+    expect(body.answer).toBe("Name a listed pub to check a price.");
+    expect(body.cards).toEqual([]);
+    const result = await runAskTool("search_venues", { query }, { query, cityId: "london", skipModel: true });
+    expect(result.cards).toEqual([]);
+  });
+
+  it.each(["Is the Tube running tonight?", "Are there Tube delays?"])("answers a public transit interrogative: %s", async (query) => {
+    const response = await post({ query, cityId: "london" }, "203.0.113.82");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["city_status"]);
+    expect(body.answer).toMatch(/transit|city status|tube|weather/i);
+    expect(body.cards).toEqual([]);
+  });
+
+  it.each([
+    "Is the Tube running tonight and wine prices at Fox and Anchor?",
+    "Wine prices at Fox and Anchor and are there Tube delays?",
+  ])("preserves category authority beside a public transit interrogative: %s", async (query) => {
+    const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();
+    expect(body.toolsUsed).toEqual(["city_status", "venue_drinks"]);
+    expect(body.answer).toContain("Fox and Anchor");
+    expect(body.answer).not.toMatch(/can't verify|can't compare|not prices for that item/i);
+    const result = await runAskTool("venue_prices", { venueName: "The Lamb" }, { query, cityId: "london", skipModel: true });
+    expect(result).toMatchObject({ tool: "venue_drinks", data: { venueId: "venue-phg4ss" } });
+    expect(result.priceEvidence?.filter((price) => price.category !== "wine")).toEqual([]);
+  });
+
   it("scopes missing Sherlock Holmes wine prices to people logs while preserving its published menu", async () => {
     const body = await (await post({ query: "Wine prices at Sherlock Holmes", cityId: "london" }, "203.0.113.82")).json();
     expect(body.toolsUsed).toEqual(["venue_drinks"]);

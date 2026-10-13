@@ -12,6 +12,8 @@ export type RoutedToolCall = {
 
 const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
+const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:the\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
+const TRANSIT_INTERROGATIVE_RE = new RegExp(`^${TRANSIT_INTERROGATIVE_PREFIX}`, "i");
 const JOURNEY_RE =
   /\b(how (do|can) i get|journey|get (me )?to|directions to|route to)\b/i;
 const HERITAGE_RE =
@@ -45,7 +47,7 @@ const VENUE_DRINKS_RE =
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
 const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?:\s+(?:of|for))?|costs?(?:\s+(?:of|for))?)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
-const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
+const NON_PINT_DRINK_RE = /\b(?:wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
 const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";
@@ -92,11 +94,12 @@ function namedDrinkVenue(query: string): string | null {
 }
 
 function askRequestClauses(query: string): string[] {
-  return query.split(/(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))/i);
+  const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
+  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
 
 function isCityStatusRequest(query: string): boolean {
-  return CITY_STATUS_RE.test(query) && /^(?:any\s+)?(?:tube|transit|delays?|weather|city status)\b|^how(?:'s| is| are)\s+(?:the\s+)?(?:tube|transit|weather|london)\b|^(?:what|check|tell me)\b.*\b(?:delays?|weather|city status)\b|^right now in london\b/i.test(query.trim());
+  return CITY_STATUS_RE.test(query) && (TRANSIT_INTERROGATIVE_RE.test(query.trim()) || /^(?:any\s+)?(?:tube|transit|delays?|weather|city status)\b|^how(?:'s| is| are)\s+(?:the\s+)?(?:tube|transit|weather|london)\b|^(?:what|check|tell me)\b.*\b(?:delays?|weather|city status)\b|^right now in london\b/i.test(query.trim()));
 }
 
 export function resolveAskJourney(query: string): { from?: string; to: string } | null {
@@ -219,9 +222,11 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
 
 export function isVenueDiscoveryAsk(query: string): boolean {
   if (VENUE_DISCOVERY_RE.test(query)) return true;
-  const intent = resolveAskPriceIntent(query);
-  return PRICE_COMPARISON_RE.test(query)
-    && (intent.kind === "none" || (intent.kind === "pint" && !intent.venueName));
+  const priceQuery = priceQuestion(query);
+  const intent = resolveAskPriceIntent(priceQuery);
+  return PRICE_COMPARISON_RE.test(priceQuery)
+    && (intent.kind === "none" || (intent.kind === "pint" && !intent.venueName
+      && (extractArea(priceQuery) !== null || !/^(?:pints?|beer|pubs?)$/i.test(priceComparisonSubject(priceQuery) ?? ""))));
 }
 
 export function isIndependentAskTool(name: string): boolean {
