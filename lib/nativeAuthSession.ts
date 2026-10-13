@@ -1,4 +1,4 @@
-export type NativeAuthSessionPlugin = {
+type NativeAuthSessionPlugin = {
   authenticate: (input: { url: string; attemptId: string }) => Promise<{ url: string }>;
   cancel: (input: { attemptId: string }) => Promise<void>;
 };

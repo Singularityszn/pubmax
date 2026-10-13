@@ -1,7 +1,7 @@
 import { IOS_EMAIL_AUTH_MODE, IOS_EMAIL_CALLBACK } from "@/lib/nativeEmailPkce";
 import { AUTH_ATTEMPT_PARAM, isAuthAttemptId } from "@/lib/authRedirect";
 
-export const IOS_AUTH_CALLBACK = "pubmaxx://native-auth/callback";
+const IOS_AUTH_CALLBACK = "pubmaxx://native-auth/callback";
 export const IOS_AUTH_MODE = "ios-pkce";
 const CODE_PATTERN = /^[A-Za-z0-9_-]{1,2048}$/;
 
