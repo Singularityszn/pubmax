@@ -322,6 +322,43 @@ html[data-legacy="1"] .drinkCategoryTitle {
   white-space: nowrap;
 }
 
+/* A food publisher's name uses its own row on a phone, so the source cannot
+   squeeze the dish name and calories into a narrow column. */
+@media (max-width: 640px) {
+  .foodMenu .drinkRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+
+  .foodMenu .drinkRowSide {
+    display: contents;
+  }
+
+  .foodMenu .drinkPrice {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .foodMenu .drinkRowSide > :not(.drinkPrice) {
+    grid-column: 1 / -1;
+    justify-self: start;
+    text-align: start;
+  }
+
+  .foodMenu .drinkProvChip {
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .foodMenu .drinkObservationAge {
+    max-inline-size: none;
+    text-align: start;
+  }
+}
+
 /* ── Footnote ──────────────────────────────────────────────────────────────── */
 .drinkMenuFootnote {
   margin: 4px 0 0;
