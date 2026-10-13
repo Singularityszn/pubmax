@@ -289,8 +289,6 @@ function AccountHandleEditor({
 
   async function rename(event: FormEvent) {
     event.preventDefault();
-    // First claim is AccountOnboarding only (handle + date of birth together).
-    // A handle-only claim here left accounts stuck on onboarding_required.
     if (!currentHandle) return;
     setMessage("");
     try {
@@ -327,8 +325,8 @@ function AccountHandleEditor({
       <div>
         <h3>Claim your @handle</h3>
         <p>
-          Finish the setup dialog that asks for your public handle and date of
-          birth. Claiming a handle alone is not enough to contribute.
+          Finish the setup dialog to claim your public handle.
+          Your name and date of birth are optional.
         </p>
         {message ? <small role="status">{message}</small> : null}
       </div>

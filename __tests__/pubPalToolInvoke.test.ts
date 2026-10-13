@@ -1,5 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { JOURNEY_ENDPOINT_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetJourneyCache } from "@/lib/citymcp/client";
@@ -100,6 +100,15 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.cards).toMatchObject([{ venueId, place: name }]);
     expect(JSON.parse(journeyFetch.mock.calls[0]?.[1]?.body as string).params.arguments).toEqual({ from, to });
     expect((await readPubPalToolTurn("conv_endpointoriginal01"))?.toolsUsed).toEqual(["journey"]);
+  });
+
+  it.each(NAMED_QUALIFIED_PRICE_REQUESTS)("retains stored named prices across time qualifiers: $query", async ({ query, tool, category }) => {
+    await registerPubPalToolTurn("conv_qualifiedoriginal01", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "cheapest_pint_near", args: { venueName: "The Lamb", query: "pints near The Lamb" }, conversationId: "conv_qualifiedoriginal01" });
+    expect(result.tool).toBe(tool);
+    expect(result.answerHint).toContain("Fox and Anchor");
+    if (category) expect((result.priceEvidence as Array<{ category: string }>).filter((price) => price.category !== category)).toEqual([]);
+    expect((await readPubPalToolTurn("conv_qualifiedoriginal01"))?.toolsUsed).toEqual([tool]);
   });
 
   it.each(NAMED_TERMINAL_PRICE_REQUESTS)("retains the stored named terminal price: %s", async (query) => {

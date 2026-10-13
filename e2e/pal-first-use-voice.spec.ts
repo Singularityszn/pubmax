@@ -6,6 +6,7 @@ for (const query of [
   "Directions to Fox and Anchor",
   "How do I get from Kings Cross to Fox and Anchor?",
   "Directions to Fox & Anchor from Kings Cross",
+  "Directions to Fox and Anchor from Fox and Firkin this evening",
 ]) {
   test(`the rendered chat preserves the complete journey question: ${query}`, async ({ page }) => {
     await page.goto("/pal/chat");
@@ -20,7 +21,9 @@ for (const query of [
     expect(response.request().postDataJSON().query).toBe(query);
     const body = await response.json();
     expect(body.toolsUsed).toEqual(["journey"]);
+    expect(body.cards.length, `Journey service returned no canonical destination evidence: ${body.answer}`).toBeGreaterThan(0);
     expect(body.cards.every((card: { venueId: string; place: string }) => card.venueId === "venue-phg4ss" && card.place === "Fox and Anchor")).toBe(true);
+    expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId: "venue-phg4ss" }));
     expect(body.proposals.every((proposal: { kind: string; venueId: string }) => proposal.kind === "open_venue" && proposal.venueId === "venue-phg4ss")).toBe(true);
     expect(body.answer).toMatch(/journey/i);
     await expect(page.getByText(query, { exact: true })).toBeVisible();
@@ -120,6 +123,9 @@ for (const query of [
   "Somewhere cheap for a burger near Elephant and Castle station",
   "Somewhere cheap in Soho with bottles of Coke near the Tube",
   "Wine prices at Fox and Anchor",
+  "Wine prices at Fox and Anchor this evening?",
+  "Pint prices at Fox and Anchor now?",
+  "Drink prices later at Fox and Anchor?",
   "Wine prices at Fox & Anchor",
   "Wine prices at The Black Friar, Blackfriars",
 ]) {
@@ -135,16 +141,17 @@ for (const query of [
     const response = await responsePromise;
     expect(response.status()).toBe(200);
     const body = await response.json();
-    expect(body.toolsUsed).toEqual(query.startsWith("Wine prices") ? ["venue_drinks"] : []);
-    if (query.startsWith("Wine prices")) {
+    const namedPrice = /^(?:Wine|Pint|Drink) prices/.test(query);
+    expect(body.toolsUsed).toEqual(namedPrice ? [query.startsWith("Pint") ? "venue_prices" : "venue_drinks"] : []);
+    if (namedPrice) {
       expect(body.answer).toContain(query.includes("Black Friar") ? "The Blackfriar" : "Fox and Anchor");
-      expect(body.answer).toMatch(/wine/i);
+      if (query.startsWith("Wine")) expect(body.answer).toMatch(/wine/i);
     } else {
       expect(body.answer).toMatch(/other drinks across pubs|meal prices|not prices for that item/i);
       expect(body.cards).toEqual([]);
       expect(body.proposals).toEqual([]);
     }
-    expect(body.cards.every((card: { note: string }) => !/listed pint|recorded pint/i.test(card.note))).toBe(true);
+    if (!namedPrice || query.startsWith("Wine")) expect(body.cards.every((card: { note: string }) => !/listed pint|recorded pint/i.test(card.note))).toBe(true);
     await expect(page.getByText(body.answer, { exact: true })).toBeVisible();
     await expect(page.getByText(query, { exact: true })).toBeVisible();
   });
