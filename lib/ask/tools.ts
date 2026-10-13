@@ -1024,13 +1024,14 @@ export async function runAskTool(
   }
   let toolName = name;
   let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
-  if (intent.kind === "recorded-drinks") {
+  const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
+  if (answersPrice && intent.kind === "recorded-drinks") {
     toolName = "venue_drinks";
     toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
-  } else if (intent.kind === "drink-venues") {
+  } else if (answersPrice && intent.kind === "drink-venues") {
     toolName = "search_venues";
     toolArgs = { query: ctx.query, limit: 4 };
-  } else if (intent.kind === "pint" || intent.kind === "pub-price") {
+  } else if (answersPrice && (intent.kind === "pint" || intent.kind === "pub-price")) {
     const priceCall = routeAskDeterministically(ctx.query)
       .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near");
     if (priceCall) {

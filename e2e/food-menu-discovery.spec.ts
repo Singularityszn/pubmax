@@ -22,24 +22,28 @@ for (const width of [390, 1440]) {
       }).toPass({ timeout: 45_000 });
       const panel = page.locator("#venuePanel-menu");
       const entry = panel.locator(`[data-menu-door="${door}"]`);
-      await entry.click();
-      const back = panel.locator(".drinkMenuBack");
-      await expect(back).toBeFocused();
-      const photos = page.getByRole("tab", { name: "Photos", exact: true });
-      const stories = page.getByRole("tab", { name: "Stories", exact: true });
-      await photos.click();
-      await photos.press("ArrowRight");
-      await expect(menu).toBeFocused();
-      await page.keyboard.press("ArrowRight");
-      await expect(stories).toBeFocused();
-      await stories.press("ArrowLeft");
-      await expect(menu).toBeFocused();
-      await page.keyboard.press("ArrowLeft");
-      await expect(photos).toBeFocused();
-      await menu.click();
-      await expect(menu).toBeFocused();
-      await back.click();
-      await expect(entry).toBeFocused();
+      for (let round = 0; round < 2; round += 1) {
+        await entry.click();
+        const back = panel.locator(".drinkMenuBack");
+        await expect(back).toBeFocused();
+        const photos = page.getByRole("tab", { name: "Photos", exact: true });
+        await photos.click();
+        await photos.press("ArrowRight");
+        await expect(menu).toBeFocused();
+        for (const [key, labels] of [
+          ["ArrowRight", ["Stories", "Lore", "Overview", "Photos", "Menu"]],
+          ["ArrowLeft", ["Photos", "Overview", "Lore", "Stories", "Menu"]],
+        ] as const) {
+          for (const label of labels) {
+            await page.keyboard.press(key);
+            const selected = page.getByRole("tab", { name: label, exact: true });
+            await expect(selected).toBeFocused();
+            await expect(selected).toHaveAttribute("aria-selected", "true");
+          }
+        }
+        await back.click();
+        await expect(entry).toBeFocused();
+      }
     });
   }
 }

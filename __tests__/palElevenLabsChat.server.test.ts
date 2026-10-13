@@ -175,6 +175,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
 }));
 
+import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
 import { readPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
@@ -256,6 +257,26 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(wsState.socketsOpened).toBe(0);
     expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
     expect(wsState.userMessageText).toBeNull();
+  });
+
+  it.each([
+    ...VIBE_CHIPS.map((chip) => chip.ask),
+    "somewhere cheap and quiet", "Somewhere cheap in Soho",
+  ])("accepts the original supported question at configured startup: %s", async (query) => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 0, event: responseComplete() },
+    ];
+    const outcome = await runPalElevenLabsChatTurn({
+      query, ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(outcome.ok).toBe(true);
+    expect(wsState.socketsOpened).toBe(1);
+    expect(wsState.userMessageText).toContain(query);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
+      "conv_regression01", expect.objectContaining({ query }),
+    );
   });
 
   it("keeps the sobriety fence before configured price coverage", async () => {

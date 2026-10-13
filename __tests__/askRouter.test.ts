@@ -31,6 +31,10 @@ describe("routeAskDeterministically", () => {
   });
 
   it.each([
+    "somewhere cheap and quiet",
+    "Somewhere cheap in Soho",
+    "Find somewhere cheap and quiet in Soho",
+    "cheap quiet in Soho",
     "Find cheap quiet pubs in Soho",
     "Find cheap lively pubs in Soho for four",
     "Find cheap cosy pubs with food in Soho",
@@ -41,6 +45,18 @@ describe("routeAskDeterministically", () => {
   ])("preserves venue constraints in %s", (query) => {
     expect(unsupportedPriceComparison(query)).toBeNull();
     expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+  });
+
+  it.each([
+    "Somewhere cheap and vegan curry in Soho",
+    "Somewhere cheap wine in Soho",
+    "Somewhere cheap Coke in Soho",
+    "Burger cheapest in Camden",
+    "Somewhere cheap quiet wine in Soho",
+    "Somewhere cheap with food prices in Soho",
+  ])("keeps unsupported item fencing for %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
   });
 
   it("routes heritage asks to venue_heritage", () => {
