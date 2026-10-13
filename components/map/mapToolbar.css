@@ -775,3 +775,21 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     transition: none;
   }
 }
+
+/* The toolbar shares the remaining map lane with an open desktop drawer. */
+.mapToolbar[data-drawer-lane] .mapToolbarRow {
+  flex-wrap: wrap;
+}
+
+.mapToolbar[data-drawer-lane] .mapToolbarSearch {
+  flex: 1 1 100%;
+}
+
+.mapToolbar[data-drawer-lane] .mapSearchSuggest--toolbar {
+  width: 100%;
+  min-width: 0;
+}
+
+.mapToolbar[data-drawer-lane] .mapSearchSuggestPanel {
+  max-width: 100%;
+}
