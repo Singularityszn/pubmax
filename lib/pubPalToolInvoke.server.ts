@@ -161,9 +161,9 @@ export async function invokePubPalAskTool(input: {
 
   const recordedDrinks = recordedDrinkComparison(originalQuery);
   const priceIntent = resolveAskPriceIntent(originalQuery);
-  const priceCall = priceIntent.kind === "pint" || priceIntent.kind === "pub-price"
+  const priceCall = ["pint", "pub-price", "drink-venues"].includes(priceIntent.kind)
     ? routeAskDeterministically(originalQuery)
-      .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near")
+      .find((call) => ["venue_prices", "cheapest_pint_near", "search_venues"].includes(call.name))
     : null;
   const toolName = recordedDrinks?.name ?? priceCall?.name ?? input.toolName;
   const toolArgs = recordedDrinks ? { ...recordedDrinks.args, query }
