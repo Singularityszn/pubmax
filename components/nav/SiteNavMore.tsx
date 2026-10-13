@@ -29,6 +29,7 @@ import { createPortal } from "react-dom";
 
 import { SOCIAL_NAV_MATCH, navPathMatches } from "@/components/nav/navigationModel";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 
 export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
   { href: "/wall", label: "Drink Wall", description: "Pints, pubs and London in photos" },
@@ -228,6 +229,7 @@ export default function SiteNavMore({
     open && coords && typeof document !== "undefined"
       ? createPortal(
           <div
+            {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}
             ref={menuRef}
             className="siteNavMoreMenu siteNavMoreMenuPortaled"
             id={menuId}
