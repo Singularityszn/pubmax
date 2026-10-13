@@ -455,6 +455,35 @@ it.each(["Wine prices at Fox and Anchor near the Tube", "Find pubs near the Tube
   expect(routeAskDeterministically(query).map((call) => call.name)).not.toContain("city_status");
 });
 
+it.each([
+  { query: "How do I get from Kings Cross to Fox and Anchor?", from: "51.53000,-0.12400" },
+  { query: "Directions to Fox and Anchor from Kings Cross", from: "51.53000,-0.12400" },
+  { query: "Directions to Fox and Anchor", from: "51.50500,-0.08600" },
+])("resolves supported station origins through both public APIs: $query", async ({ query, from }) => {
+  resetJourneyCache();
+  const transport = vi.fn<typeof fetch>(async (_input, init) => {
+    const payload = JSON.parse(String(init?.body)) as { params: { arguments: { from: string; to: string } } };
+    const points = payload.params.arguments;
+    if (points.from !== from || points.to !== "51.52042,-0.10071") {
+      return Response.json({ jsonrpc: "2.0", result: {
+        isError: true,
+        content: [{ type: "text", text: JSON.stringify({ _tag: "JourneyAmbiguous", ...points, candidates: ["Station entrance"] }) }],
+      } });
+    }
+    return Response.json({ jsonrpc: "2.0", result: { structuredContent: {
+      journeys: [{ durationMinutes: 12, legs: [{ mode: "walking", summary: "Walk to Fox and Anchor" }] }],
+    } } });
+  });
+  vi.stubGlobal("fetch", transport);
+  for (const handler of [ask, chat]) {
+    const response = await handler(request(query));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.cards).toContainEqual(expect.objectContaining({ venueId: "venue-phg4ss", place: "Fox and Anchor", note: "12 min" }));
+    expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId: "venue-phg4ss" }));
+  }
+});
+
 it.each(JOURNEY_ENDPOINT_REQUESTS)("retains named journey authority: $query", async ({ query, from, to }) => {
   resetJourneyCache();
   const transport = vi.fn<typeof fetch>(async () => Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } }));

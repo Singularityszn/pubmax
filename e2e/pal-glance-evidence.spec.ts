@@ -17,6 +17,14 @@ for (const width of [390, 1440]) {
       }, theme);
       await installDeterministicMapBasemap(page);
       await page.goto("/pal/chat");
+      const composer = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+      const ask = page.getByRole("button", { name: "Ask", exact: true });
+      await expect(async () => {
+        await composer.fill("Check the sources");
+        await expect(ask).toBeEnabled({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await composer.fill("");
+      await expect(ask).toBeDisabled();
       const tonight = page.getByRole("note", { name: "Tonight at a glance", exact: true });
       const price = page.getByRole("note", { name: "Listed price nearby", exact: true });
       await expect(tonight).toBeVisible();
@@ -50,6 +58,12 @@ for (const width of [390, 1440]) {
         await page.goBack();
         await expect(page).toHaveURL(/\/pal\/chat$/);
         await expect(tonight).toBeVisible();
+        await expect(async () => {
+          await composer.fill("Check the sources");
+          await expect(ask).toBeEnabled({ timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+        await composer.fill("");
+        await expect(ask).toBeDisabled();
         await tonight.getByRole("link", { name: "See listings and sources.", exact: true }).click();
         await expect(page).toHaveURL(/\/tonight$/);
       }

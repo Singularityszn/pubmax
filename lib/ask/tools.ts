@@ -50,6 +50,7 @@ import {
 import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -541,9 +542,16 @@ async function toolJourney(
     };
   }
 
+  const stationName = from.toLowerCase().replace(/['’]/g, "");
+  const fromStation = STATIC_STATIONS.find((station) =>
+    station.name.toLowerCase().replace(/['’]/g, "") ===
+      (stationName === "kings cross" ? "kings cross st pancras" : stationName),
+  );
   const fromPoint = fromVenue
     ? formatJourneyPoint(fromVenue.lat, fromVenue.lng)
-    : from;
+    : fromStation
+      ? formatJourneyPoint(fromStation.lat, fromStation.lon)
+      : from;
   const toPoint = toVenue
     ? formatJourneyPoint(toVenue.lat, toVenue.lng)
     : to;
