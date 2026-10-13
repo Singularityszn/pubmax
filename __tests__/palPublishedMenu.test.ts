@@ -21,6 +21,8 @@ import { resetJourneyCache } from "@/lib/citymcp/client";
 import * as priceUpdates from "@/lib/priceUpdates.server";
 import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
 import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import { publishedMenuCards, publishedMenuAnswer } from "@/lib/ask/publishedMenu.server";
+import type { AskCard } from "@/lib/ask/types";
 
 function request(query: string) {
   return new Request("http://localhost/api/ask", {
@@ -37,6 +39,122 @@ beforeEach(() => {
   __resetPubPalToolTurnStore();
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+const dietaryBoundaries = ["reader", "ask", "keyless chat", "chat session", "tool dispatch", "configured chat", "stored webhook"] as const;
+const dietaryCases = [
+  ["Vegan gluten-free options at The New Inn", null],
+  ["Gluten free vegan options at The New Inn", null],
+  ["Vegetarian gluten-free options at The New Inn", null],
+  ["Vegan vegetarian gluten-free options at The New Inn", null],
+  ["Vegan sausage roll price at The New Inn", null],
+  ["Vegetarian sausage roll price at The New Inn", null],
+  ["Gluten-free Mixed Olives price at The New Inn", null],
+  ["Vegan gluten-free Mixed Olives price at The New Inn", null],
+  ["Vegan 125ml Steinbock Riesling price at The Eagle, Hammersmith and Fulham", null],
+  ["Vegan vegetarian Mixed Olives price at The New Inn", "Mixed Olives"],
+  ["Vegetarian vegan Mixed Olives price at The New Inn", "Mixed Olives"],
+  ["Is Classic sausage roll vegan at The New Inn?", "Classic sausage roll"],
+  ["Is Classic sausage roll vegetarian and gluten-free at The New Inn?", "Classic sausage roll"],
+  ["Is vegan Classic sausage roll gluten-free at The New Inn?", null],
+  ["Are Mixed Olives vegan and gluten-free at The New Inn?", "Mixed Olives"],
+  ["Dietary labels for Classic sausage roll at The New Inn", "Classic sausage roll"],
+  ["Classic sausage roll price at The New Inn", "Classic sausage roll"],
+] as const;
+
+it.each(dietaryCases.flatMap(([query, item]) => dietaryBoundaries.map((boundary) => ({ query, item, boundary }))))(
+  "preserves dietary request authority through $boundary: $query", async ({ query, item, boundary }) => {
+    let cards: AskCard[];
+    let answer: string | undefined;
+    if (boundary === "reader") {
+      ({ cards } = await publishedMenuCards(query.includes("The Eagle") ? "venue-1hz0avt" : "venue-17qpap6", query));
+      answer = publishedMenuAnswer(cards);
+    } else if (boundary === "ask" || boundary === "keyless chat") {
+      const response = await (boundary === "ask" ? ask : chat)(request(query));
+      expect(response.status).toBe(200);
+      ({ cards, answer } = await response.json());
+    } else if (boundary === "chat session") {
+      const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+      const result = await session(query, "london");
+      if (!result || result.status === "error") throw new Error("Chat session returned no answer");
+      ({ cards, message: answer } = result);
+    } else if (boundary === "tool dispatch") {
+      const result = await runAskTool("venue_prices", { venueName: "The Lamb", query: "Pint at The Lamb" }, { query, cityId: "london", skipModel: true });
+      expect(result.tool).toBe("venue_drinks");
+      ({ cards, answerHint: answer } = result);
+    } else {
+      await registerPubPalToolTurn("conv_dietaryauthority01", { query, cityId: "london", ownerId: "menu-owner" });
+      if (boundary === "configured chat") {
+        vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+        vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+        const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+        vi.stubGlobal("fetch", fetcher);
+        const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_dietaryauthority01" });
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error("Configured interception failed");
+        ({ cards, message: answer } = result);
+        expect(fetcher).not.toHaveBeenCalled();
+      } else {
+        vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+        const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+          method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+          body: JSON.stringify({ conversation_id: "conv_dietaryauthority01", parameters: { query: "Mixed Olives price at The New Inn", venueName: "The New Inn" } }),
+        }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+        expect(response.status).toBe(200);
+        ({ cards, answerHint: answer } = (await response.json()).result);
+      }
+      const replay = await readOwnedPubPalToolTurn("conv_dietaryauthority01", "menu-owner");
+      expect(replay?.query).toBe(query);
+      expect(replay?.cards).toEqual(cards);
+      expect(replay?.hints).toContain(answer);
+      expect(await readOwnedPubPalToolTurn("conv_dietaryauthority01", "another-owner")).toBeNull();
+    }
+    if (item === null) {
+      expect(cards).toEqual([]);
+      if (boundary !== "reader") expect(answer).toContain("No accepted menu item matches");
+    } else {
+      expect(cards).toHaveLength(1);
+      expect(cards[0]).toMatchObject({ venueId: "venue-17qpap6", price: item === "Mixed Olives" ? 5 : 5.5,
+        menuEvidence: { itemName: item, currency: "GBP", serving: null, availability: "unknown",
+          caloriesKcal: item === "Mixed Olives" ? 163 : 314,
+          dietary: item === "Mixed Olives" ? ["vegan", "vegetarian"] : [],
+          observedAt: "2026-10-13T09:43:11.443Z", sourceUrl: "https://www.newinnealing.com/food-and-drink",
+          caloriesProvenance: { source: "The New Inn - official published menu", sourceUrl: "https://www.newinnealing.com/food-and-drink", observedAt: "2026-10-13T09:43:11.443Z" },
+          dietaryProvenance: item === "Mixed Olives" ? expect.objectContaining({ sourceUrl: "https://www.newinnealing.com/food-and-drink", observedAt: "2026-10-13T09:43:11.443Z" }) : null,
+        },
+      });
+      expect(answer).toContain(item === "Mixed Olives" ? "Publisher labels: vegan, vegetarian." : "Dietary labels not recorded.");
+      expect(answer).not.toMatch(/allergy.safe|in stock|gluten.free\./i);
+    }
+  },
+);
+
+it.each([
+  ["Vegan vegetarian gluten-free options at The New Inn", ["All labels fixture"]],
+  ["Gluten free vegetarian vegan options at The New Inn", ["All labels fixture"]],
+  ["Vegan options at The New Inn", ["All labels fixture", "First fixture"]],
+  ["Vegetarian options at The New Inn", ["All labels fixture", "Second fixture"]],
+  ["Gluten-free options at The New Inn", ["All labels fixture"]],
+  ["Vegetarian First fixture price at The New Inn", []],
+  ["Vegan Second fixture price at The New Inn", []],
+] as const)("requires explicit dietary fixture evidence for every condition: %s", async (query, expectedNames) => {
+  const food = parseFoodPriceUpdates([
+    { itemName: "All labels fixture", dietary: ["vegan", "vegetarian", "gluten-free"] },
+    { itemName: "First fixture", dietary: ["vegan"] },
+    { itemName: "Second fixture", dietary: ["vegetarian"] },
+    { itemName: "Unknown labels fixture" },
+  ].map((item) => ({ ...item, venueKey: "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+    category: "other", priceGbp: 1, caloriesKcal: 0,
+    source: { label: "Explicit dietary fixture", licence: "Test only", url: "https://example.com/dietary" },
+    observedAt: "2026-10-13T09:43:11.443Z",
+  })));
+  expect(food).toHaveLength(4);
+  vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue({ food, drink: [] });
+  const { cards } = await publishedMenuCards("venue-17qpap6", query);
+  expect(cards.map((card) => card.menuEvidence?.itemName)).toEqual(expectedNames);
+  for (const card of cards) expect(card.menuEvidence).toMatchObject({ caloriesKcal: 0,
+    dietaryProvenance: { sourceUrl: "https://example.com/dietary" },
+  });
+});
 
 it.each([ask, chat])("returns accepted New Inn facts through a public POST", async (post) => {
   const detail = await venue(new Request("http://localhost/api/venue/venue-17qpap6"), { params: Promise.resolve({ id: "venue-17qpap6" }) });

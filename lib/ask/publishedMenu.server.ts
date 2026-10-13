@@ -27,12 +27,16 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   if (!updates) return { cards: [], unavailable: true };
   const request = namedMenuRequest(query);
   const subject = request?.subject ?? "drinks";
+  const dietaryInquiry = subject.match(/^(?:is|are)\s+(.+?)\s+(?:vegan|vegetarian|gluten[- ]free)(?:\s+(?:and|or)\s+(?:vegan|vegetarian|gluten[- ]free))*$/i)
+    ?? subject.match(/^(?:what are (?:the )?)?dietary labels (?:for|of)\s+(.+)$/i);
+  const selection = dietaryInquiry?.[1] ?? subject;
   const servings = subject.match(SERVING_RE);
   const serving = servings ? servingIdentity(servings.join(" ")) : null;
-  const dietary = subject.match(/\b(?:vegan|vegetarian|gluten[- ]free)\b/i)?.[0]?.toLowerCase().replace(" ", "-");
+  const dietary = (selection.match(/\b(?:vegan|vegetarian|gluten[- ]free)\b/gi) ?? [])
+    .map((label) => label.toLowerCase().replace(" ", "-"));
   const foodOnly = /\b(?:food|meals?|lunch|dinner|breakfast|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free)\b/i.test(subject);
   const allItems = /\bmenu\b/i.test(subject) && !foodOnly && !/\bdrinks?\b/i.test(subject);
-  const itemQuery = category ? "" : words(subject
+  const itemQuery = category ? "" : words(selection
     .replace(/^how many\s+(?:calories|kcal)\s+(?:does|do)\s+(.+?)\s+(?:have|contain)\s*$/i, "$1")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:are\s+(?:there\s+)?in|in)\s+/i, " ")
     .replace(/^what(?:'s| is| are)?\s+(?:the\s+)?(?:published\s+)?(?:calories|calorie(?: count| content)?|kcal)\s+(?:(?:are|is)\s+)?(?:in|of|for)\s+/i, " ")
@@ -44,7 +48,7 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   const add = (evidence: AskMenuEvidence, price: number) => {
     if (!matches(evidence.itemName)) return;
     if (serving && (!evidence.serving || servingIdentity(evidence.serving) !== serving)) return;
-    if (dietary && !itemQuery && !evidence.dietary.includes(dietary as "vegan" | "vegetarian" | "gluten-free")) return;
+    if (dietary.length && (!evidence.dietaryProvenance || !dietary.every((label) => evidence.dietary.some((recorded) => recorded === label)))) return;
     const calories = evidence.caloriesKcal === null ? "Published calories not recorded." : `${evidence.caloriesKcal} kcal published for this item.`;
     const tags = evidence.dietary.length ? `Publisher labels: ${evidence.dietary.join(", ")}.` : "Dietary labels not recorded.";
     const dates = [
