@@ -45,6 +45,10 @@ for (const width of [390, 1440]) {
         await expect(page).toHaveURL(/\/map\?sel=venue-p7p18j$/);
         await expect(page.getByRole("tab", { name: "Menu", exact: true })).toBeVisible({ timeout: 45_000 });
         await page.goBack();
+        await expect(page).toHaveURL(/\/map$/);
+        await expect(page.getByRole("tab", { name: "Menu", exact: true })).toHaveCount(0);
+        await page.goBack();
+        await expect(page).toHaveURL(/\/pal\/chat$/);
         await expect(tonight).toBeVisible();
         await tonight.getByRole("link", { name: "See listings and sources.", exact: true }).click();
         await expect(page).toHaveURL(/\/tonight$/);
