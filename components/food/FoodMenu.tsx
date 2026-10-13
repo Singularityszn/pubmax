@@ -134,7 +134,7 @@ export default function FoodMenu({ items, venueName, onBack }: FoodMenuProps) {
   }
 
   return (
-    <div className="drinkMenu" aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
+    <div className="drinkMenu foodMenu" aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
       {onBack ? (
         <button type="button" className="drinkMenuBack" aria-label="Back to menus" onClick={onBack}>
           ← Menus
