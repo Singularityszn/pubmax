@@ -33,7 +33,7 @@ function SearchBesideDrawer() {
   useMapKeyboardShortcuts({
     mobileViewport: false,
     planningOpen: false,
-    selectedVenueId: drawerOpen ? venue.id : null,
+    selectedVenueId: drawerOpen ? venue.id : "",
     onBack: () => setDrawerOpen(false),
     onInterruptReveal: noop,
     logIntentFallbackVisible: false,
