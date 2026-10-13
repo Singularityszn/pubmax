@@ -11,6 +11,35 @@ function isInInertSubtree(node: HTMLElement): boolean {
   return false;
 }
 
+type EscapePanel = {
+  dismiss: () => void;
+  ref?: RefObject<HTMLElement | null>;
+};
+
+const openPanels = new Set<EscapePanel>();
+
+function dismissTopPanel(event: KeyboardEvent): void {
+  if (event.key !== "Escape" || event.defaultPrevented) return;
+  let top: EscapePanel | undefined;
+  for (const panel of openPanels) {
+    const node = panel.ref?.current;
+    if (node && isInInertSubtree(node)) continue;
+    // The newest open sibling wins. A containing parent cannot replace its
+    // child, even when React mounts the child's effect before the parent's.
+    if (!top || !node?.contains(top.ref?.current ?? null)) top = panel;
+  }
+  if (!top) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  top.dismiss();
+}
+
+function dismissNativePanel(event: KeyboardEvent): void {
+  // Native Back dispatches directly on window. Ordinary keyboard input must
+  // first reach React controls and the document's panel dispatcher.
+  if (event.target === event.currentTarget) dismissTopPanel(event);
+}
+
 /**
  * Escape leaves the panel that is open.
  *
@@ -41,14 +70,18 @@ export function useDismissOnEscape(
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (panelRef?.current && isInInertSubtree(panelRef.current)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      onDismissRef.current();
+    const panel: EscapePanel = { dismiss: () => onDismissRef.current(), ref: panelRef };
+    if (openPanels.size === 0) {
+      document.addEventListener("keydown", dismissTopPanel);
+      window.addEventListener("keydown", dismissNativePanel, true);
+    }
+    openPanels.add(panel);
+    return () => {
+      openPanels.delete(panel);
+      if (openPanels.size === 0) {
+        document.removeEventListener("keydown", dismissTopPanel);
+        window.removeEventListener("keydown", dismissNativePanel, true);
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, [open, panelRef]);
 }
