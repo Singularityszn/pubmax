@@ -83,3 +83,9 @@ The nested `npm outdated` reports no newer direct dependency versions.
 
 The full `npm run verify` gate, production build, browser regressions, native proof and performance acceptance were not run.
 Those checks remain required before merge or release.
+
+## Combined-candidate dependency follow-up
+
+The installed real SDK retry test imports `@elevenlabs/client` directly. The combined deadcode gate found that import undeclared. Root declared the existing installed version, `1.27.0`, as an exact dev dependency. The package runtime did not change. The dependency lock records the same version already used by the React SDK. Focused SDK and food fixtures passed33 tests. The deadcode gate passed after that declaration and removal of an unused helper-type export.
+
+The13 October registry audit still reaches GHSA-vfj7-8cjw-p6xm through the Next lint toolchain. The official advisory reports no patched version, and the registry still lists braces3.0.3 and micromatch4.0.8 as current. The existing dev-only waiver remains unchanged. Its production-only audit remains part of final verification. No audit severity or dependency-install policy was weakened.
