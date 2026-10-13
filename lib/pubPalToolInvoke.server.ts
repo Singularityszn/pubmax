@@ -12,7 +12,7 @@ import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
-import { recordedDrinkComparison, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { recordedDrinkComparison, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -108,13 +108,14 @@ export async function invokePubPalAskTool(input: {
   const storedQuery = turn?.query?.trim();
   const providerQuery = typeof input.args.query === "string" ? input.args.query.trim() : "";
   const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args });
+  const originalQuery = storedQuery || query;
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );
   const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(storedQuery || query, threadTurns);
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(originalQuery, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
     if (input.conversationId) {
@@ -142,7 +143,7 @@ export async function invokePubPalAskTool(input: {
   }
 
   const unsupported = (storedQuery ? unsupportedPriceComparison(storedQuery) : null)
-    ?? unsupportedPriceComparison(providerQuery || query);
+    ?? unsupportedPriceComparison(providerQuery);
   if (unsupported) {
     if (input.conversationId) {
       await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
@@ -158,12 +159,18 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const recordedDrinks = recordedDrinkComparison(storedQuery || query);
-  const toolName = recordedDrinks?.name ?? input.toolName;
-  const toolArgs = recordedDrinks ? { ...recordedDrinks.args, query } : args;
+  const recordedDrinks = recordedDrinkComparison(originalQuery);
+  const priceIntent = resolveAskPriceIntent(originalQuery);
+  const priceCall = priceIntent.kind === "pint" || priceIntent.kind === "pub-price"
+    ? routeAskDeterministically(originalQuery)
+      .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near")
+    : null;
+  const toolName = recordedDrinks?.name ?? priceCall?.name ?? input.toolName;
+  const toolArgs = recordedDrinks ? { ...recordedDrinks.args, query }
+    : priceCall ? { ...priceCall.args, query } : args;
   const toolResult = await runAskTool(toolName as AskToolName, toolArgs, {
     cityId,
-    query,
+    query: originalQuery,
     skipModel: true,
   });
 
@@ -172,7 +179,7 @@ export async function invokePubPalAskTool(input: {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
-      toolsUsed: [toolResult.tool],
+      toolsUsed: [toolName],
     });
   }
 
@@ -190,6 +197,7 @@ export async function invokePubPalAskTool(input: {
       tool: toolResult.tool,
       answerHint: spokenHint,
       cards: toolResult.cards,
+      ...(toolResult.priceEvidence ? { priceEvidence: toolResult.priceEvidence } : {}),
       proposals: toolResult.proposals,
       degraded: toolResult.degraded ?? false,
     },

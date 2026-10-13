@@ -70,7 +70,7 @@ describe("Pal eval suite (deterministic)", () => {
       const kept = Object.fromEntries(
         handAuthored.filter((key) => committed[key] !== undefined).map((key) => [key, committed[key]]),
       );
-      expect({ ...resolved, ...kept }, caseDef.id).toEqual(committed);
+      expect({ ...kept, ...resolved }, caseDef.id).toEqual(committed);
     }
   });
 });

@@ -146,10 +146,11 @@
     "wine-lamb-honest": {
       "expectEmpty": true,
       "expectedTools": [
-        "venue_prices"
+        "venue_drinks"
       ],
       "answerIncludes": [
-        "listed pub"
+        "No wine prices recorded",
+        "The Lamb"
       ]
     },
     "dearest-soho-honest": {

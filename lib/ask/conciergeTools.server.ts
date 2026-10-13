@@ -37,6 +37,7 @@ import type {
   AskToolContext,
   AskToolResult,
 } from "@/lib/ask/toolContract";
+import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import type { AskCard, AskProposal, AskSource } from "@/lib/ask/types";
 import {
   communityStampLabel,
@@ -228,7 +229,7 @@ export async function toolCheapestPintNear(
   }
 
   const limit = limitOf(args.limit, 4, 5);
-  const points = toPricedPoints(venues);
+  const points = toPricedPoints(args.foodOnly === true ? venues.filter((venue) => venue.amenities.food) : venues);
   let rows: NearMeCard[];
   let scope: "walkable" | "widened" | "none";
   if (anchorVenue && (anchor.kind === "venue" || anchorVenue.id.startsWith("night-area:"))) {
@@ -277,6 +278,7 @@ export async function toolCheapestPintNear(
     data: { anchor, scope, rows },
     provenance: [DIRECTORY],
     cards,
+    priceEvidence: rows.map((row) => listedPintEvidence(`cheapest:${row.id}`, row.id, row.cheapestPrice)),
     proposals: cards
       .slice(0, 3)
       .map((card) => openProposal(card.venueId, card.title)),
@@ -372,7 +374,8 @@ export async function toolVenueDrinks(
   args: AskToolArgs,
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
-  if (args.drinkCategory !== undefined && !isDrinkCategory(args.drinkCategory)) {
+  const requestedCategory = args.drinkCategory;
+  if (requestedCategory !== undefined && !isDrinkCategory(requestedCategory)) {
     return {
       ok: false,
       tool: "venue_drinks",
@@ -383,7 +386,7 @@ export async function toolVenueDrinks(
       answerHint: "That drink category is not supported. Ask for a pub's recorded drinks.",
     };
   }
-  const drinkCategory = isDrinkCategory(args.drinkCategory) ? args.drinkCategory : null;
+  const drinkCategory = requestedCategory ?? null;
   const venues = await loadConciergeVenues(ctx.cityId);
   const venueId = str(args.venueId);
   // This tool reads ONE pub. A routed name is matched on an exact or prefix
@@ -475,6 +478,10 @@ export async function toolVenueDrinks(
       ...(includeListedPint && venue.cheapestPrice != null ? [DIRECTORY] : []),
     ],
     cards,
+    priceEvidence: [
+      ...rows.map((row, index) => communityCategoryEvidence(`${venue.id}:drink-${index}`, venue.id, row.price)),
+      ...(includeListedPint && venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:listed`, venue.id, venue.cheapestPrice)] : []),
+    ],
     proposals: [openProposal(venue.id, venue.name)],
     answerHint,
     ...(read.degraded ? { degraded: true } : {}),

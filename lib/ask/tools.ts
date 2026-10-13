@@ -2,6 +2,8 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import {
   drivesMap,
@@ -371,7 +373,8 @@ async function toolVenuePrices(
   );
 
   const communityRead = await readCommunityPricesWithStatus(venue.id);
-  const trusted = communityRead.prices.filter((p) => drivesMap(p));
+  const intent = resolveAskPriceIntent(ctx.query);
+  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   const communityCards: AskCard[] = trusted.map((p, index) => ({
     key: `${venue.id}:c-${index}`,
     venueId: venue.id,
@@ -424,6 +427,10 @@ async function toolVenuePrices(
     },
     provenance,
     cards,
+    priceEvidence: [
+      ...trusted.map((price, index) => communityCategoryEvidence(`${venue.id}:c-${index}`, venue.id, price)),
+      ...(venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, venue.cheapestPrice)] : []),
+    ],
     proposals,
     answerHint,
     degraded: communityRead.degraded,
@@ -1008,11 +1015,40 @@ export async function runAskTool(
       answerHint: "That tool is not available.",
     };
   }
-  const venueId = str(args.venueId);
+  const intent = resolveAskPriceIntent(ctx.query);
+  if (intent.kind === "unsupported") {
+    return {
+      ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
+      provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,
+    };
+  }
+  let toolName = name;
+  let toolArgs = args;
+  if (intent.kind === "recorded-category") {
+    toolName = "venue_drinks";
+    toolArgs = { venueName: intent.venueName, drinkCategory: intent.category };
+  } else if (intent.kind === "pint" || intent.kind === "pub-price") {
+    const priceCall = routeAskDeterministically(ctx.query)
+      .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near");
+    if (priceCall) {
+      toolName = priceCall.name;
+      toolArgs = { ...priceCall.args, ...(intent.venueName ? { venueName: intent.venueName } : {}) };
+    }
+    if (intent.kind === "pint" && intent.foodAvailability) toolArgs = { ...toolArgs, foodOnly: true };
+  }
+  const venueId = str(toolArgs.venueId);
   const canonicalArgs = venueId
-    ? { ...args, venueId: await resolveCanonicalVenueId(venueId) }
-    : args;
-  return HANDLERS[name](canonicalArgs, ctx);
+    ? { ...toolArgs, venueId: await resolveCanonicalVenueId(venueId) }
+    : toolArgs;
+  const result = await HANDLERS[toolName](canonicalArgs, ctx);
+  if (!result.priceEvidence && ["search_venues", "propose_plan", "propose_map_action"].includes(result.tool)) {
+    return {
+      ...result,
+      priceEvidence: result.cards.flatMap((card) => typeof card.price === "number" && card.venueId
+        ? [listedPintEvidence(card.key, card.venueId, card.price)] : []),
+    };
+  }
+  return result;
 }
 
 export function resolveAskCityId(raw: unknown): CityId {
