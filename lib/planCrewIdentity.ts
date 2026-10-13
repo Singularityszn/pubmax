@@ -8,7 +8,6 @@ import "server-only";
 
 import { isPlanId } from "@/lib/plan";
 import {
-  __listMemoryPlanMemberUserIds,
   __setMemoryPlanOwnerUserId,
   claimMemoryPlanMembership,
   hashPlanMemberToken,
@@ -286,30 +285,3 @@ export async function planHostUserId(planId: string): Promise<string | null> {
   }
 }
 
-/** Claimed-member candidates already stamped on this plan (internal only). */
-export async function listPlanMemberUserIds(
-  planId: string,
-): Promise<Array<{ memberId: string; userId: string }>> {
-  if (!isPlanId(planId)) return [];
-  if (!isSupabaseConfigured()) {
-    return __listMemoryPlanMemberUserIds(planId);
-  }
-  try {
-    const { data, error } = await requireSupabaseAdmin()
-      .from(MEMBERS)
-      .select("id,user_id")
-      .eq("plan_id", planId)
-      .is("membership_revoked_at", null)
-      .not("user_id", "is", null);
-    if (error) throw new Error(error.message);
-    const out: Array<{ memberId: string; userId: string }> = [];
-    for (const row of data ?? []) {
-      const memberId = typeof row.id === "string" ? row.id : "";
-      const userId = typeof row.user_id === "string" ? row.user_id : "";
-      if (memberId && userId) out.push({ memberId, userId });
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
