@@ -90,6 +90,7 @@ describe("routeAskDeterministically", () => {
     "Plan a night with cheap lively pubs and a cosy route",
     "Plan a night with cheap pints and food and a lively route",
     "Plan a cheap quiet night in Soho for four",
+    "Plan me 3 cheap pubs in Soho for four people",
   ])("preserves planning constraints in %s", (query) => {
     expect(unsupportedPriceComparison(query)).toBeNull();
     expect(routeAskDeterministically(query)).toEqual([{ name: "propose_plan", args: { query } }]);
@@ -188,6 +189,10 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["venue_prices"]);
   });
 
+  it("keeps a conjunction inside a known place out of the price subject", () => {
+    expect(unsupportedPriceComparison("How much is a pint near the Elephant and Castle")).toBeNull();
+  });
+
   it.each([
     "Cheapest vegan food in Camden",
     "Cheapest wine in Soho",
@@ -203,6 +208,8 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     "Find cheap quiet pub lunches in Soho",
     "Find cheap quiet Guinness pints in Soho",
     "Plan a night with cheap food and a lively route",
+    "Plan me 3 cheap pubs in Soho for four people with wine",
+    "Somewhere cheap near Elephant and Castle and wine",
   ])("does not substitute pint tools for %s", (query) => {
     expect(unsupportedPriceComparison(query)).not.toBeNull();
     expect(routeAskDeterministically(query)).toEqual([]);

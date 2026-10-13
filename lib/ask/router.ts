@@ -4,6 +4,7 @@
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
+import { isKnownAskPlacePhrase } from "@/lib/ask/venueResolution";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -161,13 +162,17 @@ function priceComparisonSubject(query: string): string | null {
     precedingItem = precedingItem.replace(new RegExp(`^(?:plan|sort(?: me)?)\\s+(?:a\\s+)?(?:big\\s+)?${PLAN_COMPARISON_SUBJECT}(?:\\s+for\\s+(?:two|three|four|five|six|a few|\\d+)(?:\\s+of us)?)?\\s*,?(?:\\s*(?:with|and))?\\s*$`, "i"), "");
     precedingItem = precedingItem
       .replace(/^(?:somewhere|anywhere|a place)\b/i, "")
-      .replace(/^(?:plan|sort(?: me)?)(?:\s+(?:a|an|the))?\s*$/i, "");
+      .replace(/^(?:plan(?: me)?|sort(?: me)?)(?:\s+(?:3|three))?(?:\s+(?:a|an|the))?\s*$/i, "");
   }
   const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim()
-    .replace(/\bfor\s+(?:two|three|four|five|six|a few|\d+)(?:\s+of us)?(?=\s+(?:in|near|at|around|tonight)\b|[?.!]*$)/gi, "")
+    .replace(/\bfor\s+(?:two|three|four|five|six|a few|\d+)(?:\s+(?:of us|people))?(?=\s+(?:in|near|at|around|with|tonight)\b|[?.!]*$)/gi, "")
     .replace(/\bfor a quick one after work[?.!]*$/i, "");
   const subjects = [precedingItem, afterPrice].flatMap((part) => part.split(/\bfor\b|,/i)).map((part) => {
-    const subject = part.replace(/(?:^|\s+)(?:in|near|nearby|at|around|round|close to)\b[^,]*?(?=\s+(?:for|with|and)\b|,|$)/gi, " ").trim();
+    const subject = part.replace(/(?:^|\s+)(?:in|near|nearby|at|around|round|close to)\b([^,]*?)(?=\s+(?:for|with)\b|,|$)/gi, (_location, place: string) => {
+      if (isKnownAskPlacePhrase(place)) return " ";
+      const conjunction = place.search(/\s+and\b/i);
+      return conjunction < 0 ? " " : place.slice(conjunction);
+    }).trim();
     return normalizeSubject(subject.replace(/^(?:and|with)\s+/i, ""))
       .replace(PRICE_COMPARISON_RE, "").trim();
   });
