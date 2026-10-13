@@ -30,6 +30,7 @@ import type { Locality } from "@/lib/localities";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
@@ -130,6 +131,7 @@ export default function MapSearchSuggest({
 }: MapSearchSuggestProps) {
 
   const listboxId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const emptyStateId = useId();
   const optionId = useCallback((index: number) => `${listboxId}-opt-${index}`, [listboxId]);
   const [toolbarFocused, setToolbarFocused] = useState(false);
@@ -293,6 +295,12 @@ export default function MapSearchSuggest({
   // leaves the search surface; overlay search remains open until Escape/X.
   const panelEnabled = mode === "overlay" || toolbarFocused;
   const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
+  const dismissToolbarResults = useCallback(() => {
+    chooseActiveIndex(-1);
+    setToolbarFocused(false);
+    document.getElementById(id)?.focus();
+  }, [chooseActiveIndex, id]);
+  useDismissOnEscape(mode === "toolbar" && showPanel, dismissToolbarResults, rootRef);
   const hasResults =
     suggestions.hasResults ||
     indexedCities.length > 0 ||
@@ -568,6 +576,7 @@ export default function MapSearchSuggest({
   return (
     <div
       className={`mapSearchSuggest mapSearchSuggest--${mode}`}
+      ref={rootRef}
       onBlur={(event) => {
         if (mode === "toolbar" && !event.currentTarget.contains(event.relatedTarget)) {
           setToolbarFocused(false);
@@ -604,11 +613,7 @@ export default function MapSearchSuggest({
                 variant="ghost"
                 aria-label="Close search results"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  chooseActiveIndex(-1);
-                  setToolbarFocused(false);
-                  document.getElementById(id)?.focus();
-                }}
+                onClick={dismissToolbarResults}
               >
                 <X size={17} aria-hidden="true" />
               </IconButton>
