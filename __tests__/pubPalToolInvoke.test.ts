@@ -138,6 +138,99 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.answerHint).not.toMatch(/cheapest listed pints/i);
   });
 
+  it.each([
+    "How much is wine at The Eagle?",
+  ])("redirects a provider pint-price selection for %s to category prices", async (query) => {
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices",
+      args: { query, venueName: "The Eagle" },
+      conversationId: null,
+    });
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.tool).not.toBe("venue_prices");
+    const cards = result.cards as Array<{ note?: string }>;
+    for (const card of cards) expect(card.note).not.toMatch(/recorded pint|listed pint/i);
+  });
+
+  it("refuses a provider-selected pint price for an area burger question", async () => {
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices",
+      args: { query: "How much is a burger in Camden?", venueName: "The Lamb" },
+      conversationId: null,
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      code: "UNSUPPORTED_FOOD_PRICE_COMPARISON",
+      cards: [],
+      proposals: [],
+    });
+    expect(result.answerHint).toMatch(/meal prices|food prices|menu prices/i);
+  });
+
+  it("refuses a provider-selected pint price for an unverified named Coke item", async () => {
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices",
+      args: { query: "Price of Coke at The Eagle", venueName: "The Eagle" },
+      conversationId: null,
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      code: "UNSUPPORTED_PRICE_COMPARISON",
+      cards: [],
+      proposals: [],
+    });
+    expect(result.answerHint).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+  });
+
+  it.each([
+    ["Cheapest vegan curry in Camden", "Please help me find the cheapest listed pint near Camden tonight"],
+    ["Cheapest pint in Camden", "Find the cheapest vegan curry available in Camden tonight"],
+  ])("guards the stored query %s independently from a longer provider query", async (query, providerQuery) => {
+    const conversationId = "conv_unsupported01";
+    await registerPubPalToolTurn(conversationId, {
+      query,
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const { result } = await invokePubPalAskTool({
+      toolName: "cheapest_pint_near",
+      args: { query: providerQuery, area: "Camden" },
+      conversationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "UNSUPPORTED_PRICE_COMPARISON",
+      cards: [],
+      proposals: [],
+    });
+    const turn = await readPubPalToolTurn(conversationId);
+    expect(turn?.cards).toEqual([]);
+    expect(turn?.toolsUsed).toEqual([]);
+    expect(turn?.hints).toEqual([result.answerHint]);
+  });
+
+  it("keeps the stored named-pub drink subject when a longer provider query asks for pints", async () => {
+    const conversationId = "conv_nameddrinks01";
+    await registerPubPalToolTurn(conversationId, {
+      query: "Cheapest wine at The Lamb",
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const { result } = await invokePubPalAskTool({
+      toolName: "cheapest_pint_near",
+      args: { query: "Please help me find the cheapest listed pint at The Lamb", venueName: "The Lamb" },
+      conversationId,
+    });
+
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.answerHint).not.toMatch(/cheapest listed pints/i);
+    const turn = await readPubPalToolTurn(conversationId);
+    expect(turn?.toolsUsed).toEqual(["venue_drinks"]);
+  });
+
   // The live agent sent these asks and answered that it could not plan a
   // Shoreditch crawl: "tonight" was read as part of the area, and a bare
   // "Shoreditch crawl" planned three pubs across London.

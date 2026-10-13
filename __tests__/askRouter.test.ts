@@ -39,6 +39,30 @@ describe("routeAskDeterministically", () => {
 
 describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
   it.each([
+    "How much is wine at The Eagle?",
+  ])("routes the named category-price ask %s to recorded drinks", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "venue_drinks", args: { venueName: "The Eagle", drinkCategory: "wine" } },
+    ]);
+  });
+
+  it.each([
+    "How much is a burger in Camden?",
+    "Price of Coke at The Eagle",
+  ])("refuses an unsupported item-price question without comparison words: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
+  it.each([
+    "How much is a pint at The Lamb?",
+    "What is the price at The Lamb?",
+  ])("preserves existing unspecified pub and pint price asks: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["venue_prices"]);
+  });
+
+  it.each([
     "Cheapest vegan food in Camden",
     "Cheapest wine in Soho",
     "Cheapest cocktails near Camden",
@@ -53,7 +77,7 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
 
   it("checks recorded drinks when a wine comparison names one pub", () => {
     expect(routeAskDeterministically("Cheapest wine at The Lamb")).toEqual([
-      { name: "venue_drinks", args: { venueName: "The Lamb" } },
+      { name: "venue_drinks", args: { venueName: "The Lamb", drinkCategory: "wine" } },
     ]);
   });
 

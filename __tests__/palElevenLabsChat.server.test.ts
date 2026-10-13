@@ -43,6 +43,7 @@ function responseComplete(): Record<string, unknown> {
 }
 
 const wsState = vi.hoisted(() => ({
+  socketsOpened: 0,
   lastInitPayload: null as unknown,
   userMessageText: null as string | null,
   /** What the agent sends after the user message. Null sends the answer and the turn end. */
@@ -57,6 +58,7 @@ class MockElevenLabsWebSocket {
 
   constructor(url: string) {
     void url;
+    wsState.socketsOpened += 1;
     queueMicrotask(() => {
       this.emit("open", {});
       this.emit("message", {
@@ -179,6 +181,7 @@ import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "
 
 describe("runPalElevenLabsChatTurn", () => {
   beforeEach(() => {
+    wsState.socketsOpened = 0;
     wsState.lastInitPayload = null;
     wsState.userMessageText = null;
     wsState.replyScript = null;
@@ -202,6 +205,108 @@ describe("runPalElevenLabsChatTurn", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["Cheapest vegan food in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
+    ["Cheapest wine in Soho", "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks."],
+    ["Cheapest vegan curry in Camden", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
+    ["Cheapest Coke in Camden", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
+    ["Cheapest sparkling water in Camden", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
+    ["Cheapest pub lunch in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
+  ])("refuses configured %s before starting a provider session", async (query, message) => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse("The cheapest option in Camden costs £3.40.") },
+      { afterMs: 0, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query,
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toEqual({
+      ok: true,
+      message,
+      cards: [],
+      proposals: [],
+      conversationId: "",
+      toolsUsed: [],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
+    expect(wsState.userMessageText).toBeNull();
+  });
+
+  it("keeps the sobriety fence before configured price coverage", async () => {
+    fenceMocks.resolvePubPalFenceIntent.mockResolvedValue({ fenced: true, sobrietyOnly: false });
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Cheapest vegan food in Camden before I drive home",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      message: "Getting Home has the trains.",
+      cards: [],
+      toolsUsed: [],
+      conversationId: "",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+  });
+
+  it("refuses a configured area burger-price ask before the provider can substitute a pint", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse("The burger in Camden costs £3.40.") },
+      { afterMs: 0, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "How much is a burger in Camden?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      cards: [],
+      proposals: [],
+      conversationId: "",
+      toolsUsed: [],
+    });
+    expect(outcome.ok && outcome.message).toMatch(/meal prices|food prices|menu prices/i);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
+  });
+
+  it("refuses a configured Coke item-price ask before provider startup", async () => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse("Coke at The Eagle costs £6.25.") },
+      { afterMs: 0, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Price of Coke at The Eagle",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      cards: [],
+      proposals: [],
+      conversationId: "",
+      toolsUsed: [],
+    });
+    expect(outcome.ok && outcome.message).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(wsState.socketsOpened).toBe(0);
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
   });
 
   it.each([
