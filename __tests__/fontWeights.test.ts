@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // A route may not download a font weight nothing can draw.
 //
 // U5 of docs/plans/SITE_SPEED_2026-09-01.md. Three families load through
@@ -18,7 +20,6 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import postcss from "postcss";
-import { JSDOM } from "jsdom";
 import { Children, createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -227,17 +228,22 @@ describe("root font loading", () => {
       )),
       createElement("body", null, "Loading the map"),
     ));
-    const dom = new JSDOM(html);
+    const frame = document.createElement("iframe");
+    document.body.appendChild(frame);
     try {
-      const root = dom.window.document.documentElement;
+      const frameWindow = frame.contentWindow!;
+      frameWindow.document.open();
+      frameWindow.document.write(html);
+      frameWindow.document.close();
+      const root = frameWindow.document.documentElement;
       const bodyFamilies = postcss.list.comma(
-        dom.window.getComputedStyle(root).getPropertyValue("--font-body"),
+        frameWindow.getComputedStyle(root).getPropertyValue("--font-body"),
       ).map((family) => family.trim().replace(/^["']|["']$/g, ""));
       expect(bodyFamilies).toEqual(["Inter", "Inter Fallback", "system-ui"]);
       expect(root.style.getPropertyValue("--font-display"))
         .toBe("'Space Grotesk Fallback'");
     } finally {
-      dom.window.close();
+      frame.remove();
     }
   });
 
