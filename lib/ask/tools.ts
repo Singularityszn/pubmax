@@ -47,6 +47,7 @@ import {
   toolTonightNow,
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
+import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import type {
@@ -513,12 +514,10 @@ async function toolJourney(
   const from = str(args.from);
   const to = str(args.to);
   const venues = await loadConciergeVenues(ctx.cityId);
-  const fromVenue = from ? await matchVenueByName(venues, from) : null;
-  const toVenue =
-    (to ? await matchVenueByName(venues, to) : null) ??
-    (!to ? await matchVenueByName(venues, stripForMatch(ctx.query)) : null);
+  const fromVenue = uniqueExactVenueNameMatch(venues, from);
+  const toVenue = uniqueExactVenueNameMatch(venues, to);
 
-  if (!from && !fromVenue) {
+  if (!from) {
     return {
       ok: false,
       tool: "journey",
@@ -530,7 +529,7 @@ async function toolJourney(
         "Say where from and which listed pub to head to (or lat,lng points).",
     };
   }
-  if (!to && !toVenue) {
+  if (!to) {
     return {
       ok: false,
       tool: "journey",
@@ -602,16 +601,6 @@ async function toolJourney(
       degraded: true,
     };
   }
-}
-
-function stripForMatch(query: string): string {
-  return query
-    .replace(
-      /\b(how (do|can) i get|journey|get (me )?to|directions to|route to|from|to)\b/gi,
-      " ",
-    )
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function toolAreaBuzz(
@@ -1024,6 +1013,10 @@ export async function runAskTool(
   }
   let toolName = name;
   let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
+  if (name === "journey") {
+    const journey = routeAskDeterministically(ctx.query).find((call) => call.name === "journey");
+    if (journey) toolArgs = { ...toolArgs, to: journey.args.to };
+  }
   const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
   const discoveryCall = isVenueDiscoveryAsk(ctx.query) && (answersPrice || name === "venue_heritage")
     ? routeAskDeterministically(ctx.query).find((call) => call.name === "search_venues") : undefined;

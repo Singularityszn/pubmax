@@ -2,6 +2,7 @@ import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetJourneyCache } from "@/lib/citymcp/client";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
@@ -88,6 +89,31 @@ describe("propose_plan over the Pal webhook", () => {
     vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
+  });
+
+  it.each(["Directions to Fox and Anchor", "Directions to Fox & Anchor"])("keeps the stored journey destination over provider fragments: %s", async (query) => {
+    resetJourneyCache();
+    const journeyFetch = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+      jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } },
+    }), { headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", journeyFetch);
+    await registerPubPalToolTurn("conv_completejourney01", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({
+      toolName: "journey", args: { to: "Fox", query: "Directions to Fox" }, conversationId: "conv_completejourney01",
+    });
+    expect(result.cards).toMatchObject([{ venueId: "venue-phg4ss", place: "Fox and Anchor" }]);
+    expect(JSON.parse(journeyFetch.mock.calls[0]?.[1]?.body as string).params.arguments.to).toBe("51.52042,-0.10071");
+  });
+
+  it.each(["Fox and Anchor", "Fox & Anchor", "The Black Friar, Blackfriars"])("keeps the stored named category over a provider pint query: %s", async (name) => {
+    await registerPubPalToolTurn("conv_completecategory01", { query: `Wine prices at ${name}`, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices", args: { venueName: "The Lamb", query: "pints at The Lamb" }, conversationId: "conv_completecategory01",
+    });
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.answerHint).toMatch(/wine prices|recorded wine/i);
+    expect(result.answerHint).toContain(name.startsWith("The Black") ? "The Blackfriar" : "Fox and Anchor");
+    expect((result.priceEvidence as Array<{ category: string }>).every((price) => price.category === "wine")).toBe(true);
   });
 
   it.each(QUALIFIED_PRICE_REQUESTS)("preserves qualified item fences with stored and provider questions: $query", async ({ query, code }) => {
