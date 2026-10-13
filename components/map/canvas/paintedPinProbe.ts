@@ -46,7 +46,7 @@ export type PaintedMapTapPoint = {
 };
 
 /** Loading facts for diagnostics only. This does not decide pin readiness. */
-export type PaintedMapLoadingState = {
+type PaintedMapLoadingState = {
   at: number;
   loaded: boolean;
   styleLoaded: boolean | null;
@@ -55,7 +55,7 @@ export type PaintedMapLoadingState = {
 };
 
 /** Reads public MapLibre state without querying features or changing the map. */
-export function paintedMapLoadingState(map: maplibregl.Map): PaintedMapLoadingState {
+function paintedMapLoadingState(map: maplibregl.Map): PaintedMapLoadingState {
   const style = map.getStyle();
   return {
     at: performance.now(),
