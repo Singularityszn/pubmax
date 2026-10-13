@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import postcss from "postcss";
 
 import { describe, expect, it } from "vitest";
 
@@ -509,6 +510,34 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
 // all-caps labels: sentence case at ~0.01em, caps kept only for stamp chips
 // that read as a pressed mark. These are the eyebrow rules that broke it.
 describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
+  function expectEyebrowPolicy(css: string, selectors: readonly string[], path: string) {
+    const sheet = postcss.parse(css);
+    for (const selector of selectors) {
+      let found = false;
+      sheet.walkRules((rule) => {
+        if (!rule.selectors.includes(selector)) return;
+        found = true;
+        for (const node of rule.nodes) {
+          if (node.type !== "decl") continue;
+          const property = node.prop.toLowerCase();
+          const value = node.value.replace(/\/\*[\s\S]*?\*\//gu, "").trim().toLowerCase();
+          const where = `${path}: ${selector}: ${property}`;
+          if (property === "text-transform") {
+            expect(value.split(/\s+/u), where).not.toContain("uppercase");
+          }
+          if (property === "letter-spacing" && value !== "normal") {
+            const length = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(em)?$/u.exec(value);
+            expect(length, where).not.toBeNull();
+            const amount = Number(defined(length)[1]);
+            expect(defined(length)[2] === "em" || amount === 0, where).toBe(true);
+            expect(Math.abs(amount), where).toBeLessThan(0.02);
+          }
+        }
+      });
+      expect(found, `${selector} not found in ${path}`).toBe(true);
+    }
+  }
+
   const EYEBROW_RULES: ReadonlyArray<readonly [string, readonly string[]]> = [
     ["app/plan/plan.css", [
       ".planPage__eyebrow",
@@ -538,16 +567,29 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
   ];
 
   it.each(EYEBROW_RULES)("keeps %s eyebrows out of uppercase", (path, selectors) => {
-    const css = read(path);
-    for (const selector of selectors) {
-      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-      const rule = new RegExp(`${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`, "u");
-      const match = rule.exec(css);
-      expect(match, `${selector} not found in ${path}`).not.toBeNull();
-      // Wide tracking existed only to make caps legible. Both go together, so
-      // a rule that drops the caps and keeps 0.13em is still the retired look.
-      expect(match![1]).not.toContain("text-transform: uppercase");
-      expect(match![1]).not.toMatch(/letter-spacing:\s*0?\.(?:0[2-9]|[1-9])/u);
-    }
+    expectEyebrowPolicy(read(path), selectors, path);
+  });
+
+  it.each([
+    "/* .eyebrow { text-transform: none; } */ .eyebrow { text-transform: uppercase; }",
+    "/* .eyebrow { letter-spacing: .01em; } */ .eyebrow { letter-spacing: .2em; }",
+    ".eyebrow { TEXT-TRANSFORM : UPPERCASE; }",
+    ".eyebrow { LETTER-SPACING : 2e-1em; }",
+    ".eyebrow { letter-spacing: -.2em; }",
+    ".eyebrow { text-transform: none; } .eyebrow { text-transform: uppercase; }",
+    ".other, .eyebrow { text-transform: uppercase; }",
+    "@media (min-width: 900px) { .eyebrow { letter-spacing: .2em; } }",
+  ])("rejects active noncompliant eyebrow declarations in %s", (css) => {
+    expect(() => expectEyebrowPolicy(css, [".eyebrow"], "fixture.css")).toThrow();
+  });
+
+  it("accepts normalized sentence-case declarations and ignores commented rules", () => {
+    expectEyebrowPolicy([
+      "/* .eyebrow { text-transform: uppercase; letter-spacing: .2em; } */",
+      ".other, .eyebrow { TEXT-TRANSFORM: NONE; LETTER-SPACING: 1e-2em; }",
+      "@media (min-width: 900px) { .eyebrow { letter-spacing: -.01em; } }",
+      ".eyebrow { letter-spacing: normal; }",
+      ".eyebrow { letter-spacing: 0; }",
+    ].join("\n"), [".eyebrow"], "fixture.css");
   });
 });

@@ -10,6 +10,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { shellCommands } from "@/__tests__/helpers/shellCommands";
 
 const ROOT = process.cwd();
 
@@ -38,11 +39,34 @@ const workflows = readdirSync(join(ROOT, ".github/workflows"))
 
 function runsPlaywright(job: Job): boolean {
   return job.steps.some(
-    (step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run),
+    (step) => typeof step.run === "string" && shellCommands(step.run).some(
+      (command) => (command[0] === "npx" && command[1] === "playwright" && command[2] === "test")
+        || (command[0] === "playwright" && command[1] === "test"),
+    ),
   );
 }
 
 describe("browser jobs on hosted runners", () => {
+  it.each([
+    "# npx playwright test",
+    "echo 'npx playwright test'",
+    "printf '%s' 'playwright test'",
+    "cat <<'TEXT'\nnpx playwright test\nTEXT",
+    "npx playwright --help",
+  ])("ignores non-executable browser command text in %s", (run) => {
+    expect(runsPlaywright({ steps: [{ run }] })).toBe(false);
+  });
+
+  it.each([
+    "npx playwright test --workers=1",
+    "playwright test --workers=1",
+    "PW_PORT=3100 npx 'playwright' test",
+    "echo ready && npx playwright test",
+    "# prepare\necho ready\nnpx playwright test",
+  ])("recognizes executable browser command words in %s", (run) => {
+    expect(runsPlaywright({ steps: [{ run }] })).toBe(true);
+  });
+
   const playwrightJobs = workflows.flatMap(({ file, parsed }) =>
     Object.entries(parsed.jobs)
       .filter(([, job]) => runsPlaywright(job))
