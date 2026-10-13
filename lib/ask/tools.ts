@@ -1023,7 +1023,7 @@ export async function runAskTool(
     };
   }
   let toolName = name;
-  let toolArgs = args;
+  let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
   if (intent.kind === "recorded-drinks") {
     toolName = "venue_drinks";
     toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };

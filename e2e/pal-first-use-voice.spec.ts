@@ -1,5 +1,32 @@
 import { expect, test } from "@playwright/test";
 
+test("Big one tonight returns a sourced plan through the real keyless chat route", async ({ page }) => {
+  await page.goto("/pal/chat");
+  const chip = page.getByRole("button", { name: "Big one tonight", exact: true });
+  const query = "Plan a big night for four of us, with cheap pints and a lively route";
+  const responsePromise = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
+  );
+  await expect(chip).toBeVisible();
+  await expect(async () => {
+    await chip.click();
+    await expect(page.getByText(query, { exact: true })).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON().query).toBe(query);
+  const body = await response.json();
+  expect(body.toolsUsed).toEqual(["propose_plan"]);
+  expect(body.cards).toHaveLength(3);
+  expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+  const openPlan = page.getByRole("link", { name: "Open in Plan", exact: true });
+  await expect(openPlan).toBeVisible();
+  const href = await openPlan.getAttribute("href");
+  expect(new URL(href!, "http://localhost").searchParams.get("query")).toBe(query);
+  await openPlan.click();
+  await expect(page).toHaveURL(/\/plan\?/);
+});
+
 test("the phone voice choice survives Back and reload without unused character controls", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.emulateMedia({ reducedMotion: "reduce" });

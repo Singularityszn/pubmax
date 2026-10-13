@@ -10,6 +10,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 
 import VenueMenuTab from "@/components/map/inspector/VenueMenuTab";
+import { useInspectorTabs } from "@/components/map/inspector/useInspectorTabs";
+import { BASE_TABS } from "@/lib/venueInspectorTabs";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import type { FoodPriceUpdate } from "@/lib/foodPriceUpdates";
 import type { TabKey } from "@/lib/venueInspectorTabs";
@@ -147,6 +149,49 @@ function packReads(): string[] {
 }
 
 describe("VenueMenuTab draws its venue's own price updates", () => {
+  it.each(["food", "all", "beer"])("keeps arrow-key tab focus after revisiting a %s drill-in", async (door) => {
+    const pub = venue({
+      drink: [SOURCED, { ...SOURCED, drinkName: "House red", category: "wine" }],
+      food: [SOURCED_FOOD],
+    });
+    function Inspector() {
+      const { tab, selectTab, onTabKeyDown, tabRefs } = useInspectorTabs("menu", pub.id, BASE_TABS);
+      return createElement("div", null,
+        createElement("div", { role: "tablist" },
+          BASE_TABS.map(({ key, label }) => createElement("button", {
+            key,
+            role: "tab",
+            "aria-selected": tab === key,
+            ref: (element: HTMLButtonElement | null) => { tabRefs.current[key] = element; },
+            onClick: () => selectTab(key),
+            onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => onTabKeyDown(event, key),
+          }, label)),
+        ),
+        createElement(VenueMenuTab, { venue: pub, tab }),
+      );
+    }
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    await act(async () => {
+      root = createRoot(host!);
+      root.render(createElement(Inspector));
+    });
+    const tab = (label: string) => Array.from(host!.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
+      .find((element) => element.textContent === label)!;
+    await act(async () => { host!.querySelector<HTMLButtonElement>(`[data-menu-door="${door}"]`)!.click(); });
+    const back = host.querySelector<HTMLButtonElement>(".drinkMenuBack")!;
+    expect(document.activeElement).toBe(back);
+    await act(async () => { tab("Photos").click(); });
+    await act(async () => { tab("Photos").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
+    expect(document.activeElement).toBe(tab("Menu"));
+    await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
+    expect(document.activeElement).toBe(tab("Stories"));
+    await act(async () => { tab("Stories").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })); });
+    expect(document.activeElement).toBe(tab("Menu"));
+    await act(async () => { back.click(); });
+    expect(document.activeElement).toBe(host.querySelector(`[data-menu-door="${door}"]`));
+  });
+
   it("offers recorded food through a named door and returns to the menu hub", async () => {
     const element = await render({
       venue: venue({ drink: [SOURCED], food: [SOURCED_FOOD] }),

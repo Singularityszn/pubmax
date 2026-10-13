@@ -47,8 +47,12 @@ const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?
 const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
-const PUB_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|local|nearby)\s+)*pubs?(?:\s+(?:with|serving|that serves?)\s+food)?$/i;
-const PLAN_COMPARISON_SUBJECT_RE = /^(?:(?:3|three)[- ]stop\s+)?(?:pub\s+)?(?:crawl|night|route)$/i;
+const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";
+const PUB_DISCOVERY_CONSTRAINT_RE = new RegExp(`\\b${VENUE_COMPARISON_MODIFIERS}\\b`, "i");
+const PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|local|nearby|${VENUE_COMPARISON_MODIFIERS})\\s+)*pubs?(?:\\s+(?:with|serving|that serves?)\\s+(?:food|(?:a\\s+)?(?:beer\\s+)?garden|(?:live\\s+)?sports))?$`, "i");
+const PLAN_COMPARISON_SUBJECT = `(?:(?:3|three)[- ]stop\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}\\s+)*(?:pub\\s+)?(?:crawl|night|route)`;
+const PLAN_COMPARISON_SUBJECT_RE = new RegExp(`^${PLAN_COMPARISON_SUBJECT}$`, "i");
+const PLAN_COMPARISON_TAIL_RE = new RegExp(`\\s+(?:and|with)\\s+(?:a\\s+)?${PLAN_COMPARISON_SUBJECT}$`, "i");
 const RECORDED_PRICE_CATEGORIES: ReadonlyArray<readonly [RegExp, DrinkCategory]> = [
   [/^wine$/i, "wine"],
   [/^cocktails?$/i, "cocktail"],
@@ -105,9 +109,11 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
   const comparative = PRICE_COMPARISON_RE.test(query);
   const venueName = namedDrinkVenue(query);
   if (!subject && !comparative) return { kind: "pub-price", venueName };
-  const food = FOOD_RE.test(subject);
-  if ((PINT_COMPARISON_SUBJECT_RE.test(subject) || PUB_COMPARISON_SUBJECT_RE.test(subject)) && (!food || comparative)) {
-    return { kind: "pint", venueName, foodAvailability: food };
+  const priceSubject = comparative && PLAN_RE.test(query)
+    ? subject.replace(PLAN_COMPARISON_TAIL_RE, "") : subject;
+  const food = FOOD_RE.test(priceSubject);
+  if ((PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject)) && (!food || comparative)) {
+    return PLAN_RE.test(query) ? { kind: "plan" } : { kind: "pint", venueName, foodAvailability: food };
   }
   if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return { kind: "plan" };
   if (FOOD_RE.test(subject)) {
@@ -348,6 +354,8 @@ function venueDrinksClaim(text: string): ConciergeClaim | null {
 
 function cheapestNearClaim(text: string): ConciergeClaim | null {
   if (!CHEAPEST_NEAR_RE.test(text) || PLAN_RE.test(text)) return null;
+  const subject = priceComparisonSubject(text) ?? "";
+  if (PUB_COMPARISON_SUBJECT_RE.test(subject) && PUB_DISCOVERY_CONSTRAINT_RE.test(subject)) return null;
   // "in Camden" is a place and only a place. "near The Lamb" is a centre, so it
   // rides the anchor slot, where a named pub still resolves.
   const place = extractInPlace(text);
