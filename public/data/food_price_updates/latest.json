@@ -1,7 +1,7 @@
 {
-  "$comment": "Food price updates from permissible first-party sources (Greene King official menus). Attributed use only.",
+  "$comment": "Food price observations from permissible first-party official menus. Attributed price facts with per-row observation dates.",
   "version": 1,
-  "generatedAt": "2026-07-11T12:20:13.677Z",
+  "generatedAt": "2026-10-13T07:11:38.620Z",
   "updates": [
     {
       "venueKey": "barlow croft|manchester, m20 5pg|53.41080|-2.21848",
@@ -30821,6 +30821,510 @@
         "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
       },
       "observedAt": "2026-07-11T12:13:25.106259+00:00"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Foccacia",
+      "category": "other",
+      "priceGbp": 3.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork and Black Pudding Scotch Egg",
+      "category": "other",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Mini Chicken Pie",
+      "category": "other",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Anchovy, Olive and Pickle Pintxos",
+      "category": "bar-snacks",
+      "priceGbp": 5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Olives",
+      "category": "bar-snacks",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Green Peppers stuffed with Cream Cheese",
+      "category": "bar-snacks",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork and Black Pudding Sausage Roll",
+      "category": "bar-snacks",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Youngs Original glazed Pork Ribs",
+      "category": "bar-snacks",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Roasted Parsnip Soup",
+      "category": "starters",
+      "priceGbp": 7.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Mackerel Pate",
+      "category": "starters",
+      "priceGbp": 8.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Beetroot Carpaccio",
+      "category": "starters",
+      "priceGbp": 7.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Prawn Cocktail",
+      "category": "starters",
+      "priceGbp": 11,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
+      "category": "starters",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Ox Cheek Croquettes",
+      "category": "starters",
+      "priceGbp": 10,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "The Eagle Chicken Sharer",
+      "category": "sharers",
+      "priceGbp": 28,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "1kg Brewhouse Pork Ribs",
+      "category": "sharers",
+      "priceGbp": 40,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Ruby Betroot Hummus",
+      "category": "sharers",
+      "priceGbp": 16,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "The Eagle Beef Burger",
+      "category": "mains",
+      "priceGbp": 18.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Plant Burger",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Aspall Cider Battered Haddock",
+      "category": "mains",
+      "priceGbp": 19.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "10oz West Country Ribeye Steak",
+      "category": "mains",
+      "priceGbp": 44,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork and Black Pudding Sausage and Mash",
+      "category": "mains",
+      "priceGbp": 17,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Roasted Bedloom Heritage Squash",
+      "category": "mains",
+      "priceGbp": 16,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Beef and Kidney Suet Pudding",
+      "category": "mains",
+      "priceGbp": 24,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Wild Mushroom Risotto",
+      "category": "mains",
+      "priceGbp": 16.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Half Roast Chicken",
+      "category": "mains",
+      "priceGbp": 22,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Cyder Battered Haddock",
+      "category": "mains",
+      "priceGbp": 19.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Braised Cavolo Nero",
+      "category": "sides",
+      "priceGbp": 4,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Truffle Fries",
+      "category": "sides",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Tenderstem Broccoli",
+      "category": "sides",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Blooming Onion",
+      "category": "sides",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Hasselback Mids",
+      "category": "sides",
+      "priceGbp": 5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Bitter Leaf Salad",
+      "category": "sides",
+      "priceGbp": 4,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Sticky Toffee Pudding",
+      "category": "desserts",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Blue Cheese",
+      "category": "desserts",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Chocolate Brownie",
+      "category": "desserts",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Ice cream",
+      "category": "desserts",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Affogato",
+      "category": "desserts",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Apple and Blackberry Crumble",
+      "category": "desserts",
+      "priceGbp": 9,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Mango sorbet (2 scoops)",
+      "category": "desserts",
+      "priceGbp": 3.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Black Forest Berry Trifle",
+      "category": "desserts",
+      "priceGbp": 7,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed price facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z"
     }
   ]
 }
