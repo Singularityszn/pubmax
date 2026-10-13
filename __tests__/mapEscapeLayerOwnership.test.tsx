@@ -10,6 +10,7 @@ import SiteNavMore from "@/components/nav/SiteNavMore";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { dispatchDismissKey } from "@/lib/nativeBackGesture";
 import { POI_CATEGORIES, type PoiCategory } from "@/lib/pois";
+import { SPOONS_VALUE_LENS_OFF } from "@/lib/spoonsValue";
 import { defaultVenueKindVisibility } from "@/lib/venueKindFilters";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -27,7 +28,7 @@ function MapJourney() {
   useMapKeyboardShortcuts({
     mobileViewport: false,
     planningOpen: false,
-    selectedVenueId: drawerOpen ? "selected-pub" : null,
+    selectedVenueId: drawerOpen ? "selected-pub" : "",
     onBack: () => setDrawerOpen(false),
     onInterruptReveal: noop,
     logIntentFallbackVisible: false,
@@ -49,7 +50,7 @@ function MapJourney() {
         onDrinkLaneChange={noop}
         drinkLaneStatus="ready"
         spoonsValueOn={false}
-        spoonsValueLens={{ status: "idle" }}
+        spoonsValueLens={SPOONS_VALUE_LENS_OFF}
         onSpoonsValueChange={noop}
         personaId={null}
         onPersonaSelect={noop}
