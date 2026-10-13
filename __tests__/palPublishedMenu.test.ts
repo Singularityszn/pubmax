@@ -20,6 +20,7 @@ import { createPalChatSession } from "@/lib/palChatClient";
 import { resetJourneyCache } from "@/lib/citymcp/client";
 import * as priceUpdates from "@/lib/priceUpdates.server";
 import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
+import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
 
 function request(query: string) {
   return new Request("http://localhost/api/ask", {
@@ -55,6 +56,91 @@ it.each([ask, chat])("returns accepted New Inn facts through a public POST", asy
 it("preserves published Sherlock Holmes wine without claiming a serving", async () => {
   const body = await (await ask(request("Wine prices at Sherlock Holmes"))).json();
   expect(body.cards).toContainEqual(expect.objectContaining({ price: 7.2, menuEvidence: expect.objectContaining({ itemName: "Organic Pinot Grigio, Riff, Italy", serving: null, caloriesKcal: null, observedAt: "2026-09-21T18:41:07.759Z" }) }));
+});
+
+it("returns the published Sherlock Holmes cards expected by both browser viewports", async () => {
+  const body = await (await chat(request("Wine prices at Sherlock Holmes"))).json();
+  expect(body.cards).toHaveLength(8);
+  expect(body.cards).toContainEqual(expect.objectContaining({ venueId: "venue-gk2fp9", price: 7.2,
+    menuEvidence: expect.objectContaining({ itemName: "Organic Pinot Grigio, Riff, Italy", serving: null, observedAt: "2026-09-21T18:41:07.759Z" }),
+    provenance: expect.objectContaining({ kind: "published-menu", url: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu" }),
+  }));
+  expect(body.answer).toContain("£7.20");
+  expect(body.answer).toContain("Serving size not recorded");
+  expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId: "venue-gk2fp9" }));
+});
+
+it.each([
+  ["Price of 125 ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", 7.1, "125ml", null],
+  ["Price of 750 ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", 35.5, "750ml", null],
+  ["Price of 50ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", null, null, null],
+  ["Price of -125ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", null, null, null],
+  ["Price of 1,25ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", null, null, null],
+  ["Price of 0ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", null, null, null],
+  ["Price of 125ml bottle Steinbock Riesling at The Eagle, Hammersmith and Fulham", null, null, null],
+  ["Price of a glass of Organic Pinot Grigio at Sherlock Holmes", null, null, null],
+  ["Price of a bottle of Apple and Elderflower at The Eagle, Hammersmith and Fulham", null, null, null],
+  ["How many calories are in Mixed Olives at The New Inn?", 5, null, 163],
+  ["How many calories are there in Mixed Olives at The New Inn?", 5, null, 163],
+  ["How many calories does Mixed Olives have at The New Inn?", 5, null, 163],
+  ["How many calories do Mixed Olives contain at The New Inn?", 5, null, 163],
+  ["How many kcal in Mixed Olives at The New Inn?", 5, null, 163],
+  ["What is the calorie count for Mixed Olives at The New Inn?", 5, null, 163],
+  ["What's the calorie content of Mixed Olives at The New Inn?", 5, null, 163],
+  ["What are the published calories in Mixed Olives at The New Inn?", 5, null, 163],
+] as const)("preserves serving and calorie identity through every menu boundary: %s", async (query, price, serving, caloriesKcal) => {
+  const expected = price === null ? [] : [expect.objectContaining({ price,
+    venueId: caloriesKcal === 163 ? "venue-17qpap6" : "venue-1hz0avt",
+    menuEvidence: expect.objectContaining({ serving, caloriesKcal, currency: "GBP", availability: "unknown",
+      itemName: caloriesKcal === 163 ? "Mixed Olives" : "Steinbock, Riesling, Germany",
+      dietary: caloriesKcal === 163 ? ["vegan", "vegetarian"] : [],
+      observedAt: caloriesKcal === 163 ? "2026-10-13T09:43:11.443Z" : "2026-10-13T10:19:25.911Z",
+    }),
+  })];
+  for (const post of [ask, chat]) {
+    const response = await post(request(query));
+    expect(response.status).toBe(200);
+    expect((await response.json()).cards).toEqual(expected);
+  }
+  const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+  expect((await session(query, "london"))?.cards).toEqual(expected);
+  await registerPubPalToolTurn("conv_menuboundaries01", { query, cityId: "london", ownerId: "menu-owner" });
+  vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+  const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+    method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+    body: JSON.stringify({ conversation_id: "conv_menuboundaries01", parameters: { query: "Coke at The Lamb", venueName: "The Lamb" } }),
+  }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+  expect(response.status).toBe(200);
+  const { result } = await response.json();
+  expect(result.cards).toEqual(expected);
+  expect((await readOwnedPubPalToolTurn("conv_menuboundaries01", "menu-owner"))?.cards).toEqual(result.cards);
+  expect(await readOwnedPubPalToolTurn("conv_menuboundaries01", "other-owner")).toBeNull();
+  vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+  vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+  const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+  vi.stubGlobal("fetch", fetcher);
+  const intercepted = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_menuboundaries01" });
+  expect(intercepted).toMatchObject({ ok: true, cards: expected });
+  expect((await readOwnedPubPalToolTurn("conv_menuboundaries01", "menu-owner"))?.cards).toEqual(expected);
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["25 cl", "25cl"], ["0.5 l", "0.5l"], ["1 oz", "1oz"],
+  ["single", "single"], ["double", "double"], ["glass", "glass"],
+  ["bottle", "bottle"], ["pint", "pint"], ["175 ml glass", "175ml glass"],
+] as const)("matches complete measured and named fixture servings: %s", async (asked, servingSize) => {
+  const drink = parseDrinkPriceUpdates([{
+    venueKey: "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+    drinkName: "Serving fixture", category: "wine", priceGbp: 2, servingSize,
+    source: { label: "Explicit serving fixture", licence: "Test only", url: "https://example.com/fixture" },
+    observedAt: "2026-10-13T09:43:11.443Z", lane: "publisher",
+  }]);
+  expect(drink).toHaveLength(1);
+  vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue({ drink, food: [] });
+  const body = await (await ask(request(`Price of ${asked} Serving fixture at The New Inn`))).json();
+  expect(body.cards).toHaveLength(1);
+  expect(body.cards[0]).toMatchObject({ price: 2, menuEvidence: { serving: servingSize, caloriesKcal: null, dietary: [] } });
 });
 
 it.each([0, undefined])("retains a fixture's %s calories through the public menu boundary", async (caloriesKcal) => {

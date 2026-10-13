@@ -13,6 +13,12 @@ function words(value: string): string {
   return value.toLocaleLowerCase("en-GB").replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
+const SERVING_RE = /(?<![\p{L}\p{N}])[-+]?(?:\d[\d.,]*|\.\d+)\s*(?:ml|cl|l|oz)\b|\b(?:pint|glass|bottle|double|single)\b/giu;
+
+function servingIdentity(value: string): string {
+  return value.toLowerCase().replace(/\s+(?=(?:ml|cl|l|oz)\b)/g, "").replace(/\s+/g, " ").trim();
+}
+
 export async function publishedMenuCards(venueId: string, query: string, category?: DrinkCategory): Promise<{ cards: AskCard[]; unavailable: boolean }> {
   const lookup = await lookupVenueDetail(venueId);
   if (lookup.status !== "found") return { cards: [], unavailable: lookup.status === "unavailable" };
@@ -21,19 +27,23 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   if (!updates) return { cards: [], unavailable: true };
   const request = namedMenuRequest(query);
   const subject = request?.subject ?? "drinks";
-  const serving = subject.match(/\b\d+\s*ml\b|\b(?:pint|glass|bottle|double|single)\b/i)?.[0];
+  const servings = subject.match(SERVING_RE);
+  const serving = servings ? servingIdentity(servings.join(" ")) : null;
   const dietary = subject.match(/\b(?:vegan|vegetarian|gluten[- ]free)\b/i)?.[0]?.toLowerCase().replace(" ", "-");
-  const foodOnly = /\b(?:food|meals?|lunch|dinner|breakfast|calories|kcal|dietary|vegan|vegetarian|gluten[- ]free)\b/i.test(subject);
+  const foodOnly = /\b(?:food|meals?|lunch|dinner|breakfast|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free)\b/i.test(subject);
   const allItems = /\bmenu\b/i.test(subject) && !foodOnly && !/\bdrinks?\b/i.test(subject);
   const itemQuery = category ? "" : words(subject
-    .replace(/\b\d+\s*ml\b|\b(?:pint|glass|bottle|double|single)\b/gi, " ")
+    .replace(/^how many\s+(?:calories|kcal)\s+(?:does|do)\s+(.+?)\s+(?:have|contain)\s*$/i, "$1")
+    .replace(/^how many\s+(?:calories|kcal)\s+(?:are\s+(?:there\s+)?in|in)\s+/i, " ")
+    .replace(/^what(?:'s| is| are)?\s+(?:the\s+)?(?:published\s+)?(?:calories|calorie(?: count| content)?|kcal)\s+(?:(?:are|is)\s+)?(?:in|of|for)\s+/i, " ")
+    .replace(SERVING_RE, " ")
     .replace(/\b(?:right now|this evening|this afternoon|this morning|this weekend|tonight|now|later|today)\b/gi, " ")
     .replace(/\b(?:what|which|is|are|does|do|the|a|an|and|or|of|for|its|it|their|they|have|has|how|much|price|prices|cost|costs|published|recorded|calorie|calories|kcal|dietary|vegan|vegetarian|gluten[- ]free|options?|food|meals?|drinks?|menu|servings?|please|show|me|tell)\b/gi, " "));
   const matches = (name: string) => !itemQuery || itemQuery.split(" ").every((token) => words(name).split(" ").includes(token));
   const cards: AskCard[] = [];
   const add = (evidence: AskMenuEvidence, price: number) => {
     if (!matches(evidence.itemName)) return;
-    if (serving && (!evidence.serving || !words(evidence.serving).includes(words(serving)))) return;
+    if (serving && (!evidence.serving || servingIdentity(evidence.serving) !== serving)) return;
     if (dietary && !itemQuery && !evidence.dietary.includes(dietary as "vegan" | "vegetarian" | "gluten-free")) return;
     const calories = evidence.caloriesKcal === null ? "Published calories not recorded." : `${evidence.caloriesKcal} kcal published for this item.`;
     const tags = evidence.dietary.length ? `Publisher labels: ${evidence.dietary.join(", ")}.` : "Dietary labels not recorded.";
