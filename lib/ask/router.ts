@@ -43,9 +43,13 @@ const VENUE_DRINKS_RE =
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
 const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
+const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
+const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
+const PUB_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|local|nearby)\s+)*pubs?(?:\s+(?:with|serving|that serves?)\s+food)?$/i;
+const PLAN_COMPARISON_SUBJECT_RE = /^(?:(?:3|three)[- ]stop\s+)?(?:pub\s+)?(?:crawl|night|route)$/i;
 
 export type UnsupportedPriceComparison = {
-  code: "UNSUPPORTED_FOOD_PRICE_COMPARISON" | "UNSUPPORTED_DRINK_PRICE_COMPARISON";
+  code: "UNSUPPORTED_FOOD_PRICE_COMPARISON" | "UNSUPPORTED_DRINK_PRICE_COMPARISON" | "UNSUPPORTED_PRICE_COMPARISON";
   answer: string;
 };
 
@@ -55,31 +59,42 @@ function namedDrinkVenue(query: string): string | null {
   return match?.[1] ? stripTrailingQualifiers(match[1]).trim() : null;
 }
 
-/** Existing tools compare pints across pubs or read all recorded drinks at one named pub. */
-export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
+function priceComparisonSubject(query: string): string | null {
   const comparison = query.match(PRICE_COMPARISON_RE);
   if (!comparison) return null;
-  const subject = query.slice((comparison.index ?? 0) + comparison[0].length)
-    .replace(/^\s+(?:(?:vegan|vegetarian|healthy|gluten[- ]free)\s+)*/i, "");
-  const comparesFood = subject.search(FOOD_RE) === 0;
-  if (FOOD_RE.test(query) && (comparesFood || !/\b(?:pints?|beer|pubs?)\b/i.test(query))) {
+  return stripTrailingPunctuation(query.slice((comparison.index ?? 0) + comparison[0].length)
+    .trim().split(/\s+(?:in|near|nearby|at|around|round|close to|for)\b/i, 1)[0] ?? "");
+}
+
+/** Existing tools compare pints across pubs or read all recorded drinks at one named pub. */
+export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
+  const subject = priceComparisonSubject(query);
+  if (subject === null) return null;
+  if (PINT_COMPARISON_SUBJECT_RE.test(subject) || PUB_COMPARISON_SUBJECT_RE.test(subject)) return null;
+  if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return null;
+  if (FOOD_RE.test(subject)) {
     return {
       code: "UNSUPPORTED_FOOD_PRICE_COMPARISON",
       answer: "I can't compare meal prices or check dietary options yet. I can help you find pubs with food.",
     };
   }
-  if (NON_PINT_DRINK_RE.test(query) && !namedDrinkVenue(query)) {
+  if (recordedDrinkComparison(query)) return null;
+  if (NON_PINT_DRINK_RE.test(subject)) {
     return {
       code: "UNSUPPORTED_DRINK_PRICE_COMPARISON",
       answer: "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks.",
     };
   }
-  return null;
+  return {
+    code: "UNSUPPORTED_PRICE_COMPARISON",
+    answer: "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks.",
+  };
 }
 
 /** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
 export function recordedDrinkComparison(query: string): RoutedToolCall | null {
-  if (!PRICE_COMPARISON_RE.test(query) || !NON_PINT_DRINK_RE.test(query)) return null;
+  const subject = priceComparisonSubject(query);
+  if (!subject || !RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)) return null;
   const venueName = namedDrinkVenue(query);
   return venueName ? { name: "venue_drinks", args: { venueName } } : null;
 }

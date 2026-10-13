@@ -53,6 +53,10 @@ describe("POST /api/ask", () => {
   it.each([
     ["Cheapest vegan food in Camden", /meal prices|dietary/i],
     ["Cheapest wine in Soho", /other drinks across pubs/i],
+    ["Cheapest vegan curry in Camden", /can't compare|cannot compare|can compare/i],
+    ["Cheapest Coke in Camden", /can't compare|cannot compare|can compare/i],
+    ["Cheapest sparkling water in Camden", /can't compare|cannot compare|can compare/i],
+    ["Cheapest pub lunch in Camden", /meal prices|dietary/i],
   ])("explains unsupported price coverage for %s without pint cards", async (query, wording) => {
     const result = await runAsk({ query, cityId: "london", skipModel: true });
     expect(result.answer).toMatch(wording);

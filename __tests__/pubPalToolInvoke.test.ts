@@ -104,6 +104,10 @@ describe("propose_plan over the Pal webhook", () => {
   it.each([
     ["Cheapest vegan food in Camden", "UNSUPPORTED_FOOD_PRICE_COMPARISON", /meal prices|dietary/i],
     ["Cheapest wine in Soho", "UNSUPPORTED_DRINK_PRICE_COMPARISON", /other drinks across pubs/i],
+    ["Cheapest vegan curry in Camden", "UNSUPPORTED_PRICE_COMPARISON", /can compare listed pint prices/i],
+    ["Cheapest Coke in Camden", "UNSUPPORTED_PRICE_COMPARISON", /can compare listed pint prices/i],
+    ["Cheapest sparkling water in Camden", "UNSUPPORTED_PRICE_COMPARISON", /can compare listed pint prices/i],
+    ["Cheapest pub lunch in Camden", "UNSUPPORTED_FOOD_PRICE_COMPARISON", /meal prices|dietary/i],
   ])("refuses provider-selected pint tools for %s using the full stored ask", async (query, code, wording) => {
     const conversationId = "conv_unsupported01";
     await registerPubPalToolTurn(conversationId, {
