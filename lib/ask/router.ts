@@ -3,6 +3,7 @@
 
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
+import type { DrinkCategory } from "@/lib/drinks";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -41,12 +42,25 @@ const TONIGHT_NOW_RE =
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
+const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does))?|price(?:\s+(?:of|for))?|cost(?:\s+(?:of|for))?)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
 const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
 const PUB_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|local|nearby)\s+)*pubs?(?:\s+(?:with|serving|that serves?)\s+food)?$/i;
 const PLAN_COMPARISON_SUBJECT_RE = /^(?:(?:3|three)[- ]stop\s+)?(?:pub\s+)?(?:crawl|night|route)$/i;
+const RECORDED_PRICE_CATEGORIES: ReadonlyArray<readonly [RegExp, DrinkCategory]> = [
+  [/^wine$/i, "wine"],
+  [/^cocktails?$/i, "cocktail"],
+  [/^coffee$/i, "coffee"],
+  [/^whisk(?:y|ey)$/i, "whisky"],
+  [/^gin$/i, "gin"],
+  [/^rum$/i, "rum"],
+  [/^vodka$/i, "vodka"],
+  [/^shots?$/i, "shot"],
+  [/^soft drinks?$/i, "soft-drink"],
+  [/^(?:alcohol[- ]free|non[- ]alcoholic)$/i, "alcohol-free"],
+];
 
 export type UnsupportedPriceComparison = {
   code: "UNSUPPORTED_FOOD_PRICE_COMPARISON" | "UNSUPPORTED_DRINK_PRICE_COMPARISON" | "UNSUPPORTED_PRICE_COMPARISON";
@@ -60,16 +74,22 @@ function namedDrinkVenue(query: string): string | null {
 }
 
 function priceComparisonSubject(query: string): string | null {
-  const comparison = query.match(PRICE_COMPARISON_RE);
+  const comparison = query.match(PRICE_COMPARISON_RE) ?? query.match(ITEM_PRICE_RE);
   if (!comparison) return null;
-  return stripTrailingPunctuation(query.slice((comparison.index ?? 0) + comparison[0].length)
-    .trim().split(/\s+(?:in|near|nearby|at|around|round|close to|for)\b/i, 1)[0] ?? "");
+  const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim();
+  if (/^(?:in|near|nearby|at|around|round|close to|for)\b/i.test(afterPrice)) return "";
+  return stripTrailingPunctuation(afterPrice
+    .split(/\s+(?:in|near|nearby|at|around|round|close to|for)\b/i, 1)[0] ?? "")
+    .replace(/^(?:a|an|the)\s+/i, "")
+    .replace(/\s+cost$/i, "")
+    .replace(/\s+(?:right now|today|tonight)$/i, "");
 }
 
 /** Existing tools compare pints across pubs or read all recorded drinks at one named pub. */
 export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
   const subject = priceComparisonSubject(query);
   if (subject === null) return null;
+  if (!subject && !PRICE_COMPARISON_RE.test(query)) return null;
   if (PINT_COMPARISON_SUBJECT_RE.test(subject) || PUB_COMPARISON_SUBJECT_RE.test(subject)) return null;
   if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return null;
   if (FOOD_RE.test(subject)) {
@@ -95,8 +115,11 @@ export function unsupportedPriceComparison(query: string): UnsupportedPriceCompa
 export function recordedDrinkComparison(query: string): RoutedToolCall | null {
   const subject = priceComparisonSubject(query);
   if (!subject || !RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)) return null;
+  const categorySubject = subject.replace(/^(?:(?:listed|recorded|decent|good|local)\s+)+/i, "");
+  const category = RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1];
+  if (!category) return null;
   const venueName = namedDrinkVenue(query);
-  return venueName ? { name: "venue_drinks", args: { venueName } } : null;
+  return venueName ? { name: "venue_drinks", args: { venueName, drinkCategory: category } } : null;
 }
 const FIND_DESK_RE =
   /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
