@@ -138,6 +138,33 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.answerHint).not.toMatch(/cheapest listed pints/i);
   });
 
+  it("forwards typed pint evidence with the canonical price command", async () => {
+    const conversationId = "conv_priceevidence01";
+    const query = "Cheapest pint in Camden";
+    await registerPubPalToolTurn(conversationId, {
+      query,
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "search_venues",
+      args: { query: "Camden" },
+      conversationId,
+    });
+    expect(result.tool).toBe("cheapest_pint_near");
+    const evidence = result.priceEvidence as Array<{ cardKey: string; priceGbp: number }>;
+    const cards = result.cards as Array<{ key: string; price: number }>;
+    expect(evidence.length).toBeGreaterThan(0);
+    for (const price of evidence) {
+      expect(price).toMatchObject({
+        kind: "listed-pint", category: "beer", source: "directory", serving: "pint", reportedAt: null,
+      });
+      expect(cards.find((card) => card.key === price.cardKey)?.price).toBe(price.priceGbp);
+    }
+    const turn = await readPubPalToolTurn(conversationId);
+    expect(turn?.toolsUsed).toEqual(["cheapest_pint_near"]);
+  });
+
   it.each([
     "How much is wine at The Eagle?",
     "Wine price at The Eagle",
@@ -167,6 +194,19 @@ describe("propose_plan over the Pal webhook", () => {
       proposals: [],
     });
     expect(result.answerHint).toMatch(/meal prices|food prices|menu prices/i);
+  });
+
+  it.each([
+    "How much is a pint and food at The Lamb?",
+    "How much is a cocktail and a pint at The Lamb?",
+    "How much is a gin and tonic at The Lamb?",
+  ])("returns no pint or category figures for an unsupported combination: %s", async (query) => {
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices",
+      args: { query, venueName: "The Lamb" },
+      conversationId: null,
+    });
+    expect(result).toMatchObject({ ok: false, cards: [], proposals: [] });
   });
 
   it.each([
