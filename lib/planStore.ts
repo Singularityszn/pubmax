@@ -1236,7 +1236,11 @@ export function __setMemoryPlanOwnerUserId(planId: string, userId: string): bool
   return true;
 }
 
-/** Test/dev seam: list stamped member user ids for friend-edge formation. */
+/** Internal memory read of the host account, using the membership role order. */
+export function memoryPlanHostUserId(planId: string): string | null {
+  return memoryPlans.get(planId)?.crew[0]?.userId ?? null;
+}
+
 export function __listMemoryPlanMemberUserIds(
   planId: string,
 ): Array<{ memberId: string; userId: string }> {
