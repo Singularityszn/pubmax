@@ -527,9 +527,9 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
           }
           if (property === "letter-spacing" && value !== "normal") {
             const length = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(em)?$/u.exec(value);
-            expect(length, where).not.toBeNull();
-            const amount = Number(defined(length)[1]);
-            expect(defined(length)[2] === "em" || amount === 0, where).toBe(true);
+            if (length === null) throw new Error(`${where}: invalid letter-spacing length`);
+            const amount = Number(length[1]);
+            expect(length[2] === "em" || amount === 0, where).toBe(true);
             expect(Math.abs(amount), where).toBeLessThan(0.02);
           }
         }
