@@ -29,6 +29,40 @@ const toolbarIsInert = (page: Page) =>
   page.locator(".mapToolbar").evaluate((node) => node.closest("[inert]") !== null);
 
 test.describe("desktop toolbar beside the venue drawer", () => {
+  test("visible site navigation stays usable while a pub is open", async ({ page }) => {
+    await openDesktopMap(page, 1440);
+    await selectFirstToolbarVenue(page, "Princess Louise");
+    await expectSoleDesktopDrawer(page, "venue");
+    const selected = new URL(page.url()).searchParams.get("sel");
+    const nav = page.locator('.siteNavBar[aria-label="Site navigation"]');
+    await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
+    const theme = nav.getByRole("button", { name: /^Switch to .* theme$/ });
+    const themeName = await theme.getAttribute("aria-label");
+    await theme.click();
+    await expect(theme).not.toHaveAttribute("aria-label", themeName!);
+    await expectSoleDesktopDrawer(page, "venue");
+    const more = nav.getByRole("button", { name: "More pages", exact: true });
+    await more.click();
+    const menu = page.getByRole("menu", { name: "More pages", exact: true });
+    await expect(menu).toBeVisible();
+    await expect.poll(() => menu.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await expect(more).toBeFocused();
+    await expectSoleDesktopDrawer(page, "venue");
+    const commands = nav.getByRole("button", { name: "Open command palette", exact: true });
+    await commands.click();
+    const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+    await expect(palette).toBeVisible();
+    await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(palette).toHaveCount(0);
+    await expect(commands).toBeFocused();
+    await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
+    await expectSoleDesktopDrawer(page, "venue");
+    expect(new URL(page.url()).searchParams.get("sel")).toBe(selected);
+  });
+
   test("stays live, and the drink tray closes when the drawer opens", async ({ page }) => {
     test.setTimeout(180_000);
     await openDesktopMap(page, 1440);
