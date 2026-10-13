@@ -139,7 +139,10 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const unsupported = unsupportedPriceComparison(query);
+  const storedQuery = turn?.query?.trim();
+  const providerQuery = typeof input.args.query === "string" ? input.args.query.trim() : "";
+  const unsupported = (storedQuery ? unsupportedPriceComparison(storedQuery) : null)
+    ?? unsupportedPriceComparison(providerQuery || query);
   if (unsupported) {
     if (input.conversationId) {
       await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
@@ -155,7 +158,7 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const recordedDrinks = recordedDrinkComparison(query);
+  const recordedDrinks = recordedDrinkComparison(storedQuery || query);
   const toolName = recordedDrinks?.name ?? input.toolName;
   const toolArgs = recordedDrinks ? { ...recordedDrinks.args, query } : args;
   const toolResult = await runAskTool(toolName as AskToolName, toolArgs, {

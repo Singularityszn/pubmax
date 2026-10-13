@@ -51,6 +51,53 @@ function post(body: unknown, ip: string): Promise<Response> {
 
 describe("POST /api/ask", () => {
   it.each([
+    "How much is wine at The Eagle?",
+  ])("reads category prices for %s without selecting the pint-price tool", async (query) => {
+    const result = await runAsk({ query, cityId: "london", skipModel: true });
+    expect(result.toolsUsed).toEqual(["venue_drinks"]);
+    expect(result.toolsUsed).not.toContain("venue_prices");
+    expect(result.toolsUsed).not.toContain("cheapest_pint_near");
+    for (const card of result.cards) {
+      expect(card.note).not.toMatch(/recorded pint|listed pint/i);
+    }
+    expect(modelLoopMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an area burger price before model routing or price cards", async () => {
+    process.env.OPENROUTER_API_KEY = "test-key";
+    const result = await runAsk({ query: "How much is a burger in Camden?", cityId: "london" });
+    expect(result.answer).toMatch(/meal prices|food prices|menu prices/i);
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.toolsUsed).toEqual([]);
+    expect(modelLoopMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unverified Coke price before model routing or pint figures", async () => {
+    process.env.OPENROUTER_API_KEY = "test-key";
+    const result = await runAsk({ query: "Price of Coke at The Eagle", cityId: "london" });
+    expect(result.answer).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.toolsUsed).toEqual([]);
+    expect(modelLoopMock).not.toHaveBeenCalled();
+  });
+
+  it("answers a later explicit pint request after an unsupported meal request", async () => {
+    const query = "How much is a burger in Camden?";
+    const refused = await runAsk({ query, cityId: "london", skipModel: true });
+    const supported = await runAsk({
+      query: "Cheapest pint in Camden",
+      cityId: "london",
+      skipModel: true,
+      turns: [{ role: "user", content: query }, { role: "assistant", content: refused.answer }],
+    });
+    expect(refused.cards).toEqual([]);
+    expect(supported.toolsUsed).toEqual(["cheapest_pint_near"]);
+    expect(supported.cards.length).toBeGreaterThan(0);
+  });
+
+  it.each([
     ["Cheapest vegan food in Camden", /meal prices|dietary/i],
     ["Cheapest wine in Soho", /other drinks across pubs/i],
     ["Cheapest vegan curry in Camden", /can't compare|cannot compare|can compare/i],
