@@ -23,6 +23,43 @@ const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
+for (const width of [390, 1440]) {
+  test(`Night ending requires explicit confirmation at ${width}px`, async ({ page }, testInfo) => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    const startTime = new Date().toISOString();
+    const plan = { plan: { id, title: "Tonight", startTime, createdAt: startTime, routeRevision: 1, status: "active" }, stops: [{ venueId: "venue-phg4ss", venueName: "Fox and Anchor", position: 1 }], crew: [], actions: [] };
+    await prepare(page, { width, height: 900 });
+    await page.addInitScript(({ id, startTime }) => {
+      localStorage.setItem("pubmax_active_plan", JSON.stringify({ version: 1, id, startTime, stopIndex: 0, role: "host" }));
+      sessionStorage.setItem(`pubmaxx:night-mode-ending-ready:${id}`, "1");
+    }, { id, startTime });
+    const completions: unknown[] = [];
+    await page.route(`**/api/plans/${id}/**`, async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/complete")) {
+        completions.push(route.request().postDataJSON());
+        await route.fulfill({ json: { ...plan, plan: { ...plan.plan, status: "completed" }, ending: "get_home" } });
+      } else {
+        await route.fulfill({ json: path.endsWith("/session") ? { active: true, role: "host", collaborationAuthorized: true } : { stops: [] } });
+      }
+    });
+    await page.route(`**/api/plans/${id}`, (route) => route.fulfill({ json: plan }));
+    await page.route("**/api/late-food**", (route) => route.fulfill({ json: { terminals: [] } }));
+    await page.goto("/tonight");
+    const review = page.locator('.nightCard .routeEndingCard__choice[data-ending="get_home"]');
+    await expect(review).toBeVisible();
+    await review.click();
+    const confirm = page.getByRole("button", { name: "Confirm Get home ending", exact: true });
+    await expect(confirm).toBeVisible();
+    expect(completions).toEqual([]);
+    await confirm.click();
+    await expect(page.getByText("Night complete", { exact: false }).first()).toBeVisible();
+    expect(completions).toHaveLength(1);
+    expect(completions[0]).toMatchObject({ ending: "get_home", terminalVenueId: "venue-phg4ss", expectedRouteRevision: 1, endingSelection: { kind: "get_home" } });
+    await page.screenshot({ path: testInfo.outputPath(`night-ending-${width}.png`) });
+  });
+}
+
 async function prepare(page: Page, viewport: { width: number; height: number }): Promise<void> {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ reducedMotion: "reduce" });
