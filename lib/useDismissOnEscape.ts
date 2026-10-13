@@ -2,10 +2,14 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 
-function isInInertSubtree(node: HTMLElement): boolean {
+function isUnavailablePanel(node: HTMLElement): boolean {
+  if (!node.isConnected) return true;
+  const view = node.ownerDocument.defaultView;
+  const visibility = view?.getComputedStyle(node).visibility;
+  if (visibility === "hidden" || visibility === "collapse") return true;
   let cursor: HTMLElement | null = node;
   while (cursor) {
-    if (cursor.inert || cursor.hasAttribute("inert")) return true;
+    if (cursor.inert || cursor.hasAttribute("inert") || cursor.hidden || view?.getComputedStyle(cursor).display === "none") return true;
     cursor = cursor.parentElement;
   }
   return false;
@@ -23,7 +27,7 @@ function dismissTopPanel(event: KeyboardEvent): void {
   let top: EscapePanel | undefined;
   for (const panel of openPanels) {
     const node = panel.ref?.current;
-    if (node && isInInertSubtree(node)) continue;
+    if (node && isUnavailablePanel(node)) continue;
     // The newest open sibling wins. A containing parent cannot replace its
     // child, even when React mounts the child's effect before the parent's.
     if (!top || !node?.contains(top.ref?.current ?? null)) top = panel;
@@ -52,11 +56,10 @@ function dismissNativePanel(event: KeyboardEvent): void {
  * The handler claims the key, so a panel over the map does not also close the
  * drawer beneath it. One Escape, one level.
  *
- * The level is the TOP one. A panel that `panelRef` finds inside an inert
- * subtree sits under a modal (lib/useFocusTrap.ts inerts everything outside
- * it), so it leaves the key to that modal. The desktop venue list stays open
- * under the venue drawer it opened, and its Escape used to close the list the
- * reader could not see while the drawer stayed up.
+ * A panel hidden by CSS or inside an inert subtree leaves the key to the
+ * visible surface. Availability is read on dispatch because another surface
+ * can hide a panel without unmounting it. A pending lazy panel without a
+ * mounted container retains ownership until it appears or is cancelled.
  */
 export function useDismissOnEscape(
   open: boolean,
