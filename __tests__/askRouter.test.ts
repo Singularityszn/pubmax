@@ -5,6 +5,65 @@ import { refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceCompar
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each([
+    "Is the Tube running tonight?",
+    "Are there Tube delays?",
+    "Are Tube services delayed?",
+    "Is transit running tonight?",
+  ])("routes transit status interrogatives: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([{ name: "city_status", args: {} }]);
+  });
+
+  it.each([
+    "Find pubs near the Tube",
+    "Are there pubs near the Tube?",
+    "Is the pub near the Tube?",
+    "Where is the Tube?",
+    "How close is the Tube?",
+    "Is the Tube near Fox and Anchor?",
+    "Is the Tube nearby?",
+    "Are Tube stations near The Lamb?",
+  ])("keeps Tube proximity questions out of status routing: %s", (query) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["search_venues"]);
+  });
+
+  it.each([
+    "Is the Tube running tonight and wine prices at Fox and Anchor?",
+    "Wine prices at Fox and Anchor and is the Tube running tonight?",
+    "Are there Tube delays, wine prices at Fox and Anchor?",
+    "Wine prices at Fox and Anchor, are there Tube delays?",
+  ])("separates transit interrogatives from named category prices: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "city_status", args: {} },
+      { name: "venue_drinks", args: { venueName: "Fox and Anchor", drinkCategory: "wine" } },
+    ]);
+  });
+
+  it.each([
+    ["Pint prices at The Lamb and is the Tube running tonight?", "venue_prices"],
+    ["Are there Tube delays and drink prices at Fox and Anchor?", "venue_drinks"],
+    ["Is the Tube running tonight and plan a crawl in Soho?", "propose_plan"],
+    ["How much is a burger in Camden and are there Tube delays?", null],
+  ])("preserves the sibling request beside transit: %s", (query, tool) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(tool ? ["city_status", tool] : ["city_status"]);
+  });
+
+  it.each([
+    "Is the Tube running tonight and directions to Fox and Anchor from The Lamb?",
+    "Journey from The Lamb to Fox and Anchor and are there Tube delays?",
+  ])("preserves explicit journey endpoints beside transit: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "city_status", args: {} },
+      { name: "journey", args: { from: "The Lamb", to: "Fox and Anchor" } },
+    ]);
+  });
+
+  it("asks for a pub when a pint comparison has no discovery constraints", () => {
+    expect(routeAskDeterministically("Cheapest pint")).toEqual([
+      { name: "venue_prices", args: { venueName: "Cheapest", query: "Cheapest pint" } },
+    ]);
+  });
+
   it.each(QUALIFIED_PRICE_REQUESTS)("retains the priced subject across qualifiers: $query", ({ query, code }) => {
     expect(unsupportedPriceComparison(query)?.code).toBe(code);
     expect(routeAskDeterministically(query)).toEqual([]);
