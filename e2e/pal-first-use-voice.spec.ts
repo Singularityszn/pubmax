@@ -26,10 +26,22 @@ for (const width of [390, 1440]) {
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.toolsUsed).toEqual(["venue_drinks"]);
-    expect(body.cards).toEqual([]);
-    expect(body.answer).toBe("No people-logged wine prices recorded at Sherlock Holmes yet. Open the pub's Menu for any published drink prices.");
+    expect(body.cards).toHaveLength(8);
+    expect(body.cards).toContainEqual(expect.objectContaining({ venueId: "venue-gk2fp9", price: 7.2,
+      menuEvidence: expect.objectContaining({ itemName: "Organic Pinot Grigio, Riff, Italy", serving: null, caloriesKcal: null, observedAt: "2026-09-21T18:41:07.759Z" }),
+      provenance: expect.objectContaining({ kind: "published-menu", url: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu" }),
+    }));
+    expect(body.answer).toContain("£7.20");
+    expect(body.answer).toContain("Serving size not recorded.");
+    expect(body.answer).toContain("Price observed 2026-09-21.");
     expect(body.proposals).toMatchObject([{ kind: "open_venue", label: "Open Sherlock Holmes", venueId: expect.any(String) }]);
     await expect(page.getByText(body.answer, { exact: true })).toBeVisible();
+    const publishedCard = page.locator(".palChatCard").filter({ hasText: "Organic Pinot Grigio, Riff, Italy" });
+    await expect(publishedCard).toHaveCount(1);
+    await expect(publishedCard).toContainText("£7.20");
+    await expect(publishedCard).toContainText("Serving size not recorded.");
+    await expect(publishedCard).toContainText("Price observed 2026-09-21.");
+    await expect(publishedCard.locator('a[href="https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu"]')).toBeVisible();
     await page.getByRole("button", { name: "Open Sherlock Holmes", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`sel=${body.proposals[0].venueId}`));
     const menu = page.getByRole("tab", { name: "Menu", exact: true });

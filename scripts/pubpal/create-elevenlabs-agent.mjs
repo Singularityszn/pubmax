@@ -280,6 +280,7 @@ function agentBody(toolIds) {
         prompt: {
           prompt: systemPrompt(),
           llm: AGENT_CONFIG.llm,
+          reasoning_effort: AGENT_CONFIG.reasoning_effort,
           tool_ids: toolIds,
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
@@ -423,15 +424,14 @@ function mergeAgentPatch(existingAgent, body) {
 
 /** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
 function agentPatch(currentAgent, toolIds) {
+  const { body } = agentBody(toolIds);
   const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
   conversationConfig.agent = {
     ...(conversationConfig.agent ?? {}),
     prompt: {
       ...(conversationConfig.agent?.prompt ?? {}),
-      prompt: systemPrompt(),
-      llm: AGENT_CONFIG.llm,
+      ...body.conversation_config.agent.prompt,
       custom_llm: null,
-      tool_ids: toolIds,
     },
     first_message:
       conversationConfig.agent?.first_message ??
@@ -446,7 +446,7 @@ function agentPatch(currentAgent, toolIds) {
     client_events: clientEvents(conversationConfig.conversation?.client_events),
   };
   return mergeAgentPatch(currentAgent, {
-    ...agentBody(toolIds).body,
+    ...body,
     conversation_config: conversationConfig,
   });
 }
