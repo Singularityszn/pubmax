@@ -6,6 +6,28 @@
 
 import type { CityId } from "@/lib/cities";
 import type { AskCard, AskProposal, AskSource, AskToolName } from "@/lib/ask/types";
+import type { CommunityPrice } from "@/lib/communityPrice";
+import type { DrinkCategory } from "@/lib/drinks";
+
+export type AskPriceEvidence = {
+  cardKey: string;
+  venueId: string;
+  priceGbp: number;
+} & (
+  | { kind: "listed-pint"; category: "beer"; source: "directory"; reportedAt: null; serving: "pint" }
+  | { kind: "community-category"; category: DrinkCategory; source: "community-price"; reportedAt: number; serving: null }
+);
+
+export function listedPintEvidence(cardKey: string, venueId: string, priceGbp: number): AskPriceEvidence {
+  return { kind: "listed-pint", cardKey, venueId, priceGbp, category: "beer", source: "directory", reportedAt: null, serving: "pint" };
+}
+
+export function communityCategoryEvidence(cardKey: string, venueId: string, price: CommunityPrice): AskPriceEvidence {
+  return {
+    kind: "community-category", cardKey, venueId, priceGbp: price.priceGbp, category: price.drinkCategory,
+    source: "community-price", reportedAt: price.submittedAt, serving: null,
+  };
+}
 
 export type AskProvenance = AskSource;
 
@@ -15,6 +37,7 @@ export type AskToolResult = {
   data: unknown;
   provenance: AskProvenance[];
   cards: AskCard[];
+  priceEvidence?: AskPriceEvidence[];
   proposals: AskProposal[];
   answerHint: string;
   degraded?: boolean;

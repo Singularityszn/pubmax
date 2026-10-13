@@ -53,6 +53,12 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     "Price of Coke at The Eagle",
     "How much for Coke at The Eagle?",
     "Coke price at The Eagle",
+    "How much is a pint and food at The Lamb?",
+    "How much is a pint with food at The Lamb?",
+    "How much is a gin and tonic at The Lamb?",
+    "How much is a cocktail and a pint at The Lamb?",
+    "Price of a 175ml wine at The Lamb",
+    "Price of a double gin at The Lamb",
   ])("refuses an unsupported item-price question without comparison words: %s", (query) => {
     expect(unsupportedPriceComparison(query)).not.toBeNull();
     expect(routeAskDeterministically(query)).toEqual([]);
