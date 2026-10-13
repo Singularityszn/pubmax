@@ -449,16 +449,16 @@ it("prunes expired dumps before missing-token refusal when the existing destinat
 it("leaves existing expired artifacts and the fallback unchanged during a dry run", async () => {
   const fixture = retentionFixture(true);
   const files = [...fixture.expired, fixture.versionsFile, fixture.fallbackDump, fixture.fallbackPhoto];
-  const before = files.map((file) => ({ bytes: readFileSync(file), stat: statSync(file) }));
+  const before = files.map((file) => ({ file, bytes: readFileSync(file), stat: statSync(file) }));
 
   const result = await backup({}, ["--dry-run"]);
 
   expect(result.status, result.output).toBe(0);
   expect(calls).toEqual([]);
-  files.forEach((file, index) => {
-    expect(readFileSync(file)).toEqual(before[index].bytes);
-    expect(statSync(file).mtimeMs).toBe(before[index].stat.mtimeMs);
-    expect(statSync(file).mode).toBe(before[index].stat.mode);
+  before.forEach(({ file, bytes, stat }) => {
+    expect(readFileSync(file)).toEqual(bytes);
+    expect(statSync(file).mtimeMs).toBe(stat.mtimeMs);
+    expect(statSync(file).mode).toBe(stat.mode);
   });
   expect(existsSync(path.join(fixture.bucketRoot, "empty-account"))).toBe(true);
 });
