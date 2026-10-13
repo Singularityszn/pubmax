@@ -24,7 +24,7 @@ import {
  * is leaving out - the same rule "Show me" and "Drink" keep beside it.
  */
 describe("the venue-type filter counts what the panel offers", () => {
-  it("offers the curated kinds, narrowed by the view the map is under", () => {
+  it("offers the curated kinds in every view", () => {
     expect(offeredVenueKinds("all")).toEqual(["pub", "bar", "food", "restaurant"]);
     expect(offeredVenueKinds("no-alcohol")).toEqual([
       "pub",
@@ -32,9 +32,9 @@ describe("the venue-type filter counts what the panel offers", () => {
       "food",
       "restaurant",
     ]);
-    // The food view offers the two kinds its own chips draw, so the badge can
-    // never count a kind the open panel does not show.
-    expect(offeredVenueKinds("food")).toEqual(["food", "restaurant"]);
+    // Food service can be stated by pubs and bars too. The badge and chips
+    // offer the same four kinds while the lens narrows venue eligibility.
+    expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "food", "restaurant"]);
   });
 
   it("counts the offered kinds that are switched off", () => {
@@ -44,15 +44,14 @@ describe("the venue-type filter counts what the panel offers", () => {
     expect(
       hiddenVenueKindCount({ ...all, bar: false, restaurant: false }, "all"),
     ).toBe(2);
-    // A kind the food view does not offer is not counted against it.
-    expect(hiddenVenueKindCount({ ...all, bar: false }, "food")).toBe(0);
+    expect(hiddenVenueKindCount({ ...all, bar: false }, "food")).toBe(1);
   });
 
   it("resets only the kinds the reader could see", () => {
     const held = { pub: false, bar: false, food: false, restaurant: false };
     expect(showAllVenueKinds(held, "food")).toEqual({
-      pub: false,
-      bar: false,
+      pub: true,
+      bar: true,
       food: true,
       restaurant: true,
     });

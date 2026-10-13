@@ -290,7 +290,7 @@ describe("MapExperienceLens", () => {
     );
   });
 
-  it("renames pubs for no-alcohol nights and keeps food view food-first", () => {
+  it("names pubs in both food and no-alcohol views and offers food-serving bars", () => {
     const visibility = {
       pub: true,
       bar: true,
@@ -317,7 +317,8 @@ describe("MapExperienceLens", () => {
     expect(food).toContain(">Food<");
     expect(food).toContain(">Restaurants<");
     expect(food).not.toContain(">Pints<");
-    expect(food).not.toContain(">Bars<");
+    expect(food).toContain(">Pubs<");
+    expect(food).toContain(">Bars<");
   });
 
   it("marks selected venue filters without colour, and offers no dead chip", () => {
