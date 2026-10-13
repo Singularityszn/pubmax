@@ -10,9 +10,11 @@ feed anybody owes a run. The pack still SHIPS and is still read: every row
 carries its own `observedAt`, and `lib/priceUpdates.ts` never presents one as
 live.
 
-No script in this tree refreshes these files. The pack contains two reviewed
-imports: the preserved July 2026 Greene King rows and 42 Eagle price and calorie facts
-collected on 13 October 2026. `scripts/firecrawl_greene_king_prices.mjs` writes the DRINK pack beside
+No script in this tree refreshes these files. The pack contains three reviewed
+imports: the preserved July 2026 Greene King rows, 42 Eagle dishes,
+and 48 dishes from The New Inn and The Narrowboat.
+The first-party additions were captured on 13 October 2026.
+`scripts/firecrawl_greene_king_prices.mjs` writes the DRINK pack beside
 this one and deliberately drops every food section (`mapSectionToCategory`
 returns `null` for them), and `scripts/harvest/uk-prices/render.mjs` writes the
 uk-prices overlay. Writing a generator is a captain decision, not a budget or a
@@ -26,14 +28,27 @@ stops parsing is still an unresolved breach.
 
 `prices_20260711.json` retains the original 2,530 rows unchanged.
 `prices_20261013.json` and `latest.json` contain those rows plus 42 dishes from
-[The Eagle's official menu](https://www.theeaglew12.co.uk/food-drink).
+[The Eagle's official menu](https://www.theeaglew12.co.uk/food-drink),
+27 from [The New Inn](https://www.newinnealing.com/food-and-drink),
+and 21 from [The Narrowboat](https://www.thenarrowboatpub.com/food-and-drink).
+The source snapshots contain 2,620 rows in total.
 Every previous observation date remains unchanged.
+Their envelope stamp is the actual newest captured input timestamp.
 
 The Eagle matches `venue-1hz0avt` at 215 Askew Road, W12 9AZ.
 The new rows retain their source URL and capture date.
 They contain price and calorie facts without publisher descriptions or inferred dietary tags.
 [The source receipt](../../../data/enrichment/firecrawl/london/menu-review-20261013.json)
 records the permission check, runtime item IDs, and the 42 matched source calorie observations.
+
+[The second October receipt](../../../data/enrichment/firecrawl/london/menu-batch2-review-20261013.json)
+records 48 matched prices, 47 calorie values, and 18 explicitly tagged dietary rows.
+The publisher's item attributes and labelled filter values identify the dietary tags.
+Page-wide filters, ingredient lists, and optional variants do not supply base-dish tags.
+The New Inn Scotch Egg's literal `240247kcal` stays quarantined.
+Its price remains included, with calories unknown.
+Four add-on prices and two unpriced variant notes remain outside runtime dish rows.
+
 Optional `caloriesKcal` holds the number stated for that menu item.
 It is not a health rating or a per-person calculation.
 Portion wording in each item name stays unchanged.

@@ -1,0 +1,1776 @@
+{
+  "version": 1,
+  "purpose": "Reviewed first-party menu price, calorie and explicit dietary facts. Full page bodies and publisher descriptions are retained outside this committed receipt.",
+  "status": "reviewed source import",
+  "counts": {
+    "candidatePrices": 48,
+    "sourceStatedCalories": 47,
+    "explicitDietaryRows": 18,
+    "pubs": 2,
+    "explicitVeganRows": 12,
+    "explicitVegetarianRows": 10,
+    "explicitGlutenFreeRows": 0,
+    "excludedAddOnPriceLines": 4,
+    "unpricedVariantNotes": 2
+  },
+  "sources": [
+    {
+      "venueId": "venue-17qpap6",
+      "name": "The New Inn",
+      "address": "62 St Mary's Rd, London W5 5EX, UK",
+      "url": "https://www.newinnealing.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "statusCode": 200,
+      "permissionReceipt": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.newinnealing.com/robots.txt permits /food-and-drink.",
+        "sitemaps": [
+          "https://www.newinnealing.com/sitemap_index.xml"
+        ]
+      },
+      "sourceSha256": "a4be4c0e45a6192a0ff784eb5b4ad70423d6a117177248bf23db8ab4c95704e1",
+      "priceCount": 27,
+      "kcalCount": 26,
+      "dietaryCount": 10,
+      "legend": {
+        "ve": "vegan",
+        "v": "vegetarian"
+      },
+      "dietaryLegend": [
+        {
+          "token": "ve",
+          "label": "vegan"
+        },
+        {
+          "token": "v",
+          "label": "vegetarian"
+        }
+      ]
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "name": "The Narrowboat",
+      "address": "119 St Peter's St, London N1 8PZ",
+      "url": "https://www.thenarrowboatpub.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "statusCode": 200,
+      "permissionReceipt": {
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.thenarrowboatpub.com/robots.txt permits /food-and-drink.",
+        "sitemaps": [
+          "https://www.thenarrowboatpub.com/sitemap_index.xml"
+        ]
+      },
+      "sourceSha256": "83055424b827689b42ca5f1c0796324aa43c6dbec777e85faf1ef2baa7ff166f",
+      "priceCount": 21,
+      "kcalCount": 21,
+      "dietaryCount": 8,
+      "legend": {
+        "ve": "vegan",
+        "v": "vegetarian"
+      },
+      "dietaryLegend": [
+        {
+          "token": "ve",
+          "label": "vegan"
+        },
+        {
+          "token": "v",
+          "label": "vegetarian"
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Mixed Olives",
+        "category": "other",
+        "priceGbp": 5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 163,
+        "dietary": [
+          "vegan",
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "While You Wait",
+        "priceText": "£5",
+        "caloriesToken": "163kcal",
+        "dietaryTokens": [
+          "ve",
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Homemade Focaccia",
+        "category": "other",
+        "priceGbp": 6,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 790
+      },
+      "evidence": {
+        "sourceCategory": "While You Wait",
+        "priceText": "£6",
+        "caloriesToken": "790kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Padron Peppers",
+        "category": "other",
+        "priceGbp": 5.5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 104,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "While You Wait",
+        "priceText": "£5.5",
+        "caloriesToken": "104kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Classic sausage roll",
+        "category": "other",
+        "priceGbp": 5.5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 314
+      },
+      "evidence": {
+        "sourceCategory": "While You Wait",
+        "priceText": "£5.5",
+        "caloriesToken": "314kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Caramelized Goats Cheese Salad",
+        "category": "starters",
+        "priceGbp": 9,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 459,
+        "dietary": [
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Starters",
+        "priceText": "£9",
+        "caloriesToken": "459kcal",
+        "dietaryTokens": [
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Buttermilk Buffalo Wings",
+        "category": "starters",
+        "priceGbp": 8.5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 655
+      },
+      "evidence": {
+        "sourceCategory": "Starters",
+        "priceText": "£8.5",
+        "caloriesToken": "655kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Spiced Pork Belly Bites",
+        "category": "starters",
+        "priceGbp": 8,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 488
+      },
+      "evidence": {
+        "sourceCategory": "Starters",
+        "priceText": "£8",
+        "caloriesToken": "488kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Red Pepper Hummus",
+        "category": "starters",
+        "priceGbp": 7.5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 391,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Starters",
+        "priceText": "£7.5",
+        "caloriesToken": "391kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "New Inn Scotch Egg",
+        "category": "starters",
+        "priceGbp": 5.5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z"
+      },
+      "evidence": {
+        "sourceCategory": "Starters",
+        "priceText": "£5.5",
+        "caloriesToken": "240247kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Pea & Mint Soup",
+        "category": "starters",
+        "priceGbp": 7,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 355,
+        "dietary": [
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Starters",
+        "priceText": "£7",
+        "caloriesToken": "355kcal",
+        "dietaryTokens": [
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "The New Inn Bar Board",
+        "category": "sharers",
+        "priceGbp": 25,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 1915
+      },
+      "evidence": {
+        "sourceCategory": "Sharers",
+        "priceText": "£25",
+        "caloriesToken": "1915kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Somerset baked camembert",
+        "category": "sharers",
+        "priceGbp": 19,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 867
+      },
+      "evidence": {
+        "sourceCategory": "Sharers",
+        "priceText": "£19",
+        "caloriesToken": "867kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "New Inn Beef Burger",
+        "category": "mains",
+        "priceGbp": 18,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 1388
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£18",
+        "caloriesToken": "1388kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Plant burger",
+        "category": "mains",
+        "priceGbp": 18,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 1211,
+        "dietary": [
+          "vegan",
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£18",
+        "caloriesToken": "1211kcal",
+        "dietaryTokens": [
+          "ve",
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Fish & Chips",
+        "category": "mains",
+        "priceGbp": 19,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 1017
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£19",
+        "caloriesToken": "1017kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Cumberland Sausages & Mash",
+        "category": "mains",
+        "priceGbp": 18,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 923
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£18",
+        "caloriesToken": "923kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Roasted Cauliflower Salad",
+        "category": "mains",
+        "priceGbp": 15,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 329,
+        "dietary": [
+          "vegan",
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£15",
+        "caloriesToken": "329kcal",
+        "dietaryTokens": [
+          "ve",
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Chicken Caesar Salad",
+        "category": "mains",
+        "priceGbp": 17,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 700
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£17",
+        "caloriesToken": "700kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "8oz Bavette steak",
+        "category": "mains",
+        "priceGbp": 23,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 1394
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£23",
+        "caloriesToken": "1394kcal",
+        "dietaryTokens": [],
+        "portionContext": "8oz"
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Dingley Dell Pork Chop",
+        "category": "mains",
+        "priceGbp": 19,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 897
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£19",
+        "caloriesToken": "897kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "New Inn Signature Pie",
+        "category": "mains",
+        "priceGbp": 20,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 1341
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£20",
+        "caloriesToken": "1341kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Smoked Salmon and Anchovy Salad",
+        "category": "mains",
+        "priceGbp": 19,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 427
+      },
+      "evidence": {
+        "sourceCategory": "Mains",
+        "priceText": "£19",
+        "caloriesToken": "427kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "French  Fries",
+        "category": "sides",
+        "priceGbp": 5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 997,
+        "dietary": [
+          "vegan",
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Sides",
+        "priceText": "£5",
+        "caloriesToken": "997kcal",
+        "dietaryTokens": [
+          "ve",
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Triple cooked chips",
+        "category": "sides",
+        "priceGbp": 5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 996
+      },
+      "evidence": {
+        "sourceCategory": "Sides",
+        "priceText": "£5",
+        "caloriesToken": "996kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Tenderstem Broccoli and Chili",
+        "category": "sides",
+        "priceGbp": 6.5,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 172,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Sides",
+        "priceText": "£6.5",
+        "caloriesToken": "172kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Mac & Cheese",
+        "category": "sides",
+        "priceGbp": 7,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 901
+      },
+      "evidence": {
+        "sourceCategory": "Sides",
+        "priceText": "£7",
+        "caloriesToken": "901kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-17qpap6",
+      "priceUpdate": {
+        "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+        "itemName": "Chargrilled Corn On the Cob",
+        "category": "sides",
+        "priceGbp": 6,
+        "source": {
+          "label": "The New Inn - official published menu",
+          "url": "https://www.newinnealing.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.443Z",
+        "caloriesKcal": 109,
+        "dietary": [
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "Sides",
+        "priceText": "£6",
+        "caloriesToken": "109kcal",
+        "dietaryTokens": [
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Crispy hake bites",
+        "category": "other",
+        "priceGbp": 10,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 292
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£10",
+        "caloriesToken": "292kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Scotch egg",
+        "category": "other",
+        "priceGbp": 6,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 274
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£6",
+        "caloriesToken": "274kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Halloumi salad",
+        "category": "other",
+        "priceGbp": 10,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 505,
+        "dietary": [
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£10",
+        "caloriesToken": "505kcal",
+        "dietaryTokens": [
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Chicken karaage",
+        "category": "other",
+        "priceGbp": 10,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 440
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£10",
+        "caloriesToken": "440kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Sun dried tomato dip",
+        "category": "other",
+        "priceGbp": 8.5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 695,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£8.5",
+        "caloriesToken": "695kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Salt & pepper calamari",
+        "category": "other",
+        "priceGbp": 9,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 339
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£9",
+        "caloriesToken": "339kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Chicken & herb bake",
+        "category": "other",
+        "priceGbp": 9,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 403
+      },
+      "evidence": {
+        "sourceCategory": "SMALL PLATES",
+        "priceText": "£9",
+        "caloriesToken": "403kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Fish and chips",
+        "category": "mains",
+        "priceGbp": 19.5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 1137
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£19.5",
+        "caloriesToken": "1137kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Narrowboat beef burger",
+        "category": "mains",
+        "priceGbp": 18.5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 1330
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£18.5",
+        "caloriesToken": "1330kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Bavette steak",
+        "category": "mains",
+        "priceGbp": 23,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 739
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£23",
+        "caloriesToken": "739kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Pan roasted trout",
+        "category": "mains",
+        "priceGbp": 20,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 526
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£20",
+        "caloriesToken": "526kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Grilled peach & burrata salad",
+        "category": "mains",
+        "priceGbp": 20,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 516,
+        "dietary": [
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£20",
+        "caloriesToken": "516kcal",
+        "dietaryTokens": [
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Chicken caesar salad",
+        "category": "mains",
+        "priceGbp": 17.5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 812
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£17.5",
+        "caloriesToken": "812kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Sausage and crushed potatoes",
+        "category": "mains",
+        "priceGbp": 16,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 1077
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£16",
+        "caloriesToken": "1077kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Sun dried tomato salad",
+        "category": "mains",
+        "priceGbp": 18,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 910,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£18",
+        "caloriesToken": "910kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Chicken schnitzel",
+        "category": "mains",
+        "priceGbp": 16,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 604
+      },
+      "evidence": {
+        "sourceCategory": "MAINS",
+        "priceText": "£16",
+        "caloriesToken": "604kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Onion rings",
+        "category": "sides",
+        "priceGbp": 5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 662,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "SIDES",
+        "priceText": "£5",
+        "caloriesToken": "662kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Battered sausage",
+        "category": "sides",
+        "priceGbp": 5.5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 340
+      },
+      "evidence": {
+        "sourceCategory": "SIDES",
+        "priceText": "£5.5",
+        "caloriesToken": "340kcal",
+        "dietaryTokens": [],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Padron peppers",
+        "category": "sides",
+        "priceGbp": 6,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 98,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "SIDES",
+        "priceText": "£6",
+        "caloriesToken": "98kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Halloumi fries",
+        "category": "sides",
+        "priceGbp": 9,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 683,
+        "dietary": [
+          "vegetarian"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "SIDES",
+        "priceText": "£9",
+        "caloriesToken": "683kcal",
+        "dietaryTokens": [
+          "v"
+        ],
+        "portionContext": null
+      }
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "priceUpdate": {
+        "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+        "itemName": "Chips/fries",
+        "category": "sides",
+        "priceGbp": 5,
+        "source": {
+          "label": "The Narrowboat - official published menu",
+          "url": "https://www.thenarrowboatpub.com/food-and-drink",
+          "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+        },
+        "observedAt": "2026-10-13T09:43:11.553Z",
+        "caloriesKcal": 421,
+        "dietary": [
+          "vegan"
+        ]
+      },
+      "evidence": {
+        "sourceCategory": "SIDES",
+        "priceText": "£5",
+        "caloriesToken": "421kcal",
+        "dietaryTokens": [
+          "ve"
+        ],
+        "portionContext": null
+      }
+    }
+  ],
+  "quarantinedObservations": [
+    {
+      "venueId": "venue-17qpap6",
+      "itemName": "New Inn Scotch Egg",
+      "kind": "calories",
+      "sourceToken": "240247kcal",
+      "reason": "publisher-token-requires-review",
+      "sourceUrl": "https://www.newinnealing.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.443Z"
+    }
+  ],
+  "excludedAddOnObservations": [
+    {
+      "sourceText": "/ add Bacon £1.50",
+      "sourceUrl": "https://www.newinnealing.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "decision": "not a standalone dish price; keep in review evidence only"
+    },
+    {
+      "sourceText": "/ add extra patty £6.50",
+      "sourceUrl": "https://www.newinnealing.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "decision": "not a standalone dish price; keep in review evidence only"
+    },
+    {
+      "sourceText": "/ add extra plant Patty £6",
+      "sourceUrl": "https://www.newinnealing.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "decision": "not a standalone dish price; keep in review evidence only"
+    },
+    {
+      "sourceText": "Add parmesan £1.5",
+      "sourceUrl": "https://www.thenarrowboatpub.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "decision": "not a standalone dish price; keep in review evidence only"
+    }
+  ],
+  "unpricedVariantObservations": [
+    {
+      "sourceText": "(vg/gf option available)",
+      "sourceUrl": "https://www.thenarrowboatpub.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "decision": "optional variant note, without a separately stated price or calorie fact; do not tag the base dish"
+    },
+    {
+      "sourceText": "(plant option available)",
+      "sourceUrl": "https://www.thenarrowboatpub.com/food-and-drink",
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "decision": "optional variant note, without a separately stated price or calorie fact; do not tag the base dish"
+    }
+  ],
+  "identities": [
+    {
+      "venueId": "venue-17qpap6",
+      "items": [
+        {
+          "id": "food-13c39tl",
+          "name": "Mixed Olives",
+          "category": "other",
+          "priceGbp": 5,
+          "caloriesKcal": 163,
+          "dietary": [
+            "vegan",
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-autc59",
+          "name": "Homemade Focaccia",
+          "category": "other",
+          "priceGbp": 6,
+          "caloriesKcal": 790
+        },
+        {
+          "id": "food-1s6xeh",
+          "name": "Padron Peppers",
+          "category": "other",
+          "priceGbp": 5.5,
+          "caloriesKcal": 104,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-1hnxywi",
+          "name": "Classic sausage roll",
+          "category": "other",
+          "priceGbp": 5.5,
+          "caloriesKcal": 314
+        },
+        {
+          "id": "food-o7agvz",
+          "name": "Caramelized Goats Cheese Salad",
+          "category": "starters",
+          "priceGbp": 9,
+          "caloriesKcal": 459,
+          "dietary": [
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-uwynmi",
+          "name": "Buttermilk Buffalo Wings",
+          "category": "starters",
+          "priceGbp": 8.5,
+          "caloriesKcal": 655
+        },
+        {
+          "id": "food-et7z2h",
+          "name": "Spiced Pork Belly Bites",
+          "category": "starters",
+          "priceGbp": 8,
+          "caloriesKcal": 488
+        },
+        {
+          "id": "food-1crj2mk",
+          "name": "Red Pepper Hummus",
+          "category": "starters",
+          "priceGbp": 7.5,
+          "caloriesKcal": 391,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-1w5wldm",
+          "name": "New Inn Scotch Egg",
+          "category": "starters",
+          "priceGbp": 5.5
+        },
+        {
+          "id": "food-hqxjm5",
+          "name": "Pea & Mint Soup",
+          "category": "starters",
+          "priceGbp": 7,
+          "caloriesKcal": 355,
+          "dietary": [
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-kqcxkt",
+          "name": "The New Inn Bar Board",
+          "category": "sharers",
+          "priceGbp": 25,
+          "caloriesKcal": 1915
+        },
+        {
+          "id": "food-v7t2g1",
+          "name": "Somerset baked camembert",
+          "category": "sharers",
+          "priceGbp": 19,
+          "caloriesKcal": 867
+        },
+        {
+          "id": "food-z87ggy",
+          "name": "New Inn Beef Burger",
+          "category": "mains",
+          "priceGbp": 18,
+          "caloriesKcal": 1388
+        },
+        {
+          "id": "food-9n09u6",
+          "name": "Plant burger",
+          "category": "mains",
+          "priceGbp": 18,
+          "caloriesKcal": 1211,
+          "dietary": [
+            "vegan",
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-1svg6pz",
+          "name": "Fish & Chips",
+          "category": "mains",
+          "priceGbp": 19,
+          "caloriesKcal": 1017
+        },
+        {
+          "id": "food-1rq74dy",
+          "name": "Cumberland Sausages & Mash",
+          "category": "mains",
+          "priceGbp": 18,
+          "caloriesKcal": 923
+        },
+        {
+          "id": "food-sziw26",
+          "name": "Roasted Cauliflower Salad",
+          "category": "mains",
+          "priceGbp": 15,
+          "caloriesKcal": 329,
+          "dietary": [
+            "vegan",
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-1qipp7",
+          "name": "Chicken Caesar Salad",
+          "category": "mains",
+          "priceGbp": 17,
+          "caloriesKcal": 700
+        },
+        {
+          "id": "food-qiyde8",
+          "name": "8oz Bavette steak",
+          "category": "mains",
+          "priceGbp": 23,
+          "caloriesKcal": 1394
+        },
+        {
+          "id": "food-1gvse2b",
+          "name": "Dingley Dell Pork Chop",
+          "category": "mains",
+          "priceGbp": 19,
+          "caloriesKcal": 897
+        },
+        {
+          "id": "food-1reljmh",
+          "name": "New Inn Signature Pie",
+          "category": "mains",
+          "priceGbp": 20,
+          "caloriesKcal": 1341
+        },
+        {
+          "id": "food-lfzr8z",
+          "name": "Smoked Salmon and Anchovy Salad",
+          "category": "mains",
+          "priceGbp": 19,
+          "caloriesKcal": 427
+        },
+        {
+          "id": "food-1w91ik1",
+          "name": "French  Fries",
+          "category": "sides",
+          "priceGbp": 5,
+          "caloriesKcal": 997,
+          "dietary": [
+            "vegan",
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-rxkd0o",
+          "name": "Triple cooked chips",
+          "category": "sides",
+          "priceGbp": 5,
+          "caloriesKcal": 996
+        },
+        {
+          "id": "food-16tkuv8",
+          "name": "Tenderstem Broccoli and Chili",
+          "category": "sides",
+          "priceGbp": 6.5,
+          "caloriesKcal": 172,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-16ihqn4",
+          "name": "Mac & Cheese",
+          "category": "sides",
+          "priceGbp": 7,
+          "caloriesKcal": 901
+        },
+        {
+          "id": "food-1kenupf",
+          "name": "Chargrilled Corn On the Cob",
+          "category": "sides",
+          "priceGbp": 6,
+          "caloriesKcal": 109,
+          "dietary": [
+            "vegetarian"
+          ]
+        }
+      ]
+    },
+    {
+      "venueId": "venue-1dafrop",
+      "items": [
+        {
+          "id": "food-kr1wg1",
+          "name": "Crispy hake bites",
+          "category": "other",
+          "priceGbp": 10,
+          "caloriesKcal": 292
+        },
+        {
+          "id": "food-41d6ze",
+          "name": "Scotch egg",
+          "category": "other",
+          "priceGbp": 6,
+          "caloriesKcal": 274
+        },
+        {
+          "id": "food-14dg4c1",
+          "name": "Halloumi salad",
+          "category": "other",
+          "priceGbp": 10,
+          "caloriesKcal": 505,
+          "dietary": [
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-p9am48",
+          "name": "Chicken karaage",
+          "category": "other",
+          "priceGbp": 10,
+          "caloriesKcal": 440
+        },
+        {
+          "id": "food-1df4zrc",
+          "name": "Sun dried tomato dip",
+          "category": "other",
+          "priceGbp": 8.5,
+          "caloriesKcal": 695,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-su2cpz",
+          "name": "Salt & pepper calamari",
+          "category": "other",
+          "priceGbp": 9,
+          "caloriesKcal": 339
+        },
+        {
+          "id": "food-12g9jzq",
+          "name": "Chicken & herb bake",
+          "category": "other",
+          "priceGbp": 9,
+          "caloriesKcal": 403
+        },
+        {
+          "id": "food-tm079d",
+          "name": "Fish and chips",
+          "category": "mains",
+          "priceGbp": 19.5,
+          "caloriesKcal": 1137
+        },
+        {
+          "id": "food-1sglgkj",
+          "name": "Narrowboat beef burger",
+          "category": "mains",
+          "priceGbp": 18.5,
+          "caloriesKcal": 1330
+        },
+        {
+          "id": "food-1rmc5gi",
+          "name": "Bavette steak",
+          "category": "mains",
+          "priceGbp": 23,
+          "caloriesKcal": 739
+        },
+        {
+          "id": "food-1xqq1i",
+          "name": "Pan roasted trout",
+          "category": "mains",
+          "priceGbp": 20,
+          "caloriesKcal": 526
+        },
+        {
+          "id": "food-1sz4oyr",
+          "name": "Grilled peach & burrata salad",
+          "category": "mains",
+          "priceGbp": 20,
+          "caloriesKcal": 516,
+          "dietary": [
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-1anqwxe",
+          "name": "Chicken caesar salad",
+          "category": "mains",
+          "priceGbp": 17.5,
+          "caloriesKcal": 812
+        },
+        {
+          "id": "food-5dgegu",
+          "name": "Sausage and crushed potatoes",
+          "category": "mains",
+          "priceGbp": 16,
+          "caloriesKcal": 1077
+        },
+        {
+          "id": "food-ybkh34",
+          "name": "Sun dried tomato salad",
+          "category": "mains",
+          "priceGbp": 18,
+          "caloriesKcal": 910,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-dubklk",
+          "name": "Chicken schnitzel",
+          "category": "mains",
+          "priceGbp": 16,
+          "caloriesKcal": 604
+        },
+        {
+          "id": "food-1mw1ooz",
+          "name": "Onion rings",
+          "category": "sides",
+          "priceGbp": 5,
+          "caloriesKcal": 662,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-12e5d33",
+          "name": "Battered sausage",
+          "category": "sides",
+          "priceGbp": 5.5,
+          "caloriesKcal": 340
+        },
+        {
+          "id": "food-jxuvu",
+          "name": "Padron peppers",
+          "category": "sides",
+          "priceGbp": 6,
+          "caloriesKcal": 98,
+          "dietary": [
+            "vegan"
+          ]
+        },
+        {
+          "id": "food-163x0y9",
+          "name": "Halloumi fries",
+          "category": "sides",
+          "priceGbp": 9,
+          "caloriesKcal": 683,
+          "dietary": [
+            "vegetarian"
+          ]
+        },
+        {
+          "id": "food-jae036",
+          "name": "Chips/fries",
+          "category": "sides",
+          "priceGbp": 5,
+          "caloriesKcal": 421,
+          "dietary": [
+            "vegan"
+          ]
+        }
+      ]
+    }
+  ],
+  "credits": {
+    "firecrawl": 1,
+    "exa": 0,
+    "tavily": 0
+  },
+  "validation": {
+    "runtimeFoodParserAccepted": 48,
+    "duplicateStableIds": 0,
+    "inferredDietaryTags": 0,
+    "inferredServings": 0,
+    "perPersonCalculations": 0,
+    "healthRatings": 0,
+    "existingRuntimeRowOverlap": 0,
+    "identityAddressEvidence": {
+      "venue-17qpap6": "62 St Mary's Rd, London W5 5EX",
+      "venue-1dafrop": "119 St Peter’s Street, London, N1 8PZ"
+    }
+  },
+  "sourceInputImport": {
+    "preservedExistingRows": 2572,
+    "addedRows": 48,
+    "resultingRows": 2620,
+    "datedSourceFile": "public/data/food_price_updates/prices_20261013.json",
+    "latestSourceFile": "public/data/food_price_updates/latest.json",
+    "preservedRowsSha256": "786044de908b5dc12b2f5b1adf040aeef445536fce0828614de746517936125c",
+    "newestCapturedInputAt": "2026-10-13T09:43:11.553Z",
+    "refreshLaneRetired": true,
+    "productionDeployed": false
+  }
+}
