@@ -209,6 +209,19 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   it.each([
+    "Plan a big night for four of us, with cheap pints and a lively route",
+    "Find cheap quiet pubs in Soho",
+  ])("preserves supported constraints when starting configured chat: %s", async (query) => {
+    const outcome = await runPalElevenLabsChatTurn({
+      query, ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(outcome).toMatchObject({ ok: true, conversationId: "conv_regression01" });
+    expect(wsState.socketsOpened).toBe(1);
+    expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query }));
+  });
+
+  it.each([
     ["Cheapest vegan food in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
     ["Cheapest wine in Soho", "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks."],
     ["Cheapest vegan curry in Camden", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],

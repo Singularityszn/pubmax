@@ -104,6 +104,17 @@ beforeEach(() => {
   state.desk = { venues: [], status: "ready" };
 });
 
+describe("original-question tool authority", () => {
+  it("keeps the original listing kind and area despite a provider rewrite", async () => {
+    const result = await runAskTool("whats_on", { query: "Quiz tonight in Soho" },
+      ctx({ query: "Live music tonight in Camden" }));
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({ kind: "music", area: "Camden" });
+    expect(result.answerHint).toMatch(/live[- ]music.*Camden/i);
+    expect(result.answerHint).not.toMatch(/Soho|quiz/i);
+  });
+});
+
 describe("cheapest_pint_near", () => {
   it("ranks the listed pints round a named pub and leaves the anchor out", async () => {
     state.venues = [
