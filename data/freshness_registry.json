@@ -59,8 +59,8 @@
       },
       "cadence": "none: a closed refresh lane. The pack still ships and is still read. No automatic producer refreshes it.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None. This lane has no automatic refresh producer. The source pack contains the preserved July 2026 Greene King import and a reviewed 13 October 2026 import of 42 dishes from The Eagle's official menu. Each row retains its own observedAt. lib/priceUpdates.server.ts only reads the source pack. The drink and UK price harvesters do not produce food updates. A future generator requires a separate source decision. A missing or malformed artifact remains an integrity failure despite retired=true.",
-      "gate": "No automatic food writer. Two reviewed source imports do not establish a refresh cadence. Both freshness readers still open the artifact. A missing or malformed pack remains an UNRESOLVED integrity breach."
+      "refreshWorkflow": "None. This lane has no automatic refresh producer. The source pack contains the preserved July 2026 Greene King import and reviewed first-party additions captured on 13 October 2026: 42 dishes from The Eagle and 48 dishes from The New Inn and The Narrowboat. Each row retains its own observedAt. lib/priceUpdates.server.ts only reads the source pack. The drink and UK price harvesters do not produce food updates. A future generator requires a separate source decision. A missing or malformed artifact remains an integrity failure despite retired=true.",
+      "gate": "No automatic food writer. Three reviewed source imports do not establish a refresh cadence. Both freshness readers still open the artifact. A missing or malformed pack remains an UNRESOLVED integrity breach."
     },
     {
       "id": "night_signals",
