@@ -11,7 +11,7 @@ import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
-import { routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { isIndependentAskTool, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -143,7 +143,7 @@ export async function invokePubPalAskTool(input: {
 
   const unsupported = (storedQuery ? unsupportedPriceComparison(storedQuery) : null)
     ?? unsupportedPriceComparison(providerQuery);
-  if (unsupported) {
+  if (unsupported && !isIndependentAskTool(input.toolName)) {
     if (input.conversationId) {
       await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
     }

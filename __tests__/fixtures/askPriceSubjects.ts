@@ -10,6 +10,9 @@ const UNSUPPORTED_DISCOVERY_PRICES = [
 ] as const;
 
 export const QUALIFIED_PRICE_REQUESTS = UNSUPPORTED_DISCOVERY_PRICES.flatMap(([subject, code, wording]) => [
+  `Find me ${subject} at the cheapest pub in Soho`,
+  `Somewhere cheap in Soho with ${subject}`,
+  `Somewhere cheap in Soho and ${subject}`,
   `In Soho, ${subject} prices`,
   `At the cheapest pub in Soho, ${subject} prices`,
   `${subject} in Soho costs at the cheapest pub`,

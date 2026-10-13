@@ -17,16 +17,18 @@ function isUnavailablePanel(node: HTMLElement): boolean {
 
 type EscapePanel = {
   dismiss: () => void;
+  capturePending: boolean;
   ref?: RefObject<HTMLElement | null>;
 };
 
 const openPanels = new Set<EscapePanel>();
 
-function dismissTopPanel(event: KeyboardEvent): void {
+function dismissTopPanel(event: KeyboardEvent, pendingOnly = false): void {
   if (event.key !== "Escape" || event.defaultPrevented) return;
   let top: EscapePanel | undefined;
   for (const panel of openPanels) {
     const node = panel.ref?.current;
+    if (pendingOnly && (!panel.capturePending || node)) continue;
     if (node && isUnavailablePanel(node)) continue;
     // The newest open sibling wins. A containing parent cannot replace its
     // child, even when React mounts the child's effect before the parent's.
@@ -36,6 +38,10 @@ function dismissTopPanel(event: KeyboardEvent): void {
   event.preventDefault();
   event.stopImmediatePropagation();
   top.dismiss();
+}
+
+function dismissPendingPanel(event: KeyboardEvent): void {
+  dismissTopPanel(event, true);
 }
 
 function dismissNativePanel(event: KeyboardEvent): void {
@@ -65,6 +71,7 @@ export function useDismissOnEscape(
   open: boolean,
   onDismiss: () => void,
   panelRef?: RefObject<HTMLElement | null>,
+  capturePending = false,
 ): void {
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
@@ -73,9 +80,10 @@ export function useDismissOnEscape(
 
   useEffect(() => {
     if (!open) return;
-    const panel: EscapePanel = { dismiss: () => onDismissRef.current(), ref: panelRef };
+    const panel: EscapePanel = { dismiss: () => onDismissRef.current(), ref: panelRef, capturePending };
     if (openPanels.size === 0) {
       document.addEventListener("keydown", dismissTopPanel);
+      document.addEventListener("keydown", dismissPendingPanel, true);
       window.addEventListener("keydown", dismissNativePanel, true);
     }
     openPanels.add(panel);
@@ -83,8 +91,9 @@ export function useDismissOnEscape(
       openPanels.delete(panel);
       if (openPanels.size === 0) {
         document.removeEventListener("keydown", dismissTopPanel);
+        document.removeEventListener("keydown", dismissPendingPanel, true);
         window.removeEventListener("keydown", dismissNativePanel, true);
       }
     };
-  }, [open, panelRef]);
+  }, [open, panelRef, capturePending]);
 }

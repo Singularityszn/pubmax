@@ -1,3 +1,4 @@
+import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -208,6 +209,17 @@ describe("runPalElevenLabsChatTurn", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("review regression: returns independent transit with the unsupported price answer", async () => {
+    vi.stubGlobal("fetch", offlineFetch);
+    const outcome = await runPalElevenLabsChatTurn({ query: "Any tube delays and how much is a burger in Camden?", ownerId: "11111111-1111-4111-8111-111111111111" });
+    expect(outcome).toMatchObject({ ok: true, toolsUsed: ["city_status"], cards: [], proposals: [] });
+    if (outcome.ok) {
+      expect(outcome.message).toMatch(/meal prices/i);
+      expect(outcome.message).toMatch(/transit|city status|tube|weather/i);
+    }
+    expect(wsState.socketsOpened).toBe(0);
   });
 
   it.each(QUALIFIED_PRICE_REQUESTS)("fences the full qualified subject before configured startup: $query", async ({ query, wording }) => {
