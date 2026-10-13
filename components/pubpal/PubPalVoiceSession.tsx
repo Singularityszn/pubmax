@@ -133,6 +133,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const { isListening, isSpeaking } = useConversationMode();
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
+  const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -244,6 +245,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     };
     activeAttemptRef.current = attempt;
     setError(null);
+    setUsingFallbackVoice(false);
     setStartupStopped(false);
     setIsStarting(true);
     onStateChange?.("noticing");
@@ -284,6 +286,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
+        setUsingFallbackVoice(overrides?.voiceSource === "species" || overrides?.voiceSource === "agent-default");
         if (grant.conversationId) conversationIdRef.current = grant.conversationId;
         attempt.sdkSessionStarted = true;
         startSession({
@@ -458,6 +461,9 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         </label>
       </div>
       {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
+      {usingFallbackVoice && (voiceConnecting || status === "connected") && (
+        <p className="palVoiceHint" role="status">Your chosen voice isn&apos;t available. Using your Pal&apos;s default voice.</p>
+      )}
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
         No audio or transcript becomes a memory. The Pal can suggest facts, and you approve each one.

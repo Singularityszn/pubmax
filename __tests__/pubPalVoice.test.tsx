@@ -159,6 +159,35 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
+  it.each(["species", "agent-default"])("discloses the %s fallback without changing provider overrides", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource },
+    }));
+    await mountAvailable();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.querySelector('[role="status"].palVoiceHint')?.textContent).toBe(
+      "Your chosen voice isn't available. Using your Pal's default voice.",
+    );
+    expect(JSON.stringify(defined(voice.startSession.mock.calls[0])[0])).not.toContain("voiceSource");
+  });
+
+  it.each(["selected", "unknown", undefined])("does not claim a fallback for %s selection metadata", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: "voice-selected", firstMessage: "Hi, I'm Ripley.", voiceSource },
+    }));
+    await mountAvailable();
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
   it("offers writing immediately and leaves a stalled availability probe after eight seconds", async () => {
     vi.useFakeTimers();
     const probe = deferred<Response>();
