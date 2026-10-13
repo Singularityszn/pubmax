@@ -215,6 +215,9 @@ describe("runPalElevenLabsChatTurn", () => {
     ["Cheapest sparkling water in Camden", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
     ["Cheapest pub lunch in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
     ["How much is a pint and food at The Lamb?", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
+    ["Meal prices at The Lamb", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
+    ["Costs for burgers in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
+    ["Coke prices at The Lamb", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
   ])("refuses configured %s before starting a provider session", async (query, message) => {
     wsState.storeFilled = false;
     wsState.replyScript = [

@@ -17,7 +17,7 @@ const JOURNEY_RE =
 const HERITAGE_RE =
   /\b(heritage|history|histor(?:y|ic)|listed building|when was|who built|story of|tell me about)\b/i;
 const PRICE_RE =
-  /\b(price|pint|how much|£|gbp|cost of a)\b/i;
+  /\b(prices?|pint|how much|£|gbp|costs?)\b/i;
 const PLAN_RE =
   /\b(plan|crawl|three[- ]stop|3[- ]stop|sort (me )?a night|route for)\b/i;
 const AREA_BUZZ_RE =
@@ -42,7 +42,7 @@ const TONIGHT_NOW_RE =
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
-const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|price(?:\s+(?:of|for))?|cost(?:\s+(?:of|for))?)\b/i;
+const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?:\s+(?:of|for))?|costs?(?:\s+(?:of|for))?)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
 const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
@@ -68,10 +68,10 @@ export type UnsupportedPriceComparison = {
 };
 
 type AskPriceIntent =
-  | { kind: "none" | "plan" }
+  | { kind: "none" | "plan" | "drink-venues" }
   | { kind: "pub-price"; venueName: string | null }
   | { kind: "pint"; venueName: string | null; foodAvailability: boolean }
-  | { kind: "recorded-category"; venueName: string; category: DrinkCategory }
+  | { kind: "recorded-drinks"; venueName: string; category?: DrinkCategory }
   | { kind: "unsupported"; coverage: UnsupportedPriceComparison };
 
 function namedDrinkVenue(query: string): string | null {
@@ -86,7 +86,7 @@ function priceComparisonSubject(query: string): string | null {
   if (!comparison) return null;
   const normalizeSubject = (subject: string): string => stripTrailingPunctuation(subject)
     .replace(/^(?:a|an|the)(?:\s+|$)/i, "")
-    .replace(/\s+cost$/i, "")
+    .replace(/\s+costs?$/i, "")
     .replace(/\s+(?:right now|today|tonight)$/i, "");
   const precedingItem = !comparative && !/^how much/i.test(comparison[0])
     ? normalizeSubject(query.slice(0, comparison.index)
@@ -123,7 +123,10 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
   const category = RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)
     ? RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1]
     : undefined;
-  if (category && venueName) return { kind: "recorded-category", venueName, category };
+  if (/^drinks?$/i.test(categorySubject)) {
+    return venueName ? { kind: "recorded-drinks", venueName } : { kind: "drink-venues" };
+  }
+  if (category && venueName) return { kind: "recorded-drinks", venueName, category };
   if (NON_PINT_DRINK_RE.test(subject)) {
     return {
       kind: "unsupported",
@@ -152,8 +155,8 @@ export function unsupportedPriceComparison(query: string): UnsupportedPriceCompa
 /** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
 export function recordedDrinkComparison(query: string): RoutedToolCall | null {
   const intent = resolveAskPriceIntent(query);
-  return intent.kind === "recorded-category"
-    ? { name: "venue_drinks", args: { venueName: intent.venueName, drinkCategory: intent.category } }
+  return intent.kind === "recorded-drinks"
+    ? { name: "venue_drinks", args: { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) } }
     : null;
 }
 const FIND_DESK_RE =
@@ -382,6 +385,9 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const text = query.trim();
   if (!text) return [];
   if (unsupportedPriceComparison(text)) return [];
+  if (resolveAskPriceIntent(text).kind === "drink-venues") {
+    return [{ name: "search_venues", args: { query: text, limit: 4 } }];
+  }
 
   const calls: RoutedToolCall[] = [];
   const push = (name: AskToolName, args: Record<string, unknown> = {}) => {

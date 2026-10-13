@@ -1024,9 +1024,12 @@ export async function runAskTool(
   }
   let toolName = name;
   let toolArgs = args;
-  if (intent.kind === "recorded-category") {
+  if (intent.kind === "recorded-drinks") {
     toolName = "venue_drinks";
-    toolArgs = { venueName: intent.venueName, drinkCategory: intent.category };
+    toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
+  } else if (intent.kind === "drink-venues") {
+    toolName = "search_venues";
+    toolArgs = { query: ctx.query, limit: 4 };
   } else if (intent.kind === "pint" || intent.kind === "pub-price") {
     const priceCall = routeAskDeterministically(ctx.query)
       .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near");

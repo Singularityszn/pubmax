@@ -54,6 +54,9 @@ describe("POST /api/ask", () => {
     "How much is wine at The Eagle?",
     "Wine price at The Eagle",
     "What does wine cost at The Eagle?",
+    "Wine prices at The Eagle",
+    "Prices for wine at The Eagle",
+    "Wine costs at The Eagle",
   ])("reads category prices for %s without selecting the pint-price tool", async (query) => {
     const result = await runAsk({ query, cityId: "london", skipModel: true });
     expect(result.toolsUsed).toEqual(["venue_drinks"]);
@@ -79,6 +82,8 @@ describe("POST /api/ask", () => {
     "Price of Coke at The Eagle",
     "How much for Coke at The Eagle?",
     "Coke price at The Eagle",
+    "Coke prices at The Eagle",
+    "Prices for Coke at The Eagle",
   ])("refuses an unverified Coke price before model routing or pint figures: %s", async (query) => {
     process.env.OPENROUTER_API_KEY = "test-key";
     const result = await runAsk({ query, cityId: "london" });

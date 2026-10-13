@@ -418,6 +418,25 @@ describe("tonight_now", () => {
 });
 
 describe("venue_drinks", () => {
+  it("preserves the generic named-pub drink list when prices is plural", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [price({ drinkCategory: "wine", priceGbp: 8 })], degraded: false };
+    const result = await runAskTool("venue_drinks", { venueName: "The Lamb" }, ctx({ query: "Drink prices at The Lamb" }));
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.cards.map((card) => card.price)).toEqual([8, 5]);
+  });
+
+  it.each([
+    "Wine prices at The Lamb", "Prices for wine at The Lamb", "Wine costs at The Lamb", "Costs of wine at The Lamb",
+  ])("routes raw provider-selected pint pricing to recorded wine for %s", async (query) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [price({ drinkCategory: "wine", priceGbp: 8 })], degraded: false };
+    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.cards.map((card) => card.price)).toEqual([8]);
+    expect(result.priceEvidence).toMatchObject([{ category: "wine", priceGbp: 8, serving: null }]);
+  });
+
   it.each([
     "How much is a pint and food at The Lamb?",
     "How much is a pint with food at The Lamb?",
@@ -426,6 +445,10 @@ describe("venue_drinks", () => {
     "Price of a 175ml wine at The Lamb",
     "Price of a double gin at The Lamb",
     "Price of Coke at The Lamb",
+    "Meal prices at The Lamb",
+    "Prices of meals at The Lamb",
+    "Burger costs in Camden",
+    "Coke prices at The Lamb",
   ])("refuses unsupported mixed, brand or serving claims at the raw tool seam: %s", async (query) => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
