@@ -39,6 +39,11 @@ for (const width of [320, 390, 430, 1440]) {
     const firstCalories = panel.locator(".foodCalories").first();
     await expect(firstCalories).toContainText(/\d+ kcal on the menu/);
     const firstRow = panel.locator(".drinkRow").first();
+    if (width <= 640) {
+      const rowWidth = (await firstRow.boundingBox())!.width;
+      const nameWidth = (await firstRow.locator(".drinkName").boundingBox())!.width;
+      expect(nameWidth).toBeGreaterThanOrEqual(rowWidth * 0.6);
+    }
     await expect(firstRow.locator("a")).toHaveCount(1);
     await expect(firstRow.locator("a")).toHaveAttribute("href", "https://www.theeaglew12.co.uk/food-drink");
     await expect(firstRow.locator("time")).toContainText("13 October 2026");
