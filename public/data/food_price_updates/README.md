@@ -10,9 +10,9 @@ feed anybody owes a run. The pack still SHIPS and is still read: every row
 carries its own `observedAt`, and `lib/priceUpdates.ts` never presents one as
 live.
 
-No script in this tree writes these files, and the earlier claim that they are
-"harvested by hand" outlived the last harvest: every row in the pack carries
-the same single import, which was never repeated. `scripts/firecrawl_greene_king_prices.mjs` writes the DRINK pack beside
+No script in this tree refreshes these files. The pack contains two reviewed
+imports: the preserved July 2026 Greene King rows and 42 Eagle price facts
+collected on 13 October 2026. `scripts/firecrawl_greene_king_prices.mjs` writes the DRINK pack beside
 this one and deliberately drops every food section (`mapSectionToCategory`
 returns `null` for them), and `scripts/harvest/uk-prices/render.mjs` writes the
 uk-prices overlay. Writing a generator is a captain decision, not a budget or a
@@ -21,6 +21,21 @@ status change.
 Retiring the lane retires its REFRESH and never this artifact's integrity: both
 freshness readers still open `latest.json`, so a pack that goes missing or
 stops parsing is still an unresolved breach.
+
+## Reviewed imports
+
+`prices_20260711.json` retains the original 2,530 rows unchanged.
+`prices_20261013.json` and `latest.json` contain those rows plus 42 dishes from
+[The Eagle's official menu](https://www.theeaglew12.co.uk/food-drink).
+Every previous observation date remains unchanged.
+
+The Eagle matches `venue-1hz0avt` at 215 Askew Road, W12 9AZ.
+The new rows retain their source URL and capture date.
+They contain price facts without publisher descriptions or inferred dietary tags.
+[The source receipt](../../../data/enrichment/firecrawl/london/menu-review-20261013.json)
+records the permission check, runtime item IDs, and 42 separate source calorie observations.
+Calories remain outside the runtime food schema.
+This import does not add an automatic producer or revive the refresh lane.
 
 ## File naming
 
@@ -59,5 +74,5 @@ from `filterHints.searchText` so updates attach without `VenuePrice` rows.
 
 ## Governance
 
-First-party / permissible sources ONLY. See `data/price_sources.json`
-`drinkSources` entry `greene-king-official`.
+First-party permissible sources only. See the `greene-king-official` and
+`youngs-official` entries in `data/price_sources.json` `drinkSources`.

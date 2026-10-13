@@ -57,10 +57,10 @@
         "kind": "field",
         "pointer": "generatedAt"
       },
-      "cadence": "none: a closed lane. The 3 MB pack still ships and is still read; nothing writes it.",
+      "cadence": "none: a closed refresh lane. The pack still ships and is still read. No automatic producer refreshes it.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None, and `retired: true` is now what says so rather than a sentence a reader had to reach the end of. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, scripts/firecrawl_greene_king_prices.mjs writes the DRINK pack beside it (its mapSectionToCategory returns null for every food section on purpose), and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay. `harvested by hand` was the last claim standing here and nobody harvests it: every row in the pack carries the same single import, which was never repeated. A 1440h budget was a promise nobody could keep before that: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). The pack keeps serving and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live. Writing a generator is a separate captain decision, not a budget or a status change.",
-      "gate": "No writer, which is a stronger fact than a missing key: FIRECRAWL_API_KEY alone buys nothing while no script in the tree turns a permitted Greene King menu into a food row. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
+      "refreshWorkflow": "None. This lane has no automatic refresh producer. The source pack contains the preserved July 2026 Greene King import and a reviewed 13 October 2026 import of 42 dishes from The Eagle's official menu. Each row retains its own observedAt. lib/priceUpdates.server.ts only reads the source pack. The drink and UK price harvesters do not produce food updates. A future generator requires a separate source decision. A missing or malformed artifact remains an integrity failure despite retired=true.",
+      "gate": "No automatic food writer. Two reviewed source imports do not establish a refresh cadence. Both freshness readers still open the artifact. A missing or malformed pack remains an UNRESOLVED integrity breach."
     },
     {
       "id": "night_signals",
