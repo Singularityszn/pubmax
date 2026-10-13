@@ -13,6 +13,11 @@ export const QUALIFIED_PRICE_REQUESTS = UNSUPPORTED_DISCOVERY_PRICES.flatMap(([s
   `Find me ${subject} at the cheapest pub in Soho`,
   `Somewhere cheap in Soho with ${subject}`,
   `Somewhere cheap in Soho and ${subject}`,
+  ...(subject === "food" ? [] : [
+    `Find me the cheapest pub in Soho, with ${subject} near the Tube`,
+    `Find me the cheapest pub in Soho with ${subject} near a station`,
+  ]),
+  `Somewhere cheap for ${subject} near the Tube`,
   `In Soho, ${subject} prices`,
   `At the cheapest pub in Soho, ${subject} prices`,
   `${subject} in Soho costs at the cheapest pub`,

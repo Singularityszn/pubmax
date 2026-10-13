@@ -81,20 +81,38 @@ type AskPriceIntent =
   | { kind: "unsupported"; coverage: UnsupportedPriceComparison };
 
 function namedDrinkVenue(query: string): string | null {
-  if (extractArea(query)) return null;
-  const match = stripTrailingPunctuation(query).match(/\bat\s+([A-Za-z][A-Za-z\s'-]{1,80})$/i);
-  return match?.[1] ? stripTrailingQualifiers(match[1]).trim() : null;
+  const match = stripTrailingPunctuation(query).match(/\bat\s+([A-Za-z][A-Za-z\s&,'’-]{1,100})$/i);
+  if (!match?.[1] || PRICE_COMPARISON_RE.test(match[1]) || ITEM_PRICE_RE.test(match[1])) return null;
+  return stripTrailingQualifiers(match[1])
+    .split(/\s+(?:with|for)\s+/i)[0]
+    .replace(/\s+(?:near|close to|by)\s+(?:the\s+)?(?:tube|(?:[A-Za-z&'’-]+\s+)*station)$/i, "")
+    .trim() || null;
+}
+
+function askRequestClauses(query: string): string[] {
+  return query.split(/(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))/i);
+}
+
+function isCityStatusRequest(query: string): boolean {
+  return CITY_STATUS_RE.test(query) && /^(?:any\s+)?(?:tube|transit|delays?|weather|city status)\b|^how(?:'s| is| are)\s+(?:the\s+)?(?:tube|transit|weather|london)\b|^(?:what|check|tell me)\b.*\b(?:delays?|weather|city status)\b|^right now in london\b/i.test(query.trim());
 }
 
 function priceQuestion(query: string): string {
-  const clauses = query.split(/\s+and\s+|,/i);
-  const independentClause = (clause: string) => (CITY_STATUS_RE.test(clause) || JOURNEY_RE.test(clause))
-    && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause);
-  if (clauses.some(independentClause)) query = clauses.filter((clause) => !independentClause(clause)).join(" and ");
-  return query;
+  const clauses = askRequestClauses(query);
+  const priceClauses = clauses.filter((clause) =>
+    !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
+      && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
+  );
+  return priceClauses.length === clauses.length ? query : priceClauses.join(" and ");
 }
 
 function priceComparisonSubject(query: string): string | null {
+  const venueName = namedDrinkVenue(query);
+  if (venueName && !PRICE_COMPARISON_RE.test(venueName) && !ITEM_PRICE_RE.test(venueName)) {
+    const at = query.match(/\bat\s+/i)!;
+    const start = at.index ?? 0;
+    query = `${query.slice(0, start)} ${query.slice(start + at[0].length + venueName.length)}`;
+  }
   const comparative = query.match(PRICE_COMPARISON_RE);
   const itemPrice = query.match(ITEM_PRICE_RE);
   const comparison = itemPrice ?? comparative;
@@ -442,13 +460,17 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     calls.push({ name, args });
   };
 
-  if (CITY_STATUS_RE.test(text)) {
+  const clauses = askRequestClauses(text);
+  if (clauses.some(isCityStatusRequest)) {
     push("city_status");
   }
 
-  if (JOURNEY_RE.test(text)) {
-    const journeyQuery = text.slice(text.search(JOURNEY_RE)).split(/\s+and\s+|,/i)[0];
-    const to = stripIntentWords(journeyQuery) || journeyQuery;
+  const journeyClause = clauses.find((clause) => JOURNEY_RE.test(clause));
+  if (journeyClause) {
+    const match = journeyClause.match(JOURNEY_RE)!;
+    const to = stripTrailingPunctuation(stripTrailingQualifiers(
+      journeyClause.slice((match.index ?? 0) + match[0].length).replace(/^\s*to\s+/i, "").trim(),
+    ));
     push("journey", { from: "London Bridge", to });
   }
 

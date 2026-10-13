@@ -7,6 +7,7 @@ import "server-only";
 // spine - plus the pure policy in `lib/ask/conciergeTools.ts`. Nothing here
 // derives a price, widens a trust gate, or writes anything.
 
+import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { nightAreaForMapQuery } from "@/lib/nightAreas";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
@@ -97,9 +98,8 @@ function matchVenue(
   // An EXACT name, article or not, is the pub they named: the router strips
   // "the" before this, so "The Angel" arrives as "Angel" and must still find
   // The Angel.
-  const exact =
-    venues.find((v) => venueSearchNames(v).some((name) => name.toLowerCase() === text)) ??
-    venues.find((v) => venueSearchNames(v).some((name) => withoutLeadingArticle(name) === bare));
+  const exact = uniqueExactVenueNameMatch(venues, needle)
+    ?? uniqueExactVenueNameMatch(venues, `The ${bare}`);
   if (exact) return exact;
   // Past an exact name, a place-shaped word may never land on a name-alike pub:
   // "Angel" is Islington, not The Angel Hillingdon on a prefix.
