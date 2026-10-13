@@ -40,6 +40,8 @@ describe("routeAskDeterministically", () => {
 describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
   it.each([
     "How much is wine at The Eagle?",
+    "Wine price at The Eagle",
+    "What does wine cost at The Eagle?",
   ])("routes the named category-price ask %s to recorded drinks", (query) => {
     expect(routeAskDeterministically(query)).toEqual([
       { name: "venue_drinks", args: { venueName: "The Eagle", drinkCategory: "wine" } },
@@ -49,6 +51,8 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
   it.each([
     "How much is a burger in Camden?",
     "Price of Coke at The Eagle",
+    "How much for Coke at The Eagle?",
+    "Coke price at The Eagle",
   ])("refuses an unsupported item-price question without comparison words: %s", (query) => {
     expect(unsupportedPriceComparison(query)).not.toBeNull();
     expect(routeAskDeterministically(query)).toEqual([]);
@@ -57,6 +61,8 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
   it.each([
     "How much is a pint at The Lamb?",
     "What is the price at The Lamb?",
+    "What's the price at The Lamb?",
+    "Can you tell me the price at The Lamb?",
   ])("preserves existing unspecified pub and pint price asks: %s", (query) => {
     expect(unsupportedPriceComparison(query)).toBeNull();
     expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["venue_prices"]);
