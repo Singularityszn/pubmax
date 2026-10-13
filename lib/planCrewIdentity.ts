@@ -8,10 +8,10 @@ import "server-only";
 
 import { isPlanId } from "@/lib/plan";
 import {
-  __listMemoryPlanMemberUserIds,
   __setMemoryPlanOwnerUserId,
   claimMemoryPlanMembership,
   hashPlanMemberToken,
+  memoryPlanHostUserId,
   planMemberIdentityResult,
   planIdempotencyDigest,
   planRequestDigest,
@@ -263,30 +263,25 @@ export async function linkPlanOwnerUser(
   }
 }
 
-/** Claimed-member candidates already stamped on this plan (internal only). */
-export async function listPlanMemberUserIds(
-  planId: string,
-): Promise<Array<{ memberId: string; userId: string }>> {
-  if (!isPlanId(planId)) return [];
-  if (!isSupabaseConfigured()) {
-    return __listMemoryPlanMemberUserIds(planId);
-  }
+/** Read only the host account. An unclaimed host never falls back to a guest. */
+export async function planHostUserId(planId: string): Promise<string | null> {
+  if (!isPlanId(planId)) return null;
+  if (!isSupabaseConfigured()) return memoryPlanHostUserId(planId);
   try {
+    // Use the same active-member ordering that planMemberIdentity uses for
+    // the host role. Select the host before checking whether it is claimed.
     const { data, error } = await requireSupabaseAdmin()
       .from(MEMBERS)
-      .select("id,user_id")
+      .select("user_id")
       .eq("plan_id", planId)
       .is("membership_revoked_at", null)
-      .not("user_id", "is", null);
+      .order("joined_at").order("id")
+      .limit(1)
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    const out: Array<{ memberId: string; userId: string }> = [];
-    for (const row of data ?? []) {
-      const memberId = typeof row.id === "string" ? row.id : "";
-      const userId = typeof row.user_id === "string" ? row.user_id : "";
-      if (memberId && userId) out.push({ memberId, userId });
-    }
-    return out;
+    return cleanUserId(data?.user_id) || null;
   } catch {
-    return [];
+    return null;
   }
 }
+

@@ -1,4 +1,4 @@
-// WP7: mutual follow edges form as a byproduct of classic plan-crew join.
+// WP7: plan joins form mutual follow edges only with the host.
 // Blocks are never downgraded; unclaimed handles never get edges; re-join is
 // idempotent.
 
@@ -16,6 +16,8 @@ import {
   memoryProfileStore,
   __resetMemoryProfiles,
 } from "@/lib/profileStore";
+import { __resetMemoryPlans, memoryPlanStore, planMemberIdentity } from "@/lib/planStore";
+import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import {
   clearSocialMemoryBlocks,
   setSocialMemoryBlock,
@@ -24,6 +26,7 @@ import {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  __resetMemoryPlans();
   __resetMemoryFollows();
   __resetMemoryProfiles();
   clearSocialMemoryBlocks();
@@ -103,145 +106,90 @@ describe("ensureMutualFollowPair", () => {
   });
 });
 
+async function planJoin(userId: string, claimHost = true) {
+  const created = await memoryPlanStore.create({
+    title: "A night together",
+    creatorName: "Host",
+    startTime: new Date(Date.now() + 7_200_000).toISOString(),
+    stops: [{ venueId: "venue-1f5ygjb", venueName: "The Crown" }],
+  }, { idempotencyKey: crypto.randomUUID() });
+  if (!created.ok) throw new Error(created.error);
+  const planId = created.plan.plan.id;
+  const host = await planMemberIdentity(planId, created.memberToken);
+  if (claimHost) {
+    expect(await claimPlanMembership(planId, host!.memberId, "user-host")).toBe("claimed");
+  }
+  const peer = await memoryPlanStore.join(planId, "Mate", {
+    idempotencyKey: crypto.randomUUID(), userId: "user-mate",
+  });
+  if (!peer.ok) throw new Error(peer.error);
+  const joined = await memoryPlanStore.join(planId, "Guest", {
+    idempotencyKey: crypto.randomUUID(), userId,
+  });
+  if (!joined.ok) throw new Error(joined.error);
+  const identity = await planMemberIdentity(planId, joined.memberToken);
+  return { planId, joinerUserId: userId, joinerMemberId: identity!.memberId };
+}
+
 describe("formFriendEdgesForPlanJoin", () => {
-  it("forms mutuals with every other claimed stamped member", async () => {
+  it("forms mutuals only with the claimed host, leaving a claimed peer unchanged", async () => {
     await claimed("host", "user-host");
     await claimed("mate", "user-mate");
     await claimed("guest", "user-guest");
 
-    const result = await formFriendEdgesForPlanJoin(
-      {
-        planId: "plan_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        joinerUserId: "user-guest",
-        joinerMemberId: "mem_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      },
-      {
-        profiles: memoryProfileStore,
-        follows: memoryFollowStore,
-        supabaseConfigured: () => false,
-        memoryBlocked: () => false,
-        linkMember: async () => true,
-        listMembers: async () => [
-          { memberId: "mem_hosthosthosthosthosthosthosthost", userId: "user-host" },
-          { memberId: "mem_matematematematematematematemate", userId: "user-mate" },
-          {
-            memberId: "mem_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            userId: "user-guest",
-          },
-        ],
-      },
-    );
+    const result = await formFriendEdgesForPlanJoin(await planJoin("user-guest"));
 
-    expect(result.formed).toBe(2);
-    expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(true);
-    expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(true);
-    expect(await memoryFollowStore.isFollowing("guest", "mate")).toBe(true);
-    expect(await memoryFollowStore.isFollowing("mate", "guest")).toBe(true);
+    expect(result.formed).toBe(1);
+    expect(await memoryFollowStore.listMutuals("guest")).toEqual(["host"]);
+    expect(await memoryFollowStore.listMutuals("host")).toEqual(["guest"]);
+    expect(await memoryFollowStore.listMutuals("mate")).toEqual([]);
   });
 
-  it("respects blocks and still forms with unblocked peers", async () => {
+  it("respects a host block without creating an edge to an unblocked peer", async () => {
     const host = await claimed("host", "user-host");
-    const mate = await claimed("mate", "user-mate");
+    await claimed("mate", "user-mate");
     const guest = await claimed("guest", "user-guest");
     setSocialMemoryBlock(host.id, guest.id, true);
 
-    const result = await formFriendEdgesForPlanJoin(
-      {
-        planId: "plan_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        joinerUserId: "user-guest",
-        joinerMemberId: "mem_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      },
-      {
-        profiles: memoryProfileStore,
-        follows: memoryFollowStore,
-        supabaseConfigured: () => false,
-        linkMember: async () => true,
-        listMembers: async () => [
-          { memberId: "mem_hosthosthosthosthosthosthosthost", userId: "user-host" },
-          { memberId: "mem_matematematematematematematemate", userId: "user-mate" },
-          {
-            memberId: "mem_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            userId: "user-guest",
-          },
-        ],
-      },
-    );
+    const result = await formFriendEdgesForPlanJoin(await planJoin("user-guest"));
 
     expect(result.skippedBlocked).toBe(1);
-    expect(result.formed).toBe(1);
-    expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(false);
-    expect(await memoryFollowStore.isFollowing("guest", "mate")).toBe(true);
-    expect(await memoryFollowStore.isFollowing("mate", "guest")).toBe(true);
-    // Block must still stand - no half edge either way.
-    expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(false);
-    void mate;
+    expect(result.formed).toBe(0);
+    expect(await memoryFollowStore.listMutuals("guest")).toEqual([]);
+    expect(await memoryFollowStore.listMutuals("mate")).toEqual([]);
+    expect(await memoryFollowStore.listMutuals("host")).toEqual([]);
   });
 
-  it("second join against the same peers reports already, not a second create", async () => {
+  it("second join reports already without adding peer friendships", async () => {
     await claimed("host", "user-host");
+    await claimed("mate", "user-mate");
     await claimed("guest", "user-guest");
-    const deps = {
-      profiles: memoryProfileStore,
-      follows: memoryFollowStore,
-      supabaseConfigured: () => false,
-      memoryBlocked: () => false,
-      linkMember: async () => true,
-      listMembers: async () => [
-        { memberId: "mem_hosthosthosthosthosthosthosthost", userId: "user-host" },
-        {
-          memberId: "mem_cccccccccccccccccccccccccccccccc",
-          userId: "user-guest",
-        },
-      ],
-    };
+    const input = await planJoin("user-guest");
 
-    const first = await formFriendEdgesForPlanJoin(
-      {
-        planId: "plan_cccccccccccccccccccccccccccccccc",
-        joinerUserId: "user-guest",
-        joinerMemberId: "mem_cccccccccccccccccccccccccccccccc",
-      },
-      deps,
-    );
-    expect(first.formed).toBe(1);
+    expect((await formFriendEdgesForPlanJoin(input)).formed).toBe(1);
+    const second = await formFriendEdgesForPlanJoin(input);
 
-    const second = await formFriendEdgesForPlanJoin(
-      {
-        planId: "plan_cccccccccccccccccccccccccccccccc",
-        joinerUserId: "user-guest",
-        joinerMemberId: "mem_cccccccccccccccccccccccccccccccc",
-      },
-      deps,
-    );
     expect(second.formed).toBe(0);
-    expect(second.outcomes).toContain("already");
-    expect(await memoryFollowStore.counts("guest")).toEqual({
-      followers: 1,
-      following: 1,
-    });
+    expect(second.outcomes).toEqual(["already"]);
+    expect(await memoryFollowStore.counts("guest")).toEqual({ followers: 1, following: 1 });
+    expect(await memoryFollowStore.listMutuals("mate")).toEqual([]);
   });
 
   it("skips when the joiner has no claimed handle", async () => {
     await claimed("host", "user-host");
-
-    const result = await formFriendEdgesForPlanJoin(
-      {
-        planId: "plan_dddddddddddddddddddddddddddddddd",
-        joinerUserId: "user-nobody",
-        joinerMemberId: "mem_dddddddddddddddddddddddddddddddd",
-      },
-      {
-        profiles: memoryProfileStore,
-        follows: memoryFollowStore,
-        supabaseConfigured: () => false,
-        linkMember: async () => true,
-        listMembers: async () => [
-          { memberId: "mem_hosthosthosthosthosthosthosthost", userId: "user-host" },
-        ],
-      },
-    );
+    const result = await formFriendEdgesForPlanJoin(await planJoin("user-nobody"));
 
     expect(result.skippedUnclaimed).toBe(1);
     expect(result.formed).toBe(0);
+  });
+
+  it("never treats the first claimed peer as an unclaimed host", async () => {
+    await claimed("mate", "user-mate");
+    await claimed("guest", "user-guest");
+    const result = await formFriendEdgesForPlanJoin(await planJoin("user-guest", false));
+
+    expect(result.formed).toBe(0);
+    expect(await memoryFollowStore.listMutuals("guest")).toEqual([]);
+    expect(await memoryFollowStore.listMutuals("mate")).toEqual([]);
   });
 });
