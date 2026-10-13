@@ -68,7 +68,7 @@ export default function MenuCategoryGrid({
           <p className="menuHub__lede">
             {hasFood ? hasDrinkTiles ? "Choose food or drinks to see the prices we have." : "Open Food to see the dish prices we have." :
               hasDrinkTiles ? "Choose a drink to see the prices we have." :
-                "Open the menu or website for what’s on offer."}
+                <>Open this {venueNoun}&rsquo;s menu or website for what&rsquo;s on offer.</>}
           </p>
         </header>
         <ul className={`menuHub__grid${hasFood ? " menuHub__grid--with-food" : ""}${hasFood && !hasDrinkTiles ? " menuHub__grid--food-only" : ""}`}>
