@@ -47,7 +47,13 @@ for (const width of [390, 1440]) {
       await expect(row.locator(".drinkPrice")).toHaveText(fact.price);
       await expect(row.locator(".drinkServing")).toHaveText(fact.serving);
       await expect(row.locator(".drinkProvChip")).toHaveAttribute("href", "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf");
-      await expect(row.locator("time")).toContainText("13 October 2026");
+      await expect(row.locator("time")).toHaveText("13 Oct 2026");
+      await expect(row.locator("time")).toHaveAttribute("datetime", "2026-10-13T10:19:25.911Z");
+      if (width <= 640) {
+        const rowWidth = (await row.boundingBox())!.width;
+        const nameWidth = (await row.locator(".drinkName").boundingBox())!.width;
+        expect(nameWidth).toBeGreaterThanOrEqual(rowWidth * 0.6);
+      }
       identities.add((await row.locator(".drinkDisclosure").getAttribute("aria-controls"))!);
     }
     expect(identities.size).toBe(4);
@@ -55,7 +61,7 @@ for (const width of [390, 1440]) {
     await expect(panel.locator(".drinkServing")).toHaveCount(4);
     await expect(panel.locator(".foodCalories")).toHaveCount(0);
     await expect(panel).not.toContainText(/0(?:\.0)?%/);
-    await panel.getByRole("button", { name: "Back to menus", exact: true }).click();
+    await panel.getByRole("button", { name: "← Menus", exact: true }).click();
     await expect(door).toBeFocused();
   });
 }
