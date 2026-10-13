@@ -1,11 +1,130 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
 import type * as maplibregl from "maplibre-gl";
 
 import {
+  installPaintedPinProbe,
   paintedLondonPlaceTapPoints,
   paintedMapTapPoints,
 } from "@/components/map/canvas/paintedPinProbe";
+
+describe("passive painted map loading observation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function install({
+    style = { sources: { z: {}, a: {}, unknown: {} } },
+    loaded = false,
+    styleLoaded = false,
+    tilesLoaded = true,
+  }: {
+    style?: { sources: Record<string, unknown> } | null;
+    loaded?: boolean;
+    styleLoaded?: boolean | undefined;
+    tilesLoaded?: boolean;
+  } = {}) {
+    const probeWindow: {
+      __pubmaxPaintedMapTapPoints?: (() => unknown[]) & { state?: () => {
+        at: number;
+        loaded: boolean;
+        styleLoaded: boolean | null;
+        tilesLoaded: boolean | null;
+        sourceLoaded: Record<string, boolean | null>;
+      } };
+      __pubmaxPaintedLondonPlaceTapPoints?: () => unknown[];
+    } = {};
+    vi.stubGlobal("window", probeWindow);
+    const forbiddenWork = vi.fn(() => { throw new Error("Observation must remain passive"); });
+    for (const name of ["fetch", "setTimeout", "setInterval", "requestAnimationFrame"]) {
+      vi.stubGlobal(name, forbiddenWork);
+    }
+    const reads = {
+      getStyle: vi.fn(() => style),
+      loaded: vi.fn(() => loaded),
+      isStyleLoaded: vi.fn((): boolean | undefined => styleLoaded),
+      areTilesLoaded: vi.fn(() => tilesLoaded),
+      isSourceLoaded: vi.fn((id: string) => new Map([["a", false], ["z", true]]).get(id)),
+    };
+    // Any feature query, mutation or listener operation fails through this map.
+    const map = new Proxy(reads, {
+      get: (target, name) => Reflect.get(target, name) ?? forbiddenWork,
+    }) as unknown as maplibregl.Map;
+    const cleanup = installPaintedPinProbe(map);
+    return { probeWindow, reads, cleanup, forbiddenWork };
+  }
+
+  it("installs lazily, reads independent loading facts and removes both probes", () => {
+    vi.spyOn(performance, "now").mockReturnValue(123);
+    const { probeWindow, reads, cleanup, forbiddenWork } = install();
+    try {
+      expect(typeof probeWindow.__pubmaxPaintedMapTapPoints).toBe("function");
+      expect(typeof probeWindow.__pubmaxPaintedLondonPlaceTapPoints).toBe("function");
+      for (const read of Object.values(reads)) expect(read).not.toHaveBeenCalled();
+      expect(probeWindow.__pubmaxPaintedMapTapPoints?.state?.()).toEqual({
+        at: 123,
+        loaded: false,
+        styleLoaded: false,
+        tilesLoaded: true,
+        sourceLoaded: { a: false, unknown: null, z: true },
+      });
+      expect(reads.isSourceLoaded.mock.calls).toEqual([["a"], ["unknown"], ["z"]]);
+      for (const read of [reads.getStyle, reads.loaded, reads.isStyleLoaded, reads.areTilesLoaded]) {
+        expect(read).toHaveBeenCalledTimes(1);
+      }
+      expect(forbiddenWork).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+    }
+    expect(probeWindow).toEqual({});
+    expect(forbiddenWork).not.toHaveBeenCalled();
+  });
+
+  it("keeps style, tiles and source facts independent of loaded", () => {
+    const { probeWindow, cleanup, forbiddenWork } = install({
+      loaded: true, styleLoaded: true, tilesLoaded: false,
+    });
+    try {
+      const state = probeWindow.__pubmaxPaintedMapTapPoints?.state?.();
+      expect(state).toMatchObject({
+        loaded: true, styleLoaded: true, tilesLoaded: false,
+        sourceLoaded: { a: false, unknown: null, z: true },
+      });
+      expect(Object.keys(state!.sourceLoaded)).toEqual(["a", "unknown", "z"]);
+      expect(forbiddenWork).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("reports unavailable style facts without asking unsafe loading methods", () => {
+    const { probeWindow, reads, cleanup, forbiddenWork } = install({ style: null });
+    try {
+      expect(probeWindow.__pubmaxPaintedMapTapPoints?.state?.()).toMatchObject({
+        loaded: false, styleLoaded: null, tilesLoaded: null, sourceLoaded: {},
+      });
+      for (const read of [reads.isStyleLoaded, reads.areTilesLoaded, reads.isSourceLoaded]) {
+        expect(read).not.toHaveBeenCalled();
+      }
+      expect(forbiddenWork).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("reports an unavailable style-loaded answer as null", () => {
+    const { probeWindow, reads, cleanup } = install();
+    reads.isStyleLoaded.mockReturnValue(undefined);
+    try {
+      expect(probeWindow.__pubmaxPaintedMapTapPoints?.state?.()).toMatchObject({
+        styleLoaded: null, tilesLoaded: true,
+      });
+    } finally {
+      cleanup();
+    }
+  });
+});
 
 // The probe exists so a browser test taps a mark that is really there. Each
 // gate below is one way a canvas can lie about that, so each is pinned apart.
