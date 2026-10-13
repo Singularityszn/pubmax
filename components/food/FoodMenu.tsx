@@ -98,9 +98,10 @@ function CategorySection({
 export type FoodMenuProps = {
   items: FoodItem[];
   venueName?: string;
+  onBack?: () => void;
 };
 
-export default function FoodMenu({ items, venueName }: FoodMenuProps) {
+export default function FoodMenu({ items, venueName, onBack }: FoodMenuProps) {
   const groups = groupFoodByCategory(items);
 
   if (groups.length === 0) {
@@ -109,6 +110,11 @@ export default function FoodMenu({ items, venueName }: FoodMenuProps) {
 
   return (
     <div className="drinkMenu" aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
+      {onBack ? (
+        <button type="button" className="drinkMenuBack" aria-label="Back to menus" onClick={onBack}>
+          ← Menus
+        </button>
+      ) : null}
       <h3 className="drinkCategoryTitle" style={{ marginBottom: 4 }}>
         Food
       </h3>

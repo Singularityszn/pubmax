@@ -14,6 +14,8 @@ export type MenuCategoryGridProps = {
   onOpenDrinks: (category?: DrinkCategory) => void;
   onAddDrink?: () => void;
   venueKind?: VenueKind;
+  foodCount?: number;
+  onOpenFood?: () => void;
 };
 
 export default function MenuCategoryGrid({
@@ -21,7 +23,10 @@ export default function MenuCategoryGrid({
   onOpenDrinks,
   onAddDrink,
   venueKind,
+  foodCount = 0,
+  onOpenFood,
 }: MenuCategoryGridProps) {
+  const hasFood = foodCount > 0 && Boolean(onOpenFood);
   const venueNoun = venueKindNoun(venueKind);
   const hasDrinkTiles = tiles.some((tile) => tile.kind !== "food-external");
   const unavailableDrinks = (
@@ -37,7 +42,7 @@ export default function MenuCategoryGrid({
     </div>
   );
 
-  if (tiles.length === 0) {
+  if (tiles.length === 0 && !hasFood) {
     return unavailableDrinks;
   }
 
@@ -48,17 +53,25 @@ export default function MenuCategoryGrid({
         <header className="menuHub__head">
           <h3 className="menuHub__title">Menus</h3>
           <p className="menuHub__lede">
-            {hasDrinkTiles ? (
-              <>
-                Drinks first. Tap a tile. Food opens the {venueNoun}&apos;s own menu
-                when we have a link.
-              </>
-            ) : (
-              <>Food opens the {venueNoun}&rsquo;s own menu.</>
-            )}
+            {hasFood ? hasDrinkTiles ? "Choose food or drinks to see the prices we have." : "Open Food to see the dish prices we have." :
+              hasDrinkTiles ? "Choose a drink to see the prices we have." :
+                "Open the menu or website for what’s on offer."}
           </p>
         </header>
-        <ul className="menuHub__grid">
+        <ul className={`menuHub__grid${hasFood ? " menuHub__grid--with-food" : ""}${hasFood && !hasDrinkTiles ? " menuHub__grid--food-only" : ""}`}>
+          {hasFood ? (
+            <li className="menuHub__item menuHub__item--recorded-food">
+              <button type="button" className="menuHub__tile" data-menu-door="food" onClick={onOpenFood}>
+                <span className="menuHub__media menuHub__media--food" aria-hidden="true">
+                  <UtensilsCrossed size={30} />
+                </span>
+                <span className="menuHub__meta">
+                  <span className="menuHub__label">Food</span>
+                  <span className="menuHub__hint">{foodCount} {foodCount === 1 ? "dish" : "dishes"} on record</span>
+                </span>
+              </button>
+            </li>
+          ) : null}
           {tiles.map((tile) => {
             if (tile.kind === "food-external" && !tile.href) {
               return null;
@@ -110,6 +123,7 @@ export default function MenuCategoryGrid({
                 <button
                   type="button"
                   className="menuHub__tile"
+                  data-menu-door={category ?? "all"}
                   onClick={() => onOpenDrinks(category)}
                   style={
                     category
