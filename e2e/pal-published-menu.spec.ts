@@ -13,7 +13,7 @@ const cases = [
 
 for (const width of [390, 1440]) {
   for (const scenario of cases) {
-    test(`${width}px: Pal shows accepted ${scenario.item} evidence`, async ({ page }) => {
+    test(`${width}px: Pal shows accepted ${scenario.item} evidence for ${scenario.question}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.addInitScript(() => {
         localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");

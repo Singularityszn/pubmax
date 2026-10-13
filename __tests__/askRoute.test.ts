@@ -190,7 +190,7 @@ describe("POST /api/ask", () => {
     const journeyRequest = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
     expect(journeyRequest).toBeDefined();
     const payload = JSON.parse(journeyRequest?.[1]?.body as string);
-    expect(payload.params.arguments).toMatchObject({ from: "London Bridge", to });
+    expect(payload.params.arguments).toMatchObject({ from: "51.50500,-0.08600", to });
   });
 
   it("resolves complete compound names on both journey axes", async () => {
