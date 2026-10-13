@@ -22,6 +22,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 
@@ -943,7 +944,7 @@ export function AuthProvider({
       ownsAccount() ? handleClaimRouteAfterSignIn(result.session, returnUrl, browserLocalStorage(), undefined, ownsAccount) : null,
     ).then((destination) => {
       if (ownsAccount()) {
-        router.push(safeAuthNext(destination ?? returnUrl, window.location.origin));
+        router.push(safeAuthNext(destination ?? returnUrl, window.location.origin) as Route);
       }
     }).catch(() => {});
   }, [router, updateSession]);
