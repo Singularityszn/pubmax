@@ -4,7 +4,8 @@
   .IS_REACT_ACT_ENVIRONMENT = true;
 
 import { act, createElement, StrictMode } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -125,6 +126,36 @@ async function sortIt(query: string): Promise<void> {
 }
 
 describe("the lightweight Plan entry", () => {
+  it("keeps the reader's focused field through hydration and takes the first query", async () => {
+    host = document.createElement("div");
+    host.innerHTML = renderToString(createElement(PlanEntry));
+    document.body.append(host);
+    const serverField = host.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    const recoverableErrors: unknown[] = [];
+    expect(serverField.readOnly).toBe(true);
+    serverField.focus();
+    expect(document.activeElement).toBe(serverField);
+
+    await act(async () => {
+      root = hydrateRoot(host!, createElement(PlanEntry), {
+        onRecoverableError: (error) => recoverableErrors.push(error),
+      });
+    });
+
+    const editableField = host.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    expect(editableField).toBe(serverField);
+    expect(editableField.readOnly).toBe(false);
+    expect(document.activeElement).toBe(editableField);
+    expect(recoverableErrors).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await sortIt("Quiet in Clapham for 4");
+
+    const generated = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+    expect(generated).toHaveLength(1);
+    expect(JSON.parse(generated[0]![1]!.body as string).query).toBe("Quiet in Clapham for 4");
+  });
+
   it("protects an incoming router ask while the browser address still names Tonight", async () => {
     window.history.replaceState({}, "", "/tonight");
     routeQuery.current = "occasion=coffee&src=tonight-vibes";

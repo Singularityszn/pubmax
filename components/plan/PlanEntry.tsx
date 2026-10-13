@@ -76,6 +76,6 @@ export default function PlanEntry() {
   const routeSearch = useSearchParams().toString();
   const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
   const arrival = useMemo(() => hydrated ? capturePlanEntryArrival() : null, [hydrated]);
-  // The server field is protected until this new, recovered form owns input.
-  return <PlanEntryForm key={hydrated ? "hydrated" : "server"} arrival={arrival} routeSearch={routeSearch} />;
+  // Keep the field protected until arrival capture resolves which form owns input.
+  return <PlanEntryForm arrival={arrival} routeSearch={routeSearch} />;
 }
