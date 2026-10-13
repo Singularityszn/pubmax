@@ -10,6 +10,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 
 import VenueMenuTab from "@/components/map/inspector/VenueMenuTab";
+import { GET as getVenue } from "@/app/api/venue/[id]/route";
+import { stableVenueIdFromKey, venueFromDetailPayload } from "@/lib/venues";
 import { useInspectorTabs } from "@/components/map/inspector/useInspectorTabs";
 import { BASE_TABS } from "@/lib/venueInspectorTabs";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
@@ -149,6 +151,25 @@ function packReads(): string[] {
 }
 
 describe("VenueMenuTab draws its venue's own price updates", () => {
+  it("keeps Sherlock Holmes published wine available through the venue API and rendered Menu", async () => {
+    const id = stableVenueIdFromKey("sherlock holmes|10 northumberland street, wc2n 5db|51.50730|-0.12534");
+    const response = await getVenue(new Request(`http://localhost/api/venue/${id}`), { params: Promise.resolve({ id }) });
+    expect(response.status).toBe(200);
+    const detail = await response.json();
+    const element = await render({ venue: venueFromDetailPayload(detail.venue), tab: "menu" });
+    await openDrinks(element);
+    const rows = Array.from(element.querySelectorAll(".drinkRow")).filter((row) =>
+      row.querySelector(".drinkName")?.textContent === "Organic Pinot Grigio, Riff, Italy",
+    );
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+    expect(row.querySelector(".drinkPrice")?.textContent).toBe("£7.20");
+    expect(row.querySelector(".drinkServing")).toBeNull();
+    expect(row.querySelector("a.drinkProvChip")?.getAttribute("href")).toBe("https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu");
+    expect(row.querySelector("time")?.getAttribute("datetime")).toBe("2026-09-21T18:41:07.759Z");
+    expect(packReads()).toEqual([]);
+  });
+
   it.each(["food", "all", "beer"])("keeps arrow-key tab focus after revisiting a %s drill-in", async (door) => {
     const pub = venue({
       drink: [SOURCED, { ...SOURCED, drinkName: "House red", category: "wine" }],
