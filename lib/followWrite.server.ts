@@ -14,7 +14,7 @@ import "server-only";
 //
 // Authorisation belongs to each caller. Direct and starter-pack follow routes
 // use `resolveMessageHandle` + `gateHandleAction`. The plan-join route verifies
-// the account, then `crewFriendEdges.ts` checks claimed profiles and blocks.
+// the account, then `crewFriendEdges.ts` applies the pair eligibility checks.
 
 import { followStore, isSelfFollow, type FollowStore } from "@/lib/followStore";
 import { emitNotification } from "@/lib/notificationsStore";

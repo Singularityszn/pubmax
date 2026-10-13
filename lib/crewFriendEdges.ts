@@ -104,8 +104,9 @@ async function pairRelationship(
 }
 
 /**
- * Create the mutual follow pair between two claimed handles when neither
- * blocks the other. Never creates edges for unclaimed or tombstoned profiles.
+ * Create a mutual follow pair only for claimed, non-tombstoned profiles.
+ * Both profiles must pass the withdrawal check before either direction writes.
+ * A blocked or unavailable relationship refuses both writes.
  */
 export async function ensureMutualFollowPair(
   firstHandle: string,
