@@ -38,8 +38,11 @@ for (const width of [320, 390, 430, 1440]) {
     await expect(panel.locator(".foodCalories")).toHaveCount(42);
     const firstCalories = panel.locator(".foodCalories").first();
     await expect(firstCalories).toContainText(/\d+ kcal on the menu/);
-    await expect(firstCalories.locator("a")).toHaveAttribute("href", "https://www.theeaglew12.co.uk/food-drink");
-    await expect(firstCalories.locator("time")).toContainText("13 October 2026");
+    const firstRow = panel.locator(".drinkRow").first();
+    await expect(firstRow.locator("a")).toHaveCount(1);
+    await expect(firstRow.locator("a")).toHaveAttribute("href", "https://www.theeaglew12.co.uk/food-drink");
+    await expect(firstRow.locator("time")).toContainText("13 October 2026");
+    await expect(firstRow.locator(".drinkRowSide")).toContainText("Price and calories");
     await back.click();
     await expect(food).toBeFocused();
     await expect(panel.locator(".drinkRow")).toHaveCount(0);

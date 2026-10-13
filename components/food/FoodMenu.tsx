@@ -45,6 +45,12 @@ function FoodRow({ item }: { item: FoodItem }) {
     Number.isFinite(item.caloriesKcal) && item.caloriesKcal >= 0 &&
     calorieProv && !isDemoProvenance(calorieProv) &&
     calorieDate && Number.isFinite(calorieDate.getTime());
+  const calorieSource = firstHttp(calorieProv?.sourceUrl);
+  const sharedObservation = hasCalories && calorieProv && calorieSource &&
+    calorieSource === firstHttp(item.source) &&
+    calorieProv.source === item.provenance.source &&
+    calorieProv.licence === item.provenance.licence &&
+    calorieProv.observedAt === item.provenance.observedAt;
   const dietary =
     item.dietary && item.dietary.length > 0
       ? item.dietary.map((d) => d.replace("-", " ")).join(" · ")
@@ -58,11 +64,13 @@ function FoodRow({ item }: { item: FoodItem }) {
         {hasCalories && calorieProv && calorieDate ? (
           <div className="foodCalories drinkMeta">
             <span>{item.caloriesKcal} kcal on the menu</span>{" "}
-            <ProvChip prov={calorieProv} source={calorieProv.sourceUrl} />
-            <span className="drinkObservationAge">
-              {SNAPSHOT_CAPTION_PREFIX}{" "}
-              <time dateTime={calorieProv.observedAt}>{formatObservedDate(calorieDate)}</time>
-            </span>
+            {!sharedObservation ? <>
+              <ProvChip prov={calorieProv} source={calorieProv.sourceUrl} />
+              <span className="drinkObservationAge">
+                {SNAPSHOT_CAPTION_PREFIX}{" "}
+                <time dateTime={calorieProv.observedAt}>{formatObservedDate(calorieDate)}</time>
+              </span>
+            </> : null}
           </div>
         ) : null}
       </div>
@@ -70,6 +78,7 @@ function FoodRow({ item }: { item: FoodItem }) {
         <PriceBadge variant="neutral" className="drinkPrice">
           {formatPrice(item.priceGbp)}
         </PriceBadge>
+        {sharedObservation ? <span className="drinkMeta">Price and calories</span> : null}
         <ProvChip prov={item.provenance} source={item.source} />
         {hasDate ? (
           <span className="drinkObservationAge">
