@@ -48,14 +48,16 @@
 // Run:  node scripts/refresh_drink_prices.mjs [--open-pr]
 //   --open-pr   also open a GitHub PR with the new file (needs `gh` auth).
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { CONTACT_EMAIL } from "../lib/siteContact.mjs";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const MODULE_PATH = fileURLToPath(import.meta.url);
+const __dirname = dirname(MODULE_PATH);
 const ROOT = join(__dirname, "..");
 const ALLOWLIST_PATH = join(ROOT, "data", "price_sources.json");
 const OUT_DIR = join(ROOT, "public", "data", "drink_price_updates");
@@ -518,6 +520,155 @@ function todayStamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
 }
 
+function reviewedFactMatches(row, input, venue, source, validator, now) {
+  const allowedKeys = new Set(["venueKey", "drinkName", "category", "priceGbp", "source", "observedAt", "lane", "servingSize", "itemId"]);
+  return typeof row === "object" && row !== null &&
+    Object.keys(row).every((key) => allowedKeys.has(key)) &&
+    row.venueKey === input.venueKey && row.source?.url === input.sourceUrl &&
+    Object.keys(row.source).every((key) => ["label", "url", "licence"].includes(key)) &&
+    row.observedAt === input.observedAt && row.lane === "publisher" &&
+    /^\d+(?:\.\d{1,2})?$/.test(String(row.priceGbp)) &&
+    row.source?.label === `${venue.pub_name} official drinks menu` &&
+    row.source?.licence === source.licence && validator(row, now);
+}
+
+function readBoundedReviewFile(path, limit) {
+  if (statSync(path).size > limit) throw new Error("Reviewed file exceeds its size limit");
+  const bytes = readFileSync(path);
+  if (bytes.byteLength > limit) throw new Error("Reviewed file exceeds its size limit");
+  return bytes;
+}
+
+function reviewedPublisherForInput(input, policy, venues) {
+  const source = loadAllowlist().find((row) => row.id === input.sourceId);
+  if (!source) throw new Error("Reviewed source is not in the permissible refresh allowlist");
+  const curated = JSON.parse(readFileSync(join(ROOT, "public/data/pint_prices_app_dataset.json"), "utf8"));
+  const matches = curated.filter((row) => venues.venueGroupingKey(row) === input.venueKey);
+  if (matches.length === 0 || venues.stableVenueIdFromKey(input.venueKey) !== input.venueId) {
+    throw new Error("Reviewed venue identity does not match the curated dataset");
+  }
+  const venue = matches[0];
+  const hostOf = (url) => policy.normalizeHarvestHostname(new URL(url).hostname)?.replace(/^www\./, "");
+  if (!venue.website || hostOf(venue.website) !== hostOf(input.sourceUrl) ||
+      hostOf(input.sourcePageUrl) !== hostOf(venue.website)) {
+    throw new Error("Reviewed source does not belong to the curated venue");
+  }
+  const youngsPubs = JSON.parse(readFileSync(join(ROOT, "data/london_chains/youngs/garden_pubs_raw.json"), "utf8"));
+  if (!youngsPubs.some((pub) => hostOf(pub.url) === hostOf(venue.website))) {
+    throw new Error("The curated microsite is not bound to the recorded Young's publisher");
+  }
+  for (const url of [input.sourcePageUrl, input.sourceUrl]) {
+    if (!policy.isHarvestableOperatorUrl(url) ||
+        !policy.isHarvestableChainMenuUrl(url, "youngs-menu-prices", [hostOf(venue.website)])) {
+      throw new Error("Reviewed source is refused by sourcePolicy");
+    }
+  }
+  return { source, venue };
+}
+
+// Explicit reviewed-input publication is separate from the retrieval-only run.
+// The input checksum pins the facts reviewed by the operator, and the cached
+// PDF checksum pins the document. No menu or discovery request is made here.
+export async function importReviewedDrinkPrices(inputPath, {
+  expectedSha256,
+  sourcePdfPath,
+  scratchDir = null,
+  fetchImpl = fetch,
+} = {}) {
+  if (!/^[0-9a-f]{64}$/.test(expectedSha256 ?? "")) throw new Error("A reviewed input SHA-256 is required");
+  if (!sourcePdfPath) throw new Error("The reviewed source PDF is required");
+  const inputBytes = readBoundedReviewFile(inputPath, 100_000);
+  const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  if (sha(inputBytes) !== expectedSha256) throw new Error("Reviewed input checksum mismatch");
+  const input = JSON.parse(inputBytes.toString("utf8"));
+  if (input.version !== 1 || input.sourceId !== "youngs-official") throw new Error("Unsupported reviewed source");
+  if (!Array.isArray(input.updates) || input.updates.length < 1 || input.updates.length > 22) {
+    throw new Error("Reviewed imports require 1 to 22 menu facts");
+  }
+  const pdfBytes = readBoundedReviewFile(sourcePdfPath, 12 * 1024 * 1024);
+  if (pdfBytes.subarray(0, 5).toString() !== "%PDF-") {
+    throw new Error("The cached source is not a bounded PDF");
+  }
+  if (sha(pdfBytes) !== input.sourcePdfSha256) throw new Error("Source PDF checksum mismatch");
+
+  const { tsImport } = await import("tsx/esm/api");
+  const [drinks, policy, robots, venues] = await Promise.all([
+    tsImport("../lib/drinkPriceUpdates.ts", import.meta.url),
+    tsImport("../lib/harvest/sourcePolicy.ts", import.meta.url),
+    tsImport("../lib/harvest/robots.ts", import.meta.url),
+    tsImport("../lib/venues.ts", import.meta.url),
+  ]);
+  const { source, venue } = reviewedPublisherForInput(input, policy, venues);
+
+  const now = Date.now();
+  const incoming = input.updates.map((row) => {
+    if (!reviewedFactMatches(row, input, venue, source, drinks.isValidDrinkPriceUpdate, now)) {
+      throw new Error("Reviewed fact has a source, venue, date or row-shape mismatch");
+    }
+    return { ...row, itemId: drinks.reviewedDrinkItemId(row) };
+  });
+  if (drinks.parseDrinkPriceUpdates(incoming, now).length !== incoming.length) {
+    throw new Error("Reviewed facts contain duplicate or ambiguous item identities");
+  }
+  const existingBody = JSON.parse(readFileSync(join(OUT_DIR, "latest.json"), "utf8"));
+  const existing = Array.isArray(existingBody) ? existingBody : existingBody.updates;
+  if (!Array.isArray(existing) || existing.some((row) => !drinks.isValidDrinkPriceUpdate(row, now)) ||
+      drinks.parseDrinkPriceUpdates(existing, now).length !== existing.length) {
+    throw new Error("Existing snapshot is malformed or has ambiguous identities");
+  }
+  const keyOf = (row) => JSON.stringify([row.venueKey, row.drinkName.toLowerCase(), row.category,
+    row.servingSize?.trim().toLowerCase() ?? ""]);
+  const held = new Map(existing.map((row) => [keyOf(row), row]));
+  const added = [];
+  for (const row of incoming) {
+    const previous = held.get(keyOf(row));
+    if (previous && JSON.stringify(previous) !== JSON.stringify(row)) {
+      throw new Error("A bounded reviewed import may not replace an existing observation");
+    }
+    if (!previous) added.push(row);
+  }
+  const updates = [...existing, ...added];
+  if (drinks.parseDrinkPriceUpdates(updates, now).length !== updates.length) {
+    throw new Error("Reviewed import conflicts with an existing item ID");
+  }
+  const checker = robots.createRobotsChecker({ fetchImpl });
+  const permissions = [];
+  for (const url of [input.sourcePageUrl, input.sourceUrl]) {
+    const permission = await checker(url);
+    if (!permission.allowed) throw new Error(`Reviewed source robots refusal: ${permission.reason}`);
+    permissions.push({ url, ...permission });
+  }
+  if (added.length === 0) return { written: false, addedRows: 0, totalRows: existing.length, permissions };
+
+  const generatedAt = updates.reduce((latest, row) =>
+    Date.parse(row.observedAt) > Date.parse(latest) ? row.observedAt : latest, updates[0].observedAt);
+  const stamp = generatedAt.slice(0, 10).replaceAll("-", "");
+  const body = {
+    ...(Array.isArray(existingBody) ? { version: 1 } : existingBody),
+    generatedAt,
+    updates,
+    reviewedImports: [...(existingBody.reviewedImports ?? []), {
+      sourceId: input.sourceId,
+      venueId: input.venueId,
+      sourceUrl: input.sourceUrl,
+      observedAt: input.observedAt,
+      inputSha256: expectedSha256,
+      sourcePdfSha256: input.sourcePdfSha256,
+      itemCount: incoming.length,
+    }],
+  };
+  const outDir = scratchDir ?? OUT_DIR;
+  mkdirSync(outDir, { recursive: true });
+  const paths = [join(outDir, `prices_${stamp}.json`), join(outDir, "latest.json")];
+  for (const path of paths) {
+    const temp = `${path}.${process.pid}.tmp`;
+    writeFileSync(temp, `${JSON.stringify(body, null, 2)}\n`, "utf8");
+    renameSync(temp, path);
+  }
+  return { written: true, addedRows: added.length, totalRows: updates.length, generatedAt,
+    inputSha256: expectedSha256, sourcePdfSha256: input.sourcePdfSha256, paths, permissions };
+}
+
 function parseArg(name, fallback) {
   const idx = process.argv.indexOf(name);
   if (idx === -1 || idx + 1 >= process.argv.length) return fallback;
@@ -531,6 +682,17 @@ async function main() {
   // --scratch <dir>: write output + response cache to a scratch dir instead of
   // the shipped public/ path (used by the evidence dry run; never commit it).
   const scratchDir = parseArg("--scratch", null);
+  const reviewedInput = parseArg("--reviewed-input", null);
+  if (reviewedInput) {
+    if (openPr) throw new Error("Reviewed imports are committed through their existing review branch");
+    const result = await importReviewedDrinkPrices(reviewedInput, {
+      expectedSha256: parseArg("--reviewed-sha256", null),
+      sourcePdfPath: parseArg("--source-pdf", null),
+      scratchDir,
+    });
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
   const now = Date.now();
   const sources = loadAllowlist();
   console.log(`Permissible drink sources: ${sources.length} (limit=${limit})`);
@@ -619,7 +781,9 @@ async function main() {
   console.log("Opened review PR.");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === MODULE_PATH) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

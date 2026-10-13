@@ -9,7 +9,7 @@ fresher community observation always beats an update here (see
 
 ## File naming
 
-`prices_YYYYMMDD.json` — one file per refresh run, written by
+`prices_YYYYMMDD.json` - one file per publication, written by
 `scripts/refresh_drink_prices.mjs`. `latest.json` is a stable alias always
 pointing at the newest file (the client can fetch it directly and tolerate a
 404 if nothing has ever been generated).
@@ -19,7 +19,7 @@ pointing at the newest file (the client can fetch it directly and tolerate a
 ```jsonc
 {
   "version": 1,
-  "generatedAt": "2026-07-07T00:00:00.000Z", // when this file was written (ISO-8601)
+  "generatedAt": "2026-07-07T00:00:00.000Z", // newest observation stamp for a reviewed import (ISO-8601)
   "updates": [
     {
       "venueKey": "the churchill arms|119 kensington church st|51.50700|-0.19400",
@@ -41,6 +41,39 @@ pointing at the newest file (the client can fetch it directly and tolerate a
 ```
 
 A bare top-level array (`[ {…update…}, … ]`) is also accepted by the loader.
+
+## Reviewed one-off imports
+
+The automatic workflow retrieves Wetherspoons pages. It does not promise a
+snapshot refresh. A bounded reviewed import can publish facts from an already
+permitted Young's microsite through the same writer:
+
+```sh
+node scripts/refresh_drink_prices.mjs \
+  --reviewed-input data/enrichment/firecrawl/london/eagle-drinks-reviewed-20261013.json \
+  --reviewed-sha256 <reviewed-receipt-sha256> \
+  --source-pdf <preserved-source-pdf> \
+  --scratch <review-output-directory>
+```
+
+The receipt checksum pins the reviewed facts. The PDF checksum pins their
+captured source. The writer checks the curated venue, recorded publisher,
+source-policy fence and live robots permission before writing. It rejects
+duplicate identities and mismatched sources or venues. It preserves earlier
+rows and their observation dates. Remove `--scratch` only after reviewing the
+output. This path creates no schedule and changes no source permission.
+
+Every new row receives a deterministic `itemId` from its venue, item, category
+and stated serving. That ID uses a separate namespace from legacy rating
+references. A supplied ID must match those fields exactly. Legacy rows without
+`itemId` retain their existing IDs. An unknown serving cannot replace a glass,
+bottle or pint price. Duplicate explicit IDs are rejected.
+
+A publisher's explicit `alcohol-free` category can supply `low-no` when numeric
+ABV is absent. It never supplies a numeric `0%`, and stated numeric ABV keeps
+precedence. The Eagle receipt contains 22 GBP price atoms, including both
+125ml/750ml wine pairs and twelve AF-labelled price atoms. Unconfirmed-currency
+wine figures and drink calorie observations remain outside this price import.
 
 ## Governance (hard rules)
 
