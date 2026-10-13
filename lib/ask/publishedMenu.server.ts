@@ -47,7 +47,10 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   const cards: AskCard[] = [];
   const add = (evidence: AskMenuEvidence, price: number) => {
     if (!matches(evidence.itemName)) return;
-    if (serving && (!evidence.serving || servingIdentity(evidence.serving) !== serving)) return;
+    if (serving) {
+      const recorded = evidence.menu === "food" ? evidence.itemName.match(SERVING_RE)?.join(" ") : evidence.serving;
+      if (!recorded || servingIdentity(recorded) !== serving) return;
+    }
     if (dietary.length && (!evidence.dietaryProvenance || !dietary.every((label) => evidence.dietary.some((recorded) => recorded === label)))) return;
     const calories = evidence.caloriesKcal === null ? "Published calories not recorded." : `${evidence.caloriesKcal} kcal published for this item.`;
     const tags = evidence.dietary.length ? `Publisher labels: ${evidence.dietary.join(", ")}.` : "Dietary labels not recorded.";
