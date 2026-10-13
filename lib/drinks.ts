@@ -164,10 +164,12 @@ export function abvForBrand(brand: { abv?: number }): number | undefined {
 export function alcoholTypeForDrink(input: {
   name: string;
   abv?: number;
+  category?: DrinkCategory;
 }): AlcoholType {
   if (typeof input.abv === "number" && Number.isFinite(input.abv)) {
     return input.abv <= 0.5 ? "low-no" : "alcoholic";
   }
+  if (input.category === "alcohol-free") return "low-no";
   return isNonAlcoholicDrink(input.name) ? "low-no" : "unknown";
 }
 

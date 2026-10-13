@@ -47,6 +47,8 @@ export type DrinkPriceUpdate = {
   style?: string;
   region?: string;
   servingSize?: string;
+  /** Reviewed menu-row identity. Legacy rows retain their existing rating IDs. */
+  itemId?: string;
   source: { label: string; url: string; licence: string };
   observedAt: string; // ISO-8601
   /** Semantic display lane, resolved once when raw overlay data is parsed. */
@@ -80,6 +82,7 @@ export type DrinkMenuRow = {
   // row, if any. Mirrors Venue.latestContributorAt in lib/venues.ts. null when
   // no community observation exists yet.
   latestContributorAt: string | null;
+  servingSize?: string;
 };
 
 function isValidOptionalString(value: unknown): boolean {
@@ -106,6 +109,21 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
   if (!isValidOptionalString(row.style)) return false;
   if (!isValidOptionalString(row.region)) return false;
   if (!isValidOptionalString(row.servingSize)) return false;
+  if (row.itemId !== undefined) {
+    const identityText = [
+      [row.venueKey as string, 300],
+      [row.drinkName as string, 160],
+      ...((row.servingSize as string | undefined) === undefined ? [] : [[row.servingSize as string, 80]]),
+    ] as Array<[string, number]>;
+    if (identityText.some(([text, limit]) => text.trim() !== text || text.length > limit || /\p{Cc}/u.test(text))) return false;
+    if (typeof row.itemId !== "string" || !/^drink-item-[0-9a-f]{16}$/.test(row.itemId)) return false;
+    if (row.itemId !== reviewedDrinkItemId({
+      venueKey: row.venueKey as string,
+      drinkName: row.drinkName as string,
+      category: row.category as string,
+      servingSize: row.servingSize as string | undefined,
+    })) return false;
+  }
   const source = row.source;
   if (typeof source !== "object" || source === null) return false;
   const src = source as Record<string, unknown>;
@@ -121,11 +139,29 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
   return true;
 }
 
-// The key a drink-price update targets: one venue + one named drink + its
-// category. Two rows for the same venue but different drinks are independent;
-// two rows for the same venue + drink + category collapse to the newest.
-function rowKey(venueKey: string, drinkName: string, category: string): string {
-  return `${venueKey}\u0000${drinkName.toLowerCase()}\u0000${category.toLowerCase()}`;
+// A stated serving is part of the price identity. An unknown serving never
+// overwrites a stated glass, bottle or pint.
+function rowKey(venueKey: string, drinkName: string, category: string, servingSize?: string): string {
+  return JSON.stringify([venueKey, drinkName.toLowerCase(), category.toLowerCase(), servingSize?.trim().toLowerCase() ?? ""]);
+}
+
+/** Separate namespace prevents reviewed servings from choosing a legacy rating ref. */
+export function reviewedDrinkItemId(row: {
+  venueKey: string;
+  drinkName: string;
+  category: string;
+  servingSize?: string;
+}): string {
+  const input = rowKey(row.venueKey, row.drinkName, row.category, row.servingSize);
+  const hash = (text: string) => {
+    let value = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+      value ^= text.charCodeAt(i);
+      value = Math.imul(value, 16777619);
+    }
+    return (value >>> 0).toString(16).padStart(8, "0");
+  };
+  return `drink-item-${hash(input)}${hash(`serving\u0000${input}`)}`;
 }
 
 function updateProvenance(update: DrinkPriceUpdate): DrinkProvenance {
@@ -139,6 +175,10 @@ function updateProvenance(update: DrinkPriceUpdate): DrinkProvenance {
 }
 
 function stableDrinkId(update: DrinkPriceUpdate): string {
+  if (update.itemId !== undefined) {
+    if (update.itemId !== reviewedDrinkItemId(update)) throw new Error("Invalid reviewed drink item ID");
+    return update.itemId;
+  }
   const input = `${update.venueKey}\u0000${update.category}\u0000${update.drinkName}`;
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
@@ -165,7 +205,7 @@ export function drinkFromPriceUpdate(update: DrinkPriceUpdate): Drink {
     name: update.drinkName,
     producer: update.producer,
     abv: update.abv,
-    alcoholType: alcoholTypeForDrink({ name: update.drinkName, abv: update.abv }),
+    alcoholType: alcoholTypeForDrink({ name: update.drinkName, abv: update.abv, category: update.category }),
     style: update.style,
     region: update.region,
     servingSize: update.servingSize,
@@ -178,18 +218,20 @@ export function applyDrinkPriceUpdatesToMenu(
   venueKey: string,
   existingDrinks: Drink[],
   updates: DrinkPriceUpdate[],
+  venueKeys: readonly string[] = [venueKey],
 ): Drink[] {
+  const keySet = new Set([venueKey, ...venueKeys]);
   const scoped = visibleDrinkPriceUpdates(updates).filter(
-    (update) => update.venueKey === venueKey,
+    (update) => keySet.has(update.venueKey),
   );
   if (scoped.length === 0) return existingDrinks;
   const byKey = new Map(
-    scoped.map((update) => [rowKey(update.venueKey, update.drinkName, update.category), update] as const),
+    scoped.map((update) => [rowKey(venueKey, update.drinkName, update.category, update.servingSize), update] as const),
   );
   const used = new Set<string>();
 
   const merged = existingDrinks.map((drink) => {
-    const key = rowKey(venueKey, drink.name, drink.category);
+    const key = rowKey(venueKey, drink.name, drink.category, drink.servingSize);
     const update = byKey.get(key);
     if (!update) return drink;
     used.add(key);
@@ -202,6 +244,7 @@ export function applyDrinkPriceUpdatesToMenu(
       alcoholType: alcoholTypeForDrink({
         name: update.drinkName,
         abv: update.abv ?? drink.abv,
+        category: update.category,
       }),
       style: update.style ?? drink.style,
       region: update.region ?? drink.region,
@@ -210,7 +253,7 @@ export function applyDrinkPriceUpdatesToMenu(
   });
 
   for (const update of scoped) {
-    const key = rowKey(update.venueKey, update.drinkName, update.category);
+    const key = rowKey(venueKey, update.drinkName, update.category, update.servingSize);
     if (!used.has(key)) merged.push(drinkFromPriceUpdate(update));
   }
   return merged;
@@ -218,9 +261,10 @@ export function applyDrinkPriceUpdatesToMenu(
 
 // Parse a raw drink_price_updates file body → clean DrinkPriceUpdate[]. Accepts
 // either a bare array or a `{ updates: [...] }` envelope. Malformed rows are
-// dropped. When more than one update targets the same venue+drink+category, the
+// dropped. When more than one legacy update targets the same named serving, the
 // newest observedAt wins (so an append-only file naturally supersedes older
-// observations).
+// observations). Explicit item IDs must be unique, and distinct servings may
+// not share a legacy rating reference.
 export function parseDrinkPriceUpdates(raw: unknown, now: number = Date.now()): DrinkPriceUpdate[] {
   const rows = Array.isArray(raw)
     ? raw
@@ -228,6 +272,9 @@ export function parseDrinkPriceUpdates(raw: unknown, now: number = Date.now()): 
       ? (raw as { updates: unknown[] }).updates
       : [];
   const newestByKey = new Map<string, DrinkPriceUpdate>();
+  const suppliedIds = new Set<string>();
+  const rejectedIds = new Set<string>();
+  const identityKeysById = new Map<string, string>();
   for (const candidate of rows) {
     if (!isValidDrinkPriceUpdate(candidate, now)) continue;
     const rawRow = candidate as Omit<DrinkPriceUpdate, "lane"> & {
@@ -239,13 +286,21 @@ export function parseDrinkPriceUpdates(raw: unknown, now: number = Date.now()): 
         rawRow.lane ??
         (isDemoDrinkSource(rawRow.source.label) ? "demo" : "publisher"),
     };
-    const key = rowKey(row.venueKey, row.drinkName, row.category);
+    const key = rowKey(row.venueKey, row.drinkName, row.category, row.servingSize);
+    const id = stableDrinkId(row);
+    if (row.itemId !== undefined) {
+      if (suppliedIds.has(row.itemId)) rejectedIds.add(row.itemId);
+      suppliedIds.add(row.itemId);
+    }
+    const heldKey = identityKeysById.get(id);
+    if (heldKey !== undefined && heldKey !== key) rejectedIds.add(id);
+    identityKeysById.set(id, key);
     const existing = newestByKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {
       newestByKey.set(key, row);
     }
   }
-  return Array.from(newestByKey.values());
+  return Array.from(newestByKey.values()).filter((row) => !rejectedIds.has(stableDrinkId(row)));
 }
 
 // The extra fields mergeDrinkPriceUpdates folds onto a drink-menu row. Kept as
@@ -279,11 +334,11 @@ export function mergeDrinkPriceUpdates<T extends DrinkMenuRow>(
 ): PricedDrinkMenuRow<T>[] {
   const byKey = new Map(
     visibleDrinkPriceUpdates(updates).map(
-      (u) => [rowKey(u.venueKey, u.drinkName, u.category), u] as const,
+      (u) => [rowKey(u.venueKey, u.drinkName, u.category, u.servingSize), u] as const,
     ),
   );
   return existingDrinks.map((row) => {
-    const update = byKey.get(rowKey(keyFor(row), row.drinkName, row.category));
+    const update = byKey.get(rowKey(keyFor(row), row.drinkName, row.category, row.servingSize));
     if (!update) {
       return { ...row, sourcedPrice: null };
     }
