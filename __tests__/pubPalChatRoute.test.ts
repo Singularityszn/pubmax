@@ -1,3 +1,4 @@
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({
@@ -39,6 +40,20 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each(QUALIFIED_PRICE_REQUESTS)("refuses qualified item comparisons through chat: $query", async ({ query, wording }) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    const body = await response.json();
+    expect(body.answer).toMatch(wording);
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
   it.each([
     "somewhere cheap and quiet",
     "Somewhere cheap in Soho",
@@ -61,8 +76,8 @@ describe("POST /api/pub-pal/chat", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     const expectedTool = {
-      bender: "propose_plan", lit: "whats_on", quiet: "venue_prices", cheeky: "venue_prices",
-      match: "whats_on", quiz: "whats_on", date: "venue_heritage",
+      bender: "propose_plan", lit: "whats_on", quiet: "search_venues", cheeky: "search_venues",
+      match: "whats_on", quiz: "whats_on", date: "search_venues",
     }[chip.id];
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -71,6 +86,21 @@ describe("POST /api/pub-pal/chat", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.toolsUsed).toEqual([expectedTool]);
+    if (["lit", "match", "quiz"].includes(chip.id)) {
+      const occasion = { lit: /live-music nights? tonight/i, match: /live-sport screenings? tonight/i, quiz: /quiz nights? tonight/i }[chip.id as "lit" | "match" | "quiz"];
+      expect(body.answer).toMatch(occasion);
+      expect(body.cards.every((card: { provenance?: { kind: string } }) => card.provenance?.kind === "whats-on")).toBe(true);
+    }
+
+    if (["quiet", "cheeky", "date"].includes(chip.id)) {
+      expect(body.cards.length).toBeGreaterThan(0);
+      expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue" }));
+      expect(body.cards.every((card: { price: number; provenance?: { kind: string } }) => typeof card.price === "number" && card.provenance?.kind === "directory")).toBe(true);
+      if (chip.id === "cheeky") expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+      if (chip.id === "quiet") expect(body.cards.some((card: { note: string }) => /calmer fit/i.test(card.note))).toBe(true);
+      if (chip.id === "date") expect(body.cards.some((card: { note: string }) => /calmer fit|date-night fit/i.test(card.note))).toBe(true);
+    }
+
     expect(body.answer).not.toMatch(/not prices for that item|can't compare/i);
     expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
   });

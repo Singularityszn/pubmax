@@ -1,3 +1,5 @@
+import { VIBE_CHIPS } from "@/lib/vibeChips";
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { isLimitedMock } = vi.hoisted(() => ({
@@ -51,6 +53,57 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(VIBE_CHIPS)("retains the actual $label constraints at tool execution", async (chip) => {
+    const tool = { bender: "propose_plan", lit: "whats_on", quiet: "search_venues", cheeky: "search_venues", match: "whats_on", quiz: "whats_on", date: "search_venues" }[chip.id];
+    const result = await runAskTool(tool, { query: chip.ask }, { query: chip.ask, cityId: "london", skipModel: true });
+    expect(result.ok).toBe(true);
+    if (["lit", "match", "quiz"].includes(chip.id)) {
+      const kind = { lit: "music", match: "sport", quiz: "quiz" }[chip.id as "lit" | "match" | "quiz"];
+      expect(result.data).toMatchObject({ kind, window: "tonight" });
+      expect(result.answerHint).toMatch(/sourced.*tonight/i);
+      expect(result.cards.every((card) => card.provenance?.kind === "whats-on")).toBe(true);
+    } else {
+      expect(result.data).toMatchObject({ intent: { mood: expect.arrayContaining([...chip.moods]) } });
+      expect(result.cards.length).toBeGreaterThan(0);
+      expect(result.priceEvidence).toHaveLength(result.cards.length);
+      if (chip.id === "cheeky" || chip.id === "bender") {
+        expect(result.data).toMatchObject({ intent: { maxPintPrice: 6 } });
+        expect(result.cards.every((card) => typeof card.price === "number" && card.price <= 6)).toBe(true);
+      }
+      if (chip.id === "bender") expect(result.data).toMatchObject({ intent: { groupSize: 4 } });
+      if (chip.id === "date") {
+        const venues = (result.data as { venues: Array<{ reasons: string[] }> }).venues;
+        expect(venues.every((venue) => venue.reasons.includes("Good date-night fit") && venue.reasons.includes("Venue heritage on record") && venue.reasons.includes("A calmer fit"))).toBe(true);
+      }
+
+    }
+  });
+
+  it.each(["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near", "venue_heritage"])("preserves original discovery intent when the provider chooses %s", async (tool) => {
+    for (const id of ["quiet", "cheeky", "date"]) {
+      const chip = VIBE_CHIPS.find((chip) => chip.id === id)!;
+      const result = await runAskTool(tool, { venueName: "The Lamb", query: "The Lamb" }, { query: chip.ask, cityId: "london", skipModel: true });
+      expect(result).toMatchObject({ ok: true, tool: "search_venues", data: { intent: { mood: expect.arrayContaining([...chip.moods]) } } });
+      expect(result.cards.length).toBeGreaterThan(0);
+      expect(result.priceEvidence).toHaveLength(result.cards.length);
+    }
+  });
+
+  it.each(QUALIFIED_PRICE_REQUESTS)("fences the complete price request at HTTP and tool boundaries: $query", async ({ query, code, wording }) => {
+    const response = await post({ query, cityId: "london" }, "203.0.113.82");
+    const body = await response.json();
+    expect(body.answer).toMatch(wording);
+    expect(body.cards).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    const keyless = await runAsk({ query, cityId: "london", skipModel: true });
+    expect(keyless.answer).toMatch(wording);
+    expect(keyless.cards).toEqual([]);
+    for (const name of ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"] as const) {
+      const result = await runAskTool(name, { query: "pints", venueName: "The Lamb" }, { cityId: "london", query, skipModel: true });
+      expect(result).toMatchObject({ ok: false, data: { code }, cards: [], proposals: [], priceEvidence: [] });
+    }
+  });
+
   it.each([
     ["Any tube delays and how much is a pint at The Lamb?", "venue_prices"],
     ["Any tube delays and how much is wine at The Lamb?", "venue_drinks"],

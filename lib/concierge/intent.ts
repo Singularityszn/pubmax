@@ -64,7 +64,7 @@ function deterministicIntent(text: string, knownAreas: readonly string[]): Conci
   const explicitBudget = extractExplicitBudget(text);
   const maxPintPrice = explicitBudget !== undefined
     ? explicitBudget
-    : /\b(?:not pricey|cheap|budget|inexpensive|affordable)\b/i.test(text)
+    : /\b(?:not pricey|cheap(?:est)?|budget|inexpensive|affordable)\b/i.test(text)
       ? CHEAP_PINT_GBP
       : undefined;
 

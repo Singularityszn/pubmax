@@ -13,6 +13,8 @@ import {
 import { trackEvent } from "@/lib/analytics";
 import type { ContentShareSurface } from "@/lib/analyticsEvents";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
+import { siteOrigin } from "@/lib/siteUrl";
+import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 
 import "./share.css";
 
@@ -60,13 +62,10 @@ function shareSurfaceFromUrl(url: string): ContentShareSurface {
   return "other";
 }
 
-// Resolve a possibly-relative url to an absolute one, lazily, at click time.
-// A url that is already absolute is returned untouched; anything else is
-// resolved against the current origin. Guarded so a bad input never throws.
-function toAbsoluteUrl(url: string): string {
-  if (typeof window === "undefined") return url;
+function toAbsoluteUrl(url: string, origin = typeof window === "undefined" ? PRODUCTION_SITE_ORIGIN
+  : siteOrigin(window.location.href) ?? window.location.origin): string {
   try {
-    return new URL(url, window.location.origin).toString();
+    return new URL(url, origin).toString();
   } catch {
     return url;
   }
@@ -94,6 +93,11 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
     if (resetTimer.current) clearTimeout(resetTimer.current);
   }, []);
 
+  const absoluteUrl = useSyncExternalStore(
+    () => () => {},
+    () => toAbsoluteUrl(url),
+    () => toAbsoluteUrl(url, PRODUCTION_SITE_ORIGIN),
+  );
   const shareText = text?.trim() || title;
   const isPlanInvite = /^\/plan\/[^/?#]+/.test(url);
 
@@ -209,7 +213,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
           {/* WhatsApp — same progressive-enhancement shape. */}
           <a
             className="shareBar__btn"
-            href={whatsappHref(url)}
+            href={whatsappHref(absoluteUrl)}
             onClick={(event) => {
               event.preventDefault();
               if (openIntent(whatsappHref)) trackPlanInvite("whatsapp");
@@ -226,7 +230,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
               onClick upgrades it to build the absolute url at click time. */}
           <a
             className="shareBar__btn"
-            href={tweetHref(url)}
+            href={tweetHref(absoluteUrl)}
             onClick={(event) => {
               event.preventDefault();
               if (openIntent(tweetHref)) trackPlanInvite("x");

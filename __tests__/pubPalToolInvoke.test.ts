@@ -1,3 +1,5 @@
+import { VIBE_CHIPS } from "@/lib/vibeChips";
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { offlineFetch } from "@/evals/pal/offlineFetch";
@@ -86,6 +88,38 @@ describe("propose_plan over the Pal webhook", () => {
     vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
+  });
+
+  it.each(QUALIFIED_PRICE_REQUESTS)("preserves qualified item fences with stored and provider questions: $query", async ({ query, code }) => {
+    for (const conversationId of [null, "conv_qualifiedprice01"]) {
+      if (conversationId) await registerPubPalToolTurn(conversationId, {
+        query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      const { result } = await invokePubPalAskTool({
+        toolName: "cheapest_pint_near", args: { query: conversationId ? "pints in Soho" : query, area: "Soho" }, conversationId,
+      });
+      expect(result).toMatchObject({ ok: false, code, cards: [], proposals: [] });
+    }
+  });
+
+  it.each(["quiet", "cheeky", "date"])("preserves %s discovery across stored and provider tool choices", async (id) => {
+    const chip = VIBE_CHIPS.find((chip) => chip.id === id)!;
+    for (const conversationId of [null, "conv_starterdiscovery01"]) {
+      if (conversationId) await registerPubPalToolTurn(conversationId, {
+        query: chip.ask, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      const { result } = await invokePubPalAskTool({
+        toolName: id === "date" ? "venue_heritage" : "venue_prices",
+        args: { query: conversationId ? "The Lamb" : chip.ask, venueName: "The Lamb" }, conversationId,
+      });
+      expect(result).toMatchObject({ ok: true, tool: "search_venues" });
+      const cards = result.cards as Array<{ price: number; note: string }>;
+      expect(cards.length).toBeGreaterThan(0);
+      expect(result.priceEvidence).toHaveLength(cards.length);
+      if (id === "cheeky") expect(cards.every((card) => card.price <= 6)).toBe(true);
+      if (id === "quiet") expect(cards.some((card) => /calmer fit/i.test(card.note))).toBe(true);
+      if (id === "date") expect(cards.some((card) => /calmer fit|date-night fit/i.test(card.note))).toBe(true);
+    }
   });
 
   async function planFor(query: string) {

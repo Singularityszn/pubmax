@@ -44,10 +44,25 @@ for (const chip of VIBE_CHIPS.filter((chip) => chip.id !== "bender")) {
     expect(response.request().postDataJSON().query).toBe(chip.ask);
     const body = await response.json();
     const expectedTool = {
-      bender: "propose_plan", lit: "whats_on", quiet: "venue_prices", cheeky: "venue_prices",
-      match: "whats_on", quiz: "whats_on", date: "venue_heritage",
+      bender: "propose_plan", lit: "whats_on", quiet: "search_venues", cheeky: "search_venues",
+      match: "whats_on", quiz: "whats_on", date: "search_venues",
     }[chip.id];
     expect(body.toolsUsed).toEqual([expectedTool]);
+    if (["lit", "match", "quiz"].includes(chip.id)) {
+      const occasion = { lit: /live-music nights? tonight/i, match: /live-sport screenings? tonight/i, quiz: /quiz nights? tonight/i }[chip.id as "lit" | "match" | "quiz"];
+      expect(body.answer).toMatch(occasion);
+      expect(body.cards.every((card: { provenance?: { kind: string } }) => card.provenance?.kind === "whats-on")).toBe(true);
+    }
+
+    if (["quiet", "cheeky", "date"].includes(chip.id)) {
+      expect(body.cards.length).toBeGreaterThan(0);
+      expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue" }));
+      expect(body.cards.every((card: { price: number; provenance?: { kind: string } }) => typeof card.price === "number" && card.provenance?.kind === "directory")).toBe(true);
+      if (chip.id === "cheeky") expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+      if (chip.id === "quiet") expect(body.cards.some((card: { note: string }) => /calmer fit/i.test(card.note))).toBe(true);
+      if (chip.id === "date") expect(body.cards.some((card: { note: string }) => /calmer fit|date-night fit/i.test(card.note))).toBe(true);
+    }
+
     expect(body.answer).not.toMatch(/not prices for that item|can't compare/i);
     await expect(page.getByText(chip.ask, { exact: true })).toBeVisible();
   });
