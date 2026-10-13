@@ -452,11 +452,14 @@ export async function toolVenueDrinks(
 
   const categoryName = drinkCategory ? categoryLabel(drinkCategory).toLocaleLowerCase("en-GB") : null;
   const answerHint = categoryName
-    ? cards.length > 0
-      ? `${venue.name}: ${cards.length} recorded ${categoryName} ${cards.length === 1 ? "figure" : "figures"}.`
-      : read.degraded
-        ? `I couldn't read recorded ${categoryName} prices at ${venue.name}.`
-        : `No ${categoryName} prices recorded at ${venue.name} yet.`
+    ? [
+        read.degraded ? `I couldn't read people-logged ${categoryName} prices at ${venue.name}.` : null,
+        rows.length > 0
+          ? `${venue.name}: ${rows.length} people-logged ${categoryName} ${rows.length === 1 ? "figure" : "figures"}.`
+          : read.degraded ? null : `No people-logged ${categoryName} prices recorded at ${venue.name} yet.`,
+        includeListedPint && venue.cheapestPrice != null ? `Listed pint: ${formatGbp(venue.cheapestPrice)}.` : null,
+        "Open the pub's Menu for any published drink prices.",
+      ].filter(Boolean).join(" ")
     : venueDrinksAnswerLine({ venueName: venue.name, figures: cards.length, read: status });
 
   return {

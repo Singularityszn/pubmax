@@ -1,6 +1,52 @@
 import { expect, test } from "@playwright/test";
 
 import { VIBE_CHIPS } from "../lib/vibeChips";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
+for (const width of [390, 1440]) {
+  test(`${width}px: Sherlock Holmes wine response opens its published Menu`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    await installDeterministicMapBasemap(page);
+    await page.goto("/pal/chat");
+    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    await input.fill("Wine prices at Sherlock Holmes");
+    const reply = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
+    );
+    await input.press("Enter");
+    const response = await reply;
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["venue_drinks"]);
+    expect(body.cards).toEqual([]);
+    expect(body.answer).toBe("No people-logged wine prices recorded at Sherlock Holmes yet. Open the pub's Menu for any published drink prices.");
+    expect(body.proposals).toMatchObject([{ kind: "open_venue", label: "Open Sherlock Holmes", venueId: expect.any(String) }]);
+    await expect(page.getByText(body.answer, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Open Sherlock Holmes", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`sel=${body.proposals[0].venueId}`));
+    const menu = page.getByRole("tab", { name: "Menu", exact: true });
+    await expect(async () => {
+      await menu.click();
+      await expect(menu).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    const panel = page.locator("#venuePanel-menu");
+    await panel.locator('[data-menu-door="wine"]').click();
+    const row = panel.locator(".drinkRow").filter({ has: page.getByText("Organic Pinot Grigio, Riff, Italy", { exact: true }) });
+    await expect(row).toHaveCount(1);
+    await expect(row.locator(".drinkPrice")).toHaveText("£7.20");
+    await expect(row.locator(".drinkServing")).toHaveCount(0);
+    await expect(row.locator(".drinkProvChip")).toHaveAttribute("href", "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu");
+    await expect(row.locator("time")).toHaveAttribute("datetime", "2026-09-21T18:41:07.759Z");
+  });
+}
 
 for (const query of [
   "Directions to Fox and Anchor",

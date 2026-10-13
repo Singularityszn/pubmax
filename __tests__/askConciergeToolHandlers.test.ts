@@ -533,7 +533,7 @@ describe("venue_drinks", () => {
     expect(result.cards.map((card) => card.price)).toEqual([8]);
     expect(result.cards[0]?.provenance?.kind).toBe("community-price");
     expect(result.data).toMatchObject({ listedPint: null, drinks: [{ category: "wine", priceGbp: 8 }] });
-    expect(result.answerHint).toMatch(/recorded wine figure/i);
+    expect(result.answerHint).toBe("The Lamb: 1 people-logged wine figure. Open the pub's Menu for any published drink prices.");
     expect(result.provenance.some((source) => source.kind === "directory")).toBe(false);
   });
 
@@ -543,7 +543,8 @@ describe("venue_drinks", () => {
     const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
     expect(result.cards).toEqual([]);
     expect(result.data).toMatchObject({ drinks: [], listedPint: null });
-    expect(result.answerHint).toBe("No wine prices recorded at The Lamb yet.");
+    expect(result.answerHint).toBe("No people-logged wine prices recorded at The Lamb yet. Open the pub's Menu for any published drink prices.");
+    expect(result.proposals).toMatchObject([{ kind: "open_venue", venueId: "v1" }]);
   });
 
   it("states an unavailable category read without claiming no records", async () => {
@@ -552,7 +553,32 @@ describe("venue_drinks", () => {
     const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
     expect(result.cards).toEqual([]);
     expect(result.degraded).toBe(true);
-    expect(result.answerHint).toBe("I couldn't read recorded wine prices at The Lamb.");
+    expect(result.answerHint).toBe("I couldn't read people-logged wine prices at The Lamb. Open the pub's Menu for any published drink prices.");
+    expect(result.proposals).toMatchObject([{ kind: "open_venue", venueId: "v1" }]);
+  });
+
+  it.each([false, true])("keeps beer's people-logged count separate from its listed pint when degraded=%s", async (degraded) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = {
+      prices: [price({ drinkCategory: "beer", priceGbp: 5.4 }), price({ drinkCategory: "wine", priceGbp: 8 })],
+      degraded,
+    };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "beer" }, ctx());
+    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb. " : ""}The Lamb: 1 people-logged beer figure. Listed pint: £5.00. Open the pub's Menu for any published drink prices.`);
+    expect(result.cards.map((card) => [card.price, card.provenance?.kind])).toEqual([[5.4, "community-price"], [5, "directory"]]);
+    expect(result.priceEvidence).toMatchObject([
+      { kind: "community-category", category: "beer", priceGbp: 5.4, reportedAt: NOW - 86_400_000, serving: null },
+      { kind: "listed-pint", category: "beer", priceGbp: 5, reportedAt: null, serving: "pint" },
+    ]);
+  });
+
+  it.each([false, true])("retains a listed pint without claiming a people-logged figure when degraded=%s", async (degraded) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [], degraded };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "beer" }, ctx());
+    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb." : "No people-logged beer prices recorded at The Lamb yet."} Listed pint: £5.00. Open the pub's Menu for any published drink prices.`);
+    expect(result.cards).toMatchObject([{ price: 5, provenance: { kind: "directory" } }]);
+    expect(result.data).toMatchObject({ status: degraded ? "unavailable" : "ready", drinks: [], listedPint: 5 });
   });
 
   it("refuses a brand passed as a category instead of silently reading all drinks", async () => {

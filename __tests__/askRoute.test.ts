@@ -25,6 +25,7 @@ vi.mock("@/lib/pintDrops", async () => {
 
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/ask/route";
+import { GET as getVenue } from "@/app/api/venue/[id]/route";
 import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import { resetJourneyCache } from "@/lib/citymcp/client";
@@ -54,6 +55,25 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it("scopes missing Sherlock Holmes wine prices to people logs while preserving its published menu", async () => {
+    const body = await (await post({ query: "Wine prices at Sherlock Holmes", cityId: "london" }, "203.0.113.82")).json();
+    expect(body.toolsUsed).toEqual(["venue_drinks"]);
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toMatchObject([{ kind: "open_venue", venueId: expect.any(String) }]);
+    const id = body.proposals[0].venueId;
+    const detail = await (await getVenue(new Request(`http://localhost/api/venue/${id}`), {
+      params: Promise.resolve({ id }),
+    })).json();
+    expect(detail.venue.priceUpdates.drink).toContainEqual(expect.objectContaining({
+      drinkName: "Organic Pinot Grigio, Riff, Italy",
+      category: "wine",
+      priceGbp: 7.2,
+      observedAt: "2026-09-21T18:41:07.759Z",
+      source: expect.objectContaining({ url: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu" }),
+    }));
+    expect(body.answer).toBe("No people-logged wine prices recorded at Sherlock Holmes yet. Open the pub's Menu for any published drink prices.");
+  });
+
   it.each(NAMED_QUALIFIED_PRICE_REQUESTS)("keeps named prices across time qualifiers: $query", async ({ query, tool, category }) => {
     const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();
     expect(body.toolsUsed).toEqual([tool]);
