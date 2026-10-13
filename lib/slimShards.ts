@@ -509,11 +509,12 @@ export function createSlimShardLoader(
   // operation shares these slots, including queued reads in shardPromises.
   const shardReadLimit = 4;
   let activeShardReads = 0;
-  const queuedShardReads: Array<() => void> = [];
+  const queuedShardReads: Array<{ url: string; start: () => void; foreground: boolean }> = [];
 
   async function readShardWithSlot(
-    path: string,
+    url: string,
     readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
+    foreground: boolean,
   ): Promise<SlimShardLoadResult> {
     await new Promise<void>((resolve) => {
       const start = () => {
@@ -521,13 +522,17 @@ export function createSlimShardLoader(
         resolve();
       };
       if (activeShardReads < shardReadLimit) start();
-      else queuedShardReads.push(start);
+      else queuedShardReads.push({ url, start, foreground });
     });
     try {
-      return await loadSlimVenuesFromPathResult(path, readOptions);
+      return await loadSlimVenuesFromPathResult(shardRequestPath(url), readOptions);
     } finally {
       activeShardReads -= 1;
-      queuedShardReads.shift()?.();
+      // Visible or user-requested rows take the next free slot before
+      // speculative neighbours. Keep FIFO order within each priority.
+      const foregroundIndex = queuedShardReads.findIndex((read) => read.foreground);
+      const nextIndex = foregroundIndex < 0 ? 0 : foregroundIndex;
+      queuedShardReads.splice(nextIndex, 1)[0]?.start();
     }
   }
 
@@ -633,14 +638,20 @@ export function createSlimShardLoader(
 
   // Fetch one shard body once; a failure (no offline mirror) is NOT memoized as
   // loaded, so a later call retries it.
-  function loadShard(url: string): Promise<SlimShardLoadResult> {
+  function loadShard(url: string, foreground = true): Promise<SlimShardLoadResult> {
     const existing = shardPromises.get(url);
-    if (existing) return existing;
+    if (existing) {
+      if (foreground) {
+        const queued = queuedShardReads.find((read) => read.url === url);
+        if (queued) queued.foreground = true;
+      }
+      return existing;
+    }
     const shardOptions =
       EXPECTED_MAP_DATA_REVISION === undefined
         ? options
         : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
-    const p = readShardWithSlot(shardRequestPath(url), shardOptions)
+    const p = readShardWithSlot(url, shardOptions, foreground)
       .then((result) => {
         if (result.status === "ready") {
           loadedUrls.add(url);
@@ -713,7 +724,7 @@ export function createSlimShardLoader(
       if (!m) return [];
       const needed = shardsForBounds(m, bounds, ring, true).filter((s) => !loadedUrls.has(s.url));
       if (needed.length === 0) return [];
-      const results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      const results = await Promise.all(needed.map((s) => loadShard(s.url, ring === 0)));
       return results.flatMap((result) => result.rows);
     },
 
@@ -756,7 +767,7 @@ export function createSlimShardLoader(
     async all(): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
-      const results = await Promise.all(m.shards.map((s) => loadShard(s.url)));
+      const results = await Promise.all(m.shards.map((s) => loadShard(s.url, false)));
       return results.flatMap((result) => result.rows);
     },
 

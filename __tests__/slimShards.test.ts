@@ -226,6 +226,78 @@ describe("createSlimShardLoader (London)", () => {
     expect(loader.coverageComplete(bounds)).toBe(true);
   });
 
+  it.each([
+    { title: "loads a newly panned viewport before queued neighbour reads when a slot opens", queued: false },
+    { title: "promotes a queued neighbour when the reader pans into its viewport", queued: true },
+  ])("$title", async ({ queued }) => {
+    const neighbours = [-1, 0, 1].flatMap((column) => [-1, 0, 1].map((row) => ({
+      id: `pan-neighbour-${column}-${row}`,
+      core: column === 0 && row === 0,
+      partition: "grid" as const,
+      url: `/data/pan-neighbour-${column}-${row}.json`,
+      count: 1,
+      bbox: [column, 51 + row, column + 1, 52 + row] as [number, number, number, number],
+    })));
+    const target = queued ? neighbours[8]! : {
+      id: "new-pan-target", core: false, partition: "grid" as const,
+      url: "/data/new-pan-target.json", count: 1,
+      bbox: [5, 51, 6, 52] as [number, number, number, number],
+    };
+    const shards = queued ? neighbours : [...neighbours, target];
+    const held = new Map<string, (response: Response) => void>();
+    const requests: string[] = [];
+    let active = 0;
+    let peak = 0;
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: true, json: async () => ({ ...MANIFEST, shards }) } as Response);
+      }
+      requests.push(url);
+      active += 1;
+      peak = Math.max(peak, active);
+      return new Promise<Response>((resolve) => held.set(url, (response) => {
+        held.delete(url);
+        active -= 1;
+        resolve(response);
+      }));
+    }) as typeof fetch;
+    const answer = (url: string) => {
+      const shard = shards.find((entry) => entry.url === url)!;
+      held.get(url)!({
+        ok: true,
+        json: async () => [slimRow(shard.id, shard.bbox[1] + 0.5, shard.bbox[0] + 0.5)],
+      } as Response);
+    };
+    const loader = createSlimShardLoader("london", { bypassInFlight: true });
+    const background = loader.inBounds({ west: 0.1, south: 51.1, east: 0.9, north: 51.9 }, 1);
+    await vi.waitFor(() => expect(requests).toHaveLength(4));
+    const viewport = loader.inBounds({
+      west: target.bbox[0] + 0.1, south: target.bbox[1] + 0.1,
+      east: target.bbox[2] - 0.1, north: target.bbox[3] - 0.1,
+    });
+    await Promise.resolve();
+    try {
+      answer(requests[0]!);
+      await vi.waitFor(() => expect(requests).toHaveLength(5));
+      expect(requests[4]).toBe(target.url);
+      answer(target.url);
+      await expect(viewport).resolves.toEqual([
+        slimRow(target.id, target.bbox[1] + 0.5, target.bbox[0] + 0.5),
+      ]);
+    } finally {
+      await vi.waitFor(() => {
+        for (const url of [...held.keys()]) answer(url);
+        expect(requests).toHaveLength(shards.length);
+      });
+      await Promise.all([background, viewport]);
+    }
+    expect((await background).map((row) => row.id).sort()).toEqual(neighbours.map((shard) => shard.id).sort());
+    expect(peak).toBe(4);
+    expect(new Set(requests).size).toBe(shards.length);
+    expect(active).toBe(0);
+  });
+
   it("releases a failed shard slot and retries that shard without losing queued rows", async () => {
     const shards = Array.from({ length: 5 }, (_, index) => ({
       id: `retry-${index}`, core: index === 0,
