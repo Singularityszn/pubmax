@@ -50,6 +50,25 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each([
+    ["Cheapest vegan food in Camden", /meal prices|dietary/i],
+    ["Cheapest wine in Soho", /other drinks across pubs/i],
+  ])("explains unsupported price coverage for %s without pint cards", async (query, wording) => {
+    const result = await runAsk({ query, cityId: "london", skipModel: true });
+    expect(result.answer).toMatch(wording);
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.toolsUsed).toEqual([]);
+  });
+
+  it("keeps a named-pub wine lookup on recorded drinks before model routing", async () => {
+    process.env.OPENROUTER_API_KEY = "test-key";
+    const result = await runAsk({ query: "Cheapest wine at The Lamb", cityId: "london" });
+    expect(result.toolsUsed).toEqual(["venue_drinks"]);
+    expect(result.answer).not.toMatch(/cheapest listed pints/i);
+    expect(modelLoopMock).not.toHaveBeenCalled();
+  });
+
   it("returns the public error envelope when rate limiting fails", async () => {
     isLimitedMock.mockRejectedValueOnce(new Error("limiter unavailable"));
 

@@ -1,6 +1,6 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { recordedDrinkComparison, refineRoutedAskQuery, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
@@ -167,6 +167,17 @@ export type RunAskInput = {
  */
 export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   const query = input.query.trim().slice(0, 500);
+  const unsupported = unsupportedPriceComparison(query);
+  if (unsupported) {
+    return {
+      answer: unsupported.answer,
+      cards: [],
+      proposals: [],
+      sources: [],
+      status: "ready",
+      toolsUsed: [],
+    };
+  }
   const cityId = resolveAskCityId(input.cityId);
   const turns = normaliseTurns(input.turns);
   const ctx: AskToolContext = {
@@ -177,10 +188,13 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     ...(input.now !== undefined ? { now: input.now } : {}),
   };
 
-  let toolResults: AskToolResult[] = [];
+  const recordedDrinks = recordedDrinkComparison(query);
+  let toolResults: AskToolResult[] = recordedDrinks
+    ? [await runAskTool(recordedDrinks.name, { ...recordedDrinks.args, query }, ctx)]
+    : [];
 
   const allowModel =
-    !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !recordedDrinks && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({

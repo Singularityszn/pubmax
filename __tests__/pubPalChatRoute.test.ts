@@ -39,6 +39,28 @@ describe("POST /api/pub-pal/chat", () => {
   });
 
   it.each([
+    ["Cheapest vegan food in Camden", /meal prices|dietary/i],
+    ["Cheapest wine in Soho", /other drinks across pubs/i],
+  ])("explains keyless price coverage for %s without substituting pints", async (query, wording) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    const fetchMock = vi.fn(offlineFetch);
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toMatch(wording);
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ["hi", "Hi. What kind of night are you planning?"],
     ["hello", "Hi. What kind of night are you planning?"],
     ["thanks", "You're welcome."],
