@@ -9,7 +9,7 @@
 // route and the get-in report it had already fetched stayed on screen after the
 // capability was revoked. The server withheld the data; the client did not.
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -46,7 +46,7 @@ vi.mock("@/lib/planRecapSync.client", () => ({
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: vi.fn() }));
 
 import { getLateFoodForArea } from "@/lib/lateFood";
-import { markActivePlan } from "@/lib/activePlan";
+import { markActivePlan, setActivePlanStopIndex } from "@/lib/activePlan";
 import { loadSlimVenues } from "@/lib/venuesSlim";
 import NightModeCard from "@/components/night/NightModeCard";
 
@@ -134,6 +134,38 @@ afterEach(async () => {
 });
 
 describe("the Night Mode card and a revoked capability", () => {
+  it("opens Get home after confirmed stops under Strict Mode", async () => {
+    setActivePlanStopIndex(2);
+    planBody = {
+      ...memberBody,
+      stops: [...memberBody.stops, { venueId: "v-crown", venueName: "The Crown", position: 3 }],
+      actions: [
+        { stopPosition: 1, type: "arrived" },
+        { stopPosition: 2, type: "skipped" },
+        { stopPosition: 3, type: "skipped" },
+      ],
+    };
+    await act(async () => root.render(createElement(StrictMode, null, createElement(NightModeCard))));
+    await settle();
+    expect(container.querySelector(".nightCard__loading")).toBeNull();
+    const review = container.querySelector<HTMLButtonElement>('.routeEndingCard__choice[data-ending="get_home"]');
+    expect(review).not.toBeNull();
+    await act(async () => review!.click());
+    await settle();
+    expect(container.textContent).toContain("Confirm Get home ending");
+    expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url).endsWith("/complete") && init?.method === "POST")).toHaveLength(0);
+    const confirmation = [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("Confirm Get home ending"))!;
+    vi.mocked(fetch).mockImplementation(async (input) => String(input).endsWith("/complete")
+      ? jsonResponse({ ...(planBody as object), plan: { ...memberBody.plan, status: "completed" }, ending: "get_home" })
+      : routeAnswer(input));
+    await act(async () => confirmation.click());
+    await settle();
+    const calls = vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url).endsWith("/complete") && init?.method === "POST");
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0]![1]!.body as string)).toMatchObject({ ending: "get_home", terminalVenueId: "v-crown", expectedRouteRevision: 1 });
+    expect(container.textContent).toContain("Night complete");
+  });
+
   it.each(["food", "get_home", "keep_going"] as const)("review regression: confirms %s only through a named action", async (ending) => {
     planBody = { ...memberBody, stops: [memberBody.stops[0]], context: { nightArea: "clapham" } };
     const food = getLateFoodForArea("clapham", [], { now: Date.parse("2026-07-16T23:00:00.000Z") })[0]!;
