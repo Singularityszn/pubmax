@@ -452,17 +452,7 @@ describe("venue_drinks", () => {
   it.each([
     "How much is a pint and food at The Lamb?",
     "How much is a pint with food at The Lamb?",
-    "How much is a gin and tonic at The Lamb?",
-    "How much is a cocktail and a pint at The Lamb?",
-    "Price of a 175ml wine at The Lamb",
-    "Price of a 175ml wine at The Lamb this evening?",
-    "Price of Coke now at The Lamb?",
-    "Price of a double gin at The Lamb",
-    "Price of Coke at The Lamb",
-    "Meal prices at The Lamb",
-    "Prices of meals at The Lamb",
     "Burger costs in Camden",
-    "Coke prices at The Lamb",
   ])("refuses unsupported mixed, brand or serving claims at the raw tool seam: %s", async (query) => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
@@ -533,7 +523,7 @@ describe("venue_drinks", () => {
     expect(result.cards.map((card) => card.price)).toEqual([8]);
     expect(result.cards[0]?.provenance?.kind).toBe("community-price");
     expect(result.data).toMatchObject({ listedPint: null, drinks: [{ category: "wine", priceGbp: 8 }] });
-    expect(result.answerHint).toBe("The Lamb: 1 people-logged wine figure. Open the pub's Menu for any published drink prices.");
+    expect(result.answerHint).toBe("The Lamb: 1 people-logged wine figure. No accepted published drink prices match this category.");
     expect(result.provenance.some((source) => source.kind === "directory")).toBe(false);
   });
 
@@ -543,7 +533,7 @@ describe("venue_drinks", () => {
     const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
     expect(result.cards).toEqual([]);
     expect(result.data).toMatchObject({ drinks: [], listedPint: null });
-    expect(result.answerHint).toBe("No people-logged wine prices recorded at The Lamb yet. Open the pub's Menu for any published drink prices.");
+    expect(result.answerHint).toBe("No people-logged wine prices recorded at The Lamb yet. No accepted published drink prices match this category.");
     expect(result.proposals).toMatchObject([{ kind: "open_venue", venueId: "v1" }]);
   });
 
@@ -553,7 +543,7 @@ describe("venue_drinks", () => {
     const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
     expect(result.cards).toEqual([]);
     expect(result.degraded).toBe(true);
-    expect(result.answerHint).toBe("I couldn't read people-logged wine prices at The Lamb. Open the pub's Menu for any published drink prices.");
+    expect(result.answerHint).toBe("I couldn't read people-logged wine prices at The Lamb. No accepted published drink prices match this category.");
     expect(result.proposals).toMatchObject([{ kind: "open_venue", venueId: "v1" }]);
   });
 
@@ -564,7 +554,7 @@ describe("venue_drinks", () => {
       degraded,
     };
     const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "beer" }, ctx());
-    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb. " : ""}The Lamb: 1 people-logged beer figure. Listed pint: £5.00. Open the pub's Menu for any published drink prices.`);
+    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb. " : ""}The Lamb: 1 people-logged beer figure. Listed pint: £5.00. No accepted published drink prices match this category.`);
     expect(result.cards.map((card) => [card.price, card.provenance?.kind])).toEqual([[5.4, "community-price"], [5, "directory"]]);
     expect(result.priceEvidence).toMatchObject([
       { kind: "community-category", category: "beer", priceGbp: 5.4, reportedAt: NOW - 86_400_000, serving: null },
@@ -576,7 +566,7 @@ describe("venue_drinks", () => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     state.prices = { prices: [], degraded };
     const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "beer" }, ctx());
-    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb." : "No people-logged beer prices recorded at The Lamb yet."} Listed pint: £5.00. Open the pub's Menu for any published drink prices.`);
+    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb." : "No people-logged beer prices recorded at The Lamb yet."} Listed pint: £5.00. No accepted published drink prices match this category.`);
     expect(result.cards).toMatchObject([{ price: 5, provenance: { kind: "directory" } }]);
     expect(result.data).toMatchObject({ status: degraded ? "unavailable" : "ready", drinks: [], listedPint: 5 });
   });

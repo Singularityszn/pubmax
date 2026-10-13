@@ -90,7 +90,9 @@ describe("POST /api/ask", () => {
   it("scopes missing Sherlock Holmes wine prices to people logs while preserving its published menu", async () => {
     const body = await (await post({ query: "Wine prices at Sherlock Holmes", cityId: "london" }, "203.0.113.82")).json();
     expect(body.toolsUsed).toEqual(["venue_drinks"]);
-    expect(body.cards).toEqual([]);
+    expect(body.cards).toHaveLength(8);
+    expect(body.cards[0]).toMatchObject({ venueId: "venue-gk2fp9", price: 7.2, menuEvidence: { itemName: "Organic Pinot Grigio, Riff, Italy", serving: null, caloriesKcal: null, observedAt: "2026-09-21T18:41:07.759Z" } });
+    expect(body.cards.every((card: { menuEvidence: { category: string } }) => card.menuEvidence.category === "wine")).toBe(true);
     expect(body.proposals).toMatchObject([{ kind: "open_venue", venueId: expect.any(String) }]);
     const id = body.proposals[0].venueId;
     const detail = await (await getVenue(new Request(`http://localhost/api/venue/${id}`), {
@@ -103,7 +105,9 @@ describe("POST /api/ask", () => {
       observedAt: "2026-09-21T18:41:07.759Z",
       source: expect.objectContaining({ url: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu" }),
     }));
-    expect(body.answer).toBe("No people-logged wine prices recorded at Sherlock Holmes yet. Open the pub's Menu for any published drink prices.");
+    expect(body.answer).toContain("No people-logged wine prices recorded at Sherlock Holmes yet.");
+    expect(body.answer).toContain("Organic Pinot Grigio, Riff, Italy at Sherlock Holmes: £7.20.");
+    expect(body.sources).toContainEqual(expect.objectContaining({ kind: "published-menu", url: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu" }));
   });
 
   it.each(NAMED_QUALIFIED_PRICE_REQUESTS)("keeps named prices across time qualifiers: $query", async ({ query, tool, category }) => {
@@ -348,13 +352,13 @@ describe("POST /api/ask", () => {
     "Coke price at The Eagle",
     "Coke prices at The Eagle",
     "Prices for Coke at The Eagle",
-  ])("refuses an unverified Coke price before model routing or pint figures: %s", async (query) => {
+  ])("requests a pub identity for ambiguous named Coke pricing: %s", async (query) => {
     process.env.OPENROUTER_API_KEY = "test-key";
     const result = await runAsk({ query, cityId: "london" });
-    expect(result.answer).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+    expect(result.answer).toMatch(/listed pub/i);
     expect(result.cards).toEqual([]);
     expect(result.proposals).toEqual([]);
-    expect(result.toolsUsed).toEqual([]);
+    expect(result.toolsUsed).toEqual(["venue_drinks"]);
     expect(modelLoopMock).not.toHaveBeenCalled();
   });
 

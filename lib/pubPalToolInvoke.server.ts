@@ -183,6 +183,7 @@ export async function invokePubPalAskTool(input: {
       answerHint: spokenHint,
       cards: toolResult.cards,
       ...(toolResult.priceEvidence ? { priceEvidence: toolResult.priceEvidence } : {}),
+      sources: toolResult.provenance,
       proposals: toolResult.proposals,
       degraded: toolResult.degraded ?? false,
     },

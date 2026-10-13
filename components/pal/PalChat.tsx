@@ -211,6 +211,11 @@ export function AnswerCard({
         </VenueLink>
         <div className="palChatCardMeta">
           <ProvChip card={card} />
+          {[card.menuEvidence?.caloriesProvenance, card.menuEvidence?.dietaryProvenance].map((field, index) => field && field.sourceUrl !== card.provenance.url ? (
+            <a key={index} className="palChatProv palChatProv--link" href={field.sourceUrl} target="_blank" rel="noreferrer noopener">
+              {index === 0 ? "Calorie source" : "Dietary source"}: {field.source}
+            </a>
+          ) : null)}
           {card.confidence ? (
             <span className="palChatConfidence">{card.confidence}</span>
           ) : null}

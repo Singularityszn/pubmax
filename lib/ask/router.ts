@@ -12,7 +12,7 @@ export type RoutedToolCall = {
 
 const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
-const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:the\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
+const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:(?:any|the)\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
 const TRANSIT_INTERROGATIVE_RE = new RegExp(`^${TRANSIT_INTERROGATIVE_PREFIX}`, "i");
 const JOURNEY_RE =
   /\b(how (do|can) i get|journey|get (me )?to|directions to|route to)\b/i;
@@ -77,6 +77,7 @@ export type UnsupportedPriceComparison = {
 
 type AskPriceIntent =
   | { kind: "none" | "plan" | "drink-venues" }
+  | { kind: "menu"; venueName: string }
   | { kind: "pub-price"; venueName: string | null }
   | { kind: "pint"; venueName: string | null; foodAvailability: boolean }
   | { kind: "recorded-drinks"; venueName: string; category?: DrinkCategory }
@@ -127,6 +128,17 @@ function priceQuestion(query: string): string {
   return priceClauses.join(" and ");
 }
 
+export function namedMenuRequest(query: string): { venueName: string; subject: string } | null {
+  const question = priceQuestion(query);
+  const venueName = namedDrinkVenue(question);
+  if (!venueName || PRICE_COMPARISON_RE.test(question)) return null;
+  const subject = question.slice(0, question.search(/\bat\s+/i)).trim();
+  if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
+  const priceSubject = priceComparisonSubject(question);
+  if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
+  return { venueName, subject };
+}
+
 function priceComparisonSubject(query: string): string | null {
   const venueName = namedDrinkVenue(query);
   if (venueName && !PRICE_COMPARISON_RE.test(venueName) && !ITEM_PRICE_RE.test(venueName)) {
@@ -166,6 +178,9 @@ function priceComparisonSubject(query: string): string | null {
 export function resolveAskPriceIntent(query: string): AskPriceIntent {
   query = priceQuestion(query);
   const subject = priceComparisonSubject(query);
+  const menu = namedMenuRequest(query);
+  const bareCategory = subject && RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(subject));
+  if (menu && !bareCategory && !/^drinks?$/i.test(subject ?? "")) return { kind: "menu", venueName: menu.venueName };
   if (subject === null) return { kind: "none" };
   const comparative = PRICE_COMPARISON_RE.test(query);
   const venueName = namedDrinkVenue(query);
@@ -241,7 +256,9 @@ export function unsupportedPriceComparison(query: string): UnsupportedPriceCompa
 /** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
 export function recordedDrinkComparison(query: string): RoutedToolCall | null {
   const intent = resolveAskPriceIntent(query);
-  return intent.kind === "recorded-drinks"
+  return intent.kind === "menu"
+    ? { name: "venue_drinks", args: { venueName: intent.venueName } }
+    : intent.kind === "recorded-drinks"
     ? { name: "venue_drinks", args: { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) } }
     : null;
 }
@@ -491,6 +508,10 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   if (journey) push("journey", { from: "London Bridge", ...journey });
 
   if (priceIntent.kind === "unsupported") return calls;
+  if (priceIntent.kind === "menu") {
+    push("venue_drinks", { venueName: priceIntent.venueName });
+    return calls;
+  }
 
   if (AREA_BUZZ_RE.test(text)) {
     const area = extractArea(text) ?? "Westminster";

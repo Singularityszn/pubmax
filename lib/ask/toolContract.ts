@@ -5,7 +5,7 @@
 // these names, so every existing caller is untouched.
 
 import type { CityId } from "@/lib/cities";
-import type { AskCard, AskProposal, AskSource, AskToolName } from "@/lib/ask/types";
+import type { AskCard, AskMenuEvidence, AskProposal, AskSource, AskToolName } from "@/lib/ask/types";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 
@@ -16,6 +16,7 @@ export type AskPriceEvidence = {
 } & (
   | { kind: "listed-pint"; category: "beer"; source: "directory"; reportedAt: null; serving: "pint" }
   | { kind: "community-category"; category: DrinkCategory; source: "community-price"; reportedAt: number; serving: null }
+  | AskMenuEvidence
 );
 
 export function listedPintEvidence(cardKey: string, venueId: string, priceGbp: number): AskPriceEvidence {
