@@ -39,6 +39,12 @@ function ProvChip({ prov, source }: { prov: FoodProvenance; source?: string }) {
 function FoodRow({ item }: { item: FoodItem }) {
   const observed = new Date(item.provenance.observedAt);
   const hasDate = !isDemoProvenance(item.provenance) && Number.isFinite(observed.getTime());
+  const calorieProv = item.caloriesProvenance;
+  const calorieDate = calorieProv ? new Date(calorieProv.observedAt) : null;
+  const hasCalories = typeof item.caloriesKcal === "number" &&
+    Number.isFinite(item.caloriesKcal) && item.caloriesKcal >= 0 &&
+    calorieProv && !isDemoProvenance(calorieProv) &&
+    calorieDate && Number.isFinite(calorieDate.getTime());
   const dietary =
     item.dietary && item.dietary.length > 0
       ? item.dietary.map((d) => d.replace("-", " ")).join(" · ")
@@ -49,6 +55,16 @@ function FoodRow({ item }: { item: FoodItem }) {
         <span className="drinkName">{item.name}</span>
         {item.description ? <span className="drinkMeta">{item.description}</span> : null}
         {dietary ? <span className="drinkServing">{dietary}</span> : null}
+        {hasCalories && calorieProv && calorieDate ? (
+          <div className="foodCalories drinkMeta">
+            <span>{item.caloriesKcal} kcal on the menu</span>{" "}
+            <ProvChip prov={calorieProv} source={calorieProv.sourceUrl} />
+            <span className="drinkObservationAge">
+              {SNAPSHOT_CAPTION_PREFIX}{" "}
+              <time dateTime={calorieProv.observedAt}>{formatObservedDate(calorieDate)}</time>
+            </span>
+          </div>
+        ) : null}
       </div>
       <div className="drinkRowSide">
         <PriceBadge variant="neutral" className="drinkPrice">

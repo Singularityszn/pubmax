@@ -11,8 +11,8 @@ import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfac
 // exempt surface of that trap from 1024px, and the tray closes when a drawer
 // opens. The tray may still be reopened beside the drawer, in the free lane.
 
-async function openDesktopMap(page: Page, width: number) {
-  await page.setViewportSize({ width, height: 900 });
+async function openDesktopMap(page: Page, width: number, height = 900) {
+  await page.setViewportSize({ width, height });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -83,12 +83,70 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await filters.click();
     await expect(filters).toHaveAttribute("aria-expanded", "true");
   });
+
+  test("Escape from the search Close button preserves the open pub", async ({ page }) => {
+    test.setTimeout(180_000);
+    await openDesktopMap(page, 1440);
+    await selectFirstToolbarVenue(page, "Princess Louise");
+    await expectSoleDesktopDrawer(page, "venue");
+    const toolbar = page.locator(".mapToolbar");
+    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    await search.click();
+    const close = toolbar.getByRole("button", { name: "Close search results" });
+    await expect(close).toBeVisible();
+    await search.press("Tab");
+    await expect(toolbar.getByRole("button", { name: "Clear search", exact: true })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(close).toBeFocused();
+    const selected = new URL(page.url()).searchParams.get("sel");
+    await page.keyboard.press("Escape");
+    await expect(search).toHaveAttribute("aria-expanded", "false");
+    await expect(search).toHaveValue("Princess Louise");
+    await expect(search).toBeFocused();
+    await expectSoleDesktopDrawer(page, "venue");
+    expect(new URL(page.url()).searchParams.get("sel")).toBe(selected);
+  });
+
+  for (const popup of ["Filters", "City"] as const) {
+    test(`Escape closes keyboard-opened ${popup} before the drink tray`, async ({ page }) => {
+      test.setTimeout(180_000);
+      await openDesktopMap(page, 1440);
+      await selectFirstToolbarVenue(page, "Princess Louise");
+      await expectSoleDesktopDrawer(page, "venue");
+      const toolbar = page.locator(".mapToolbar");
+      const drink = toolbar.getByRole("button", { name: /^Drink:/ });
+      const trigger = popup === "Filters"
+        ? toolbar.locator(".mapVenueKindFilterBtn")
+        : toolbar.getByRole("button", { name: /^Map area:/ });
+      await drink.click();
+      await expect(drink).toHaveAttribute("aria-expanded", "true");
+      // Keyboard activation keeps the underlying tray open without firing its
+      // outside-pointer dismissal, so Escape must choose the newer popup.
+      await trigger.press("Enter");
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      await expect(drink).toHaveAttribute("aria-expanded", "true");
+      await page.keyboard.press("Escape");
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+      await expect(trigger).toBeFocused();
+      await expect(drink).toHaveAttribute("aria-expanded", "true");
+      await expectSoleDesktopDrawer(page, "venue");
+      await page.keyboard.press("Escape");
+      await expect(drink).toHaveAttribute("aria-expanded", "false");
+      await expect(drink).toBeFocused();
+      await expectSoleDesktopDrawer(page, "venue");
+    });
+  }
 });
 
-for (const width of [1024, 1140, 1440]) {
-  test(`search and dismiss controls remain reachable beside a pub at ${width}px`, async ({ page }) => {
+for (const { width, height } of [
+  { width: 1024, height: 768 },
+  { width: 1140, height: 900 },
+  { width: 1362, height: 582 },
+  { width: 1440, height: 900 },
+]) {
+  test(`search and dismiss controls remain reachable beside a pub at ${width}x${height}`, async ({ page }) => {
     test.setTimeout(180_000);
-    await openDesktopMap(page, width);
+    await openDesktopMap(page, width, height);
     await selectFirstToolbarVenue(page, "Princess Louise");
     await expectSoleDesktopDrawer(page, "venue");
     const toolbar = page.locator(".mapToolbar");
