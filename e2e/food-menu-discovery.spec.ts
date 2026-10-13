@@ -64,3 +64,38 @@ for (const width of [320, 390, 430, 1440]) {
     expect(errors).toEqual([]);
   });
 }
+
+for (const menu of [
+  { venueId: "venue-17qpap6", count: 27, width: 390, dish: "Padron Peppers", price: "£5.50", calories: 104, source: "https://www.newinnealing.com/food-and-drink" },
+  { venueId: "venue-1dafrop", count: 21, width: 1440, dish: "Sun dried tomato salad", price: "£18.00", calories: 910, source: "https://www.thenarrowboatpub.com/food-and-drink" },
+]) {
+  test(`${menu.venueId}: reviewed food facts retain publisher dietary evidence`, async ({ page }) => {
+    await page.setViewportSize({ width: menu.width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    await installDeterministicMapBasemap(page);
+    await page.goto(`/map?sel=${menu.venueId}`);
+    const tab = page.getByRole("tab", { name: "Menu", exact: true });
+    await expect(async () => {
+      await tab.click();
+      await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    const panel = page.locator("#venuePanel-menu");
+    const food = panel.getByRole("button", { name: `Food ${menu.count} dishes on record`, exact: true });
+    await food.click();
+    await expect(panel.locator(".drinkRow")).toHaveCount(menu.count);
+    const row = panel.locator(".drinkRow").filter({ has: page.getByText(menu.dish, { exact: true }) });
+    await expect(row.locator(".drinkPrice")).toHaveText(menu.price);
+    await expect(row.locator(".drinkServing")).toHaveText("vegan");
+    await expect(row.locator(".foodCalories")).toContainText(`${menu.calories} kcal on the menu`);
+    await expect(row.locator("a")).toHaveAttribute("href", menu.source);
+    await expect(row.locator("time")).toContainText("13 October 2026");
+    await panel.getByRole("button", { name: "Back to menus", exact: true }).click();
+    await expect(food).toBeFocused();
+  });
+}
