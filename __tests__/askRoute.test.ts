@@ -52,8 +52,32 @@ function post(body: unknown, ip: string): Promise<Response> {
 
 describe("POST /api/ask", () => {
   it.each([
+    ["Any tube delays and how much is a pint at The Lamb?", "venue_prices"],
+    ["Any tube delays and how much is wine at The Lamb?", "venue_drinks"],
+    ["Any tube delays and cheapest drinks in Soho", "search_venues"],
+  ])("review regression: preserves transit and price results in one public request: %s", async (query, priceTool) => {
+    const result = await runAsk({ query, cityId: "london", skipModel: true });
+    expect(result.toolsUsed).toEqual(["city_status", priceTool]);
+    expect(result.answer).toContain("City status is unavailable just now.");
+    if (priceTool !== "venue_drinks") expect(result.cards.some((card) => typeof card.price === "number")).toBe(true);
+  });
+
+  it.each([
+    "Any tube delays and how much is a pint at The Lamb?",
+    "Any tube delays and how much is wine at The Lamb?",
+    "Find cheap drinks in Soho",
+  ])("review regression: preserves independent tools at the shared boundary: %s", async (query) => {
+    for (const tool of ["city_status", "journey", "whats_on", "venue_heritage", "area_buzz", "propose_plan", "propose_map_action", "tonight_now", "find_desk", "report_occupancy"] as const) {
+      const result = await runAskTool(tool, {}, { cityId: "london", query, skipModel: true });
+      expect(result.tool).toBe(tool);
+    }
+  });
+
+  it.each([
     ["propose_plan", "Plan a big night for four of us, with cheap pints and a lively route", { mood: ["lively"], groupSize: 4, maxPintPrice: 6 }],
     ["search_venues", "Find cheap quiet pubs in Soho", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
+    ["search_venues", "somewhere cheap and quiet", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6 }],
+    ["search_venues", "Somewhere cheap in Soho", { mood: [], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
   ] as const)("keeps the original constraints and price evidence at the %s tool boundary", async (tool, query, intent) => {
     const result = await runAskTool(tool, { query: "pubs" }, { cityId: "london", query, skipModel: true });
     expect(result.ok).toBe(true);

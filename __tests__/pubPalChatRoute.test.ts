@@ -22,6 +22,7 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 describe("POST /api/pub-pal/chat", () => {
@@ -36,6 +37,42 @@ describe("POST /api/pub-pal/chat", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    "somewhere cheap and quiet",
+    "Somewhere cheap in Soho",
+  ])("review regression: accepts implicit pub discovery through chat: %s", async (query) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+    expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
+  });
+
+  it.each(VIBE_CHIPS)("accepts the actual $label starter question keylessly", async (chip) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const expectedTool = {
+      bender: "propose_plan", lit: "whats_on", quiet: "venue_prices", cheeky: "venue_prices",
+      match: "whats_on", quiz: "whats_on", date: "venue_heritage",
+    }[chip.id];
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: chip.ask, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual([expectedTool]);
+    expect(body.answer).not.toMatch(/not prices for that item|can't compare/i);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
   });
 
   it("turns the Big one tonight request into a sourced plan keylessly", async () => {
