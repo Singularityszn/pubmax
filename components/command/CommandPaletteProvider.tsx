@@ -73,7 +73,7 @@ export default function CommandPaletteProvider({
     if (!readOtherStrictModalFocusTrap(panelRef.current)) setIsOpen((v) => !v);
   }, []);
   // Own Back from the initial request through the lazy dialog's lifetime.
-  useDismissOnEscape(isOpen && !otherStrictModalOpen, close, panelRef);
+  useDismissOnEscape(isOpen && !otherStrictModalOpen, close, panelRef, true);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

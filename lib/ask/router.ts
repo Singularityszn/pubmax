@@ -86,6 +86,14 @@ function namedDrinkVenue(query: string): string | null {
   return match?.[1] ? stripTrailingQualifiers(match[1]).trim() : null;
 }
 
+function priceQuestion(query: string): string {
+  const clauses = query.split(/\s+and\s+|,/i);
+  const independentClause = (clause: string) => (CITY_STATUS_RE.test(clause) || JOURNEY_RE.test(clause))
+    && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause);
+  if (clauses.some(independentClause)) query = clauses.filter((clause) => !independentClause(clause)).join(" and ");
+  return query;
+}
+
 function priceComparisonSubject(query: string): string | null {
   const comparative = query.match(PRICE_COMPARISON_RE);
   const itemPrice = query.match(ITEM_PRICE_RE);
@@ -95,17 +103,22 @@ function priceComparisonSubject(query: string): string | null {
     .replace(/^(?:a|an|the)(?:\s+|$)/i, "")
     .replace(/\s+costs?$/i, "")
     .replace(/\s+(?:right now|today|tonight)$/i, "");
-  const precedingItem = itemPrice && !/^how much/i.test(comparison[0])
+  let precedingItem = !/^how much/i.test(comparison[0])
     ? query.slice(0, comparison.index)
-      .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me)\s*/i, "")
+      .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me|(?:please\s+)?(?:help me\s+)?(?:find(?: me| us)?|show me|get(?: me| us)?))\s*/i, "")
     : "";
+  if (!itemPrice) {
+    precedingItem = precedingItem.replace(new RegExp(`^(?:plan|sort(?: me)?)\\s+(?:a\\s+)?(?:big\\s+)?${PLAN_COMPARISON_SUBJECT}(?:\\s+for\\s+(?:two|three|four|five|six|a few|\\d+)(?:\\s+of us)?)?\\s*,?(?:\\s*(?:with|and))?\\s*$`, "i"), "");
+    precedingItem = precedingItem
+      .replace(/^(?:somewhere|anywhere|a place)\b/i, "")
+      .replace(/^(?:plan|sort(?: me)?)(?:\s+(?:a|an|the))?\s*$/i, "");
+  }
   const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim()
     .replace(/\bfor\s+(?:two|three|four|five|six|a few|\d+)(?:\s+of us)?(?=\s+(?:in|near|at|around|tonight)\b|[?.!]*$)/gi, "")
     .replace(/\bfor a quick one after work[?.!]*$/i, "");
   const subjects = [precedingItem, afterPrice].flatMap((part) => part.split(/\bfor\b|,/i)).map((part) => {
-    const subject = part.trim();
-    if (/^(?:in|near|nearby|at|around|round|close to)\b/i.test(subject)) return "";
-    return normalizeSubject(subject.split(/\s+(?:in|near|nearby|at|around|round|close to)\b/i, 1)[0] ?? "")
+    const subject = part.replace(/(?:^|\s+)(?:in|near|nearby|at|around|round|close to)\b[^,]*?(?=\s+(?:for|with|and)\b|,|$)/gi, " ").trim();
+    return normalizeSubject(subject.replace(/^(?:and|with)\s+/i, ""))
       .replace(PRICE_COMPARISON_RE, "").trim();
   });
   return subjects.filter(Boolean).join(" ");
@@ -113,6 +126,7 @@ function priceComparisonSubject(query: string): string | null {
 
 /** One semantic price decision, shared by free-text and raw model-tool boundaries. */
 export function resolveAskPriceIntent(query: string): AskPriceIntent {
+  query = priceQuestion(query);
   const subject = priceComparisonSubject(query);
   if (subject === null) return { kind: "none" };
   const comparative = PRICE_COMPARISON_RE.test(query);
@@ -173,6 +187,10 @@ export function isVenueDiscoveryAsk(query: string): boolean {
   const intent = resolveAskPriceIntent(query);
   return PRICE_COMPARISON_RE.test(query)
     && (intent.kind === "none" || (intent.kind === "pint" && !intent.venueName));
+}
+
+export function isIndependentAskTool(name: string): boolean {
+  return name === "city_status" || name === "journey";
 }
 
 export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
@@ -375,6 +393,7 @@ function venueDrinksClaim(text: string): ConciergeClaim | null {
 }
 
 function cheapestNearClaim(text: string): ConciergeClaim | null {
+  text = priceQuestion(text);
   if (!CHEAPEST_NEAR_RE.test(text) || PLAN_RE.test(text)) return null;
   const subject = priceComparisonSubject(text) ?? "";
   if (PUB_COMPARISON_SUBJECT_RE.test(subject) && PUB_DISCOVERY_CONSTRAINT_RE.test(subject)) return null;
@@ -415,7 +434,6 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const text = query.trim();
   if (!text) return [];
   const priceIntent = resolveAskPriceIntent(text);
-  if (priceIntent.kind === "unsupported") return [];
 
   const calls: RoutedToolCall[] = [];
   const push = (name: AskToolName, args: Record<string, unknown> = {}) => {
@@ -428,14 +446,17 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     push("city_status");
   }
 
+  if (JOURNEY_RE.test(text)) {
+    const journeyQuery = text.slice(text.search(JOURNEY_RE)).split(/\s+and\s+|,/i)[0];
+    const to = stripIntentWords(journeyQuery) || journeyQuery;
+    push("journey", { from: "London Bridge", to });
+  }
+
+  if (priceIntent.kind === "unsupported") return calls;
+
   if (AREA_BUZZ_RE.test(text)) {
     const area = extractArea(text) ?? "Westminster";
     push("area_buzz", { area });
-  }
-
-  if (JOURNEY_RE.test(text)) {
-    const to = stripIntentWords(text) || text;
-    push("journey", { from: "London Bridge", to });
   }
 
   if (HERITAGE_RE.test(text) && !isVenueDiscoveryAsk(text)) {
