@@ -11,6 +11,17 @@ Tanqueray 0.0%, Lyre’s Italian Spritz
 *(46 kcal)*`;
 
 describe("published menu markdown", () => {
+  it.each([
+    ["Madri pint £6.50.", "beer", 6.5],
+    ["House red wine 175ml £7.50.", "wine", 7.5],
+  ])("accepts a terminal full stop in %s", (menu, category, priceGbp) => {
+    expect(readVenueDrinkPrices(menu).kept).toEqual([
+      expect.objectContaining({ category, priceGbp }),
+    ]);
+    expect(readVenueDrinkPrices(menu.replace(/\.$/, "0")).kept).toEqual([]);
+    expect(readVenueDrinkPrices(menu.replace(/\.$/, ".1")).kept).toEqual([]);
+  });
+
   it("retains every stated decimal without taking a whole-pound prefix", () => {
     expect(findUkPriceCandidates(eagleMarkdown).map(({ verbatim, priceGbp }) => ({ verbatim, priceGbp })))
       .toEqual([
