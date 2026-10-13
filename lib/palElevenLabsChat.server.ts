@@ -1,6 +1,7 @@
 import "server-only";
 
 import { composeAnswer } from "@/lib/ask/runAsk";
+import { unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
@@ -161,6 +162,18 @@ export async function runPalElevenLabsChatTurn(
     return {
       ok: true,
       message: pubPalGetHomeRegisterAnswer("", sobrietyOnly),
+      cards: [],
+      proposals: [],
+      conversationId: "",
+      toolsUsed: [],
+    };
+  }
+
+  const unsupported = unsupportedPriceComparison(query);
+  if (unsupported) {
+    return {
+      ok: true,
+      message: unsupported.answer,
       cards: [],
       proposals: [],
       conversationId: "",

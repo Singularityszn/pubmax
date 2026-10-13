@@ -47,6 +47,7 @@ import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { DEFAULT_DRINK_LANE, orderVenueDrinkPrices } from "@/lib/drinkLanes";
+import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 import {
   rankBoroughCheapest,
   rankCityCheapest,
@@ -371,6 +372,18 @@ export async function toolVenueDrinks(
   args: AskToolArgs,
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
+  if (args.drinkCategory !== undefined && !isDrinkCategory(args.drinkCategory)) {
+    return {
+      ok: false,
+      tool: "venue_drinks",
+      data: null,
+      provenance: [],
+      cards: [],
+      proposals: [],
+      answerHint: "That drink category is not supported. Ask for a pub's recorded drinks.",
+    };
+  }
+  const drinkCategory = isDrinkCategory(args.drinkCategory) ? args.drinkCategory : null;
   const venues = await loadConciergeVenues(ctx.cityId);
   const venueId = str(args.venueId);
   // This tool reads ONE pub. A routed name is matched on an exact or prefix
@@ -401,7 +414,9 @@ export async function toolVenueDrinks(
   const now = ctx.now ?? Date.now();
   const read = await readCommunityPricesWithStatus(venue.id, now);
   const status = read.degraded ? "unavailable" : "ready";
-  const rows = orderVenueDrinkPrices(read.prices, DEFAULT_DRINK_LANE);
+  const rows = orderVenueDrinkPrices(read.prices, drinkCategory ?? DEFAULT_DRINK_LANE)
+    .filter((row) => !drinkCategory || row.category === drinkCategory);
+  const includeListedPint = !drinkCategory || drinkCategory === "beer";
 
   const cards: AskCard[] = rows.map((row, index) => ({
     key: `${venue.id}:drink-${index}`,
@@ -420,7 +435,7 @@ export async function toolVenueDrinks(
     provenance: PEOPLE_LOGGED,
   }));
 
-  if (venue.cheapestPrice != null) {
+  if (includeListedPint && venue.cheapestPrice != null) {
     cards.push({
       key: `${venue.id}:listed`,
       venueId: venue.id,
@@ -432,11 +447,14 @@ export async function toolVenueDrinks(
     });
   }
 
-  const answerHint = venueDrinksAnswerLine({
-    venueName: venue.name,
-    figures: cards.length,
-    read: status,
-  });
+  const categoryName = drinkCategory ? categoryLabel(drinkCategory).toLocaleLowerCase("en-GB") : null;
+  const answerHint = categoryName
+    ? cards.length > 0
+      ? `${venue.name}: ${cards.length} recorded ${categoryName} ${cards.length === 1 ? "figure" : "figures"}.`
+      : read.degraded
+        ? `I couldn't read recorded ${categoryName} prices at ${venue.name}.`
+        : `No ${categoryName} prices recorded at ${venue.name} yet.`
+    : venueDrinksAnswerLine({ venueName: venue.name, figures: cards.length, read: status });
 
   return {
     ok: true,
@@ -450,11 +468,11 @@ export async function toolVenueDrinks(
         submittedAt: row.price.submittedAt,
         corroborated: drivesMap(row.price as CommunityPrice, now),
       })),
-      listedPint: venue.cheapestPrice,
+      listedPint: includeListedPint ? venue.cheapestPrice : null,
     },
     provenance: [
       ...(rows.length > 0 ? [PEOPLE_LOGGED] : []),
-      ...(venue.cheapestPrice != null ? [DIRECTORY] : []),
+      ...(includeListedPint && venue.cheapestPrice != null ? [DIRECTORY] : []),
     ],
     cards,
     proposals: [openProposal(venue.id, venue.name)],

@@ -418,6 +418,50 @@ describe("tonight_now", () => {
 });
 
 describe("venue_drinks", () => {
+  it("returns only recorded wine figures for an explicit wine-price lookup", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = {
+      prices: [
+        price({ drinkCategory: "beer", priceGbp: 5.4 }),
+        price({ drinkCategory: "wine", priceGbp: 8, corroborations: 1 }),
+      ],
+      degraded: false,
+    };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
+    expect(result.cards.map((card) => card.price)).toEqual([8]);
+    expect(result.cards[0]?.provenance?.kind).toBe("community-price");
+    expect(result.data).toMatchObject({ listedPint: null, drinks: [{ category: "wine", priceGbp: 8 }] });
+    expect(result.answerHint).toMatch(/recorded wine figure/i);
+    expect(result.provenance.some((source) => source.kind === "directory")).toBe(false);
+  });
+
+  it("states missing wine coverage instead of supplying an available pint", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [price({ drinkCategory: "beer", priceGbp: 5.4 })], degraded: false };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
+    expect(result.cards).toEqual([]);
+    expect(result.data).toMatchObject({ drinks: [], listedPint: null });
+    expect(result.answerHint).toBe("No wine prices recorded at The Lamb yet.");
+  });
+
+  it("states an unavailable category read without claiming no records", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [], degraded: true };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
+    expect(result.cards).toEqual([]);
+    expect(result.degraded).toBe(true);
+    expect(result.answerHint).toBe("I couldn't read recorded wine prices at The Lamb.");
+  });
+
+  it("refuses a brand passed as a category instead of silently reading all drinks", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "Coke" }, ctx());
+    expect(result.ok).toBe(false);
+    expect(result.cards).toEqual([]);
+    expect(result.data).toBeNull();
+    expect(result.answerHint).toMatch(/category is not supported/i);
+  });
+
   it("prints one row per drink with its own tag, figure and standing", async () => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     state.prices = {
