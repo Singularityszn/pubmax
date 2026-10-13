@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MapGlobalPopupJourney } from "./helpers/mapGlobalPopupJourney";
 import { dispatchDismissKey } from "@/lib/nativeBackGesture";
+import MapArrivalCard from "@/components/map/MapArrivalCard";
+import { ChooseAreaDesktopDialog } from "@/components/map/ChooseAreaSheet";
+import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 vi.mock("next/navigation", () => ({
@@ -72,6 +75,28 @@ function OtherStrictModal() {
 }
 
 describe("global popups close before the held map journey", () => {
+  it.each(["arrival", "area", "onboarding"] as const)("native Back leaves a newly mounted inert %s panel alone", async (panel) => {
+    const dismiss = vi.fn();
+    await act(async () => root.render(<MapGlobalPopupJourney drawer={false} />));
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "k", metaKey: true, bubbles: true, cancelable: true,
+    })));
+    await vi.waitFor(async () => {
+      await act(async () => { await Promise.resolve(); });
+      expect(host.querySelector('[aria-label="Search commands"]')).not.toBeNull();
+    });
+    const lazyPanel = panel === "arrival"
+      ? <MapArrivalCard onUseLocation={() => {}} onChooseArea={() => {}} onDismiss={dismiss} />
+      : panel === "area"
+        ? <ChooseAreaDesktopDialog open onClose={dismiss}>Pick an area</ChooseAreaDesktopDialog>
+        : <MapOnboardingOverlay crawls={[]} onLoadCrawl={() => {}} onDismiss={dismiss} />;
+    await act(async () => root.render(<MapGlobalPopupJourney drawer={false} nav={<div inert>{lazyPanel}</div>} />));
+    nativeBack();
+    expect(host.querySelector(".cmdkPanel")).toBeNull();
+    expect(dismiss).not.toHaveBeenCalled();
+    expect(host.querySelector(panel === "arrival" ? ".mapArrivalCard" : panel === "area" ? ".chooseAreaDesktop" : ".mapOnboarding")).not.toBeNull();
+  });
+
   it.each([false, true])("keeps another strict modal's focus when the palette was already requested=%s", async (requested) => {
     await act(async () => root.render(<MapGlobalPopupJourney drawer />));
     openTray();

@@ -88,25 +88,27 @@ function namedDrinkVenue(query: string): string | null {
 
 function priceComparisonSubject(query: string): string | null {
   const comparative = query.match(PRICE_COMPARISON_RE);
-  const comparison = comparative ?? query.match(ITEM_PRICE_RE);
+  const itemPrice = query.match(ITEM_PRICE_RE);
+  const comparison = itemPrice ?? comparative;
   if (!comparison) return null;
   const normalizeSubject = (subject: string): string => stripTrailingPunctuation(subject)
     .replace(/^(?:a|an|the)(?:\s+|$)/i, "")
     .replace(/\s+costs?$/i, "")
     .replace(/\s+(?:right now|today|tonight)$/i, "");
-  const precedingItem = !comparative && !/^how much/i.test(comparison[0])
-    ? normalizeSubject(query.slice(0, comparison.index)
-      .replace(/^(?:what(?:'s|\s+(?:is|are|does))|can you tell me|tell me)\s*/i, ""))
+  const precedingItem = itemPrice && !/^how much/i.test(comparison[0])
+    ? query.slice(0, comparison.index)
+      .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me)\s*/i, "")
     : "";
   const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim()
     .replace(/\bfor\s+(?:two|three|four|five|six|a few|\d+)(?:\s+of us)?(?=\s+(?:in|near|at|around|tonight)\b|[?.!]*$)/gi, "")
     .replace(/\bfor a quick one after work[?.!]*$/i, "");
-  const subjects = afterPrice.split(/\bfor\b/i).map((part) => {
+  const subjects = [precedingItem, afterPrice].flatMap((part) => part.split(/\bfor\b|,/i)).map((part) => {
     const subject = part.trim();
     if (/^(?:in|near|nearby|at|around|round|close to)\b/i.test(subject)) return "";
-    return normalizeSubject(subject.split(/\s+(?:in|near|nearby|at|around|round|close to)\b/i, 1)[0] ?? "");
+    return normalizeSubject(subject.split(/\s+(?:in|near|nearby|at|around|round|close to)\b/i, 1)[0] ?? "")
+      .replace(PRICE_COMPARISON_RE, "").trim();
   });
-  return subjects.filter(Boolean).join(" ") || precedingItem;
+  return subjects.filter(Boolean).join(" ");
 }
 
 /** One semantic price decision, shared by free-text and raw model-tool boundaries. */
