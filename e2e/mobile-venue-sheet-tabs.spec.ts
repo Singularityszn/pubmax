@@ -36,7 +36,7 @@ test.use({
 const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Overview", panelId: "venuePanel-overview" },
   { label: "Photos", panelId: "venuePanel-photos" },
-  { label: "Drinks", panelId: "venuePanel-menu" },
+  { label: "Menu", panelId: "venuePanel-menu" },
   { label: "Stories", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
 ];
