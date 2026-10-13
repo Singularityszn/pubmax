@@ -17,18 +17,18 @@ function isUnavailablePanel(node: HTMLElement): boolean {
 
 type EscapePanel = {
   dismiss: () => void;
-  capturePending: boolean;
+  capture: boolean;
   ref?: RefObject<HTMLElement | null>;
 };
 
 const openPanels = new Set<EscapePanel>();
 
-function dismissTopPanel(event: KeyboardEvent, pendingOnly = false): void {
+function dismissTopPanel(event: KeyboardEvent, captureOnly = false): void {
   if (event.key !== "Escape" || event.defaultPrevented) return;
   let top: EscapePanel | undefined;
   for (const panel of openPanels) {
     const node = panel.ref?.current;
-    if (pendingOnly && (!panel.capturePending || node)) continue;
+    if (captureOnly && !panel.capture) continue;
     if (node && isUnavailablePanel(node)) continue;
     // The newest open sibling wins. A containing parent cannot replace its
     // child, even when React mounts the child's effect before the parent's.
@@ -40,7 +40,7 @@ function dismissTopPanel(event: KeyboardEvent, pendingOnly = false): void {
   top.dismiss();
 }
 
-function dismissPendingPanel(event: KeyboardEvent): void {
+function dismissCapturePanel(event: KeyboardEvent): void {
   dismissTopPanel(event, true);
 }
 
@@ -64,14 +64,14 @@ function dismissNativePanel(event: KeyboardEvent): void {
  *
  * A panel hidden by CSS or inside an inert subtree leaves the key to the
  * visible surface. Availability is read on dispatch because another surface
- * can hide a panel without unmounting it. A pending lazy panel without a
- * mounted container retains ownership until it appears or is cancelled.
+ * can hide a panel without unmounting it. Capture ownership spans both lazy
+ * loading and mounting, before initial focus reaches the panel.
  */
 export function useDismissOnEscape(
   open: boolean,
   onDismiss: () => void,
   panelRef?: RefObject<HTMLElement | null>,
-  capturePending = false,
+  capture = false,
 ): void {
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
@@ -80,10 +80,10 @@ export function useDismissOnEscape(
 
   useEffect(() => {
     if (!open) return;
-    const panel: EscapePanel = { dismiss: () => onDismissRef.current(), ref: panelRef, capturePending };
+    const panel: EscapePanel = { dismiss: () => onDismissRef.current(), ref: panelRef, capture };
     if (openPanels.size === 0) {
       document.addEventListener("keydown", dismissTopPanel);
-      document.addEventListener("keydown", dismissPendingPanel, true);
+      document.addEventListener("keydown", dismissCapturePanel, true);
       window.addEventListener("keydown", dismissNativePanel, true);
     }
     openPanels.add(panel);
@@ -91,9 +91,9 @@ export function useDismissOnEscape(
       openPanels.delete(panel);
       if (openPanels.size === 0) {
         document.removeEventListener("keydown", dismissTopPanel);
-        document.removeEventListener("keydown", dismissPendingPanel, true);
+        document.removeEventListener("keydown", dismissCapturePanel, true);
         window.removeEventListener("keydown", dismissNativePanel, true);
       }
     };
-  }, [open, panelRef, capturePending]);
+  }, [open, panelRef, capture]);
 }

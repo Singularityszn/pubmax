@@ -195,7 +195,7 @@ describe("the Night Mode card and a revoked capability", () => {
     const calls = vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url).endsWith("/complete") && init?.method === "POST");
     expect(calls).toHaveLength(1);
     expect(container.textContent).toContain("Night complete");
-    expect(JSON.parse(calls[0][1]!.body as string)).toMatchObject({ ending, terminalVenueId: "v-george", endingSelection: { kind: ending, ...(ending === "keep_going" ? { venueId: "v-stone" } : ending === "food" ? { optionId: food.id } : {}) } });
+    expect(JSON.parse(calls[0]![1]!.body as string)).toMatchObject({ ending, terminalVenueId: "v-george", endingSelection: { kind: ending, ...(ending === "keep_going" ? { venueId: "v-stone" } : ending === "food" ? { optionId: food.id } : {}) } });
   });
 
   it("puts the route and the get-in report down when a read answers the preview", async () => {

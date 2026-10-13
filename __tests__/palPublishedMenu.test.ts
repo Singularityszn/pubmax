@@ -310,7 +310,9 @@ it.each([
     expect((await response.json()).cards).toEqual(expected);
   }
   const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
-  expect((await session(query, "london"))?.cards).toEqual(expected);
+  const chatResult = await session(query, "london");
+  if (!chatResult || chatResult.status === "error") throw new Error("Chat session returned no answer");
+  expect(chatResult.cards).toEqual(expected);
   await registerPubPalToolTurn("conv_menuboundaries01", { query, cityId: "london", ownerId: "menu-owner" });
   vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
   const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
