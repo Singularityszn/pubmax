@@ -140,6 +140,8 @@ describe("propose_plan over the Pal webhook", () => {
 
   it.each([
     "How much is wine at The Eagle?",
+    "Wine price at The Eagle",
+    "What does wine cost at The Eagle?",
   ])("redirects a provider pint-price selection for %s to category prices", async (query) => {
     const { result } = await invokePubPalAskTool({
       toolName: "venue_prices",
@@ -167,10 +169,14 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.answerHint).toMatch(/meal prices|food prices|menu prices/i);
   });
 
-  it("refuses a provider-selected pint price for an unverified named Coke item", async () => {
+  it.each([
+    "Price of Coke at The Eagle",
+    "How much for Coke at The Eagle?",
+    "Coke price at The Eagle",
+  ])("refuses a provider-selected pint price for an unverified named Coke item: %s", async (query) => {
     const { result } = await invokePubPalAskTool({
       toolName: "venue_prices",
-      args: { query: "Price of Coke at The Eagle", venueName: "The Eagle" },
+      args: { query, venueName: "The Eagle" },
       conversationId: null,
     });
     expect(result).toMatchObject({
@@ -180,6 +186,24 @@ describe("propose_plan over the Pal webhook", () => {
       proposals: [],
     });
     expect(result.answerHint).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+  });
+
+  it("fences the original drive-home request despite a longer clean provider paraphrase", async () => {
+    const conversationId = "conv_originalfence01";
+    await registerPubPalToolTurn(conversationId, {
+      query: "Can I drive home?",
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "cheapest_pint_near",
+      args: { query: "Please help me find the cheapest listed pint near Camden tonight", area: "Camden" },
+      conversationId,
+    });
+    expect(result).toMatchObject({ ok: true, fenced: true, cards: [], proposals: [] });
+    expect(result.answerHint).toMatch(/Getting Home/i);
+    const turn = await readPubPalToolTurn(conversationId);
+    expect(turn?.cards).toEqual([]);
   });
 
   it.each([
