@@ -1,7 +1,7 @@
 {
   "version": 1,
   "generatedAt": "2026-10-13T06:51:38.364Z",
-  "purpose": "Review-only official food menu evidence. This file does not update runtime menu coverage. Calorie observations remain separate from the product food schema.",
+  "purpose": "Reviewed official food menu evidence. The runtime food input carries the matched prices and publisher-stated calorie facts. Calorie facts keep their own source and observation date after menu overlays.",
   "counts": {
     "pubs": 1,
     "candidateFoodItems": 42,
@@ -803,7 +803,7 @@
     "runtimeFoodParserAccepted": 42,
     "sourcePriceRows": 42,
     "rowsWithSourceStatedKcal": 42,
-    "existingProductNutritionField": false,
+    "existingProductNutritionField": true,
     "dietaryTagsInferred": 0
   },
   "sourceInputImport": {
@@ -813,7 +813,7 @@
     "preservedExistingRows": 2530,
     "addedRows": 42,
     "refreshLaneRetired": true,
-    "calorieFieldsAddedToRuntimeSource": false,
+    "calorieFieldsAddedToRuntimeSource": true,
     "productionDeployed": false,
     "itemIds": [
       {
