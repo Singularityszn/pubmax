@@ -44,7 +44,6 @@
           "itemName": "Foccacia",
           "category": "other",
           "priceGbp": 3.5,
-          "description": "caramelised onion butter",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -69,7 +68,6 @@
           "itemName": "Mini Chicken Pie",
           "category": "other",
           "priceGbp": 5.5,
-          "description": "Youngs Gravy",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -118,7 +116,6 @@
           "itemName": "Pork and Black Pudding Sausage Roll",
           "category": "bar-snacks",
           "priceGbp": 6.5,
-          "description": "Youngs Gravy",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -131,7 +128,6 @@
           "itemName": "Youngs Original glazed Pork Ribs",
           "category": "bar-snacks",
           "priceGbp": 8,
-          "description": "Sesame, pickled Shallots",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -144,7 +140,6 @@
           "itemName": "Roasted Parsnip Soup",
           "category": "starters",
           "priceGbp": 7.5,
-          "description": "sourdough",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -157,7 +152,6 @@
           "itemName": "Mackerel Pate",
           "category": "starters",
           "priceGbp": 8.5,
-          "description": "toasted sourdough",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -170,7 +164,6 @@
           "itemName": "Beetroot Carpaccio",
           "category": "starters",
           "priceGbp": 7.5,
-          "description": "pickled chillies, garlic vinaigrette",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -183,7 +176,6 @@
           "itemName": "Prawn Cocktail",
           "category": "starters",
           "priceGbp": 11,
-          "description": "toasted sourdough",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -196,7 +188,6 @@
           "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
           "category": "starters",
           "priceGbp": 8,
-          "description": "piccalilli, sourdough",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -209,7 +200,6 @@
           "itemName": "Ox Cheek Croquettes",
           "category": "starters",
           "priceGbp": 10,
-          "description": "buffalo sauce",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -222,7 +212,6 @@
           "itemName": "The Eagle Chicken Sharer",
           "category": "sharers",
           "priceGbp": 28,
-          "description": "paprika aioli, winter slaw, corn",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -235,7 +224,6 @@
           "itemName": "1kg Brewhouse Pork Ribs",
           "category": "sharers",
           "priceGbp": 40,
-          "description": "charred corn, apple and fennel slaw, fries",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -248,7 +236,6 @@
           "itemName": "Ruby Betroot Hummus",
           "category": "sharers",
           "priceGbp": 16,
-          "description": "chargrilled fatbread, seasonal crudites",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -261,7 +248,6 @@
           "itemName": "The Eagle Beef Burger",
           "category": "mains",
           "priceGbp": 18.5,
-          "description": "short rib and brisket British beef burger, sesame seeded bun, cheese, pickles, burger sauce, cripsy onions, fries",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -274,7 +260,6 @@
           "itemName": "Plant Burger",
           "category": "mains",
           "priceGbp": 18,
-          "description": "sesame seeded bun, cheese, pickles, burger sauce, crispy onions, fries",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -287,7 +272,6 @@
           "itemName": "Aspall Cider Battered Haddock",
           "category": "mains",
           "priceGbp": 19.5,
-          "description": "triple cooked chips, mushy peas, tartare sauce",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -300,7 +284,6 @@
           "itemName": "10oz West Country Ribeye Steak",
           "category": "mains",
           "priceGbp": 44,
-          "description": "tripple cooked chips, peppercorn sauce, watercress",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -313,7 +296,6 @@
           "itemName": "Pork and Black Pudding Sausage and Mash",
           "category": "mains",
           "priceGbp": 17,
-          "description": "mashed potatoes, Youngs gravy, Bramley apple sauce",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -326,7 +308,6 @@
           "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
           "category": "mains",
           "priceGbp": 18,
-          "description": "crispy sage, Cheddar cheese sauce",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -339,7 +320,6 @@
           "itemName": "Roasted Bedloom Heritage Squash",
           "category": "mains",
           "priceGbp": 16,
-          "description": "quinoa, dried cranberries, curly kale, feta",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -352,7 +332,6 @@
           "itemName": "Beef and Kidney Suet Pudding",
           "category": "mains",
           "priceGbp": 24,
-          "description": "tenderstem broccoli",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -365,7 +344,6 @@
           "itemName": "Wild Mushroom Risotto",
           "category": "mains",
           "priceGbp": 16.5,
-          "description": "sage leaves",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -378,7 +356,6 @@
           "itemName": "Half Roast Chicken",
           "category": "mains",
           "priceGbp": 22,
-          "description": "hasselback mids, braised red cabbage, Youngs gravy",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -391,7 +368,6 @@
           "itemName": "Cyder Battered Haddock",
           "category": "mains",
           "priceGbp": 19.5,
-          "description": "triple cooked chips, tartare sauce, mushy peas, burnt lemon",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -404,7 +380,6 @@
           "itemName": "Braised Cavolo Nero",
           "category": "sides",
           "priceGbp": 4,
-          "description": "garlic oil",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -429,7 +404,6 @@
           "itemName": "Tenderstem Broccoli",
           "category": "sides",
           "priceGbp": 4.5,
-          "description": "pickled onions",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -442,7 +416,6 @@
           "itemName": "Blooming Onion",
           "category": "sides",
           "priceGbp": 5.5,
-          "description": "garlic aioli",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -455,7 +428,6 @@
           "itemName": "Hasselback Mids",
           "category": "sides",
           "priceGbp": 5,
-          "description": "salsa verde",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -468,7 +440,6 @@
           "itemName": "Bitter Leaf Salad",
           "category": "sides",
           "priceGbp": 4,
-          "description": "lemon vinaigrette",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -481,7 +452,6 @@
           "itemName": "Sticky Toffee Pudding",
           "category": "desserts",
           "priceGbp": 8,
-          "description": "vanilla ice cream",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -494,7 +464,6 @@
           "itemName": "Blue Cheese",
           "category": "desserts",
           "priceGbp": 8,
-          "description": "honey, pecans, seeded crispbread",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -507,7 +476,6 @@
           "itemName": "Chocolate Brownie",
           "category": "desserts",
           "priceGbp": 8,
-          "description": "vanilla ice cream",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -520,7 +488,6 @@
           "itemName": "Ice cream",
           "category": "desserts",
           "priceGbp": 5.5,
-          "description": "3 scoops",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -545,7 +512,6 @@
           "itemName": "Apple and Blackberry Crumble",
           "category": "desserts",
           "priceGbp": 9,
-          "description": "Bay leaf custard",
           "source": {
             "label": "The Eagle - official published menu",
             "url": "https://www.theeaglew12.co.uk/food-drink",
@@ -582,7 +548,7 @@
         {
           "itemName": "Foccacia",
           "sourceStatedCaloriesKcal": 351,
-          "sourceExcerpt": "Foccacia £3.5\ncaramelised onion butter\n351kcal"
+          "sourceExcerpt": "Foccacia £3.5\n351kcal"
         },
         {
           "itemName": "Pork and Black Pudding Scotch Egg",
@@ -592,7 +558,7 @@
         {
           "itemName": "Mini Chicken Pie",
           "sourceStatedCaloriesKcal": 381,
-          "sourceExcerpt": "Mini Chicken Pie£5.5\nYoungs Gravy\n381kcal"
+          "sourceExcerpt": "Mini Chicken Pie£5.5\n381kcal"
         },
         {
           "itemName": "Anchovy, Olive and Pickle Pintxos",
@@ -612,117 +578,117 @@
         {
           "itemName": "Pork and Black Pudding Sausage Roll",
           "sourceStatedCaloriesKcal": 426,
-          "sourceExcerpt": "Pork and Black Pudding Sausage Roll£6.5\nYoungs Gravy\n426kcal"
+          "sourceExcerpt": "Pork and Black Pudding Sausage Roll£6.5\n426kcal"
         },
         {
           "itemName": "Youngs Original glazed Pork Ribs",
           "sourceStatedCaloriesKcal": 642,
-          "sourceExcerpt": "Youngs Original glazed Pork Ribs£8.0\nSesame, pickled Shallots\n642kcal"
+          "sourceExcerpt": "Youngs Original glazed Pork Ribs£8.0\n642kcal"
         },
         {
           "itemName": "Roasted Parsnip Soup",
           "sourceStatedCaloriesKcal": 418,
-          "sourceExcerpt": "Roasted Parsnip Soup£7.5\nsourdough\n418kcal"
+          "sourceExcerpt": "Roasted Parsnip Soup£7.5\n418kcal"
         },
         {
           "itemName": "Mackerel Pate",
           "sourceStatedCaloriesKcal": 390,
-          "sourceExcerpt": "Mackerel Pate£8.5\ntoasted sourdough\n390kcal"
+          "sourceExcerpt": "Mackerel Pate£8.5\n390kcal"
         },
         {
           "itemName": "Beetroot Carpaccio",
           "sourceStatedCaloriesKcal": 53,
-          "sourceExcerpt": "Beetroot Carpaccio£7.5\npickled chillies, garlic vinaigrette\n53kcal"
+          "sourceExcerpt": "Beetroot Carpaccio£7.5\n53kcal"
         },
         {
           "itemName": "Prawn Cocktail",
           "sourceStatedCaloriesKcal": 422,
-          "sourceExcerpt": "Prawn Cocktail£11\ntoasted sourdough\n422kcal"
+          "sourceExcerpt": "Prawn Cocktail£11\n422kcal"
         },
         {
           "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
           "sourceStatedCaloriesKcal": 325,
-          "sourceExcerpt": "Pork Shoulder, Ham Hock and Pear Terrine£8\npiccalilli, sourdough\n325kcal"
+          "sourceExcerpt": "Pork Shoulder, Ham Hock and Pear Terrine£8\n325kcal"
         },
         {
           "itemName": "Ox Cheek Croquettes",
           "sourceStatedCaloriesKcal": 260,
-          "sourceExcerpt": "Ox Cheek Croquettes£10\nbuffalo sauce\n260kcal"
+          "sourceExcerpt": "Ox Cheek Croquettes£10\n260kcal"
         },
         {
           "itemName": "The Eagle Chicken Sharer",
           "sourceStatedCaloriesKcal": 2671,
-          "sourceExcerpt": "The Eagle Chicken Sharer£28.0\npaprika aioli, winter slaw, corn\n2671kcal"
+          "sourceExcerpt": "The Eagle Chicken Sharer£28.0\n2671kcal"
         },
         {
           "itemName": "1kg Brewhouse Pork Ribs",
           "sourceStatedCaloriesKcal": 3102,
-          "sourceExcerpt": "1kg Brewhouse Pork Ribs£40.0\ncharred corn, apple and fennel slaw, fries\n3102kcal"
+          "sourceExcerpt": "1kg Brewhouse Pork Ribs£40.0\n3102kcal"
         },
         {
           "itemName": "Ruby Betroot Hummus",
           "sourceStatedCaloriesKcal": 867,
-          "sourceExcerpt": "Ruby Betroot Hummus£16.0\nchargrilled fatbread, seasonal crudites\n867kcal"
+          "sourceExcerpt": "Ruby Betroot Hummus£16.0\n867kcal"
         },
         {
           "itemName": "The Eagle Beef Burger",
           "sourceStatedCaloriesKcal": 1281,
-          "sourceExcerpt": "The Eagle Beef Burger£18.5\nshort rib and brisket British beef burger, sesame seeded bun, cheese, pickles, burger sauce, cripsy onions, fries\n1281kcal"
+          "sourceExcerpt": "The Eagle Beef Burger£18.5\n1281kcal"
         },
         {
           "itemName": "Plant Burger",
           "sourceStatedCaloriesKcal": 1056,
-          "sourceExcerpt": "Plant Burger£18.0\nsesame seeded bun, cheese, pickles, burger sauce, crispy onions, fries\n1056kcal"
+          "sourceExcerpt": "Plant Burger£18.0\n1056kcal"
         },
         {
           "itemName": "Aspall Cider Battered Haddock",
           "sourceStatedCaloriesKcal": 1090,
-          "sourceExcerpt": "Aspall Cider Battered Haddock£19.5\ntriple cooked chips, mushy peas, tartare sauce\n1090kcal"
+          "sourceExcerpt": "Aspall Cider Battered Haddock£19.5\n1090kcal"
         },
         {
           "itemName": "10oz West Country Ribeye Steak",
           "sourceStatedCaloriesKcal": 776,
-          "sourceExcerpt": "10oz West Country Ribeye Steak£44.0\ntripple cooked chips, peppercorn sauce, watercress\n776kcal"
+          "sourceExcerpt": "10oz West Country Ribeye Steak£44.0\n776kcal"
         },
         {
           "itemName": "Pork and Black Pudding Sausage and Mash",
           "sourceStatedCaloriesKcal": 762,
-          "sourceExcerpt": "Pork and Black Pudding Sausage and Mash£17.0\nmashed potatoes, Youngs gravy, Bramley apple sauce\n762kcal"
+          "sourceExcerpt": "Pork and Black Pudding Sausage and Mash£17.0\n762kcal"
         },
         {
           "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
           "sourceStatedCaloriesKcal": 579,
-          "sourceExcerpt": "Roast Pumpkin and Spiced Ricotta Ravioli£18.0\ncrispy sage, Cheddar cheese sauce\n579kcal"
+          "sourceExcerpt": "Roast Pumpkin and Spiced Ricotta Ravioli£18.0\n579kcal"
         },
         {
           "itemName": "Roasted Bedloom Heritage Squash",
           "sourceStatedCaloriesKcal": 821,
-          "sourceExcerpt": "Roasted Bedloom Heritage Squash£16.0\nquinoa, dried cranberries, curly kale, feta\n821kcal"
+          "sourceExcerpt": "Roasted Bedloom Heritage Squash£16.0\n821kcal"
         },
         {
           "itemName": "Beef and Kidney Suet Pudding",
           "sourceStatedCaloriesKcal": 708,
-          "sourceExcerpt": "Beef and Kidney Suet Pudding£24.0\ntenderstem broccoli\n708kcal"
+          "sourceExcerpt": "Beef and Kidney Suet Pudding£24.0\n708kcal"
         },
         {
           "itemName": "Wild Mushroom Risotto",
           "sourceStatedCaloriesKcal": 700,
-          "sourceExcerpt": "Wild Mushroom Risotto£16.5\nsage leaves\n700kcal"
+          "sourceExcerpt": "Wild Mushroom Risotto£16.5\n700kcal"
         },
         {
           "itemName": "Half Roast Chicken",
           "sourceStatedCaloriesKcal": 1750,
-          "sourceExcerpt": "Half Roast Chicken£22\nhasselback mids, braised red cabbage, Youngs gravy\n1750kcal"
+          "sourceExcerpt": "Half Roast Chicken£22\n1750kcal"
         },
         {
           "itemName": "Cyder Battered Haddock",
           "sourceStatedCaloriesKcal": 1090,
-          "sourceExcerpt": "Cyder Battered Haddock£19.5\ntriple cooked chips, tartare sauce, mushy peas, burnt lemon\n1090kcal"
+          "sourceExcerpt": "Cyder Battered Haddock£19.5\n1090kcal"
         },
         {
           "itemName": "Braised Cavolo Nero",
           "sourceStatedCaloriesKcal": 42,
-          "sourceExcerpt": "Braised Cavolo Nero£4.0\ngarlic oil\n42kcal"
+          "sourceExcerpt": "Braised Cavolo Nero£4.0\n42kcal"
         },
         {
           "itemName": "Truffle Fries",
@@ -732,42 +698,42 @@
         {
           "itemName": "Tenderstem Broccoli",
           "sourceStatedCaloriesKcal": 85,
-          "sourceExcerpt": "Tenderstem Broccoli£4.5\npickled onions\n85kcal"
+          "sourceExcerpt": "Tenderstem Broccoli£4.5\n85kcal"
         },
         {
           "itemName": "Blooming Onion",
           "sourceStatedCaloriesKcal": 565,
-          "sourceExcerpt": "Blooming Onion£5.5\ngarlic aioli\n565kcal"
+          "sourceExcerpt": "Blooming Onion£5.5\n565kcal"
         },
         {
           "itemName": "Hasselback Mids",
           "sourceStatedCaloriesKcal": 564,
-          "sourceExcerpt": "Hasselback Mids£5.0\nsalsa verde\n564kcal"
+          "sourceExcerpt": "Hasselback Mids£5.0\n564kcal"
         },
         {
           "itemName": "Bitter Leaf Salad",
           "sourceStatedCaloriesKcal": 14,
-          "sourceExcerpt": "Bitter Leaf Salad£4.0\nlemon vinaigrette\n14kcal"
+          "sourceExcerpt": "Bitter Leaf Salad£4.0\n14kcal"
         },
         {
           "itemName": "Sticky Toffee Pudding",
           "sourceStatedCaloriesKcal": 534,
-          "sourceExcerpt": "Sticky Toffee Pudding £8.00\nvanilla ice cream\n534kcal"
+          "sourceExcerpt": "Sticky Toffee Pudding £8.00\n534kcal"
         },
         {
           "itemName": "Blue Cheese",
           "sourceStatedCaloriesKcal": 411,
-          "sourceExcerpt": "Blue Cheese £8.0\nhoney, pecans, seeded crispbread\n411kcal"
+          "sourceExcerpt": "Blue Cheese £8.0\n411kcal"
         },
         {
           "itemName": "Chocolate Brownie",
           "sourceStatedCaloriesKcal": 753,
-          "sourceExcerpt": "Chocolate Brownie£8.00\nvanilla ice cream\n753kcal"
+          "sourceExcerpt": "Chocolate Brownie£8.00\n753kcal"
         },
         {
           "itemName": "Ice cream",
           "sourceStatedCaloriesKcal": 238,
-          "sourceExcerpt": "Ice cream£5.50\n3 scoops\n238kcal"
+          "sourceExcerpt": "Ice cream£5.50\n238kcal"
         },
         {
           "itemName": "Affogato",
@@ -777,7 +743,7 @@
         {
           "itemName": "Apple and Blackberry Crumble",
           "sourceStatedCaloriesKcal": 409,
-          "sourceExcerpt": "Apple and Blackberry Crumble£9.0\nBay leaf custard\n409kcal"
+          "sourceExcerpt": "Apple and Blackberry Crumble£9.0\n409kcal"
         },
         {
           "itemName": "Mango sorbet (2 scoops)",
