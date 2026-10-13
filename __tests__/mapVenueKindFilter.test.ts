@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -126,28 +123,5 @@ describe("the control the desktop map opens", () => {
     expect(html).toContain(
       'aria-label="Filters: venue types, view and zone, 2 filters on"',
     );
-    const css = readFileSync(
-      join(process.cwd(), "components/map/mapVenueKindFilter.css"),
-      "utf8",
-    );
-    expect(css).toMatch(
-      /@media \(min-width: 641px\) and \(max-width: 900px\)[\s\S]*?\.mapVenueKindFilterWord\s*{[\s\S]*?display:\s*none/,
-    );
-  });
-
-  it("caps the panel at the room BELOW the toolbar, not at the toolbar's height", () => {
-    // Measured at 1440x900 with the panel open: the toolbar is 60px tall and
-    // sits 159px down, so the panel opens at y 219. Subtracting the height
-    // alone left a 744px cap on a 900px screen and the panel ran to y 910, ten
-    // pixels off the bottom, with the fare-zone footnote cut mid-sentence. The
-    // room is what is left below the toolbar's own bottom edge, which is the
-    // clearance plus the height.
-    const css = readFileSync(
-      join(process.cwd(), "components/map/mapVenueKindFilter.css"),
-      "utf8",
-    );
-    const cap = css.match(/\.mapVenueKindFilterPanel\s*\{[\s\S]*?max-height:[^;]+;/)?.[0] ?? "";
-    expect(cap).toContain("--map-top-clearance");
-    expect(cap).toContain("--map-toolbar-resting-height");
   });
 });

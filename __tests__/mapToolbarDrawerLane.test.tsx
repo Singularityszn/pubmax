@@ -8,6 +8,7 @@ import { applyDrinkLane } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import { initialFilters, type Filters } from "@/lib/venues";
+import { computeZonePintIndex } from "@/lib/zones";
 
 // QA journeys F04. The drink tray closes when a pub drawer or the planner
 // opens, and the bar stays a live surface beside the desktop drawer.
@@ -85,6 +86,28 @@ function drinkButton(): HTMLButtonElement {
 const trayOpen = () => host.querySelector(".drinkLanePicker") !== null;
 
 describe("the drink tray and a surface that opens", () => {
+  it.each(["food", "no-alcohol"])("removes the drink tray and pint controls when %s owns the map", async (experienceLens) => {
+    const kinds = {
+      venueKindVisibility: { pub: true, bar: true, food: true, restaurant: true },
+      onVenueKindVisibilityChange: noop,
+      zoneIndex: computeZonePintIndex([]),
+    };
+    await act(async () => render(kinds));
+    act(() => drinkButton().click());
+    expect(trayOpen()).toBe(true);
+    render({ ...kinds, experienceLens });
+    expect(host.querySelector(".mapToolbarDrinkLaneBtn")).toBeNull();
+    expect(trayOpen()).toBe(false);
+    expect(host.querySelector(".drinkShapeChips")).toBeNull();
+    const filters = host.querySelector<HTMLButtonElement>(".mapVenueKindFilterBtn")!;
+    act(() => filters.click());
+    const panel = host.querySelector(".mapVenueKindFilterPanel")!;
+    expect(panel.querySelector(".mapExperienceLensOption.isSelected")?.textContent).toBe(experienceLens === "food" ? "Food" : "No alcohol");
+    expect(panel.querySelector(".zonePicker")).toBeNull();
+    render(kinds);
+    expect(drinkButton()).not.toBeNull();
+  });
+
   it("dismisses with Escape and restores the toggle focus", () => {
     render();
     act(() => drinkButton().click());

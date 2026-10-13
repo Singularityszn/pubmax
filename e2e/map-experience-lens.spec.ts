@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMapToolbarReady, selectFirstToolbarVenue } from "./helpers/mapToolbar";
+import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
+
 const VIEWPORT = { width: 390, height: 844 };
 
 test.use({
@@ -100,4 +104,77 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
   );
 
   expect(errors).toEqual([]);
+});
+
+for (const { width, height } of [
+  { width: 800, height: 900 },
+  { width: 1440, height: 582 },
+  { width: 1440, height: 900 },
+]) {
+  test("desktop filters fit and execute at " + width + "x" + height, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height });
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map");
+    await expectMapToolbarReady(page);
+    const toolbar = page.locator(".mapToolbar");
+    const toggle = toolbar.locator(".mapVenueKindFilterBtn");
+    await toggle.click();
+    const panel = toolbar.getByRole("dialog", { name: "Filters", exact: true });
+    await expect(panel).toBeVisible();
+    const kinds = panel.getByRole("group", { name: "Venue types" });
+    await kinds.getByRole("button", { name: "Bars", exact: true }).click();
+    await kinds.getByRole("button", { name: "Restaurants", exact: true }).click();
+    await expect(toggle).toHaveAttribute("aria-label", /2 filters on/);
+    await expect(toggle.locator(".mapVenueKindFilterCount")).toHaveText("2");
+    if (width <= 900) await expect(toggle.locator(".mapVenueKindFilterWord")).toBeHidden();
+    else await expect(toggle.locator(".mapVenueKindFilterWord")).toBeVisible();
+    const box = await panel.boundingBox();
+    const toolbarBox = await toolbar.boundingBox();
+    expect(box).not.toBeNull();
+    expect(toolbarBox).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(toolbarBox!.y + toolbarBox!.height);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(height);
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    const reset = panel.getByRole("button", { name: "Show all types", exact: true });
+    await reset.scrollIntoViewIfNeeded();
+    await expect.poll(() => reset.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return node.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    })).toBe(true);
+    await reset.click();
+    await expect(toggle).toHaveAttribute("aria-label", "Filters: venue types, view and zone");
+    const views = panel.getByRole("group", { name: "Map view" });
+    for (const label of ["All", "No alcohol", "Food"]) {
+      const control = views.getByRole("button", { name: label, exact: true });
+      await control.scrollIntoViewIfNeeded();
+      const rect = await control.boundingBox();
+      expect(rect!.height).toBeGreaterThanOrEqual(44);
+      expect(rect!.x).toBeGreaterThanOrEqual(0);
+      expect(rect!.x + rect!.width).toBeLessThanOrEqual(width);
+      await control.click();
+      await expect(control).toHaveAttribute("aria-pressed", "true");
+      if (label !== "All") {
+        await expect(toolbar.getByRole("button", { name: /^Drink:/ })).toHaveCount(0);
+        await expect(toolbar.locator(".drinkShapeChips")).toHaveCount(0);
+      }
+    }
+  });
+}
+
+test("the desktop inspector retains the selected coffee category", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installDeterministicMapBasemap(page);
+  await page.goto("/map");
+  await expectMapToolbarReady(page);
+  await selectFirstToolbarVenue(page, "Princess Louise");
+  await expectSoleDesktopDrawer(page, "venue");
+  const toolbar = page.locator(".mapToolbar");
+  await toolbar.getByRole("button", { name: /^Drink:/ }).click();
+  await toolbar.getByRole("button", { name: "Coffee", exact: true }).click();
+  await expect(toolbar.getByRole("button", { name: /^Drink:/ })).toContainText("Coffee");
+  await expect(desktopVenueDrawer(page).locator(".venueDrinkPrices")).toContainText(/coffee/i);
+  await expect(desktopVenueDrawer(page).locator(".venuePriceThen")).toHaveCount(0);
 });

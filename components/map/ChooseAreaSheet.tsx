@@ -179,7 +179,7 @@ export function ChooseAreaDesktopDialog({
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  useDismissOnEscape(open, onClose);
+  useDismissOnEscape(open, onClose, dialogRef);
 
   useEffect(() => {
     if (!open) return;
