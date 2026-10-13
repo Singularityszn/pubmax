@@ -22,6 +22,29 @@ const expectedByName = new Map(venue.sourceNutritionObservations.map((fact) => [
 const expectedIds = new Map(receipt.sourceInputImport.itemIds.map((item) => [item.itemName, item]));
 const original = snapshot("prices_20260711.json");
 
+describe("committed Eagle menu receipt", () => {
+  it("keeps every candidate free of publisher descriptions", () => {
+    expect(venue.candidateFoodItems).toHaveLength(42);
+    for (const item of venue.candidateFoodItems) {
+      expect(Object.hasOwn(item, "description")).toBe(false);
+    }
+  });
+
+  it("retains only item, price and calorie facts in each nutrition excerpt", () => {
+    expect(venue.sourceNutritionObservations).toHaveLength(42);
+    for (const fact of venue.sourceNutritionObservations) {
+      const item = defined(venue.candidateFoodItems.find((candidate) => candidate.itemName === fact.itemName));
+      const lines = fact.sourceExcerpt.split("\n");
+      expect(lines.length).toBe(2);
+      const [nameAndPrice, calories] = lines;
+      const [name, price] = defined(nameAndPrice).split("£");
+      expect(defined(name).trim()).toBe(item.itemName);
+      expect(Number(defined(price))).toBe(item.priceGbp);
+      expect(calories).toBe(`${fact.sourceStatedCaloriesKcal}kcal`);
+    }
+  });
+});
+
 describe.each(["latest.json", "prices_20261013.json"])("Eagle calorie source import in %s", (filename) => {
   it("preserves all 2,530 prior rows exactly", () => {
     expect(snapshot(filename).updates.slice(0, 2530)).toEqual(original.updates);
