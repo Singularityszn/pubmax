@@ -21,6 +21,7 @@
 // failure without blocking browsing.
 
 import { NextResponse } from "next/server";
+import { IOS_EMAIL_AUTH_MODE } from "@/lib/nativeEmailPkce";
 import { IOS_AUTH_MODE, nativeAuthCallbackLocation } from "@/lib/nativeAuthCallback";
 import {
   AUTH_ATTEMPT_PARAM,
@@ -33,7 +34,7 @@ import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  if (url.searchParams.getAll("native").length === 1 && url.searchParams.get("native") === IOS_AUTH_MODE) {
+  if (url.searchParams.getAll("native").length === 1 && (url.searchParams.get("native") === IOS_AUTH_MODE || url.searchParams.get("native") === IOS_EMAIL_AUTH_MODE)) {
     return new Response(null, {
       status: 307,
       headers: { location: nativeAuthCallbackLocation(url), "cache-control": "no-store", "referrer-policy": "no-referrer" },

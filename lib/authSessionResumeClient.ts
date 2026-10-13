@@ -223,12 +223,13 @@ export async function redeemPersistedSession(
 export async function requestResumeLink(
   callbackUrl: string,
   fetchImpl: FetchLike = fetch,
+  native?: { codeChallenge: string },
 ): Promise<MagicLinkResult> {
   try {
     const response = await fetchImpl(ENDPOINT, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "resume", callbackUrl }),
+      body: JSON.stringify({ action: "resume", callbackUrl, ...(native ? { codeChallenge: native.codeChallenge } : {}) }),
       signal: timeoutSignal(),
     });
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;

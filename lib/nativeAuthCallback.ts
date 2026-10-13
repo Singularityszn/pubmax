@@ -1,3 +1,4 @@
+import { IOS_EMAIL_AUTH_MODE, IOS_EMAIL_CALLBACK } from "@/lib/nativeEmailPkce";
 import { AUTH_ATTEMPT_PARAM, isAuthAttemptId } from "@/lib/authRedirect";
 
 export const IOS_AUTH_CALLBACK = "pubmaxx://native-auth/callback";
@@ -10,7 +11,7 @@ export function isNativeAuthCode(value: unknown): value is string {
 
 /** The relay carries no credentials, provider errors, or arbitrary destination. */
 export function nativeAuthCallbackLocation(source: URL): string {
-  const target = new URL(IOS_AUTH_CALLBACK);
+  const target = new URL(source.searchParams.get("native") === IOS_EMAIL_AUTH_MODE ? IOS_EMAIL_CALLBACK : IOS_AUTH_CALLBACK);
   const attempts = source.searchParams.getAll(AUTH_ATTEMPT_PARAM);
   const codes = source.searchParams.getAll("code");
   if (attempts.length === 1 && isAuthAttemptId(attempts[0])) {

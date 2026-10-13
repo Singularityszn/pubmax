@@ -33,6 +33,9 @@ import IdentityNudge from "@/components/identity/IdentityNudge";
 import { LOGIN_ADD_ACCOUNT_PARAM, markArrival, parseAddAccount, takeChosenIntent } from "@/lib/arrivalWelcome";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import { oauthOpensInSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
+import { activateNativeEmailLinks, readNativeEmailCallback } from "@/lib/nativeEmailLinks";
+import { completeNativeEmailLink, discardNativeEmailAttempt, nativeEmailAuthConfig, prepareNativeEmailReceipt, requestNativeEmailLink } from "@/lib/nativeEmailAuth";
+import { readNativeEmailReceipt, removeNativeEmailReceipt } from "@/lib/nativeEmailPkce";
 import { nativePlatform } from "@/lib/nativePlatform";
 import { completeNativeIOSOAuth, installNativeSession } from "@/lib/nativeIOSOAuth";
 import { cancelNativeAuthSession, createNativeAuthLifetime, nativeAuthSessionAvailable } from "@/lib/nativeAuthSession";
@@ -249,6 +252,7 @@ async function persistSessionWithRetry(
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
+  replacePendingAttemptIfCurrent?: () => boolean,
 ): Promise<CanonicalAuthAttemptStart> {
   const attempt = await beginCanonicalAuthAttempt(
     currentUrl,
@@ -258,11 +262,26 @@ async function prepareAuthCallback(
       tabStorage: browserSessionStorage(),
       cryptoProvider: globalThis.crypto,
       lockManager: browserLockManager(),
+      replacePendingAttemptIfCurrent,
     },
     (url) => window.location.assign(url),
   );
   if (!attempt.ok) return attempt;
   return withReferralSignupProof(attempt, currentUrl, fetch);
+}
+
+async function waitForNativeEmailReadiness(): Promise<boolean> {
+  const state = () => readProviderAuthState("supabase");
+  if (state() !== "unresolved") return state() === "signed-out";
+  return new Promise((resolve) => {
+    let stop = () => {};
+    const finish = (ready: boolean) => { window.clearTimeout(timer); stop(); resolve(ready); };
+    const timer = window.setTimeout(() => finish(false), AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+    stop = subscribeProviderIdentityRevision(() => {
+      if (state() !== "unresolved") finish(state() === "signed-out");
+    });
+    if (state() !== "unresolved") finish(state() === "signed-out");
+  });
 }
 
 /** How far a sign-out reaches: this account, or every account on this device. */
@@ -882,7 +901,10 @@ export function AuthProvider({
     };
   }, [configured, updateSession]);
 
-  const cancelPendingNativeAuth = useCallback(() => {
+  const cancelPendingNativeAuth = useCallback((preserveEmailReceipt = false) => {
+    if (!preserveEmailReceipt && typeof window !== "undefined") {
+      discardNativeEmailAttempt(browserLocalStorage(), browserSessionStorage(), window.location.origin);
+    }
     const installation = nativeAuthLifetime.current.invalidate();
     const attemptId = nativeAuthAttempt.current;
     nativeAuthAttempt.current = null;
@@ -893,12 +915,38 @@ export function AuthProvider({
     return installation;
   }, []);
 
-  useEffect(() => () => { void cancelPendingNativeAuth(); }, [cancelPendingNativeAuth]);
+  useEffect(() => () => { void cancelPendingNativeAuth(true); }, [cancelPendingNativeAuth]);
 
   const cancelSignInAttempt = useCallback(() => {
     void cancelPendingNativeAuth();
     cancelBrowserAuthAttempt();
   }, [cancelPendingNativeAuth]);
+
+  const finishNativeSignIn = useCallback((result: { session: Session; captured: CapturedAuthCallback }, current: () => boolean) => {
+    const ownsAccount = () => current() && sessionTransitions.current.currentUserId() === result.session.user.id;
+    if (!ownsAccount()) return;
+    updateSession(result.session);
+    setSessionLoading(false);
+    setAuthCallbackError(null);
+    let returnUrl = result.captured.cleanUrl;
+    const referralClaimed = claimSignupReferralFromAuthCallback({
+      currentUrl: new URL(returnUrl, window.location.origin).toString(),
+      callback: result.captured.attempt,
+      request: (input, init) => authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
+      current: ownsAccount,
+      replaceUrl: (cleanUrl) => {
+        returnUrl = safeAuthNext(cleanUrl, window.location.origin);
+        window.history.replaceState(window.history.state, "", returnUrl);
+      },
+    });
+    void referralClaimed.catch(() => {}).then(() =>
+      ownsAccount() ? handleClaimRouteAfterSignIn(result.session, returnUrl, browserLocalStorage(), undefined, ownsAccount) : null,
+    ).then((destination) => {
+      if (ownsAccount()) {
+        router.push(safeAuthNext(destination ?? returnUrl, window.location.origin));
+      }
+    }).catch(() => {});
+  }, [router, updateSession]);
 
   const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<{ error: string | null } | { useExistingOAuth: true }> => {
     await cancelPendingNativeAuth();
@@ -956,25 +1004,92 @@ export function AuthProvider({
     if (!ticket.current()) return { error: null };
     if (!completed) return { error: AUTH_CALLBACK_ERROR_MESSAGE };
     if (sessionTransitions.current.currentUserId() !== completed.session.user.id) return { error: null };
-    updateSession(completed.session);
-    setSessionLoading(false);
-    setAuthCallbackError(null);
-    const referralClaimed = claimSignupReferralFromAuthCallback({
-      currentUrl: window.location.href,
-      callback: completed.captured.attempt,
-      request: (input, init) => authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
-      replaceUrl: (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
-    });
-    const result = completed;
-    void referralClaimed.catch(() => {}).then(() =>
-      handleClaimRouteAfterSignIn(result.session, result.captured.cleanUrl, browserLocalStorage()),
-    ).then((destination) => {
-      if (ticket.current() && sessionTransitions.current.currentUserId() === result.session.user.id) {
-        router.push(safeAuthNext(destination ?? result.captured.cleanUrl, window.location.origin));
-      }
-    }).catch(() => {});
+    finishNativeSignIn(completed, ticket.current);
     return { error: null };
-  }, [cancelPendingNativeAuth, router, updateSession]);
+  }, [cancelPendingNativeAuth, finishNativeSignIn]);
+
+  const nativeEmailCallbacks = useRef(new Set<string>());
+  useEffect(() => {
+    if (nativePlatform() !== "ios") return;
+    readNativeEmailReceipt(browserLocalStorage(), window.location.origin);
+    let active = true;
+    let stop = () => {};
+    void activateNativeEmailLinks((raw) => {
+      const callback = readNativeEmailCallback(raw, window.location.origin);
+      const storage = browserLocalStorage();
+      const receipt = readNativeEmailReceipt(storage, window.location.origin);
+      if (!callback || receipt?.id !== callback.id || nativeEmailCallbacks.current.has(callback.id)) return;
+      nativeEmailCallbacks.current.add(callback.id);
+      void (async () => {
+        try {
+          const ready = await waitForNativeEmailReadiness();
+          if (!active || readNativeEmailReceipt(storage, window.location.origin)?.id !== callback.id) return;
+          if (!ready) {
+            removeNativeEmailReceipt(storage, callback.id);
+            releaseBrowserAuthAttempt(callback.id);
+            setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+            return;
+          }
+          const ticket = nativeAuthLifetime.current.begin();
+          const revision = readProviderIdentityRevision();
+          const supabase = await ensureSupabaseBrowser().catch(() => null);
+          const config = nativeEmailAuthConfig();
+          if (!active || !ticket.current()) return;
+          if (!supabase || !config) {
+            removeNativeEmailReceipt(storage, callback.id); releaseBrowserAuthAttempt(callback.id);
+            setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+            return;
+          }
+          const outcome = await completeNativeEmailLink(raw, {
+            storage, origin: window.location.origin, config,
+            ownership: { persistentStorage: storage, tabStorage: browserSessionStorage(), lockManager: browserLockManager() },
+            current: () => active && ticket.current() && readProviderIdentityRevision() === revision,
+            install: (result) => ticket.install(() => installNativeSession(supabase.auth, result,
+              () => active && ticket.current() && readProviderIdentityRevision() === revision)),
+          });
+          if (!active || !ticket.current()) return;
+          if (outcome.status === "established") finishNativeSignIn(outcome, ticket.current);
+          else if (outcome.status === "failed") setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        } finally { nativeEmailCallbacks.current.delete(callback.id); }
+      })();
+    }).then((cleanup) => { if (!active) cleanup(); else stop = cleanup; });
+    return () => { active = false; stop(); };
+  }, [finishNativeSignIn]);
+
+  const startNativeEmail = useCallback(async (email: string | null, next?: string): Promise<MagicLinkResult | { useExistingEmail: true }> => {
+    await cancelPendingNativeAuth();
+    const ticket = nativeAuthLifetime.current.begin();
+    const supabase = await ensureSupabaseBrowser().catch(() => null);
+    if (!ticket.current()) return { status: "error", message: AUTH_CALLBACK_ERROR_MESSAGE };
+    const activeSession = await supabase?.auth.getSession().catch(() => null);
+    if (!ticket.current() || !supabase || !activeSession || activeSession.error) return { status: "error", message: AUTH_CALLBACK_ERROR_MESSAGE };
+    if (activeSession.data.session) {
+      const page = new URL(window.location.href);
+      if ((page.pathname === "/login" || page.pathname === "/signin") && page.searchParams.getAll(LOGIN_ADD_ACCOUNT_PARAM).length === 1 &&
+          parseAddAccount(page.searchParams.get(LOGIN_ADD_ACCOUNT_PARAM)) && readProviderAuthState("supabase") === "authenticated" &&
+          sessionTransitions.current.currentUserId() === activeSession.data.session.user.id) return { useExistingEmail: true };
+      return { status: "error", message: "You are already signed in. Use Switch account to add or change an account." };
+    }
+    if (sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") !== "signed-out") return { status: "error", message: AUTH_CALLBACK_ERROR_MESSAGE };
+    const attempt = await prepareAuthCallback(window.location.href, next ?? defaultEmailAuthNext(window.location.href),
+      () => ticket.current() && sessionTransitions.current.currentUserId() === null && readProviderAuthState("supabase") === "signed-out");
+    if ("navigationStarted" in attempt) return { status: "error", message: "Continue sign-in on pubmaxxing.com." };
+    if (!attempt.ok) return { status: "error", message: attempt.message };
+    const config = nativeEmailAuthConfig();
+    if (!config) { releaseBrowserAuthAttempt(attempt.id); return { status: "error", message: "Sign-in is not configured." }; }
+    const prepared = await prepareNativeEmailReceipt(attempt, email, browserLocalStorage(), Date.now(), ticket.current, config);
+    if (!prepared || !config || !ticket.current()) {
+      removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
+      return { status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." };
+    }
+    const result = email === null
+      ? await requestResumeLink(prepared.receipt.callbackUrl, fetch, { codeChallenge: prepared.challenge })
+      : await requestNativeEmailLink(email, prepared.receipt, prepared.challenge, config);
+    if (result.status !== "sent") {
+      removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
+    }
+    return result;
+  }, [cancelPendingNativeAuth]);
 
   // Android opens the provider through lib/nativeOAuth.ts and returns via its
   // HTTPS App Link. iPhone sign-in uses the separate authentication session above.
@@ -1135,6 +1250,10 @@ export function AuthProvider({
       if (typeof window === "undefined") {
         return { status: "error", message: "Sign-in is unavailable on this page." };
       }
+      if (nativePlatform() === "ios") {
+        const native = await startNativeEmail(email, next);
+        if (!("useExistingEmail" in native)) return native;
+      }
       const attempt = await prepareAuthCallback(
         window.location.href,
         next ?? defaultEmailAuthNext(window.location.href),
@@ -1157,7 +1276,7 @@ export function AuthProvider({
       }
       return result;
     },
-    [],
+    [startNativeEmail],
   );
 
   const signOut = useCallback(
@@ -1240,6 +1359,10 @@ export function AuthProvider({
     if (typeof window === "undefined") {
       return { status: "error", message: "Sign-in is unavailable on this page." };
     }
+    if (nativePlatform() === "ios") {
+      const native = await startNativeEmail(null, next);
+      if (!("useExistingEmail" in native)) return native;
+    }
     const attempt = await prepareAuthCallback(
       window.location.href,
       next ?? defaultEmailAuthNext(window.location.href),
@@ -1253,7 +1376,7 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
     }
     return result;
-  }, []);
+  }, [startNativeEmail]);
 
   const value = useMemo<AuthContextValue>(() => {
     const user = session?.user ?? null;
