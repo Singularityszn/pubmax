@@ -156,9 +156,12 @@ const dataMono = localFont({
   // is what keeps that true.
 });
 
-// Keep the generated display face and its matched fallback in the same cascade
-// before and after hydration. The global token must not replace that fallback.
-const rootDisplayFont = { "--font-display": displayFace.style.fontFamily };
+// Keep both generated faces and their matched fallbacks in the same cascade
+// before and after hydration. Global tokens must not replace either fallback.
+const rootFontFamilies = {
+  "--font-display": displayFace.style.fontFamily,
+  "--font-body": bodySans.style.fontFamily,
+};
 if (!displayFace.style.fontFamily.split(",").slice(1).join(",").trim() || !bodySans.style.fontFamily.split(",").slice(1).join(",").trim()) {
   throw new Error("The display and body fonts require their generated matched fallbacks.");
 }
@@ -293,7 +296,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
-      style={rootDisplayFont as CSSProperties}
+      style={rootFontFamilies as CSSProperties}
     >
       <head>
         <noscript>

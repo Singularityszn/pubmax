@@ -79,6 +79,16 @@ import RootLayout from "@/app/layout";
 
 const REPO_ROOT = join(__dirname, "..");
 
+function globalBodyFontRule(): string {
+  const declarations: string[] = [];
+  postcss.parse(readFileSync(join(REPO_ROOT, "app/globals.css"), "utf8"))
+    .walkRules(":root", (rule) => {
+      rule.walkDecls("--font-body", (decl) => { declarations.push(decl.toString()); });
+    });
+  expect(declarations).toHaveLength(1);
+  return `:root{${declarations.join(";")}}`;
+}
+
 function stylesheets(dir: string): string[] {
   const found: string[] = [];
   const walk = (current: string): void => {
@@ -222,7 +232,7 @@ describe("the mono face carries only weights something asks for", () => {
 
 
 describe("root font loading", () => {
-  it("keeps the complete generated display chain through hydration", async () => {
+  it("keeps both complete generated font chains through hydration", async () => {
     const doc = await RootLayout({ children: createElement("main") });
     const findTheme = (node: ReactNode): ReactElement | undefined => {
       for (const child of Children.toArray(node)) {
@@ -242,6 +252,12 @@ describe("root font loading", () => {
     html.dataset.theme = "light";
     html.dataset.mode = "lock-in";
     html.style.setProperty("--font-display", doc.props.style["--font-display"]);
+    const bodyFamily = doc.props.style["--font-body"];
+    if (typeof bodyFamily === "string") html.style.setProperty("--font-body", bodyFamily);
+    else html.style.removeProperty("--font-body");
+    const globalStyle = document.createElement("style");
+    globalStyle.textContent = globalBodyFontRule();
+    document.head.appendChild(globalStyle);
     const host = document.createElement("div");
     document.body.appendChild(host);
     host.innerHTML = renderToStaticMarkup(createElement(StrictMode, null, theme));
@@ -249,26 +265,34 @@ describe("root font loading", () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     try {
       expect(html.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
+      expect(getComputedStyle(html).getPropertyValue("--font-body"))
+        .toBe("'Inter', 'Inter Fallback', system-ui");
       await act(async () => {
         root = hydrateRoot(host, createElement(StrictMode, null, theme));
       });
       expect(html.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
+      expect(html.style.getPropertyValue("--font-body"))
+        .toBe("'Inter', 'Inter Fallback', system-ui");
+      expect(getComputedStyle(html).getPropertyValue("--font-body"))
+        .toBe("'Inter', 'Inter Fallback', system-ui");
     } finally {
       act(() => root?.unmount());
       host.remove();
+      globalStyle.remove();
       if (oldStyle === null) html.removeAttribute("style"); else html.setAttribute("style", oldStyle);
       if (oldTheme === undefined) delete html.dataset.theme; else html.dataset.theme = oldTheme;
       if (oldMode === undefined) delete html.dataset.mode; else html.dataset.mode = oldMode;
     }
   });
 
-  it("admits the complete canonical body family from initial document creation", async () => {
+  it("keeps the generated body fallback over the later global token from initial document creation", async () => {
     const doc = await RootLayout({ children: createElement("main") });
-    // Isolate the emitted document shell from client providers. The stylesheet
-    // represents next/font's variable class with its complete family suffix.
+    // Isolate the real document shell from client providers. The generated
+    // class precedes the actual global token, matching the observed CSS order.
+    // The complete generated chain must still win before client code runs.
     const html = renderToStaticMarkup(createElement(doc.type, doc.props,
       createElement("head", null, createElement("style", null,
-        `[class~="--font-mock"]{--font-body:${fontFamilies.body};}`,
+        `[class~="--font-mock"]{--font-body:${fontFamilies.body};}${globalBodyFontRule()}`,
       )),
       createElement("body", null, "Loading the map"),
     ));
@@ -295,6 +319,7 @@ describe("root font loading", () => {
     const doc = await RootLayout({ children: createElement("main") });
     expect(doc.props.style).toEqual({
       "--font-display": "'Space Grotesk', 'Space Grotesk Fallback'",
+      "--font-body": "'Inter', 'Inter Fallback', system-ui",
     });
     for (const variable of ["--font-display", "--font-body"]) {
       expect(googleFontCalls.find((font) => font.variable === variable)?.preload).toBe(false);
