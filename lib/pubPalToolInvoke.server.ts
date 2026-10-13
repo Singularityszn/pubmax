@@ -12,7 +12,7 @@ import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { recordedDrinkComparison, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -139,7 +139,26 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await runAskTool(input.toolName as AskToolName, args, {
+  const unsupported = unsupportedPriceComparison(query);
+  if (unsupported) {
+    if (input.conversationId) {
+      await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
+    }
+    return {
+      result: {
+        ok: false,
+        code: unsupported.code,
+        answerHint: unsupported.answer,
+        cards: [],
+        proposals: [],
+      },
+    };
+  }
+
+  const recordedDrinks = recordedDrinkComparison(query);
+  const toolName = recordedDrinks?.name ?? input.toolName;
+  const toolArgs = recordedDrinks ? { ...recordedDrinks.args, query } : args;
+  const toolResult = await runAskTool(toolName as AskToolName, toolArgs, {
     cityId,
     query,
     skipModel: true,
@@ -150,7 +169,7 @@ export async function invokePubPalAskTool(input: {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
-      toolsUsed: [input.toolName],
+      toolsUsed: [toolResult.tool],
     });
   }
 

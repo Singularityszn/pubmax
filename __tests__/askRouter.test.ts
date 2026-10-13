@@ -38,6 +38,28 @@ describe("routeAskDeterministically", () => {
 });
 
 describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
+  it.each([
+    "Cheapest vegan food in Camden",
+    "Cheapest wine in Soho",
+    "Cheapest cocktails near Camden",
+  ])("does not substitute pint tools for %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
+  it("checks recorded drinks when a wine comparison names one pub", () => {
+    expect(routeAskDeterministically("Cheapest wine at The Lamb")).toEqual([
+      { name: "venue_drinks", args: { venueName: "The Lamb" } },
+    ]);
+  });
+
+  it.each([
+    "Cheapest pint in Camden",
+    "Cheapest pubs with food in Camden",
+    "Cheap pint and food in Camden",
+  ])("preserves supported pint and food-availability asks: %s", (query) => {
+    expect(routeAskDeterministically(query).length).toBeGreaterThan(0);
+  });
+
   it("routes a cheapest-pint ask to cheapest_pint_near with the area", () => {
     const calls = routeAskDeterministically("Cheapest pint in Camden");
     expect(calls).toEqual([

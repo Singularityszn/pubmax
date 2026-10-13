@@ -101,6 +101,39 @@ describe("propose_plan over the Pal webhook", () => {
     };
   }
 
+  it.each([
+    ["Cheapest vegan food in Camden", "UNSUPPORTED_FOOD_PRICE_COMPARISON", /meal prices|dietary/i],
+    ["Cheapest wine in Soho", "UNSUPPORTED_DRINK_PRICE_COMPARISON", /other drinks across pubs/i],
+  ])("refuses provider-selected pint tools for %s using the full stored ask", async (query, code, wording) => {
+    const conversationId = "conv_unsupported01";
+    await registerPubPalToolTurn(conversationId, {
+      query,
+      cityId: "london",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "cheapest_pint_near",
+      args: { query: "Camden", area: "Camden" },
+      conversationId,
+    });
+    expect(result).toMatchObject({ ok: false, code, cards: [], proposals: [] });
+    expect(result.answerHint).toMatch(wording);
+    const turn = await readPubPalToolTurn(conversationId);
+    expect(turn?.cards).toEqual([]);
+    expect(turn?.hints).toEqual([result.answerHint]);
+    expect(turn?.toolsUsed).toEqual([]);
+  });
+
+  it("uses recorded drinks when the provider picks a pint tool for wine at one pub", async () => {
+    const { result } = await invokePubPalAskTool({
+      toolName: "cheapest_pint_near",
+      args: { query: "Cheapest wine at The Lamb", venueName: "The Lamb" },
+      conversationId: null,
+    });
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.answerHint).not.toMatch(/cheapest listed pints/i);
+  });
+
   // The live agent sent these asks and answered that it could not plan a
   // Shoreditch crawl: "tonight" was read as part of the area, and a bare
   // "Shoreditch crawl" planned three pubs across London.
