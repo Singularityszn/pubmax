@@ -31,8 +31,7 @@ export function resolvePubPalToolQuery(input: {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  if (fromTurn.length >= fromArgs.length) return fromTurn || fromArgs;
-  return fromArgs || fromTurn;
+  return fromTurn || fromArgs;
 }
 
 export function enrichPubPalToolArgs(
@@ -104,17 +103,14 @@ export async function invokePubPalAskTool(input: {
   const turn = input.conversationId
     ? await readPubPalToolTurn(input.conversationId)
     : null;
-  const storedQuery = turn?.query?.trim();
-  const providerQuery = typeof input.args.query === "string" ? input.args.query.trim() : "";
   const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args });
-  const originalQuery = storedQuery || query;
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );
   const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
-  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(originalQuery, threadTurns);
+  const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
     if (input.conversationId) {
@@ -141,8 +137,7 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const unsupported = (storedQuery ? unsupportedPriceComparison(storedQuery) : null)
-    ?? unsupportedPriceComparison(providerQuery);
+  const unsupported = unsupportedPriceComparison(query);
   if (unsupported && !isIndependentAskTool(input.toolName)) {
     if (input.conversationId) {
       await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
@@ -160,7 +155,7 @@ export async function invokePubPalAskTool(input: {
 
   const toolResult = await runAskTool(input.toolName, args, {
     cityId,
-    query: originalQuery,
+    query,
     skipModel: true,
   });
 

@@ -1,5 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { JOURNEY_ENDPOINT_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { isLimitedMock } = vi.hoisted(() => ({
@@ -54,6 +54,30 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(JOURNEY_ENDPOINT_REQUESTS)("preserves both public journey endpoints: $query", async ({ query, from, to, venueId, name }) => {
+    resetJourneyCache();
+    const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+      if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+      return Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } });
+    });
+    vi.stubGlobal("fetch", journeyFetch);
+    const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();
+    expect(body.toolsUsed).toEqual(query.includes("tube delays") ? ["city_status", "journey"] : ["journey"]);
+    expect(body.cards).toMatchObject([{ venueId, place: name }]);
+    const request = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+    expect(JSON.parse(request?.[1]?.body as string).params.arguments).toEqual({ from, to });
+  });
+
+  it.each(NAMED_TERMINAL_PRICE_REQUESTS)("retains the named pint price through terminal grammar: %s", async (query) => {
+    const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();
+    expect(body.toolsUsed).toEqual(["venue_prices"]);
+    expect(body.answer).toContain("The Blackfriar");
+    expect(body.cards.every((card: { venueId: string }) => card.venueId === "venue-eltcmh")).toBe(true);
+    const result = await runAskTool("cheapest_pint_near", { venueName: "The Lamb", query: "pints" }, { query, cityId: "london", skipModel: true });
+    expect(result).toMatchObject({ tool: "venue_prices", data: { venueId: "venue-eltcmh" } });
+    expect(result.priceEvidence?.length).toBeGreaterThan(0);
+  });
+
   it.each(["Any tube delays and how much is a burger in Camden?", "How much is wine in Soho and any tube delays?", "How much is Coke in Soho and directions to Bank?"])("review regression: retains independent transit while refusing prices: %s", async (query) => {
     const response = await post({ query, cityId: "london" }, "203.0.113.82");
     const body = await response.json();

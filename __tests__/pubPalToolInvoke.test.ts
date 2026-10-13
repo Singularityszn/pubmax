@@ -1,5 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { JOURNEY_ENDPOINT_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetJourneyCache } from "@/lib/citymcp/client";
@@ -89,6 +89,37 @@ describe("propose_plan over the Pal webhook", () => {
     vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
     vi.unstubAllGlobals();
+  });
+
+  it.each(JOURNEY_ENDPOINT_REQUESTS)("preserves stored journey endpoints over provider rewrites: $query", async ({ query, from, to, venueId, name }) => {
+    resetJourneyCache();
+    const journeyFetch = vi.fn<typeof fetch>(async () => Response.json({ jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } } }));
+    vi.stubGlobal("fetch", journeyFetch);
+    await registerPubPalToolTurn("conv_endpointoriginal01", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "journey", args: { from: "Bank", to: "Fox", query: "Please show directions to Fox from Bank instead" }, conversationId: "conv_endpointoriginal01" });
+    expect(result.cards).toMatchObject([{ venueId, place: name }]);
+    expect(JSON.parse(journeyFetch.mock.calls[0]?.[1]?.body as string).params.arguments).toEqual({ from, to });
+    expect((await readPubPalToolTurn("conv_endpointoriginal01"))?.toolsUsed).toEqual(["journey"]);
+  });
+
+  it.each(NAMED_TERMINAL_PRICE_REQUESTS)("retains the stored named terminal price: %s", async (query) => {
+    await registerPubPalToolTurn("conv_terminaloriginal01", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "cheapest_pint_near", args: { venueName: "The Lamb", query: "pints near The Lamb" }, conversationId: "conv_terminaloriginal01" });
+    expect(result).toMatchObject({ tool: "venue_prices", ok: true });
+    expect(result.answerHint).toContain("The Blackfriar");
+    expect((await readPubPalToolTurn("conv_terminaloriginal01"))?.toolsUsed).toEqual(["venue_prices"]);
+  });
+
+  it.each([
+    ["Pint price at The Lamb", "Please show the meal prices at The Lamb today", "venue_prices"],
+    ["Cheapest pint in Camden", "Find the cheapest vegan curry available in Camden tonight", "cheapest_pint_near"],
+    ["Wine prices at Fox and Anchor", "Please find bottles of Coke for me at The Lamb instead", "venue_drinks"],
+  ])("lets the supported stored original control incompatible rewrites: %s", async (query, providerQuery, toolName) => {
+    await registerPubPalToolTurn("conv_supportedoriginal01", { query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "venue_prices", args: { venueName: "The Lamb", query: providerQuery }, conversationId: "conv_supportedoriginal01" });
+    expect(result).toMatchObject({ ok: true, tool: toolName });
+    if (query.includes("Fox")) expect(result.answerHint).toContain("Fox and Anchor");
+    expect((await readPubPalToolTurn("conv_supportedoriginal01"))?.toolsUsed).toEqual([toolName]);
   });
 
   it.each(["Directions to Fox and Anchor", "Directions to Fox & Anchor"])("keeps the stored journey destination over provider fragments: %s", async (query) => {
@@ -395,8 +426,7 @@ describe("propose_plan over the Pal webhook", () => {
 
   it.each([
     ["Cheapest vegan curry in Camden", "Please help me find the cheapest listed pint near Camden tonight"],
-    ["Cheapest pint in Camden", "Find the cheapest vegan curry available in Camden tonight"],
-  ])("guards the stored query %s independently from a longer provider query", async (query, providerQuery) => {
+  ])("guards the unsupported stored query despite a longer provider query: %s", async (query, providerQuery) => {
     const conversationId = "conv_unsupported01";
     await registerPubPalToolTurn(conversationId, {
       query,
@@ -444,8 +474,7 @@ describe("propose_plan over the Pal webhook", () => {
 
   it.each([
     ["Meal prices at The Lamb", "How much is a listed pint at The Lamb tonight?"],
-    ["Pint price at The Lamb", "Please show the meal prices at The Lamb today"],
-  ])("guards plural item prices independently in original %s and provider text", async (query, providerQuery) => {
+  ])("guards unsupported item prices in the stored original: %s", async (query, providerQuery) => {
     const conversationId = "conv_pluralguard01";
     await registerPubPalToolTurn(conversationId, {
       query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",

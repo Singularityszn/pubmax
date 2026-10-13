@@ -2,6 +2,32 @@ import { expect, test } from "@playwright/test";
 
 import { VIBE_CHIPS } from "../lib/vibeChips";
 
+for (const query of [
+  "Directions to Fox and Anchor",
+  "How do I get from Kings Cross to Fox and Anchor?",
+  "Directions to Fox & Anchor from Kings Cross",
+]) {
+  test(`the rendered chat preserves the complete journey question: ${query}`, async ({ page }) => {
+    await page.goto("/pal/chat");
+    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    await input.fill(query);
+    const responsePromise = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
+    );
+    await input.press("Enter");
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON().query).toBe(query);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["journey"]);
+    expect(body.cards.every((card: { venueId: string; place: string }) => card.venueId === "venue-phg4ss" && card.place === "Fox and Anchor")).toBe(true);
+    expect(body.proposals.every((proposal: { kind: string; venueId: string }) => proposal.kind === "open_venue" && proposal.venueId === "venue-phg4ss")).toBe(true);
+    expect(body.answer).toMatch(/journey/i);
+    await expect(page.getByText(query, { exact: true })).toBeVisible();
+    await expect(page.getByText(body.answer, { exact: true })).toBeVisible();
+  });
+}
+
 test("Big one tonight returns a sourced plan through the real keyless chat route", async ({ page }) => {
   await page.goto("/pal/chat");
   const chip = page.getByRole("button", { name: "Big one tonight", exact: true });
