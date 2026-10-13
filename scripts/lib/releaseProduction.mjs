@@ -85,8 +85,10 @@ export async function releaseProduction(deps, options = {}) {
     await check.run();
   }
 
-  // 2. Deploy. scripts/deploy-vercel.mjs stamps the commit and builds in the cloud.
-  const deploy = await run("node", ["scripts/deploy-vercel.mjs"], { capture: true });
+  // 2. Stage a production build. The wrapper stamps the commit and builds in the cloud.
+  // --prod selects Production values. --skip-domain leaves domain assignment to step 3.
+  // https://vercel.com/docs/cli/deploy#skip-domain
+  const deploy = await run("node", ["scripts/deploy-vercel.mjs", "--prod", "--skip-domain"], { capture: true });
   if (deploy.status !== 0) throw new ReleaseRefusal("The deploy failed, so nothing was promoted.");
   const deploymentUrl = parseDeploymentUrl(deploy.stdout);
   if (!deploymentUrl) throw new ReleaseRefusal("The deploy printed no deployment URL, so nothing was promoted.");
