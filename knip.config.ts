@@ -102,6 +102,9 @@ const config: KnipConfig = {
     // `npx cap sync android` copies this generated WebView bundle. Capacitor
     // loads its Cordova compatibility scripts outside the app import graph.
     "android/app/src/main/assets/public/**",
+    // Gradle's Android tasks generate module build outputs. The WebView loads
+    // merged assets, and Gradle's HTML test report loads its CSS/JS directly.
+    "android/**/build/**",
 
     // Read from disk by an e2e spec rather than imported.
     "e2e/fixtures/**",
