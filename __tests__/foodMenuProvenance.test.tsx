@@ -20,6 +20,31 @@ function renderFood(overrides: Partial<FoodItem> = {}) {
 }
 
 describe("food menu price evidence", () => {
+  it("shows one attribution when the price and calories share the exact observation", () => {
+    const html = renderFood({ caloriesKcal: 650, caloriesProvenance: {
+      ...item.provenance, sourceUrl: item.source,
+    } });
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    expect(doc.querySelector(".foodCalories")?.textContent).toContain("650 kcal on the menu");
+    expect(doc.querySelectorAll(".drinkRow a")).toHaveLength(1);
+    expect(doc.querySelectorAll(".drinkRow time")).toHaveLength(1);
+    expect(doc.querySelector(".drinkRowSide")?.textContent).toContain("Price and calories");
+  });
+
+  it.each([
+    { sourceUrl: "https://example.com/calorie-menu" },
+    { observedAt: "2026-06-01T12:00:00Z" },
+    { source: "Earlier publisher" },
+    { licence: "Different attribution terms" },
+  ])("keeps separate evidence when an observation field differs: %j", (different) => {
+    const caloriesProvenance = { ...item.provenance, sourceUrl: item.source, ...different };
+    const doc = new DOMParser().parseFromString(renderFood({ caloriesKcal: 650, caloriesProvenance }), "text/html");
+    expect(doc.querySelector(".foodCalories a")?.getAttribute("href")).toBe(caloriesProvenance.sourceUrl);
+    expect(doc.querySelector(".foodCalories time")?.getAttribute("datetime")).toBe(caloriesProvenance.observedAt);
+    expect(doc.querySelectorAll(".drinkRow a")).toHaveLength(2);
+    expect(doc.querySelectorAll(".drinkRow time")).toHaveLength(2);
+  });
+
   it("shows published calories with their own source and date after a price-only update", () => {
     const html = renderFood({ caloriesKcal: 650, caloriesProvenance: {
       source: "Earlier food menu", licence: "Attributed calorie fact", observedAt: "2026-06-01T12:00:00Z",
