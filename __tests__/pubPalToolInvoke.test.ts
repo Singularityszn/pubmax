@@ -165,10 +165,26 @@ describe("propose_plan over the Pal webhook", () => {
     expect(turn?.toolsUsed).toEqual(["cheapest_pint_near"]);
   });
 
+  it("preserves generic area drink discovery and logs its actual venue-search command", async () => {
+    const conversationId = "conv_genericdrinks01";
+    const query = "Drink prices in Camden";
+    await registerPubPalToolTurn(conversationId, {
+      query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices", args: { query, venueName: "The Lamb" }, conversationId,
+    });
+    expect(result.tool).toBe("search_venues");
+    expect((await readPubPalToolTurn(conversationId))?.toolsUsed).toEqual(["search_venues"]);
+  });
+
   it.each([
     "How much is wine at The Eagle?",
     "Wine price at The Eagle",
     "What does wine cost at The Eagle?",
+    "Wine prices at The Eagle",
+    "Prices for wine at The Eagle",
+    "Wine costs at The Eagle",
   ])("redirects a provider pint-price selection for %s to category prices", async (query) => {
     const { result } = await invokePubPalAskTool({
       toolName: "venue_prices",
@@ -293,6 +309,21 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.answerHint).not.toMatch(/cheapest listed pints/i);
     const turn = await readPubPalToolTurn(conversationId);
     expect(turn?.toolsUsed).toEqual(["venue_drinks"]);
+  });
+
+  it.each([
+    ["Meal prices at The Lamb", "How much is a listed pint at The Lamb tonight?"],
+    ["Pint price at The Lamb", "Please show the meal prices at The Lamb today"],
+  ])("guards plural item prices independently in original %s and provider text", async (query, providerQuery) => {
+    const conversationId = "conv_pluralguard01";
+    await registerPubPalToolTurn(conversationId, {
+      query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    const { result } = await invokePubPalAskTool({
+      toolName: "venue_prices", args: { query: providerQuery, venueName: "The Lamb" }, conversationId,
+    });
+    expect(result).toMatchObject({ ok: false, code: "UNSUPPORTED_FOOD_PRICE_COMPARISON", cards: [], proposals: [] });
+    expect((await readPubPalToolTurn(conversationId))?.toolsUsed).toEqual([]);
   });
 
   // The live agent sent these asks and answered that it could not plan a
