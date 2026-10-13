@@ -46,6 +46,9 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  /** Publisher and last source read from the exact listed minimum price row. */
+  priceSource?: string;
+  priceObservedAt?: string;
   borough: string;
   /**
    * Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
@@ -162,6 +165,8 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
+    (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
+    (row.priceObservedAt === undefined || (typeof row.priceObservedAt === "string" && Number.isFinite(Date.parse(row.priceObservedAt)))) &&
     zoneOk &&
     kindOk &&
     priceBandOk &&
@@ -182,6 +187,8 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
+    ...(venue.priceObservedAt !== undefined ? { priceObservedAt: venue.priceObservedAt } : {}),
     borough: venue.borough,
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),

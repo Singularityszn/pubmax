@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const askSession = vi.hoisted(() => vi.fn());
 const createSession = vi.hoisted(() => vi.fn());
+const whatsOnGlance = vi.hoisted(() => vi.fn());
+const slimLoad = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -24,11 +26,11 @@ vi.mock("@/components/pal/PubPalMascot", () => ({
   PubPalMascot: () => createElement("span", null, "Pal"),
 }));
 vi.mock("@/components/map/useWhatsOnTonight", () => ({
-  useWhatsOnTonight: () => ({ rows: [] }),
+  useWhatsOnTonight: whatsOnGlance,
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/venuesSlim", () => ({
-  loadSlimVenuesForCity: vi.fn().mockResolvedValue([]),
+  loadSlimVenuesForCity: slimLoad,
   loadSlimVenuesForCityResult: vi.fn().mockResolvedValue({ status: "ready", rows: [] }),
 }));
 vi.mock("@/lib/palChatClient", () => ({
@@ -47,6 +49,8 @@ beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   askSession.mockReset();
   createSession.mockReset();
+  whatsOnGlance.mockReturnValue({ rows: [], status: "idle" });
+  slimLoad.mockResolvedValue([]);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -214,5 +218,59 @@ describe("a typed Pal answer that streams in", () => {
     await submit(draft);
     expect(askSession.mock.calls[2]?.[0]).toBe(draft);
     expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe("");
+  });
+});
+
+
+describe("first-open summaries carry their own receipts", () => {
+  it("qualifies the ranked price and dates both summaries without starting chat", async () => {
+    whatsOnGlance.mockReturnValue({ status: "ready", rows: [
+      { id: "q1", kind: "quiz", observedAt: "2026-07-11T18:00:00.000Z", source: { label: "Question One", url: "https://questionone.com/venues/test/" } },
+      { id: "m1", kind: "music", observedAt: "2026-10-02T12:00:00.000Z", source: { label: "Venue listing", url: "https://example.com/music" } },
+    ] });
+    slimLoad.mockResolvedValue([
+      { id: "venue-p7p18j", name: "The Three Tuns - LSE Student Union", lat: 51.510, lng: -0.128, borough: "Westminster", cheapestPrice: 2.95, priceSource: "Pint Prices", priceObservedAt: "2026-10-02T11:48:33.000Z" },
+      { id: "b", name: "Second", lat: 51.511, lng: -0.128, borough: "Westminster", cheapestPrice: 5 },
+      { id: "c", name: "Third", lat: 51.512, lng: -0.128, borough: "Westminster", cheapestPrice: 6 },
+    ]);
+    await act(async () => root?.render(createElement(PalChat, { key: "receipts" })));
+    const tonight = container.querySelector('[aria-label="Tonight at a glance"]');
+    const price = container.querySelector('[aria-label="Listed price nearby"]');
+    expect(tonight?.textContent).toContain("In our London listings tonight:");
+    expect(tonight?.textContent).toContain("Question One");
+    expect(tonight?.textContent).toContain("Venue listing");
+    expect(tonight?.textContent).toContain("Oldest listing observed 11 July 2026");
+    expect(tonight?.querySelector('a[href="/tonight"]')).not.toBeNull();
+    expect(price?.textContent).toContain("Lowest listed price within 1 km of central London");
+    expect(price?.textContent).toContain("£2.95 at The Three Tuns - LSE Student Union");
+    expect(price?.textContent).toContain("Pint Prices");
+    expect(price?.textContent).toContain("Source read 2 October 2026");
+    expect(price?.textContent).toContain("Serving size, offer and entry terms are not recorded");
+    expect(price?.querySelector('a[href="/map?sel=venue-p7p18j"]')).not.toBeNull();
+    expect(price?.textContent).not.toContain("verified");
+    expect(price?.textContent).not.toContain("student-only");
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps publisher and read date unknown for an older slim payload", async () => {
+    slimLoad.mockResolvedValue([{ id: "old", name: "Old Arms", lat: 51.51, lng: -0.128, borough: "Westminster", cheapestPrice: 4 }]);
+    await act(async () => root?.render(createElement(PalChat, { key: "unknown-receipts" })));
+    const price = container.querySelector('[aria-label="Listed price nearby"]');
+    expect(price?.textContent).toContain("Lowest listed price among nearby pubs around central London");
+    expect(price?.textContent).toContain("Publisher not recorded");
+    expect(price?.textContent).toContain("Source read date unknown");
+    expect(price?.textContent).not.toContain("2 October");
+  });
+});
+
+
+describe("an empty Tonight summary", () => {
+  it("states its missing sources without claiming the whole city is quiet", async () => {
+    whatsOnGlance.mockReturnValue({ status: "empty", rows: [] });
+    await act(async () => root?.render(createElement(PalChat, { key: "empty-receipts" })));
+    const tonight = container.querySelector('[aria-label="Tonight at a glance"]');
+    expect(tonight?.textContent).toContain("No listings in this view tonight");
+    expect(tonight?.textContent).toContain("No listing sources returned");
+    expect(tonight?.querySelector('a[href="/tonight"]')).not.toBeNull();
   });
 });

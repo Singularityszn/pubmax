@@ -24,6 +24,7 @@ import {
   famousVenueLeadBudgetHours,
   slimPayloadGeneratedAt,
 } from "@/__tests__/helpers/currentFamousVenues";
+import { legacyPintPriceObservedAt } from "@/lib/drinks";
 import { defined } from "@/__tests__/helpers/defined";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -176,6 +177,18 @@ function matchingIdsFromFull(filters: Filters): string[] {
     .sort();
 }
 
+describe("slim listed price evidence", () => {
+  it("keeps the exact cheapest row's publisher and source read on the shipped projection", () => {
+    const row = slim.find((venue) => venue.id === "venue-p7p18j") as SlimVenue & Record<string, unknown>;
+    const price = defined(fullVenuesById.get("venue-p7p18j")?.prices.find((price) => price.price_gbp === row.cheapestPrice));
+    expect(row).toMatchObject({
+      cheapestPrice: 2.95,
+      priceSource: "Pint Prices",
+      priceObservedAt: legacyPintPriceObservedAt(price),
+    });
+  });
+});
+
 describe("venues_slim.json", () => {
   it("is the payload URL used by the map loader", () => {
     expect(SLIM_VENUES_PATH).toBe("/data/venues_slim.json");
@@ -207,6 +220,8 @@ describe("venues_slim.json", () => {
             (key) =>
               ![
                 "zone",
+                "priceSource",
+                "priceObservedAt",
                 "kind",
                 "priceBand",
                 "anchorLabel",

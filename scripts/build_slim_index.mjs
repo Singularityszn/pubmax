@@ -34,6 +34,7 @@ import {
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
+import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -897,6 +898,7 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
+      ...legacyCheapestPriceEvidence(prices, cheapestPrice),
       borough: String(first.primary_borough || ""),
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
