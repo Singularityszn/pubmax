@@ -33,7 +33,16 @@ export const QUALIFIED_PRICE_REQUESTS = UNSUPPORTED_DISCOVERY_PRICES.flatMap(([s
   `Somewhere cheap ${subject} in Soho`,
   `Somewhere cheap ${subject} for four in Soho`,
   `Somewhere cheap pints in Soho for ${subject}`,
-].map((query) => ({ query, code, wording })));
+  `Somewhere cheap for ${subject} in Soho this evening?`,
+  ...(subject === "wine" ? [] : [
+    `${subject} prices at Fox and Anchor now?`,
+    `${subject} later prices at Fox and Anchor?`,
+  ]),
+].map((query) => ({
+  query, code,
+  wording: query.includes("Fox and Anchor") && code === "UNSUPPORTED_DRINK_PRICE_COMPARISON"
+    ? /can't verify a price for that drink or serving/i : wording,
+})));
 
 export const JOURNEY_ENDPOINT_REQUESTS = [
   { query: "How do I get from Kings Cross to Fox and Anchor?", from: "Kings Cross", to: "51.52042,-0.10071", venueId: "venue-phg4ss", name: "Fox and Anchor" },
@@ -50,3 +59,16 @@ export const NAMED_TERMINAL_PRICE_REQUESTS = [
   "What do pints at The Blackfriar cost?",
   "How much is a pint right now at The Blackfriar?",
 ];
+
+export const NAMED_QUALIFIED_PRICE_REQUESTS = [
+  { subject: "Wine", tool: "venue_drinks", category: "wine" },
+  { subject: "Pint", tool: "venue_prices" },
+  { subject: "Drink", tool: "venue_drinks" },
+].flatMap(({ subject, tool, category }) => [
+  "tonight", "right now", "now", "later", "today", "this evening",
+  "this afternoon", "this morning", "this weekend",
+].flatMap((qualifier) => [
+  `${subject} prices at Fox and Anchor ${qualifier}?`,
+  `${subject} prices ${qualifier} at Fox and Anchor?`,
+  `${subject} ${qualifier} prices at Fox and Anchor?`,
+].map((query) => ({ query, tool, category }))));

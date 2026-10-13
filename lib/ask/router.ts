@@ -114,12 +114,14 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
 }
 
 function priceQuestion(query: string): string {
-  const clauses = askRequestClauses(query);
+  const clauses = askRequestClauses(query).map((clause) =>
+    stripTrailingQualifiers(stripTrailingPunctuation(clause)),
+  );
   const priceClauses = clauses.filter((clause) =>
     !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
       && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
   );
-  return priceClauses.length === clauses.length ? query : priceClauses.join(" and ");
+  return priceClauses.join(" and ");
 }
 
 function priceComparisonSubject(query: string): string | null {
@@ -133,10 +135,9 @@ function priceComparisonSubject(query: string): string | null {
   const itemPrice = query.match(ITEM_PRICE_RE);
   const comparison = itemPrice ?? comparative;
   if (!comparison) return null;
-  const normalizeSubject = (subject: string): string => stripTrailingPunctuation(subject)
-    .replace(/^(?:a|an|the)(?:\s+|$)/i, "")
-    .replace(/(?:^|\s+)(?:right now|today|tonight)$/i, "")
-    .replace(/\s+costs?$/i, "");
+  const normalizeSubject = (subject: string): string => stripTrailingQualifiers(
+    stripTrailingPunctuation(subject).replace(/\s+costs?$/i, ""),
+  ).replace(/^(?:a|an|the)(?:\s+|$)/i, "");
   let precedingItem = !/^how much/i.test(comparison[0])
     ? query.slice(0, comparison.index)
       .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me|(?:please\s+)?(?:help me\s+)?(?:find(?: me| us)?|show me|get(?: me| us)?))\s*/i, "")
@@ -252,7 +253,7 @@ const REPORT_OCCUPANCY_RE =
  * place Camden at all.
  */
 const TRAILING_QUALIFIER_RE =
-  /\s+(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
+  /(?:^|\s+)(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
 
 function stripTrailingPunctuation(phrase: string): string {
   return phrase.replace(/[?.!,;:]+$/g, "").trim();

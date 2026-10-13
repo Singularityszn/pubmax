@@ -1,5 +1,5 @@
 import { VIBE_CHIPS } from "@/lib/vibeChips";
-import { JOURNEY_ENDPOINT_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { JOURNEY_ENDPOINT_REQUESTS, NAMED_QUALIFIED_PRICE_REQUESTS, NAMED_TERMINAL_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { isLimitedMock } = vi.hoisted(() => ({
@@ -54,6 +54,16 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(NAMED_QUALIFIED_PRICE_REQUESTS)("keeps named prices across time qualifiers: $query", async ({ query, tool, category }) => {
+    const body = await (await post({ query, cityId: "london" }, "203.0.113.82")).json();
+    expect(body.toolsUsed).toEqual([tool]);
+    expect(body.answer).toContain("Fox and Anchor");
+    expect(body.answer).not.toMatch(/can't verify|can't compare|not prices for that item/i);
+    const result = await runAskTool("venue_prices", { venueName: "The Lamb", query: "pints" }, { query, cityId: "london", skipModel: true });
+    expect(result).toMatchObject({ tool, data: { venueId: "venue-phg4ss" } });
+    if (category) expect(result.priceEvidence?.filter((price) => price.category !== category)).toEqual([]);
+  });
+
   it.each(JOURNEY_ENDPOINT_REQUESTS)("preserves both public journey endpoints: $query", async ({ query, from, to, venueId, name }) => {
     resetJourneyCache();
     const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
