@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter } from "next/font/google";
 import localFont from "next/font/local";
@@ -280,6 +280,10 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
+      style={{
+        "--font-display": displayFace.style.fontFamily,
+        "--font-body": bodySans.style.fontFamily,
+      } as CSSProperties}
     >
       <head>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,
