@@ -38,7 +38,6 @@ import {
   type PubPal,
   type PubPalAppearance,
   type PubPalDraft,
-  type PubPalPersonality,
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
@@ -102,12 +101,6 @@ const accessoryCopy: Record<PubPalAppearance["accessory"], string> = {
   "signal-ring": "Signal ring",
 };
 
-const relationshipCopy: Record<PubPalPersonality["relationship"], string> = {
-  guide: "Guide",
-  sidekick: "Sidekick",
-  confidant: "Confidant",
-};
-
 type PrivacyState = PalOnboardingPrivacy;
 
 const DEFAULT_PRIVACY: PrivacyState = {
@@ -132,7 +125,7 @@ function previewSpeech(step: number, draft: PubPalDraft): string {
     case 0: return "I'm for adults planning a night out.";
     case 1: return draft.name.trim() ? `${draft.name.trim()}. I like it.` : `A ${draft.appearance.species}. Give me a name.`;
     case 2: return `${materialCopy[draft.appearance.material]} tuned to ${signalCopy[draft.appearance.signalAffinity].toLowerCase()}.`;
-    case 3: return `${voiceCopy[draft.voice.id]}. Your ${relationshipCopy[draft.personality.relationship].toLowerCase()}.`;
+    case 3: return "I'll speak only after you start voice chat.";
     default: return "Nothing becomes a memory unless you approve it.";
   }
 }
@@ -170,34 +163,6 @@ function ChoiceButton({
       {note && <small>{note}</small>}
       {selected && <Check size={17} aria-hidden="true" />}
     </button>
-  );
-}
-
-function RangeControl({
-  label,
-  low,
-  high,
-  value,
-  onChange,
-}: {
-  label: string;
-  low: string;
-  high: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="palRange">
-      <span className="palRangeLabel">{label}</span>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-      <span className="palRangeEnds"><small>{low}</small><small>{high}</small></span>
-    </label>
   );
 }
 
@@ -467,13 +432,6 @@ export default function PalExperience() {
     setDraft((current) => ({
       ...current,
       appearance: { ...current.appearance, ...patch },
-    }));
-  };
-
-  const updatePersonality = (patch: Partial<PubPalPersonality>) => {
-    setDraft((current) => ({
-      ...current,
-      personality: { ...current.personality, ...patch },
     }));
   };
 
@@ -898,15 +856,13 @@ export default function PalExperience() {
           )}
           {step === 3 && (
             <div className="palStep">
-              <p className="palEyebrow">Personality</p>
-              <h1>Set the chemistry.</h1>
-              <fieldset><legend>Relationship</legend><div className="palChoiceGrid">{(["guide", "sidekick", "confidant"] as const).map((relationship) => <ChoiceButton key={relationship} selected={draft.personality.relationship === relationship} title={relationshipCopy[relationship]} onClick={() => updatePersonality({ relationship })} />)}</div></fieldset>
-              <RangeControl label="Temper" low="Dry" high="Playful" value={draft.personality.playfulness} onChange={(playfulness) => updatePersonality({ playfulness })} />
-              <RangeControl label="Energy" low="Calm" high="Chaotic" value={draft.personality.energy} onChange={(energy) => updatePersonality({ energy })} />
-              <RangeControl label="Conversation" low="Concise" high="Storytelling" value={draft.personality.storytelling} onChange={(storytelling) => updatePersonality({ storytelling })} />
+              <p className="palEyebrow">Voice</p>
+              <h1>Choose a voice.</h1>
+              <p>Character settings do not change replies yet. Your saved choices stay with your Pal.</p>
               <fieldset><legend>Voice</legend>
               <div className="palChoiceList">{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice.charAt(0).toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
               </fieldset>
+              <p>If this voice isn&apos;t available, your Pal uses its default voice.</p>
             </div>
           )}
           {step === 4 && (
@@ -923,7 +879,6 @@ export default function PalExperience() {
                 <div><span>Name</span><strong>{draft.name.trim() || "Add a name"}</strong></div>
                 <div><span>Form</span><strong>{speciesCopy[draft.appearance.species].title}, {materialCopy[draft.appearance.material]}</strong></div>
                 <div><span>Voice</span><strong>{draft.voice.id}</strong></div>
-                <div><span>Relationship</span><strong>{relationshipCopy[draft.personality.relationship]}</strong></div>
               </div>
               <label className="palToggleRow"><input type="checkbox" checked={privacy.visible} onChange={(event) => setPrivacy((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Show Pal shortcuts</strong><small>You can hide the Pal from Home, Plan and Map at any time.</small></span></label>
               <label className="palToggleRow"><input type="checkbox" checked={!privacy.muted} onChange={(event) => setPrivacy((current) => ({ ...current, muted: !event.target.checked }))} /><span><strong>Allow voice controls</strong><small>Your Pal still speaks only after you ask.</small></span></label>
