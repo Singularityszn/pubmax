@@ -156,12 +156,10 @@ const dataMono = localFont({
   // is what keeps that true.
 });
 
-// Delay only the display family until hydration. The body family participates
-// in the normal CSS cascade from the initial document, including its fallback.
-const initialFontFallbacks = {
-  "--font-display": displayFace.style.fontFamily.split(",").slice(1).join(",").trim(),
-};
-if (!initialFontFallbacks["--font-display"] || !bodySans.style.fontFamily.split(",").slice(1).join(",").trim()) {
+// Keep the generated display face and its matched fallback in the same cascade
+// before and after hydration. The global token must not replace that fallback.
+const rootDisplayFont = { "--font-display": displayFace.style.fontFamily };
+if (!displayFace.style.fontFamily.split(",").slice(1).join(",").trim() || !bodySans.style.fontFamily.split(",").slice(1).join(",").trim()) {
   throw new Error("The display and body fonts require their generated matched fallbacks.");
 }
 
@@ -295,7 +293,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
-      style={initialFontFallbacks as CSSProperties}
+      style={rootDisplayFont as CSSProperties}
     >
       <head>
         <noscript>
@@ -420,7 +418,7 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
-                <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
+                <ThemeAttribute />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -438,7 +436,7 @@ export default async function RootLayout({
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
-              <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
+              <ThemeAttribute />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

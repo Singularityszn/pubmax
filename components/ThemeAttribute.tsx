@@ -32,20 +32,7 @@ function storedValue(storage: Storage | null, key: string): string | null {
   }
 }
 
-export default function ThemeAttribute({
-  initialFontFallbacks,
-}: {
-  initialFontFallbacks?: Readonly<Record<"--font-display", string>>;
-} = {}): null {
-  useEffect(() => {
-    if (!initialFontFallbacks) return;
-    const root = document.documentElement;
-    // Remove only this document's temporary value, never another owner's style.
-    if (root.style.getPropertyValue("--font-display").trim() === initialFontFallbacks["--font-display"]) {
-      root.style.removeProperty("--font-display");
-    }
-  }, [initialFontFallbacks]);
-
+export default function ThemeAttribute(): null {
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();

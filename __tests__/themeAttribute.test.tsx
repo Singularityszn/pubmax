@@ -16,16 +16,13 @@ import { LEGACY_STORAGE_KEY, MODE_STORAGE_KEY } from "@/lib/viewMode";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-type ThemeAttributeProps = NonNullable<Parameters<typeof ThemeAttribute>[0]>;
-
 function mount(
-  props?: ThemeAttributeProps,
   strictMode = false,
 ) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  const component = createElement<ThemeAttributeProps>(ThemeAttribute, props);
+  const component = createElement(ThemeAttribute);
   act(() => root.render(strictMode ? createElement(StrictMode, null, component) : component));
   return () => act(() => root.unmount());
 }
@@ -51,16 +48,14 @@ describe("ThemeAttribute", () => {
   });
   afterEach(clearRoot);
 
-  it("restores the display cascade without changing body, numeric or unrelated styles", () => {
+  it("preserves the display, body, numeric and unrelated styles through hydration", () => {
     const root = document.documentElement;
-    root.style.setProperty("--font-display", "'Space Grotesk Fallback'");
+    root.style.setProperty("--font-display", "'Space Grotesk', 'Space Grotesk Fallback'");
     root.style.setProperty("--font-body", "'Inter Fallback'");
     root.style.setProperty("--font-data", "numeric-owner");
     root.style.padding = "8px";
-    mount({ initialFontFallbacks: {
-      "--font-display": "'Space Grotesk Fallback'",
-    } })();
-    expect(root.style.getPropertyValue("--font-display")).toBe("");
+    mount()();
+    expect(root.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
     expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
     expect(root.style.getPropertyValue("--font-data")).toBe("numeric-owner");
     expect(root.style.padding).toBe("8px");
@@ -70,32 +65,28 @@ describe("ThemeAttribute", () => {
     const root = document.documentElement;
     root.style.setProperty("--font-display", "another-display-owner");
     root.style.setProperty("--font-body", "'Inter Fallback'");
-    mount({ initialFontFallbacks: {
-      "--font-display": "'Space Grotesk Fallback'",
-    } })();
+    mount()();
     expect(root.style.getPropertyValue("--font-display")).toBe("another-display-owner");
     expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
   });
 
-  it("restores font and theme state through StrictMode and a root remount", () => {
+  it("preserves font ownership and restores theme state through StrictMode and a root remount", () => {
     const root = document.documentElement;
-    const initialFontFallbacks = {
-      "--font-display": "'Space Grotesk Fallback'",
-    };
-    root.style.setProperty("--font-display", initialFontFallbacks["--font-display"]);
+    const displayFamily = "'Space Grotesk', 'Space Grotesk Fallback'";
+    root.style.setProperty("--font-display", displayFamily);
     root.style.setProperty("--font-body", "'Inter Fallback'");
-    mount({ initialFontFallbacks }, true)();
-    expect(root.style.getPropertyValue("--font-display")).toBe("");
+    mount(true)();
+    expect(root.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
     expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
 
     delete root.dataset.theme;
     delete root.dataset.mode;
     localStorage.setItem(THEME_STORAGE_KEY, "dark");
     localStorage.setItem(LEGACY_STORAGE_KEY, "1");
-    root.style.setProperty("--font-display", initialFontFallbacks["--font-display"]);
+    root.style.setProperty("--font-display", displayFamily);
     root.style.setProperty("--font-body", "'Inter Fallback'");
-    mount({ initialFontFallbacks })();
-    expect(root.style.getPropertyValue("--font-display")).toBe("");
+    mount()();
+    expect(root.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
     expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
     expect(root.dataset.theme).toBe("dark");
     expect(root.dataset.legacy).toBe("1");

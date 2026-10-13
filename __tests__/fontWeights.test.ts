@@ -20,7 +20,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import postcss from "postcss";
-import { Children, createElement, type ReactElement } from "react";
+import { act, Children, createElement, isValidElement, StrictMode, type ReactElement, type ReactNode } from "react";
+import { hydrateRoot, type Root } from "react-dom/client";
+
+import ThemeAttribute from "@/components/ThemeAttribute";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -36,6 +39,7 @@ type GoogleFontOptions = {
   variable: string;
   weight?: string | string[];
   adjustFontFallback?: boolean;
+  preload?: boolean;
 };
 
 const googleFontCalls = vi.hoisted(() => [] as GoogleFontOptions[]);
@@ -218,6 +222,46 @@ describe("the mono face carries only weights something asks for", () => {
 
 
 describe("root font loading", () => {
+  it("keeps the complete generated display chain through hydration", async () => {
+    const doc = await RootLayout({ children: createElement("main") });
+    const findTheme = (node: ReactNode): ReactElement | undefined => {
+      for (const child of Children.toArray(node)) {
+        if (!isValidElement<{ children?: ReactNode }>(child)) continue;
+        if (child.type === ThemeAttribute) return child;
+        const nested = findTheme(child.props.children);
+        if (nested) return nested;
+      }
+      return undefined;
+    };
+    const theme = findTheme(doc.props.children);
+    expect(theme).toBeDefined();
+    const html = document.documentElement;
+    const oldStyle = html.getAttribute("style");
+    const oldTheme = html.dataset.theme;
+    const oldMode = html.dataset.mode;
+    html.dataset.theme = "light";
+    html.dataset.mode = "lock-in";
+    html.style.setProperty("--font-display", doc.props.style["--font-display"]);
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    host.innerHTML = renderToStaticMarkup(createElement(StrictMode, null, theme));
+    let root: Root | undefined;
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    try {
+      expect(html.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
+      await act(async () => {
+        root = hydrateRoot(host, createElement(StrictMode, null, theme));
+      });
+      expect(html.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
+    } finally {
+      act(() => root?.unmount());
+      host.remove();
+      if (oldStyle === null) html.removeAttribute("style"); else html.setAttribute("style", oldStyle);
+      if (oldTheme === undefined) delete html.dataset.theme; else html.dataset.theme = oldTheme;
+      if (oldMode === undefined) delete html.dataset.mode; else html.dataset.mode = oldMode;
+    }
+  });
+
   it("admits the complete canonical body family from initial document creation", async () => {
     const doc = await RootLayout({ children: createElement("main") });
     // Isolate the emitted document shell from client providers. The stylesheet
@@ -241,17 +285,20 @@ describe("root font loading", () => {
       ).map((family) => family.trim().replace(/^["']|["']$/g, ""));
       expect(bodyFamilies).toEqual(["Inter", "Inter Fallback", "system-ui"]);
       expect(root.style.getPropertyValue("--font-display"))
-        .toBe("'Space Grotesk Fallback'");
+        .toBe("'Space Grotesk', 'Space Grotesk Fallback'");
     } finally {
       frame.remove();
     }
   });
 
-  it("defers only the matched display fallback and preserves the full no-script families", async () => {
+  it("keeps the full display and no-script families without adding font preloads", async () => {
     const doc = await RootLayout({ children: createElement("main") });
     expect(doc.props.style).toEqual({
-      "--font-display": "'Space Grotesk Fallback'",
+      "--font-display": "'Space Grotesk', 'Space Grotesk Fallback'",
     });
+    for (const variable of ["--font-display", "--font-body"]) {
+      expect(googleFontCalls.find((font) => font.variable === variable)?.preload).toBe(false);
+    }
     const head = Children.toArray(doc.props.children).find(
       (child) => typeof child === "object" && child !== null && "type" in child && child.type === "head",
     ) as ReactElement<{ children: React.ReactNode }>;
