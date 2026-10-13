@@ -157,6 +157,41 @@ afterEach(async () => {
 });
 
 describe("Pub Pal startup with the installed React SDK", () => {
+  it("retries a connected session while its old teardown finishes and preserves the draft", async () => {
+    let finishOldEnd: (() => void) | undefined;
+    const oldEnd = new Promise<void>((resolve) => { finishOldEnd = resolve; });
+    client.startSession
+      .mockImplementationOnce(async (options) => {
+        const conversation = connectFake(options, "conv_sdkfixture01");
+        conversation.endSession.mockImplementation(async () => {
+          options.onStatusChange?.({ status: "disconnecting" });
+          await oldEnd;
+          options.onStatusChange?.({ status: "disconnected" });
+          options.onDisconnect?.({ reason: "user" });
+        });
+        return conversation;
+      })
+      .mockImplementationOnce(async (options) => connectFake(options, "conv_sdkfixture02"));
+    await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
+    await click("Start voice chat");
+    await writeDraft("Find a quiet pub");
+    await click("End");
+    expect(releasedIds).toEqual(["conv_sdkfixture01"]);
+    await click("Start voice chat");
+    expect(client.startSession).toHaveBeenCalledTimes(2);
+
+    await act(async () => { defined(finishOldEnd)(); });
+    await settle();
+
+    expect(container.textContent).toContain("Pal is listening");
+    expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("Find a quiet pub");
+    expect(releasedIds).toEqual(["conv_sdkfixture01"]);
+    await click("End");
+    expect(releasedIds).toEqual(["conv_sdkfixture01", "conv_sdkfixture02"]);
+    expect(issuedGrants).toBe(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("connects through the real provider while keeping client transport and audio fake", async () => {
     client.startSession.mockImplementation(async (options) => connectFake(options, "conv_sdkfixture01"));
     await act(async () => { root?.render(createElement(PubPalVoiceSession)); });
