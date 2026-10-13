@@ -322,38 +322,38 @@ html[data-legacy="1"] .drinkCategoryTitle {
   white-space: nowrap;
 }
 
-/* A food publisher's name uses its own row on a phone, so the source cannot
-   squeeze the dish name and calories into a narrow column. */
+/* A menu publisher's name uses its own row on a phone, so the source cannot
+   squeeze the item name and serving into a narrow column. */
 @media (max-width: 640px) {
-  .foodMenu .drinkRow {
+  .drinkMenu .drinkRow {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 6px;
   }
 
-  .foodMenu .drinkRowSide {
+  .drinkMenu .drinkRowSide {
     display: contents;
   }
 
-  .foodMenu .drinkPrice {
+  .drinkMenu .drinkPrice {
     grid-column: 2;
     grid-row: 1;
     align-self: start;
   }
 
-  .foodMenu .drinkRowSide > :not(.drinkPrice) {
+  .drinkMenu .drinkRowSide > :not(.drinkPrice) {
     grid-column: 1 / -1;
     justify-self: start;
     text-align: start;
   }
 
-  .foodMenu .drinkProvChip {
+  .drinkMenu .drinkProvChip {
     max-inline-size: 100%;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  .foodMenu .drinkObservationAge {
+  .drinkMenu .drinkObservationAge {
     max-inline-size: none;
     text-align: start;
   }
