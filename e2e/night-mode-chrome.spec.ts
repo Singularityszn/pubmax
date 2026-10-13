@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 import { setFirstPintIn } from "./helpers/planFirstPint";
+import { getLateFoodForArea } from "../lib/lateFood";
 
 // Night mode owns the whole screen, and nothing may own a tap inside it.
 //
@@ -24,10 +25,12 @@ const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 test.use({ storageState: { cookies: [], origins: [] } });
 
 for (const width of [390, 1440]) {
-  test(`Night ending requires explicit confirmation at ${width}px`, async ({ page }, testInfo) => {
+  for (const ending of ["keep_going", "food", "get_home"] as const) {
+  test(`Night ${ending} ending requires explicit confirmation at ${width}px`, async ({ page }, testInfo) => {
     const id = "11111111-1111-4111-8111-111111111111";
     const startTime = new Date().toISOString();
-    const plan = { plan: { id, title: "Tonight", startTime, createdAt: startTime, routeRevision: 1, status: "active" }, stops: [{ venueId: "venue-phg4ss", venueName: "Fox and Anchor", position: 1 }], crew: [], actions: [] };
+    const plan = { plan: { id, title: "Tonight", startTime, createdAt: startTime, routeRevision: 1, status: "active" }, stops: [{ venueId: "venue-1jbkio1", venueName: "The Landor", position: 1 }], context: { nightArea: "clapham" }, crew: [], actions: [] };
+    const food = getLateFoodForArea("clapham", [], { now: Date.parse("2026-07-16T23:00:00.000Z") })[0]!;
     await prepare(page, { width, height: 900 });
     await page.addInitScript(({ id, startTime }) => {
       localStorage.setItem("pubmax_active_plan", JSON.stringify({ version: 1, id, startTime, stopIndex: 0, role: "host" }));
@@ -38,26 +41,41 @@ for (const width of [390, 1440]) {
       const path = new URL(route.request().url()).pathname;
       if (path.endsWith("/complete")) {
         completions.push(route.request().postDataJSON());
-        await route.fulfill({ json: { ...plan, plan: { ...plan.plan, status: "completed" }, ending: "get_home" } });
+        await route.fulfill({ json: { ...plan, plan: { ...plan.plan, status: "completed" }, ending } });
       } else {
         await route.fulfill({ json: path.endsWith("/session") ? { active: true, role: "host", collaborationAuthorized: true } : { stops: [] } });
       }
     });
     await page.route(`**/api/plans/${id}`, (route) => route.fulfill({ json: plan }));
-    await page.route("**/api/late-food**", (route) => route.fulfill({ json: { terminals: [] } }));
+    await page.route("**/api/late-food**", (route) => route.fulfill({ json: { terminals: [food] } }));
+    await page.route("**/data/venues_slim.json**", async (route) => {
+      const response = await route.fetch();
+      const payload = await response.json();
+      const rows = (Array.isArray(payload) ? payload : payload.rows).filter((venue: { id: string }) =>
+        ["venue-1jbkio1", "venue-12x0p9j"].includes(venue.id),
+      );
+      expect(rows).toHaveLength(2);
+      await route.fulfill({ response, json: Array.isArray(payload) ? rows : { ...payload, rows } });
+    });
     await page.goto("/tonight");
-    const review = page.locator('.nightCard .routeEndingCard__choice[data-ending="get_home"]');
+    const review = page.locator(`.nightCard .routeEndingCard__choice[data-ending="${ending}"]`);
     await expect(review).toBeVisible();
+    expect(completions).toEqual([]);
     await review.click();
-    const confirm = page.getByRole("button", { name: "Confirm Get home ending", exact: true });
+    const label = ending === "keep_going" ? "Confirm Keep going to The Stonhouse"
+      : ending === "food" ? `Confirm food ending with ${food.name}` : "Confirm Get home ending";
+    const confirm = page.getByRole("button", { name: label, exact: true });
     await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText(label);
     expect(completions).toEqual([]);
     await confirm.click();
     await expect(page.getByText("Night complete", { exact: false }).first()).toBeVisible();
     expect(completions).toHaveLength(1);
-    expect(completions[0]).toMatchObject({ ending: "get_home", terminalVenueId: "venue-phg4ss", expectedRouteRevision: 1, endingSelection: { kind: "get_home" } });
-    await page.screenshot({ path: testInfo.outputPath(`night-ending-${width}.png`) });
+    expect(completions[0]).toMatchObject({ ending, terminalVenueId: "venue-1jbkio1", expectedRouteRevision: 1, endingSelection: { kind: ending, ...(ending === "keep_going" ? { venueId: "venue-12x0p9j" } : ending === "food" ? { optionId: food.id } : {}) } });
+    if (ending === "keep_going") await expect(page.getByRole("link", { name: "Open The Stonhouse on the map", exact: true })).toHaveAttribute("href", /sel=venue-12x0p9j/);
+    await page.screenshot({ path: testInfo.outputPath(`night-ending-${ending}-${width}.png`) });
   });
+  }
 }
 
 async function prepare(page: Page, viewport: { width: number; height: number }): Promise<void> {

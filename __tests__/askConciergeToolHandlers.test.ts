@@ -429,16 +429,17 @@ describe("tonight_now", () => {
 });
 
 describe("venue_drinks", () => {
-  it("preserves the generic named-pub drink list when prices is plural", async () => {
+  it.each(["Drink prices at The Lamb", "Drink prices at The Lamb later?", "Drink prices this evening at The Lamb?"])("preserves the generic named-pub drink list: %s", async (query) => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     state.prices = { prices: [price({ drinkCategory: "wine", priceGbp: 8 })], degraded: false };
-    const result = await runAskTool("venue_drinks", { venueName: "The Lamb" }, ctx({ query: "Drink prices at The Lamb" }));
+    const result = await runAskTool("venue_drinks", { venueName: "The Lamb" }, ctx({ query }));
     expect(result.tool).toBe("venue_drinks");
     expect(result.cards.map((card) => card.price)).toEqual([8, 5]);
   });
 
   it.each([
     "Wine prices at The Lamb", "Prices for wine at The Lamb", "Wine costs at The Lamb", "Costs of wine at The Lamb",
+    "Wine prices at The Lamb this evening?", "Wine prices now at The Lamb?", "Wine later prices at The Lamb?",
   ])("routes raw provider-selected pint pricing to recorded wine for %s", async (query) => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     state.prices = { prices: [price({ drinkCategory: "wine", priceGbp: 8 })], degraded: false };
@@ -454,6 +455,8 @@ describe("venue_drinks", () => {
     "How much is a gin and tonic at The Lamb?",
     "How much is a cocktail and a pint at The Lamb?",
     "Price of a 175ml wine at The Lamb",
+    "Price of a 175ml wine at The Lamb this evening?",
+    "Price of Coke now at The Lamb?",
     "Price of a double gin at The Lamb",
     "Price of Coke at The Lamb",
     "Meal prices at The Lamb",
@@ -487,7 +490,7 @@ describe("venue_drinks", () => {
     }] });
   });
 
-  it("preserves a named pint request and excludes unrelated wine evidence", async () => {
+  it.each(["How much is a pint at The Lamb?", "How much is a pint at The Lamb now?", "How much is a pint later at The Lamb?"])("preserves named pint prices and excludes wine evidence: %s", async (query) => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     state.prices = {
       prices: [
@@ -496,7 +499,7 @@ describe("venue_drinks", () => {
       ],
       degraded: false,
     };
-    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query: "How much is a pint at The Lamb?" }));
+    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
     expect(result.tool).toBe("venue_prices");
     expect(result.cards.map((card) => card.price)).toEqual([5.4, 5]);
     expect(result).toMatchObject({ priceEvidence: [

@@ -1,5 +1,5 @@
 import { offlineFetch } from "@/evals/pal/offlineFetch";
-import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { NAMED_QUALIFIED_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
@@ -220,6 +220,14 @@ describe("runPalElevenLabsChatTurn", () => {
       expect(outcome.message).toMatch(/transit|city status|tube|weather/i);
     }
     expect(wsState.socketsOpened).toBe(0);
+  });
+
+  it.each(NAMED_QUALIFIED_PRICE_REQUESTS.filter(({ query }) => /this evening|now|later/.test(query)))("accepts named time-qualified prices in configured chat: $query", async ({ query }) => {
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
+    expect(outcome).toMatchObject({ ok: true, conversationId: "conv_regression01" });
+    expect(wsState.socketsOpened).toBe(1);
+    expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query }));
   });
 
   it.each(QUALIFIED_PRICE_REQUESTS)("fences the full qualified subject before configured startup: $query", async ({ query, wording }) => {
