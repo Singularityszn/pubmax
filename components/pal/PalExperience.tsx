@@ -858,7 +858,12 @@ export default function PalExperience() {
             <div className="palStep">
               <p className="palEyebrow">Voice</p>
               <h1>Choose a voice.</h1>
-              <p>Character settings do not change replies yet. Your saved choices stay with your Pal.</p>
+              {(draft.personality.relationship !== DEFAULT_PAL_DRAFT.personality.relationship ||
+                draft.personality.playfulness !== DEFAULT_PAL_DRAFT.personality.playfulness ||
+                draft.personality.energy !== DEFAULT_PAL_DRAFT.personality.energy ||
+                draft.personality.storytelling !== DEFAULT_PAL_DRAFT.personality.storytelling) ? (
+                <p>Character settings do not change replies yet. Your saved choices stay with your Pal.</p>
+              ) : null}
               <fieldset><legend>Voice</legend>
               <div className="palChoiceList">{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice.charAt(0).toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
               </fieldset>
