@@ -139,7 +139,7 @@ const NOTHING_CONFIRMED = "I have not confirmed anything for you to remember abo
 
 const toolTurnPayload = {
     query: "Which pubs near Soho have a pint under £5?",
-    cityId: "london",
+    cityId: "london" as const,
     turns: [],
     summary: "",
     expiresAt: Date.now() + 60_000,
@@ -176,6 +176,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
 }));
 
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { readPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "@/lib/pubPalStore";
 
@@ -942,5 +943,197 @@ describe("the signed URL a typed chat turn starts from", () => {
     await expect(
       runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "11111111-1111-4111-8111-111111111111" }),
     ).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+  });
+});
+
+describe("private typed Pal failure diagnostics", () => {
+  let lines: string[];
+
+  function failures(): Array<Record<string, unknown>> {
+    return lines.map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((record) => record.event === "pub_pal.chat_failed");
+  }
+
+  beforeEach(() => {
+    lines = [];
+    vi.spyOn(console, "log").mockImplementation((line: unknown) => {
+      if (typeof line === "string") lines.push(line);
+    });
+    wsState.socketsOpened = 0;
+    wsState.replyScript = null;
+    wsState.storeFilled = true;
+    storeMocks.registerPubPalToolTurn.mockReset();
+    storeMocks.registerPubPalToolTurn.mockResolvedValue(undefined);
+    storeMocks.readOwnedPubPalToolTurn.mockReset();
+    storeMocks.readOwnedPubPalToolTurn.mockResolvedValue(null);
+    vi.mocked(readPubPalToolTurn).mockReset();
+    vi.mocked(readPubPalToolTurn).mockImplementation(async () =>
+      wsState.storeFilled ? toolTurnPayload : { ...toolTurnPayload, cards: [], toolsUsed: [] },
+    );
+    fenceMocks.resolvePubPalFenceIntent.mockReset();
+    fenceMocks.resolvePubPalFenceIntent.mockResolvedValue({ fenced: false, sobrietyOnly: false });
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
+    vi.stubGlobal("WebSocket", MockElevenLabsWebSocket);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("records the signed-URL refusal once with safe fields and keeps the public failure unchanged", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("sensitive upstream body", { status: 401 })));
+    const result = await runPalElevenLabsChatTurn({
+      query: "Hello. Can you help me plan a quiet night in Soho for two?",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(result).toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+    expect(wsState.socketsOpened).toBe(0);
+    expect(failures()).toEqual([{
+      level: "warn",
+      event: "pub_pal.chat_failed",
+      code: "PROVIDER_UNAVAILABLE",
+      stage: "signed_url",
+      reason: "http",
+      durationMs: expect.any(Number),
+      ts: expect.any(Number),
+    }]);
+  });
+
+  it.each(["no_session", "unreachable"] as const)("records the existing %s reason without exposing upstream data", async (reason) => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      if (reason === "unreachable") throw new Error("provider payload, credentials, transcript and headers");
+      return Response.json({ signed_url: "wss://voice.example/?conversation_signature=private-value" });
+    }));
+    await expect(runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" })).resolves.toEqual({
+      ok: false, code: "PROVIDER_UNAVAILABLE",
+    });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "PROVIDER_UNAVAILABLE",
+      stage: "signed_url", reason, durationMs: expect.any(Number), ts: expect.any(Number),
+    }]);
+  });
+
+  it("records the bounded signed-URL failure without guessing a transport cause", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", vi.fn((_url: unknown, init?: { signal?: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("private transport error")));
+      }),
+    ));
+    const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" });
+    await vi.advanceTimersByTimeAsync(8_000);
+    await expect(pending).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "PROVIDER_UNAVAILABLE",
+      stage: "signed_url", reason: "unreachable", durationMs: 8_000, ts: expect.any(Number),
+    }]);
+  });
+
+  it("records context failure without exposing the stored turn or error", async () => {
+    storeMocks.readOwnedPubPalToolTurn.mockRejectedValueOnce(new Error("private context"));
+    await expect(runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner", threadId: "conv_regression01" })).resolves.toEqual({
+      ok: false, code: "UNAVAILABLE",
+    });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "UNAVAILABLE",
+      stage: "context", durationMs: expect.any(Number), ts: expect.any(Number),
+    }]);
+  });
+
+  it("records registration failure without exposing the provider session or store error", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    storeMocks.registerPubPalToolTurn.mockRejectedValueOnce(new Error("private registration"));
+    await expect(runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" })).resolves.toEqual({
+      ok: false, code: "UNAVAILABLE",
+    });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "UNAVAILABLE",
+      stage: "registration", durationMs: expect.any(Number), ts: expect.any(Number),
+    }]);
+  });
+
+  it.each(["error", "close"] as const)("records socket %s once when later close events repeat", async (event) => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    vi.stubGlobal("WebSocket", class extends EventTarget {
+      constructor() {
+        super();
+        queueMicrotask(() => {
+          this.dispatchEvent(new Event(event));
+          this.dispatchEvent(new Event("close"));
+        });
+      }
+      send(): void {}
+      close(): void { this.dispatchEvent(new Event("close")); }
+    });
+    await expect(runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" })).resolves.toEqual({
+      ok: false, code: "PROVIDER_UNAVAILABLE",
+    });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "PROVIDER_UNAVAILABLE",
+      stage: event === "error" ? "socket_error" : "socket_close", durationMs: expect.any(Number), ts: expect.any(Number),
+    }]);
+  });
+
+  it("records the unchanged reply deadline without logging the unfinished conversation", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    wsState.replyScript = [];
+    const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" });
+    await vi.advanceTimersByTimeAsync(22_000);
+    await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "TIMEOUT",
+      stage: "deadline", durationMs: 22_000, ts: expect.any(Number),
+    }]);
+  });
+
+  it("records result-store failure without logging the provider answer", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    vi.mocked(readPubPalToolTurn).mockRejectedValueOnce(new Error("private result store"));
+    const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" });
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(pending).resolves.toEqual({ ok: false, code: "UNAVAILABLE" });
+    expect(failures()).toEqual([{
+      level: "warn", event: "pub_pal.chat_failed", code: "UNAVAILABLE",
+      stage: "tool_result", durationMs: 400, ts: expect.any(Number),
+    }]);
+  });
+
+  it("keeps normal caller cancellation silent", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    wsState.replyScript = [];
+    const abort = new AbortController();
+    const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner", signal: abort.signal });
+    await vi.advanceTimersByTimeAsync(0);
+    abort.abort();
+    await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    expect(failures()).toEqual([]);
+  });
+
+  it("does not warn when a cancelled caller later receives a signed-URL refusal", async () => {
+    const abort = new AbortController();
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      abort.abort();
+      return new Response("private body", { status: 401 });
+    }));
+    await expect(runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner", signal: abort.signal })).resolves.toEqual({
+      ok: false, code: "PROVIDER_UNAVAILABLE",
+    });
+    expect(failures()).toEqual([]);
+  });
+
+  it("keeps a successful answer out of failure diagnostics", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: SIGNED_URL })));
+    const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "private-owner" });
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
+    expect(failures()).toEqual([]);
   });
 });
