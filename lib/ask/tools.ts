@@ -2,7 +2,7 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
-import { isVenueDiscoveryAsk, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import {
@@ -1016,7 +1016,7 @@ export async function runAskTool(
     };
   }
   const intent = resolveAskPriceIntent(ctx.query);
-  if (intent.kind === "unsupported") {
+  if (intent.kind === "unsupported" && !isIndependentAskTool(name)) {
     return {
       ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
       provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,

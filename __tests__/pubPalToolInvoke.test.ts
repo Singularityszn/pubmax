@@ -135,6 +135,16 @@ describe("propose_plan over the Pal webhook", () => {
     };
   }
 
+  it.each([false, true])("review regression: preserves independent status in provider/stored questions=%s", async (stored) => {
+    const query = "Any tube delays and how much is a burger in Camden?";
+    const conversationId = stored ? "conv_transitreview" : null;
+    if (conversationId) await registerPubPalToolTurn(conversationId, { query, cityId: "london", turns: [] });
+    const outcome = await invokePubPalAskTool({ toolName: "city_status", args: { query: stored ? "Tube delays" : query }, conversationId });
+    expect(outcome.result.answerHint).toMatch(/transit|city status|tube|weather/i);
+    expect(outcome.result.answerHint).not.toMatch(/meal prices/i);
+    expect(outcome.result).toHaveProperty("tool", "city_status");
+  });
+
   it.each([null, "conv_independent01"])("review regression: preserves independent webhook tools: %s", async (conversationId) => {
     const queries = [
       "Any tube delays and how much is a pint at The Lamb?",

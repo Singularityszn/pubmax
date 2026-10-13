@@ -53,6 +53,28 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each(["Any tube delays and how much is a burger in Camden?", "How much is wine in Soho and any tube delays?", "How much is Coke in Soho and directions to Bank?"])("review regression: retains independent transit while refusing prices: %s", async (query) => {
+    const response = await post({ query, cityId: "london" }, "203.0.113.82");
+    const body = await response.json();
+    expect(body.answer).toMatch(/not prices for that item|meal prices|other drinks across pubs/i);
+    expect(body.answer).toMatch(/journey|transit|city status|tube|weather/i);
+    expect(body.toolsUsed).toEqual([query.includes("directions") ? "journey" : "city_status"]);
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    const result = await runAskTool(body.toolsUsed[0], {}, { cityId: "london", query, skipModel: true });
+    expect(result.answerHint).not.toMatch(/meal prices|other drinks across pubs|not prices for that item/i);
+    expect(result.data).not.toMatchObject({ kind: "unsupported-price" });
+  });
+
+  it.each(["Any tube delays and how much is wine at The Lamb?", "How much is wine at The Lamb and any tube delays?"])("retains recorded categories and independent status in both clause orders: %s", async (query) => {
+    const result = await runAsk({ query, cityId: "london", skipModel: true });
+    expect(result.toolsUsed).toEqual(["city_status", "venue_drinks"]);
+    expect(result.answer).not.toMatch(/other drinks across pubs|cheapest listed pints/i);
+    const recorded = await runAskTool("venue_prices", { venueName: "Soho", query: "pints" }, { cityId: "london", query, skipModel: true });
+    expect(recorded.tool).toBe("venue_drinks");
+    expect(recorded.priceEvidence?.every((price) => price.category === "wine")).toBe(true);
+  });
+
   it.each(VIBE_CHIPS)("retains the actual $label constraints at tool execution", async (chip) => {
     const tool = { bender: "propose_plan", lit: "whats_on", quiet: "search_venues", cheeky: "search_venues", match: "whats_on", quiz: "whats_on", date: "search_venues" }[chip.id];
     const result = await runAskTool(tool, { query: chip.ask }, { query: chip.ask, cityId: "london", skipModel: true });
