@@ -84,3 +84,45 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await expect(filters).toHaveAttribute("aria-expanded", "true");
   });
 });
+
+for (const width of [1024, 1140, 1440]) {
+  test(`search and dismiss controls remain reachable beside a pub at ${width}px`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await openDesktopMap(page, width);
+    await selectFirstToolbarVenue(page, "Princess Louise");
+    await expectSoleDesktopDrawer(page, "venue");
+    const toolbar = page.locator(".mapToolbar");
+    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    await expect.poll(async () => search.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return rect.left >= 0 && rect.width >= 176 && rect.right <= innerWidth && hit === node;
+    })).toBe(true);
+    await search.click();
+    await expect(page.getByRole("listbox", { name: "Search suggestions" })).toBeVisible();
+    await toolbar.getByRole("button", { name: "Close search results" }).click();
+    await expect(search).toHaveValue("Princess Louise");
+    await expect(search).toHaveAttribute("aria-expanded", "false");
+    await search.click();
+    await toolbar.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(search).toHaveAttribute("aria-expanded", "false");
+
+    const drink = toolbar.getByRole("button", { name: /^Drink:/ });
+    await drink.click();
+    await toolbar.getByRole("button", { name: "Close drink choices" }).click();
+    await expect(drink).toHaveAttribute("aria-expanded", "false");
+    await expect(drink).toBeFocused();
+    await drink.click();
+    await page.keyboard.press("Escape");
+    await expect(drink).toHaveAttribute("aria-expanded", "false");
+    await expectSoleDesktopDrawer(page, "venue");
+
+    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
+    await selectFirstToolbarVenue(page, "Blackfriar");
+    await expectSoleDesktopDrawer(page, "venue");
+    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
+  });
+}

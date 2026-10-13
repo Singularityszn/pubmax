@@ -1,8 +1,9 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { IconButton } from "@/components/ui/icon-button";
 import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import { listEnabledCities, type CityId } from "@/lib/cities";
@@ -278,7 +279,7 @@ export default function MapSearchSuggest({
     (next: string) => {
       ensureSearchIndex();
       chooseActiveIndex(-1);
-      if (mode === "toolbar") setToolbarFocused(true);
+      if (mode === "toolbar") setToolbarFocused(next.length > 0);
       onQueryChange(next);
     },
     [chooseActiveIndex, ensureSearchIndex, mode, onQueryChange],
@@ -401,10 +402,8 @@ export default function MapSearchSuggest({
         // which would re-fire changeQuery, re-open the toolbar panel, and flash
         // the empty-query "nearby areas" prompt instead of a clean dismiss.
         event.preventDefault();
-        if (eventActive >= 0) {
-          chooseActiveIndex(-1);
-          return;
-        }
+        event.stopPropagation();
+        chooseActiveIndex(-1);
         if (mode === "toolbar") {
           setToolbarFocused(false);
           return;
@@ -567,7 +566,14 @@ export default function MapSearchSuggest({
   ) : null;
 
   return (
-    <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
+    <div
+      className={`mapSearchSuggest mapSearchSuggest--${mode}`}
+      onBlur={(event) => {
+        if (mode === "toolbar" && !event.currentTarget.contains(event.relatedTarget)) {
+          setToolbarFocused(false);
+        }
+      }}
+    >
       <SearchField
         id={id}
         role="combobox"
@@ -583,9 +589,6 @@ export default function MapSearchSuggest({
         // over the map with it. Typing, a click or an arrow key opens it.
         onFocus={ensureSearchIndex}
         onClick={() => setToolbarFocused(true)}
-        onBlur={() => {
-          if (mode === "toolbar") setToolbarFocused(false);
-        }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         aria-busy={!querySettled || searchIndexLoading}
@@ -594,6 +597,23 @@ export default function MapSearchSuggest({
 
       {showPanel ? (
         <div className="mapSearchSuggestPanel">
+          {mode === "toolbar" ? (
+            <div className="mapSearchSuggestPanelHead">
+              <span>Search results</span>
+              <IconButton
+                variant="ghost"
+                aria-label="Close search results"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  chooseActiveIndex(-1);
+                  setToolbarFocused(false);
+                  document.getElementById(id)?.focus();
+                }}
+              >
+                <X size={17} aria-hidden="true" />
+              </IconButton>
+            </div>
+          ) : null}
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
             {indexedCities.length > 0 ? (
               <div role="group" aria-label="Cities" className="mapSearchSuggestGroup">

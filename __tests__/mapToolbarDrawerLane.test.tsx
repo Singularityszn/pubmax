@@ -85,6 +85,43 @@ function drinkButton(): HTMLButtonElement {
 const trayOpen = () => host.querySelector(".drinkLanePicker") !== null;
 
 describe("the drink tray and a surface that opens", () => {
+  it("dismisses with Escape and restores the toggle focus", () => {
+    render();
+    act(() => drinkButton().click());
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(trayOpen()).toBe(false);
+    expect(document.activeElement).toBe(drinkButton());
+  });
+
+  it("dismisses on outside pointer input without consuming the next action", () => {
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    const clicked = vi.fn();
+    outside.addEventListener("click", clicked);
+    render();
+    act(() => drinkButton().click());
+    act(() => {
+      outside.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      outside.click();
+    });
+    expect(trayOpen()).toBe(false);
+    expect(clicked).toHaveBeenCalledOnce();
+    outside.remove();
+  });
+
+  it("minimises with its close button and returns focus to the drink toggle", () => {
+    render();
+    act(() => drinkButton().click());
+    const close = host.querySelector<HTMLButtonElement>('[aria-label="Close drink choices"]');
+    expect(close).not.toBeNull();
+    act(() => close!.click());
+    expect(trayOpen()).toBe(false);
+    expect(drinkButton().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(drinkButton());
+    act(() => drinkButton().click());
+    expect(trayOpen()).toBe(true);
+  });
+
   it("closes when a pub drawer opens, and can be reopened beside it", () => {
     render();
     act(() => drinkButton().click());
