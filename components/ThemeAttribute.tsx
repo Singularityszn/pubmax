@@ -35,16 +35,14 @@ function storedValue(storage: Storage | null, key: string): string | null {
 export default function ThemeAttribute({
   initialFontFallbacks,
 }: {
-  initialFontFallbacks?: Readonly<Record<"--font-display" | "--font-body", string>>;
+  initialFontFallbacks?: Readonly<Record<"--font-display", string>>;
 } = {}): null {
   useEffect(() => {
     if (!initialFontFallbacks) return;
     const root = document.documentElement;
-    for (const name of ["--font-display", "--font-body"] as const) {
-      // Remove only this document's temporary value, never another owner's style.
-      if (root.style.getPropertyValue(name).trim() === initialFontFallbacks[name]) {
-        root.style.removeProperty(name);
-      }
+    // Remove only this document's temporary value, never another owner's style.
+    if (root.style.getPropertyValue("--font-display").trim() === initialFontFallbacks["--font-display"]) {
+      root.style.removeProperty("--font-display");
     }
   }, [initialFontFallbacks]);
 

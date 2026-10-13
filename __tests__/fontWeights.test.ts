@@ -18,7 +18,9 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import postcss from "postcss";
+import { JSDOM } from "jsdom";
 import { Children, createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 const localFontCalls = vi.hoisted(
@@ -215,11 +217,34 @@ describe("the mono face carries only weights something asks for", () => {
 
 
 describe("root font loading", () => {
-  it("paints only matched Google fallbacks initially and preserves the full no-script families", async () => {
+  it("admits the complete canonical body family from initial document creation", async () => {
+    const doc = await RootLayout({ children: createElement("main") });
+    // Isolate the emitted document shell from client providers. The stylesheet
+    // represents next/font's variable class with its complete family suffix.
+    const html = renderToStaticMarkup(createElement(doc.type, doc.props,
+      createElement("head", null, createElement("style", null,
+        `[class~="--font-mock"]{--font-body:${fontFamilies.body};}`,
+      )),
+      createElement("body", null, "Loading the map"),
+    ));
+    const dom = new JSDOM(html);
+    try {
+      const root = dom.window.document.documentElement;
+      const bodyFamilies = postcss.list.comma(
+        dom.window.getComputedStyle(root).getPropertyValue("--font-body"),
+      ).map((family) => family.trim().replace(/^["']|["']$/g, ""));
+      expect(bodyFamilies).toEqual(["Inter", "Inter Fallback", "system-ui"]);
+      expect(root.style.getPropertyValue("--font-display"))
+        .toBe("'Space Grotesk Fallback'");
+    } finally {
+      dom.window.close();
+    }
+  });
+
+  it("defers only the matched display fallback and preserves the full no-script families", async () => {
     const doc = await RootLayout({ children: createElement("main") });
     expect(doc.props.style).toEqual({
       "--font-display": "'Space Grotesk Fallback'",
-      "--font-body": "'Inter Fallback', system-ui",
     });
     const head = Children.toArray(doc.props.children).find(
       (child) => typeof child === "object" && child !== null && "type" in child && child.type === "head",

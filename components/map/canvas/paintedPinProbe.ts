@@ -45,8 +45,34 @@ export type PaintedMapTapPoint = {
   lat: number;
 };
 
+/** Loading facts for diagnostics only. This does not decide pin readiness. */
+export type PaintedMapLoadingState = {
+  at: number;
+  loaded: boolean;
+  styleLoaded: boolean | null;
+  tilesLoaded: boolean | null;
+  sourceLoaded: Record<string, boolean | null>;
+};
+
+/** Reads public MapLibre state without querying features or changing the map. */
+export function paintedMapLoadingState(map: maplibregl.Map): PaintedMapLoadingState {
+  const style = map.getStyle();
+  return {
+    at: performance.now(),
+    loaded: map.loaded(),
+    styleLoaded: style ? (map.isStyleLoaded() ?? null) : null,
+    tilesLoaded: style ? map.areTilesLoaded() : null,
+    sourceLoaded: Object.fromEntries(
+      Object.keys(style?.sources ?? {}).sort().map((id) => [id, map.isSourceLoaded(id) ?? null]),
+    ),
+  };
+}
+
 type ProbeWindow = Window & {
-  [PAINTED_MAP_PROBE_KEY]?: (() => PaintedMapTapPoint[]) & { trace?: typeof pubHitTrace };
+  [PAINTED_MAP_PROBE_KEY]?: (() => PaintedMapTapPoint[]) & {
+    trace?: typeof pubHitTrace;
+    state?: () => PaintedMapLoadingState;
+  };
   [PAINTED_LONDON_PLACE_PROBE_KEY]?: () => PaintedMapTapPoint[];
 };
 
@@ -208,7 +234,7 @@ export function installPaintedPinProbe(map: maplibregl.Map): () => void {
   const probeWindow = window as ProbeWindow;
   probeWindow[PAINTED_MAP_PROBE_KEY] = Object.assign(
     () => paintedMapTapPoints(map),
-    { trace: pubHitTrace },
+    { trace: pubHitTrace, state: () => paintedMapLoadingState(map) },
   );
   probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY] = () => paintedLondonPlaceTapPoints(map);
   return () => {

@@ -156,13 +156,12 @@ const dataMono = localFont({
   // is what keeps that true.
 });
 
-// These two fixed Google calls expose the primary family first, followed by
-// Next's generated metric-matched fallback. Keep the full existing suffix.
+// Delay only the display family until hydration. The body family participates
+// in the normal CSS cascade from the initial document, including its fallback.
 const initialFontFallbacks = {
   "--font-display": displayFace.style.fontFamily.split(",").slice(1).join(",").trim(),
-  "--font-body": bodySans.style.fontFamily.split(",").slice(1).join(",").trim(),
 };
-if (!initialFontFallbacks["--font-display"] || !initialFontFallbacks["--font-body"]) {
+if (!initialFontFallbacks["--font-display"] || !bodySans.style.fontFamily.split(",").slice(1).join(",").trim()) {
   throw new Error("The display and body fonts require their generated matched fallbacks.");
 }
 

@@ -51,7 +51,7 @@ describe("ThemeAttribute", () => {
   });
   afterEach(clearRoot);
 
-  it("restores the original font cascade on mount without changing numeric or unrelated styles", () => {
+  it("restores the display cascade without changing body, numeric or unrelated styles", () => {
     const root = document.documentElement;
     root.style.setProperty("--font-display", "'Space Grotesk Fallback'");
     root.style.setProperty("--font-body", "'Inter Fallback'");
@@ -59,10 +59,9 @@ describe("ThemeAttribute", () => {
     root.style.padding = "8px";
     mount({ initialFontFallbacks: {
       "--font-display": "'Space Grotesk Fallback'",
-      "--font-body": "'Inter Fallback'",
     } })();
     expect(root.style.getPropertyValue("--font-display")).toBe("");
-    expect(root.style.getPropertyValue("--font-body")).toBe("");
+    expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
     expect(root.style.getPropertyValue("--font-data")).toBe("numeric-owner");
     expect(root.style.padding).toBe("8px");
   });
@@ -73,33 +72,31 @@ describe("ThemeAttribute", () => {
     root.style.setProperty("--font-body", "'Inter Fallback'");
     mount({ initialFontFallbacks: {
       "--font-display": "'Space Grotesk Fallback'",
-      "--font-body": "'Inter Fallback'",
     } })();
     expect(root.style.getPropertyValue("--font-display")).toBe("another-display-owner");
-    expect(root.style.getPropertyValue("--font-body")).toBe("");
+    expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
   });
 
   it("restores font and theme state through StrictMode and a root remount", () => {
     const root = document.documentElement;
     const initialFontFallbacks = {
       "--font-display": "'Space Grotesk Fallback'",
-      "--font-body": "'Inter Fallback'",
     };
     root.style.setProperty("--font-display", initialFontFallbacks["--font-display"]);
-    root.style.setProperty("--font-body", initialFontFallbacks["--font-body"]);
+    root.style.setProperty("--font-body", "'Inter Fallback'");
     mount({ initialFontFallbacks }, true)();
     expect(root.style.getPropertyValue("--font-display")).toBe("");
-    expect(root.style.getPropertyValue("--font-body")).toBe("");
+    expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
 
     delete root.dataset.theme;
     delete root.dataset.mode;
     localStorage.setItem(THEME_STORAGE_KEY, "dark");
     localStorage.setItem(LEGACY_STORAGE_KEY, "1");
     root.style.setProperty("--font-display", initialFontFallbacks["--font-display"]);
-    root.style.setProperty("--font-body", initialFontFallbacks["--font-body"]);
+    root.style.setProperty("--font-body", "'Inter Fallback'");
     mount({ initialFontFallbacks })();
     expect(root.style.getPropertyValue("--font-display")).toBe("");
-    expect(root.style.getPropertyValue("--font-body")).toBe("");
+    expect(root.style.getPropertyValue("--font-body")).toBe("'Inter Fallback'");
     expect(root.dataset.theme).toBe("dark");
     expect(root.dataset.legacy).toBe("1");
     expect(root.dataset.mode).toBe("ledger");
