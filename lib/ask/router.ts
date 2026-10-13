@@ -40,6 +40,49 @@ const TONIGHT_NOW_RE =
   /\b(on right now|on now|happening now|what'?s on now|busy right now|how busy)\b/i;
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
+const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
+const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
+const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
+
+export type UnsupportedPriceComparison = {
+  code: "UNSUPPORTED_FOOD_PRICE_COMPARISON" | "UNSUPPORTED_DRINK_PRICE_COMPARISON";
+  answer: string;
+};
+
+function namedDrinkVenue(query: string): string | null {
+  if (extractArea(query)) return null;
+  const match = stripTrailingPunctuation(query).match(/\bat\s+([A-Za-z][A-Za-z\s'-]{1,80})$/i);
+  return match?.[1] ? stripTrailingQualifiers(match[1]).trim() : null;
+}
+
+/** Existing tools compare pints across pubs or read all recorded drinks at one named pub. */
+export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
+  const comparison = query.match(PRICE_COMPARISON_RE);
+  if (!comparison) return null;
+  const subject = query.slice((comparison.index ?? 0) + comparison[0].length)
+    .replace(/^\s+(?:(?:vegan|vegetarian|healthy|gluten[- ]free)\s+)*/i, "");
+  const comparesFood = subject.search(FOOD_RE) === 0;
+  if (FOOD_RE.test(query) && (comparesFood || !/\b(?:pints?|beer|pubs?)\b/i.test(query))) {
+    return {
+      code: "UNSUPPORTED_FOOD_PRICE_COMPARISON",
+      answer: "I can't compare meal prices or check dietary options yet. I can help you find pubs with food.",
+    };
+  }
+  if (NON_PINT_DRINK_RE.test(query) && !namedDrinkVenue(query)) {
+    return {
+      code: "UNSUPPORTED_DRINK_PRICE_COMPARISON",
+      answer: "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks.",
+    };
+  }
+  return null;
+}
+
+/** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
+export function recordedDrinkComparison(query: string): RoutedToolCall | null {
+  if (!PRICE_COMPARISON_RE.test(query) || !NON_PINT_DRINK_RE.test(query)) return null;
+  const venueName = namedDrinkVenue(query);
+  return venueName ? { name: "venue_drinks", args: { venueName } } : null;
+}
 const FIND_DESK_RE =
   /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
 // "it's quiet" is missing on purpose: quiet is how a drinker asks for a pub,
@@ -216,6 +259,8 @@ function tonightNowClaim(
 }
 
 function venueDrinksClaim(text: string): ConciergeClaim | null {
+  const comparison = recordedDrinkComparison(text);
+  if (comparison) return comparison;
   if (!VENUE_DRINKS_RE.test(text)) return null;
   // "drink prices in Camden" names a PLACE. This tool reads one pub, so a
   // place phrase leaves it to the tools that answer about an area.
@@ -263,6 +308,7 @@ function conciergeClaim(
 export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const text = query.trim();
   if (!text) return [];
+  if (unsupportedPriceComparison(text)) return [];
 
   const calls: RoutedToolCall[] = [];
   const push = (name: AskToolName, args: Record<string, unknown> = {}) => {
