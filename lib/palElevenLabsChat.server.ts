@@ -1,7 +1,7 @@
 import "server-only";
 
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
-import { unsupportedPriceComparison } from "@/lib/ask/router";
+import { recordedDrinkComparison, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
@@ -62,7 +62,7 @@ async function waitForPubPalToolTurn(
   return readPubPalToolTurn(conversationId);
 }
 
-type PriorSession = { turns: PubPalFenceTurn[]; summary: string };
+type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string };
 
 /**
  * The signed-in owner's earlier asks, read from their own stored turn and never
@@ -76,7 +76,7 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
   const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
     (turn) => turn.role === "user" && turn.content.trim(),
   );
-  return windowPalSessionTurns(prior.summary, asks);
+  return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
 }
 
 /** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
@@ -196,14 +196,20 @@ export async function runPalElevenLabsChatTurn(
   }
 
   const unsupported = unsupportedPriceComparison(query);
-  if (unsupported) {
+  if (unsupported || recordedDrinkComparison(query)) {
     const result = await runAsk({ query, cityId, skipModel: true });
+    if (!unsupported && prior.conversationId) {
+      await registerPubPalToolTurn(prior.conversationId, {
+        query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
+        cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
+      });
+    }
     return {
       ok: true,
       message: result.answer,
       cards: result.cards,
       proposals: result.proposals,
-      conversationId: "",
+      conversationId: !unsupported ? prior.conversationId ?? "" : "",
       toolsUsed: result.toolsUsed,
     };
   }

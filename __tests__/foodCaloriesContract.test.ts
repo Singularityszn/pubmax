@@ -31,6 +31,16 @@ function read(raw: unknown): FoodItem[] {
 }
 
 describe("publisher calorie facts", () => {
+  it("retains dietary evidence separately through a newer price-only update", () => {
+    const initial = read({ ...row(), caloriesKcal: 0, dietary: ["vegan"] });
+    const next = parseFoodPriceUpdates([{ ...row(), priceGbp: 4, observedAt: "2026-10-14T06:00:00.000Z", source: { ...SOURCE, label: "Later price source", url: "https://www.theeaglew12.co.uk/prices" } }], NOW);
+    const [item] = applyFoodPriceUpdatesToMenu("the-eagle-test", initial, next);
+    expect(item).toMatchObject({ caloriesKcal: 0, dietary: ["vegan"], priceGbp: 4,
+      provenance: { source: "Later price source" },
+      dietaryProvenance: { source: SOURCE.label, sourceUrl: SOURCE.url, observedAt: OBSERVED_AT },
+      caloriesProvenance: { source: SOURCE.label, sourceUrl: SOURCE.url, observedAt: OBSERVED_AT },
+    });
+  });
   it("preserves an item-local calorie value and its source through the runtime menu", () => {
     const items = read({ ...row(), caloriesKcal: 52 });
     expect(items).toHaveLength(1);

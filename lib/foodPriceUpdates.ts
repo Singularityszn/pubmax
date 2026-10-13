@@ -94,6 +94,7 @@ function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
     priceGbp: update.priceGbp,
     description: update.description,
     dietary: update.dietary,
+    ...(update.dietary !== undefined ? { dietaryProvenance: { ...updateProvenance(update), sourceUrl: update.source.url } } : {}),
     provenance: updateProvenance(update),
     source: update.source.url,
     ...calorieFields(update),
@@ -123,6 +124,9 @@ export function applyFoodPriceUpdatesToMenu(
       provenance: updateProvenance(update),
       description: update.description ?? item.description,
       dietary: update.dietary ?? item.dietary,
+      dietaryProvenance: update.dietary !== undefined
+        ? { ...updateProvenance(update), sourceUrl: update.source.url }
+        : item.dietaryProvenance,
       source: update.source.url,
       ...calorieFields(update),
     };

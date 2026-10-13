@@ -1,0 +1,45 @@
+import { expect, test } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
+const cases = [
+  { question: "Price and published calories for Mixed Olives at The New Inn", item: "Mixed Olives", price: "£5.00", venueId: "venue-17qpap6", note: "163 kcal", source: "https://www.newinnealing.com/food-and-drink" },
+  { question: "Price of 125ml Steinbock Riesling at The Eagle, Hammersmith and Fulham", item: "Steinbock, Riesling, Germany", price: "£7.10", venueId: "venue-1hz0avt", note: "Published serving: 125ml", source: "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf" },
+  { question: "Price of Organic Pinot Grigio at Sherlock Holmes", item: "Organic Pinot Grigio, Riff, Italy", price: "£7.20", venueId: "venue-gk2fp9", note: "Serving size not recorded", source: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu" },
+];
+
+for (const width of [390, 1440]) {
+  for (const scenario of cases) {
+    test(`${width}px: Pal shows accepted ${scenario.item} evidence`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      });
+      await installDeterministicMapBasemap(page);
+      await page.goto("/pal/chat");
+      const composer = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+      await composer.fill(scenario.question);
+      const responsePromise = page.waitForResponse((response) => response.url().endsWith("/api/pub-pal/chat") && response.request().method() === "POST");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      const response = await responsePromise;
+      expect(response.status()).toBe(200);
+      const card = page.locator(".palChatCard").filter({ hasText: scenario.item });
+      await expect(card).toHaveCount(1);
+      await expect(card).toContainText(scenario.price);
+      await expect(card).toContainText(scenario.note);
+      await expect(card).toContainText("Availability unknown");
+      await expect(card.locator(`a[href="${scenario.source}"]`)).toBeVisible();
+      if (scenario.venueId === "venue-17qpap6") await expect(card).toContainText("vegan, vegetarian");
+      await card.scrollIntoViewIfNeeded();
+      const fit = await card.evaluate((element) => ({ width: element.clientWidth, content: element.scrollWidth, document: document.documentElement.scrollWidth, viewport: innerWidth }));
+      expect(fit.content).toBeLessThanOrEqual(fit.width + 1);
+      expect(fit.document).toBeLessThanOrEqual(fit.viewport);
+      const mapLink = card.locator(`a[href="/map?sel=${scenario.venueId}"]`);
+      await expect(mapLink).toBeVisible();
+      await mapLink.click();
+      await expect(page).toHaveURL(new RegExp(`/map\\?sel=${scenario.venueId}$`));
+      await expect(page.getByRole("tab", { name: "Menu", exact: true })).toBeVisible({ timeout: 45_000 });
+    });
+  }
+}
