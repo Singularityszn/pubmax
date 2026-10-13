@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const askSession = vi.hoisted(() => vi.fn());
+const createSession = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -31,7 +32,10 @@ vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCityResult: vi.fn().mockResolvedValue({ status: "ready", rows: [] }),
 }));
 vi.mock("@/lib/palChatClient", () => ({
-  createPalChatSession: () => askSession,
+  createPalChatSession: () => {
+    createSession();
+    return askSession;
+  },
 }));
 
 import PalChat from "@/components/pal/PalChat";
@@ -42,6 +46,7 @@ let root: Root | null = null;
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   askSession.mockReset();
+  createSession.mockReset();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -70,6 +75,16 @@ async function submit(text: string): Promise<void> {
 }
 
 describe("a typed Pal answer that streams in", () => {
+  it("opens with a conversational greeting without creating a provider session", () => {
+    expect(container.querySelector(".palChatRow--pal .palChatBubble")?.textContent).toBe(
+      "Hi. What kind of night are you planning?",
+    );
+    expect(container.querySelector('[aria-label="Pick a vibe"]')).not.toBeNull();
+    expect(container.querySelectorAll(".palChatCard")).toHaveLength(0);
+    expect(createSession).not.toHaveBeenCalled();
+    expect(askSession).not.toHaveBeenCalled();
+  });
+
   it("shows the text as it arrives, drops it back to the dots on a reset, then swaps in the answer with its cards", async () => {
     let onText: (text: string) => void = () => {};
     let finish: (result: unknown) => void = () => {};
@@ -140,5 +155,35 @@ describe("a typed Pal answer that streams in", () => {
 
     expect(container.querySelector('[data-testid="pal-streaming-answer"]')).toBeNull();
     expect(container.querySelector(".palChatBubble--error")?.textContent).toContain("The signal dropped");
+  });
+
+  it("retries the exact failed question only after the user asks again", async () => {
+    const query = "Hello. Can you help me plan a quiet night in Soho for two?";
+    askSession.mockResolvedValueOnce({ status: "error", message: "Couldn't answer that. Try again." });
+    await submit(query);
+    expect(askSession).toHaveBeenCalledTimes(1);
+    const retry = container.querySelector<HTMLButtonElement>('button[aria-label^="Ask again:"]');
+    if (!retry) throw new Error("The failed ask has no recovery action");
+    expect(retry.textContent).toBe("Ask again");
+    expect(retry.getAttribute("aria-label")).toBe(`Ask again: ${query}`);
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe("");
+
+    let finish: (result: unknown) => void = () => {};
+    askSession.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    await act(async () => retry.click());
+    expect(askSession).toHaveBeenCalledTimes(2);
+    expect(askSession.mock.calls[1]?.[0]).toBe(query);
+    expect(retry.disabled).toBe(true);
+    await act(async () => retry.click());
+    expect(askSession).toHaveBeenCalledTimes(2);
+    await act(async () => finish({ status: "empty", message: "Tell me your budget for the night.", cards: [], proposals: [] }));
+    expect(container.textContent).toContain("Tell me your budget for the night.");
+  });
+
+  it("keeps the sign-in recovery separate from provider retry", async () => {
+    askSession.mockResolvedValueOnce({ status: "error", message: "Sign in to ask Pub Pal.", needsSignIn: true });
+    await submit("Quiet pubs in Soho");
+    expect(container.querySelector('button[aria-label^="Ask again:"]')).toBeNull();
+    expect(askSession).toHaveBeenCalledTimes(1);
   });
 });
