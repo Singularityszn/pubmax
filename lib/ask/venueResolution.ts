@@ -85,6 +85,11 @@ const PLACE_PHRASES: readonly string[][] = [
   .map((phrase) => phrase.split(" "))
   .filter((words) => words.length > 1);
 
+export function isKnownAskPlacePhrase(value: string): boolean {
+  const phrase = wordsOnly(value).replace(/^the\s+/, "");
+  return PLACE_PHRASES.some((words) => words.join(" ") === phrase);
+}
+
 /** Words any pub may carry: a name made only of these names no pub in particular. */
 const GENERIC_PUB_WORDS = new Set([
   "the", "and", "ye", "olde", "old", "new", "bar", "pub", "tap", "room", "rooms",
