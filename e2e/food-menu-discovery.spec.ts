@@ -25,7 +25,7 @@ for (const width of [320, 390, 430, 1440]) {
     }).toPass({ timeout: 20_000 });
     const panel = page.locator("#venuePanel-menu");
     const food = panel.getByRole("button", { name: "Food 42 dishes on record", exact: true });
-    const drinks = panel.getByRole("button", { name: "Drinks 1 on record", exact: true });
+    const drinks = panel.getByRole("button", { name: "Drinks 23 on record", exact: true });
     await expect(food).toBeVisible();
     await expect(drinks).toBeVisible();
     await drinks.focus();
