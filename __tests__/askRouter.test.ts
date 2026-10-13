@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { refineRoutedAskQuery, routeAskDeterministically } from "@/lib/ask/router";
+import { refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
@@ -42,7 +42,12 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     "Cheapest vegan food in Camden",
     "Cheapest wine in Soho",
     "Cheapest cocktails near Camden",
+    "Cheapest vegan curry in Camden",
+    "Cheapest Coke in Camden",
+    "Cheapest sparkling water in Camden",
+    "Cheapest pub lunch in Camden",
   ])("does not substitute pint tools for %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
     expect(routeAskDeterministically(query)).toEqual([]);
   });
 
