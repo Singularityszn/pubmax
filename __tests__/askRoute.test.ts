@@ -24,6 +24,7 @@ vi.mock("@/lib/pintDrops", async () => {
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/ask/route";
 import { runAsk } from "@/lib/ask/runAsk";
+import { runAskTool } from "@/lib/ask/tools";
 import { PAL_WEB_GROUNDING } from "@/lib/palChat";
 
 beforeEach(() => {
@@ -50,6 +51,25 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it.each([
+    ["propose_plan", "Plan a big night for four of us, with cheap pints and a lively route", { mood: ["lively"], groupSize: 4, maxPintPrice: 6 }],
+    ["search_venues", "Find cheap quiet pubs in Soho", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
+  ] as const)("keeps the original constraints and price evidence at the %s tool boundary", async (tool, query, intent) => {
+    const result = await runAskTool(tool, { query: "pubs" }, { cityId: "london", query, skipModel: true });
+    expect(result.ok).toBe(true);
+    expect(result.tool).toBe(tool);
+    expect(result.data).toMatchObject({ intent });
+    expect(result.cards.length).toBeGreaterThan(0);
+    expect(result.priceEvidence).toHaveLength(result.cards.length);
+    for (const card of result.cards) {
+      expect(card.price).toBeLessThanOrEqual(6);
+      expect(result.priceEvidence).toContainEqual({
+        cardKey: card.key, venueId: card.venueId, priceGbp: card.price,
+        kind: "listed-pint", category: "beer", source: "directory", reportedAt: null, serving: "pint",
+      });
+    }
+  });
+
   it.each([
     "How much is wine at The Eagle?",
     "Wine price at The Eagle",

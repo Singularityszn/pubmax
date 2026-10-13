@@ -2,6 +2,48 @@ import { expect, test } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
+for (const width of [390, 1440]) {
+  for (const door of ["food", "all", "beer"]) {
+    test(`${width}px: ${door} menu drill-in preserves arrow-key tab ownership on revisit`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmax_onboarding_dismissed", "1");
+        sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      });
+      await installDeterministicMapBasemap(page);
+      await page.goto("/map?sel=venue-1hz0avt");
+      const menu = page.getByRole("tab", { name: "Menu", exact: true });
+      await expect(async () => {
+        await menu.click();
+        await expect(menu).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+      }).toPass({ timeout: 45_000 });
+      const panel = page.locator("#venuePanel-menu");
+      const entry = panel.locator(`[data-menu-door="${door}"]`);
+      await entry.click();
+      const back = panel.locator(".drinkMenuBack");
+      await expect(back).toBeFocused();
+      const photos = page.getByRole("tab", { name: "Photos", exact: true });
+      const stories = page.getByRole("tab", { name: "Stories", exact: true });
+      await photos.click();
+      await photos.press("ArrowRight");
+      await expect(menu).toBeFocused();
+      await page.keyboard.press("ArrowRight");
+      await expect(stories).toBeFocused();
+      await stories.press("ArrowLeft");
+      await expect(menu).toBeFocused();
+      await page.keyboard.press("ArrowLeft");
+      await expect(photos).toBeFocused();
+      await menu.click();
+      await expect(menu).toBeFocused();
+      await back.click();
+      await expect(entry).toBeFocused();
+    });
+  }
+}
+
 for (const width of [320, 390, 430, 1440]) {
   test(`${width}px: the recorded Food menu is reachable and returns to its own button`, async ({ page }) => {
     test.setTimeout(90_000);

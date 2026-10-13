@@ -67,7 +67,7 @@ export default function VenueMenuTab({
     | { mode: "drinks"; category?: DrinkCategory };
   const panelRef = useRef<HTMLDivElement>(null);
   const menuDoorRef = useRef("all");
-  const restoreMenuFocusRef = useRef(false);
+  const moveMenuFocusRef = useRef(false);
   const [menuView, setMenuView] = useState<MenuView>({ mode: "hub" });
   const [menuViewVenueId, setMenuViewVenueId] = useState(venue.id);
   if (menuViewVenueId !== venue.id) {
@@ -75,15 +75,15 @@ export default function VenueMenuTab({
     setMenuView({ mode: "hub" });
   }
   const backToMenus = () => {
-    restoreMenuFocusRef.current = true;
+    moveMenuFocusRef.current = true;
     setMenuView({ mode: "hub" });
   };
   useEffect(() => {
-    if (tab !== "menu") return;
+    if (tab !== "menu" || !moveMenuFocusRef.current) return;
+    moveMenuFocusRef.current = false;
     if (menuView.mode !== "hub") {
       panelRef.current?.querySelector<HTMLButtonElement>(".drinkMenuBack")?.focus();
-    } else if (restoreMenuFocusRef.current) {
-      restoreMenuFocusRef.current = false;
+    } else {
       panelRef.current?.querySelector<HTMLButtonElement>(
         `[data-menu-door="${menuDoorRef.current}"]`,
       )?.focus();
@@ -110,10 +110,12 @@ export default function VenueMenuTab({
             foodCount={menuFood.length}
             onOpenFood={() => {
               menuDoorRef.current = "food";
+              moveMenuFocusRef.current = true;
               setMenuView({ mode: "food" });
             }}
             onOpenDrinks={(category) => {
               menuDoorRef.current = category ?? "all";
+              moveMenuFocusRef.current = true;
               setMenuView(
                 category ? { mode: "drinks", category } : { mode: "drinks" },
               );

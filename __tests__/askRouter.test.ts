@@ -19,6 +19,30 @@ describe("routeAskDeterministically", () => {
     expect(calls[0]?.name).toBe("propose_plan");
   });
 
+  it.each([
+    "Plan a big night for four of us, with cheap pints and a lively route",
+    "Plan a night with cheap beer and a quiet crawl",
+    "Plan a night with cheap lively pubs and a cosy route",
+    "Plan a night with cheap pints and food and a lively route",
+    "Plan a cheap quiet night in Soho for four",
+  ])("preserves planning constraints in %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([{ name: "propose_plan", args: { query } }]);
+  });
+
+  it.each([
+    "Find cheap quiet pubs in Soho",
+    "Find cheap lively pubs in Soho for four",
+    "Find cheap cosy pubs with food in Soho",
+    "Find cheap riverside pubs near Bank",
+    "Find cheap pubs with a beer garden in Soho",
+    "Find the cheapest quiet pubs in Soho",
+    "Find the cheapest pubs with a garden in Soho",
+  ])("preserves venue constraints in %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+  });
+
   it("routes heritage asks to venue_heritage", () => {
     const calls = routeAskDeterministically("Tell me the history of The Lamb");
     expect(calls.some((c) => c.name === "venue_heritage")).toBe(true);
@@ -101,6 +125,13 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     "Cheapest Coke in Camden",
     "Cheapest sparkling water in Camden",
     "Cheapest pub lunch in Camden",
+    "Plan a night with cheap burgers and a lively route",
+    "Plan a night with cheap Coke and a lively route",
+    "Plan a night with cheap wine and a lively route",
+    "Plan a night with cheap pints and cocktails in Soho",
+    "Find cheap quiet pub lunches in Soho",
+    "Find cheap quiet Guinness pints in Soho",
+    "Plan a night with cheap food and a lively route",
   ])("does not substitute pint tools for %s", (query) => {
     expect(unsupportedPriceComparison(query)).not.toBeNull();
     expect(routeAskDeterministically(query)).toEqual([]);

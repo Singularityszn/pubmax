@@ -38,6 +38,41 @@ describe("POST /api/pub-pal/chat", () => {
     vi.unstubAllGlobals();
   });
 
+  it("turns the Big one tonight request into a sourced plan keylessly", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const query = "Plan a big night for four of us, with cheap pints and a lively route";
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["propose_plan"]);
+    expect(body.cards).toHaveLength(3);
+    expect(body.proposals).toContainEqual(expect.objectContaining({
+      kind: "draft_plan", query, stopIds: body.cards.map((card: { venueId: string }) => card.venueId),
+    }));
+    expect(body.answer).toContain("Open in Plan");
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("finds cheap quiet pubs without treating quiet as a priced item", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: "Find cheap quiet pubs in Soho", cityId: "london" }),
+    }));
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+    expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
+  });
+
   it.each([
     ["Cheapest vegan food in Camden", /meal prices|dietary/i],
     ["Cheapest wine in Soho", /other drinks across pubs/i],

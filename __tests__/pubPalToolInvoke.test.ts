@@ -101,6 +101,27 @@ describe("propose_plan over the Pal webhook", () => {
     };
   }
 
+  it.each([null, "conv_planningchip01"])("preserves the planning chip through provider and stored questions: %s", async (conversationId) => {
+    const query = "Plan a big night for four of us, with cheap pints and a lively route";
+    if (conversationId) {
+      await registerPubPalToolTurn(conversationId, {
+        query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+    }
+    const { result } = await invokePubPalAskTool({
+      toolName: "propose_plan", args: { query: conversationId ? "a lively route" : query }, conversationId,
+    });
+    expect(result).toMatchObject({ ok: true, tool: "propose_plan" });
+    expect(result.cards).toHaveLength(3);
+    expect(result.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+    expect(result.priceEvidence).toHaveLength(3);
+    if (conversationId) {
+      const turn = await readPubPalToolTurn(conversationId);
+      expect(turn?.toolsUsed).toEqual(["propose_plan"]);
+      expect(turn?.proposals).toContainEqual(expect.objectContaining({ kind: "draft_plan", query }));
+    }
+  });
+
   it.each([
     ["Cheapest vegan food in Camden", "UNSUPPORTED_FOOD_PRICE_COMPARISON", /meal prices|dietary/i],
     ["Cheapest wine in Soho", "UNSUPPORTED_DRINK_PRICE_COMPARISON", /other drinks across pubs/i],
