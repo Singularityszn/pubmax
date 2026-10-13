@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 import VenueMenuTab from "@/components/map/inspector/VenueMenuTab";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
+import type { FoodPriceUpdate } from "@/lib/foodPriceUpdates";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { VenuePriceUpdates, VenueWithPriceUpdates } from "@/lib/venuePriceUpdates";
 
@@ -35,6 +36,16 @@ const SOURCED: DrinkPriceUpdate = {
   },
   observedAt: "2026-09-01T12:00:00.000Z",
   lane: "publisher",
+};
+
+const SOURCED_FOOD: FoodPriceUpdate = {
+  venueKey: "venue-test",
+  itemName: "Vegetable curry",
+  category: "mains",
+  priceGbp: 12.5,
+  dietary: ["vegan"],
+  source: SOURCED.source,
+  observedAt: SOURCED.observedAt,
 };
 
 function venue(priceUpdates: VenuePriceUpdates | null): VenueWithPriceUpdates {
@@ -136,6 +147,52 @@ function packReads(): string[] {
 }
 
 describe("VenueMenuTab draws its venue's own price updates", () => {
+  it("offers recorded food through a named door and returns to the menu hub", async () => {
+    const element = await render({
+      venue: venue({ drink: [SOURCED], food: [SOURCED_FOOD] }),
+      tab: "menu",
+    });
+    const food = element.querySelector<HTMLButtonElement>('[data-menu-door="food"]');
+    expect(food, "a visible Food door for recorded dishes").not.toBeNull();
+    expect(food?.textContent).toContain("1 dish on record");
+    expect(element.querySelector('[aria-label="Food at The Test Arms"]')).toBeNull();
+    await act(async () => { food?.click(); });
+    expect(element.querySelector(".menuHub")).toBeNull();
+    expect(element.textContent).toContain("Vegetable curry");
+    expect(element.textContent).toContain("£12.50");
+    expect(element.textContent).toContain("vegan");
+    const back = element.querySelector<HTMLButtonElement>('[aria-label="Back to menus"]');
+    expect(back).not.toBeNull();
+    expect(document.activeElement).toBe(back);
+    await act(async () => { back?.click(); });
+    expect(element.querySelector('[data-menu-door="food"]')).not.toBeNull();
+    expect(element.querySelector('[aria-label="Food at The Test Arms"]')).toBeNull();
+    expect(document.activeElement).toBe(element.querySelector('[data-menu-door="food"]'));
+    expect(packReads()).toEqual([]);
+  });
+
+  it("does not offer an empty food door when the venue has no recorded dishes", async () => {
+    const element = await render({ venue: venue({ drink: [SOURCED], food: [] }), tab: "menu" });
+    expect(element.querySelector('[data-menu-door="food"]')).toBeNull();
+    expect(element.textContent).not.toContain("Food opens");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("clears a food drill-in when another venue replaces the current venue", async () => {
+    const current = venue({ drink: [], food: [SOURCED_FOOD] });
+    const element = await render({ venue: current, tab: "menu" });
+    const food = element.querySelector<HTMLButtonElement>('[data-menu-door="food"]');
+    expect(food).not.toBeNull();
+    await act(async () => { food?.click(); });
+    expect(element.textContent).toContain("Vegetable curry");
+    await act(async () => {
+      root?.render(createElement(VenueMenuTab, { venue: { ...venue({ drink: [{ ...SOURCED, venueKey: "venue-next" }], food: [] }), id: "venue-next" }, tab: "menu" }));
+    });
+    expect(element.textContent).not.toContain("Vegetable curry");
+    expect(element.querySelector(".menuHub")).not.toBeNull();
+    expect(packReads()).toEqual([]);
+  });
+
   it("draws a sourced row and its source off the venue detail, reading no pack", async () => {
     const element = await render({
       venue: venue({ drink: [SOURCED], food: [] }),
