@@ -16,12 +16,15 @@ import type { Venue } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { truncateStopName } from "@/lib/routeStopLabel";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import { pintTrustPinStanding } from "@/lib/pintTrust";
 import {
   priceStandingFigure,
   type PriceStanding,
   type PriceStandingDecision,
 } from "@/lib/priceTier";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
+import { venuePriceFallbackPending } from "@/lib/venuePriceLane";
 import type { VenueSignal } from "./types";
 import { hashEntranceSeed } from "./filters";
 import { PIN_ENTRANCE_BUCKETS } from "./tokens";
@@ -61,12 +64,19 @@ export function formatPinPriceLabel(
  * behind, and it never speaks under a lens, whose whole promise is a
  * corroborated price for one named category. `priceStandingFigure` formats it,
  * so the "est." cannot be lost on the way out of here.
+ *
+ * While price or drop reads are still in flight, a modelled figure stays
+ * silent: the same hold `venuePriceFallbackPending` already applies on the
+ * sheet and the mobile peek. Absent status maps leave today's behaviour
+ * (an estimate may speak); when maps are present, an unread venue is idle.
  */
 function pinPriceTag(
   venueId: string,
   priceStandings: ReadonlyMap<string, PriceStandingDecision> | null,
   labels: { lensActive: boolean; lensPriceLabel: string | null; basePriceLabel: string | null },
   signals: VenueSignal | undefined,
+  priceReadStatusByVenue: ReadonlyMap<string, VenuePriceReadStatus> | null,
+  dropReadStatusByVenue: ReadonlyMap<string, VenueDropReadStatus> | null,
 ): { label: string | null; standing: PriceStanding | null } {
   const decision = priceStandings?.get(venueId) ?? null;
   // A decided standing wins. Without one the pin still knows ONE thing for
@@ -78,8 +88,19 @@ function pinPriceTag(
   const standing = decision?.standing ?? pintTrustPinStanding(signals?.pintTrust);
   if (labels.lensActive) return { label: labels.lensPriceLabel, standing };
   if (labels.basePriceLabel) return { label: labels.basePriceLabel, standing };
-  const modelled = standing === "estimate" && decision ? priceStandingFigure(decision) : null;
-  return { label: modelled, standing };
+  if (standing === "estimate" && decision) {
+    const priceStatus = priceReadStatusByVenue
+      ? (priceReadStatusByVenue.get(venueId) ?? "idle")
+      : "ready";
+    const dropStatus = dropReadStatusByVenue
+      ? (dropReadStatusByVenue.get(venueId) ?? "idle")
+      : "ready";
+    if (venuePriceFallbackPending(null, priceStatus, dropStatus)) {
+      return { label: null, standing };
+    }
+    return { label: priceStandingFigure(decision), standing };
+  }
+  return { label: null, standing };
 }
 
 /**
@@ -208,6 +229,8 @@ function pinBucketAndTag(args: {
   lensPrices: ReadonlyMap<string, MapLensPrice> | null;
   priceStandings: ReadonlyMap<string, PriceStandingDecision> | null;
   spoonsValue: SpoonsValuePinLane | null;
+  priceReadStatusByVenue: ReadonlyMap<string, VenuePriceReadStatus> | null;
+  dropReadStatusByVenue: ReadonlyMap<string, VenueDropReadStatus> | null;
 }): {
   bucket: number;
   spoonsBucket: number | null;
@@ -251,6 +274,8 @@ function pinBucketAndTag(args: {
       priceStandings,
       { lensActive, lensPriceLabel, basePriceLabel },
       signals,
+      args.priceReadStatusByVenue,
+      args.dropReadStatusByVenue,
     ),
   };
 }
@@ -290,6 +315,11 @@ export function pubsToGeoJSON(
   // things, and stamps no standing: a pub's round is not a claim about its
   // pint. Absent lane = today's behaviour, unchanged.
   spoonsValue: SpoonsValuePinLane | null = null,
+  // Per-venue price/drop read status for the estimate hold. Absent maps leave
+  // modelled labels free to speak (today's callers); when present, an unread
+  // venue is idle and an estimate stays silent until the sheet would too.
+  priceReadStatusByVenue: ReadonlyMap<string, VenuePriceReadStatus> | null = null,
+  dropReadStatusByVenue: ReadonlyMap<string, VenueDropReadStatus> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -317,6 +347,8 @@ export function pubsToGeoJSON(
         lensPrices,
         priceStandings,
         spoonsValue,
+        priceReadStatusByVenue,
+        dropReadStatusByVenue,
       });
       const drinkKind = pinDrinkKind(venue, drinkCategory, lensPrice);
       const clusterPrice = clusterPriceFor(sourcedPrice, lensActive, spoonsValue);

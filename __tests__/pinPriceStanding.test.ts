@@ -111,4 +111,55 @@ describe("a pin's price standing", () => {
     expect(defined(feature).properties?.priceLabel).toBeUndefined();
     expect(defined(feature).properties?.standing).toBe("none");
   });
+
+  it("emits no est. for Hatton while drop reads are still in flight", () => {
+    const hattonId = "venue-1vle947";
+    const hatton = makeVenue({
+      id: hattonId,
+      name: "The Sir Christopher Hatton",
+      cheapestPrice: null,
+    });
+    const standings = new Map([[hattonId, estimateDecision(6.5)]]);
+    const dropReadStatusByVenue = new Map([[hattonId, "idle" as const]]);
+    const [feature] = pubsToGeoJSON(
+      [hatton],
+      signals,
+      null,
+      null,
+      null,
+      null,
+      null,
+      standings,
+      null,
+      null,
+      dropReadStatusByVenue,
+    ).features;
+    expect(defined(feature).properties?.priceLabel).toBeUndefined();
+    expect(String(defined(feature).properties?.priceLabel ?? "")).not.toMatch(/^est\./);
+    expect(defined(feature).properties?.standing).toBe("estimate");
+  });
+
+  it("still prints est. once drop and price reads have settled", () => {
+    const hattonId = "venue-1vle947";
+    const hatton = makeVenue({
+      id: hattonId,
+      name: "The Sir Christopher Hatton",
+      cheapestPrice: null,
+    });
+    const standings = new Map([[hattonId, estimateDecision(6.5)]]);
+    const [feature] = pubsToGeoJSON(
+      [hatton],
+      signals,
+      null,
+      null,
+      null,
+      null,
+      null,
+      standings,
+      null,
+      new Map([[hattonId, "ready" as const]]),
+      new Map([[hattonId, "ready" as const]]),
+    ).features;
+    expect(defined(feature).properties?.priceLabel).toBe("est. £6.50");
+  });
 });

@@ -1,5 +1,7 @@
 import { lastOf } from "@/lib/tuple";
 import type { Provenance } from "@/lib/curation";
+import { DAY_MS } from "@/lib/dayMs";
+import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import type { Venue } from "@/lib/venues";
 
 // "Then vs Now" — connect a venue's baseline dataset price ("then") to the most
@@ -281,6 +283,30 @@ function bestInflationAnchor(drops: VenuePriceStoryDrop[]): VenueInflationAnchor
   };
 }
 
+/**
+ * What the Golden Thread calls the freshest priced community drop.
+ *
+ * "tonight" is only honest inside the price-authority window
+ * (`PRICE_AUTHORITY_MAX_AGE_MS`). Past that window the same figure is still
+ * the newest drop on file, but the label dates it: "logged N days ago".
+ */
+export function communityNowLabel(
+  createdAt: string,
+  nowMs: number = Date.now(),
+): string {
+  const submittedAt = Date.parse(createdAt);
+  if (
+    Number.isFinite(submittedAt) &&
+    nowMs - submittedAt <= PRICE_AUTHORITY_MAX_AGE_MS
+  ) {
+    return "Community tonight";
+  }
+  if (!Number.isFinite(submittedAt)) return "Community price";
+  const days = Math.max(1, Math.floor((nowMs - submittedAt) / DAY_MS));
+  if (days === 1) return "logged yesterday";
+  return `logged ${days} days ago`;
+}
+
 // Build the whole per-venue price story in one pass. Pure: hand it the selected
 // venue and that venue's drops. Each of the three surfaces (baseline / now /
 // inflation) is resolved independently, so a venue can show any subset — and
@@ -290,6 +316,7 @@ function bestInflationAnchor(drops: VenuePriceStoryDrop[]): VenueInflationAnchor
 export function computeVenuePriceStory(
   venue: Venue,
   drops: VenuePriceStoryDrop[],
+  nowMs: number = Date.now(),
 ): VenuePriceStory {
   const baselineGbp = venue.cheapestPrice;
   const baseline: VenuePriceStamp | null = isFiniteNumber(baselineGbp)
@@ -308,7 +335,7 @@ export function computeVenuePriceStory(
       ? {
           gbp: nowDrop.priceGbp,
           provenance: (nowDrop as VenuePriceStoryDrop).provenance,
-          label: "Community tonight",
+          label: communityNowLabel(nowDrop.createdAt, nowMs),
         }
       : null;
 

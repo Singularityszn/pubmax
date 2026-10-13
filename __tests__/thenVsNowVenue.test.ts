@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  communityNowLabel,
   computeVenuePriceStory,
   cpiIndexForYear,
   inflateToToday,
@@ -8,6 +9,8 @@ import {
   INFLATION_TODAY_YEAR,
   type VenuePriceStoryDrop,
 } from "@/lib/thenVsNow";
+import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
+import { DAY_MS } from "@/lib/dayMs";
 import type { Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
 
@@ -220,5 +223,58 @@ describe("computeVenuePriceStory", () => {
     expect(story.now).toBeNull();
     expect(story.deltaGbp).toBeNull();
     expect(story.pct).toBeNull();
+  });
+
+  it("never labels an aged drop Community tonight", () => {
+    const nowMs = Date.parse("2026-10-13T12:00:00.000Z");
+    const venue = v({ id: "venue-1vle947", name: "The Sir Christopher Hatton", cheapestPrice: 6.5 });
+    // Hatton-class drop: 37 days old, still the newest on file, never "tonight".
+    const drops = [
+      drop({
+        venueId: "venue-1vle947",
+        priceGbp: 4.7,
+        provenance: "contributor",
+        createdAt: new Date(nowMs - 37 * DAY_MS).toISOString(),
+      }),
+    ];
+    const story = computeVenuePriceStory(venue, drops, nowMs);
+    expect(story.now?.gbp).toBe(4.7);
+    expect(story.now?.label).toBe("logged 37 days ago");
+    expect(story.now?.label).not.toBe("Community tonight");
+  });
+
+  it("still labels a fresh drop Community tonight", () => {
+    const nowMs = Date.parse("2026-10-13T12:00:00.000Z");
+    const venue = v({ id: "venue-1vle947", name: "The Sir Christopher Hatton", cheapestPrice: 6.5 });
+    const drops = [
+      drop({
+        venueId: "venue-1vle947",
+        priceGbp: 4.7,
+        provenance: "contributor",
+        createdAt: new Date(nowMs - DAY_MS).toISOString(),
+      }),
+    ];
+    const story = computeVenuePriceStory(venue, drops, nowMs);
+    expect(story.now?.label).toBe("Community tonight");
+  });
+});
+
+describe("communityNowLabel", () => {
+  const nowMs = Date.parse("2026-10-13T12:00:00.000Z");
+
+  it("says Community tonight inside the authority window", () => {
+    expect(communityNowLabel(new Date(nowMs).toISOString(), nowMs)).toBe("Community tonight");
+    expect(
+      communityNowLabel(new Date(nowMs - PRICE_AUTHORITY_MAX_AGE_MS).toISOString(), nowMs),
+    ).toBe("Community tonight");
+  });
+
+  it("dates a drop the moment it ages past the window", () => {
+    expect(
+      communityNowLabel(
+        new Date(nowMs - PRICE_AUTHORITY_MAX_AGE_MS - 1).toISOString(),
+        nowMs,
+      ),
+    ).toBe("logged 30 days ago");
   });
 });
