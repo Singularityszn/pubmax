@@ -36,7 +36,7 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "area-buzz-camden": { expectedTools: ["area_buzz", "venue_prices"] },
   "hampstead-quiet": { expectedTools: ["search_venues"] },
   "food-midnight-covent": { expectedTools: ["search_venues"] },
-  "wine-lamb-honest": { expectedTools: ["venue_drinks"], answerIncludes: ["No wine prices recorded", "The Lamb"] },
+  "wine-lamb-honest": { expectedTools: ["venue_drinks"], answerIncludes: ["No people-logged wine prices recorded", "The Lamb"] },
   "dearest-soho-honest": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
   "report-crowd-lamb": { expectedTools: ["report_occupancy"] },
   "journey-lamb": { expectedTools: ["journey"] },
