@@ -48,6 +48,7 @@ const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
 const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";
+const IMPLICIT_PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:and\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}(?:\\s+(?:and\\s+)?${VENUE_COMPARISON_MODIFIERS})*)?$`, "i");
 const PUB_DISCOVERY_CONSTRAINT_RE = new RegExp(`\\b${VENUE_COMPARISON_MODIFIERS}\\b`, "i");
 const PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|local|nearby|${VENUE_COMPARISON_MODIFIERS})\\s+)*pubs?(?:\\s+(?:with|serving|that serves?)\\s+(?:food|(?:a\\s+)?(?:beer\\s+)?garden|(?:live\\s+)?sports))?$`, "i");
 const PLAN_COMPARISON_SUBJECT = `(?:(?:3|three)[- ]stop\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}\\s+)*(?:pub\\s+)?(?:crawl|night|route)`;
@@ -109,6 +110,12 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
   const comparative = PRICE_COMPARISON_RE.test(query);
   const venueName = namedDrinkVenue(query);
   if (!subject && !comparative) return { kind: "pub-price", venueName };
+  if (comparative && IMPLICIT_PUB_COMPARISON_SUBJECT_RE.test(subject)) {
+    const prefix = query.slice(0, query.search(PRICE_COMPARISON_RE)).trim();
+    if (/^(?:(?:find(?: me| us)?|show me)\s+)?(?:somewhere|anywhere|a place)$|^$/i.test(prefix)) {
+      return { kind: "none" };
+    }
+  }
   const priceSubject = comparative && PLAN_RE.test(query)
     ? subject.replace(PLAN_COMPARISON_TAIL_RE, "") : subject;
   const food = FOOD_RE.test(priceSubject);
@@ -393,9 +400,6 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const text = query.trim();
   if (!text) return [];
   if (unsupportedPriceComparison(text)) return [];
-  if (resolveAskPriceIntent(text).kind === "drink-venues") {
-    return [{ name: "search_venues", args: { query: text, limit: 4 } }];
-  }
 
   const calls: RoutedToolCall[] = [];
   const push = (name: AskToolName, args: Record<string, unknown> = {}) => {
@@ -403,21 +407,6 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     if (calls.length >= 2) return;
     calls.push({ name, args });
   };
-
-  // The V0.1 concierge intents are each NARROWER than the generic ask they
-  // would otherwise fall into, so a satisfied one answers alone. One that
-  // cannot meet its own precondition falls through to the tools below.
-  const whatsOn = detectWhatsOnIntent(text);
-  const claim = conciergeClaim(text, whatsOn);
-  if (claim) {
-    push(claim.name, claim.args);
-    return calls;
-  }
-
-  if (whatsOn) {
-    push("whats_on", { query: text });
-    return calls;
-  }
 
   if (CITY_STATUS_RE.test(text)) {
     push("city_status");
@@ -436,6 +425,23 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   if (HERITAGE_RE.test(text)) {
     const venueName = stripIntentWords(text);
     push("venue_heritage", venueName ? { venueName, query: text } : { query: text });
+  }
+
+  if (resolveAskPriceIntent(text).kind === "drink-venues") {
+    push("search_venues", { query: text, limit: 4 });
+    return calls;
+  }
+
+  const whatsOn = detectWhatsOnIntent(text);
+  const claim = conciergeClaim(text, whatsOn);
+  if (claim) {
+    push(claim.name, claim.args);
+    return calls;
+  }
+
+  if (whatsOn) {
+    push("whats_on", { query: text });
+    return calls;
   }
 
   if (PRICE_RE.test(text) && !PLAN_RE.test(text)) {

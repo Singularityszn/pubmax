@@ -1,6 +1,6 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import { recordedDrinkComparison, refineRoutedAskQuery, unsupportedPriceComparison } from "@/lib/ask/router";
+import { recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
@@ -190,7 +190,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const recordedDrinks = recordedDrinkComparison(query);
   let toolResults: AskToolResult[] = recordedDrinks
-    ? [await runAskTool(recordedDrinks.name, { ...recordedDrinks.args, query }, ctx)]
+    ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
   const allowModel =

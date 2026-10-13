@@ -178,18 +178,25 @@ describe("VenueMenuTab draws its venue's own price updates", () => {
     });
     const tab = (label: string) => Array.from(host!.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
       .find((element) => element.textContent === label)!;
-    await act(async () => { host!.querySelector<HTMLButtonElement>(`[data-menu-door="${door}"]`)!.click(); });
-    const back = host.querySelector<HTMLButtonElement>(".drinkMenuBack")!;
-    expect(document.activeElement).toBe(back);
-    await act(async () => { tab("Photos").click(); });
-    await act(async () => { tab("Photos").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
-    expect(document.activeElement).toBe(tab("Menu"));
-    await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
-    expect(document.activeElement).toBe(tab("Stories"));
-    await act(async () => { tab("Stories").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })); });
-    expect(document.activeElement).toBe(tab("Menu"));
-    await act(async () => { back.click(); });
-    expect(document.activeElement).toBe(host.querySelector(`[data-menu-door="${door}"]`));
+    for (let round = 0; round < 2; round += 1) {
+      await act(async () => { host!.querySelector<HTMLButtonElement>(`[data-menu-door="${door}"]`)!.click(); });
+      const back = host.querySelector<HTMLButtonElement>(".drinkMenuBack")!;
+      expect(document.activeElement).toBe(back);
+      await act(async () => { tab("Photos").click(); });
+      await act(async () => { tab("Photos").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
+      expect(document.activeElement).toBe(tab("Menu"));
+      for (const [key, labels] of [
+        ["ArrowRight", ["Stories", "Lore", "Overview", "Photos", "Menu"]],
+        ["ArrowLeft", ["Photos", "Overview", "Lore", "Stories", "Menu"]],
+      ] as const) {
+        for (const label of labels) {
+          await act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })); });
+          expect(document.activeElement).toBe(tab(label));
+        }
+      }
+      await act(async () => { back.click(); });
+      expect(document.activeElement).toBe(host.querySelector(`[data-menu-door="${door}"]`));
+    }
   });
 
   it("offers recorded food through a named door and returns to the menu hub", async () => {

@@ -101,6 +101,46 @@ describe("propose_plan over the Pal webhook", () => {
     };
   }
 
+  it.each([null, "conv_independent01"])("review regression: preserves independent webhook tools: %s", async (conversationId) => {
+    const queries = [
+      "Any tube delays and how much is a pint at The Lamb?",
+      "Any tube delays and how much is wine at The Lamb?",
+      "Find cheap drinks in Soho",
+    ];
+    for (const query of queries) {
+      if (conversationId) {
+        await registerPubPalToolTurn(conversationId, {
+          query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+        });
+      }
+      for (const toolName of ["city_status", "journey", "whats_on", "venue_heritage", "area_buzz", "propose_plan", "propose_map_action", "tonight_now", "find_desk", "report_occupancy"]) {
+        const { result } = await invokePubPalAskTool({
+          toolName, args: { query: conversationId ? "The Lamb" : query }, conversationId,
+        });
+        expect(result.tool).toBe(toolName);
+      }
+      if (conversationId) {
+        const turn = await readPubPalToolTurn(conversationId);
+        expect(turn?.toolsUsed).toContain("city_status");
+        expect(turn?.toolsUsed).toContain("journey");
+        expect(turn?.toolsUsed).not.toContain("venue_prices");
+        expect(turn?.toolsUsed).not.toContain("venue_drinks");
+      }
+    }
+  });
+
+  it.each(["somewhere cheap and quiet", "Somewhere cheap in Soho"])("review regression: retains discovery constraints in a stored webhook question: %s", async (query) => {
+    const conversationId = "conv_discovery01";
+    await registerPubPalToolTurn(conversationId, {
+      query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    const { result } = await invokePubPalAskTool({ toolName: "search_venues", args: { query: "pubs" }, conversationId });
+    expect(result).toMatchObject({ ok: true, tool: "search_venues" });
+    expect((result.cards as Array<{ price: number }>).length).toBeGreaterThan(0);
+    expect((result.cards as Array<{ price: number }>).every((card) => card.price <= 6)).toBe(true);
+    expect(result.priceEvidence).toHaveLength((result.cards as unknown[]).length);
+  });
+
   it.each([null, "conv_planningchip01"])("preserves the planning chip through provider and stored questions: %s", async (conversationId) => {
     const query = "Plan a big night for four of us, with cheap pints and a lively route";
     if (conversationId) {

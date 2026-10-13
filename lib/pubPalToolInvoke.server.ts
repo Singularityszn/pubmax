@@ -6,13 +6,12 @@ import {
   runAskTool,
   type AskToolArgs,
 } from "@/lib/ask/tools";
-import type { AskToolName } from "@/lib/ask/types";
 import { isAskToolName } from "@/lib/ask/types";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
-import { recordedDrinkComparison, resolveAskPriceIntent, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -159,16 +158,7 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const recordedDrinks = recordedDrinkComparison(originalQuery);
-  const priceIntent = resolveAskPriceIntent(originalQuery);
-  const priceCall = ["pint", "pub-price", "drink-venues"].includes(priceIntent.kind)
-    ? routeAskDeterministically(originalQuery)
-      .find((call) => ["venue_prices", "cheapest_pint_near", "search_venues"].includes(call.name))
-    : null;
-  const toolName = recordedDrinks?.name ?? priceCall?.name ?? input.toolName;
-  const toolArgs = recordedDrinks ? { ...recordedDrinks.args, query }
-    : priceCall ? { ...priceCall.args, query } : args;
-  const toolResult = await runAskTool(toolName as AskToolName, toolArgs, {
+  const toolResult = await runAskTool(input.toolName, args, {
     cityId,
     query: originalQuery,
     skipModel: true,
@@ -179,7 +169,7 @@ export async function invokePubPalAskTool(input: {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
-      toolsUsed: [toolName],
+      toolsUsed: [toolResult.tool],
     });
   }
 

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { VIBE_CHIPS } from "../lib/vibeChips";
+
 test("Big one tonight returns a sourced plan through the real keyless chat route", async ({ page }) => {
   await page.goto("/pal/chat");
   const chip = page.getByRole("button", { name: "Big one tonight", exact: true });
@@ -26,6 +28,51 @@ test("Big one tonight returns a sourced plan through the real keyless chat route
   await openPlan.click();
   await expect(page).toHaveURL(/\/plan\?/);
 });
+
+for (const chip of VIBE_CHIPS.filter((chip) => chip.id !== "bender")) {
+  test(`${chip.label} submits the actual starter question to the keyless chat route`, async ({ page }) => {
+    await page.goto("/pal/chat");
+    const responsePromise = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
+    );
+    await expect(async () => {
+      await page.getByRole("button", { name: chip.label, exact: true }).click();
+      await expect(page.getByText(chip.ask, { exact: true })).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON().query).toBe(chip.ask);
+    const body = await response.json();
+    const expectedTool = {
+      bender: "propose_plan", lit: "whats_on", quiet: "venue_prices", cheeky: "venue_prices",
+      match: "whats_on", quiz: "whats_on", date: "venue_heritage",
+    }[chip.id];
+    expect(body.toolsUsed).toEqual([expectedTool]);
+    expect(body.answer).not.toMatch(/not prices for that item|can't compare/i);
+    await expect(page.getByText(chip.ask, { exact: true })).toBeVisible();
+  });
+}
+
+for (const query of ["somewhere cheap and quiet", "Somewhere cheap in Soho"]) {
+  test(`typed discovery retains the budget through chat: ${query}`, async ({ page }) => {
+    await page.goto("/pal/chat");
+    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    await expect(input).toBeVisible();
+    await input.fill(query);
+    const responsePromise = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
+    );
+    await input.press("Enter");
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON().query).toBe(query);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+    await expect(page.getByText(query, { exact: true })).toBeVisible();
+  });
+}
 
 test("the phone voice choice survives Back and reload without unused character controls", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
