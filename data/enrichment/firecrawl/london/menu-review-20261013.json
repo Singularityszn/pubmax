@@ -1,0 +1,809 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-13T06:51:38.364Z",
+  "purpose": "Review-only official food menu evidence. This file does not update runtime menu coverage. Calorie observations remain separate from the product food schema.",
+  "counts": {
+    "pubs": 1,
+    "candidateFoodItems": 42,
+    "sourceStatedCalorieObservations": 42,
+    "publishedRows": 0
+  },
+  "rows": [
+    {
+      "venueId": "venue-1hz0avt",
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "name": "The Eagle",
+      "sourceUrl": "https://www.theeaglew12.co.uk/food-drink",
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "decision": "review-only",
+      "addressStatements": [
+        "215 Askew Road, Shepherd's Bush, London, W12 9AZ"
+      ],
+      "permissionReceipt": {
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "checkedAt": "2026-10-13T06:51:38.364Z",
+        "policyAllowed": true,
+        "allowed": true,
+        "reason": "allowed",
+        "robots": "rules-file",
+        "evidence": "https://www.theeaglew12.co.uk/robots.txt permits /food-drink.",
+        "sitemaps": [
+          "https://www.theeaglew12.co.uk/sitemap_index.xml"
+        ]
+      },
+      "sourceReceipt": {
+        "tool": "Firecrawl",
+        "scrapeId": "01a13405-f2aa-7097-b0a0-c7248eda40e9",
+        "liveMaxAge": 0,
+        "statusCode": 200,
+        "creditsUsed": 1
+      },
+      "candidateFoodItems": [
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Foccacia",
+          "category": "other",
+          "priceGbp": 3.5,
+          "description": "caramelised onion butter",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Pork and Black Pudding Scotch Egg",
+          "category": "other",
+          "priceGbp": 6.5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Mini Chicken Pie",
+          "category": "other",
+          "priceGbp": 5.5,
+          "description": "Youngs Gravy",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Anchovy, Olive and Pickle Pintxos",
+          "category": "bar-snacks",
+          "priceGbp": 5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Olives",
+          "category": "bar-snacks",
+          "priceGbp": 4.5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Green Peppers stuffed with Cream Cheese",
+          "category": "bar-snacks",
+          "priceGbp": 5.5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Pork and Black Pudding Sausage Roll",
+          "category": "bar-snacks",
+          "priceGbp": 6.5,
+          "description": "Youngs Gravy",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Youngs Original glazed Pork Ribs",
+          "category": "bar-snacks",
+          "priceGbp": 8,
+          "description": "Sesame, pickled Shallots",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Roasted Parsnip Soup",
+          "category": "starters",
+          "priceGbp": 7.5,
+          "description": "sourdough",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Mackerel Pate",
+          "category": "starters",
+          "priceGbp": 8.5,
+          "description": "toasted sourdough",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Beetroot Carpaccio",
+          "category": "starters",
+          "priceGbp": 7.5,
+          "description": "pickled chillies, garlic vinaigrette",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Prawn Cocktail",
+          "category": "starters",
+          "priceGbp": 11,
+          "description": "toasted sourdough",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
+          "category": "starters",
+          "priceGbp": 8,
+          "description": "piccalilli, sourdough",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Ox Cheek Croquettes",
+          "category": "starters",
+          "priceGbp": 10,
+          "description": "buffalo sauce",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "The Eagle Chicken Sharer",
+          "category": "sharers",
+          "priceGbp": 28,
+          "description": "paprika aioli, winter slaw, corn",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "1kg Brewhouse Pork Ribs",
+          "category": "sharers",
+          "priceGbp": 40,
+          "description": "charred corn, apple and fennel slaw, fries",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Ruby Betroot Hummus",
+          "category": "sharers",
+          "priceGbp": 16,
+          "description": "chargrilled fatbread, seasonal crudites",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "The Eagle Beef Burger",
+          "category": "mains",
+          "priceGbp": 18.5,
+          "description": "short rib and brisket British beef burger, sesame seeded bun, cheese, pickles, burger sauce, cripsy onions, fries",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Plant Burger",
+          "category": "mains",
+          "priceGbp": 18,
+          "description": "sesame seeded bun, cheese, pickles, burger sauce, crispy onions, fries",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Aspall Cider Battered Haddock",
+          "category": "mains",
+          "priceGbp": 19.5,
+          "description": "triple cooked chips, mushy peas, tartare sauce",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "10oz West Country Ribeye Steak",
+          "category": "mains",
+          "priceGbp": 44,
+          "description": "tripple cooked chips, peppercorn sauce, watercress",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Pork and Black Pudding Sausage and Mash",
+          "category": "mains",
+          "priceGbp": 17,
+          "description": "mashed potatoes, Youngs gravy, Bramley apple sauce",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
+          "category": "mains",
+          "priceGbp": 18,
+          "description": "crispy sage, Cheddar cheese sauce",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Roasted Bedloom Heritage Squash",
+          "category": "mains",
+          "priceGbp": 16,
+          "description": "quinoa, dried cranberries, curly kale, feta",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Beef and Kidney Suet Pudding",
+          "category": "mains",
+          "priceGbp": 24,
+          "description": "tenderstem broccoli",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Wild Mushroom Risotto",
+          "category": "mains",
+          "priceGbp": 16.5,
+          "description": "sage leaves",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Half Roast Chicken",
+          "category": "mains",
+          "priceGbp": 22,
+          "description": "hasselback mids, braised red cabbage, Youngs gravy",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Cyder Battered Haddock",
+          "category": "mains",
+          "priceGbp": 19.5,
+          "description": "triple cooked chips, tartare sauce, mushy peas, burnt lemon",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Braised Cavolo Nero",
+          "category": "sides",
+          "priceGbp": 4,
+          "description": "garlic oil",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Truffle Fries",
+          "category": "sides",
+          "priceGbp": 6.5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Tenderstem Broccoli",
+          "category": "sides",
+          "priceGbp": 4.5,
+          "description": "pickled onions",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Blooming Onion",
+          "category": "sides",
+          "priceGbp": 5.5,
+          "description": "garlic aioli",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Hasselback Mids",
+          "category": "sides",
+          "priceGbp": 5,
+          "description": "salsa verde",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Bitter Leaf Salad",
+          "category": "sides",
+          "priceGbp": 4,
+          "description": "lemon vinaigrette",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Sticky Toffee Pudding",
+          "category": "desserts",
+          "priceGbp": 8,
+          "description": "vanilla ice cream",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Blue Cheese",
+          "category": "desserts",
+          "priceGbp": 8,
+          "description": "honey, pecans, seeded crispbread",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Chocolate Brownie",
+          "category": "desserts",
+          "priceGbp": 8,
+          "description": "vanilla ice cream",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Ice cream",
+          "category": "desserts",
+          "priceGbp": 5.5,
+          "description": "3 scoops",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Affogato",
+          "category": "desserts",
+          "priceGbp": 4.5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Apple and Blackberry Crumble",
+          "category": "desserts",
+          "priceGbp": 9,
+          "description": "Bay leaf custard",
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Mango sorbet (2 scoops)",
+          "category": "desserts",
+          "priceGbp": 3.5,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        },
+        {
+          "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+          "itemName": "Black Forest Berry Trifle",
+          "category": "desserts",
+          "priceGbp": 7,
+          "source": {
+            "label": "The Eagle - official published menu",
+            "url": "https://www.theeaglew12.co.uk/food-drink",
+            "licence": "All rights reserved - first-party publisher, attributed use only."
+          },
+          "observedAt": "2026-10-13T06:51:38.364Z"
+        }
+      ],
+      "sourceNutritionObservations": [
+        {
+          "itemName": "Foccacia",
+          "sourceStatedCaloriesKcal": 351,
+          "sourceExcerpt": "Foccacia £3.5\ncaramelised onion butter\n351kcal"
+        },
+        {
+          "itemName": "Pork and Black Pudding Scotch Egg",
+          "sourceStatedCaloriesKcal": 426,
+          "sourceExcerpt": "Pork and Black Pudding Scotch Egg£6.5\n426kcal"
+        },
+        {
+          "itemName": "Mini Chicken Pie",
+          "sourceStatedCaloriesKcal": 381,
+          "sourceExcerpt": "Mini Chicken Pie£5.5\nYoungs Gravy\n381kcal"
+        },
+        {
+          "itemName": "Anchovy, Olive and Pickle Pintxos",
+          "sourceStatedCaloriesKcal": 132,
+          "sourceExcerpt": "Anchovy, Olive and Pickle Pintxos£5.0\n132kcal"
+        },
+        {
+          "itemName": "Olives",
+          "sourceStatedCaloriesKcal": 163,
+          "sourceExcerpt": "Olives£4.5\n163kcal"
+        },
+        {
+          "itemName": "Green Peppers stuffed with Cream Cheese",
+          "sourceStatedCaloriesKcal": 257,
+          "sourceExcerpt": "Green Peppers stuffed with Cream Cheese£5.5\n257kcal"
+        },
+        {
+          "itemName": "Pork and Black Pudding Sausage Roll",
+          "sourceStatedCaloriesKcal": 426,
+          "sourceExcerpt": "Pork and Black Pudding Sausage Roll£6.5\nYoungs Gravy\n426kcal"
+        },
+        {
+          "itemName": "Youngs Original glazed Pork Ribs",
+          "sourceStatedCaloriesKcal": 642,
+          "sourceExcerpt": "Youngs Original glazed Pork Ribs£8.0\nSesame, pickled Shallots\n642kcal"
+        },
+        {
+          "itemName": "Roasted Parsnip Soup",
+          "sourceStatedCaloriesKcal": 418,
+          "sourceExcerpt": "Roasted Parsnip Soup£7.5\nsourdough\n418kcal"
+        },
+        {
+          "itemName": "Mackerel Pate",
+          "sourceStatedCaloriesKcal": 390,
+          "sourceExcerpt": "Mackerel Pate£8.5\ntoasted sourdough\n390kcal"
+        },
+        {
+          "itemName": "Beetroot Carpaccio",
+          "sourceStatedCaloriesKcal": 53,
+          "sourceExcerpt": "Beetroot Carpaccio£7.5\npickled chillies, garlic vinaigrette\n53kcal"
+        },
+        {
+          "itemName": "Prawn Cocktail",
+          "sourceStatedCaloriesKcal": 422,
+          "sourceExcerpt": "Prawn Cocktail£11\ntoasted sourdough\n422kcal"
+        },
+        {
+          "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
+          "sourceStatedCaloriesKcal": 325,
+          "sourceExcerpt": "Pork Shoulder, Ham Hock and Pear Terrine£8\npiccalilli, sourdough\n325kcal"
+        },
+        {
+          "itemName": "Ox Cheek Croquettes",
+          "sourceStatedCaloriesKcal": 260,
+          "sourceExcerpt": "Ox Cheek Croquettes£10\nbuffalo sauce\n260kcal"
+        },
+        {
+          "itemName": "The Eagle Chicken Sharer",
+          "sourceStatedCaloriesKcal": 2671,
+          "sourceExcerpt": "The Eagle Chicken Sharer£28.0\npaprika aioli, winter slaw, corn\n2671kcal"
+        },
+        {
+          "itemName": "1kg Brewhouse Pork Ribs",
+          "sourceStatedCaloriesKcal": 3102,
+          "sourceExcerpt": "1kg Brewhouse Pork Ribs£40.0\ncharred corn, apple and fennel slaw, fries\n3102kcal"
+        },
+        {
+          "itemName": "Ruby Betroot Hummus",
+          "sourceStatedCaloriesKcal": 867,
+          "sourceExcerpt": "Ruby Betroot Hummus£16.0\nchargrilled fatbread, seasonal crudites\n867kcal"
+        },
+        {
+          "itemName": "The Eagle Beef Burger",
+          "sourceStatedCaloriesKcal": 1281,
+          "sourceExcerpt": "The Eagle Beef Burger£18.5\nshort rib and brisket British beef burger, sesame seeded bun, cheese, pickles, burger sauce, cripsy onions, fries\n1281kcal"
+        },
+        {
+          "itemName": "Plant Burger",
+          "sourceStatedCaloriesKcal": 1056,
+          "sourceExcerpt": "Plant Burger£18.0\nsesame seeded bun, cheese, pickles, burger sauce, crispy onions, fries\n1056kcal"
+        },
+        {
+          "itemName": "Aspall Cider Battered Haddock",
+          "sourceStatedCaloriesKcal": 1090,
+          "sourceExcerpt": "Aspall Cider Battered Haddock£19.5\ntriple cooked chips, mushy peas, tartare sauce\n1090kcal"
+        },
+        {
+          "itemName": "10oz West Country Ribeye Steak",
+          "sourceStatedCaloriesKcal": 776,
+          "sourceExcerpt": "10oz West Country Ribeye Steak£44.0\ntripple cooked chips, peppercorn sauce, watercress\n776kcal"
+        },
+        {
+          "itemName": "Pork and Black Pudding Sausage and Mash",
+          "sourceStatedCaloriesKcal": 762,
+          "sourceExcerpt": "Pork and Black Pudding Sausage and Mash£17.0\nmashed potatoes, Youngs gravy, Bramley apple sauce\n762kcal"
+        },
+        {
+          "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
+          "sourceStatedCaloriesKcal": 579,
+          "sourceExcerpt": "Roast Pumpkin and Spiced Ricotta Ravioli£18.0\ncrispy sage, Cheddar cheese sauce\n579kcal"
+        },
+        {
+          "itemName": "Roasted Bedloom Heritage Squash",
+          "sourceStatedCaloriesKcal": 821,
+          "sourceExcerpt": "Roasted Bedloom Heritage Squash£16.0\nquinoa, dried cranberries, curly kale, feta\n821kcal"
+        },
+        {
+          "itemName": "Beef and Kidney Suet Pudding",
+          "sourceStatedCaloriesKcal": 708,
+          "sourceExcerpt": "Beef and Kidney Suet Pudding£24.0\ntenderstem broccoli\n708kcal"
+        },
+        {
+          "itemName": "Wild Mushroom Risotto",
+          "sourceStatedCaloriesKcal": 700,
+          "sourceExcerpt": "Wild Mushroom Risotto£16.5\nsage leaves\n700kcal"
+        },
+        {
+          "itemName": "Half Roast Chicken",
+          "sourceStatedCaloriesKcal": 1750,
+          "sourceExcerpt": "Half Roast Chicken£22\nhasselback mids, braised red cabbage, Youngs gravy\n1750kcal"
+        },
+        {
+          "itemName": "Cyder Battered Haddock",
+          "sourceStatedCaloriesKcal": 1090,
+          "sourceExcerpt": "Cyder Battered Haddock£19.5\ntriple cooked chips, tartare sauce, mushy peas, burnt lemon\n1090kcal"
+        },
+        {
+          "itemName": "Braised Cavolo Nero",
+          "sourceStatedCaloriesKcal": 42,
+          "sourceExcerpt": "Braised Cavolo Nero£4.0\ngarlic oil\n42kcal"
+        },
+        {
+          "itemName": "Truffle Fries",
+          "sourceStatedCaloriesKcal": 872,
+          "sourceExcerpt": "Truffle Fries£6.5\n872kcal"
+        },
+        {
+          "itemName": "Tenderstem Broccoli",
+          "sourceStatedCaloriesKcal": 85,
+          "sourceExcerpt": "Tenderstem Broccoli£4.5\npickled onions\n85kcal"
+        },
+        {
+          "itemName": "Blooming Onion",
+          "sourceStatedCaloriesKcal": 565,
+          "sourceExcerpt": "Blooming Onion£5.5\ngarlic aioli\n565kcal"
+        },
+        {
+          "itemName": "Hasselback Mids",
+          "sourceStatedCaloriesKcal": 564,
+          "sourceExcerpt": "Hasselback Mids£5.0\nsalsa verde\n564kcal"
+        },
+        {
+          "itemName": "Bitter Leaf Salad",
+          "sourceStatedCaloriesKcal": 14,
+          "sourceExcerpt": "Bitter Leaf Salad£4.0\nlemon vinaigrette\n14kcal"
+        },
+        {
+          "itemName": "Sticky Toffee Pudding",
+          "sourceStatedCaloriesKcal": 534,
+          "sourceExcerpt": "Sticky Toffee Pudding £8.00\nvanilla ice cream\n534kcal"
+        },
+        {
+          "itemName": "Blue Cheese",
+          "sourceStatedCaloriesKcal": 411,
+          "sourceExcerpt": "Blue Cheese £8.0\nhoney, pecans, seeded crispbread\n411kcal"
+        },
+        {
+          "itemName": "Chocolate Brownie",
+          "sourceStatedCaloriesKcal": 753,
+          "sourceExcerpt": "Chocolate Brownie£8.00\nvanilla ice cream\n753kcal"
+        },
+        {
+          "itemName": "Ice cream",
+          "sourceStatedCaloriesKcal": 238,
+          "sourceExcerpt": "Ice cream£5.50\n3 scoops\n238kcal"
+        },
+        {
+          "itemName": "Affogato",
+          "sourceStatedCaloriesKcal": 43,
+          "sourceExcerpt": "Affogato£4.50\n43kcal"
+        },
+        {
+          "itemName": "Apple and Blackberry Crumble",
+          "sourceStatedCaloriesKcal": 409,
+          "sourceExcerpt": "Apple and Blackberry Crumble£9.0\nBay leaf custard\n409kcal"
+        },
+        {
+          "itemName": "Mango sorbet (2 scoops)",
+          "sourceStatedCaloriesKcal": 52,
+          "sourceExcerpt": "Mango sorbet (2 scoops)£3.5\n52kcal"
+        },
+        {
+          "itemName": "Black Forest Berry Trifle",
+          "sourceStatedCaloriesKcal": 500,
+          "sourceExcerpt": "Black Forest Berry Trifle£7.0\n500kcal"
+        }
+      ],
+      "conditions": [
+        "Serving size stays unknown unless the item name states a portion.",
+        "Calories are source-stated values, without nutritional quality claims.",
+        "No dietary tags were inferred from ingredients or from page-wide filters.",
+        "The source states a discretionary 12.5% service charge for tables of four.",
+        "The food price lane is retired and no existing command publishes these candidates."
+      ]
+    }
+  ],
+  "validation": {
+    "runtimeFoodParserAccepted": 42,
+    "sourcePriceRows": 42,
+    "rowsWithSourceStatedKcal": 42,
+    "existingProductNutritionField": false,
+    "dietaryTagsInferred": 0
+  }
+}
