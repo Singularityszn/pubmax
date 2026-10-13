@@ -42,10 +42,10 @@
         "kind": "field",
         "pointer": "generatedAt"
       },
-      "cadence": "static snapshot: the rows describe the day they were collected and nothing may lawfully advance them",
+      "cadence": "static snapshot: each row retains its collection date. Bounded reviewed imports add observations without establishing an automatic refresh cadence.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None. Captain ruling 2026-09-05: this lane is a static snapshot. The Drink price refresh workflow is retrieval-only and its ONLY permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file. A staleness budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed. Surfaces name it \"Snapshot from <collection date>\" (lib/dataFreshness.ts formatSnapshotFrom) and claim nothing about currency. Adding a source is a separate captain decision, not a budget change.",
-      "gate": "Only allowlisted first-party source (Wetherspoons) has no per-drink web prices. Never restamp old rows after a zero-row retrieval."
+      "refreshWorkflow": "None for automatic publication. The automatic Drink price refresh workflow is retrieval-only and Wetherspoons publishes no per-drink web prices. Bounded reviewed first-party imports use scripts/refresh_drink_prices.mjs --reviewed-input under the existing allowlist and sourcePolicy fences. They preserve earlier rows and observation dates and do not establish a refresh cadence. Adding a source remains a separate captain decision, not a budget change.",
+      "gate": "Automatic Wetherspoons retrieval has no per-drink web prices. Reviewed imports require exact curated venue and publisher matches, a reviewed input checksum, the captured source PDF, live robots permission, unique serving identities and preserved earlier observations. Never restamp old rows after a zero-row retrieval."
     },
     {
       "id": "food_price_updates",
