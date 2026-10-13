@@ -42,7 +42,7 @@ const TONIGHT_NOW_RE =
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
 const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
-const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does))?|price(?:\s+(?:of|for))?|cost(?:\s+(?:of|for))?)\b/i;
+const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|price(?:\s+(?:of|for))?|cost(?:\s+(?:of|for))?)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
 const NON_PINT_DRINK_RE = /\b(wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
 const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
@@ -74,15 +74,21 @@ function namedDrinkVenue(query: string): string | null {
 }
 
 function priceComparisonSubject(query: string): string | null {
-  const comparison = query.match(PRICE_COMPARISON_RE) ?? query.match(ITEM_PRICE_RE);
+  const comparative = query.match(PRICE_COMPARISON_RE);
+  const comparison = comparative ?? query.match(ITEM_PRICE_RE);
   if (!comparison) return null;
-  const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim();
-  if (/^(?:in|near|nearby|at|around|round|close to|for)\b/i.test(afterPrice)) return "";
-  return stripTrailingPunctuation(afterPrice
-    .split(/\s+(?:in|near|nearby|at|around|round|close to|for)\b/i, 1)[0] ?? "")
-    .replace(/^(?:a|an|the)\s+/i, "")
+  const normalizeSubject = (subject: string): string => stripTrailingPunctuation(subject)
+    .replace(/^(?:a|an|the)(?:\s+|$)/i, "")
     .replace(/\s+cost$/i, "")
     .replace(/\s+(?:right now|today|tonight)$/i, "");
+  const precedingItem = !comparative && !/^how much/i.test(comparison[0])
+    ? normalizeSubject(query.slice(0, comparison.index)
+      .replace(/^(?:what(?:'s|\s+(?:is|are|does))|can you tell me|tell me)\s*/i, ""))
+    : "";
+  const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim();
+  if (/^(?:in|near|nearby|at|around|round|close to|for)\b/i.test(afterPrice)) return precedingItem;
+  return normalizeSubject(afterPrice
+    .split(/\s+(?:in|near|nearby|at|around|round|close to|for)\b/i, 1)[0] ?? "") || precedingItem;
 }
 
 /** Existing tools compare pints across pubs or read all recorded drinks at one named pub. */

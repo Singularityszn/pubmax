@@ -52,6 +52,8 @@ function post(body: unknown, ip: string): Promise<Response> {
 describe("POST /api/ask", () => {
   it.each([
     "How much is wine at The Eagle?",
+    "Wine price at The Eagle",
+    "What does wine cost at The Eagle?",
   ])("reads category prices for %s without selecting the pint-price tool", async (query) => {
     const result = await runAsk({ query, cityId: "london", skipModel: true });
     expect(result.toolsUsed).toEqual(["venue_drinks"]);
@@ -73,9 +75,13 @@ describe("POST /api/ask", () => {
     expect(modelLoopMock).not.toHaveBeenCalled();
   });
 
-  it("refuses an unverified Coke price before model routing or pint figures", async () => {
+  it.each([
+    "Price of Coke at The Eagle",
+    "How much for Coke at The Eagle?",
+    "Coke price at The Eagle",
+  ])("refuses an unverified Coke price before model routing or pint figures: %s", async (query) => {
     process.env.OPENROUTER_API_KEY = "test-key";
-    const result = await runAsk({ query: "Price of Coke at The Eagle", cityId: "london" });
+    const result = await runAsk({ query, cityId: "london" });
     expect(result.answer).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
     expect(result.cards).toEqual([]);
     expect(result.proposals).toEqual([]);
