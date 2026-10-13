@@ -44,7 +44,8 @@ username is `postgres.<project ref>`. The database is `postgres`, with no URL
 options. `SUPABASE_URL` must be the canonical `https://<project ref>.supabase.co`.
 The script refuses another project's endpoint or the transaction-pooler port.
 
-Each normal run sends one `POST /v1/projects/<project ref>/cli/login-role` with
+After preflight, each non-dry `cli-read-only` run sends one
+`POST /v1/projects/<project ref>/cli/login-role` with
 `{"read_only":true}` to the [Supabase Management API](https://supabase.com/docs/reference/api/v1-create-login-role).
 This creates or refreshes a managed temporary login. The endpoint is Beta and
 can change or disappear.
@@ -96,14 +97,16 @@ eight weeks. Installation alone proves neither a successful backup nor durabilit
 The copy holds personal data: account emails, password hashes, profiles, Pint
 Drops and their photos. It is not encrypted. Normal pruning starts at 7 weeks.
 The newest complete dump and its photos remain as a fallback until 8 weeks.
-Every run removes data that reaches that maximum, including the newest copy.
+Each non-dry run with an existing destination outside git removes expired data,
+including the newest copy, before credential preflight.
 
 - Each run deletes dumps older than 7 weeks, except the newest complete dump. That fallback expires when its age reaches 8 weeks. The one-week margin covers ordinary weekly scheduling jitter.
 - A dump's name supplies its UTC age. The eight-week comparison includes the exact deadline. A newer filesystem timestamp cannot extend that age.
 - A `.partial` dump expires at 8 weeks or when a newer complete dump makes it redundant. A failed renewal, dump or bucket sync removes the current partial dump.
 - Each photo's last-seen timestamp supplies its age. Photos and `.incoming` files expire at 8 weeks, even without a complete dump. Unexpired files without a dump remain until that deadline.
 - The bucket copy also removes files last seen before the oldest kept dump. Empty account and conversation folders are removed. The version index retains identifiers only for files that remain. An empty index is removed.
-- Pruning runs before credential renewal and again on exit, including after a failed renewal, dump or bucket sync. An unexpired newest complete fallback remains after a failure.
+- Pruning an existing destination precedes credential preflight, including missing-token and project-binding refusals. Repository destinations are refused before pruning. Dry runs never prune.
+- Once renewal or copying starts, pruning runs again in `finally`, including after a failed renewal, dump or bucket sync. An unexpired newest complete fallback remains after a failure.
 - A bucket file is fetched again when its recorded version changes, even at the same size. The new dump is published after the bucket sync completes.
 - Pruning requires the backup process to run. A killed process, or a sleeping, powered-off or unavailable Mac, can postpone deletion beyond eight weeks. The next run applies the age limit before it requests credentials. Installation does not prove continuous deletion or backup durability.
 

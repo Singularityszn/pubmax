@@ -134,8 +134,8 @@ async function runBackup() {
     chmodSync(partial, 0o600);
 
     // 2. The bucket. Size and recorded version detect replacements under the same key.
-    // Each one still in the bucket is stamped with this run's start, so an object
-    // deleted in production is kept only as long as the dumps that knew it.
+    // Stamp each object still in production with this run's start. Retention
+    // uses that last-seen time even when no complete dump remains.
     const objects = await listBucketObjects({ baseUrl, key, bucket });
     // What each local file was when it was fetched, so a replacement under the
     // same key and the same size is still noticed.
