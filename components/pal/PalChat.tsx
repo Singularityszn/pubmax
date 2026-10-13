@@ -22,6 +22,7 @@ import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import Screen from "@/components/ui/screen";
+import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -85,7 +86,7 @@ type Entry =
       /** In-thread recall only (lib/palRecall). Never a durable memory. */
       recall: PalRecall | null;
     }
-  | { kind: "error"; id: string; message: string; needsSignIn?: boolean };
+  | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
 
 function VenueLink({
   card,
@@ -325,6 +326,7 @@ export default function PalChat() {
             id: nextId(),
             message: result.message,
             needsSignIn: result.needsSignIn,
+            retryQuery: text,
           },
         ]);
         return;
@@ -560,6 +562,11 @@ export default function PalChat() {
 
       <div className="palChatScroll" ref={scrollRef}>
         <div className="palChatTranscript" aria-live="polite">
+          {empty ? (
+            <div className="palChatRow palChatRow--pal">
+              <p className="palChatBubble">Hi. What kind of night are you planning?</p>
+            </div>
+          ) : null}
           {entries.map((entry) => {
             if (entry.kind === "user") {
               return (
@@ -591,6 +598,17 @@ export default function PalChat() {
                       </>
                     ) : null}
                   </p>
+                  {entry.retryQuery && !entry.needsSignIn ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending}
+                      aria-label={`Ask again: ${entry.retryQuery}`}
+                      onClick={() => { if (entry.retryQuery) void ask(entry.retryQuery); }}
+                    >
+                      Ask again
+                    </Button>
+                  ) : null}
                 </div>
               );
             }
