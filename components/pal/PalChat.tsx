@@ -50,7 +50,7 @@ import {
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
-import { venueAcceptUrl } from "@/lib/venueMapUrl";
+import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
@@ -58,10 +58,12 @@ import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
 import {
   cheapestGlanceLine,
+  cheapestGlanceReceipt,
   countTonightKinds,
   GLANCE_QUIET_EXIT,
   GLANCE_QUIET_LINE,
   tonightGlanceLine,
+  tonightGlanceReceipt,
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
@@ -515,9 +517,14 @@ export default function PalChat() {
         const answer = rankNearMe(patch.lat, patch.lng, slim);
         const card = answer.cards[0];
         if (!card) return;
+        const listed = slim.find((row) => row.id === card.id);
         setCheapest({
           areaLabel: patch.label,
           card: {
+            id: card.id,
+            scope: answer.scope,
+            priceSource: listed?.priceSource,
+            priceObservedAt: listed?.priceObservedAt,
             name: card.name,
             cheapestPrice: card.cheapestPrice,
             // The ranker measured from the middle of the area, not from the
@@ -754,6 +761,12 @@ export default function PalChat() {
               <Sparkles size={13} aria-hidden="true" /> Tonight
             </span>
             <p className="palGlanceLine">{glanceLine}</p>
+            <p className="palGlanceReceipt">
+              {tonightGlanceReceipt(glance.rows)}{" "}
+              <Link prefetch={false} className="palGlanceExit" href="/tonight">
+                See listings and sources.
+              </Link>
+            </p>
           </div>
         ) : null}
         {empty && glance.status === "empty" ? (
@@ -767,15 +780,21 @@ export default function PalChat() {
                 {GLANCE_QUIET_EXIT}
               </Link>
             </p>
+            <p className="palGlanceReceipt">
+              No listing sources returned.{" "}
+              <Link prefetch={false} className="palGlanceExit" href="/tonight">
+                See listings and sources.
+              </Link>
+            </p>
           </div>
         ) : null}
 
         {/* Cheapest-pint row (judge-w2 polish item 1): same rankNearMe answer
             Near me serves, from the remembered patch. Absent = renders nothing. */}
         {empty && cheapestLine ? (
-          <div className="palGlance" role="note" aria-label="Cheapest pint nearby">
+          <div className="palGlance" role="note" aria-label="Listed price nearby">
             <span className="palGlanceLabel">
-              <MapPin size={13} aria-hidden="true" /> Cheapest
+              <MapPin size={13} aria-hidden="true" /> Listed price
             </span>
             <p className="palGlanceLine">
               {cheapestLine}{" "}
@@ -783,6 +802,17 @@ export default function PalChat() {
                 See the list.
               </Link>
             </p>
+            {cheapest ? (
+              <p className="palGlanceReceipt">
+                {cheapestGlanceReceipt(cheapest.card)}{" "}
+                Listed in the pint dataset. Serving size, offer and entry terms are not recorded.{" "}
+                {cheapest.card.id ? (
+                  <Link prefetch={false} className="palGlanceExit" href={venueMapUrl(cheapest.card.id)}>
+                    Price source and venue details.
+                  </Link>
+                ) : null}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
