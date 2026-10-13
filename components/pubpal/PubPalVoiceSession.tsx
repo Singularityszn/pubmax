@@ -434,7 +434,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
           </button>
         )}
         {(voiceConnecting || error) && (
-          <Link className="palVoiceWriteLink" href={text.trim() ? palWrittenAskHref(text.trim()) : "/pal/chat"} onNavigate={stopCurrentAttempt}>
+          <Link className="palVoiceWriteLink" href={text.trim() ? palWrittenAskHref(text.trim()) : "/pal/chat"} prefetch={false} onNavigate={stopCurrentAttempt}>
             <Send size={17} aria-hidden="true" /> Ask in writing
           </Link>
         )}
