@@ -42,6 +42,7 @@ export type FoodItem = {
   caloriesProvenance?: FoodCaloriesProvenance;
   description?: string;
   dietary?: FoodDietary[];
+  dietaryProvenance?: FoodCaloriesProvenance;
   provenance: FoodProvenance;
   source?: string;
 };

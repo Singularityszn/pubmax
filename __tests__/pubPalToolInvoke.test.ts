@@ -402,8 +402,6 @@ describe("propose_plan over the Pal webhook", () => {
 
   it.each([
     "How much is a pint and food at The Lamb?",
-    "How much is a cocktail and a pint at The Lamb?",
-    "How much is a gin and tonic at The Lamb?",
   ])("returns no pint or category figures for an unsupported combination: %s", async (query) => {
     const { result } = await invokePubPalAskTool({
       toolName: "venue_prices",
@@ -417,7 +415,7 @@ describe("propose_plan over the Pal webhook", () => {
     "Price of Coke at The Eagle",
     "How much for Coke at The Eagle?",
     "Coke price at The Eagle",
-  ])("refuses a provider-selected pint price for an unverified named Coke item: %s", async (query) => {
+  ])("requests a pub identity instead of a provider-selected pint price: %s", async (query) => {
     const { result } = await invokePubPalAskTool({
       toolName: "venue_prices",
       args: { query, venueName: "The Eagle" },
@@ -425,11 +423,11 @@ describe("propose_plan over the Pal webhook", () => {
     });
     expect(result).toMatchObject({
       ok: false,
-      code: "UNSUPPORTED_PRICE_COMPARISON",
+      tool: "venue_drinks",
       cards: [],
       proposals: [],
     });
-    expect(result.answerHint).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+    expect(result.answerHint).toMatch(/listed pub/i);
   });
 
   it("fences the original drive-home request despite a longer clean provider paraphrase", async () => {
@@ -500,7 +498,7 @@ describe("propose_plan over the Pal webhook", () => {
 
   it.each([
     ["Meal prices at The Lamb", "How much is a listed pint at The Lamb tonight?"],
-  ])("guards unsupported item prices in the stored original: %s", async (query, providerQuery) => {
+  ])("keeps the stored menu question over a provider pint rewrite: %s", async (query, providerQuery) => {
     const conversationId = "conv_pluralguard01";
     await registerPubPalToolTurn(conversationId, {
       query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
@@ -508,8 +506,8 @@ describe("propose_plan over the Pal webhook", () => {
     const { result } = await invokePubPalAskTool({
       toolName: "venue_prices", args: { query: providerQuery, venueName: "The Lamb" }, conversationId,
     });
-    expect(result).toMatchObject({ ok: false, code: "UNSUPPORTED_FOOD_PRICE_COMPARISON", cards: [], proposals: [] });
-    expect((await readPubPalToolTurn(conversationId))?.toolsUsed).toEqual([]);
+    expect(result).toMatchObject({ ok: false, tool: "venue_drinks", cards: [], proposals: [] });
+    expect((await readPubPalToolTurn(conversationId))?.toolsUsed).toEqual(["venue_drinks"]);
   });
 
   // The live agent sent these asks and answered that it could not plan a

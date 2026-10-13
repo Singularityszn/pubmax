@@ -9,7 +9,7 @@ const UNSUPPORTED_DISCOVERY_PRICES = [
   ["Coke", "UNSUPPORTED_PRICE_COMPARISON", /not prices for that item/i],
 ] as const;
 
-export const QUALIFIED_PRICE_REQUESTS = UNSUPPORTED_DISCOVERY_PRICES.flatMap(([subject, code, wording]) => [
+const PRICE_SUBJECT_REQUESTS = UNSUPPORTED_DISCOVERY_PRICES.flatMap(([subject, code, wording]) => [
   `Find me ${subject} at the cheapest pub in Soho`,
   `Somewhere cheap in Soho with ${subject}`,
   `Somewhere cheap in Soho and ${subject}`,
@@ -43,6 +43,10 @@ export const QUALIFIED_PRICE_REQUESTS = UNSUPPORTED_DISCOVERY_PRICES.flatMap(([s
   wording: query.includes("Fox and Anchor") && code === "UNSUPPORTED_DRINK_PRICE_COMPARISON"
     ? /can't verify a price for that drink or serving/i : wording,
 })));
+
+export const QUALIFIED_PRICE_REQUESTS = PRICE_SUBJECT_REQUESTS.filter(({ query }) => !query.includes("Fox and Anchor"));
+
+export const NAMED_MENU_PRICE_REQUESTS = PRICE_SUBJECT_REQUESTS.filter(({ query }) => query.includes("Fox and Anchor"));
 
 export const JOURNEY_ENDPOINT_REQUESTS = [
   { query: "How do I get from Kings Cross to Fox and Anchor?", from: "Kings Cross", to: "51.52042,-0.10071", venueId: "venue-phg4ss", name: "Fox and Anchor" },

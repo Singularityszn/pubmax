@@ -39,7 +39,7 @@ import type {
   AskToolResult,
 } from "@/lib/ask/toolContract";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
-import type { AskCard, AskProposal, AskSource } from "@/lib/ask/types";
+import { askCardSources, type AskCard, type AskProposal, type AskSource } from "@/lib/ask/types";
 import {
   communityStampLabel,
   drivesMap,
@@ -60,6 +60,8 @@ import {
 import { whatsOnBarePriceGbp } from "@/lib/whatsOn";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { filterRowsByArea } from "@/lib/concierge/whatsOn";
+import { publishedMenuCards, publishedMenuAnswer } from "@/lib/ask/publishedMenu.server";
+import { resolveAskPriceIntent } from "@/lib/ask/router";
 
 const DIRECTORY: AskSource = { label: "On record", kind: "directory" };
 const PEOPLE_LOGGED: AskSource = {
@@ -397,9 +399,21 @@ export async function toolVenueDrinks(
   const namesArea = venueNameArg
     ? matchArea(venues, venueNameArg) !== null
     : false;
+  const menuNameParts = venueNameArg.split(/,\s*|\s+in\s+/i);
+  const menuName = menuNameParts[0] ?? "";
+  const menuArea = menuNameParts.slice(1).join(", ").trim();
+  const menuVenues = menuArea
+    ? venues.filter((candidate) => candidate.area.toLowerCase() === menuArea.toLowerCase())
+    : venues;
+  const namedMenuVenue = uniqueExactVenueNameMatch(venues, venueNameArg)
+    ?? uniqueExactVenueNameMatch(menuVenues, menuName)
+    ?? uniqueExactVenueNameMatch(menuVenues, `The ${withoutLeadingArticle(menuName)}`)
+    ?? uniqueExactVenueNameMatch(menuVenues.filter((candidate) => candidate.canonical), menuName)
+    ?? uniqueExactVenueNameMatch(menuVenues.filter((candidate) => candidate.canonical), `The ${withoutLeadingArticle(menuName)}`);
+  const isMenuRequest = resolveAskPriceIntent(ctx.query).kind === "menu";
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    (namesArea ? null : matchVenue(venues, venueNameArg, "strict")) ??
+    (namesArea ? null : isMenuRequest || menuArea ? namedMenuVenue : matchVenue(venues, venueNameArg, "strict")) ??
     (venueNameArg ? null : matchVenue(venues, ctx.query, "strict"));
 
   if (!venue) {
@@ -414,6 +428,23 @@ export async function toolVenueDrinks(
     };
   }
 
+  const menuReadAllowed = Boolean(isMenuRequest || venueId || namedMenuVenue?.id === venue.id);
+  const menu = menuReadAllowed
+    ? await publishedMenuCards(venue.id, ctx.query, drinkCategory ?? undefined)
+    : { cards: [], unavailable: false };
+  if (isMenuRequest) {
+    return {
+      ok: !menu.unavailable, tool: "venue_drinks", data: { venueId: venue.id, menu: menu.cards.map((card) => card.menuEvidence) },
+      cards: menu.cards, provenance: askCardSources(menu.cards),
+      priceEvidence: menu.cards.flatMap((card) => card.menuEvidence && card.price !== null
+        ? [{ ...card.menuEvidence, cardKey: card.key, venueId: card.venueId, priceGbp: card.price }] : []),
+      proposals: [openProposal(venue.id, venue.name)],
+      answerHint: menu.cards.length ? publishedMenuAnswer(menu.cards)
+        : menu.unavailable ? `I couldn't read the accepted menu at ${venue.name}.`
+          : `No accepted menu item matches that request at ${venue.name}. Availability is unknown.`,
+      ...(menu.unavailable ? { degraded: true } : {}),
+    };
+  }
   const now = ctx.now ?? Date.now();
   const read = await readCommunityPricesWithStatus(venue.id, now);
   const status = read.degraded ? "unavailable" : "ready";
@@ -450,6 +481,7 @@ export async function toolVenueDrinks(
     });
   }
 
+  cards.push(...menu.cards);
   const categoryName = drinkCategory ? categoryLabel(drinkCategory).toLocaleLowerCase("en-GB") : null;
   const answerHint = categoryName
     ? [
@@ -458,9 +490,10 @@ export async function toolVenueDrinks(
           ? `${venue.name}: ${rows.length} people-logged ${categoryName} ${rows.length === 1 ? "figure" : "figures"}.`
           : read.degraded ? null : `No people-logged ${categoryName} prices recorded at ${venue.name} yet.`,
         includeListedPint && venue.cheapestPrice != null ? `Listed pint: ${formatGbp(venue.cheapestPrice)}.` : null,
-        "Open the pub's Menu for any published drink prices.",
+        !menuReadAllowed ? "Name the pub's area to read its published menu prices." : menu.cards.length ? publishedMenuAnswer(menu.cards) : menu.unavailable
+          ? "Published menu prices could not be read." : "No accepted published drink prices match this category.",
       ].filter(Boolean).join(" ")
-    : venueDrinksAnswerLine({ venueName: venue.name, figures: cards.length, read: status });
+    : [venueDrinksAnswerLine({ venueName: venue.name, figures: rows.length + (includeListedPint && venue.cheapestPrice != null ? 1 : 0), read: status }), publishedMenuAnswer(menu.cards)].filter(Boolean).join(" ");
 
   return {
     ok: true,
@@ -475,19 +508,23 @@ export async function toolVenueDrinks(
         corroborated: drivesMap(row.price as CommunityPrice, now),
       })),
       listedPint: includeListedPint ? venue.cheapestPrice : null,
+      menu: menu.cards.map((card) => card.menuEvidence),
     },
     provenance: [
       ...(rows.length > 0 ? [PEOPLE_LOGGED] : []),
       ...(includeListedPint && venue.cheapestPrice != null ? [DIRECTORY] : []),
+      ...askCardSources(menu.cards),
     ],
     cards,
     priceEvidence: [
       ...rows.map((row, index) => communityCategoryEvidence(`${venue.id}:drink-${index}`, venue.id, row.price)),
       ...(includeListedPint && venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:listed`, venue.id, venue.cheapestPrice)] : []),
+      ...menu.cards.flatMap((card) => card.menuEvidence && card.price !== null
+        ? [{ ...card.menuEvidence, cardKey: card.key, venueId: card.venueId, priceGbp: card.price }] : []),
     ],
     proposals: [openProposal(venue.id, venue.name)],
     answerHint,
-    ...(read.degraded ? { degraded: true } : {}),
+    ...(read.degraded || menu.unavailable ? { degraded: true } : {}),
   };
 }
 

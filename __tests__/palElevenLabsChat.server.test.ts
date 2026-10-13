@@ -222,12 +222,18 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(wsState.socketsOpened).toBe(0);
   });
 
-  it.each(NAMED_QUALIFIED_PRICE_REQUESTS.filter(({ query }) => /this evening|now|later/.test(query)))("accepts named time-qualified prices in configured chat: $query", async ({ query }) => {
+  it.each(NAMED_QUALIFIED_PRICE_REQUESTS.filter(({ query }) => /this evening|now|later/.test(query)))("accepts named time-qualified prices in configured chat: $query", async ({ query, tool }) => {
     const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
-    expect(outcome).toMatchObject({ ok: true, conversationId: "conv_regression01" });
-    expect(wsState.socketsOpened).toBe(1);
-    expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
-    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query }));
+    if (tool === "venue_drinks") {
+      expect(outcome).toMatchObject({ ok: true, conversationId: "", toolsUsed: ["venue_drinks"] });
+      expect(wsState.socketsOpened).toBe(0);
+      expect(fetch).not.toHaveBeenCalled();
+    } else {
+      expect(outcome).toMatchObject({ ok: true, conversationId: "conv_regression01" });
+      expect(wsState.socketsOpened).toBe(1);
+      expect(wsState.userMessageText).toContain(`Current user message: ${query}`);
+      expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith("conv_regression01", expect.objectContaining({ query }));
+    }
   });
 
   it.each(QUALIFIED_PRICE_REQUESTS)("fences the full qualified subject before configured startup: $query", async ({ query, wording }) => {
@@ -259,9 +265,7 @@ describe("runPalElevenLabsChatTurn", () => {
     ["Cheapest sparkling water in Camden", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
     ["Cheapest pub lunch in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
     ["How much is a pint and food at The Lamb?", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
-    ["Meal prices at The Lamb", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
     ["Costs for burgers in Camden", "I can't compare meal prices or check dietary options yet. I can help you find pubs with food."],
-    ["Coke prices at The Lamb", "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks."],
   ])("refuses configured %s before starting a provider session", async (query, message) => {
     wsState.storeFilled = false;
     wsState.replyScript = [
@@ -352,7 +356,7 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
   });
 
-  it("refuses a configured Coke item-price ask before provider startup", async () => {
+  it("asks for the ambiguous Coke pub identity before provider startup", async () => {
     wsState.storeFilled = false;
     wsState.replyScript = [
       { afterMs: 0, event: agentResponse("Coke at The Eagle costs £6.25.") },
@@ -369,9 +373,9 @@ describe("runPalElevenLabsChatTurn", () => {
       cards: [],
       proposals: [],
       conversationId: "",
-      toolsUsed: [],
+      toolsUsed: ["venue_drinks"],
     });
-    expect(outcome.ok && outcome.message).toMatch(/that item|brand|recorded drinks|listed pint prices/i);
+    expect(outcome.ok && outcome.message).toMatch(/listed pub/i);
     expect(fetch).not.toHaveBeenCalled();
     expect(wsState.socketsOpened).toBe(0);
     expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
