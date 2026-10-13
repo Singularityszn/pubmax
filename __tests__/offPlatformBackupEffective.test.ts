@@ -381,20 +381,102 @@ it("does not acquire credentials or create the destination during a dry run", as
   expect(existsSync(path.join(directory, "private"))).toBe(false);
 });
 
-it.each([
+const invalidScopedConfigurations: Partial<NodeJS.ProcessEnv>[] = [
+  { PUBMAX_BACKUP_DB_AUTH: "password", PUBMAX_BACKUP_DB_URL: "" },
+  { PUBMAX_BACKUP_DB_AUTH: "password", PUBMAX_BACKUP_DB_URL: PASSWORD },
+  { PUBMAX_BACKUP_DB_AUTH: "password", SUPABASE_URL: "" },
+  { PUBMAX_BACKUP_DB_AUTH: "password", SUPABASE_SERVICE_ROLE_KEY: "" },
+  { PUBMAX_BACKUP_DB_AUTH: "", SUPABASE_SERVICE_ROLE_KEY: "" },
+  { PUBMAX_BACKUP_DB_URL: "" },
+  { SUPABASE_URL: "" },
+  { SUPABASE_SERVICE_ROLE_KEY: "" },
   { SUPABASE_ACCESS_TOKEN: "" },
   { PUBMAX_BACKUP_DB_AUTH: "wrong-mode" },
   { PUBMAX_BACKUP_DB_URL: PASSWORD },
+  { SUPABASE_URL: "https://unrelated.example" },
   { PUBMAX_BACKUP_DB_URL: `postgres://postgres@unrelated.example:5432/postgres` },
   { PUBMAX_BACKUP_DB_URL: `postgres://postgres.otherproject@aws-0-eu-west-2.pooler.supabase.com:5432/postgres` },
   { PUBMAX_BACKUP_DB_URL: `postgres://postgres.${REF}@aws-0-eu-west-2.pooler.supabase.com:6543/postgres` },
   { PUBMAX_BACKUP_DB_URL: `postgres://postgres:${PASSWORD}@db.${REF}.supabase.co:5432/postgres` },
   { PUBMAX_BACKUP_DB_URL: `postgres://postgres@db.${REF}.supabase.co:5432/postgres?options=unsafe` },
-])("refuses invalid scoped configuration before network or destination changes: %j", async (overrides) => {
+];
+
+it.each(invalidScopedConfigurations)("refuses invalid scoped configuration before network or creating a destination: %j", async (overrides) => {
   const result = await backup(overrides);
   expect(result.status).toBe(1);
   expect(calls).toEqual([]);
   expect(existsSync(path.join(directory, "private"))).toBe(false);
   expect(result.output).not.toContain(TOKEN);
   expect(result.output).not.toContain(PASSWORD);
+});
+
+it.each(invalidScopedConfigurations.flatMap((overrides) => [false, true].map((withFallback) => ({ overrides, withFallback }))))(
+  "prunes existing expired artifacts before credential preflight with fallback=$withFallback: $overrides",
+  async ({ overrides, withFallback }) => {
+    const fixture = retentionFixture(withFallback);
+
+    const result = await backup(overrides);
+
+    expect(result.status).toBe(1);
+    expect(calls).toEqual([]);
+    expectExpiredArtifactsRemoved(fixture);
+    expect(existsSync(fixture.privateDir)).toBe(true);
+    if (withFallback) expectFallbackRetained(fixture);
+    else {
+      expect(existsSync(fixture.versionsFile)).toBe(false);
+      expect(readdirSync(fixture.privateDir)).toEqual(["bucket"]);
+      expect(readdirSync(fixture.bucketRoot)).toEqual([]);
+    }
+    expect(result.output).not.toContain(TOKEN);
+    expect(result.output).not.toContain(PASSWORD);
+  },
+);
+
+it("prunes expired dumps before missing-token refusal when the existing destination has no photo directory", async () => {
+  const fixture = retentionFixture();
+  rmSync(fixture.bucketRoot, { recursive: true });
+
+  const result = await backup({ SUPABASE_ACCESS_TOKEN: "" });
+
+  expect(result.status).toBe(1);
+  expect(result.output).toContain("SUPABASE_ACCESS_TOKEN is not set.");
+  expect(calls).toEqual([]);
+  expectExpiredArtifactsRemoved(fixture);
+  expect(existsSync(fixture.versionsFile)).toBe(false);
+  expect(existsSync(fixture.privateDir)).toBe(true);
+});
+
+it("leaves existing expired artifacts and the fallback unchanged during a dry run", async () => {
+  const fixture = retentionFixture(true);
+  const files = [...fixture.expired, fixture.versionsFile, fixture.fallbackDump, fixture.fallbackPhoto];
+  const before = files.map((file) => ({ bytes: readFileSync(file), stat: statSync(file) }));
+
+  const result = await backup({}, ["--dry-run"]);
+
+  expect(result.status, result.output).toBe(0);
+  expect(calls).toEqual([]);
+  files.forEach((file, index) => {
+    expect(readFileSync(file)).toEqual(before[index].bytes);
+    expect(statSync(file).mtimeMs).toBe(before[index].stat.mtimeMs);
+    expect(statSync(file).mode).toBe(before[index].stat.mode);
+  });
+  expect(existsSync(path.join(fixture.bucketRoot, "empty-account"))).toBe(true);
+});
+
+it("refuses an existing repository destination before pruning or credential preflight", async () => {
+  const fixture = retentionFixture(true);
+  execFileSync("git", ["init", fixture.privateDir], { stdio: "ignore" });
+
+  const result = await backup({ SUPABASE_ACCESS_TOKEN: "" });
+
+  expect(result.status).toBe(1);
+  expect(result.output).toContain("PUBMAX_BACKUP_DIR is inside a git checkout.");
+  expect(calls).toEqual([]);
+  for (const file of fixture.expired) expect(existsSync(file)).toBe(true);
+  expect(readFileSync(fixture.fallbackDump, "utf8")).toBe("fixture-fallback-dump");
+  expect(readFileSync(fixture.fallbackPhoto, "utf8")).toBe("fixture-fallback-photo");
+  expect(JSON.parse(readFileSync(fixture.versionsFile, "utf8"))).toEqual({
+    "expired-account/photo.jpg": "expired-version",
+    "fallback-account/photo.jpg": "fallback-version",
+  });
 });

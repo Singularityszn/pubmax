@@ -73,6 +73,13 @@ async function runBackup() {
     throw new Error("PUBMAX_BACKUP_DIR is inside a git checkout. Choose a directory outside every repository.");
   }
 
+  const bucketRoot = path.join(dir, "bucket", bucket);
+  if (!dryRun && existsSync(dir)) {
+    mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
+    chmodSync(dir, 0o700);
+    pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
+  }
+
   const dbUrl = requireEnv("PUBMAX_BACKUP_DB_URL");
   let pgEnv = pgEnvFromUrl(dbUrl);
   const baseUrl = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
@@ -83,7 +90,6 @@ async function runBackup() {
   const token = loginConfig ? requireEnv("SUPABASE_ACCESS_TOKEN") : null;
   const startedAt = new Date();
   const dumpFile = path.join(dir, dumpFileName(startedAt));
-  const bucketRoot = path.join(dir, "bucket", bucket);
 
   console.log(`[backup] directory ${dir}`);
   console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; prune after ${PRUNE_AFTER_WEEKS} weeks; maximum ${MAX_RETENTION_WEEKS} weeks`);
@@ -94,10 +100,6 @@ async function runBackup() {
 
   mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
-
-  // 0. Retention first. Pruning must not wait on a dump that may fail, so a
-  // database outage cannot preserve an expired fallback or its photo identifiers.
-  pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
 
   const partial = `${dumpFile}.partial`;
   try {
