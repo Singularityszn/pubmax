@@ -78,17 +78,17 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 
   await food.click();
   await expect(food).toHaveAttribute("aria-pressed", "true");
-  // experienceLensSummary owns both honest food sentences: the empty view,
-  // and the counted one once sourced menu prices are actually on the map.
+  // The map counts only its sourced anchors. Venue menus can hold dish prices
+  // even when no food anchor is painted, so the empty map points to Menu.
   await expect(sheet.getByRole("status")).toHaveText(
-    /^(?:Food venues shown\. No menu prices we have in this view yet\.|\d+ menu prices? we have shown\.)$/,
+    /^(?:Food venues shown\. Open Menu for dish prices we have\.|\d+ menu prices? we have shown\.)$/,
   );
   await expect(
     page.getByRole("button", { name: "Pints", exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Bars", exact: true }),
-  ).toHaveCount(0);
+  const foodKinds = sheet.getByRole("group", { name: "Venue types" });
+  await expect(foodKinds.getByRole("button", { name: "Pubs", exact: true })).toBeVisible();
+  await expect(foodKinds.getByRole("button", { name: "Bars", exact: true })).toBeVisible();
   await expect(
     sheet
       .getByRole("group", { name: "Venue types" })
