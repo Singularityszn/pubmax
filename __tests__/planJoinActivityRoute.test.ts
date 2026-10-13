@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Only the external Auth provider is a fixture. The join, membership, follow,
 // notification and ownership paths use the real local stores and handlers.
@@ -34,9 +34,11 @@ import { __resetMemoryPlans, memoryPlanStore, planInviteToken, planMemberIdentit
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { __resetPlanCollaboration, planCollaborationStore } from "@/lib/planCollaborationStore";
 import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
+import { __resetMemoryProfileWithdrawals, __setMemoryProfileWithdrawn } from "@/lib/accountPublicAccess.server";
 import type { NotificationDTO } from "@/lib/notifications";
 
 beforeEach(async () => {
+  __resetMemoryProfileWithdrawals();
   __resetMemoryPlans();
   __resetPlanCollaboration();
   __resetMemoryFollows();
@@ -46,6 +48,10 @@ beforeEach(async () => {
   for (const handle of ["host", "guest", "stranger", "mate"]) {
     await memoryProfileStore.createOwned(handle, accounts.get(`local-${handle}`)!);
   }
+});
+
+afterEach(() => {
+  __resetMemoryProfileWithdrawals();
 });
 
 async function createPlan(claimHost = true) {
@@ -87,6 +93,48 @@ function signal(actorHandle: string) {
 }
 
 describe("plan-join Activity", () => {
+  describe.each(["classic", "collaboration"] as const)("%s joins with a suspended participant", (kind) => {
+    it.each([
+      ["host", "none"],
+      ["guest", "none"],
+      ["host", "host"],
+      ["guest", "host"],
+      ["host", "guest"],
+      ["guest", "guest"],
+    ] as const)("creates no follow or Activity when %s is suspended and the existing follow is %s", async (withdrawnHandle, existingFollower) => {
+      const plan = await createPlan();
+      let inviteToken = plan.inviteToken;
+      if (kind === "collaboration") {
+        const invite = await planCollaborationStore().createInvite(plan.id, plan.memberToken, {
+          expiresInMinutes: 30, idempotencyKey: crypto.randomUUID(),
+        });
+        if (!invite.ok) throw new Error(invite.error);
+        inviteToken = invite.token;
+      }
+      if (existingFollower !== "none") {
+        await memoryFollowStore.follow(existingFollower, existingFollower === "host" ? "guest" : "host");
+      }
+      const withdrawn = await memoryProfileStore.getByHandle(withdrawnHandle);
+      __setMemoryProfileWithdrawn(withdrawn!.id, true);
+
+      const key = crypto.randomUUID();
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const joined = await join(plan.id, inviteToken, key);
+        expect(joined.status).toBe(200);
+        expect(await joined.json()).toMatchObject({ friendEdgesFormed: 0 });
+        expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(existingFollower === "host");
+        expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(existingFollower === "guest");
+      }
+
+      __setMemoryProfileWithdrawn(withdrawn!.id, false);
+      for (const handle of ["host", "guest", "mate", "stranger"]) {
+        const result = await inbox(`local-${handle}`, handle);
+        expect(result.status).toBe(200);
+        expect(result.body).toEqual({ notifications: [], unread: 0 });
+      }
+    });
+  });
+
   it.each([null, "invalid"])("creates no friendship Activity without a verified joiner account (%s)", async (token) => {
     const plan = await createPlan();
     expect((await join(plan.id, plan.inviteToken, crypto.randomUUID(), token)).status).toBe(200);

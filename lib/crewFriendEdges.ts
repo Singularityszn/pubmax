@@ -31,6 +31,7 @@ import {
 import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { followOnce } from "@/lib/followWrite.server";
+import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 
 export type CrewFriendEdgeOutcome =
   | "created"
@@ -130,6 +131,11 @@ export async function ensureMutualFollowPair(
   if (!isClaimedLive(first) || !isClaimedLive(second)) return "unclaimed";
 
   try {
+    const withdrawn = await Promise.all([
+      isProfileWithdrawnFromPublic(first),
+      isProfileWithdrawnFromPublic(second),
+    ]);
+    if (withdrawn.includes(true)) return "unavailable";
     if (await pairIsBlocked(first, second, deps)) return "blocked";
   } catch {
     return "unavailable";
