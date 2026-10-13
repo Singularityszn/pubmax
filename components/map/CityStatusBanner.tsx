@@ -9,6 +9,7 @@ import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityS
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { firstHttp } from "@/lib/httpUrl";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { locationNamesBorough } from "@/lib/starterPacks";
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
@@ -243,6 +244,10 @@ function formatAsOfLabel(asOf: string | null | undefined): string {
   return `Updated ${time} · CityMCP`;
 }
 
+function hasStatusContent(data: StatusResponse): boolean {
+  return (data.signals?.length ?? 0) > 0 || Boolean(data.weather) || (data.tubeLines?.length ?? 0) > 0;
+}
+
 export default function CityStatusBanner({ cityId, viewedArea = null, allowCitywideStatus = true }: CityStatusBannerProps) {
   // Only render on London — the API/tools are London-only.
   const isLondon = cityId === "london" || cityId === undefined;
@@ -255,21 +260,10 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
     setExpanded(false);
   }
   const aborted = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // An opening banner, not the first screen: it asks after the map has asked.
   const ready = useStaggeredRead(1, "map");
-
-  useEffect(() => {
-    if (!expanded) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
-        e.preventDefault();
-        setExpanded(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [expanded]);
 
   useEffect(() => {
     aborted.current = false;
@@ -310,34 +304,35 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
     };
   }, [isLondon, ready]);
 
-  if (!isLondon || dismissed || !data) return null;
-  // If the API returned an error and no data, stay hidden — never block the
-  // map, never invent facts.
-  if (data.error && (data.signals?.length ?? 0) === 0 && !data.weather && (data.tubeLines?.length ?? 0) === 0) {
-    return null;
-  }
-
-  const signals = signalsInViewedArea(data.signals, viewedArea, allowCitywideStatus);
-  const headline = pickCityStatusHeadline({ ...data, signals });
-  if (!headline) return null;
-  if (!allowCitywideStatus && headline.kind !== "signal") return null;
-
-  const affectedLines = (allowCitywideStatus ? data.tubeLines ?? [] : []).filter(
+  const signals = data ? signalsInViewedArea(data.signals, viewedArea, allowCitywideStatus) : [];
+  const headline = data ? pickCityStatusHeadline({ ...data, signals }) : null;
+  const affectedLines = (allowCitywideStatus ? data?.tubeLines ?? [] : []).filter(
     (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
   );
-
   // Gate on genuine severity so the map's first paint isn't cluttered by a
   // second centred pill (weather/info) stacked under the city switcher.
-  if (!isSevereCityStatus(headline, affectedLines.length)) return null;
+  const visible = Boolean(
+    isLondon && !dismissed && data && headline &&
+    (!data.error || hasStatusContent(data)) &&
+    (allowCitywideStatus || headline.kind === "signal") &&
+    isSevereCityStatus(headline, affectedLines.length),
+  );
+  const hasDetails = signals.length > 0 || affectedLines.length > 0;
+  const closeDetails = () => {
+    setExpanded(false);
+    triggerRef.current?.focus();
+  };
+  // A dismissed or off-city banner can retain its expansion state while its
+  // DOM is absent. Only a rendered feed may claim keyboard or native Back.
+  useDismissOnEscape(visible && expanded && hasDetails, closeDetails, rootRef);
+
+  if (!visible || !data || !headline) return null;
 
   const dismiss = () => {
     writeDismissed();
     setDismissed(true);
   };
 
-  const signalCount = signals.length;
-  const hasSignals = signalCount > 0;
-  const hasDetails = hasSignals || affectedLines.length > 0;
   const groups = groupSignalsByKind(signals);
 
   const content = (
@@ -355,7 +350,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
   );
 
   return (
-    <div className="cityStatusStack">
+    <div className="cityStatusStack" ref={rootRef}>
       <div
         className="cityStatusBanner"
         data-severity={headline.severity}
@@ -368,6 +363,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
           <button
             type="button"
             className="cityStatusBannerLink"
+            ref={triggerRef}
             aria-expanded={expanded}
             aria-controls="cityStatusSignalSheet"
             onClick={() => setExpanded((v) => !v)}
@@ -411,7 +407,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
               type="button"
               className="cityStatusSignalSheetClose"
               aria-label="Close signals list"
-              onClick={() => setExpanded(false)}
+              onClick={closeDetails}
             >
               <X size={14} strokeWidth={2.25} aria-hidden="true" />
             </button>

@@ -1,16 +1,26 @@
 // @vitest-environment jsdom
 
-import { act, useState } from "react";
+import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapToolbar from "@/components/map/MapToolbar";
+import MapLayersControl from "@/components/map/MapLayersControl";
+import SiteNavMore from "@/components/nav/SiteNavMore";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { dispatchDismissKey } from "@/lib/nativeBackGesture";
+import { POI_CATEGORIES, type PoiCategory } from "@/lib/pois";
+import { defaultVenueKindVisibility } from "@/lib/venueKindFilters";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { initialFilters } from "@/lib/venues";
+import { computeZonePintIndex } from "@/lib/zones";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const noop = () => undefined;
+const poiHidden = Object.fromEntries(
+  POI_CATEGORIES.map((category) => [category, true]),
+) as Record<PoiCategory, boolean>;
 
 function MapJourney() {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -25,6 +35,7 @@ function MapJourney() {
   });
   return (
     <div className={drawerOpen ? "appShell detail-open" : "appShell"}>
+      <SiteNavMore />
       <MapToolbar
         query="Camden"
         onQueryChange={noop}
@@ -52,14 +63,29 @@ function MapJourney() {
         searchSettled
         filteredVenueCount={10}
         searchableVenueCount={10}
-        zoneIndex={{}}
+        zoneIndex={computeZonePintIndex([])}
         experienceLens="all"
         experienceSummary=""
         onExperienceLensChange={noop}
+        venueKindVisibility={defaultVenueKindVisibility()}
+        onVenueKindVisibilityChange={noop}
       />
+      <MapLayersControl poiHidden={poiHidden} onPoiHiddenChange={noop} />
       {drawerOpen ? <aside className="mapDrawer right open">Selected pub</aside> : null}
     </div>
   );
+}
+
+function StrictModal() {
+  const [open, setOpen] = useState(true);
+  const modalRef = useRef<HTMLElement>(null);
+  useFocusTrap(open, modalRef, "strict-modal");
+  useDismissOnEscape(open, () => setOpen(false), modalRef);
+  return open ? (
+    <section ref={modalRef} className="escapeOwnershipModal" role="dialog" aria-modal="true" aria-label="Account dialog">
+      <button type="button">Account action</button>
+    </section>
+  ) : null;
 }
 
 let host: HTMLDivElement;
@@ -95,6 +121,18 @@ function pressEscape(target: HTMLElement) {
   act(() => target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
 }
 
+// jsdom does not synthesize a native button click from Enter. Complete that
+// default action without pointerdown, so toolbar outside-click logic cannot
+// hide an existing tray and mask the keyboard ownership regression.
+function activateWithKeyboard(target: HTMLButtonElement) {
+  act(() => {
+    target.focus();
+    const key = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    target.dispatchEvent(key);
+    if (!key.defaultPrevented) target.click();
+  });
+}
+
 function expectHeldJourney() {
   expect(host.querySelector(".mapDrawer.right.open")).not.toBeNull();
   expect(control<HTMLInputElement>('[aria-label="Search pubs"]').value).toBe("Camden");
@@ -102,6 +140,86 @@ function expectHeldJourney() {
 }
 
 describe("one Escape leaves one map layer", () => {
+  it.each([
+    { label: "Filters", trigger: ".mapVenueKindFilterBtn", panel: ".mapVenueKindFilterPanel" },
+    { label: "City", trigger: ".citySwitcherTrigger", panel: ".citySwitcherList" },
+    { label: "Layers", trigger: ".mapLayersFab", panel: ".mapLayersPanel" },
+    { label: "More", trigger: ".siteNavMoreBtn", panel: ".siteNavMoreMenu" },
+  ])("a strict modal leaves the inert $label popup and journey intact", async ({ trigger: selector, panel }) => {
+    openTray();
+    const trigger = control<HTMLButtonElement>(selector);
+    activateWithKeyboard(trigger);
+    const modalHost = document.body.appendChild(document.createElement("div"));
+    const modalRoot = createRoot(modalHost);
+    try {
+      act(() => modalRoot.render(<StrictModal />));
+      expect(host.inert).toBe(true);
+      const action = modalHost.querySelector<HTMLButtonElement>("button");
+      expect(action).not.toBeNull();
+      act(() => action!.focus());
+      pressEscape(action!);
+      // The shared focus trap releases inert ownership in a microtask, before
+      // the next user key can reach the formerly covered map controls.
+      await act(async () => { await Promise.resolve(); });
+      expect(Boolean(host.inert)).toBe(false);
+      expect(modalHost.querySelector(".escapeOwnershipModal")).toBeNull();
+      expect(document.querySelector(panel)).not.toBeNull();
+      expect(host.querySelector(".mapToolbarDrinkChoices")).not.toBeNull();
+      expectHeldJourney();
+      pressEscape(trigger);
+      expect(document.querySelector(panel)).toBeNull();
+      expect(host.querySelector(".mapToolbarDrinkChoices")).not.toBeNull();
+      expect(document.activeElement).toBe(trigger);
+      expectHeldJourney();
+    } finally {
+      act(() => modalRoot.unmount());
+      modalHost.remove();
+    }
+  });
+
+  it.each([
+    { label: "Filters", trigger: ".mapVenueKindFilterBtn", panel: ".mapVenueKindFilterPanel" },
+    { label: "City", trigger: ".citySwitcherTrigger", panel: ".citySwitcherList" },
+    { label: "Layers", trigger: ".mapLayersFab", panel: ".mapLayersPanel" },
+    { label: "More", trigger: ".siteNavMoreBtn", panel: ".siteNavMoreMenu" },
+  ])("closes keyboard-opened $label before the drink tray", ({ trigger: selector, panel }) => {
+    const drink = openTray();
+    const trigger = control<HTMLButtonElement>(selector);
+    activateWithKeyboard(trigger);
+    expect(document.querySelector(panel)).not.toBeNull();
+    expect(host.querySelector(".mapToolbarDrinkChoices")).not.toBeNull();
+
+    pressEscape(trigger);
+
+    expect(document.querySelector(panel)).toBeNull();
+    expect(host.querySelector(".mapToolbarDrinkChoices")).not.toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expectHeldJourney();
+    pressEscape(trigger);
+    expect(host.querySelector(".mapToolbarDrinkChoices")).toBeNull();
+    expect(document.activeElement).toBe(drink);
+    expectHeldJourney();
+  });
+
+  it.each([
+    { label: "Filters", trigger: ".mapVenueKindFilterBtn", panel: ".mapVenueKindFilterPanel" },
+    { label: "City", trigger: ".citySwitcherTrigger", panel: ".citySwitcherList" },
+    { label: "Layers", trigger: ".mapLayersFab", panel: ".mapLayersPanel" },
+    { label: "More", trigger: ".siteNavMoreBtn", panel: ".siteNavMoreMenu" },
+  ])("native window Back closes keyboard-opened $label before the tray", ({ trigger: selector, panel }) => {
+    openTray();
+    const trigger = control<HTMLButtonElement>(selector);
+    activateWithKeyboard(trigger);
+    expect(document.querySelector(panel)).not.toBeNull();
+    let consumed = false;
+    act(() => { consumed = dispatchDismissKey(); });
+    expect(consumed).toBe(true);
+    expect(document.querySelector(panel)).toBeNull();
+    expect(host.querySelector(".mapToolbarDrinkChoices")).not.toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expectHeldJourney();
+  });
+
   it("closes the drink tray before the previously registered drawer shortcut", () => {
     const trigger = openTray();
     pressEscape(trigger);
