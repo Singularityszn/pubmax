@@ -302,7 +302,7 @@ export default function PalChat() {
   }, [entries, pending, streamText, keyboardInset]);
 
   const ask = useCallback(
-    async (raw: string) => {
+    async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending) return;
       sessionRef.current ??= createPalChatSession();
@@ -311,7 +311,9 @@ export default function PalChat() {
       const recall = palRecall(priorAsksRef.current, text);
       priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      setQuery("");
+      if (!options.preserveDraft) {
+        setQuery((current) => current.trim() === text ? "" : current);
+      }
       setPending(true);
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
@@ -604,7 +606,7 @@ export default function PalChat() {
                       variant="ghost"
                       disabled={pending}
                       aria-label={`Ask again: ${entry.retryQuery}`}
-                      onClick={() => { if (entry.retryQuery) void ask(entry.retryQuery); }}
+                      onClick={() => { if (entry.retryQuery) void ask(entry.retryQuery, { preserveDraft: true }); }}
                     >
                       Ask again
                     </Button>
