@@ -26,6 +26,7 @@ import {
 } from "@/lib/planCrewIdentity";
 import {
   socialRelationshipBetweenProfiles,
+  type SocialRelationshipResolution,
   type SocialRelationshipServerDependencies,
 } from "@/lib/socialRelationships.server";
 import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
@@ -88,19 +89,18 @@ function isClaimedLive(profile: ProfileRecord | null): profile is ProfileRecord 
   );
 }
 
-async function pairIsBlocked(
+async function pairRelationship(
   first: ProfileRecord,
   second: ProfileRecord,
   deps: CrewFriendEdgeDependencies,
-): Promise<boolean> {
-  if (deps.memoryBlocked(first.id, second.id)) return true;
-  if (!deps.supabaseConfigured()) return false;
-  const relationship = await socialRelationshipBetweenProfiles(
+): Promise<SocialRelationshipResolution> {
+  if (deps.memoryBlocked(first.id, second.id)) return "blocked";
+  if (!deps.supabaseConfigured()) return "not_mutual";
+  return socialRelationshipBetweenProfiles(
     first.id,
     second.id,
     { queryRelationship: deps.relationship },
   );
-  return relationship === "blocked";
 }
 
 /**
@@ -136,7 +136,8 @@ export async function ensureMutualFollowPair(
       isProfileWithdrawnFromPublic(second),
     ]);
     if (withdrawn.includes(true)) return "unavailable";
-    if (await pairIsBlocked(first, second, deps)) return "blocked";
+    const relationship = await pairRelationship(first, second, deps);
+    if (relationship === "blocked" || relationship === "unavailable") return relationship;
   } catch {
     return "unavailable";
   }

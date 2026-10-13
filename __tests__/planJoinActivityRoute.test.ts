@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Only the external Auth provider is a fixture. The join, membership, follow,
+// External Auth and relationship RPCs are fixtures. The join, membership, follow,
 // notification and ownership paths use the real local stores and handlers.
 const accounts = vi.hoisted(() => new Map([
   ["local-host", "11111111-1111-4111-8111-111111111111"],
@@ -8,6 +8,26 @@ const accounts = vi.hoisted(() => new Map([
   ["local-stranger", "33333333-3333-4333-8333-333333333333"],
   ["local-mate", "44444444-4444-4444-8444-444444444444"],
 ]));
+
+const relationshipRpc = vi.hoisted(() => ({
+  configured: false,
+  query: vi.fn<(firstProfileId: string, secondProfileId: string) => Promise<unknown>>(),
+}));
+
+vi.mock("@/lib/crewFriendEdges", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crewFriendEdges")>();
+  return {
+    ...actual,
+    formFriendEdgesForPlanJoin: (
+      input: Parameters<typeof actual.formFriendEdgesForPlanJoin>[0],
+      dependencies: Parameters<typeof actual.formFriendEdgesForPlanJoin>[1],
+    ) => actual.formFriendEdgesForPlanJoin(input, {
+      supabaseConfigured: () => relationshipRpc.configured,
+      relationship: relationshipRpc.query,
+      ...dependencies,
+    }),
+  };
+});
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -38,6 +58,8 @@ import { __resetMemoryProfileWithdrawals, __setMemoryProfileWithdrawn } from "@/
 import type { NotificationDTO } from "@/lib/notifications";
 
 beforeEach(async () => {
+  relationshipRpc.configured = false;
+  relationshipRpc.query.mockReset();
   __resetMemoryProfileWithdrawals();
   __resetMemoryPlans();
   __resetPlanCollaboration();
@@ -93,6 +115,79 @@ function signal(actorHandle: string) {
 }
 
 describe("plan-join Activity", () => {
+  describe.each(["classic", "collaboration"] as const)("%s joins with an unavailable relationship", (kind) => {
+    describe.each(["error", "invalid response"] as const)("%s", (failure) => {
+      it.each(["none", "host", "guest", "mutual"] as const)("preserves %s follows and creates no Activity across retries", async (existingFollower) => {
+        const plan = await createPlan();
+        let inviteToken = plan.inviteToken;
+        if (kind === "collaboration") {
+          const invite = await planCollaborationStore().createInvite(plan.id, plan.memberToken, {
+            expiresInMinutes: 30, idempotencyKey: crypto.randomUUID(),
+          });
+          if (!invite.ok) throw new Error(invite.error);
+          inviteToken = invite.token;
+        }
+        const hostFollowsGuest = existingFollower === "host" || existingFollower === "mutual";
+        const guestFollowsHost = existingFollower === "guest" || existingFollower === "mutual";
+        const host = await memoryProfileStore.getByHandle("host");
+        const guest = await memoryProfileStore.getByHandle("guest");
+        host!.id = crypto.randomUUID();
+        guest!.id = crypto.randomUUID();
+        if (hostFollowsGuest) await memoryFollowStore.follow("host", "guest");
+        if (guestFollowsHost) await memoryFollowStore.follow("guest", "host");
+        relationshipRpc.configured = true;
+        if (failure === "error") {
+          relationshipRpc.query.mockRejectedValue(new Error("Relationship RPC unavailable"));
+        } else {
+          relationshipRpc.query.mockResolvedValue(null);
+        }
+
+        const key = crypto.randomUUID();
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const joined = await join(plan.id, inviteToken, key);
+          expect(joined.status).toBe(200);
+          expect(relationshipRpc.query).toHaveBeenCalledWith(guest!.id, host!.id);
+          expect(await joined.json()).toMatchObject({ friendEdgesFormed: 0 });
+          expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(hostFollowsGuest);
+          expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(guestFollowsHost);
+          for (const handle of ["host", "guest", "mate", "stranger"]) {
+            expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+          }
+        }
+        expect(relationshipRpc.query.mock.calls).toEqual([
+          [guest!.id, host!.id], [guest!.id, host!.id],
+        ]);
+
+        relationshipRpc.query.mockResolvedValue("blocked");
+        const blockedRetry = await join(plan.id, inviteToken, key);
+        expect(blockedRetry.status).toBe(200);
+        expect(await blockedRetry.json()).toMatchObject({ friendEdgesFormed: 0 });
+        expect(await memoryFollowStore.isFollowing("host", "guest")).toBe(hostFollowsGuest);
+        expect(await memoryFollowStore.isFollowing("guest", "host")).toBe(guestFollowsHost);
+        for (const handle of ["host", "guest"]) {
+          expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+        }
+
+        relationshipRpc.query.mockResolvedValue(existingFollower === "mutual" ? "mutual" : "not_mutual");
+        const allowedRetry = await join(plan.id, inviteToken, key);
+        expect(allowedRetry.status).toBe(200);
+        expect(await allowedRetry.json()).toMatchObject({ friendEdgesFormed: existingFollower === "mutual" ? 0 : 1 });
+        expect(await memoryFollowStore.listMutuals("guest")).toEqual(["host"]);
+        expect((await join(plan.id, inviteToken, key)).status).toBe(200);
+        expect((await inbox("local-host", "host")).body.notifications).toEqual(
+          guestFollowsHost ? [] : [expect.objectContaining(signal("guest"))],
+        );
+        expect((await inbox("local-guest", "guest")).body.notifications).toEqual(
+          hostFollowsGuest ? [] : [expect.objectContaining(signal("host"))],
+        );
+        for (const handle of ["mate", "stranger"]) {
+          expect(await memoryFollowStore.listMutuals(handle)).toEqual([]);
+          expect((await inbox(`local-${handle}`, handle)).body).toEqual({ notifications: [], unread: 0 });
+        }
+      });
+    });
+  });
+
   describe.each(["classic", "collaboration"] as const)("%s joins with a suspended participant", (kind) => {
     it.each([
       ["host", "none"],
