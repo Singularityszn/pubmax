@@ -29,7 +29,7 @@ export type FoodProvenance = {
   observedAt: string;
 };
 
-export type FoodCaloriesProvenance = FoodProvenance & { sourceUrl: string };
+type FoodCaloriesProvenance = FoodProvenance & { sourceUrl: string };
 
 export type FoodItem = {
   id: string;
