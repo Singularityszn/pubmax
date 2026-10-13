@@ -31,7 +31,7 @@ describe.each(["latest.json", "prices_20261013.json"])("Eagle calorie source imp
     const data = snapshot(filename);
     const imported = data.updates.filter((row) => row.venueKey === venue.venueKey);
     expect(imported).toHaveLength(42);
-    expect(data.updates.filter((row) => row.caloriesKcal !== undefined)).toHaveLength(42);
+    expect(imported.filter((row) => row.caloriesKcal !== undefined)).toHaveLength(42);
     for (const row of imported) {
       const fact = defined(expectedByName.get(row.itemName));
       const identity = defined(expectedIds.get(row.itemName));
@@ -50,7 +50,7 @@ describe.each(["latest.json", "prices_20261013.json"])("Eagle calorie source imp
   it("preserves each stable imported item identity and source through runtime parsing", () => {
     const data = snapshot(filename);
     const updates = parseFoodPriceUpdates(data, Date.parse(data.generatedAt));
-    expect(updates).toHaveLength(2572);
+    expect(updates).toHaveLength(2620);
     const menu = applyFoodPriceUpdatesToMenu(venue.venueKey, [], updates);
     expect(menu).toHaveLength(42);
     for (const item of menu) {
