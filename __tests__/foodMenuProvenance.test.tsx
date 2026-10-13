@@ -1,18 +1,19 @@
+// @vitest-environment jsdom
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { JSDOM } from "jsdom";
 import FoodMenu from "@/components/food/FoodMenu";
 import type { FoodItem } from "@/lib/food";
 
-const item: FoodItem = {
+const item = {
   id: "food-lunch",
   name: "Vegetable curry",
   category: "mains",
   priceGbp: 12.5,
   source: "https://www.theeagle.co.uk/food-drink",
   provenance: { source: "Young's official menu", licence: "Attributed price facts", observedAt: "2026-07-11T12:00:00Z" },
-};
+} satisfies FoodItem;
 
 function renderFood(overrides: Partial<FoodItem> = {}) {
   return renderToStaticMarkup(createElement(FoodMenu, { items: [{ ...item, ...overrides }], venueName: "The Eagle" }));
@@ -24,7 +25,7 @@ describe("food menu price evidence", () => {
       source: "Earlier food menu", licence: "Attributed calorie fact", observedAt: "2026-06-01T12:00:00Z",
       sourceUrl: "https://example.com/earlier-menu",
     } });
-    const doc = new JSDOM(html).window.document;
+    const doc = new DOMParser().parseFromString(html, "text/html");
     const calories = doc.querySelector(".foodCalories");
     expect(calories?.textContent).toContain("650 kcal on the menu");
     expect(calories?.querySelector("a")?.href).toBe("https://example.com/earlier-menu");
@@ -47,13 +48,13 @@ describe("food menu price evidence", () => {
       } })).not.toContain("kcal");
     }
     expect(renderFood({ caloriesKcal: 650, caloriesProvenance: {
-      source: "seed", licence: "demo", observedAt: item.provenance.observedAt,
+      source: "seed", licence: "demo", observedAt: item.provenance.observedAt, sourceUrl: item.source,
     } })).not.toContain("kcal");
   });
   it("links the named publisher and shows the original collection date beside the price", () => {
     const html = renderFood();
     expect(html).toContain('href="https://www.theeagle.co.uk/food-drink"');
-    const time = new JSDOM(html).window.document.querySelector("time");
+    const time = new DOMParser().parseFromString(html, "text/html").querySelector("time");
     expect(time?.getAttribute("datetime")).toBe("2026-07-11T12:00:00Z");
     expect(time?.textContent).toBe("11 July 2026");
     expect(html).toContain("Snapshot from");
