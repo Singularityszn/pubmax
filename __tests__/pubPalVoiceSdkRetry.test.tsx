@@ -87,7 +87,8 @@ async function click(text: string): Promise<void> {
 }
 
 async function writeDraft(text: string): Promise<void> {
-  const input = defined(container.querySelector<HTMLInputElement>("input"));
+  const input = container.querySelector<HTMLInputElement>("input");
+  if (!input) throw new Error("Voice writing input is missing");
   await act(async () => {
     const setter = defined(Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set);
     setter.call(input, text);
@@ -220,7 +221,8 @@ describe("Pub Pal startup with the installed React SDK", () => {
     await writeDraft("Wine at The Lamb");
     await click("Start voice chat");
     expect(client.startSession).toHaveBeenCalledTimes(1);
-    const writingLink = defined(container.querySelector<HTMLAnchorElement>("a"));
+    const writingLink = container.querySelector<HTMLAnchorElement>("a");
+    if (!writingLink) throw new Error("Voice writing link is missing");
     expect(new URL(writingLink.getAttribute("href") ?? "", "http://localhost").searchParams.get("ask"))
       .toBe("Wine at The Lamb");
 
@@ -255,7 +257,8 @@ describe("Pub Pal startup with the installed React SDK", () => {
 
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(PAL_VOICE_START_TIMEOUT_ERROR);
     expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("Find a quiet pub");
-    const writingLink = defined(container.querySelector<HTMLAnchorElement>("a"));
+    const writingLink = container.querySelector<HTMLAnchorElement>("a");
+    if (!writingLink) throw new Error("Voice writing link is missing");
     expect(new URL(writingLink.getAttribute("href") ?? "", "http://localhost").searchParams.get("ask"))
       .toBe("Find a quiet pub");
     expect(releasedIds).toEqual(["conv_sdkfixture01"]);
