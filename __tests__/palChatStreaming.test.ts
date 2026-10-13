@@ -63,13 +63,20 @@ afterEach(async () => {
   container.remove();
 });
 
-async function submit(text: string): Promise<void> {
+async function typeQuery(text: string): Promise<void> {
   const input = container.querySelector<HTMLInputElement>(".palChatInput");
-  const form = container.querySelector<HTMLFormElement>("form");
-  if (!input || !form) throw new Error("Pal chat form not found");
+  if (!input) throw new Error("Pal chat input not found");
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, text);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function submit(text: string): Promise<void> {
+  await typeQuery(text);
+  const form = container.querySelector<HTMLFormElement>("form");
+  if (!form) throw new Error("Pal chat form not found");
+  await act(async () => {
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
 }
@@ -185,5 +192,27 @@ describe("a typed Pal answer that streams in", () => {
     await submit("Quiet pubs in Soho");
     expect(container.querySelector('button[aria-label^="Ask again:"]')).toBeNull();
     expect(askSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves a different unsent draft while retrying the failed question", async () => {
+    const failedQuery = "Quiet pubs in Soho for two";
+    const draft = "Wine prices at The Lamb";
+    askSession.mockResolvedValueOnce({ status: "error", message: "Couldn't answer that. Try again." });
+    await submit(failedQuery);
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe("");
+    await typeQuery(draft);
+    let finish: (result: unknown) => void = () => {};
+    askSession.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const retry = container.querySelector<HTMLButtonElement>('button[aria-label^="Ask again:"]');
+    if (!retry) throw new Error("The failed ask has no recovery action");
+    await act(async () => retry.click());
+    expect(askSession.mock.calls[1]?.[0]).toBe(failedQuery);
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe(draft);
+    await act(async () => finish({ status: "empty", message: "Tell me your budget for the night.", cards: [], proposals: [] }));
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe(draft);
+    askSession.mockResolvedValueOnce({ status: "empty", message: "No wine prices recorded at The Lamb yet.", cards: [], proposals: [] });
+    await submit(draft);
+    expect(askSession.mock.calls[2]?.[0]).toBe(draft);
+    expect(container.querySelector<HTMLInputElement>(".palChatInput")?.value).toBe("");
   });
 });
