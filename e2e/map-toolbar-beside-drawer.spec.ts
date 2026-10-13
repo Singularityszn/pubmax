@@ -63,6 +63,54 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     expect(new URL(page.url()).searchParams.get("sel")).toBe(selected);
   });
 
+  test("Escape cancels a delayed palette and an immediate reopen beside a pub", async ({ page }) => {
+    await openDesktopMap(page, 1440);
+    await selectFirstToolbarVenue(page, "Princess Louise");
+    await expectSoleDesktopDrawer(page, "venue");
+    const selected = new URL(page.url()).searchParams.get("sel");
+    const search = page.getByRole("combobox", { name: "Search pubs", exact: true });
+    await search.fill("Eagle");
+    const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
+    const delayed: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    // Register after the map loads so hashed production chunks work too.
+    await page.route(/\/_next\/static\/chunks\/.*\.js(?:\?.*)?$/, async (route) => {
+      delayed.push(route.request().url());
+      await gate;
+      await route.continue();
+    });
+    try {
+      await test.step("cancel while the actual module is still downloading", async () => {
+        await search.press("Control+k");
+        await expect.poll(() => delayed.length).toBeGreaterThan(0);
+        await page.keyboard.press("Escape");
+        await expect(search).toHaveValue("Eagle");
+        await expect(search).toBeFocused();
+        const response = page.waitForResponse((result) => delayed.includes(result.url()));
+        release();
+        await response;
+        await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        await expect(palette).toHaveCount(0);
+        await expect(search).toBeFocused();
+        await expectSoleDesktopDrawer(page, "venue");
+        expect(new URL(page.url()).searchParams.get("sel")).toBe(selected);
+      });
+      await test.step("close an immediate reopen during its focus handoff", async () => {
+        await search.press("Control+k");
+        await expect(palette).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(palette).toHaveCount(0);
+        await expect(search).toBeFocused();
+        await expect(search).toHaveValue("Eagle");
+        await expectSoleDesktopDrawer(page, "venue");
+        expect(new URL(page.url()).searchParams.get("sel")).toBe(selected);
+      });
+    } finally {
+      release();
+    }
+  });
+
   test("stays live, and the drink tray closes when the drawer opens", async ({ page }) => {
     test.setTimeout(180_000);
     await openDesktopMap(page, 1440);
