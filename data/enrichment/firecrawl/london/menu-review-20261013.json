@@ -805,5 +805,227 @@
     "rowsWithSourceStatedKcal": 42,
     "existingProductNutritionField": false,
     "dietaryTagsInferred": 0
+  },
+  "sourceInputImport": {
+    "importedAt": "2026-10-13T07:11:38.620Z",
+    "datedSourceFile": "public/data/food_price_updates/prices_20261013.json",
+    "latestSourceFile": "public/data/food_price_updates/latest.json",
+    "preservedExistingRows": 2530,
+    "addedRows": 42,
+    "refreshLaneRetired": true,
+    "calorieFieldsAddedToRuntimeSource": false,
+    "productionDeployed": false,
+    "itemIds": [
+      {
+        "id": "food-k487j2",
+        "itemName": "Foccacia",
+        "category": "other"
+      },
+      {
+        "id": "food-1ekyprf",
+        "itemName": "Pork and Black Pudding Scotch Egg",
+        "category": "other"
+      },
+      {
+        "id": "food-1ihpbi7",
+        "itemName": "Mini Chicken Pie",
+        "category": "other"
+      },
+      {
+        "id": "food-1xtbonl",
+        "itemName": "Anchovy, Olive and Pickle Pintxos",
+        "category": "bar-snacks"
+      },
+      {
+        "id": "food-pbd0o8",
+        "itemName": "Olives",
+        "category": "bar-snacks"
+      },
+      {
+        "id": "food-175wk5u",
+        "itemName": "Green Peppers stuffed with Cream Cheese",
+        "category": "bar-snacks"
+      },
+      {
+        "id": "food-lj9lgp",
+        "itemName": "Pork and Black Pudding Sausage Roll",
+        "category": "bar-snacks"
+      },
+      {
+        "id": "food-q8h5vp",
+        "itemName": "Youngs Original glazed Pork Ribs",
+        "category": "bar-snacks"
+      },
+      {
+        "id": "food-2uvwjv",
+        "itemName": "Roasted Parsnip Soup",
+        "category": "starters"
+      },
+      {
+        "id": "food-z7l8md",
+        "itemName": "Mackerel Pate",
+        "category": "starters"
+      },
+      {
+        "id": "food-172qsmy",
+        "itemName": "Beetroot Carpaccio",
+        "category": "starters"
+      },
+      {
+        "id": "food-13fzsuj",
+        "itemName": "Prawn Cocktail",
+        "category": "starters"
+      },
+      {
+        "id": "food-1v2edkg",
+        "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
+        "category": "starters"
+      },
+      {
+        "id": "food-1b478oj",
+        "itemName": "Ox Cheek Croquettes",
+        "category": "starters"
+      },
+      {
+        "id": "food-149tt0c",
+        "itemName": "The Eagle Chicken Sharer",
+        "category": "sharers"
+      },
+      {
+        "id": "food-1r1mj4s",
+        "itemName": "1kg Brewhouse Pork Ribs",
+        "category": "sharers"
+      },
+      {
+        "id": "food-1xk7whx",
+        "itemName": "Ruby Betroot Hummus",
+        "category": "sharers"
+      },
+      {
+        "id": "food-huw5mb",
+        "itemName": "The Eagle Beef Burger",
+        "category": "mains"
+      },
+      {
+        "id": "food-1bi1fv3",
+        "itemName": "Plant Burger",
+        "category": "mains"
+      },
+      {
+        "id": "food-1328pca",
+        "itemName": "Aspall Cider Battered Haddock",
+        "category": "mains"
+      },
+      {
+        "id": "food-10lzcwi",
+        "itemName": "10oz West Country Ribeye Steak",
+        "category": "mains"
+      },
+      {
+        "id": "food-k80fkr",
+        "itemName": "Pork and Black Pudding Sausage and Mash",
+        "category": "mains"
+      },
+      {
+        "id": "food-1m8nkrz",
+        "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
+        "category": "mains"
+      },
+      {
+        "id": "food-1o1l2ez",
+        "itemName": "Roasted Bedloom Heritage Squash",
+        "category": "mains"
+      },
+      {
+        "id": "food-1955ex6",
+        "itemName": "Beef and Kidney Suet Pudding",
+        "category": "mains"
+      },
+      {
+        "id": "food-dvicq9",
+        "itemName": "Wild Mushroom Risotto",
+        "category": "mains"
+      },
+      {
+        "id": "food-542k5q",
+        "itemName": "Half Roast Chicken",
+        "category": "mains"
+      },
+      {
+        "id": "food-pbg53h",
+        "itemName": "Cyder Battered Haddock",
+        "category": "mains"
+      },
+      {
+        "id": "food-7gl5dr",
+        "itemName": "Braised Cavolo Nero",
+        "category": "sides"
+      },
+      {
+        "id": "food-bkh764",
+        "itemName": "Truffle Fries",
+        "category": "sides"
+      },
+      {
+        "id": "food-s3bdo7",
+        "itemName": "Tenderstem Broccoli",
+        "category": "sides"
+      },
+      {
+        "id": "food-e92df3",
+        "itemName": "Blooming Onion",
+        "category": "sides"
+      },
+      {
+        "id": "food-1ps5uz7",
+        "itemName": "Hasselback Mids",
+        "category": "sides"
+      },
+      {
+        "id": "food-14i7tm",
+        "itemName": "Bitter Leaf Salad",
+        "category": "sides"
+      },
+      {
+        "id": "food-2g99nr",
+        "itemName": "Sticky Toffee Pudding",
+        "category": "desserts"
+      },
+      {
+        "id": "food-19r5g45",
+        "itemName": "Blue Cheese",
+        "category": "desserts"
+      },
+      {
+        "id": "food-3k7ce0",
+        "itemName": "Chocolate Brownie",
+        "category": "desserts"
+      },
+      {
+        "id": "food-1j3poi9",
+        "itemName": "Ice cream",
+        "category": "desserts"
+      },
+      {
+        "id": "food-gdb3lh",
+        "itemName": "Affogato",
+        "category": "desserts"
+      },
+      {
+        "id": "food-1xuysoa",
+        "itemName": "Apple and Blackberry Crumble",
+        "category": "desserts"
+      },
+      {
+        "id": "food-qr7jtl",
+        "itemName": "Mango sorbet (2 scoops)",
+        "category": "desserts"
+      },
+      {
+        "id": "food-o1gone",
+        "itemName": "Black Forest Berry Trifle",
+        "category": "desserts"
+      }
+    ]
   }
 }
