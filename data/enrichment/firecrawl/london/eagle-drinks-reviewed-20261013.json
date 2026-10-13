@@ -1,0 +1,304 @@
+{
+  "version": 1,
+  "sourceId": "youngs-official",
+  "venueId": "venue-1hz0avt",
+  "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+  "sourceUrl": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+  "sourcePageUrl": "https://www.theeaglew12.co.uk/food-drink",
+  "observedAt": "2026-10-13T10:19:25.911Z",
+  "sourcePdfSha256": "b77a1fdb7841d0d904b62d5ba02ced3178d62c369d79ae01a4b31628c6c8bb0a",
+  "printedPublicationDate": null,
+  "reviewScope": "22 exact GBP menu prices. Twelve price atoms carry a publisher AF label. Four wine atoms state 125ml or 750ml. Other serving volumes remain unknown. Drink calories and the 228 currency-unconfirmed wine observations are excluded.",
+  "updates": [
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Steinbock, Riesling, Germany",
+      "category": "alcohol-free",
+      "priceGbp": 7.1,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher",
+      "servingSize": "125ml"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Steinbock, Riesling, Germany",
+      "category": "alcohol-free",
+      "priceGbp": 35.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher",
+      "servingSize": "750ml"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Nooh La Coste Rosé, Provence",
+      "category": "alcohol-free",
+      "priceGbp": 8.9,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher",
+      "servingSize": "125ml"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Nooh La Coste Rosé, Provence",
+      "category": "alcohol-free",
+      "priceGbp": 46.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher",
+      "servingSize": "750ml"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Apple & Elderflower",
+      "category": "alcohol-free",
+      "priceGbp": 5.35,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Cranberry & Mint",
+      "category": "alcohol-free",
+      "priceGbp": 5.35,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Raspberry & Rose",
+      "category": "alcohol-free",
+      "priceGbp": 4.35,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "TRIP Cherry Lemon",
+      "category": "alcohol-free",
+      "priceGbp": 4.85,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "TRIP Elderflower Mint",
+      "category": "alcohol-free",
+      "priceGbp": 4.85,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Ginger Yuzu Fizz",
+      "category": "alcohol-free",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Old Fashioned",
+      "category": "cocktail",
+      "priceGbp": 13,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Lychee Margarita",
+      "category": "cocktail",
+      "priceGbp": 13.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Cherry Bakewell Martini",
+      "category": "cocktail",
+      "priceGbp": 12.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Espresso Martini",
+      "category": "cocktail",
+      "priceGbp": 13,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Passion Fruit Martini",
+      "category": "cocktail",
+      "priceGbp": 13,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Fig Negroni",
+      "category": "cocktail",
+      "priceGbp": 13.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Negroni 0.0",
+      "category": "alcohol-free",
+      "priceGbp": 10.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Picante Spritz",
+      "category": "cocktail",
+      "priceGbp": 12,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Yuzu Honeybee",
+      "category": "cocktail",
+      "priceGbp": 13.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Pomegranate Gin Fizz",
+      "category": "cocktail",
+      "priceGbp": 12.5,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Winter Sangria",
+      "category": "cocktail",
+      "priceGbp": 12,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "drinkName": "Blood Orange Paloma 0.0",
+      "category": "alcohol-free",
+      "priceGbp": 10,
+      "source": {
+        "label": "The Eagle official drinks menu",
+        "url": "https://www.theeaglew12.co.uk/wp-content/uploads/sites/61/2025/04/Eagle1612_cocktails1-1.pdf",
+        "licence": "All rights reserved — first-party publisher of its own pub sites/menus; read-only, attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back when a priced first-party page exists."
+      },
+      "observedAt": "2026-10-13T10:19:25.911Z",
+      "lane": "publisher"
+    }
+  ]
+}
