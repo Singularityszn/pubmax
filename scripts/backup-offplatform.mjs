@@ -181,8 +181,8 @@ async function runBackup() {
     writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
     console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
-    // Publish only after Storage completes, so its failure preserves the last
-    // complete fallback on this run and the next. The archive is already verified.
+    // Keep the previous dump until Storage completes. Photo replacements publish
+    // during the loop above, so a failed sync does not preserve their prior bytes.
     renameSync(partial, dumpFile);
     console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
   } finally {
