@@ -204,7 +204,7 @@ describe("propose_plan over the Pal webhook", () => {
   it.each([false, true])("review regression: preserves independent status in provider/stored questions=%s", async (stored) => {
     const query = "Any tube delays and how much is a burger in Camden?";
     const conversationId = stored ? "conv_transitreview" : null;
-    if (conversationId) await registerPubPalToolTurn(conversationId, { query, cityId: "london", turns: [] });
+    if (conversationId) await registerPubPalToolTurn(conversationId, { query, cityId: "london", ownerId: "transit-owner", turns: [] });
     const outcome = await invokePubPalAskTool({ toolName: "city_status", args: { query: stored ? "Tube delays" : query }, conversationId });
     expect(outcome.result.answerHint).toMatch(/transit|city status|tube|weather/i);
     expect(outcome.result.answerHint).not.toMatch(/meal prices/i);
@@ -217,7 +217,7 @@ describe("propose_plan over the Pal webhook", () => {
       "Wine prices at Fox and Anchor and are there Tube delays?",
     ].entries()) {
       const conversationId = stored ? `conv_transitcategory0${index}` : null;
-      if (conversationId) await registerPubPalToolTurn(conversationId, { query, cityId: "london", turns: [] });
+      if (conversationId) await registerPubPalToolTurn(conversationId, { query, cityId: "london", ownerId: "transit-owner", turns: [] });
       const { result } = await invokePubPalAskTool({ toolName: "venue_prices", args: { query: stored ? "pints at The Lamb" : query, venueName: "The Lamb" }, conversationId });
       expect(result).toMatchObject({ tool: "venue_drinks", ok: true });
       expect(result.answerHint).toContain("Fox and Anchor");

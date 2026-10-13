@@ -89,7 +89,7 @@ function namedDrinkVenue(query: string): string | null {
     .match(/\bat\s+([A-Za-z][A-Za-z\s&,'’-]{1,100})$/i);
   if (!match?.[1] || PRICE_COMPARISON_RE.test(match[1]) || ITEM_PRICE_RE.test(match[1])) return null;
   return stripTrailingQualifiers(match[1])
-    .split(/\s+(?:with|for)\s+/i)[0]
+    .split(/\s+(?:with|for)\s+/i)[0]!
     .replace(/\s+(?:near|close to|by)\s+(?:the\s+)?(?:tube|(?:[A-Za-z&'’-]+\s+)*station)$/i, "")
     .trim() || null;
 }
@@ -111,9 +111,9 @@ export function resolveAskJourney(query: string): { from?: string; to: string } 
     clause.slice((match.index ?? 0) + match[0].length).replace(/^\s*to\s+/i, "").trim(),
   ));
   const originFirst = endpoints.match(/^from\s+(.+?)\s+to\s+(.+)$/i);
-  if (originFirst) return { from: originFirst[1].trim(), to: originFirst[2].trim() };
+  if (originFirst) return { from: originFirst[1]!.trim(), to: originFirst[2]!.trim() };
   const originLast = endpoints.match(/^(.+?)\s+from\s+(.+)$/i);
-  if (originLast) return { from: originLast[2].trim(), to: originLast[1].trim() };
+  if (originLast) return { from: originLast[2]!.trim(), to: originLast[1]!.trim() };
   return { to: endpoints };
 }
 
