@@ -133,7 +133,7 @@ export function namedMenuRequest(query: string): { venueName: string; subject: s
   const venueName = namedDrinkVenue(question);
   if (!venueName || PRICE_COMPARISON_RE.test(question)) return null;
   const subject = question.slice(0, question.search(/\bat\s+/i)).trim();
-  if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
+  if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
   const priceSubject = priceComparisonSubject(question);
   if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
   return { venueName, subject };
