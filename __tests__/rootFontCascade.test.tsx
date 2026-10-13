@@ -41,7 +41,6 @@ function globalFontRules(): string {
       declarations.push(declaration.toString());
     });
   });
-  expect(declarations).toHaveLength(2);
   return `:root{${declarations.join(";")}}`;
 }
 

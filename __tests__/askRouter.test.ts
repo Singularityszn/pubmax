@@ -1,9 +1,15 @@
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { describe, expect, it } from "vitest";
 
 import { refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each(QUALIFIED_PRICE_REQUESTS)("retains the priced subject across qualifiers: $query", ({ query, code }) => {
+    expect(unsupportedPriceComparison(query)?.code).toBe(code);
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
   it("routes What's On queries to whats_on only", () => {
     const calls = routeAskDeterministically("Quiz tonight in Soho");
     expect(calls).toEqual([{ name: "whats_on", args: { query: "Quiz tonight in Soho" } }]);

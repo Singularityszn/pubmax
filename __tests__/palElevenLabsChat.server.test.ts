@@ -1,3 +1,4 @@
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
@@ -207,6 +208,14 @@ describe("runPalElevenLabsChatTurn", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each(QUALIFIED_PRICE_REQUESTS)("fences the full qualified subject before configured startup: $query", async ({ query, wording }) => {
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
+    expect(outcome).toMatchObject({ ok: true, message: expect.stringMatching(wording), cards: [], proposals: [], toolsUsed: [] });
+    expect(wsState.socketsOpened).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
   });
 
   it.each([

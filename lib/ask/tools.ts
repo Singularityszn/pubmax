@@ -2,7 +2,7 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
-import { resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { isVenueDiscoveryAsk, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import {
@@ -1025,7 +1025,12 @@ export async function runAskTool(
   let toolName = name;
   let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
   const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
-  if (answersPrice && intent.kind === "recorded-drinks") {
+  const discoveryCall = isVenueDiscoveryAsk(ctx.query) && (answersPrice || name === "venue_heritage")
+    ? routeAskDeterministically(ctx.query).find((call) => call.name === "search_venues") : undefined;
+  if (discoveryCall) {
+    toolName = discoveryCall.name;
+    toolArgs = discoveryCall.args;
+  } else if (answersPrice && intent.kind === "recorded-drinks") {
     toolName = "venue_drinks";
     toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
   } else if (answersPrice && intent.kind === "drink-venues") {
