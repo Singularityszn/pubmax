@@ -11,7 +11,7 @@ carries its own `observedAt`, and `lib/priceUpdates.ts` never presents one as
 live.
 
 No script in this tree refreshes these files. The pack contains two reviewed
-imports: the preserved July 2026 Greene King rows and 42 Eagle price facts
+imports: the preserved July 2026 Greene King rows and 42 Eagle price and calorie facts
 collected on 13 October 2026. `scripts/firecrawl_greene_king_prices.mjs` writes the DRINK pack beside
 this one and deliberately drops every food section (`mapSectionToCategory`
 returns `null` for them), and `scripts/harvest/uk-prices/render.mjs` writes the
@@ -31,10 +31,14 @@ Every previous observation date remains unchanged.
 
 The Eagle matches `venue-1hz0avt` at 215 Askew Road, W12 9AZ.
 The new rows retain their source URL and capture date.
-They contain price facts without publisher descriptions or inferred dietary tags.
+They contain price and calorie facts without publisher descriptions or inferred dietary tags.
 [The source receipt](../../../data/enrichment/firecrawl/london/menu-review-20261013.json)
-records the permission check, runtime item IDs, and 42 separate source calorie observations.
-Calories remain outside the runtime food schema.
+records the permission check, runtime item IDs, and the 42 matched source calorie observations.
+Optional `caloriesKcal` holds the number stated for that menu item.
+It is not a health rating or a per-person calculation.
+Portion wording in each item name stays unchanged.
+The runtime menu retains separate `caloriesProvenance`, including its source URL,
+so a later price-only update cannot redate an earlier calorie fact.
 This import does not add an automatic producer or revive the refresh lane.
 
 ## File naming
