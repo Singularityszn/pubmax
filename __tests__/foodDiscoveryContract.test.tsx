@@ -164,7 +164,8 @@ describe("food discovery controls", () => {
       experienceLens: "food",
       onChange: () => undefined,
     }));
-    const group = defined(container.querySelector('[role="group"][aria-label="Venue types"]'));
+    const group = container.querySelector('[role="group"][aria-label="Venue types"]');
+    if (group === null) throw new Error("Expected the venue types group to render");
     const labels = [...group.querySelectorAll("button")].map((button) => {
       const visible = button.cloneNode(true) as HTMLElement;
       visible.querySelectorAll('[aria-hidden="true"]').forEach((node) => node.remove());
