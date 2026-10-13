@@ -27,6 +27,7 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/ask/route";
 import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
+import { resetJourneyCache } from "@/lib/citymcp/client";
 import { PAL_WEB_GROUNDING } from "@/lib/palChat";
 
 beforeEach(() => {
@@ -73,6 +74,64 @@ describe("POST /api/ask", () => {
     const recorded = await runAskTool("venue_prices", { venueName: "Soho", query: "pints" }, { cityId: "london", query, skipModel: true });
     expect(recorded.tool).toBe("venue_drinks");
     expect(recorded.priceEvidence?.every((price) => price.category === "wine")).toBe(true);
+  });
+
+  it.each([
+    ["Fox and Anchor", "venue-phg4ss", "51.52042,-0.10071"],
+    ["Fox and Firkin", "venue-xoqiq5", "51.45690,-0.01438"],
+    ["Fox & Anchor", "venue-phg4ss", "51.52042,-0.10071"],
+    ["The Black Friar, Blackfriars", "venue-eltcmh", "51.51210,-0.10368"],
+    ["Elephant and Castle station", "", "Elephant and Castle station"],
+    ["Fox and Unknown", "", "Fox and Unknown"],
+    ["Fox and Anchor and any tube delays?", "venue-phg4ss", "51.52042,-0.10071"],
+  ])("keeps the complete public journey destination: %s", async (destination, venueId, to) => {
+    resetJourneyCache();
+    const journeyFetch = vi.fn<typeof fetch>(async (input, init) => {
+      if (JSON.parse(init?.body as string).params.name !== "get_journey") return offlineFetch(input, init);
+      return new Response(JSON.stringify({
+        jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } },
+      }), { headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", journeyFetch);
+    const response = await post({ query: `Directions to ${destination}`, cityId: "london" }, "203.0.113.82");
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(destination.includes("tube delays") ? ["city_status", "journey"] : ["journey"]);
+    expect(body.cards).toMatchObject([{ venueId, place: venueId === "venue-phg4ss" ? "Fox and Anchor" : venueId === "venue-eltcmh" ? "The Blackfriar" : destination }]);
+    const journeyRequest = journeyFetch.mock.calls.find(([, init]) => JSON.parse(init?.body as string).params.name === "get_journey");
+    expect(journeyRequest).toBeDefined();
+    const payload = JSON.parse(journeyRequest?.[1]?.body as string);
+    expect(payload.params.arguments).toMatchObject({ from: "London Bridge", to });
+  });
+
+  it("resolves complete compound names on both journey axes", async () => {
+    resetJourneyCache();
+    const journeyFetch = vi.fn<typeof fetch>(offlineFetch);
+    const result = await runAskTool("journey", { from: "Fox & Anchor", to: "Fox" }, {
+      query: "Directions to Fox and Firkin", cityId: "london", skipModel: true, fetchImpl: journeyFetch,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.proposals).toMatchObject([{ venueId: "venue-xoqiq5" }]);
+    expect(JSON.parse(journeyFetch.mock.calls[0]?.[1]?.body as string).params.arguments).toEqual({
+      from: "51.52042,-0.10071", to: "51.45690,-0.01438",
+    });
+  });
+
+  it.each([
+    ["Fox and Anchor", "venue-phg4ss", "Fox and Anchor"],
+    ["Fox and Firkin", "venue-xoqiq5", "Fox and Firkin"],
+    ["Fox & Anchor", "venue-phg4ss", "Fox and Anchor"],
+    ["Fox and Anchor near the Tube", "venue-phg4ss", "Fox and Anchor"],
+    ["The Black Friar, Blackfriars", "venue-eltcmh", "The Blackfriar"],
+  ])("keeps compound names and aliases in named category prices: %s", async (name, venueId, canonical) => {
+    const query = `Wine prices at ${name}`;
+    const response = await post({ query, cityId: "london" }, "203.0.113.82");
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["venue_drinks"]);
+    expect(body.answer).toContain(canonical);
+    expect(body.cards.every((card: { note: string }) => !/listed pint/i.test(card.note))).toBe(true);
+    const result = await runAskTool("venue_prices", { query: "pints", venueName: "The Lamb" }, { cityId: "london", query, skipModel: true });
+    expect(result.data).toMatchObject({ venueId });
+    expect(result.priceEvidence?.every((price) => price.category === "wine")).toBe(true);
   });
 
   it.each(VIBE_CHIPS)("retains the actual $label constraints at tool execution", async (chip) => {

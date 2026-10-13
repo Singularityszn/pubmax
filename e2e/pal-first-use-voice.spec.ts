@@ -89,6 +89,41 @@ for (const query of ["somewhere cheap and quiet", "Somewhere cheap in Soho"]) {
   });
 }
 
+for (const query of [
+  "Find me the cheapest pub in Soho, with a glass of wine near the Tube",
+  "Somewhere cheap for a burger near Elephant and Castle station",
+  "Somewhere cheap in Soho with bottles of Coke near the Tube",
+  "Wine prices at Fox and Anchor",
+  "Wine prices at Fox & Anchor",
+  "Wine prices at The Black Friar, Blackfriars",
+]) {
+  test(`typed item and destination constraints survive rendered chat: ${query}`, async ({ page }) => {
+    await page.goto("/pal/chat");
+    const input = page.getByRole("textbox", { name: "Describe the outing", exact: true });
+    await expect(input).toBeVisible();
+    await input.fill(query);
+    const responsePromise = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/pub-pal/chat" && response.request().method() === "POST",
+    );
+    await input.press("Enter");
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(query.startsWith("Wine prices") ? ["venue_drinks"] : []);
+    if (query.startsWith("Wine prices")) {
+      expect(body.answer).toContain(query.includes("Black Friar") ? "The Blackfriar" : "Fox and Anchor");
+      expect(body.answer).toMatch(/wine/i);
+    } else {
+      expect(body.answer).toMatch(/other drinks across pubs|meal prices|not prices for that item/i);
+      expect(body.cards).toEqual([]);
+      expect(body.proposals).toEqual([]);
+    }
+    expect(body.cards.every((card: { note: string }) => !/listed pint|recorded pint/i.test(card.note))).toBe(true);
+    await expect(page.getByText(body.answer, { exact: true })).toBeVisible();
+    await expect(page.getByText(query, { exact: true })).toBeVisible();
+  });
+}
+
 test("the phone voice choice survives Back and reload without unused character controls", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.emulateMedia({ reducedMotion: "reduce" });
