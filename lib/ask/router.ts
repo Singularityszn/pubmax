@@ -67,6 +67,13 @@ export type UnsupportedPriceComparison = {
   answer: string;
 };
 
+type AskPriceIntent =
+  | { kind: "none" | "plan" }
+  | { kind: "pub-price"; venueName: string | null }
+  | { kind: "pint"; venueName: string | null; foodAvailability: boolean }
+  | { kind: "recorded-category"; venueName: string; category: DrinkCategory }
+  | { kind: "unsupported"; coverage: UnsupportedPriceComparison };
+
 function namedDrinkVenue(query: string): string | null {
   if (extractArea(query)) return null;
   const match = stripTrailingPunctuation(query).match(/\bat\s+([A-Za-z][A-Za-z\s'-]{1,80})$/i);
@@ -91,41 +98,63 @@ function priceComparisonSubject(query: string): string | null {
     .split(/\s+(?:in|near|nearby|at|around|round|close to|for)\b/i, 1)[0] ?? "") || precedingItem;
 }
 
-/** Existing tools compare pints across pubs or read all recorded drinks at one named pub. */
-export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
+/** One semantic price decision, shared by free-text and raw model-tool boundaries. */
+export function resolveAskPriceIntent(query: string): AskPriceIntent {
   const subject = priceComparisonSubject(query);
-  if (subject === null) return null;
-  if (!subject && !PRICE_COMPARISON_RE.test(query)) return null;
-  if (PINT_COMPARISON_SUBJECT_RE.test(subject) || PUB_COMPARISON_SUBJECT_RE.test(subject)) return null;
-  if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return null;
+  if (subject === null) return { kind: "none" };
+  const comparative = PRICE_COMPARISON_RE.test(query);
+  const venueName = namedDrinkVenue(query);
+  if (!subject && !comparative) return { kind: "pub-price", venueName };
+  const food = FOOD_RE.test(subject);
+  if ((PINT_COMPARISON_SUBJECT_RE.test(subject) || PUB_COMPARISON_SUBJECT_RE.test(subject)) && (!food || comparative)) {
+    return { kind: "pint", venueName, foodAvailability: food };
+  }
+  if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return { kind: "plan" };
   if (FOOD_RE.test(subject)) {
     return {
-      code: "UNSUPPORTED_FOOD_PRICE_COMPARISON",
-      answer: "I can't compare meal prices or check dietary options yet. I can help you find pubs with food.",
+      kind: "unsupported",
+      coverage: {
+        code: "UNSUPPORTED_FOOD_PRICE_COMPARISON",
+        answer: "I can't compare meal prices or check dietary options yet. I can help you find pubs with food.",
+      },
     };
   }
-  if (recordedDrinkComparison(query)) return null;
+  const categorySubject = subject.replace(/^(?:(?:listed|recorded|decent|good|local)\s+)+/i, "");
+  const category = RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)
+    ? RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1]
+    : undefined;
+  if (category && venueName) return { kind: "recorded-category", venueName, category };
   if (NON_PINT_DRINK_RE.test(subject)) {
     return {
-      code: "UNSUPPORTED_DRINK_PRICE_COMPARISON",
-      answer: "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks.",
+      kind: "unsupported",
+      coverage: {
+        code: "UNSUPPORTED_DRINK_PRICE_COMPARISON",
+        answer: venueName
+          ? "I can't verify a price for that drink or serving yet. Ask about a recorded drink category at this pub."
+          : "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks.",
+      },
     };
   }
   return {
-    code: "UNSUPPORTED_PRICE_COMPARISON",
-    answer: "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks.",
+    kind: "unsupported",
+    coverage: {
+      code: "UNSUPPORTED_PRICE_COMPARISON",
+      answer: "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks.",
+    },
   };
+}
+
+export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
+  const intent = resolveAskPriceIntent(query);
+  return intent.kind === "unsupported" ? intent.coverage : null;
 }
 
 /** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
 export function recordedDrinkComparison(query: string): RoutedToolCall | null {
-  const subject = priceComparisonSubject(query);
-  if (!subject || !RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)) return null;
-  const categorySubject = subject.replace(/^(?:(?:listed|recorded|decent|good|local)\s+)+/i, "");
-  const category = RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1];
-  if (!category) return null;
-  const venueName = namedDrinkVenue(query);
-  return venueName ? { name: "venue_drinks", args: { venueName, drinkCategory: category } } : null;
+  const intent = resolveAskPriceIntent(query);
+  return intent.kind === "recorded-category"
+    ? { name: "venue_drinks", args: { venueName: intent.venueName, drinkCategory: intent.category } }
+    : null;
 }
 const FIND_DESK_RE =
   /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
