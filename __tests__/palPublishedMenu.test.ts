@@ -40,6 +40,95 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
+const portionCases = [
+  { query: "Price of 8oz Bavette steak at The New Inn", venueId: "venue-17qpap6", item: "8oz Bavette steak", price: 23, caloriesKcal: 1394,
+    source: "The New Inn - official published menu", sourceUrl: "https://www.newinnealing.com/food-and-drink", observedAt: "2026-10-13T09:43:11.443Z" },
+  { query: "Price of 10oz West Country Ribeye Steak at The Eagle, Hammersmith and Fulham", venueId: "venue-1hz0avt", item: "10oz West Country Ribeye Steak", price: 44, caloriesKcal: 776,
+    source: "The Eagle - official published menu", sourceUrl: "https://www.theeaglew12.co.uk/food-drink", observedAt: "2026-10-13T06:51:38.364Z" },
+] as const;
+const portionRequests = portionCases.flatMap((record) => [
+  { ...record, accepted: true },
+  { ...record, query: record.query.replace("oz", " oz"), accepted: true },
+  { ...record, query: record.query.replace(/\d+oz/, "12oz"), accepted: false },
+  { ...record, query: record.query.replace(/\d+oz/, "-8oz"), accepted: false },
+  { ...record, query: record.query.replace(/\d+oz/, "0.8oz"), accepted: false },
+  { ...record, query: record.query.replace(/\d+oz/, "8oz glass"), accepted: false },
+  { ...record, query: record.query.replace(/\d+oz/, "125ml"), accepted: false },
+  { ...record, query: record.query.replace("Price of", "Vegan gluten-free price of"), accepted: false },
+  { ...record, query: `Is ${record.item} vegan at ${record.query.split(" at ")[1]}?`, accepted: true },
+]);
+portionRequests.push({ ...portionCases[0], query: "Price of 8oz Mixed Olives at The New Inn", accepted: false });
+
+it.each(portionRequests.flatMap((record) => ["reader", "ask", "keyless chat", "chat session", "tool dispatch", "configured chat", "stored webhook"]
+  .map((boundary) => ({ ...record, boundary }))))("preserves food portion identity through $boundary: $query", async (record) => {
+  const { query, venueId, boundary } = record;
+  let cards: AskCard[];
+  let answer: string | undefined;
+  if (boundary === "reader") {
+    ({ cards } = await publishedMenuCards(venueId, query));
+    answer = publishedMenuAnswer(cards);
+  } else if (boundary === "ask" || boundary === "keyless chat") {
+    const response = await (boundary === "ask" ? ask : chat)(request(query));
+    expect(response.status).toBe(200);
+    ({ cards, answer } = await response.json());
+  } else if (boundary === "chat session") {
+    const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+    const result = await session(query, "london");
+    if (!result || result.status === "error") throw new Error("Chat session returned no answer");
+    ({ cards, message: answer } = result);
+  } else if (boundary === "tool dispatch") {
+    const result = await runAskTool("venue_prices", { venueName: "The Lamb", query: "Pint at The Lamb" }, { query, cityId: "london", skipModel: true });
+    expect(result.tool).toBe("venue_drinks");
+    ({ cards, answerHint: answer } = result);
+  } else {
+    await registerPubPalToolTurn("conv_foodportion01", { query, cityId: "london", ownerId: "menu-owner" });
+    if (boundary === "configured chat") {
+      vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+      vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+      const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+      vi.stubGlobal("fetch", fetcher);
+      const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_foodportion01" });
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("Configured interception failed");
+      ({ cards, message: answer } = result);
+      expect(fetcher).not.toHaveBeenCalled();
+    } else {
+      vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+      const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+        body: JSON.stringify({ conversation_id: "conv_foodportion01", parameters: { query: "Mixed Olives price at The New Inn", venueName: "The New Inn" } }),
+      }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+      expect(response.status).toBe(200);
+      ({ cards, answerHint: answer } = (await response.json()).result);
+    }
+    const replay = await readOwnedPubPalToolTurn("conv_foodportion01", "menu-owner");
+    expect(replay?.query).toBe(query);
+    expect(replay?.cards).toEqual(cards);
+    expect(replay?.hints).toContain(answer);
+    expect(await readOwnedPubPalToolTurn("conv_foodportion01", "another-owner")).toBeNull();
+  }
+  if (!record.accepted) {
+    expect(cards).toEqual([]);
+    if (boundary !== "reader") expect(answer).toContain("No accepted menu item matches");
+    return;
+  }
+  expect(cards).toHaveLength(1);
+  expect(cards[0]).toMatchObject({ venueId, price: record.price,
+    menuEvidence: { itemName: record.item, menu: "food", currency: "GBP", serving: null, caloriesKcal: record.caloriesKcal,
+      source: record.source, sourceUrl: record.sourceUrl, observedAt: record.observedAt, dietary: [], dietaryProvenance: null,
+      caloriesProvenance: { source: record.source, sourceUrl: record.sourceUrl, observedAt: record.observedAt }, availability: "unknown" },
+    provenance: { kind: "published-menu", label: record.source, url: record.sourceUrl },
+  });
+  expect(answer).toContain(`${record.item} at`);
+  expect(answer).toContain(`£${record.price.toFixed(2)}`);
+  expect(answer).toContain(`${record.caloriesKcal} kcal published for this item.`);
+  expect(answer).toContain(`Price observed ${record.observedAt.slice(0, 10)}.`);
+  expect(answer).toContain("Serving size not recorded.");
+  expect(answer).toContain("Dietary labels not recorded.");
+  expect(answer).toContain("Availability unknown.");
+  expect(answer).not.toMatch(/allergy.safe|in stock/i);
+});
+
 const dietaryBoundaries = ["reader", "ask", "keyless chat", "chat session", "tool dispatch", "configured chat", "stored webhook"] as const;
 const dietaryCases = [
   ["Vegan gluten-free options at The New Inn", null],
