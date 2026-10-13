@@ -81,7 +81,9 @@ type AskPriceIntent =
   | { kind: "unsupported"; coverage: UnsupportedPriceComparison };
 
 function namedDrinkVenue(query: string): string | null {
-  const match = stripTrailingPunctuation(query).match(/\bat\s+([A-Za-z][A-Za-z\s&,'’-]{1,100})$/i);
+  const match = stripTrailingQualifiers(stripTrailingPunctuation(query))
+    .replace(/\s+costs?$/i, "")
+    .match(/\bat\s+([A-Za-z][A-Za-z\s&,'’-]{1,100})$/i);
   if (!match?.[1] || PRICE_COMPARISON_RE.test(match[1]) || ITEM_PRICE_RE.test(match[1])) return null;
   return stripTrailingQualifiers(match[1])
     .split(/\s+(?:with|for)\s+/i)[0]
@@ -95,6 +97,20 @@ function askRequestClauses(query: string): string[] {
 
 function isCityStatusRequest(query: string): boolean {
   return CITY_STATUS_RE.test(query) && /^(?:any\s+)?(?:tube|transit|delays?|weather|city status)\b|^how(?:'s| is| are)\s+(?:the\s+)?(?:tube|transit|weather|london)\b|^(?:what|check|tell me)\b.*\b(?:delays?|weather|city status)\b|^right now in london\b/i.test(query.trim());
+}
+
+export function resolveAskJourney(query: string): { from?: string; to: string } | null {
+  const clause = askRequestClauses(query).find((part) => JOURNEY_RE.test(part));
+  if (!clause) return null;
+  const match = clause.match(JOURNEY_RE)!;
+  const endpoints = stripTrailingQualifiers(stripTrailingPunctuation(
+    clause.slice((match.index ?? 0) + match[0].length).replace(/^\s*to\s+/i, "").trim(),
+  ));
+  const originFirst = endpoints.match(/^from\s+(.+?)\s+to\s+(.+)$/i);
+  if (originFirst) return { from: originFirst[1].trim(), to: originFirst[2].trim() };
+  const originLast = endpoints.match(/^(.+?)\s+from\s+(.+)$/i);
+  if (originLast) return { from: originLast[2].trim(), to: originLast[1].trim() };
+  return { to: endpoints };
 }
 
 function priceQuestion(query: string): string {
@@ -119,8 +135,8 @@ function priceComparisonSubject(query: string): string | null {
   if (!comparison) return null;
   const normalizeSubject = (subject: string): string => stripTrailingPunctuation(subject)
     .replace(/^(?:a|an|the)(?:\s+|$)/i, "")
-    .replace(/\s+costs?$/i, "")
-    .replace(/\s+(?:right now|today|tonight)$/i, "");
+    .replace(/(?:^|\s+)(?:right now|today|tonight)$/i, "")
+    .replace(/\s+costs?$/i, "");
   let precedingItem = !/^how much/i.test(comparison[0])
     ? query.slice(0, comparison.index)
       .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me|(?:please\s+)?(?:help me\s+)?(?:find(?: me| us)?|show me|get(?: me| us)?))\s*/i, "")
@@ -236,7 +252,7 @@ const REPORT_OCCUPANCY_RE =
  * place Camden at all.
  */
 const TRAILING_QUALIFIER_RE =
-  /\s+(?:tonight|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
+  /\s+(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
 
 function stripTrailingPunctuation(phrase: string): string {
   return phrase.replace(/[?.!,;:]+$/g, "").trim();
@@ -465,14 +481,8 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     push("city_status");
   }
 
-  const journeyClause = clauses.find((clause) => JOURNEY_RE.test(clause));
-  if (journeyClause) {
-    const match = journeyClause.match(JOURNEY_RE)!;
-    const to = stripTrailingPunctuation(stripTrailingQualifiers(
-      journeyClause.slice((match.index ?? 0) + match[0].length).replace(/^\s*to\s+/i, "").trim(),
-    ));
-    push("journey", { from: "London Bridge", to });
-  }
+  const journey = resolveAskJourney(text);
+  if (journey) push("journey", { from: "London Bridge", ...journey });
 
   if (priceIntent.kind === "unsupported") return calls;
 
@@ -504,7 +514,8 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   if (PRICE_RE.test(text) && !PLAN_RE.test(text) && !isVenueDiscoveryAsk(text)) {
-    const venueName = stripIntentWords(text);
+    const venueName = priceIntent.kind === "pint" || priceIntent.kind === "pub-price"
+      ? priceIntent.venueName ?? stripIntentWords(text) : stripIntentWords(text);
     push("venue_prices", venueName ? { venueName, query: text } : { query: text });
   }
 
