@@ -119,15 +119,20 @@ async function releaseVoiceSession(conversationId: string | null): Promise<void>
   }
 }
 
-function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError }: {
+  onStateChange?: (state: PalAnimationState) => void;
+  resetPendingSession: (error: string | null) => void;
+  text: string;
+  setText: (text: string) => void;
+  error: string | null;
+  setError: (error: string | null) => void;
+}) {
   const router = useRouter();
   const { startSession, endSession, sendUserMessage } = useConversationControls();
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
-  const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
-  const [text, setText] = useState("");
   const disposedRef = useRef(false);
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -198,6 +203,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     attempt.voiceEndReason ??= reason;
     if (!ownsAttempt(attempt)) return;
     const wasCurrent = activeAttemptRef.current === attempt;
+    const resetSdk = attempt.sdkSessionStarted && attempt.connectedAt === null;
     attempt.cancelled = true;
     startController.cancel();
     setIsStarting(false);
@@ -209,8 +215,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     await finalizeSession(attempt);
     if (wasCurrent && activeAttemptRef.current === attempt && !disposedRef.current) {
       onStateChange?.("idle");
+      if (resetSdk) {
+        resetPendingSession(reason === "error" ? PAL_VOICE_START_TIMEOUT_ERROR : null);
+      }
     }
-  }, [endSession, finalizeSession, onStateChange, ownsAttempt, startController]);
+  }, [endSession, finalizeSession, onStateChange, ownsAttempt, resetPendingSession, startController]);
 
   const stopCurrentAttempt = useCallback((): void => {
     const attempt = activeAttemptRef.current;
@@ -457,15 +466,30 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   );
 }
 
-/** The provider plus its controls. Mounted only once the probe says yes. */
+/** The writing draft outlives a provider whose pending startup was cancelled. */
 export default function PubPalVoiceSession({
   onStateChange,
 }: {
   onStateChange?: (state: PalAnimationState) => void;
 }) {
+  const [sdkGeneration, setSdkGeneration] = useState(0);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const resetPendingSession = useCallback((nextError: string | null) => {
+    setError(nextError);
+    setSdkGeneration((generation) => generation + 1);
+    if (nextError) onStateChange?.("error");
+  }, [onStateChange]);
   return (
-    <ConversationProvider>
-      <VoiceControls onStateChange={onStateChange} />
+    <ConversationProvider key={sdkGeneration}>
+      <VoiceControls
+        onStateChange={onStateChange}
+        resetPendingSession={resetPendingSession}
+        text={text}
+        setText={setText}
+        error={error}
+        setError={setError}
+      />
     </ConversationProvider>
   );
 }

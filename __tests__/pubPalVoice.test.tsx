@@ -244,6 +244,9 @@ describe("Pub Pal voice controls", () => {
     getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
     requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStall1" }));
     voice.startSession.mockImplementation(() => { voice.status = "connecting"; });
+    // This hook mock has no keyed provider state. Model the fresh provider's
+    // disconnected state when the cancelled SDK startup is replaced.
+    voice.endSession.mockImplementation(() => { voice.status = "disconnected"; });
     await mountAvailable();
     await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
     await settle();
