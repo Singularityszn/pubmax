@@ -431,10 +431,11 @@ export default function MapToolbar({
       // Below 1024px the drawer has no free lane for it and the trap keeps it.
       {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
       style={
-        desktopLaneActive && laneOffset !== 0
+        desktopLaneActive
           ? {
               transform: `translateX(calc(-50% + ${laneOffset}px))`,
               width: `min(var(--desktop-map-surface-width), calc(100vw - 32px - ${Math.abs(laneOffset) * 2}px))`,
+              maxWidth: "none",
               transition: "none",
             }
           : undefined
