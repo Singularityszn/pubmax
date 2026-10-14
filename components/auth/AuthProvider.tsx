@@ -38,7 +38,7 @@ import { activateNativeEmailLinks, readNativeEmailCallback } from "@/lib/nativeE
 import { completeNativeEmailLink, discardNativeEmailAttempt, nativeEmailAuthConfig, prepareNativeEmailReceipt, requestNativeEmailLink } from "@/lib/nativeEmailAuth";
 import { readNativeEmailReceipt, removeNativeEmailReceipt } from "@/lib/nativeEmailPkce";
 import { nativePlatform } from "@/lib/nativePlatform";
-import { completeNativeIOSOAuth, installNativeSession } from "@/lib/nativeIOSOAuth";
+import { completeNativeIOSOAuth } from "@/lib/nativeIOSOAuth";
 import { cancelNativeAuthSession, createNativeAuthLifetime, nativeAuthSessionAvailable } from "@/lib/nativeAuthSession";
 import {
   accountComposerAuth,
@@ -57,7 +57,7 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -364,6 +364,7 @@ export function AuthProvider({
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const nativeAuthLifetime = useRef(createNativeAuthLifetime());
   const nativeAuthAttempt = useRef<string | null>(null);
+  const publishAuthEvent = useRef<((event: string, session: Session | null) => void) | null>(null);
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
@@ -645,8 +646,8 @@ export function AuthProvider({
 
       // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
       // the ONLY place these setStates run — never the effect body.
-      const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
-        if (!active) return;
+      const handleAuthEvent = (event: string, nextSession: Session | null) => {
+        if (!active || nativeSessionInstallationPending(nextSession)) return;
         // A refresh or the first read changes nothing about who this is. Any
         // other event may have (a new password, another sign-in), so the page's
         // shared identity read is dropped and the next surface asks again.
@@ -714,7 +715,9 @@ export function AuthProvider({
         if (event === "SIGNED_OUT") {
           trackEvent("user_signed_out");
         }
-      });
+      };
+      publishAuthEvent.current = handleAuthEvent;
+      const registration = supabase.auth.onAuthStateChange(handleAuthEvent);
       subscription = registration.data.subscription;
       // Unmounted while the chunk was loading: tear the subscription right back
       // down so the cleanup's null slot doesn't leak it.
@@ -899,6 +902,7 @@ export function AuthProvider({
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
+      publishAuthEvent.current = null;
     };
   }, [configured, updateSession]);
 
@@ -907,6 +911,7 @@ export function AuthProvider({
       discardNativeEmailAttempt(browserLocalStorage(), browserSessionStorage(), window.location.origin);
     }
     const installation = nativeAuthLifetime.current.invalidate();
+    discardCancelledNativeSessionInstallation();
     const attemptId = nativeAuthAttempt.current;
     nativeAuthAttempt.current = null;
     if (attemptId) {
@@ -924,9 +929,10 @@ export function AuthProvider({
   }, [cancelPendingNativeAuth]);
 
   const finishNativeSignIn = useCallback((result: { session: Session; captured: CapturedAuthCallback }, current: () => boolean) => {
+    if (!current() || !finishNativeSessionInstallation(result.session)) return;
+    publishAuthEvent.current?.("SIGNED_IN", result.session);
     const ownsAccount = () => current() && sessionTransitions.current.currentUserId() === result.session.user.id;
     if (!ownsAccount()) return;
-    updateSession(result.session);
     setSessionLoading(false);
     setAuthCallbackError(null);
     let returnUrl = result.captured.cleanUrl;
@@ -947,7 +953,7 @@ export function AuthProvider({
         router.push(safeAuthNext(destination ?? returnUrl, window.location.origin) as Route);
       }
     }).catch(() => {});
-  }, [router, updateSession]);
+  }, [router]);
 
   const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<{ error: string | null } | { useExistingOAuth: true }> => {
     await cancelPendingNativeAuth();
@@ -1004,7 +1010,6 @@ export function AuthProvider({
     }
     if (!ticket.current()) return { error: null };
     if (!completed) return { error: AUTH_CALLBACK_ERROR_MESSAGE };
-    if (sessionTransitions.current.currentUserId() !== completed.session.user.id) return { error: null };
     finishNativeSignIn(completed, ticket.current);
     return { error: null };
   }, [cancelPendingNativeAuth, finishNativeSignIn]);

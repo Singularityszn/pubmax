@@ -14,8 +14,10 @@
 // AuthProvider explicitly establishes the session from the marked callback —
 // see components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { isAuthAttemptId } from "@/lib/authRedirect";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 // @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
@@ -26,6 +28,61 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
+
+type NativeInstallation = { auth: SupabaseClient["auth"]; session: Session; current: () => boolean; settled: boolean };
+let nativeInstallation: NativeInstallation | null = null;
+let canonicalStorage: { storage: Storage; key: string } | null = null;
+
+function sameNativeTokens(value: unknown, session: Session): boolean {
+  const candidate = value as Partial<Session> | null;
+  return candidate?.access_token === session.access_token && candidate.refresh_token === session.refresh_token;
+}
+
+function sameNativeSession(value: unknown, session: Session): boolean {
+  return (value as Partial<Session> | null)?.user?.id === session.user.id && sameNativeTokens(value, session);
+}
+
+export function nativeSessionInstallationPending(session: Session | null): boolean {
+  return !!session && !!nativeInstallation && sameNativeTokens(session, nativeInstallation.session);
+}
+
+export function discardCancelledNativeSessionInstallation(): void {
+  const pending = nativeInstallation;
+  if (!pending || pending.current() || pending.auth !== cached?.auth || !canonicalStorage) return;
+  const { storage, key } = canonicalStorage;
+  try {
+    const raw = storage.getItem(key);
+    if (raw && sameNativeSession(JSON.parse(raw), pending.session)) storage.removeItem(key);
+  } catch {}
+  if (pending.settled && nativeInstallation === pending) nativeInstallation = null;
+}
+
+export function finishNativeSessionInstallation(session: Session): boolean {
+  const pending = nativeInstallation;
+  if (!pending || !pending.settled || !pending.current() || !sameNativeSession(session, pending.session)) return false;
+  nativeInstallation = null;
+  return true;
+}
+
+export async function installNativeSession(
+  auth: SupabaseClient["auth"], session: Session, current: () => boolean,
+): Promise<Awaited<ReturnType<SupabaseClient["auth"]["setSession"]>> | null> {
+  const active = await auth.getSession();
+  if (active.error || active.data.session || nativeInstallation || !current() || (auth === cached?.auth && !canonicalStorage)) return null;
+  const pending = { auth, session, current, settled: false };
+  nativeInstallation = pending;
+  let established = false;
+  try {
+    const installed = await auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+    established = current() && !installed.error && sameNativeSession(installed.data.session, session);
+    return current() ? installed : null;
+  } catch { return null; }
+  finally {
+    pending.settled = true;
+    try { discardCancelledNativeSessionInstallation(); }
+    finally { if (!established && nativeInstallation === pending) nativeInstallation = null; }
+  }
+}
 
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
@@ -40,11 +97,46 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     if (!config) return null;
 
     const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
+    const storageKey = `sb-${new URL(config.url).hostname.split(".")[0]}-auth-token`;
+    let storage: Storage | null = null;
+    try {
+      const candidate = window.localStorage;
+      if (candidate) {
+        const probe = `sb-localstorage-test-${Math.random()}`;
+        candidate.setItem(probe, probe);
+        candidate.removeItem(probe);
+        storage = candidate;
+      }
+    } catch {}
+    canonicalStorage = storage ? { storage, key: storageKey } : null;
+    const browserStorage = storage;
+    const request = globalThis.fetch.bind(globalThis);
     cached = createClient(config.url, config.key, {
       global: {
-        fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
+        fetch: withAuthFetchTimeout(async (input, init) => {
+          const pending = nativeInstallation;
+          const response = await request(input, init);
+          if (pending?.auth === cached?.auth && pending && !response.ok &&
+              new URL(String(input)).pathname === "/auth/v1/user" &&
+              new Headers(init?.headers).get("authorization") === `Bearer ${pending.session.access_token}`) {
+            discardBody(response);
+            throw new Error("Native session verification failed.");
+          }
+          return response;
+        }),
       },
       auth: {
+        ...(browserStorage ? { storage: {
+          getItem: (key: string) => browserStorage.getItem(key),
+          setItem: (key: string, value: string) => {
+            const pending = nativeInstallation;
+            if (key === storageKey && pending && pending.auth === cached?.auth && sameNativeTokens(JSON.parse(value), pending.session)) {
+              if (!sameNativeSession(JSON.parse(value), pending.session) || !pending.current() || browserStorage.getItem(key) !== null) throw new Error("Native session installation lost ownership.");
+            }
+            browserStorage.setItem(key, value);
+          },
+          removeItem: (key: string) => browserStorage.removeItem(key),
+        } } : {}),
         // Keep the session in this browser and refresh it in the background.
         persistSession: true,
         autoRefreshToken: true,
@@ -127,4 +219,25 @@ export async function getAccessToken(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export async function createNativeAuthClient(attemptId: string): Promise<SupabaseClient | null> {
+  if (typeof window === "undefined" || !isAuthAttemptId(attemptId)) return null;
+  const config = resolveSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    { expectedKeyRole: "publishable", allowUnknownKeyRole: process.env.NODE_ENV !== "production" },
+  );
+  if (!config) return null;
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(config.url, config.key, {
+    global: { fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)) },
+    auth: {
+      storageKey: `pubmax-native-auth-${attemptId}`,
+      flowType: "pkce",
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
 }

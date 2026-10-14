@@ -51,7 +51,8 @@ vi.mock("@/lib/authCallbackClient", () => ({
   clearLegacyPkceVerifiers: vi.fn(),
   establishAuthCallbackSession: vi.fn(),
 }));
-vi.mock("@/lib/authClient", () => ({
+vi.mock("@/lib/authClient", async (original) => ({
+  ...await original<typeof import("@/lib/authClient")>(),
   ensureSupabaseBrowser: async () => ({
     auth: {
       getSession: async () => ({ data: { session: providerState.session } }),

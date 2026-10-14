@@ -10,7 +10,7 @@ import {
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { isAuthUserBannedUntil } from "@/lib/authAccountBan";
-import { createNativeAuthClient } from "@/lib/nativeAuthClient";
+import { createNativeAuthClient } from "@/lib/authClient";
 import { IOS_AUTH_MODE, readNativeAuthCallback } from "@/lib/nativeAuthCallback";
 import { authenticateNativeSession } from "@/lib/nativeAuthSession";
 
@@ -45,17 +45,6 @@ export function nativeSessionCanInstall(session: Session, now = Date.now()): boo
     // setSession refreshes an expired replacement token and may clear the existing account on refusal.
     return typeof claims.exp === "number" && Number.isFinite(claims.exp) && claims.exp > now / 1000 + 60;
   } catch { return false; }
-}
-
-/** Native provider sign-in establishes a signed-out account. Existing accounts use Switch account. */
-export async function installNativeSession(
-  auth: Pick<Auth, "getSession" | "setSession">,
-  session: Session,
-  current: () => boolean,
-): Promise<Installation | null> {
-  const active = await auth.getSession();
-  if (active.error || active.data.session || !current()) return null;
-  return auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
 }
 
 /** Exchange in the original PKCE client, verify remotely, then install through the canonical client. */

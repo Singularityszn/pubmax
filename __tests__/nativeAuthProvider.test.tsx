@@ -20,16 +20,15 @@ vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => h.platform, isNativeApp: () => h.platform !== null }));
 vi.mock("@/lib/nativeOAuth", () => ({ oauthOpensInSystemBrowser: () => h.platform !== null, openOAuthInSystemBrowser: h.openBrowser }));
-vi.mock("@/lib/nativeAuthClient", () => ({ createNativeAuthClient: async () => ({ auth: {
-  signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {},
-} }) }));
 vi.mock("@/lib/nativeAuthSession", async (original) => ({
   ...await original<typeof import("@/lib/nativeAuthSession")>(),
   nativeAuthSessionAvailable: async () => h.available,
   authenticateNativeSession: h.authenticate,
   cancelNativeAuthSession: h.cancel,
 }));
-vi.mock("@/lib/authClient", () => ({
+vi.mock("@/lib/authClient", async (original) => ({
+  ...await original<typeof import("@/lib/authClient")>(),
+  createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
   isAuthConfigured: () => true,
   ensureSupabaseBrowser: async () => ({ auth: {
     signInWithOAuth: h.canonicalOAuth, setSession: h.setSession, signOut: h.signOut,
