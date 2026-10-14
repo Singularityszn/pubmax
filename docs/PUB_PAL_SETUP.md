@@ -58,6 +58,71 @@ Generated preview audio and the voice id env lines land in `artifacts/pubpal-voi
 
 ---
 
+## Changing only transcript deletion
+
+The captain can use the deletion-only command after separately approving a live operation.
+Privacy applies to the whole agent across every branch. ElevenLabs permits this update only on Main.
+A private branch does not establish traffic isolation.
+
+The release owner must provide an attestation file for the exact executing agent and Main branch.
+The file must contain these fields with the approved identities and explicit `true` values:
+
+```json
+{
+  "agent_id": "agent_APPROVED_TARGET",
+  "branch_id": "APPROVED_MAIN_BRANCH",
+  "target_is_main": true,
+  "whole_agent_traffic_isolated": true,
+  "executing_binding_verified": true,
+  "remote_exclusive_writer_verified": true,
+  "live_operation_approved": true
+}
+```
+
+This file records owner attestations. The command cannot establish remote isolation or writer ownership itself.
+Neither source approval nor synthetic tests authorise a provider operation.
+
+```bash
+npm run pubpal:agent -- --privacy-delete-only \
+  --agent-id agent_APPROVED_TARGET \
+  --branch-id APPROVED_MAIN_BRANCH \
+  --privacy-attestation path/to/owner-attestation.json
+```
+
+This command uses the existing `ELEVENLABS_API_KEY` environment value.
+It does not load local environment files, discover agents, or read or write workspace tools and secrets.
+It rejects `--check` and `--dry-run` combinations before any request.
+The existing provisioner retains its own check and dry-run behaviour.
+
+The command requires matching agent, branch and Main identities in the scoped pre-read.
+It validates the complete writable configuration against the pinned update-input models.
+It preserves optional presence, nulls, false values, zeros, array order, settings and opaque credential references.
+It publishes the explicit current procedure versions, including an established empty map.
+Missing procedure membership or unpublished versions cause refusal before PATCH.
+
+The closed contract is in `scripts/pubpal/privacy-delete-only.mjs`.
+Its 435 normalised models derive from the public OpenAPI snapshot with SHA-256
+`46ac8c4c216f924978560b0aafb81ef9fa642da6ef44a924f817d02d3bf71668`.
+The acquisition contract has SHA-256
+`3673443de6adc846ae7425e19f879af6b4f948c7adc2ff7132f74dd23ea958f2`.
+The separately documented typed configuration roots constrain the endpoint's generic maps.
+Schema defaults never create absent fields.
+Unknown named fields, unsupported input variants and unpreservable values cause refusal.
+The operation excludes response-only identity, metadata, platform safety and read-only hold-audio fields from PATCH.
+It refuses inline shareable tokens, static SIP headers and inline request headers except Content-Type.
+The pinned response contract cannot establish that these sensitive inline values are unmasked.
+Prompt text does not undergo a redaction-word heuristic.
+
+A successful mutation makes at most one scoped GET, one PATCH and one GET.
+Only `platform_settings.privacy.delete_transcript_and_pii` changes to `true`.
+The post-read must retain the same identities and every untargeted writable value.
+An already enabled, validated target needs only the pre-read and makes no write.
+HTTP failures, ambiguous failures and readback differences cause failure without retries or extra writes.
+The command prints no provider payload, prompt, credential or error response.
+The owner must reconcile a failed or ambiguous operation before another attempt.
+
+---
+
 ## Creating the agent
 
 ```bash
