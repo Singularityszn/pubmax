@@ -1,4 +1,4 @@
-// Browser-only Supabase client (singleton) for OAuth and passwordless email sign-in.
+// Browser-only Supabase clients for OAuth and passwordless email sign-in.
 //
 // This is DISTINCT from lib/supabase.ts: that module is the server-only ADMIN
 // client (service-role key, no session persistence, all writes route through it).
@@ -6,13 +6,12 @@
 // and its only job is to establish an authenticated session (identity) via
 // Supabase Auth. It never touches privileged tables.
 //
-// Flow: implicit. Supabase returns the session tokens in the callback URL
-// fragment, so ANY browser can complete sign-in — not only the one that
-// requested the link. PKCE was abandoned deliberately: its code-verifier lives
-// in the requesting browser's localStorage, so an email magic link opened in a
-// different browser (Gmail app → Safari) could never finish the exchange.
-// AuthProvider explicitly establishes the session from the marked callback —
-// see components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
+// The canonical singleton uses implicit auth so an email link can complete
+// in another browser. A verifier confined to the requesting browser would
+// prevent that exchange. AuthProvider establishes the marked callback session.
+// The separate iPhone PKCE client and guarded canonical installer follow
+// docs/rules/ios-native-auth-return.md. The email transport is owned by
+// docs/rules/ios-native-email-return.md.
 
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { isAuthAttemptId } from "@/lib/authRedirect";

@@ -7,6 +7,8 @@
 //             token at Supabase Auth for a fresh session; rotates the cookie
 //   POST    { action: "resume", callbackUrl }    send a magic link to the
 //             cookie's email without the user retyping it
+//             codeChallenge is required only for the native email relay.
+//             See docs/rules/ios-native-email-return.md.
 //   DELETE  → clears the cookie (sign-out)
 //
 // The refresh token only ever moves between this route's HttpOnly cookie and
