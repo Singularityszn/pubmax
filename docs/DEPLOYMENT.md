@@ -159,7 +159,7 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard â†
 
 ### 3. Browser sign-in (email magic link + Google + Apple + Microsoft)
 
-The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam.
+The web and Android paths call Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google, Apple, or Microsoft (Supabase provider id `azure`). All four methods request the canonical site's `/auth/callback`, then return to the path where sign-in started. The canonical browser client uses the implicit flow, with tokens in the URL fragment. `AuthProvider` captures and scrubs them before asynchronous verification or session installation. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. The separate iPhone paths follow the [provider-return contract](rules/ios-native-auth-return.md) and [email-return contract](rules/ios-native-email-return.md).
 
 App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
 
@@ -273,7 +273,7 @@ team members while keeping Preview deployments reviewable.
 
 The UI deliberately gives the same success message for every address and replaces provider failures with normalized retry/rate-limit copy. This prevents the client from becoming an account-enumeration oracle. Supabase remains the enforcement point for actual email sending and rate limits.
 
-**Wrapped shell / deep links:** the current Capacitor app is a remote-URL shell and the magic link is HTTPS. A link opened outside the shell follows the [browser sign-in callback contract](#3-browser-sign-in-email-magic-link--google--apple--microsoft). Browser completion does not establish a session inside the shell. Native return-to-app auth remains an owner/configuration item: verified Associated Domains/Android App Links plus an auth-specific handoff must be designed and device-tested before claiming in-shell magic-link completion. Do not change the dashboard redirect to a custom scheme; the web callback and existing universal-link seam are the safe starting point.
+**Wrapped shell / deep links:** the [iPhone email-return contract](rules/ios-native-email-return.md) owns return-to-app authentication and its device acceptance requirements. Android and browser email keep the [browser sign-in callback contract](#3-browser-sign-in-email-magic-link--google--apple--microsoft). Browser completion does not establish a session inside the shell. Supabase still redirects to the canonical HTTPS callback. Do not change the dashboard redirect to a custom scheme.
 
 Vercel must attach both `pubmaxxing.com` and `www.pubmaxxing.com` to the same production project, with `www.pubmaxxing.com` permanently redirecting to the canonical apex. After an explicitly authorised deployment, verify that the apex returns the release, the `www` redirect preserves the path and query string, and both TLS certificates are valid:
 
@@ -357,20 +357,13 @@ account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 
-This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
-
-```sh
-npm run deploy:preview
-vercel promote <deployment-url>
-```
-
-`npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
-uploading. An authenticated `GET /api/version` names that commit (see below).
-An unauthenticated request returns `ok` and `deploymentId`, and never the commit. The command forwards every argument.
+Use the [release procedure](#one-release-command) for production staging, deployment identity checks, promotion, and smoke verification.
+`npm run deploy:preview` creates review deployments. It does not establish production release readiness.
+The [deployment identity guide](#which-commit-is-this-deploy-serving) explains its commit stamp.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
-`docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
+The [soft-launch runbook](SOFT_LAUNCH_RUNBOOK.md#12-promote-after-deploy) owns the launch-specific checks after promotion.
 
 ### One release command
 
@@ -382,10 +375,12 @@ This is the way to ship to production. It runs these steps in order and stops at
 
 1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
 2. It runs `npm run check:migration-ledger` and refuses when production lacks a migration the repo ships.
-3. It deploys with `scripts/deploy-vercel.mjs`, so the build stamps the commit.
+3. It stages with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build uses Production values and stamps the commit without assigning domains.
 4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
 5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
 6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+
+Promotion does not rebuild the artifact or substitute Production values into a Preview build. The staged build must already target Production before promotion.
 
 A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
 

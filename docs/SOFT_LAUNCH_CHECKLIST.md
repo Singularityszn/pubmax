@@ -119,9 +119,9 @@ Nothing in section 2 starts until the captain says so. The order is the point.
 | 2.1 | Confirm section 1 is complete and dated | Captain | Every row in section 5 carries a date. | This file, section 5 |
 | 2.2 | Apply any outstanding migration | Captain | `supabase migration list` shows the release set. Agents ship SQL only. Runbook 1.3. | `supabase db push --include-all` |
 | 2.3 | Confirm the production environment | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off`, `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, every secret set. Runbook 1.4. | Vercel, Project, Settings, Environment Variables |
-| 2.4 | Deploy | Captain | A build id from Vercel. Never pass `--prebuilt` from a Mac. | `vercel deploy` |
-| 2.5 | Promote | Captain | The promoted deployment id, recorded. Promotion repoints traffic and does not rebuild. | `vercel promote <deployment-url>` |
-| 2.6 | Both hosts serve the release | Fleet | Two 200 answers carrying the release build. | `curl -sSIL https://pubmaxxing.com/map` and `curl -sSIL https://www.pubmaxxing.com/map` |
+| 2.4 | Release | Captain | The [release procedure](DEPLOYMENT.md#one-release-command) completes with its deployment identity and smoke verdict. | `npm run release:prod` |
+| 2.5 | Record promotion | Captain | The promoted deployment id from step 2.4, recorded. | Release receipt from step 2.4 |
+| 2.6 | Both hosts resolve to the release | Fleet | The apex returns 200. The `www` host redirects to the apex and preserves the path and query. | `curl -sSIL https://pubmaxxing.com/map` and `curl -sSIL https://www.pubmaxxing.com/map` |
 | 2.7 | Production smoke | Fleet | Every row of the runbook smoke grid passes on the production host. | Runbook section 2 |
 | 2.8 | The title markers answer | Fleet | Both greps match. | `curl --fail --silent --location https://pubmaxxing.com/map \| grep -F '<title>Map · PUBMAXXING</title>'` |
 | 2.9 | Freshness on production | Fleet | `summary` carries no `stale` and no `unknown`; `communityPrices.degraded` is `false`. | `curl -sS https://pubmaxxing.com/api/freshness` |
