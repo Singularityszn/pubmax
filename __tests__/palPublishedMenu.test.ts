@@ -245,6 +245,84 @@ it.each([
   });
 });
 
+it.each(dietaryBoundaries)("preserves dietary budget selection through %s", async (boundary) => {
+  const query = "Vegan food under £10 at The New Inn";
+  let cards: AskCard[];
+  let answer: string;
+  if (boundary === "reader") {
+    ({ cards } = await publishedMenuCards("venue-17qpap6", query));
+    answer = publishedMenuAnswer(cards);
+  } else if (boundary === "ask" || boundary === "keyless chat") {
+    const response = await (boundary === "ask" ? ask : chat)(request(query));
+    expect(response.status).toBe(200);
+    ({ cards, answer } = await response.json());
+  } else if (boundary === "chat session") {
+    const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+    const result = await session(query, "london");
+    if (!result || result.status === "error") throw new Error("Chat session returned no answer");
+    ({ cards, message: answer } = result);
+  } else if (boundary === "tool dispatch") {
+    const result = await runAskTool("venue_prices", { venueName: "The Lamb", query: "Pint at The Lamb" }, { query, cityId: "london", skipModel: true });
+    ({ cards } = result);
+    answer = result.answerHint ?? "";
+  } else {
+    await registerPubPalToolTurn("conv_budgetauthority01", { query, cityId: "london", ownerId: "menu-owner" });
+    if (boundary === "configured chat") {
+      vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+      vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+      const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+      vi.stubGlobal("fetch", fetcher);
+      const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_budgetauthority01" });
+      if (!result.ok) throw new Error("Configured interception failed");
+      ({ cards, message: answer } = result);
+      expect(fetcher).not.toHaveBeenCalled();
+    } else {
+      vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+      const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+        body: JSON.stringify({ conversation_id: "conv_budgetauthority01", parameters: { query: "Food at The New Inn", venueName: "The New Inn" } }),
+      }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+      expect(response.status).toBe(200);
+      ({ cards, answerHint: answer } = (await response.json()).result);
+    }
+    const replay = await readOwnedPubPalToolTurn("conv_budgetauthority01", "menu-owner");
+    expect(replay?.query).toBe(query);
+    expect(replay?.cards).toEqual(cards);
+    expect(replay?.hints).toContain(answer);
+    expect(await readOwnedPubPalToolTurn("conv_budgetauthority01", "another-owner")).toBeNull();
+  }
+  expect(cards).toHaveLength(5);
+  expect(cards).toContainEqual(expect.objectContaining({ price: 5,
+    menuEvidence: expect.objectContaining({ itemName: "Mixed Olives", currency: "GBP", caloriesKcal: 163,
+      dietary: ["vegan", "vegetarian"], availability: "unknown",
+      sourceUrl: "https://www.newinnealing.com/food-and-drink", observedAt: "2026-10-13T09:43:11.443Z",
+    }),
+  }));
+  for (const card of cards) {
+    expect(card.price).toBeLessThan(10);
+    expect(card.menuEvidence?.dietary).toContain("vegan");
+    expect(card.menuEvidence?.dietaryProvenance?.sourceUrl).toBe("https://www.newinnealing.com/food-and-drink");
+  }
+  expect(answer).toContain("£5.00");
+  expect(answer).toContain("163 kcal published for this item.");
+  expect(answer).toContain("Availability unknown.");
+});
+
+it.each([
+  ["Vegan food under GBP10 at The New Inn", ["Mixed Olives", "Padron Peppers", "Red Pepper Hummus", "French  Fries", "Tenderstem Broccoli and Chili"]],
+  ["Vegan food under £5.50 at The New Inn", ["Mixed Olives", "French  Fries"]],
+  ["Vegan food under £5 at The New Inn", []],
+  ["Vegan food under £0 at The New Inn", []],
+  ["Vegan vegetarian food under £10 at The New Inn", ["Mixed Olives", "French  Fries"]],
+  ["Vegan gluten-free food under £10 at The New Inn", []],
+  ["Vegan sausage roll price under £10 at The New Inn", []],
+  ["Mixed Olives price under £5.01 at The New Inn", ["Mixed Olives"]],
+  ["Price of 8oz Mixed Olives under £10 at The New Inn", []],
+] as const)("preserves budget boundaries and menu constraints: %s", async (query, names) => {
+  const { cards } = await publishedMenuCards("venue-17qpap6", query);
+  expect(cards.map((card) => card.menuEvidence?.itemName)).toEqual(names);
+});
+
 it.each([ask, chat])("returns accepted New Inn facts through a public POST", async (post) => {
   const detail = await venue(new Request("http://localhost/api/venue/venue-17qpap6"), { params: Promise.resolve({ id: "venue-17qpap6" }) });
   const { venue: pub } = await detail.json();
