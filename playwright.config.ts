@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { resolve } from "node:path";
 import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -53,6 +54,7 @@ const AUTH_BASE_URL = `http://localhost:${AUTH_PORT}`;
 const AUTH_NEXT_DIST_DIR =
   process.env.PW_AUTH_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-auth`;
 const E2E_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "--max-old-space-size=4096";
+const JOURNEY_FIXTURE_NODE_OPTIONS = `${E2E_NODE_OPTIONS} --require ${JSON.stringify(resolve("e2e/fixtures/cityMcpJourney.cjs"))}`;
 const E2E_TRACKED_OUTPUTS_ALLOWLIST =
   process.env.PUBMAX_TRACKED_OUTPUTS ?? (process.env.CI ? "public/data" : "");
 // Production-style browser tests retain the keyless in-memory stores, but
@@ -409,7 +411,7 @@ export default defineConfig({
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {
-          NODE_OPTIONS: E2E_NODE_OPTIONS,
+          NODE_OPTIONS: DISPOSABLE_PLAN_DB ? E2E_NODE_OPTIONS : JOURNEY_FIXTURE_NODE_OPTIONS,
           NEXT_DIST_DIR,
           // E2E builds run from a checkout whose generated data is stamped
           // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
