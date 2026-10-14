@@ -29,7 +29,7 @@ let updateAccount: (user: User | null) => void;
 let setMounted: (mounted: boolean) => void;
 let start: ReturnType<typeof vi.fn<() => Promise<Result>>>;
 let signOut: ReturnType<typeof vi.fn<() => Promise<void>>>;
-let cancel: ReturnType<typeof vi.fn>;
+let cancel: ReturnType<typeof vi.fn<AuthContextValue["cancelAuthAttempt"]>>;
 const account: User = {
   id: "account-a", email: "a@example.test", user_metadata: {},
   app_metadata: {}, aud: "authenticated", created_at: "2026-10-14T00:00:00Z",
@@ -91,7 +91,7 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/login");
   vi.stubGlobal("fetch", async () => Response.json({}));
   setProviderIdentity("supabase", null); setProviderIdentity("clerk", null);
-  start = vi.fn(); signOut = vi.fn(); cancel = vi.fn();
+  start = vi.fn(); signOut = vi.fn(); cancel = vi.fn<AuthContextValue["cancelAuthAttempt"]>();
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => {
