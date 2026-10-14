@@ -49,7 +49,7 @@ import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { DEFAULT_DRINK_LANE, orderVenueDrinkPrices } from "@/lib/drinkLanes";
-import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
+import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
   rankBoroughCheapest,
   rankCityCheapest,
@@ -372,24 +372,11 @@ export async function toolTonightNow(
 
 // ---------------------------------------------------------------------------
 
-export async function toolVenueDrinks(
+function resolveVenueDrinksTarget(
+  venues: readonly ConciergeVenue[],
   args: AskToolArgs,
-  ctx: AskToolContext,
-): Promise<AskToolResult> {
-  const requestedCategory = args.drinkCategory;
-  if (requestedCategory !== undefined && !isDrinkCategory(requestedCategory)) {
-    return {
-      ok: false,
-      tool: "venue_drinks",
-      data: null,
-      provenance: [],
-      cards: [],
-      proposals: [],
-      answerHint: "That drink category is not supported. Ask for a pub's recorded drinks.",
-    };
-  }
-  const drinkCategory = requestedCategory ?? null;
-  const venues = await loadConciergeVenues(ctx.cityId);
+  query: string,
+) {
   const venueId = str(args.venueId);
   // This tool reads ONE pub. A routed name is matched on an exact or prefix
   // name only, and a word that names a borough is refused outright, because a
@@ -410,11 +397,66 @@ export async function toolVenueDrinks(
     ?? uniqueExactVenueNameMatch(menuVenues, `The ${withoutLeadingArticle(menuName)}`)
     ?? uniqueExactVenueNameMatch(menuVenues.filter((candidate) => candidate.canonical), menuName)
     ?? uniqueExactVenueNameMatch(menuVenues.filter((candidate) => candidate.canonical), `The ${withoutLeadingArticle(menuName)}`);
-  const isMenuRequest = resolveAskPriceIntent(ctx.query).kind === "menu";
+  const isMenuRequest = resolveAskPriceIntent(query).kind === "menu";
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
     (namesArea ? null : isMenuRequest || menuArea ? namedMenuVenue : matchVenue(venues, venueNameArg, "strict")) ??
-    (venueNameArg ? null : matchVenue(venues, ctx.query, "strict"));
+    (venueNameArg ? null : matchVenue(venues, query, "strict"));
+
+  return { venue, venueId, namedMenuVenue, isMenuRequest };
+}
+
+function venueDrinkAnswerHint({
+  venue,
+  drinkCategory,
+  readDegraded,
+  figures,
+  includeListedPint,
+  menuReadAllowed,
+  menu,
+}: {
+  venue: ConciergeVenue;
+  drinkCategory: DrinkCategory | null;
+  readDegraded: boolean;
+  figures: number;
+  includeListedPint: boolean;
+  menuReadAllowed: boolean;
+  menu: Awaited<ReturnType<typeof publishedMenuCards>>;
+}): string {
+  const status = readDegraded ? "unavailable" : "ready";
+  const categoryName = drinkCategory ? categoryLabel(drinkCategory).toLocaleLowerCase("en-GB") : null;
+  return categoryName
+    ? [
+        readDegraded ? `I couldn't read people-logged ${categoryName} prices at ${venue.name}.` : null,
+        figures > 0
+          ? `${venue.name}: ${figures} people-logged ${categoryName} ${figures === 1 ? "figure" : "figures"}.`
+          : readDegraded ? null : `No people-logged ${categoryName} prices recorded at ${venue.name} yet.`,
+        includeListedPint && venue.cheapestPrice != null ? `Listed pint: ${formatGbp(venue.cheapestPrice)}.` : null,
+        !menuReadAllowed ? "Name the pub's area to read its published menu prices." : menu.cards.length ? publishedMenuAnswer(menu.cards) : menu.unavailable
+          ? "Published menu prices could not be read." : "No accepted published drink prices match this category.",
+      ].filter(Boolean).join(" ")
+    : [venueDrinksAnswerLine({ venueName: venue.name, figures: figures + (includeListedPint && venue.cheapestPrice != null ? 1 : 0), read: status }), publishedMenuAnswer(menu.cards)].filter(Boolean).join(" ");
+}
+
+export async function toolVenueDrinks(
+  args: AskToolArgs,
+  ctx: AskToolContext,
+): Promise<AskToolResult> {
+  const requestedCategory = args.drinkCategory;
+  if (requestedCategory !== undefined && !isDrinkCategory(requestedCategory)) {
+    return {
+      ok: false,
+      tool: "venue_drinks",
+      data: null,
+      provenance: [],
+      cards: [],
+      proposals: [],
+      answerHint: "That drink category is not supported. Ask for a pub's recorded drinks.",
+    };
+  }
+  const drinkCategory = requestedCategory ?? null;
+  const venues = await loadConciergeVenues(ctx.cityId);
+  const { venue, venueId, namedMenuVenue, isMenuRequest } = resolveVenueDrinksTarget(venues, args, ctx.query);
 
   if (!venue) {
     return {
@@ -482,18 +524,15 @@ export async function toolVenueDrinks(
   }
 
   cards.push(...menu.cards);
-  const categoryName = drinkCategory ? categoryLabel(drinkCategory).toLocaleLowerCase("en-GB") : null;
-  const answerHint = categoryName
-    ? [
-        read.degraded ? `I couldn't read people-logged ${categoryName} prices at ${venue.name}.` : null,
-        rows.length > 0
-          ? `${venue.name}: ${rows.length} people-logged ${categoryName} ${rows.length === 1 ? "figure" : "figures"}.`
-          : read.degraded ? null : `No people-logged ${categoryName} prices recorded at ${venue.name} yet.`,
-        includeListedPint && venue.cheapestPrice != null ? `Listed pint: ${formatGbp(venue.cheapestPrice)}.` : null,
-        !menuReadAllowed ? "Name the pub's area to read its published menu prices." : menu.cards.length ? publishedMenuAnswer(menu.cards) : menu.unavailable
-          ? "Published menu prices could not be read." : "No accepted published drink prices match this category.",
-      ].filter(Boolean).join(" ")
-    : [venueDrinksAnswerLine({ venueName: venue.name, figures: rows.length + (includeListedPint && venue.cheapestPrice != null ? 1 : 0), read: status }), publishedMenuAnswer(menu.cards)].filter(Boolean).join(" ");
+  const answerHint = venueDrinkAnswerHint({
+    venue,
+    drinkCategory,
+    readDegraded: read.degraded,
+    figures: rows.length,
+    includeListedPint,
+    menuReadAllowed,
+    menu,
+  });
 
   return {
     ok: true,
