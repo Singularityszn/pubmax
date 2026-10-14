@@ -107,7 +107,9 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 });
 
 for (const { width, height } of [
+  { width: 641, height: 900 },
   { width: 800, height: 900 },
+  { width: 900, height: 900 },
   { width: 1440, height: 582 },
   { width: 1440, height: 900 },
 ]) {
@@ -155,6 +157,13 @@ for (const { width, height } of [
       expect(rect!.x + rect!.width).toBeLessThanOrEqual(width);
       await control.click();
       await expect(control).toHaveAttribute("aria-pressed", "true");
+      const panelAfter = await panel.boundingBox();
+      expect(panelAfter!.x).toBeGreaterThanOrEqual(0);
+      expect(panelAfter!.x + panelAfter!.width).toBeLessThanOrEqual(width);
+      await expect.poll(() => control.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        return node.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+      })).toBe(true);
       if (label !== "All") {
         await expect(toolbar.getByRole("button", { name: /^Drink:/ })).toHaveCount(0);
         await expect(toolbar.locator(".drinkShapeChips")).toHaveCount(0);

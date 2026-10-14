@@ -43,6 +43,7 @@ import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 import { agentDrift, formatDrift } from "./agent-drift.mjs";
 import { resolveExistingTools } from "./existing-tools.mjs";
+import { privacyDeleteOnly } from "./privacy-delete-only.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -493,6 +494,18 @@ async function checkAgent(apiKey, baseUrl) {
 }
 
 async function main() {
+  if (process.argv.includes("--privacy-delete-only")) {
+    if (process.argv.includes("--check") || process.argv.includes("--dry-run")) {
+      fail("--privacy-delete-only cannot be combined with --check or --dry-run.");
+    }
+    await privacyDeleteOnly({
+      agentId: arg("agent-id"),
+      branchId: arg("branch-id"),
+      attestationFile: arg("privacy-attestation"),
+      apiKey: process.env.ELEVENLABS_API_KEY?.trim(),
+    });
+    return;
+  }
   loadDotEnv();
 
   const dryRun = process.argv.includes("--dry-run");
