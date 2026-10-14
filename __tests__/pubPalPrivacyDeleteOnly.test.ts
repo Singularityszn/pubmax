@@ -88,13 +88,21 @@ function run(agent = currentAgent(), options: Json = {}) {
 
 afterEach(() => { while (directories.length) rmSync(directories.pop()!, { recursive: true, force: true }); });
 
+function patchBody(result: ReturnType<typeof run>): Json {
+  const call = result.calls[1];
+  if (!call || call.method !== "PATCH" || typeof call.body !== "string") {
+    throw new Error("Expected the second request to contain a PATCH body.");
+  }
+  return JSON.parse(call.body);
+}
+
 describe("deletion-only provisioner transport", () => {
   it("serializes one privacy change and preserves every other writable value", () => {
     const agent = currentAgent();
     const result = run(agent);
     expect(result.status, result.output).toBe(0);
     expect(result.calls.map((call) => call.method)).toEqual(["GET", "PATCH", "GET"]);
-    const body = JSON.parse(result.calls[1].body!);
+    const body = patchBody(result);
     const expected = structuredClone(agent);
     for (const key of ["agent_id", "branch_id", "main_branch_id", "metadata"]) delete expected[key];
     delete expected.platform_settings.safety;
@@ -110,7 +118,7 @@ describe("deletion-only provisioner transport", () => {
     if (presence === "absent") delete agent.conversation_config.agent.prompt.reasoning_effort;
     const result = run(agent);
     expect(result.status, result.output).toBe(0);
-    const body = JSON.parse(result.calls[1].body!);
+    const body = patchBody(result);
     expect(Object.hasOwn(body.conversation_config.agent.prompt, "reasoning_effort")).toBe(presence === "null");
     expect(body.conversation_config.agent.prompt.reasoning_effort).toBe(presence === "null" ? null : undefined);
     expect(Object.hasOwn(body.conversation_config.agent.prompt, "rag")).toBe(false);
@@ -127,7 +135,7 @@ describe("deletion-only provisioner transport", () => {
     agent.platform_settings.alerting = { notifiers: [{ type: "webhook", webhook_id: "webhook_synthetic" }], monitor_configs: {} };
     const result = run(agent);
     expect(result.status, result.output).toBe(0);
-    const body = JSON.parse(result.calls[1].body!);
+    const body = patchBody(result);
     expect(body.conversation_config).toEqual(agent.conversation_config);
     expect(body.platform_settings.alerting).toEqual(agent.platform_settings.alerting);
     expect(body.platform_settings.queueing_config).toEqual({ enabled: false, wait_timeout_seconds: 180 });
@@ -138,7 +146,7 @@ describe("deletion-only provisioner transport", () => {
     agent.procedures = {};
     const result = run(agent);
     expect(result.status, result.output).toBe(0);
-    expect(JSON.parse(result.calls[1].body!).procedures).toEqual({});
+    expect(patchBody(result).procedures).toEqual({});
   });
 
   it("makes no write when the validated target already enables deletion", () => {
