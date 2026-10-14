@@ -81,6 +81,10 @@ for (const query of [
     expect(body.toolsUsed).toEqual(["journey"]);
     expect(body.cards.length, `Journey service returned no canonical destination evidence: ${body.answer}`).toBeGreaterThan(0);
     expect(body.cards.every((card: { venueId: string; place: string }) => card.venueId === "venue-phg4ss" && card.place === "Fox and Anchor")).toBe(true);
+    // Distinct upstream fixtures catch a lost origin as well as a lost destination.
+    const durationMinutes = query.includes("Fox and Firkin") ? 42 : query.includes("Kings Cross") ? 18 : 12;
+    expect(body.cards).toHaveLength(1);
+    expect(body.cards[0].note).toBe(`${durationMinutes} min`);
     expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue", venueId: "venue-phg4ss" }));
     expect(body.proposals.every((proposal: { kind: string; venueId: string }) => proposal.kind === "open_venue" && proposal.venueId === "venue-phg4ss")).toBe(true);
     expect(body.answer).toMatch(/journey/i);
