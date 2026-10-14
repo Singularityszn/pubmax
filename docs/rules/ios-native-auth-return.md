@@ -22,7 +22,7 @@ Referral attribution, return fragments, account onboarding and consent continue 
 
 The Supabase redirect allowlist must admit the canonical HTTPS callback with `native=ios-pkce` and `_authAttempt`. A custom-scheme allowlist entry is unnecessary because Supabase returns to HTTPS first. This source change does not modify production settings.
 
-Focused proof lives in `__tests__/nativeAuthCallbackRoute.test.ts`, `nativeAuthClient.test.ts`, `nativeIOSOAuth.test.ts`, `nativeAuthProvider.test.tsx` and `nativeSessionInstall.test.ts`. The installed-SDK regression proves why an existing account cannot receive a replacement through this path. A failed second user lookup can otherwise clear the unrelated account. The Swift callback gate has executable Foundation checks in `ios/Tests/NativeAuthCallbackTests.swift`.
+Focused proof lives in `__tests__/nativeAuthCallbackRoute.test.ts`, `__tests__/nativeAuthClient.test.ts`, `__tests__/nativeIOSOAuth.test.ts`, `__tests__/nativeAuthProvider.test.tsx` and `__tests__/nativeSessionInstall.test.ts`. The installed-SDK regression proves why an existing account cannot receive a replacement through this path. A failed second user lookup can otherwise clear the unrelated account. The Swift callback gate has executable Foundation checks in `ios/Tests/NativeAuthCallbackTests.swift`.
 
 Run the Swift checks without an app build:
 
