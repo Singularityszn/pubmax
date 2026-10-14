@@ -29,6 +29,7 @@ const toolbarIsInert = (page: Page) =>
   page.locator(".mapToolbar").evaluate((node) => node.closest("[inert]") !== null);
 
 test.describe("desktop toolbar beside the venue drawer", () => {
+  test.use({ serviceWorkers: "block" });
   test("visible site navigation stays usable while a pub is open", async ({ page }) => {
     await openDesktopMap(page, 1440);
     await selectFirstToolbarVenue(page, "Princess Louise");
