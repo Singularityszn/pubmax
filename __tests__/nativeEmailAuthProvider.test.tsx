@@ -767,10 +767,17 @@ describe("mounted native cancellation with the installed canonical SDK", () => {
     root = createRoot(container);
     await act(async () => root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))));
     const { rememberDeviceAccount, readDeviceAccounts } = await import("@/lib/deviceAccountSessions");
-    rememberDeviceAccount(localStorage, { userId: "original", refreshToken: "original-refresh", handle: "original_owner" });
+    const originalLastActiveAt = 1_700_000_000_000;
+    rememberDeviceAccount(localStorage, { userId: "original", refreshToken: "original-refresh", handle: "original_owner" }, originalLastActiveAt);
     localStorage.setItem("pubmax_handle", "original_owner");
     localStorage.setItem("pubmax_account_owner", "original");
     const originalRecords = readDeviceAccounts(localStorage);
+    expect(originalRecords).toMatchObject([{
+      userId: "original",
+      refreshToken: "original-refresh",
+      handle: "original_owner",
+      lastActiveAt: originalLastActiveAt,
+    }]);
     for (const method of ["email", "google", "apple", "microsoft"] as const) {
       nativeUserReads = 0; expectedRead = method === "email" ? 2 : 1; verifying = false;
       delay = new Promise<void>((resolve) => { release = resolve; });
