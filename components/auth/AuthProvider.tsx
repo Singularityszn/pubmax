@@ -127,6 +127,7 @@ import {
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
+  readProviderAccountSignal,
   readProviderAuthState,
   readProviderIdentityRevision,
   resolveSupabaseAuthState,
@@ -317,6 +318,7 @@ export function AuthProvider({
     readProviderIdentityRevision,
     () => 0,
   );
+  const providerAccountSignal = readProviderAccountSignal();
   const [session, setSession] = useState<Session | null>(null);
   // Who the app may say this is. "unknown" is not "nobody": a signed-in account
   // whose canonical handle has not come back yet must render neutral rather
@@ -457,7 +459,10 @@ export function AuthProvider({
   useEffect(() => {
     const user = session?.user ?? null;
     let active = true;
+    const current = () => active && !providerAccountSignal.aborted &&
+      getCurrentUserId() === (user?.id ?? null);
     const onChanged = (event: Event) => {
+      if (!current()) return;
       const handle = identityHandleForOwner(
         (event as CustomEvent<unknown>).detail,
         user?.id ?? null,
@@ -473,7 +478,7 @@ export function AuthProvider({
     window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     async function loadCanonicalHandle() {
       if (!user) {
-        if (active) setCanonicalIdentityState(NOBODY_IDENTITY);
+        if (current()) setCanonicalIdentityState(NOBODY_IDENTITY);
         return;
       }
       const resolution = await resolveCanonicalIdentity(
@@ -481,11 +486,11 @@ export function AuthProvider({
         session,
         browserLocalStorage(),
         undefined,
-        () => active && getCurrentUserId() === user.id,
+        current,
       ).catch(() => null);
       // A read that failed is not evidence the account has no handle, so the
       // answer stays unknown rather than becoming a confident "nobody".
-      if (!active || !resolution?.ok) return;
+      if (!current() || !resolution?.ok) return;
       setCanonicalIdentityState({
         status: "resolved",
         identity: resolution.identity,
@@ -500,7 +505,7 @@ export function AuthProvider({
       active = false;
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
-  }, [session, identityReadAttempt, getCurrentUserId]);
+  }, [session, identityReadAttempt, getCurrentUserId, providerAccountSignal]);
 
   useEffect(() => {
     // Capture callback inputs once across React Strict Mode's effect replay and
@@ -747,6 +752,9 @@ export function AuthProvider({
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
+          const accountSignal = readProviderAccountSignal();
+          const current = () => active && !accountSignal.aborted &&
+            sessionTransitions.current.currentUserId() === exchangedSession.user.id;
           setSessionLoading(false);
           if (!captured.localAttemptOwned) {
             setAuthSignedInNotice(
@@ -759,6 +767,7 @@ export function AuthProvider({
           const referralClaimed = claimSignupReferralFromAuthCallback({
             currentUrl: window.location.href,
             callback: callbackAttempt,
+            current,
             request: (input, init) =>
               authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
             replaceUrl: (cleanUrl) => {
@@ -770,15 +779,17 @@ export function AuthProvider({
           // claimed handle lands on the claim surface.
           void referralClaimed
             .catch(() => {})
-            .then(() =>
-              handleClaimRouteAfterSignIn(
+            .then(() => current()
+              ? handleClaimRouteAfterSignIn(
                 exchangedSession,
                 captured.cleanUrl,
                 browserLocalStorage(),
-              ),
+                undefined,
+                current,
+              ) : null,
             )
             .then((destination) => {
-              if (destination && active) window.location.assign(destination);
+              if (destination && current()) window.location.assign(destination);
             })
             .catch(() => {});
         }
@@ -933,7 +944,9 @@ export function AuthProvider({
   const finishNativeSignIn = useCallback((result: { session: Session; captured: CapturedAuthCallback }, current: () => boolean) => {
     if (!current() || !finishNativeSessionInstallation(result.session)) return;
     publishAuthEvent.current?.("SIGNED_IN", result.session);
-    const ownsAccount = () => current() && sessionTransitions.current.currentUserId() === result.session.user.id;
+    const accountSignal = readProviderAccountSignal();
+    const ownsAccount = () => current() && !accountSignal.aborted &&
+      sessionTransitions.current.currentUserId() === result.session.user.id;
     if (!ownsAccount()) return;
     setSessionLoading(false);
     setAuthCallbackError(null);

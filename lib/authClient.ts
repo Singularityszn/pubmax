@@ -117,10 +117,13 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
           const pending = nativeInstallation;
           const response = await request(input, init);
           if (pending?.auth === cached?.auth && pending && !response.ok &&
-              new URL(String(input)).pathname === "/auth/v1/user" &&
-              new Headers(init?.headers).get("authorization") === `Bearer ${pending.session.access_token}`) {
-            discardBody(response);
-            throw new Error("Native session verification failed.");
+              new URL(String(input)).pathname === "/auth/v1/user") {
+            for (const [name, value] of new Headers(init?.headers)) {
+              if (name === "authorization" && value === `Bearer ${pending.session.access_token}`) {
+                discardBody(response);
+                throw new Error("Native session verification failed.");
+              }
+            }
           }
           return response;
         }),
