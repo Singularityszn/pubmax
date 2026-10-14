@@ -817,9 +817,11 @@ export default function PrivacyPage() {
             logged which of them.
           </li>
           <li>
-            <strong>Backups:</strong>{" "}data you delete, including a deleted
-            account, can remain in our backups for up to 8 weeks before it is
-            removed.
+            <strong>Backups:</strong>{" "}Deleted data, including deleted
+            accounts, can remain in our local backups. We prune these copies when
+            the backup process runs, using an eight-week age limit. If the backup
+            Mac is asleep, powered off, or unavailable, deletion is delayed until
+            the next run.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account
