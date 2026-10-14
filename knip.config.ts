@@ -99,6 +99,11 @@ const config: KnipConfig = {
     "public/sw-plan-cache.js",
     "public/theme-init.js",
 
+    // Capacitor generates these bundle assets; the native JSExport loader
+    // reads them outside the JavaScript import graph.
+    "ios/App/App/public/cordova.js",
+    "ios/App/App/public/cordova_plugins.js",
+
     // Read from disk by an e2e spec rather than imported.
     "e2e/fixtures/**",
 
