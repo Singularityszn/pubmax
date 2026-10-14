@@ -57,6 +57,7 @@ type Tab = {
 };
 
 const warmedTabs = new Set<string>();
+const subscribeHydration = () => () => {};
 
 // Map follows preferred city after mount, with /map as the server fallback.
 // Exported for the tab contract test.
@@ -121,9 +122,14 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // the session decision, while preserving the direct signed-in navigation.
   const youHandle = useViewerHandle();
   const { signedIn } = useViewerSession();
-  const youHref = signedIn && youHandle
-    ? profilePath(youHandle)
-    : ("/u/you" as NextRoute);
+  // Auth can settle before this Suspense boundary hydrates. Match the server
+  // href on hydration, then publish the live destination on the same anchor.
+  // Otherwise React can retain /u/you despite Link receiving the new props.
+  const youHref = useSyncExternalStore(
+    subscribeHydration,
+    () => signedIn && youHandle ? profilePath(youHandle) : ("/u/you" as NextRoute),
+    () => "/u/you" as NextRoute,
+  );
   // The bar is fixed to the LAYOUT viewport, which no phone browser shrinks for
   // the keyboard, so it floats over whatever is being typed into. lib/softKeyboard.ts
   // owns the rule (a focused text field AND a shrunken visual viewport); here it
