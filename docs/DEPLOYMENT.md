@@ -250,6 +250,8 @@ the generated branch alias.
 
 Vercel's promotion API points production traffic at an existing deployment and
 [does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment).
+The Preview-artifact observations below concern that direct REST API path.
+They do not describe CLI Preview promotion or establish fresh release evidence.
 Empirical promotion checks show that a Preview-built artifact retains
 `VERCEL_ENV=preview` after promotion, so that value alone does not identify
 production traffic. Vercel's request header still identifies the specific
@@ -380,7 +382,16 @@ This is the way to ship to production. It runs these steps in order and stops at
 5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
 6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
 
-Promotion does not rebuild the artifact or substitute Production values into a Preview build. The staged build must already target Production before promotion.
+For this helper's existing staged Production deployment, promotion assigns
+domains without rebuilding the artifact or changing its environment values.
+Vercel documents this [staged Production workflow](https://vercel.com/docs/deployments/promoting-a-deployment#staging-and-promoting-a-production-deployment).
+The helper retains `--prod --skip-domain`, the source stamp, and the exact
+deployment identity checks before and after promotion.
+
+[CLI Preview promotion](https://vercel.com/docs/cli/promote) instead creates a new
+Production deployment. Vercel's [Preview promotion guide](https://vercel.com/docs/deployments/promoting-a-deployment#promote-a-deployment-from-preview-to-production)
+describes a complete rebuild with Production environment variables.
+That is a different path from this helper and the direct REST API observations above.
 
 A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
 
