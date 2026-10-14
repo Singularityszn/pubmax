@@ -73,6 +73,13 @@ async function runBackup() {
     throw new Error("PUBMAX_BACKUP_DIR is inside a git checkout. Choose a directory outside every repository.");
   }
 
+  const bucketRoot = path.join(dir, "bucket", bucket);
+  if (!dryRun && existsSync(dir)) {
+    mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
+    chmodSync(dir, 0o700);
+    pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
+  }
+
   const dbUrl = requireEnv("PUBMAX_BACKUP_DB_URL");
   let pgEnv = pgEnvFromUrl(dbUrl);
   const baseUrl = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
@@ -83,7 +90,6 @@ async function runBackup() {
   const token = loginConfig ? requireEnv("SUPABASE_ACCESS_TOKEN") : null;
   const startedAt = new Date();
   const dumpFile = path.join(dir, dumpFileName(startedAt));
-  const bucketRoot = path.join(dir, "bucket", bucket);
 
   console.log(`[backup] directory ${dir}`);
   console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; prune after ${PRUNE_AFTER_WEEKS} weeks; maximum ${MAX_RETENTION_WEEKS} weeks`);
@@ -94,10 +100,6 @@ async function runBackup() {
 
   mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
-
-  // 0. Retention first. Pruning must not wait on a dump that may fail, so a
-  // database outage cannot preserve an expired fallback or its photo identifiers.
-  pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
 
   const partial = `${dumpFile}.partial`;
   try {
@@ -132,8 +134,8 @@ async function runBackup() {
     chmodSync(partial, 0o600);
 
     // 2. The bucket. Size and recorded version detect replacements under the same key.
-    // Each one still in the bucket is stamped with this run's start, so an object
-    // deleted in production is kept only as long as the dumps that knew it.
+    // Stamp each object still in production with this run's start. Retention
+    // uses that last-seen time even when no complete dump remains.
     const objects = await listBucketObjects({ baseUrl, key, bucket });
     // What each local file was when it was fetched, so a replacement under the
     // same key and the same size is still noticed.
@@ -179,8 +181,8 @@ async function runBackup() {
     writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
     console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
-    // Publish only after Storage completes, so its failure preserves the last
-    // complete fallback on this run and the next. The archive is already verified.
+    // Keep the previous dump until Storage completes. Photo replacements publish
+    // during the loop above, so a failed sync does not preserve their prior bytes.
     renameSync(partial, dumpFile);
     console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
   } finally {

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "gh-axi",
+    "api",
+    "/repos/Singularityszn/pubmax/actions/jobs/114358011012/logs",
+    "--full"
+  ],
+  "time": "2026-10-11T01:23:18.140143+00:00",
+  "exitCode": 1,
+  "stdoutSHA256": "7ccb965167ebe45cf8e164887b142f6769bc2661df8c07ab3b527242ef82fa97",
+  "stderrSHA256": "8b6407b2fdbca54bf3d53fb93e79a3560dbe59567fa5044cfee4bed1b5b6e467"
+}

@@ -9,9 +9,11 @@ import { expectStreamedPageSettled } from "./helpers/streamedPage";
 // Design judgement 2026-08-01, finding 2.3 collapsed that chrome to ONE bar.
 // What used to stack here — a Near me / Tonight / Filters rail and a
 // full-width category band — is gone: the category toggles live in the Filters
-// sheet, Near me is a round map-edge FAB, and Tonight keeps its other two
-// homes. So the measurements below are the bar, the map-edge lane and the plan
-// pill, and the budget they may not exceed.
+// sheet, Near me is a round map-edge FAB, and Tonight keeps its other homes
+// (the tab bar and a lens at the head of the Filters sheet). So the
+// measurements below are the bar, the chip row, the bottom card (which carries
+// the plan door), the map-edge lane and the budget they may not exceed: THREE
+// resting layers, counted by `restingLayers` below.
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -38,14 +40,14 @@ type ShellLayout = {
   utility: Rect;
   locate: Rect;
   plan: Rect;
+  /** The bottom card the plan door rides in. Null while the door stands alone. */
+  peek: Rect | null;
   barControls: Array<Rect & { label: string }>;
   chipRow: Rect;
   chipControls: Array<Rect & { label: string }>;
   areaLabel: MeasuredRect;
   areaCaret: Rect;
-  tonightChip: Rect | null;
-  tonightLabel: MeasuredRect | null;
-  tonightCount: Rect | null;
+  tonightChips: number;
   barClientWidth: number;
   barScrollWidth: number;
   chipClientWidth: number;
@@ -160,6 +162,8 @@ async function preparePhoneMap(
             },
           } as GeolocationPosition);
         },
+        watchPosition() { return 1; },
+        clearWatch() {},
       },
     });
   });
@@ -277,6 +281,9 @@ async function shellLayout(page: Page): Promise<ShellLayout> {
       utility: rect(".mobileMapTflButton"),
       locate: rect(".mobileMapLocateFab"),
       plan: rect(".mobilePlanActivation"),
+      peek: document.querySelector<HTMLElement>(".mapPeek")
+        ? rect(".mapPeek")
+        : null,
       barControls: controls(bar),
       chipRow: rectFor(chipRow),
       chipControls: controls(chipRow),
@@ -284,19 +291,7 @@ async function shellLayout(page: Page): Promise<ShellLayout> {
         ".citySwitcher--mobile .citySwitcherLabelFull",
       ),
       areaCaret: rect(".citySwitcher--mobile .citySwitcherCaret"),
-      tonightChip: document.querySelector<HTMLElement>(".mobileMapTonightChip")
-        ? rect(".mobileMapTonightChip")
-        : null,
-      tonightLabel: document.querySelector<HTMLElement>(
-        ".mobileMapTonightChipLabel",
-      )
-        ? measuredRect(".mobileMapTonightChipLabel")
-        : null,
-      tonightCount: document.querySelector<HTMLElement>(
-        ".mobileMapTonightChipCount",
-      )
-        ? rect(".mobileMapTonightChipCount")
-        : null,
+      tonightChips: document.querySelectorAll(".mobileMapTonightChip").length,
       barClientWidth: bar.clientWidth,
       barScrollWidth: bar.scrollWidth,
       chipClientWidth: chipRow.clientWidth,
@@ -318,6 +313,7 @@ async function tapRenderedCentre(
   if (scrollIntoView) {
     await control.scrollIntoViewIfNeeded();
   }
+  await control.click({ trial: true });
   // Geometry and hit-test come from ONE synchronous read, so they describe the
   // same frame. A separate boundingBox() round trip let the sheet settle in
   // between, and the hit-test then probed a point the control had left.
@@ -365,6 +361,65 @@ async function tapRenderedCentre(
   });
 }
 
+/**
+ * What floats over the phone map at rest, by what the reader can SEE: a box
+ * with area, not `display: none`, not `visibility: hidden`. Bands are the
+ * full-width surfaces (the bar, the chip row, the bottom card); the edge
+ * controls are the round map controls: TfL, Near me and the Create action on
+ * the right, and the map credit (i) on the left.
+ */
+async function restingLayers(page: Page): Promise<{
+  bands: string[];
+  edge: string[];
+  credit: Rect | null;
+  card: Rect | null;
+  locate: Rect | null;
+  arrival: boolean;
+  tonightChip: boolean;
+}> {
+  return page.evaluate(() => {
+    const painted = (selector: string, within?: Element | null) => {
+      const found = [...(within ?? document).querySelectorAll<HTMLElement>(selector)];
+      return found.filter((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return (
+          box.width > 0 &&
+          box.height > 0 &&
+          style.display !== "none" &&
+          style.visibility !== "hidden"
+        );
+      });
+    };
+    const bands: string[] = [];
+    if (painted(".mobileMapTopbar").length) bands.push("bar");
+    if (painted(".mobileMapChipRow").length) bands.push("chips");
+    // The door is a layer of its own only when it stands outside the card.
+    if (painted(".mapPeek").length) bands.push("card");
+    else if (painted(".mobilePlanActivation").length) bands.push("door");
+    const edge: string[] = [];
+    if (painted(".mobileMapTflButton").length) edge.push("tfl");
+    if (painted(".mobileMapLocateFab").length) edge.push("locate");
+    if (painted(".createFab").length) edge.push("create");
+    if (painted(".maplibregl-ctrl-attrib-button").length) edge.push("credit");
+    const box = (selector: string) => {
+      const [element] = painted(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height };
+    };
+    return {
+      bands,
+      edge,
+      credit: box(".maplibregl-ctrl-attrib"),
+      card: box(".mapPeek"),
+      locate: box(".mobileMapLocateFab"),
+      arrival: painted(".mapArrivalCard").length > 0,
+      tonightChip: painted(".mobileMapTonightChip").length > 0,
+    };
+  });
+}
+
 async function dismissSheet(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
   await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
@@ -380,8 +435,12 @@ for (const viewport of VIEWPORTS) {
       `mobile-map-chrome-layout ${viewport.width}px ${JSON.stringify(layout)}`,
     );
 
+    expect(layout.peek, "the resting map carries the bottom card").not.toBeNull();
+    // The card owns the foot of the map; the plan door is inside it.
+    const card = layout.peek ?? layout.plan;
     for (const [name, box] of Object.entries({
       topbar: layout.topbar,
+      card,
       plan: layout.plan,
     })) {
       expect(box.left, `${name} left is inside viewport`).toBeGreaterThanOrEqual(
@@ -412,7 +471,7 @@ for (const viewport of VIEWPORTS) {
       "chip row right is inside viewport",
     ).toBeLessThanOrEqual(viewport.width);
 
-    const shared = [layout.topbar, layout.plan];
+    const shared = [layout.topbar, card];
     expect(
       new Set(shared.map(({ left }) => Math.round(left))).size,
       "stacked surfaces share one left edge",
@@ -437,9 +496,12 @@ for (const viewport of VIEWPORTS) {
     expect(layout.locate.top, "Near me sits below TfL").toBeGreaterThan(
       layout.utility.bottom,
     );
-    expect(layout.locate.bottom, "Near me clears the plan pill").toBeLessThanOrEqual(
-      layout.plan.top,
+    expect(layout.locate.bottom, "Near me clears the bottom card").toBeLessThanOrEqual(
+      card.top,
     );
+    expect(layout.plan.top, "the plan door sits inside the card").toBeGreaterThan(card.top);
+    expect(layout.plan.bottom, "the plan door sits inside the card").toBeLessThan(card.bottom);
+    expect(card.bottom - card.top, "the card is 112px").toBeCloseTo(112, 0);
     expect(
       Math.round(layout.locate.right),
       "map-edge controls share one right edge",
@@ -535,63 +597,70 @@ for (const viewport of VIEWPORTS) {
       expect(control.height, `${control.label} tap height`).toBeGreaterThanOrEqual(44);
     }
 
-    expect(
-      layout.tonightChip,
-      `${viewport.width}px map exposes its Tonight chip`,
-    ).not.toBeNull();
-    if (layout.tonightChip) {
-      expect(
-        layout.tonightChip.left,
-        "Tonight chip left is inside chip row",
-      ).toBeGreaterThanOrEqual(layout.chipRow.left);
-      expect(
-        layout.tonightChip.right,
-        "Tonight chip right is inside chip row",
-      ).toBeLessThanOrEqual(layout.chipRow.right);
-      expect(
-        layout.tonightChip.left,
-        "Tonight chip left is inside viewport",
-      ).toBeGreaterThanOrEqual(0);
-      expect(
-        layout.tonightChip.right,
-        "Tonight chip right is inside viewport",
-      ).toBeLessThanOrEqual(viewport.width);
-      expect(layout.tonightChip.width, "Tonight chip tap width").toBeGreaterThanOrEqual(44);
-      expect(layout.tonightChip.height, "Tonight chip tap height").toBeGreaterThanOrEqual(44);
-      expect(layout.tonightLabel, "Tonight label is rendered").not.toBeNull();
-      expect(layout.tonightCount, "Tonight count is rendered").not.toBeNull();
-      if (layout.tonightLabel) {
-        expect(layout.tonightLabel.width, "Tonight label has a rendered box").toBeGreaterThan(0);
-        expect(layout.tonightLabel.height, "Tonight label has a rendered height").toBeGreaterThan(0);
-        if (viewport.width === 390) {
-          expect(
-            layout.tonightLabel.scrollWidth,
-            "Tonight label is not clipped inside its 390px chip",
-          ).toBeLessThanOrEqual(layout.tonightLabel.clientWidth);
-        }
-        expect(layout.tonightLabel.left, "Tonight label left is inside chip").toBeGreaterThanOrEqual(
-          layout.tonightChip.left,
-        );
-        expect(layout.tonightLabel.right, "Tonight label right is inside chip").toBeLessThanOrEqual(
-          layout.tonightChip.right,
-        );
-      }
-      if (layout.tonightCount) {
-        expect(layout.tonightCount.width, "Tonight count has a rendered box").toBeGreaterThan(0);
-        expect(layout.tonightCount.height, "Tonight count has a rendered height").toBeGreaterThan(0);
-        expect(layout.tonightCount.left, "Tonight count left is inside chip").toBeGreaterThanOrEqual(
-          layout.tonightChip.left,
-        );
-        expect(layout.tonightCount.right, "Tonight count right is inside chip").toBeLessThanOrEqual(
-          layout.tonightChip.right,
-        );
-      }
-    }
+    // What's On is a lens in the Filters sheet now: the chip row holds the drink
+    // lane alone, and the map never grows a second chip back.
+    expect(layout.tonightChips, "no Tonight chip on the resting map").toBe(0);
+    expect(layout.chipControls.filter((one) => one.width > 0)).toHaveLength(1);
+  });
+
+  test(`${viewport.width}px the resting map is three layers`, async ({ page }) => {
+    await openPhoneMap(page, viewport);
+    const layers = await restingLayers(page);
+    expect(layers.bands, "floating bands over the map").toEqual([
+      "bar",
+      "chips",
+      "card",
+    ]);
+    expect(layers.bands.length, "at most three resting layers").toBeLessThanOrEqual(3);
+    // The Tonight chip and the first-visit ask are not painted at rest.
+    expect(layers.arrival, "the first-visit ask is answered").toBe(false);
+    expect(layers.tonightChip, "no Tonight chip").toBe(false);
+    // The round map controls: TfL, Near me and the Create action on the right,
+    // and the credit (i) on the left. It is a control like Near me, not a band.
+    expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+    const { credit, card, locate } = layers;
+    expect(credit, "the credit (i) is painted on the map").not.toBeNull();
+    expect(card).not.toBeNull();
+    expect(locate).not.toBeNull();
+    expect(credit!.width, "the collapsed credit is one 44px circle").toBeLessThanOrEqual(44);
+    expect(credit!.height).toBeLessThanOrEqual(44);
+    expect(credit!.left, "on the left edge").toBeGreaterThanOrEqual(0);
+    expect(credit!.bottom, "above the bottom card").toBeLessThanOrEqual(card!.top);
+    expect(credit!.right, "clear of the map-edge column").toBeLessThanOrEqual(locate!.left);
+  });
+
+  test(`${viewport.width}px What's On is a lens at the head of the Filters sheet`, async ({
+    page,
+  }) => {
+    await openPhoneMap(page, viewport);
+    const topbar = page.locator(".mobileMapTopbar");
+    await tapRenderedCentre(
+      page,
+      topbar.getByRole("button", { name: /^Filters/ }),
+      viewport.width,
+      "Filters",
+    );
+    const sheet = page.locator(
+      '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
+    );
+    const lens = sheet.locator(".mobileMapTonightLens");
+    await expect(lens).toBeVisible({ timeout: 20_000 });
+    const first = await sheet.locator(".mobileMapFilters").evaluate(
+      (root) => root.firstElementChild?.className ?? "",
+    );
+    expect(first, "the lens leads the sheet").toContain("mobileMapTonightLens");
+    await expect(lens).toContainText("Tonight listings");
+    await tapRenderedCentre(page, lens, viewport.width, "Tonight listings lens");
+    await expect(
+      page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible'),
+    ).toHaveCount(1);
   });
 
   test(`${viewport.width}px phone map controls receive their own taps`, async ({
     page,
   }) => {
+    const browserErrors: string[] = [];
+    page.on("pageerror", (error) => browserErrors.push(error.message));
     await openPhoneMap(page, viewport);
     const topbar = page.locator(".mobileMapTopbar");
     // No location is granted in this run, so the chip names what the map is
@@ -677,6 +746,7 @@ for (const viewport of VIEWPORTS) {
         .getByRole("group", { name: "Filter by drink shape" })
         .getByRole("button", { name: "Wine (selected)" }),
     ).toHaveAttribute("aria-pressed", "true");
+    expect(browserErrors).toEqual([]);
   });
 }
 
@@ -926,6 +996,8 @@ const FLOATING_RIGHT_EDGE = [
   { name: "plan activation", selector: ".mobilePlanActivation" },
   { name: "locate FAB", selector: ".mobileMapLocateFab" },
   { name: "TfL control", selector: ".mobileMapTflButton" },
+  // The credit (i) parks on the left lane the Pub Pal pill shares.
+  { name: "map credit", selector: ".maplibregl-ctrl-attrib" },
 ] as const;
 
 // Members that MUST be measured, or the sweep would pass by shrinking rather
@@ -936,6 +1008,7 @@ const REQUIRED_MEMBERS = [
   "Pub Pal pill",
   "plan activation",
   "locate FAB",
+  "map credit",
 ] as const;
 
 async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Promise<void> {
@@ -1025,6 +1098,18 @@ for (const viewport of VIEWPORTS) {
         ).toBe(false);
       }
     }
+    // The credit is never under the pill: its toggle takes its own tap.
+    const creditHit = await page
+      .locator(".maplibregl-ctrl-attrib-button")
+      .evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        return hit ? element.contains(hit) : false;
+      });
+    expect(creditHit, "the credit (i) takes its own tap beside the Pub Pal pill").toBe(true);
     // The create action is the member this stack was built for, so its own
     // clearance is asserted separately and is never waived.
     const createAction = boxes.find((box) => box.name === "create action")!;

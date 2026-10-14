@@ -1,0 +1,64 @@
+{
+  "recordedAt": "2026-10-11T01:24:23.851754+00:00",
+  "nativeRunId": "01M4M2GE2SQZXEHYVGXZXTHEG1",
+  "finding": "ci-1",
+  "code_change_needed": false,
+  "phase": "ci",
+  "headSHA": "e1f6a99f2e7d8854b3021c67428b171ff66f2aaf",
+  "baseSHA": "e73be8f6f5d85e465704aaf883c5614e11efc3a2",
+  "testedMergeSHA": "d3a4d25268526d2955955221fa26f4a084cf45d6",
+  "workflowRunId": 38097088260,
+  "originalAttempt": 1,
+  "originalJobId": 114345108558,
+  "originalOutcome": "failure",
+  "originalLogSHA256": "1cb4b4fee699784eca40401c7a473bf22b23fedb6b6ad54a40fa025e86c50131",
+  "mutationRequestCount": 1,
+  "requestCLIExit": 0,
+  "newAttempt": 2,
+  "newJobId": 114358011012,
+  "newJobURL": "https://github.com/Singularityszn/pubmax/actions/runs/38097088260/job/114358011012",
+  "newOutcome": "success",
+  "command": "npm run test:rls",
+  "commandExitCode": 0,
+  "commandExitEvidence": "GitHub step 6 completed/success. GitHub does not emit a separate numeric exit line for a successful shell step.",
+  "testResults": {
+    "ordinaryRun": {
+      "filesPassed": 57,
+      "testsPassed": 554
+    },
+    "serialShmRun": {
+      "filesPassed": 1,
+      "testsPassed": 10
+    },
+    "totalFilesPassed": 58,
+    "totalTestsPassed": 564,
+    "filesFailed": 0,
+    "testsFailed": 0,
+    "testsSkipped": 0,
+    "originalFiveTestsPassed": 5
+  },
+  "runtime": {
+    "architecture": "x86-64",
+    "architectureEvidence": "linux-static-x86-64 PostgREST archive and Linux-x64 Node cache in full log",
+    "Node": "22.23.3",
+    "npm": "10.9.9",
+    "PostgreSQL": "16.15 (Ubuntu 16.15-1.pgdg24.04+2)",
+    "PostgREST": "14.16"
+  },
+  "completeJobLog": {
+    "file": "attempt2-complete-job.log",
+    "bytes": 255670,
+    "sha256": "159d314a4f67e563e51a626e844c26779bef2341f703e441fd258ff22a705e8c",
+    "retrieval": "Supported gh-axi run view --job --log full_log, copied without changing the original.",
+    "directApiLogRead": "Refused terminal escape sequences. Error and exit 1 preserved. No additional CI rerun occurred."
+  },
+  "serverLogs": "No server-log artifact supplied. Complete job log retained.",
+  "artifactsSupplied": 0,
+  "sourceTrackedCleanBeforeAndAfter": true,
+  "newFiles": "Untracked task evidence only in .ci-evidence/ci-rerun-032.",
+  "priorNamedEvidenceHashesUnchanged": 7,
+  "failurePathSourceFilesMatchBase": 4,
+  "evidenceLocation": "Worktree-local evidence follows the workspace boundary. Requested external destination was not written.",
+  "causeConclusion": "Original connection refusal did not reproduce. Its cause remains unproven. No source defect was established. The passing rerun does not erase attempt 1 or prove runner noise.",
+  "deliveryHolds": "Only this assigned check was rerun. No merge, deployment, push, native pipeline control, additional validation phases, or second rerun performed. Other checks and unresolved review threads remain outer-executor responsibilities."
+}

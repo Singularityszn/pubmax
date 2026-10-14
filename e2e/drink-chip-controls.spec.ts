@@ -1,11 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "../lib/priceBand";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 
 test.use({
+  serviceWorkers: "block",
   launchOptions: {
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   },
@@ -411,7 +413,7 @@ test("390px the lens narrows which venue types the sheet offers", async ({
 });
 
 for (const width of [390, 320]) {
-  test(`${width}px map attribution opens fully above the plan action`, async ({
+  test(`${width}px map attribution opens fully above the bottom card`, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -437,8 +439,7 @@ for (const width of [390, 320]) {
     await expect(fullCredit).toContainText("OpenMapTiles");
     await expect(fullCredit).toContainText("Data from OpenStreetMap");
 
-    const plan = page.getByRole("button", { name: "Describe the outing" });
-    await expect(plan).toBeVisible();
+    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
     const geometry = await page.evaluate(() => {
       const attributionElement = document.querySelector<HTMLElement>(
         ".maplibregl-ctrl-attrib",
@@ -446,12 +447,13 @@ for (const width of [390, 320]) {
       const inner = document.querySelector<HTMLElement>(
         ".maplibregl-ctrl-attrib-inner",
       );
-      const planElement = document.querySelector<HTMLElement>(
-        ".mobilePlanActivation",
-      );
-      if (!attributionElement || !inner || !planElement) return null;
+      // The foot of the map: the bottom card, or the plan door alone while the
+      // card is not up.
+      const foot =
+        document.querySelector<HTMLElement>(".mapPeek") ??
+        document.querySelector<HTMLElement>(".mobilePlanActivation");
+      if (!attributionElement || !inner || !foot) return null;
       const attributionRect = attributionElement.getBoundingClientRect();
-      const planRect = planElement.getBoundingClientRect();
       const style = getComputedStyle(inner);
       return {
         attribution: {
@@ -466,23 +468,67 @@ for (const width of [390, 320]) {
           whiteSpace: style.whiteSpace,
           text: inner.textContent?.trim() ?? "",
         },
-        plan: {
-          top: planRect.top,
-        },
+        footTop: foot.getBoundingClientRect().top,
       };
     });
     expect(geometry).not.toBeNull();
     expect(geometry!.attribution.left).toBeGreaterThanOrEqual(0);
     expect(geometry!.attribution.right).toBeLessThanOrEqual(width);
-    expect(geometry!.attribution.bottom).toBeLessThanOrEqual(
-      geometry!.plan.top,
-    );
+    expect(geometry!.attribution.bottom).toBeLessThanOrEqual(geometry!.footTop);
     expect(geometry!.inner.scrollWidth).toBeLessThanOrEqual(
       geometry!.inner.clientWidth + 1,
     );
     expect(geometry!.inner.textOverflow).not.toBe("ellipsis");
     expect(geometry!.inner.whiteSpace).toBe("normal");
     expect(geometry!.inner.text).not.toContain("…");
+  });
+
+  test(`${width}px the map credit is also whole copy under the Key`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 844 });
+    await installDeterministicMapBasemap(page);
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
+      timeout: 45_000,
+    });
+
+    await page.getByRole("button", { name: "More map controls" }).click();
+    const credits = page.locator(".mobileMapCredits");
+    await expect(credits).toBeVisible({ timeout: 20_000 });
+    await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+    await expect(credits).toContainText("OpenFreeMap");
+    await expect(credits).toContainText("OpenMapTiles");
+    await expect(credits).toContainText("Data from OpenStreetMap");
+    // The Key comes first; the credit sits under it in the same tab.
+    const underTheKey = await credits.evaluate((element) => {
+      const key = element.parentElement?.querySelector(".mapKey");
+      return Boolean(
+        key && key.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+    expect(underTheKey, "the credit sits under the Key").toBe(true);
+
+    // Whole copy: never clipped, never ellipsed, inside the viewport.
+    const geometry = await credits.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        left: rect.left,
+        right: rect.right,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        textOverflow: style.textOverflow,
+        text: element.textContent ?? "",
+      };
+    });
+    expect(geometry.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.right).toBeLessThanOrEqual(width);
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
+    expect(geometry.textOverflow).not.toBe("ellipsis");
+    expect(geometry.text).not.toContain("…");
   });
 }
 
@@ -596,4 +642,20 @@ test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
       viewBox: "0 0 32 32",
     })),
   );
+});
+
+
+test("390px More map controls credits the active CARTO fallback", async ({ page }) => {
+  test.setTimeout(90_000);
+  await installDeterministicMapBasemap(page);
+  await page.route(/^https:\/\/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
+  await page.goto("/map");
+  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({ timeout: 45_000 });
+  await page.getByRole("button", { name: "More map controls" }).click();
+  const credits = page.locator(".mobileMapCredits");
+  await expect(credits).toContainText("CARTO", { timeout: 20_000 });
+  await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+  await expect(credits.getByRole("link", { name: "CARTO", exact: true })).toHaveAttribute("href", "https://carto.com/about-carto/");
+  await expect(credits).not.toContainText("OpenFreeMap");
+  await expect(credits).not.toContainText("OpenMapTiles");
 });

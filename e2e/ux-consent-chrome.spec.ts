@@ -264,11 +264,43 @@ test("mobile consent never covers /pubs Book a table while visible", async ({ pa
 test("mobile consent never covers a control keyboard focus lands on in /social", async ({ page }) => {
   test.setTimeout(90_000);
   await prepareUndecidedConsent(page);
+  let settleIdentity!: () => void;
+  const identityPending = new Promise<void>((resolve) => { settleIdentity = resolve; });
+  await page.route("**/api/auth/session", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await identityPending;
+    await route.fulfill({ json: { hint: null } });
+  });
   await page.goto("/social", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(".socialPage")).toBeVisible({ timeout: 30_000 });
+  // A document load streams the page into a hidden segment before React swaps
+  // it in, so for that window the document holds two `.socialPage` mains. The
+  // painted one is the page a reader can Tab through.
+  const socialPage = page.locator(".socialPage:visible");
+  await expect(socialPage).toBeVisible({ timeout: 30_000 });
+  await expect(socialPage.locator('.socialRailEmpty[aria-busy="true"]')).toBeVisible();
+  const handle = socialPage.getByRole("searchbox", { name: "Search handles", exact: true });
+  await expect(handle).toBeEnabled();
+  for (let press = 0; press < 60 && !(await handle.evaluate((el) => el === document.activeElement)); press += 1) {
+    await page.keyboard.press("Tab");
+  }
+  await expect(handle).toBeFocused();
+  await expect(socialPage.locator('.socialRailEmpty[aria-busy="true"]')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("social-focused-pending.png") });
+  settleIdentity();
+  await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
+  await expect(handle).toBeFocused();
+  await expect.poll(async () => {
+    const box = await handle.boundingBox();
+    const lane = await prompt.boundingBox();
+    return Boolean(box && lane && box.y >= 0 && box.y + box.height <= lane.y);
+  }).toBe(true);
+  const focusedBox = await handle.boundingBox();
+  expect(focusedBox).not.toBeNull();
+  expect(await pointOwner(page, focusedBox!, "input")).toBe("control");
+  await page.screenshot({ path: test.info().outputPath("social-focused-settled.png") });
 
   const covered: string[] = [];
   for (let press = 0; press < 60; press += 1) {

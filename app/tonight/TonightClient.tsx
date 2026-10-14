@@ -146,6 +146,12 @@ function freshnessLabel(kind: TonightFreshnessKind, observedAt: string | null): 
   return kind === "unknown" ? null : checkedLabel(observedAt);
 }
 
+// The sourced pub suggestions are counted once: the credit row and the empty
+// lead must agree on whether Tonight has anything to show beside events.
+function hypedPubCount(rows: readonly HypedPub[] | undefined): number {
+  return rows?.length ?? 0;
+}
+
 // The coarse Night Area the news rail reads, derived from the area the viewer
 // already told us. Never stored, and never a new location ask.
 function areaNewsSlug(
@@ -439,6 +445,7 @@ export default function TonightClient({
       : null;
   // Each lane is credited and dated by its OWN read. The What's-On stamp above
   // says nothing about a Ticketmaster row, so it never covers one.
+  const pubSuggestionCount = hypedPubCount(hypedPubs);
   const provenance = useMemo(
     () =>
       tonightProvenanceCredits({
@@ -446,8 +453,9 @@ export default function TonightClient({
         outEvents,
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
+        pubSuggestionCount,
       }),
-    [grouped, outEvents, outBody, checked],
+    [grouped, outEvents, outBody, checked, pubSuggestionCount],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
@@ -567,7 +575,7 @@ export default function TonightClient({
         state={listingsState}
         note={listingsNote}
         noteOffersRetry={noteOffersRetry}
-        emptyLead={tonightEmptyLead(status, outAnswer)}
+        emptyLead={tonightEmptyLead(status, outAnswer, pubSuggestionCount)}
         heldRowCount={primaryListingRows.length}
         context={picksContext}
         onRetry={retryListings}
@@ -968,9 +976,9 @@ export default function TonightClient({
       ) : null}
 
       {thinNight ? (
-        <section className="tonightQuiet" aria-label="While it's quiet">
+        <section className="tonightQuiet" aria-label="More ways to plan tonight">
           <p className="tonightQuietLede">
-            Quiet one tonight. Still worth a look:
+            More ways to plan tonight:
           </p>
           <ul className="tonightQuietList">
             {QUIET_ALTERNATIVES.map((alt) => {

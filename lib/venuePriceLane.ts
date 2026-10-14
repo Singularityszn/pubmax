@@ -3,11 +3,11 @@
 //
 // The overview tab renders at most one price claim, choosing between nine
 // honest sources in a fixed order, and renders the first-drop nudge in the
-// branch where none of them exist. `lib/firstDropNudge.ts` used to restate
+// branch where none of them exist and the reads permit an absence claim.
+// `lib/firstDropNudge.ts` used to restate
 // that ordering by hand, so a fourth lane or a reorder in the component would
 // silently stop matching the gate (#1413). Both now ask this module, so the
-// nudge shows in — and only in — the branch that would otherwise render
-// nothing.
+// nudge cannot stand over a recorded price or an unfinished read.
 
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
@@ -17,6 +17,8 @@ import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 /**
  * The ONE line a provisional price prints. Captain decision 2026-09-04 (issue
@@ -25,6 +27,8 @@ import type { Venue } from "@/lib/venues";
  * of it would be a second policy.
  */
 export const PROVISIONAL_PRICE_LINE = "Logged once, needs a second drinker";
+
+export const PRICE_PENDING_LINE = "Checking prices…";
 
 /**
  * The ONE line an AGED report prints. Captain's cut 5 Sept 2026: a drop past
@@ -131,13 +135,22 @@ export type VenuePriceLane =
     }
   | { lane: "estimate"; estimate: EstimatedPriceInput };
 
+/** Hold an estimate or an absence until the pub's price reads settle. */
+export function venuePriceFallbackPending(
+  lane: VenuePriceLane | null,
+  priceReadStatus: VenuePriceReadStatus,
+  dropReadStatus: VenueDropReadStatus = "ready",
+): boolean {
+  if (lane && lane.lane !== "estimate") return false;
+  return priceReadStatus === "idle" || priceReadStatus === "loading" || dropReadStatus === "idle";
+}
+
 /**
- * Which price lane a venue's price area renders, or null when it has no price
- * on record at all and the first-drop nudge takes the space instead.
+ * Which price lane the supplied records support, or null when none qualify.
  *
- * A `null` answer is the ONE definition of "no price yet" this tree has. Every
- * surface that words that absence asks here, so none of them can go on saying
- * it over a pub whose lane has since started answering.
+ * A null lane alone cannot establish an absence while records are unread.
+ * Pub surfaces also ask `venuePriceFallbackPending` and the drop-read guard
+ * before offering the first-drop nudge.
  *
  * `sourcedPrice` is passed in rather than read off the venue because the
  * render component already holds it as a prop; both callers derive it the same

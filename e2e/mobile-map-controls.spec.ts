@@ -147,7 +147,9 @@ test("critical city status badges TfL without adding a third chrome row", async 
             severity: "notable",
           },
         ],
-        tubeLines: [],
+        // The map-edge badge counts only urgent tube lines (lib/mapChromeTiers.ts
+        // isUrgentTubeStatus); routine updates stay in the sheet.
+        tubeLines: [{ line: "Weaver", status: "Part Suspended" }],
         weather: null,
       }),
     }),
