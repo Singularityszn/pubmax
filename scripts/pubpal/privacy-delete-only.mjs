@@ -457,33 +457,31 @@ function refuse() {
   throw new Error("Deletion-only update refused: configuration cannot be preserved under the pinned writable contract.");
 }
 
-// This validates values without adding defaults, coercing types, or removing
-// unknown fields. Only explicitly read-only fields leave the writable projection.
-function project(schema, value, depth = 0) {
-  if (!schema || depth > 100) refuse();
-  if (schema.readOnly) return OMIT;
-  if (schema.$ref) {
-    const name = schema.$ref.split("/").pop();
-    // The provider supplies no contract for preserving masked inline tokens.
-    // References identify stored credentials without exposing their values.
-    if (name === "AuthSettings" && value?.shareable_token != null) refuse();
-    if (name === "CustomSIPHeader") refuse();
-    if (["ConvAISecretLocator", "ConvAIEnvVarLocator", "AuthConnectionLocator", "EnvironmentAuthConnectionLocator"].includes(name)) {
-      const fields = SCHEMAS[name].required;
-      if (fields.some((key) => typeof value?.[key] !== "string" || !value[key].trim())) refuse();
-    }
-    return project(SCHEMAS[name], value, depth + 1);
+function projectReference(schema, value, depth) {
+  const name = schema.$ref.split("/").pop();
+  // The provider supplies no contract for preserving masked inline tokens.
+  // References identify stored credentials without exposing their values.
+  if (name === "AuthSettings" && value?.shareable_token != null) refuse();
+  if (name === "CustomSIPHeader") refuse();
+  if (["ConvAISecretLocator", "ConvAIEnvVarLocator", "AuthConnectionLocator", "EnvironmentAuthConnectionLocator"].includes(name)) {
+    const fields = SCHEMAS[name].required;
+    if (fields.some((key) => typeof value?.[key] !== "string" || !value[key].trim())) refuse();
   }
+  return project(SCHEMAS[name], value, depth + 1);
+}
+
+function projectVariants(schema, value, depth) {
   const variants = schema.oneOf ?? schema.anyOf;
-  if (variants) {
-    const matches = [];
-    for (const variant of variants) {
-      try { matches.push(project(variant, value, depth + 1)); } catch { /* Try the next declared variant. */ }
-    }
-    if (!matches.length || (schema.oneOf && matches.length !== 1)) refuse();
-    if (matches.some((match) => !isDeepStrictEqual(match, matches[0]))) refuse();
-    return matches[0];
+  const matches = [];
+  for (const variant of variants) {
+    try { matches.push(project(variant, value, depth + 1)); } catch { /* Try the next declared variant. */ }
   }
+  if (!matches.length || (schema.oneOf && matches.length !== 1)) refuse();
+  if (matches.some((match) => !isDeepStrictEqual(match, matches[0]))) refuse();
+  return matches[0];
+}
+
+function assertScalar(schema, value) {
   if (Object.hasOwn(schema, "const") && !isDeepStrictEqual(value, schema.const)) refuse();
   if (schema.enum && !schema.enum.some((item) => isDeepStrictEqual(item, value))) refuse();
   if (schema.type === "null" && value !== null) refuse();
@@ -500,35 +498,47 @@ function project(schema, value, depth = 0) {
     if (value < (schema.minimum ?? -Infinity) || value > (schema.maximum ?? Infinity)) refuse();
     if (value <= (schema.exclusiveMinimum ?? -Infinity) || value >= (schema.exclusiveMaximum ?? Infinity)) refuse();
   }
+}
+
+function projectObject(schema, value, depth) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) refuse();
+  const properties = schema.properties ?? {};
+  for (const key of schema.required ?? []) if (!Object.hasOwn(value, key)) refuse();
+  if (Object.keys(value).length < (schema.minProperties ?? 0)) refuse();
+  const entries = [];
+  for (const [key, item] of Object.entries(value)) {
+    if (schema.propertyNames) project(schema.propertyNames, key, depth + 1);
+    let next;
+    if (Object.hasOwn(properties, key)) {
+      if (key === "request_headers" && item) {
+        for (const [name, header] of Object.entries(item)) {
+          if (typeof header === "string" && name.toLowerCase() !== "content-type") refuse();
+        }
+      }
+      next = project(properties[key], item, depth + 1);
+    } else if (schema.additionalProperties === true) next = structuredClone(item);
+    else if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
+      next = project(schema.additionalProperties, item, depth + 1);
+    } else refuse();
+    if (next !== OMIT) entries.push([key, next]);
+  }
+  return Object.fromEntries(entries);
+}
+
+// This validates values without adding defaults, coercing types, or removing
+// unknown fields. Only explicitly read-only fields leave the writable projection.
+function project(schema, value, depth = 0) {
+  if (!schema || depth > 100) refuse();
+  if (schema.readOnly) return OMIT;
+  if (schema.$ref) return projectReference(schema, value, depth);
+  if (schema.oneOf ?? schema.anyOf) return projectVariants(schema, value, depth);
+  assertScalar(schema, value);
   if (schema.type === "array") {
     if (!Array.isArray(value) || value.length < (schema.minItems ?? 0) || value.length > (schema.maxItems ?? Infinity)) refuse();
     if (schema.uniqueItems && value.some((item, index) => value.slice(0, index).some((other) => isDeepStrictEqual(item, other)))) refuse();
     return value.map((item) => project(schema.items ?? {}, item, depth + 1));
   }
-  if (schema.type === "object") {
-    if (value === null || typeof value !== "object" || Array.isArray(value)) refuse();
-    const properties = schema.properties ?? {};
-    for (const key of schema.required ?? []) if (!Object.hasOwn(value, key)) refuse();
-    if (Object.keys(value).length < (schema.minProperties ?? 0)) refuse();
-    const entries = [];
-    for (const [key, item] of Object.entries(value)) {
-      if (schema.propertyNames) project(schema.propertyNames, key, depth + 1);
-      let next;
-      if (Object.hasOwn(properties, key)) {
-        if (key === "request_headers" && item) {
-          for (const [name, header] of Object.entries(item)) {
-            if (typeof header === "string" && name.toLowerCase() !== "content-type") refuse();
-          }
-        }
-        next = project(properties[key], item, depth + 1);
-      } else if (schema.additionalProperties === true) next = structuredClone(item);
-      else if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
-        next = project(schema.additionalProperties, item, depth + 1);
-      } else refuse();
-      if (next !== OMIT) entries.push([key, next]);
-    }
-    return Object.fromEntries(entries);
-  }
+  if (schema.type === "object") return projectObject(schema, value, depth);
   return structuredClone(value);
 }
 
@@ -548,7 +558,8 @@ function writableAgent(agent) {
       entries.push([key, project(SCHEMAS["ConversationalConfigAPIModel-Input"], value)]);
     } else if (key === "platform_settings") {
       // Safety is response-only, including on the documented request root.
-      const { safety: _safety, ...settings } = value;
+      const settings = { ...value };
+      delete settings.safety;
       entries.push([key, project(SCHEMAS.AgentPlatformSettingsRequestModel, settings)]);
     } else if (key === "procedures") {
       if (typeof value !== "object" || Array.isArray(value)) refuse();
