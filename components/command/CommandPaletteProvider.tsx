@@ -4,8 +4,8 @@
 // (app/layout.tsx), owns open/close state, binds the global ⌘K / Ctrl+K
 // shortcut (and Esc while open), and exposes an imperative open/close/toggle
 // API via context so any client component (e.g. SiteNav's ⌘K affordance) can
-// pop the palette. The dialog itself is only rendered while open, so "open"
-// state and "mounted" stay identical — see CommandPalette.tsx.
+// open the palette. The provider owns dismissal while the dialog chunk loads,
+// so Escape can cancel an opening request before the dialog mounts.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
@@ -17,9 +17,8 @@ import { readOtherStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStr
 // provider is mounted at the root on EVERY route, so a static import put the
 // palette, its command table, its filter and its stylesheet into the shared
 // shell that a phone downloads to read the landing - for an affordance a phone
-// has no key to reach. Open state and mounted stay identical, which is what
-// makes the split invisible: the chunk is requested by the same state change
-// that used to render it.
+// has no key to reach. The opening request loads the chunk. A strict modal
+// cancels that request so the palette cannot steal focus when loading finishes.
 const CommandPalette = dynamic(() => import("./CommandPalette"), {
   ssr: false,
   loading: () => null,
