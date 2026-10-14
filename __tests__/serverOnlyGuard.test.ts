@@ -45,6 +45,13 @@ const SERVER_IO_EXEMPTIONS = {
     reason: "Creates the browser Supabase client with the public anonymous key.",
     removeWhen: "Browser authentication no longer uses Supabase directly.",
   },
+  "lib/nativeAuthClient.ts": {
+    capabilities: ["supabase-client"],
+    kind: "browser",
+    consumers: ["lib/nativeIOSOAuth.ts"],
+    reason: "Creates a disposable browser PKCE client from public Supabase settings, validates the publishable key role, and disables persistence, refresh and URL session detection.",
+    removeWhen: "Native iOS OAuth no longer creates a disposable browser Supabase PKCE client.",
+  },
   "lib/venueIndexTracing.mjs": {
     capabilities: ["node-runtime"],
     kind: "config",

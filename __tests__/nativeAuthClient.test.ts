@@ -1,20 +1,43 @@
 // @vitest-environment jsdom
 import { createHash } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createNativeAuthClient } from "@/lib/nativeAuthClient";
 
+vi.mock("@supabase/supabase-js", { spy: true });
+
 beforeEach(() => {
+  vi.mocked(createClient).mockClear();
   localStorage.clear();
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://native-auth-test.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_offline_test_fixture");
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("the installed SDK's disposable native PKCE client", () => {
+  it.each([
+    ["secret key", "sb_secret_offline_test_fixture"],
+    ["service-role JWT", `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.offline-signature`],
+    ["unknown key", "unclassified_offline_test_fixture"],
+  ])("rejects %s in the production public-key setting before SDK construction", async (_label, key) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", key);
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+
+    expect(await createNativeAuthClient("a".repeat(32))).toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("keeps independent verifiers in memory and never changes browser storage", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toContain("native-auth-test.supabase.co/auth/v1/token");
       expect(init?.method).toBe("POST");
+      const headers = new Headers(init?.headers);
+      expect(headers.get("apikey")).toBe("sb_publishable_offline_test_fixture");
+      expect(headers.get("authorization")).toBe("Bearer sb_publishable_offline_test_fixture");
       return Response.json({ error: "invalid_grant", error_description: "offline fixture" }, { status: 400 });
     });
     vi.stubGlobal("fetch", fetch);
