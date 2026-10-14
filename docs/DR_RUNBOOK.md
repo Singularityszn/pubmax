@@ -107,7 +107,8 @@ including the newest copy, before credential preflight.
 - The bucket copy also removes files last seen before the oldest kept dump. Empty account and conversation folders are removed. The version index retains identifiers only for files that remain. An empty index is removed.
 - Pruning an existing destination precedes credential preflight, including missing-token and project-binding refusals. Repository destinations are refused before pruning. Dry runs never prune.
 - Once renewal or copying starts, pruning runs again in `finally`, including after a failed renewal, dump or bucket sync. An unexpired newest complete fallback remains after a failure.
-- A bucket file is fetched again when its recorded version changes, even at the same size. The new dump is published after the bucket sync completes.
+- A bucket file is fetched again when its recorded version changes, even at the same size. Replacements stay in private staging until every download succeeds. Publication retains the original photos and version index until the new dump is published. A caught publication failure rolls those changes back.
+- A normal success or failure removes its staging directory. If rollback cannot finish, originals stay in private staging for recovery. The existing pruning pass expires staged files at the same inclusive eight-week age limit and removes empty staging directories.
 - Pruning requires the backup process to run. A killed process, or a sleeping, powered-off or unavailable Mac, can postpone deletion beyond eight weeks. The next run applies the age limit before it requests credentials. Installation does not prove continuous deletion or backup durability.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a

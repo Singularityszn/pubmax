@@ -6,7 +6,7 @@
 // public, so a dump may never be a workflow artifact or a committed file. The
 // copy lives on the captain's Mac, outside every git checkout, written 0600.
 
-import { chmodSync, existsSync, readFileSync, readdirSync, rmdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, readFileSync, readdirSync, rmdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
@@ -167,6 +167,30 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
   const kept = dumps.filter((file) => !expired.includes(file)).map(dumpTakenAt);
   const oldestKept = kept.length === 0 ? null : Math.min(...kept);
 
+  // Interrupted copies and a failed rollback can leave private staged originals.
+  // Their existing timestamps still enforce the same inclusive eight-week limit.
+  let stagedFiles = 0;
+  let stagedDirectories = 0;
+  for (const folder of readdirSync(dir, { withFileTypes: true })) {
+    if (!folder.isDirectory() || !folder.name.startsWith(".backup-stage-")) continue;
+    const root = path.join(dir, folder.name);
+    const staged = readdirSync(root, { recursive: true }).map((relative) => {
+      const entry = path.join(root, relative);
+      return { entry, stat: lstatSync(entry) };
+    });
+    for (const { entry, stat } of staged) {
+      if (stat.isDirectory() || stat.mtimeMs > maximumCutoff) continue;
+      rmSync(entry, { force: true });
+      stagedFiles += 1;
+    }
+    const folders = staged.filter(({ stat }) => stat.isDirectory()).map(({ entry }) => entry);
+    for (const entry of [...folders.sort((a, b) => b.length - a.length), root]) {
+      if (readdirSync(entry).length > 0) continue;
+      rmdirSync(entry);
+      stagedDirectories += 1;
+    }
+  }
+
   const entries = readdirSync(bucketRoot, { recursive: true }).map((relative) => {
     const entry = path.join(bucketRoot, relative);
     return { entry, stat: statSync(entry) };
@@ -207,7 +231,7 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     rmdirSync(entry);
     directories += 1;
   }
-  return { dumps: expired.length + killed.length, files: files.length, directories };
+  return { dumps: expired.length + killed.length, files: files.length + stagedFiles, directories: directories + stagedDirectories };
 }
 
 /** True when `candidate` is `directory` itself or anything under it. */

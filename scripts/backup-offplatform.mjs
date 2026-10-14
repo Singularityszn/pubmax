@@ -12,6 +12,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -63,6 +64,45 @@ function gitTopLevel(directory) {
   }
 }
 
+function publishGeneration(copies, stage, startedAt) {
+  const journal = [];
+  try {
+    for (const [index, copy] of copies.entries()) {
+      const original = existsSync(copy.target) ? statSync(copy.target) : null;
+      if (original && !original.isFile()) throw new Error("Backup publication target is not a file.");
+      const entry = { ...copy, original, previous: path.join(stage, `previous-${index}`), moved: false, published: false };
+      journal.push(entry);
+      if (copy.incoming) {
+        mkdirSync(path.dirname(copy.target), { recursive: true, mode: 0o700 });
+        if (original) {
+          renameSync(copy.target, entry.previous);
+          entry.moved = true;
+        }
+        renameSync(copy.incoming, copy.target);
+        entry.published = true;
+      }
+      if (copy.stamp) utimesSync(copy.target, startedAt, startedAt);
+    }
+  } catch {
+    let rollbackFailed = false;
+    for (const entry of journal.reverse()) {
+      try {
+        if (entry.published) rmSync(entry.target, { force: true });
+        if (entry.moved) renameSync(entry.previous, entry.target);
+        else if (entry.original && entry.stamp) utimesSync(entry.target, entry.original.atime, entry.original.mtime);
+      } catch {
+        rollbackFailed = true;
+      }
+    }
+    if (rollbackFailed) {
+      const error = new Error("Backup publication rollback failed. Original files remain in private staging.");
+      error.preserveStaging = true;
+      throw error;
+    }
+    throw new Error("Backup publication failed. The previous generation was retained.");
+  }
+}
+
 async function runBackup() {
   const dir = path.resolve(env.PUBMAX_BACKUP_DIR?.trim() || path.join(os.homedir(), "pubmax-backups"));
   const bucket = env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
@@ -102,6 +142,8 @@ async function runBackup() {
   chmodSync(dir, 0o700);
 
   const partial = `${dumpFile}.partial`;
+  let stage;
+  let preserveStaging = false;
   try {
     if (loginConfig) pgEnv = await cliReadOnlyPgEnv({ config: loginConfig, token });
 
@@ -133,9 +175,9 @@ async function runBackup() {
     }
     chmodSync(partial, 0o600);
 
-    // 2. The bucket. Size and recorded version detect replacements under the same key.
-    // Stamp each object still in production with this run's start. Retention
-    // uses that last-seen time even when no complete dump remains.
+    // 2. Download replacements privately before changing the published copy.
+    stage = mkdtempSync(path.join(dir, ".backup-stage-"));
+    chmodSync(stage, 0o700);
     const objects = await listBucketObjects({ baseUrl, key, bucket });
     // What each local file was when it was fetched, so a replacement under the
     // same key and the same size is still noticed.
@@ -147,6 +189,7 @@ async function runBackup() {
       recorded = {};
     }
     const versions = {};
+    const copies = [];
     let fetched = 0;
     for (const object of objects) {
       const target = safeObjectPath(bucketRoot, object.path);
@@ -161,7 +204,7 @@ async function runBackup() {
         })
       ) {
         versions[object.path] = object.version;
-        utimesSync(target, startedAt, startedAt);
+        copies.push({ target, incoming: null, stamp: true });
         continue;
       }
       const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${object.path.split("/").map(encodeURIComponent).join("/")}`, {
@@ -169,25 +212,31 @@ async function runBackup() {
         signal: AbortSignal.timeout(60_000),
       });
       if (!response.ok) throw new Error(`Downloading a bucket object answered ${response.status}.`);
-      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-      // Written beside the file and renamed, so a killed run never leaves half an image.
-      const incoming = `${target}.incoming`;
+      const incoming = safeObjectPath(path.join(stage, "photos"), object.path);
+      mkdirSync(path.dirname(incoming), { recursive: true, mode: 0o700 });
       writeFileSync(incoming, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
-      renameSync(incoming, target);
-      utimesSync(target, startedAt, startedAt);
+      copies.push({ target, incoming, stamp: true });
       versions[object.path] = object.version;
       fetched += 1;
     }
-    writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
+    const stagedVersions = path.join(stage, "versions.json");
+    writeFileSync(stagedVersions, JSON.stringify(versions), { mode: 0o600 });
+    copies.push({ target: versionsFile, incoming: stagedVersions, stamp: false });
+    // Publish the dump last. Originals remain private until every promotion succeeds.
+    copies.push({ target: dumpFile, incoming: partial, stamp: false });
+    try {
+      publishGeneration(copies, stage, startedAt);
+    } catch (error) {
+      preserveStaging = error.preserveStaging === true;
+      throw error;
+    }
     console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
-    // Keep the previous dump until Storage completes. Photo replacements publish
-    // during the loop above, so a failed sync does not preserve their prior bytes.
-    renameSync(partial, dumpFile);
     console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
   } finally {
     // Failed renewal, dump or Storage still expires data at the current time.
     rmSync(partial, { force: true });
+    if (stage && !preserveStaging) rmSync(stage, { recursive: true, force: true });
     const pruned = pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
     console.log(
       `[backup] past retention: ${pruned.dumps} dumps, ${pruned.files} bucket files, ${pruned.directories} folders removed.`,

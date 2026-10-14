@@ -1,6 +1,7 @@
 import { execFile, execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -23,6 +24,9 @@ let loginStatus = 201;
 let loginBody: unknown;
 let storageListStatus: number;
 let storageDownloadStatus: number;
+let storageObjects: { id: string; name: string; metadata: { size: number; eTag: string } }[];
+let storageDownloads: Record<string, { status: number; body: string }>;
+let storageDownloadHooks: Record<string, () => void>;
 let filesAtRenewal: string[];
 let versionsAtRenewal: unknown;
 
@@ -66,13 +70,16 @@ beforeAll(async () => {
         response.writeHead(storageListStatus).end(JSON.stringify({ message: "fixture storage failure" }));
         return;
       }
-      response.end(JSON.stringify([{ id: "fixture", name: "fixture.jpg", metadata: { size: 5, eTag: "v1" } }]));
-    } else if (request.url?.endsWith("/fixture.jpg")) {
-      if (storageDownloadStatus !== 200) {
-        response.writeHead(storageDownloadStatus).end(JSON.stringify({ message: "fixture storage failure" }));
+      response.end(JSON.stringify(storageObjects));
+    } else if (request.url?.includes("/storage/v1/object/")) {
+      const name = request.url.split("/").at(-1)!;
+      const download = storageDownloads[name] ?? { status: storageDownloadStatus, body: "photo" };
+      storageDownloadHooks[name]?.();
+      if (download.status !== 200) {
+        response.writeHead(download.status).end(JSON.stringify({ message: "fixture storage failure" }));
         return;
       }
-      response.end("photo");
+      response.end(download.body);
     } else {
       response.writeHead(404).end();
     }
@@ -81,6 +88,16 @@ beforeAll(async () => {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Fixture server did not listen.");
   baseUrl = `http://127.0.0.1:${address.port}`;
+  const dataDir = pg.sql("show data_directory");
+  const owned = {
+    workerPid: process.pid,
+    postgresPid: Number(readFileSync(path.join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]),
+    postgresPort: pg.port,
+    postgresDataDir: dataDir,
+    storagePort: address.port,
+  };
+  const receipt = process.env.PUBMAX_BACKUP_FIXTURE_RECEIPT;
+  if (receipt) writeFileSync(`${receipt}.owned.json`, JSON.stringify(owned), { mode: 0o600 });
 });
 
 afterAll(async () => {
@@ -95,6 +112,9 @@ beforeEach(() => {
   loginBody = { role: "cli_login_fixture", password: PASSWORD, ttl_seconds: 300 };
   storageListStatus = 200;
   storageDownloadStatus = 200;
+  storageObjects = [{ id: "fixture", name: "fixture.jpg", metadata: { size: 5, eTag: "v1" } }];
+  storageDownloads = {};
+  storageDownloadHooks = {};
   filesAtRenewal = [];
   versionsAtRenewal = {};
   pg.sql(`alter role cli_login_fixture password '${PASSWORD}' valid until 'infinity'`);
@@ -372,6 +392,144 @@ it.each(["listing", "download"])("keeps the unexpired complete fallback when Sto
     expect(result.output).not.toContain(TOKEN);
     expect(result.output).not.toContain(PASSWORD);
   }
+});
+
+it("preserves the previous complete generation when a later photo download fails", async () => {
+  expect((await backup()).status).toBe(0);
+  const privateDir = path.join(directory, "private");
+  const dump = path.join(privateDir, readdirSync(privateDir).find((file) => file.endsWith(".dump"))!);
+  const photo = path.join(privateDir, "bucket/pint-drops/fixture.jpg");
+  const versions = path.join(privateDir, "bucket/pint-drops.versions.json");
+  const hash = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+  const original = { dump: hash(dump), photo: hash(photo), versions: hash(versions), photoMtime: statSync(photo).mtimeMs };
+  const archiveList = execFileSync(findPostgresBinary("pg_restore")!, ["--list", dump], { encoding: "utf8" });
+  for (const entry of ["public profiles", "auth users", "storage objects", "supabase_migrations schema_migrations"]) {
+    expect(archiveList).toContain(`TABLE DATA ${entry}`);
+  }
+  storageObjects = [
+    { id: "fixture", name: "fixture.jpg", metadata: { size: 17, eTag: "v2" } },
+    { id: "later", name: "later.jpg", metadata: { size: 5, eTag: "later-v1" } },
+  ];
+  storageDownloads = {
+    "fixture.jpg": { status: 200, body: "replacement-photo" },
+    "later.jpg": { status: 503, body: "" },
+  };
+
+  const result = await backup();
+
+  const actual = { dump: hash(dump), photo: hash(photo), versions: hash(versions), photoMtime: statSync(photo).mtimeMs };
+  const metadata = {
+    privateDir,
+    cliStatus: result.status,
+    successfulReplacementRequested: calls.filter((call) => call.url.endsWith("/fixture.jpg")).length === 2,
+    laterFailureRequested: calls.some((call) => call.url.endsWith("/later.jpg")),
+    archiveSchemaCount: 4,
+    original,
+    actual,
+    completeDumps: readdirSync(privateDir).filter((file) => file.endsWith(".dump")).length,
+    partialDumps: readdirSync(privateDir).filter((file) => file.endsWith(".partial")).length,
+    stagingDirectories: readdirSync(privateDir).filter((file) => file.startsWith(".backup-stage-")).length,
+  };
+  const receipt = process.env.PUBMAX_BACKUP_FIXTURE_RECEIPT;
+  if (receipt) writeFileSync(receipt, JSON.stringify(metadata), { mode: 0o600 });
+  expect(result.status).toBe(1);
+  expect(result.output).toContain("answered 503");
+  expect(actual.dump).toBe(original.dump);
+  expect(actual.versions).toBe(original.versions);
+  expect(actual.photo, "The previous photo bytes must stay paired with the complete dump").toBe(original.photo);
+  expect(actual.photoMtime).toBe(original.photoMtime);
+  expect(readdirSync(privateDir).some((file) => file.endsWith(".partial"))).toBe(false);
+  expect(readdirSync(privateDir).some((file) => file.startsWith(".backup-stage-"))).toBe(false);
+});
+
+it("publishes the new complete generation only after every photo download succeeds", async () => {
+  expect((await backup()).status).toBe(0);
+  const privateDir = path.join(directory, "private");
+  const photo = path.join(privateDir, "bucket/pint-drops/fixture.jpg");
+  const versions = path.join(privateDir, "bucket/pint-drops.versions.json");
+  const hash = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+  const original = { photo: hash(photo), versions: hash(versions) };
+  let originalVisibleAtLastDownload = false;
+  storageObjects = [
+    { id: "fixture", name: "fixture.jpg", metadata: { size: 17, eTag: "v2" } },
+    { id: "later", name: "later.jpg", metadata: { size: 5, eTag: "later-v1" } },
+  ];
+  storageDownloads = { "fixture.jpg": { status: 200, body: "replacement-photo" } };
+  storageDownloadHooks["later.jpg"] = () => {
+    originalVisibleAtLastDownload = hash(photo) === original.photo && hash(versions) === original.versions;
+  };
+
+  const result = await backup();
+
+  expect(result.status, result.output).toBe(0);
+  expect(originalVisibleAtLastDownload).toBe(true);
+  expect(hash(photo)).toBe(createHash("sha256").update("replacement-photo").digest("hex"));
+  expect(hash(versions)).not.toBe(original.versions);
+  const later = path.join(privateDir, "bucket/pint-drops/later.jpg");
+  expect(statSync(later).mode & 0o777).toBe(0o600);
+  expect(statSync(photo).mode & 0o777).toBe(0o600);
+  const dump = path.join(privateDir, readdirSync(privateDir).find((file) => file.endsWith(".dump"))!);
+  expect(execFileSync(findPostgresBinary("pg_restore")!, ["--list", dump], { encoding: "utf8" })).toContain("TABLE DATA");
+  expect(readdirSync(privateDir).some((file) => file.startsWith(".backup-stage-") || file.endsWith(".partial"))).toBe(false);
+});
+
+it("rolls back photos and version metadata when the final dump publication fails", async () => {
+  expect((await backup()).status).toBe(0);
+  const privateDir = path.join(directory, "private");
+  const currentDump = path.join(privateDir, readdirSync(privateDir).find((file) => file.endsWith(".dump"))!);
+  const dump = path.join(privateDir, dumpFileName(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+  renameSync(currentDump, dump);
+  const photo = path.join(privateDir, "bucket/pint-drops/fixture.jpg");
+  const versions = path.join(privateDir, "bucket/pint-drops.versions.json");
+  const hash = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+  const original = { dump: hash(dump), photo: hash(photo), versions: hash(versions), mtime: statSync(photo).mtimeMs };
+  storageObjects = [
+    { id: "fixture", name: "fixture.jpg", metadata: { size: 17, eTag: "v2" } },
+    { id: "later", name: "later.jpg", metadata: { size: 5, eTag: "later-v1" } },
+  ];
+  storageDownloads = { "fixture.jpg": { status: 200, body: "replacement-photo" } };
+  storageDownloadHooks["later.jpg"] = () => {
+    const partial = readdirSync(privateDir).find((file) => file.endsWith(".dump.partial"))!;
+    // A real filesystem refusal after photo and metadata promotion, not a mocked rename.
+    mkdirSync(path.join(privateDir, partial.slice(0, -".partial".length)));
+  };
+
+  const result = await backup();
+
+  expect(result.status).toBe(1);
+  expect(result.output).toContain("publication failed");
+  expect(hash(dump)).toBe(original.dump);
+  expect(hash(photo)).toBe(original.photo);
+  expect(statSync(photo).mtimeMs).toBe(original.mtime);
+  expect(hash(versions)).toBe(original.versions);
+  expect(existsSync(path.join(privateDir, "bucket/pint-drops/later.jpg"))).toBe(false);
+  expect(execFileSync(findPostgresBinary("pg_restore")!, ["--list", dump], { encoding: "utf8" })).toContain("TABLE DATA");
+  expect(readdirSync(privateDir).some((file) => file.startsWith(".backup-stage-") || file.endsWith(".partial"))).toBe(false);
+});
+
+it("expires abandoned photo staging at eight weeks while retaining unexpired staged originals", async () => {
+  const now = Date.now();
+  const fixture = retentionFixture(true);
+  const stage = path.join(fixture.privateDir, ".backup-stage-fixture");
+  mkdirSync(stage, { mode: 0o700 });
+  const expired = path.join(stage, "expired-original");
+  const retained = path.join(stage, "unexpired-original");
+  writeFileSync(expired, "expired-fixture", { mode: 0o600 });
+  writeFileSync(retained, "retained-fixture", { mode: 0o600 });
+  const cutoff = new Date(now - 56 * 24 * 60 * 60 * 1000);
+  utimesSync(expired, cutoff, cutoff);
+  const unexpired = new Date(now - 52 * 24 * 60 * 60 * 1000);
+  utimesSync(retained, unexpired, unexpired);
+  const redirect = path.join(directory, "redirect.mjs");
+  writeFileSync(redirect, `${readFileSync(redirect, "utf8")}\nDate.now = () => ${now};\n`);
+
+  const result = await backup({ SUPABASE_ACCESS_TOKEN: "" });
+
+  expect(result.status).toBe(1);
+  expect(calls).toHaveLength(0);
+  expect(existsSync(expired)).toBe(false);
+  expect(existsSync(retained)).toBe(true);
+  expectFallbackRetained(fixture);
 });
 
 it("does not acquire credentials or create the destination during a dry run", async () => {
