@@ -8,6 +8,7 @@ import type { AuthContextValue } from "@/components/auth/authContext";
 
 const h = vi.hoisted(() => ({
   platform: "ios" as "ios" | "android" | null,
+  realIdentity: false,
   realAuth: null as SupabaseClient | null, persist: vi.fn(), stopAutoRefresh: vi.fn(),
   navigate: vi.fn(), available: true, switchAccount: vi.fn(), canonicalEmail: vi.fn(),
   listeners: new Set<(event: { url: string }) => void>(), launchUrl: null as string | null,
@@ -65,12 +66,17 @@ vi.mock("@/lib/deviceAccountSwitch", () => ({
   browserDeviceAccountSwitchDeps: () => ({}),
   mintSessionFromRefreshToken: vi.fn(),
 }));
-vi.mock("@/lib/identityClient", async (original) => ({
-  ...await original<typeof import("@/lib/identityClient")>(),
-  IDENTITY_HANDLE_CHANGED_EVENT: "pubmax:identity-handle-changed",
-  identityHandleForOwner: () => null,
-  resolveCanonicalIdentity: async () => ({ ok: true, identity: null }),
-}));
+vi.mock("@/lib/identityClient", async (original) => {
+  const actual = await original<typeof import("@/lib/identityClient")>();
+  return {
+    ...actual,
+    IDENTITY_HANDLE_CHANGED_EVENT: "pubmax:identity-handle-changed",
+    identityHandleForOwner: (...args: Parameters<typeof actual.identityHandleForOwner>) =>
+      h.realIdentity ? actual.identityHandleForOwner(...args) : null,
+    resolveCanonicalIdentity: async (...args: Parameters<typeof actual.resolveCanonicalIdentity>) =>
+      h.realIdentity ? actual.resolveCanonicalIdentity(...args) : ({ ok: true, identity: null }),
+  };
+});
 vi.mock("@/lib/authSessionResumeClient", async (original) => ({
   ...await original<typeof import("@/lib/authSessionResumeClient")>(),
   clearPersistedSession: async () => {}, persistSessionForResume: h.persist, markResumePersisted: () => {},
@@ -93,7 +99,7 @@ let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
-  h.platform = "ios"; h.session = null; h.realAuth = null; h.available = true; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
+  h.platform = "ios"; h.realIdentity = false; h.session = null; h.realAuth = null; h.available = true; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.listeners.clear(); h.launchUrl = null; h.callbackUrl = ""; h.otpBody = null; h.tokenBody = null; h.tokenRequests = 0; h.referralBodies = []; h.tokenDelay = null; h.resumeBody = null;
@@ -466,6 +472,38 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await act(async () => { finish(); await Promise.resolve(); });
     expect(localStorage.getItem("pubmax_handle")).toBe("bob");
     expect(h.navigate).not.toHaveBeenCalled();
+  });
+  it("preserves the active account's canonical handle when the provider's previous identity read settles", async () => {
+    h.realIdentity = true;
+    const defaultFetch = fetch;
+    let finish!: () => void;
+    let previousReadStarted = false;
+    const previousAnswer = new Promise<void>((resolve) => { finish = resolve; });
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input), window.location.href).pathname !== "/api/identity/handle/current") {
+        return defaultFetch(input, init);
+      }
+      const owner = h.session?.user.id;
+      if (owner === "replacement") {
+        previousReadStarted = true;
+        await previousAnswer;
+        return Response.json({ handle: "alice" });
+      }
+      return Response.json({ handle: "bob" });
+    });
+    await act(async () => { await actions.signInWithEmail("native@example.test", "/u/you"); });
+    await openApp(await emailCallback());
+    await vi.waitFor(() => expect(previousReadStarted).toBe(true));
+    await act(async () => { await actions.switchAccount("original"); });
+    await vi.waitFor(() => expect(actions.handle).toBe("bob"));
+    expect(localStorage.getItem("pubmax_handle")).toBe("bob");
+    const navigations = [...h.navigate.mock.calls];
+    await act(async () => { finish(); await Promise.resolve(); });
+    expect(actions.user?.id).toBe("original");
+    expect(actions.handle).toBe("bob");
+    expect(localStorage.getItem("pubmax_account_owner")).toBe("original");
+    expect(localStorage.getItem("pubmax_handle")).toBe("bob");
+    expect(h.navigate.mock.calls).toEqual(navigations);
   });
   it("does not install an email result after an account switch during exchange", async () => {
     await act(async () => { await actions.signInWithEmail("native@example.test"); });

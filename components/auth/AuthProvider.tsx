@@ -480,6 +480,8 @@ export function AuthProvider({
         user.id,
         session,
         browserLocalStorage(),
+        undefined,
+        () => active && getCurrentUserId() === user.id,
       ).catch(() => null);
       // A read that failed is not evidence the account has no handle, so the
       // answer stays unknown rather than becoming a confident "nobody".
@@ -498,7 +500,7 @@ export function AuthProvider({
       active = false;
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
-  }, [session, identityReadAttempt]);
+  }, [session, identityReadAttempt, getCurrentUserId]);
 
   useEffect(() => {
     // Capture callback inputs once across React Strict Mode's effect replay and
