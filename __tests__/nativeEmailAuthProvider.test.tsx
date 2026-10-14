@@ -175,6 +175,7 @@ import { createHash } from "node:crypto";
 import { activateNativeDeepLinks } from "@/lib/nativeDeepLinks";
 import { NATIVE_EMAIL_RECEIPT_KEY } from "@/lib/nativeEmailPkce";
 import { beginCoordinatedAuthAttempt } from "@/lib/authRedirect";
+import { readDeviceAccounts } from "@/lib/deviceAccountSessions";
 
 async function emailCallback(code = "one-use-email-code") {
   const callback = new URL(h.callbackUrl);
@@ -536,6 +537,206 @@ describe("installed iPhone email link, relay and App consumer", () => {
   });
 });
 
+
+describe("mounted legacy callback account ownership with real identity and referral helpers", () => {
+  const a = { ...replacement, access_token: `${token}-account-a` };
+  const b = { ...original, access_token: `${token}-account-b` };
+
+  function captureFullNavigation() {
+    const browser = window;
+    const location = { get href() { return browser.location.href; }, get origin() { return browser.location.origin; }, assign: vi.fn() };
+    vi.stubGlobal("window", new Proxy({}, {
+      get: (_target, key) => {
+        if (key === "location") return location;
+        const value = Reflect.get(browser, key, browser);
+        return ["addEventListener", "removeEventListener", "dispatchEvent", "setTimeout", "clearTimeout"].includes(String(key))
+          ? value.bind(browser) : value;
+      },
+    }));
+    return location.assign;
+  }
+
+  async function mountLegacyCallback(withReferral = true) {
+    h.platform = null;
+    h.realIdentity = true;
+    h.setSession.mockImplementation(async () => {
+      h.session = a;
+      h.subscriber?.("SIGNED_IN", a);
+      return { data: { session: a, user: a.user }, error: null };
+    });
+    window.history.replaceState(null, "", withReferral ? "/map#referral=validReferralCode123456789" : "/map");
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test", withReferral ? undefined : "/map")).status).toBe("sent"); });
+    const callback = new URL(h.callbackUrl);
+    if (withReferral) expect(callback.searchParams.get("_referralSignupProof")).toBe("trusted-referral-proof");
+    const landing = new URL("/map", window.location.origin);
+    landing.searchParams.set("_authCallback", "1");
+    landing.searchParams.set("_authAttempt", callback.searchParams.get("_authAttempt")!);
+    if (withReferral) landing.searchParams.set("_referralSignupProof", callback.searchParams.get("_referralSignupProof")!);
+    landing.hash = new URLSearchParams({ access_token: a.access_token, refresh_token: a.refresh_token }).toString();
+    await act(async () => root.unmount());
+    window.history.replaceState(null, "", landing);
+    root = createRoot(container);
+    await act(async () => root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))));
+    expect(h.setSession).toHaveBeenCalledOnce();
+  }
+
+  it.each(["switch", "return", "refresh"] as const)("settles legacy referral parsing under the captured account generation after %s", async (transition) => {
+    const assign = captureFullNavigation();
+    const transport = fetch;
+    let release!: () => void;
+    let parsing = false;
+    let aReads = 0;
+    const delayed = new Promise<void>((resolve) => { release = resolve; });
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input), window.location.href).pathname;
+      if (path === "/api/referrals/claim-attribution") {
+        expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${a.access_token}`);
+        const response = Response.json({ inviterHandle: "friend" });
+        response.json = async () => { parsing = true; await delayed; return { inviterHandle: "friend" }; };
+        return response;
+      }
+      if (path === "/api/identity/handle/current") {
+        const bearer = new Headers(init?.headers).get("authorization");
+        return Response.json({ handle: bearer === `Bearer ${a.access_token}` ? (++aReads === 1 ? "alice" : "alice_new") : "bob" });
+      }
+      return transport(input, init);
+    });
+    await mountLegacyCallback();
+    await vi.waitFor(() => expect(parsing).toBe(true));
+    await act(async () => {
+      if (transition === "refresh") h.subscriber?.("TOKEN_REFRESHED", a);
+      else {
+        h.session = b; h.subscriber?.("SIGNED_IN", b);
+        if (transition === "return") { h.session = a; h.subscriber?.("SIGNED_IN", a); }
+      }
+    });
+    const handle = transition === "switch" ? "bob" : transition === "return" ? "alice_new" : "alice";
+    const owner = transition === "switch" ? "original" : "replacement";
+    await vi.waitFor(() => expect(actions.handle).toBe(handle));
+    const records = readDeviceAccounts(localStorage);
+    await act(async () => { release(); });
+    expect(actions.user?.id).toBe(owner);
+    expect(actions.handle).toBe(handle);
+    expect(localStorage.getItem("pubmax_account_owner")).toBe(owner);
+    expect(localStorage.getItem("pubmax_handle")).toBe(handle);
+    expect(readDeviceAccounts(localStorage)).toEqual(records);
+    expect(sessionStorage.getItem("pubmax:referral-follow-handle")).toBe(transition === "refresh" ? "friend" : null);
+    expect(assign).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+  });
+
+  it.each(["switch", "return"] as const)("does not publish a legacy identity or destination after %s during response parsing", async (transition) => {
+    const assign = captureFullNavigation();
+    const transport = fetch;
+    let release!: () => void;
+    let oldReads = 0;
+    let oldGeneration = true;
+    const delayed = new Promise<void>((resolve) => { release = resolve; });
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input), window.location.href).pathname !== "/api/identity/handle/current") return transport(input, init);
+      const bearer = new Headers(init?.headers).get("authorization");
+      if (bearer !== `Bearer ${a.access_token}`) return Response.json({ handle: "bob" });
+      if (!oldGeneration) return Response.json({ handle: "alice_new" });
+      oldReads += 1;
+      const response = Response.json({});
+      response.json = async () => { await delayed; return { handle: transition === "switch" ? null : "alice_old" }; };
+      return response;
+    });
+    await mountLegacyCallback(false);
+    expect(oldReads).toBe(2);
+    await act(async () => {
+      oldGeneration = false;
+      h.session = b; h.subscriber?.("SIGNED_IN", b);
+      if (transition === "return") { h.session = a; h.subscriber?.("SIGNED_IN", a); }
+    });
+    const handle = transition === "switch" ? "bob" : "alice_new";
+    const owner = transition === "switch" ? "original" : "replacement";
+    await vi.waitFor(() => expect(actions.handle).toBe(handle));
+    const records = readDeviceAccounts(localStorage);
+    await act(async () => { release(); });
+    expect(actions.user?.id).toBe(owner);
+    expect(actions.handle).toBe(handle);
+    expect(actions.identityResolved).toBe(true);
+    expect(localStorage.getItem("pubmax_account_owner")).toBe(owner);
+    expect(localStorage.getItem("pubmax_handle")).toBe(handle);
+    expect(readDeviceAccounts(localStorage)).toEqual(records);
+    expect(sessionStorage.getItem("pubmax:referral-follow-handle")).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a legacy referral after returning to A during backoff", async () => {
+    const assign = captureFullNavigation();
+    const transport = fetch;
+    let claims = 0;
+    let aReads = 0;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input), window.location.href).pathname;
+      if (path === "/api/referrals/claim-attribution") {
+        claims += 1;
+        return new Response(null, { status: 503, headers: { "retry-after": "0.02" } });
+      }
+      if (path === "/api/identity/handle/current") {
+        const bearer = new Headers(init?.headers).get("authorization");
+        return Response.json({ handle: bearer === `Bearer ${a.access_token}` ? (++aReads === 1 ? "alice" : "alice_new") : "bob" });
+      }
+      return transport(input, init);
+    });
+    await mountLegacyCallback();
+    await vi.waitFor(() => expect(claims).toBe(1));
+    await act(async () => {
+      h.session = b; h.subscriber?.("SIGNED_IN", b);
+      h.session = a; h.subscriber?.("SIGNED_IN", a);
+    });
+    await vi.waitFor(() => expect(actions.handle).toBe("alice_new"));
+    const records = readDeviceAccounts(localStorage);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+    expect(claims).toBe(1);
+    expect(localStorage.getItem("pubmax_handle")).toBe("alice_new");
+    expect(readDeviceAccounts(localStorage)).toEqual(records);
+    expect(sessionStorage.getItem("pubmax:referral-follow-handle")).toBeNull();
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("makes a fresh canonical read for a synchronous A-B-A generation", async () => {
+    h.realIdentity = true;
+    const transport = fetch;
+    let release!: () => void;
+    let aReads = 0;
+    const delayed = new Promise<void>((resolve) => { release = resolve; });
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input), window.location.href).pathname !== "/api/identity/handle/current") {
+        return transport(input, init);
+      }
+      const bearer = new Headers(init?.headers).get("authorization");
+      if (bearer !== `Bearer ${a.access_token}`) return Response.json({ handle: "bob" });
+      if (++aReads !== 1) return Response.json({ handle: "alice_new" });
+      const response = Response.json({ handle: "alice_old" });
+      response.json = async () => { await delayed; return { handle: "alice_old" }; };
+      return response;
+    });
+    await act(async () => { h.session = a; h.subscriber?.("SIGNED_IN", a); });
+    expect(aReads).toBe(1);
+    try {
+      await act(async () => {
+        h.session = b; h.subscriber?.("SIGNED_IN", b);
+        h.session = a; h.subscriber?.("SIGNED_IN", a);
+      });
+      await vi.waitFor(() => expect(aReads).toBe(2));
+      await vi.waitFor(() => expect(actions.handle).toBe("alice_new"));
+    } finally {
+      await act(async () => { release(); });
+    }
+    expect(actions.user?.id).toBe("replacement");
+    expect(actions.handle).toBe("alice_new");
+    expect(actions.identityResolved).toBe(true);
+    expect(localStorage.getItem("pubmax_account_owner")).toBe("replacement");
+    expect(localStorage.getItem("pubmax_handle")).toBe("alice_new");
+    expect(readDeviceAccounts(localStorage).find((record) => record.userId === "replacement")?.handle).toBe("alice_new");
+    expect(sessionStorage.getItem("pubmax:referral-follow-handle")).toBeNull();
+    expect(h.navigate).not.toHaveBeenCalled();
+  });
+});
 
 describe("mounted native cancellation with the installed canonical SDK", () => {
   it("cancels email and provider installations during remote verification without changing original device data", async () => {
