@@ -2,12 +2,13 @@
 // @vitest-environment-options {"url":"https://pubmaxxing.com"}
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { Session } from "@supabase/supabase-js";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthContextValue } from "@/components/auth/authContext";
 
 const h = vi.hoisted(() => ({
   platform: "ios" as "ios" | "android" | null,
+  realAuth: null as SupabaseClient | null, persist: vi.fn(), stopAutoRefresh: vi.fn(),
   navigate: vi.fn(), available: true, switchAccount: vi.fn(), canonicalEmail: vi.fn(),
   listeners: new Set<(event: { url: string }) => void>(), launchUrl: null as string | null,
   bootstrap: vi.fn(), tokenRequests: 0, referralBodies: [] as Record<string, unknown>[], tokenDelay: null as Promise<unknown> | null, resumeBody: null as null | Record<string, unknown>,
@@ -29,19 +30,18 @@ vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => h.platform, isNativeApp: () => h.platform !== null }));
 vi.mock("@/lib/nativeOAuth", () => ({ oauthOpensInSystemBrowser: () => h.platform !== null, openOAuthInSystemBrowser: h.openBrowser }));
-vi.mock("@/lib/nativeAuthClient", () => ({ createNativeAuthClient: async () => ({ auth: {
-  signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {},
-} }) }));
 vi.mock("@/lib/nativeAuthSession", async (original) => ({
   ...await original<typeof import("@/lib/nativeAuthSession")>(),
   nativeAuthSessionAvailable: async () => h.available,
   authenticateNativeSession: h.authenticate,
   cancelNativeAuthSession: h.cancel,
 }));
-vi.mock("@/lib/authClient", () => ({
+vi.mock("@/lib/authClient", async (original) => ({
+  ...await original<typeof import("@/lib/authClient")>(),
+  createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: h.stopAutoRefresh } }),
   isAuthConfigured: () => true,
-  getAccessToken: async () => h.session?.access_token ?? null,
-  ensureSupabaseBrowser: async () => ({ auth: {
+  getAccessToken: async () => (h.realAuth ? (await h.realAuth.auth.getSession()).data.session : h.session)?.access_token ?? null,
+  ensureSupabaseBrowser: async () => h.realAuth ?? ({ auth: {
     signInWithOAuth: h.canonicalOAuth, signInWithOtp: h.canonicalEmail, setSession: h.setSession, signOut: h.signOut,
     getSession: h.getSession,
     onAuthStateChange: (callback: typeof h.subscriber) => {
@@ -73,7 +73,7 @@ vi.mock("@/lib/identityClient", async (original) => ({
 }));
 vi.mock("@/lib/authSessionResumeClient", async (original) => ({
   ...await original<typeof import("@/lib/authSessionResumeClient")>(),
-  clearPersistedSession: async () => {}, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
+  clearPersistedSession: async () => {}, persistSessionForResume: h.persist, markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true,
 }));
 import { setProviderAuthState } from "@/lib/authProviderRevision";
@@ -93,7 +93,7 @@ let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
-  h.platform = "ios"; h.session = null; h.available = true;
+  h.platform = "ios"; h.session = null; h.realAuth = null; h.available = true; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.listeners.clear(); h.launchUrl = null; h.callbackUrl = ""; h.otpBody = null; h.tokenBody = null; h.tokenRequests = 0; h.referralBodies = []; h.tokenDelay = null; h.resumeBody = null;
@@ -495,5 +495,121 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await act(async () => { finish(); await signedOut; });
     expect(container.querySelector("output")?.textContent).toBe("signed-out");
     expect(h.navigate).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("mounted native cancellation with the installed canonical SDK", () => {
+  it("cancels email and provider installations during remote verification without changing original device data", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/authClient")>("@/lib/authClient");
+    let release!: () => void;
+    let delay: Promise<void> | null = null;
+    let verifying = false;
+    let nativeUserReads = 0;
+    let expectedRead = 2;
+    const restoredAccess = `e30.${Buffer.from(JSON.stringify({ sub: "original", exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.unsigned`;
+    const transport = globalThis.fetch;
+    const requests = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), window.location.href);
+      if (url.pathname === "/auth/v1/token" && url.searchParams.get("grant_type") === "refresh_token") {
+        return Response.json({ code: "refresh_token_not_found", message: "Refresh token does not exist" }, { status: 400 });
+      }
+      if (url.pathname === "/auth/v1/user" && new Headers(init?.headers).get("authorization") === `Bearer ${restoredAccess}`) return Response.json(original.user);
+      if (url.pathname === "/auth/v1/user") {
+        nativeUserReads += 1;
+        if (nativeUserReads === expectedRead && delay) { verifying = true; await delay; }
+      }
+      return transport(input, init);
+    });
+    vi.stubGlobal("fetch", requests);
+    await act(async () => root.unmount());
+    h.realAuth = await actual.ensureSupabaseBrowser();
+    expect(h.realAuth).not.toBeNull();
+    root = createRoot(container);
+    await act(async () => root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe))));
+    const { rememberDeviceAccount, readDeviceAccounts } = await import("@/lib/deviceAccountSessions");
+    rememberDeviceAccount(localStorage, { userId: "original", refreshToken: "original-refresh", handle: "original_owner" });
+    localStorage.setItem("pubmax_handle", "original_owner");
+    localStorage.setItem("pubmax_account_owner", "original");
+    const originalRecords = readDeviceAccounts(localStorage);
+    for (const method of ["email", "google", "apple", "microsoft"] as const) {
+      nativeUserReads = 0; expectedRead = method === "email" ? 2 : 1; verifying = false;
+      delay = new Promise<void>((resolve) => { release = resolve; });
+      let pending: Promise<unknown> | null = null;
+      await act(async () => {
+        if (method === "email") {
+          await actions.signInWithEmail("native@example.test");
+          for (const listener of h.listeners) listener({ url: await emailCallback() });
+        } else {
+          pending = method === "google" ? actions.signInWithGoogle() : method === "apple" ? actions.signInWithApple() : actions.signInWithMicrosoft();
+        }
+      });
+      await vi.waitFor(() => expect(verifying).toBe(true));
+      await act(async () => actions.cancelAuthAttempt());
+      await act(async () => { release(); if (pending) await pending; });
+      await vi.waitFor(async () => expect((await h.realAuth!.auth.getSession()).data.session).toBeNull());
+      expect(container.querySelector("output")?.textContent).toBe("signed-out");
+      expect(readDeviceAccounts(localStorage)).toEqual(originalRecords);
+      expect(localStorage.getItem("pubmax_handle")).toBe("original_owner");
+      expect(h.persist).not.toHaveBeenCalled();
+      expect(h.referralBodies).toEqual([]);
+      expect(h.navigate).not.toHaveBeenCalled();
+      expect(requests.mock.calls.some(([input]) => String(input).includes("/logout"))).toBe(false);
+    }
+    delay = null;
+    let releaseCleanup!: () => void;
+    let cleanupStarted = false;
+    h.stopAutoRefresh.mockImplementation(() => {
+      cleanupStarted = true;
+      return new Promise<void>((resolve) => { releaseCleanup = resolve; });
+    });
+    let providerCompletion!: Promise<unknown>;
+    await act(async () => { providerCompletion = actions.signInWithGoogle(); });
+    await vi.waitFor(() => expect(cleanupStarted).toBe(true));
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    await act(async () => actions.cancelAuthAttempt());
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    await act(async () => { releaseCleanup(); await providerCompletion; });
+    expect(readDeviceAccounts(localStorage)).toEqual(originalRecords);
+    h.stopAutoRefresh.mockResolvedValue(undefined);
+    let cancelAfterWrite = true;
+    let cancelledAfterWrite = false;
+    const registration = h.realAuth!.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" && cancelAfterWrite) { cancelledAfterWrite = true; actions.cancelAuthAttempt(); }
+    });
+    await act(async () => { await actions.signInWithEmail("native@example.test"); });
+    await openApp(await emailCallback());
+    await vi.waitFor(() => expect(cancelledAfterWrite).toBe(true));
+    await vi.waitFor(async () => expect((await h.realAuth!.auth.getSession()).data.session).toBeNull());
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    expect(readDeviceAccounts(localStorage)).toEqual(originalRecords);
+    expect(localStorage.getItem("pubmax_handle")).toBe("original_owner");
+    expect(h.persist).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+    cancelAfterWrite = false;
+    nativeUserReads = 0; expectedRead = 1; verifying = false;
+    delay = new Promise<void>((resolve) => { release = resolve; });
+    let conflicted!: Promise<unknown>;
+    await act(async () => { conflicted = actions.signInWithGoogle(); });
+    await vi.waitFor(() => expect(verifying).toBe(true));
+    await act(async () => { await h.realAuth!.auth.setSession({ access_token: restoredAccess, refresh_token: "original-refresh" }); });
+    expect(container.querySelector("output")?.textContent).toBe("original");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3_601_000);
+    await act(async () => { await h.realAuth!.auth.refreshSession(); });
+    clock.mockRestore();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    await act(async () => { release(); await conflicted; });
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    delay = null;
+    await act(async () => { await actions.signInWithEmail("native@example.test", "/u/you"); });
+    await openApp(await emailCallback());
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    expect((await h.realAuth!.auth.getSession()).data.session?.user.id).toBe("replacement");
+    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    expect(readDeviceAccounts(localStorage).map((account) => account.userId)).toContain("original");
+    expect(requests.mock.calls.some(([input]) => String(input).includes("/logout"))).toBe(false);
+    registration.data.subscription.unsubscribe();
+    await h.realAuth!.auth.stopAutoRefresh();
   });
 });

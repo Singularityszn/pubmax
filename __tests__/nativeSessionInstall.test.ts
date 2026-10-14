@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient, type Session } from "@supabase/supabase-js";
-import { installNativeSession } from "@/lib/nativeIOSOAuth";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, installNativeSession } from "@/lib/authClient";
 
 function token(id: string) {
   return [
@@ -10,7 +10,7 @@ function token(id: string) {
     "unsigned",
   ].join(".");
 }
-afterEach(() => { vi.unstubAllGlobals(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("native installation through the installed Supabase SDK", () => {
   it("refuses to replace B when A verifies but a second A lookup would report session_not_found", async () => {
@@ -61,4 +61,40 @@ describe("native installation through the installed Supabase SDK", () => {
     expect((await canonical.auth.getSession()).data.session).toBeNull();
     await canonical.auth.stopAutoRefresh();
   });
+});
+
+
+it("preserves a concurrently restored canonical account during native verification and rejection", async () => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://offline-auth-test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_offline_fixture");
+  let release!: () => void;
+  let verifying = false;
+  let reject = false;
+  let current = true;
+  const a = token("account-a");
+  const b = token("account-b");
+  const request = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    expect(String(url)).toContain("/auth/v1/user");
+    if (new Headers(init?.headers).get("authorization") === `Bearer ${b}`) return Response.json({ id: "account-b" });
+    verifying = true;
+    await new Promise<void>((resolve) => { release = resolve; });
+    return reject ? Response.json({ code: "session_not_found", message: "Session does not exist" }, { status: 400, headers: { "x-supabase-api-version": "2024-01-01" } }) : Response.json({ id: "account-a" });
+  });
+  vi.stubGlobal("fetch", request);
+  const canonical = await ensureSupabaseBrowser();
+  expect(canonical).not.toBeNull();
+  for (reject of [false, true]) {
+    localStorage.removeItem("sb-offline-auth-test-auth-token");
+    verifying = false; current = true;
+    const installation = installNativeSession(canonical!.auth, { access_token: a, refresh_token: "account-a-refresh", user: { id: "account-a" } } as Session, () => current);
+    await vi.waitFor(() => expect(verifying).toBe(true));
+    await canonical!.auth.setSession({ access_token: b, refresh_token: "account-b-refresh" });
+    current = false;
+    discardCancelledNativeSessionInstallation();
+    release();
+    expect(await installation).toBeNull();
+    expect((await canonical!.auth.getSession()).data.session?.user.id).toBe("account-b");
+    expect((await canonical!.auth.getSession()).data.session?.refresh_token).toBe("account-b-refresh");
+  }
+  await canonical!.auth.stopAutoRefresh();
 });
