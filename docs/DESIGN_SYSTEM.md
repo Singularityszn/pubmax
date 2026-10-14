@@ -321,15 +321,18 @@ token, and `__tests__/loginPage.test.ts` holds both states to 4.5:1.
 
 | Role | Typeface | Variable | Why |
 |---|---|---|---|
-| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
+| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` without a browser request to Google. |
 | Body | **Inter** | `--font-body` | Already the app's body face — kept deliberately. Inter is neutral and extremely legible at small UI sizes (panel copy, chip labels), which is exactly what a body face should be: carry the display face's personality without competing for it. |
 | Data | **JetBrains Mono** | `--font-data` | Prices, stats, route metrics. A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
 
 All three are loaded once in `app/layout.tsx` and exposed as CSS variables
 on `<html>`: Space Grotesk and Inter via `next/font/google`, and JetBrains Mono
-via `next/font/local` from its vendored file in `app/_fonts/`. So
-`globals.css`/`theme.css` and any component reading `var(--serif)`, `var(--font-body)`, or `var(--font-data)`
-picks them up automatically — no per-component font imports.
+via `next/font/local` from its vendored file in `app/_fonts/`.
+The display and body variables also receive their generated `style.fontFamily`
+chains inline on `<html>`, preserving their metric-matched fallbacks against theme overrides.
+Components read the shared variables without per-component font imports.
+Cascade coverage is in `__tests__/rootFontCascade.test.tsx` and
+`e2e/root-font-cascade.spec.ts`.
 
 `--serif` is kept as a permanent alias for `--font-display`: every existing
 `h1`/`h2`/`h3`/`.eyebrow`/card-title that already reads `var(--serif)` now

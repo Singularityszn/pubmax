@@ -1,15 +1,14 @@
 "use client";
 
 // The ⌘K palette dialog (feature N1). Mounted only while open (the provider
-// conditionally renders it), so open state == mounted: initial state is always
-// a fresh empty query, focus lands on the input on mount, and focus is restored
-// to the previously-focused element on unmount — no setState-in-effect needed.
+// conditionally renders it). Its query starts empty. The strict-modal focus
+// trap releases inert before restoring the opener when the dialog unmounts.
 //
-// Accessibility: a combobox-over-listbox pattern. Focus stays on the input the
-// whole time (so typing always works); the active row is conveyed with
-// aria-activedescendant rather than moving DOM focus. Tab is trapped to the
-// input, Esc closes, ↑/↓ move the active row, Enter runs it. Backdrop click
-// closes. Entrance motion is gated behind prefers-reduced-motion in the CSS.
+// Accessibility: a combobox-over-listbox pattern. Focus stays on the input
+// during arrow navigation. The active row uses aria-activedescendant rather
+// than moving DOM focus. Tab stays inside the dialog. Esc closes, ↑/↓ move
+// the active row, Enter runs it. Backdrop click closes.
+// Entrance motion is gated behind prefers-reduced-motion in the CSS.
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
