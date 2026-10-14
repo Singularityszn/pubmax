@@ -66,11 +66,18 @@ function gitTopLevel(directory) {
 
 function publishGeneration(copies, stage, startedAt) {
   const journal = [];
+  let originalIndex = null;
   try {
+    const indexCopy = copies.find((copy) => copy.recoveryIndex);
+    if (indexCopy && existsSync(indexCopy.target)) {
+      originalIndex = { incoming: indexCopy.incoming, stat: statSync(indexCopy.target), data: readFileSync(indexCopy.target) };
+    }
     for (const [index, copy] of copies.entries()) {
       const original = existsSync(copy.target) ? statSync(copy.target) : null;
       if (original && !original.isFile()) throw new Error("Backup publication target is not a file.");
-      const entry = { ...copy, original, previous: path.join(stage, `previous-${index}`), moved: false, published: false };
+      const entry = {
+        ...copy, original, previous: path.join(stage, `previous-${index}`), moved: false, published: false,
+      };
       journal.push(entry);
       if (copy.incoming) {
         mkdirSync(path.dirname(copy.target), { recursive: true, mode: 0o700 });
@@ -95,7 +102,27 @@ function publishGeneration(copies, stage, startedAt) {
       }
     }
     if (rollbackFailed) {
-      const error = new Error("Backup publication rollback failed. Original files remain in private staging.");
+      let preservationFailed = false;
+      for (const entry of journal) {
+        try {
+          // Reuse the staged object paths so retained originals keep their mapping.
+          if (entry.stamp && entry.moved && existsSync(entry.previous)) renameSync(entry.previous, entry.incoming);
+        } catch {
+          preservationFailed = true;
+        }
+      }
+      // Finally pruning may remove a restored index when a photo is still absent.
+      if (originalIndex) {
+        try {
+          writeFileSync(originalIndex.incoming, originalIndex.data, { mode: 0o600 });
+          utimesSync(originalIndex.incoming, originalIndex.stat.atimeMs / 1000, originalIndex.stat.mtimeMs / 1000);
+        } catch {
+          preservationFailed = true;
+        }
+      }
+      const error = new Error(preservationFailed
+        ? "Backup publication rollback failed. Recovery metadata is incomplete. Available originals remain in private staging."
+        : "Backup publication rollback failed. Recoverable originals and their metadata remain in private staging.");
       error.preserveStaging = true;
       throw error;
     }
@@ -221,7 +248,7 @@ async function runBackup() {
     }
     const stagedVersions = path.join(stage, "versions.json");
     writeFileSync(stagedVersions, JSON.stringify(versions), { mode: 0o600 });
-    copies.push({ target: versionsFile, incoming: stagedVersions, stamp: false });
+    copies.push({ target: versionsFile, incoming: stagedVersions, stamp: false, recoveryIndex: true });
     // Publish the dump last. Originals remain private until every promotion succeeds.
     copies.push({ target: dumpFile, incoming: partial, stamp: false });
     try {

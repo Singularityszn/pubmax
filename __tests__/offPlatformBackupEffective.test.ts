@@ -507,6 +507,89 @@ it("rolls back photos and version metadata when the final dump publication fails
   expect(readdirSync(privateDir).some((file) => file.startsWith(".backup-stage-") || file.endsWith(".partial"))).toBe(false);
 });
 
+it("preserves mapped original photos and metadata when photo restoration fails after index restoration", async () => {
+  expect((await backup()).status).toBe(0);
+  const privateDir = path.join(directory, "private");
+  const currentDump = path.join(privateDir, readdirSync(privateDir).find((file) => file.endsWith(".dump"))!);
+  const dump = path.join(privateDir, dumpFileName(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+  renameSync(currentDump, dump);
+  const photo = path.join(privateDir, "bucket/pint-drops/fixture.jpg");
+  const versions = path.join(privateDir, "bucket/pint-drops.versions.json");
+  const hash = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
+  const original = { dump: hash(dump), photo: hash(photo), versions: hash(versions), mtime: statSync(photo).mtimeMs };
+  storageObjects = [{ id: "fixture", name: "fixture.jpg", metadata: { size: 17, eTag: "v2" } }];
+  storageDownloads = { "fixture.jpg": { status: 200, body: "replacement-photo" } };
+  storageDownloadHooks["fixture.jpg"] = () => {
+    const partial = readdirSync(privateDir).find((file) => file.endsWith(".dump.partial"))!;
+    mkdirSync(path.join(privateDir, partial.slice(0, -".partial".length)));
+  };
+  const seamReceipt = path.join(directory, "restore-seam.json");
+  const indexTimestamp = new Date(Math.floor(statSync(versions).mtimeMs));
+  utimesSync(versions, indexTimestamp, indexTimestamp);
+  const originalIndexMtime = statSync(versions).mtimeMs;
+  const redirect = path.join(directory, "redirect.mjs");
+  writeFileSync(redirect, `${readFileSync(redirect, "utf8")}
+import fixtureFs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const fixtureRename = fixtureFs.renameSync;
+let indexRestored = false;
+fixtureFs.renameSync = (from, to) => {
+  if (String(from).includes('/previous-') && to === ${JSON.stringify(photo)}) {
+    if (!indexRestored) throw new Error('Fixture restoration order changed');
+    fixtureFs.mkdirSync(to);
+    fixtureFs.writeFileSync(${JSON.stringify(seamReceipt)}, JSON.stringify({ indexRestored, photoRestoreAttempted: true }), { mode: 0o600 });
+  }
+  const result = fixtureRename(from, to);
+  if (String(from).includes('/previous-') && to === ${JSON.stringify(versions)}) indexRestored = true;
+  return result;
+};
+syncBuiltinESMExports();
+`);
+
+  const result = await backup();
+
+  expect(result.status).toBe(1);
+  expect(result.output).toContain("rollback failed");
+  expect(JSON.parse(readFileSync(seamReceipt, "utf8"))).toEqual({ indexRestored: true, photoRestoreAttempted: true });
+  const stage = path.join(privateDir, readdirSync(privateDir).find((file) => file.startsWith(".backup-stage-"))!);
+  const stagedPhoto = path.join(stage, "photos/fixture.jpg");
+  const stagedVersions = path.join(stage, "versions.json");
+  const files = readdirSync(stage, { recursive: true }).filter((name) => statSync(path.join(stage, name)).isFile());
+  const metadata = {
+    privateDir, cliStatus: result.status, seam: JSON.parse(readFileSync(seamReceipt, "utf8")), original,
+    dumpHash: hash(dump), publishedIndexExists: existsSync(versions),
+    publishedIndexHash: existsSync(versions) ? hash(versions) : null,
+    stagedFiles: files.map((name) => ({ name, hash: hash(path.join(stage, name)), mtime: statSync(path.join(stage, name)).mtimeMs })),
+    mappedPhotoExists: existsSync(stagedPhoto), originalIndexExists: existsSync(stagedVersions),
+  };
+  const receipt = process.env.PUBMAX_BACKUP_FIXTURE_RECEIPT;
+  if (receipt) writeFileSync(receipt, JSON.stringify(metadata), { mode: 0o600 });
+  expect(hash(dump)).toBe(original.dump);
+  expect(existsSync(stagedVersions), "Original index must survive the finally pruning pass").toBe(true);
+  expect(hash(stagedVersions)).toBe(original.versions);
+  expect(JSON.parse(readFileSync(stagedVersions, "utf8"))).toEqual({ "fixture.jpg": "v1" });
+  expect(existsSync(stagedPhoto), "Original photo must retain its object-path mapping").toBe(true);
+  expect(hash(stagedPhoto)).toBe(original.photo);
+  expect(statSync(stagedPhoto).mtimeMs).toBe(original.mtime);
+  expect(statSync(stagedVersions).mtimeMs).toBe(originalIndexMtime);
+  expect(statSync(stage).mode & 0o777).toBe(0o700);
+  expect(statSync(stagedPhoto).mode & 0o777).toBe(0o600);
+  expect(statSync(stagedVersions).mode & 0o777).toBe(0o600);
+  expect(readdirSync(privateDir).some((file) => file.endsWith(".partial"))).toBe(false);
+
+  // Remove only the injected dump obstruction before the next actual preflight.
+  const blockedDump = readdirSync(privateDir).find((file) => file.endsWith(".dump") && statSync(path.join(privateDir, file)).isDirectory())!;
+  rmSync(path.join(privateDir, blockedDump), { recursive: true });
+  const expiry = Math.max(original.mtime, originalIndexMtime) + 56 * 24 * 60 * 60 * 1000;
+  writeFileSync(redirect, `${readFileSync(redirect, "utf8")}\nDate.now = () => ${expiry};\n`);
+  const expired = await backup({ SUPABASE_ACCESS_TOKEN: "" });
+  expect(expired.status).toBe(1);
+  expect(expired.output).toContain("SUPABASE_ACCESS_TOKEN is not set.");
+  expect(existsSync(stagedPhoto)).toBe(false);
+  expect(existsSync(stagedVersions)).toBe(false);
+  expect(existsSync(stage)).toBe(false);
+});
+
 it("expires abandoned photo staging at eight weeks while retaining unexpired staged originals", async () => {
   const now = Date.now();
   const fixture = retentionFixture(true);

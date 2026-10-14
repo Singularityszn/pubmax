@@ -217,7 +217,7 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     if (Object.keys(versions).length === 0) rmSync(versionsFile, { force: true });
     else {
       chmodSync(versionsFile, 0o600);
-      writeFileSync(versionsFile, JSON.stringify(versions));
+      if (Object.keys(versions).length !== Object.keys(recorded).length) writeFileSync(versionsFile, JSON.stringify(versions));
     }
   }
 
