@@ -3,7 +3,9 @@
 Pub Pal typed chat answers keylessly via `/api/pub-pal/chat` (the same grounded
 `runAsk` tools as map Ask, no OpenRouter). Voice and the hosted-LLM typed path
 share one ElevenLabs agent when the four values below are set and the agent
-script has run. Map Ask still answers keylessly via `/api/ask`.
+script has run. [ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministic
+menu and price routing that precedes provider selection.
+Map Ask still answers keylessly via `/api/ask`.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
@@ -15,7 +17,7 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | Yes | `/api/pub-pal/chat` via deterministic `runAsk` when ElevenLabs is off; same agent as voice in text-only mode when it is on |
+| `/pal/chat` text ask | Yes | `/api/pub-pal/chat`. Provider selection follows ADR 0014 |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
 | Model tool selection | Keyless regex | With ElevenLabs, the hosted LLM on the agent picks webhook tools; neither path calls OpenRouter |
@@ -173,8 +175,9 @@ normal update and drift check.
 The [tool identity CLI proof](proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
 
-Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
-proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
+Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
+The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
+Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
@@ -242,6 +245,16 @@ AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (the first
 step of `npm run dev` and `npm run build`) writes them to `public/vendor/elevenlabs/`, and the voice session
 passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
 `blob:` or `data:` back into `script-src`.
+
+---
+
+## Diagnosing typed-chat failures
+
+`lib/palElevenLabsChat.server.ts` emits private `pub_pal.chat_failed` warnings
+with a failure code, stage, elapsed milliseconds and an optional signed-session reason.
+Caller cancellation does not emit this warning.
+The diagnostic excludes prompts, transcripts, URLs, headers, secrets and personal data.
+It does not change the public error response or establish a provider failure's cause.
 
 ---
 
