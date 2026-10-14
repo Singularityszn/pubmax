@@ -1,6 +1,7 @@
 # PUBMAXX launch work and Claude handoff
 
 Snapshot: 14 October 2026. Repository: `Singularityszn/pubmax`.
+The original snapshot preceded decision 202. Current scheduling below follows decision 202, issued at 12:29:08 UTC that day.
 
 This document records the launch work, its evidence, current tasks, and remaining tasks. It is a dated handoff, not a launch approval.
 
@@ -45,13 +46,16 @@ The following identities were checked during this handoff preparation.
 | Captured verification plan SHA-256 | `4a67cc51b7fc4882c90ab03b1e3e0773cf9804758f47086ddfb0ce6cf86dd78b` |
 | Original supervisor | Writer PID 599 and the existing coordinator routing |
 | Last admitted QA family | Decision 199 family, fully released at 12:06:26 UTC |
-| Next source instruction | Decision 201, authorised and not yet executed at this snapshot |
+| Current scheduling authority | Decision 202 allocates the next serial slot to this documentation publication family |
+| Preserved launch instruction | Decision 201 remains unexecuted. Its unused reservation is released and is not a current start grant |
+| Documentation run | `01M4X6B10GAAMA7CK391F6WS6P`, branch `codex/opus55-handoff`, currently in review |
+| Submitted documentation head | `7c93fec053dc1a06eb7ca5e9dec61f146485ee09` |
 | Documentation base | Fresh `origin/main` at `599252af3019f3776b5d78d297fae2d871fbd87f` |
 
 The caller and pipeline heads differ because the pipeline owns unpublished fix commits.
 The launch run has not reached Push, PR, or CI. It has no published candidate PR.
 The uncommitted Night fixture means the Native tree is not clean.
-Its disposition is explicitly retained for the next supported original FIX actor.
+Its disposition remains retained for the supported original FIX actor after document-family release and original-supervisor re-admission with fresh floors.
 
 Decisions 182, 193, and 199 each authorised one response. Those responses are consumed.
 A command observer timeout did not stop their actors and did not establish a pipeline failure.
@@ -159,15 +163,20 @@ The required result preserves every requested predicate, stable identity, source
 Missing facts cannot satisfy a calorie or dietary condition. Eligible counts and result caps must remain clear.
 Publisher item calories do not establish whole-meal, per-person, allergy-safe, or healthy-choice claims.
 
-Decision 201 authorises one minimal original same-run correction.
+Decision 201's approved scope preserves one minimal original same-run correction.
 Its selection includes the two current findings and the added `required-current-head-production-validation` finding.
-It also authorises retaining the existing Night fixture through the original supported actor and executor.
+Its scope also preserves the existing Night fixture through the original supported actor and executor.
+Decision 202 released decision 201's unused reservation without executing it. Source201 is not a current start grant.
+Execution requires actual document-family release and original-supervisor re-admission with fresh floors.
+No source201 execution is permitted during this documentation slot.
 No parent source edit, cleanup workaround, second decision 199 response, or source adoption is authorised.
 
 ### Production evidence delivery
 
-Decision 201 carries an explicit current production grant through the existing supported phase evidence transport.
-The next original validator must actually read that grant and record the current head, hash, and capacity floors.
+Decision 201's production grant remains a preserved future input through the existing supported phase evidence transport.
+It provides no current execution permission during the decision 202 documentation slot.
+After actual document-family release and original-supervisor re-admission with fresh floors, the original validator must read and hash-check that grant.
+The validator must record the resulting head and fresh capacity floors.
 An unsupported transport or dirty-tree refusal remains an explicit blocker.
 There is no permission to replace the controller, change the captured plan, or substitute development proof.
 
@@ -319,8 +328,10 @@ Native computer-use APIs were unavailable in the recorded session. Foreign devic
 ## Remaining launch acceptance
 
 The following work remains required before launch delivery.
+Decision 202 puts this documentation publication family first. Source201 must wait for its actual owned heavy-family release.
+The original supervisor must then re-admit source201 with fresh floors before launch execution resumes.
 
-1. Complete the budget repair through the authorised original decision 201 packet.
+1. After re-admission, complete the budget repair through the preserved original decision 201 packet.
 2. Resolve the held Night fixture through its supported actor and validate the resulting source.
 3. Prove the exact resulting head in an isolated production build with actual grant delivery.
 4. Complete conjunctive food budget, dietary, and publisher-calorie journeys with honest counts and missing facts.
@@ -351,35 +362,65 @@ Those names do not establish that a worker is currently active or owns a new all
 The original Firstmate inbox is the existing reporting channel.
 A saved or announced note is not an acknowledged decision.
 The final decision 199 release note, `1791979741-oW1LMB`, received decision 201 at 12:17:12 UTC.
-That reply acknowledges release and authorises the next bounded correction. It does not establish command acceptance.
+That historical reply acknowledged release and authorised a bounded correction. Source201 did not execute before decision 202.
+The reply does not establish command acceptance or current capacity.
 
-The current decision 201 execution packet is:
+Decision 202, issued by the original supervisor at 12:29:08 UTC, allocates one existing-owner repository-gated documentation publication family first.
+This family is run `01M4X6B10GAAMA7CK391F6WS6P`, submitted at `7c93fec053dc1a06eb7ca5e9dec61f146485ee09`.
+The current allocation was read from the filesystem and its SHA-256 matched:
+
+```text
+/Users/karanmanoharan/karan-agent-workspace/data/profile-auth-readback-20261014/source174-decision202-document-first-allocation.json
+SHA256 882ed164b88df8dcdeb5f185ff8dee27117530301afa7a9460da1cfde5aad437
+```
+
+The documentation family remains in review. Its Push, PR, and CI completion and actual owned heavy-family release remain unproven here.
+The outer executor owns subsequent phases and commits. This review correction does not complete publication or release the family.
+
+Decision 202 released source201's unused reservation. Its food scope, held fixture, production authority, original custody, captured plan, and acceptance remain preserved.
+Source201 is not a current start grant and must not execute during this documentation slot.
+After actual owned document heavy-family release, the original supervisor must receive fresh phase and capacity receipts before re-admitting source201.
+Strict performance, backup, and other queued owners retain their original dependencies. Profile and binding 191 holds remain unchanged.
+Remote CI alone does not reserve local heavy capacity. Remote CI remains a publication acceptance gate.
+
+The preserved decision 201 execution packet is a future input, not current execution permission:
 
 ```text
 /Users/karanmanoharan/karan-agent-workspace/data/profile-auth-readback-20261014/source174-decision201-execution.json
 SHA256 88b8c07e19107e9304b2bb61495fc2d8ffcdacd9d2c49d6e8dbdc3d03a3c81a8
 ```
 
-The production grant is an existing retained-phase evidence input:
+The decision 201 production grant is also a preserved future input, not current execution permission:
 
 ```text
 /Users/karanmanoharan/.no-mistakes/evidence/01M4TQ7SJGTFSG7YARX0NT0BGJ/source174-decision201-production-grant.json
 SHA256 8a9a060dacecce4a4382c4bc1001849439d94cfd7e67aba840acef982f7e8646
 ```
 
-The grant covers one original serial software family, with focused, full, and private production forecasts of 2GiB, 10GiB, and 8GiB.
-The disk forecast is 16GiB. Residual floors remain 9GiB memory and 3GiB disk.
-Capacity must be checked before each heavy phase. A released family is not a new allocation.
+Decision 201's preserved grant forecast 2GiB focused checks, 10GiB full verification, 8GiB private production, and 16GiB disk.
+Those historical forecasts do not allocate current capacity. Decision 202 currently allocates one documentation family with serial phases:
+
+- Prepare and focused checks: 2GiB.
+- Configured full verification: 10GiB.
+- Necessary configured build and browser checks: 8GiB.
+- Family disk forecast: 16GiB.
+
+Residual floors remain 9GiB memory and 3GiB disk.
+Before each heavy phase, refresh `memory_pressure -Q`, `hw.memsize`, and available `df` capacity.
+Stop at an actual floor failure or concrete heavy overlap. A released family is not a new allocation.
 Memory percentage times physical RAM is a forecast, not guaranteed free memory.
 
 No new launch run, worker, controller, heartbeat, source adoption, restart, abort, force operation, or foreign signal is authorised.
 No provider, native boot, customer, token, deployment, migration, or activation action is covered by this source grant.
-The exact original implicit-caller argv may run only after matching custody, head, gate, plan, held fixture, and fresh floors.
+The exact original implicit-caller argv requires actual owned document-family release and original-supervisor re-admission with fresh floors.
+Its custody, head, gate, captured plan, and held fixture must also match before execution.
 A supported refusal must be returned with its actual diagnostic and the preserved source.
 No `--yes`, approval, skip, or second response is included.
 
 The repository's [build methodology](docs/agents/build-methodology.md) requires gated publication and forbids direct pushes to `origin`.
-The separate documentation request does not permit bypassing launch ownership or starting an unallocated heavy family.
+Decision 202 permits only this allocated documentation family and preserves launch ownership.
+Every configured prepare, verification, review, document, Push, PR, and CI gate remains required, including `npm ci` and `npm run verify:no-mistakes`.
+No source-only waiver or second verifier family is permitted. The outer executor owns these gates outside this assigned review phase.
 Merge and deploy remain separate decisions. The recorded captain away date is 20 October.
 
 ## Evidence index
