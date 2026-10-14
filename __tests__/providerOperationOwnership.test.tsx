@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
-import { act, createElement, useEffect, useState } from "react";
+import { act, createElement, useEffect, useState, type FunctionComponent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "@/components/auth/LoginPage";
 import SignInButton from "@/components/auth/SignInButton";
 import { AuthContext, type AuthContextValue } from "@/components/auth/authContext";
-import { readProviderAccountSignal, setProviderIdentity } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, readProviderAccountSignal, setProviderIdentity } from "@/lib/authProviderRevision";
+import { accountComposerAuth } from "@/lib/accountBoundFetch";
+
+const LoginPageWithProps: FunctionComponent<NonNullable<Parameters<typeof LoginPage>[0]>> = LoginPage;
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/login" }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
@@ -27,25 +30,39 @@ let setMounted: (mounted: boolean) => void;
 let start: ReturnType<typeof vi.fn<() => Promise<Result>>>;
 let signOut: ReturnType<typeof vi.fn<() => Promise<void>>>;
 let cancel: ReturnType<typeof vi.fn>;
-const account = { id: "account-a", email: "a@example.test", user_metadata: {} } as User;
+const account: User = {
+  id: "account-a", email: "a@example.test", user_metadata: {},
+  app_metadata: {}, aud: "authenticated", created_at: "2026-10-14T00:00:00Z",
+};
 
 function Fixture({ surface, initialUser = null, addAccount = false }: { surface: "page" | "nav"; initialUser?: User | null; addAccount?: boolean }) {
   const [user, setUser] = useState(initialUser);
   const [mounted, mount] = useState(true);
   useEffect(() => { updateAccount = setUser; setMounted = mount; }, []);
-  const value = {
-    user, session: user ? { user } as Session : null, loading: false, configured: true,
+  const session: Session | null = user ? {
+    user, access_token: `ownership-access-${user.id}`, refresh_token: `ownership-refresh-${user.id}`,
+    expires_in: 3600, token_type: "bearer",
+  } : null;
+  const providerAuthState = user ? "authenticated" : "signed-out";
+  const value: AuthContextValue = {
+    user, session, loading: false, configured: true,
     handle: null, identityResolved: true, clerkIntegrationConfigured: false,
-    supabaseAuthState: user ? "authenticated" : "signed-out",
+    supabaseAuthState: providerAuthState, providerAuthState,
+    accountRevision: readProviderAccountRevision(),
+    retryIdentity: vi.fn(),
+    rejectedContributionAuth: null,
+    contributionAuth: accountComposerAuth(user?.id ?? null, session, null),
+    invalidateContributionAuth: vi.fn(),
+    getCurrentUserId: () => user?.id ?? null,
     socialProviders: { google: true, apple: true, microsoft: true }, socialProvidersResolved: true,
     signInWithGoogle: start, signInWithApple: start, signInWithMicrosoft: start,
     signInWithEmail: async () => ({ status: "sent", message: "Check your email." }),
     cancelAuthAttempt: cancel, signOut, welcomeBack: null,
     resumeSignIn: async () => ({ status: "sent", message: "Check your email." }),
     switchAccount: async () => ({ status: "switched", userId: "account-a" }),
-  } as AuthContextValue;
+  };
   return createElement(AuthContext.Provider, { value }, mounted
-    ? surface === "page" ? createElement(LoginPage, { addAccount }) : createElement(SignInButton)
+    ? surface === "page" ? createElement(LoginPageWithProps, { addAccount }) : createElement(SignInButton)
     : null);
 }
 function google(): HTMLButtonElement {
