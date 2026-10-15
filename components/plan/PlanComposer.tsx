@@ -807,11 +807,9 @@ export function planRouteRevealBehavior(reducedMotion: boolean): ScrollBehavior 
 }
 
 /**
- * Take the reader to the route they asked for. On a phone a generated route
- * lands below the fold (the context editor sits between the ask and the
- * preview), so a chip tap looked like nothing happened. Scrolls the route
- * status to the top of the viewport and moves focus onto it, so the preview
- * is seen and announced without a manual scroll.
+ * Feedback can land below the fold after generation or Tune dismissal.
+ * Reveal and focus the error first so a failed request cannot appear silent.
+ * Errors move immediately, even when ordinary route feedback uses smooth scrolling.
  */
 export function revealPlanRouteStatus(
   root: ParentNode | Document = document,
