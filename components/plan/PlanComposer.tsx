@@ -824,7 +824,10 @@ export function revealPlanRouteStatus(
     (typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  status.scrollIntoView?.({ behavior: planRouteRevealBehavior(reduce), block: "start" });
+  status.scrollIntoView?.({
+    behavior: status.id === "plan-composer-error" ? "instant" : planRouteRevealBehavior(reduce),
+    block: "start",
+  });
   status.tabIndex = -1;
   status.focus({ preventScroll: true });
 }

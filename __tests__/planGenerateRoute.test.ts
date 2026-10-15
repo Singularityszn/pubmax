@@ -483,6 +483,14 @@ describe("POST /api/plans/generate", () => {
 
   it.each([
     ...[
+      ["pizza afterwards", "pints under £5, under £20 per person"],
+      ["pizza afterwards", "pints under £5", "under £20 per person"],
+      ["under £20 per person", "pints under £5", "pizza afterwards"],
+      ["pizza afterwards", "pints under £5, under £20 each"],
+    ].map((foodNeeds) => ({
+      query: "3 pubs in Clapham", context: { foodNeeds }, total: 2000, ceiling: 500,
+    })),
+    ...[
       "a serving of chips", "fish and chips", "cheese and tomato pizza", "burger and chips",
       "fish plus chips", "fish+chips", "fish&chips", "cheese+tomato pizza",
     ].flatMap((food) => [
@@ -1365,6 +1373,7 @@ describe("POST /api/plans/generate", () => {
     { foodNeeds: ["dish under £10"] },
     { foodNeeds: ["food under £10"] },
     { foodNeeds: ["pizza under £10 per person"] },
+    { foodNeeds: ["pizza, under £10 per person"] },
     { foodNeeds: ["pizza under £10 each at a pub"] },
     { foodNeeds: ["pizza in Soho under £10"] },
     { foodNeeds: ["meal in Soho for £10"] },
