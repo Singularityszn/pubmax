@@ -263,7 +263,8 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)(?:(?!\b(?:with|per|each|afterwards|later|at|in|pubs?|bars?|stops?)\b)[^,£])*\b${PLAN_FOOD_ITEM}\b`, "i");
+		const foodSubject = String.raw`(?:(?!\b(?:with|per|each|afterwards|later|at|in)\b)[^,£])*\b${PLAN_FOOD_ITEM}\b`;
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)${foodSubject}`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
@@ -274,7 +275,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			}
 			if (price.drink && price.drink.afterEnd !== null) {
 				if (foodAfterPrice.test(after)) return true;
-				const item = explicitFoodIntent ? String.raw`\w+` : String.raw`(?:${PLAN_FOOD_ITEM}|${PLAN_DRINK_ITEM})`;
+				const item = String.raw`(?:${foodSubject}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
 				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
 					.exec(after.slice(price.drink.afterEnd))?.[0] ?? "";
 				if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
