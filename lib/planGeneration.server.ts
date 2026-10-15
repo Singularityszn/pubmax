@@ -265,6 +265,16 @@ function pricedDrinkIncludesMeal(beforeDrink: string, explicitFoodIntent: boolea
 	return explicitFoodIntent && /(?:\b(?:and|plus)|[+&])\s*(?:(?:an?|one|two)\s+)?$/i.test(beforeDrink);
 }
 
+function pricedDrinkListIncludesMeal(afterDrink: string, explicitFoodIntent: boolean): boolean {
+	const item = String.raw`(?:${PLAN_FOOD_SUBJECT}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
+	const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
+		.exec(afterDrink)?.[0] ?? "";
+	if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
+	return explicitFoodIntent
+		? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
+		: new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i").test(list);
+}
+
 /** Bind each amount before exempting drink rates or a pub-route budget. */
 function hasMealPriceConstraint(value: string, explicitFoodIntent = false): boolean {
 	return planPriceSubjectText(value).split(/[;!?]|\.(?!\d)/).some((value) => {
@@ -281,13 +291,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 				if (foodAfterPrice.test(after)) return true;
 				if (price.drink.beforeStart !== null
 					&& pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent)) return true;
-				const item = String.raw`(?:${PLAN_FOOD_SUBJECT}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
-				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
-					.exec(after.slice(price.drink.afterEnd ?? 0))?.[0] ?? "";
-				if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
-				return explicitFoodIntent
-					? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
-					: new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i").test(list);
+				return pricedDrinkListIncludesMeal(after.slice(price.drink.afterEnd ?? 0), explicitFoodIntent);
 			}
 			if (foodAfterPrice.test(after)) return true;
 			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
@@ -325,6 +329,24 @@ function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): bool
 	const requiresMealPrice = hasMealPriceConstraint(query)
 		|| foodNeeds.some((value) => hasMealPriceConstraint(value, true));
 	return requiresNutrition || requiresDiet || requiresMealPrice;
+}
+
+function applyStrictestRouteBudget(
+	reconciled: ReturnType<typeof reconcilePlanContext>,
+	routeBudgetPence: number | null,
+): void {
+	const { context } = reconciled;
+	if (routeBudgetPence !== null
+		&& (context.budgetLimitPence === null || routeBudgetPence < context.budgetLimitPence)) {
+		context.budgetLimitPence = routeBudgetPence;
+		reconciled.fieldSources.budgetLimitPence = "context";
+		reconciled.reasons = reconciled.reasons.filter(({ field }) => field !== "budgetLimitPence");
+		reconciled.reasons.push({
+			field: "budgetLimitPence",
+			evidence: formatGbp(routeBudgetPence / 100),
+			explanation: "Applied the strictest requested route budget.",
+		});
+	}
 }
 
 export async function preparePlanGeneration(
@@ -380,17 +402,7 @@ export async function preparePlanGeneration(
 		) };
 	}
 	const priceLimits = planPriceLimits(...priceInputs);
-	if (priceLimits.routeBudgetPence !== null
-		&& (context.budgetLimitPence === null || priceLimits.routeBudgetPence < context.budgetLimitPence)) {
-		context.budgetLimitPence = priceLimits.routeBudgetPence;
-		reconciled.fieldSources.budgetLimitPence = "context";
-		reconciled.reasons = reconciled.reasons.filter(({ field }) => field !== "budgetLimitPence");
-		reconciled.reasons.push({
-			field: "budgetLimitPence",
-			evidence: formatGbp(priceLimits.routeBudgetPence / 100),
-			explanation: "Applied the strictest requested route budget.",
-		});
-	}
+	applyStrictestRouteBudget(reconciled, priceLimits.routeBudgetPence);
 	const cityId = parsedRequest.value.cityId ? parseCityId(parsedRequest.value.cityId) : DEFAULT_CITY_ID;
 	if (!cityId) {
 		return { response: publicApiError("Choose a listed city.", "CITY_INVALID", 400) };
