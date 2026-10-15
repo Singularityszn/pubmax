@@ -50,6 +50,17 @@ describe("server-side PostHog capture", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("names its sender so no server event lands without $lib", () => {
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    capturePosthogServerEvent({ event: "$exception", distinctId: "server", properties: {} });
+
+    const init = defined(fetchMock.mock.calls[0])[1] as RequestInit;
+    expect(JSON.parse(String(init.body)).properties.$lib).toBe("pubmaxx-server");
+  });
+
   it("sends nothing without a project token", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

@@ -47,6 +47,9 @@ function decodedRequests(): string[] {
     } catch {
       // Keep the raw body when it is not URI encoded.
     }
+    // The unload beacon posts the batch as base64 form data.
+    const data = url.includes("compression=base64") ? new URLSearchParams(body).get("data") : null;
+    if (data) decoded = Buffer.from(data, "base64").toString("utf8");
     return `${url} ${decoded}`;
   });
 }
@@ -56,6 +59,7 @@ function settle(ms = 300): Promise<void> {
 }
 
 let posthog: (typeof import("posthog-js"))["default"];
+let capturedBeforeUnload = -1;
 
 beforeAll(async () => {
   vi.stubEnv("NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", TOKEN);
@@ -104,9 +108,16 @@ beforeAll(async () => {
   const { capturePosthogPageview } = await import("@/lib/posthogClient");
   capturePosthogPageview("/map", ANON);
   document.body.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 5, clientY: 5 }));
-  // The pageview send, and the lazy flag, recorder, heatmap and survey loads
-  // that fire after init when enabled, all land inside this window.
+  // The lazy flag, recorder, heatmap and survey loads that fire after init
+  // when enabled all land inside this window. Capture is batched, so the
+  // pageview is still queued here.
   await settle(500);
+  capturedBeforeUnload = decodedRequests().filter((request) => request.includes("$pageview")).length;
+  // Leaving the page flushes the queue in one beacon, and is where the SDK
+  // would add a $pageleave if it were on.
+  window.dispatchEvent(new Event("pagehide"));
+  window.dispatchEvent(new Event("beforeunload"));
+  await settle(100);
 });
 
 afterAll(() => {
@@ -133,6 +144,29 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
     const pageviews = decodedRequests().filter((request) => request.includes("$pageview"));
     expect(pageviews).toHaveLength(1);
     expect(pageviews[0]).toContain(`"distinct_id":"${ANON}"`);
+  });
+
+  it("keeps the proxy marker PostHog's reverse-proxy health check reads", () => {
+    // before_send used to strip $lib_custom_api_host, so PostHog reported "no
+    // reverse proxy detected" although every event already went via /ingest.
+    const pageview = decodedRequests().find((request) => request.includes("$pageview"));
+    expect(pageview).toContain('"$lib_custom_api_host":"/ingest"');
+    expect(pageview).toContain('"$lib":"web"');
+  });
+
+  it("batches capture: the pageview waits for the queue flush, not one request per event", () => {
+    expect(capturedBeforeUnload).toBe(0);
+    const captures = sent.filter(({ url }) => /\/ingest\/(e|i\/v0\/e|batch)\//.test(url));
+    expect(captures.length).toBeGreaterThan(0);
+    expect(captures.every(({ url }) => url.startsWith("/ingest/"))).toBe(true);
+  });
+
+  it("never sends $pageleave: the privacy page lists no time on page or scroll depth", () => {
+    expect(posthog.config.capture_pageleave).toBe(false);
+    for (const request of decodedRequests()) {
+      expect(request).not.toContain("$pageleave");
+      expect(request).not.toContain("$prev_pageview_duration");
+    }
   });
 
   it("loads no recorder, heatmap or survey code and sends no $snapshot or $$heatmap", () => {

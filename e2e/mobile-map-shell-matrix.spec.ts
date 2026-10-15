@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 
+import { MAP_CANVAS_READINESS_CEILING_MS } from "../lib/mapCanvasAvailability";
+
 const VIEWPORTS = [
   { width: 320, height: 568 },
   { width: 375, height: 812 },
@@ -261,6 +263,10 @@ test("TfL badges a badly disrupted line, and only that", async ({ page }) => {
   );
   await page.goto("/map");
   const tflChip = page.getByRole("button", { name: /TfL/ });
+  // The chip is phone shell chrome, held until the map's loading frame lets go
+  // (`mobileShellReady` in components/PubMap.tsx), so it is owed the shell's
+  // readiness ceiling rather than the default expect timeout.
+  await expect(tflChip).toBeVisible({ timeout: MAP_CANVAS_READINESS_CEILING_MS });
   await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveText("1");
   await expect(tflChip).toHaveAttribute(
     "aria-label",

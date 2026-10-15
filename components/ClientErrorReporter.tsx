@@ -7,6 +7,11 @@ import {
   describeThrownValue,
   type ClientErrorKind,
 } from "@/lib/clientErrorReport";
+import {
+  drainMapDataRevisionSkews,
+  MAP_DATA_REVISION_SKEW_ERROR_NAME,
+  MAP_DATA_REVISION_SKEW_EVENT,
+} from "@/lib/mapDataRevision";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { discardBody } from "@/lib/responseBody";
 
@@ -100,11 +105,22 @@ export default function ClientErrorReporter() {
       report("unhandledrejection", event.reason);
     };
 
+    // A map pack the loader adopted or refused over a revision skew threw
+    // nothing, so no listener above would ever see it (lib/mapDataRevision.ts).
+    const onMapDataRevisionSkew = () => {
+      for (const message of drainMapDataRevisionSkews()) {
+        report("error", { name: MAP_DATA_REVISION_SKEW_ERROR_NAME, message });
+      }
+    };
+
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener(MAP_DATA_REVISION_SKEW_EVENT, onMapDataRevisionSkew);
+    onMapDataRevisionSkew();
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener(MAP_DATA_REVISION_SKEW_EVENT, onMapDataRevisionSkew);
     };
   }, []);
 

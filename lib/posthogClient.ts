@@ -57,6 +57,11 @@ const STANDARD_BROWSER_PROPERTIES = new Set([
   "$initial_referring_domain",
   "$lib",
   "$lib_version",
+  // posthog-js stamps the api_host here whenever it is not a PostHog domain,
+  // and PostHog's "reverse proxy detected" health check reads exactly this
+  // property. Dropping it made the project report no proxy although every
+  // browser event already went through /ingest. Its value is "/ingest".
+  "$lib_custom_api_host",
   "$insert_id",
   "$time",
   "$session_id",
@@ -368,6 +373,8 @@ export const posthogBrowserConfig = {
   autocapture: false,
   rageclick: false,
   capture_pageview: false,
+  // $pageleave stays off: it carries time on page and scroll depth, which the
+  // privacy page does not list among the things analytics collect.
   capture_pageleave: false,
   capture_performance: true,
   // Replay, heatmaps, surveys, identify and flags stay off: the privacy page
@@ -380,7 +387,10 @@ export const posthogBrowserConfig = {
   disable_product_tours: true,
   disable_conversations: true,
   disable_external_dependency_loading: false,
-  request_batching: false,
+  // One /ingest request per flush instead of one per event: a page view, its
+  // $web_vitals and any $exception share a request, and each request is a
+  // billed function invocation through app/ingest/[...path]/route.ts.
+  request_batching: true,
   persistence: "localStorage+cookie",
   save_campaign_params: true,
   save_referrer: true,
@@ -503,6 +513,24 @@ export function capturePosthogMapLoadTiming(
     timing,
     options.beacon ? { transport: "sendBeacon" } : undefined,
   );
+}
+
+const POSTHOG_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The browser SDK's current session id, so a named product event forwarded by
+ * /api/events joins the same session as the pageviews and $web_vitals around
+ * it. Null until consent has started capture. Reading it does not extend the
+ * session.
+ */
+export function posthogSessionId(): string | null {
+  if (!consentAllowedNow || !initialized || !captureEnabled || !client) return null;
+  try {
+    const sessionId = client.get_session_id();
+    return typeof sessionId === "string" && POSTHOG_SESSION_ID.test(sessionId) ? sessionId : null;
+  } catch {
+    return null;
+  }
 }
 
 export function capturePosthogPageview(pathname: string, anonymousId: string | null): void {
