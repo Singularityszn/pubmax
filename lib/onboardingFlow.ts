@@ -213,10 +213,9 @@ export function desktopHandoffMoves(handoff: PlannerHandoff): {
   maxPrice: number | null;
   center: [number, number] | null;
 } {
-  const centre = handoff.patch ?? tryGetNightArea(handoff.nightArea)?.centre;
   return {
     maxPrice: handoff.budget ? budgetCeiling(handoff.budget) : null,
-    center: centre ? [centre.lng, centre.lat] : null,
+    center: handoff.patch ? [handoff.patch.lng, handoff.patch.lat] : null,
   };
 }
 

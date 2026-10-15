@@ -2,7 +2,25 @@
 
 Date: 15 October 2026.
 
-## Current review repair evidence
+## Current price-ownership and handoff review
+
+This review starts at `3e4804c2f6b4d3f056505e22a27a852ac0e4c591`. Four preparation regressions reproduced the reported defect before correction. Both query and structured beer-first rates became £5 route totals. Price-first £1 beer rates retained candidates despite the impossible ceiling.
+
+The guard and limit extractor now consume the same pure drink recognition result. Accepted pint, beer, and unspecified drink rates constrain canonical pint evidence. Unsupported servings and selected drink lanes receive an explicit limitation. The focused route regressions cover both amount directions, aliases, clauses, structured fields, conflicting ceilings, meal bundles, selected stops, alternatives, and impossible limits.
+
+`FirstRunOnboarding.startPlan` is the sole production handoff writer. Its default `openPlannerDocument` reads the handoff, constructs the shared-planner URL, clears storage, and opens `/plan`. The named-area additions in `MobilePlanActivation` and `desktopHandoffMoves` therefore add an unused parallel path. This repair removes those two fallbacks and their two new tests. Patch handoffs, named-area persistence, planner URLs, nearby discovery, and coverage fallback behavior retain their existing paths.
+
+Focused verification passed all 1,160 tests across seven files:
+
+```sh
+node_modules/.bin/vitest run __tests__/planGenerateRoute.test.ts __tests__/onboardingFlow.test.ts __tests__/mobilePlanDrinkDefault.test.tsx __tests__/firstRunOnboarding.test.tsx __tests__/nativeFirstRun.test.ts __tests__/nightPlanning.test.ts __tests__/planRouteReveal.test.ts --reporter=dot
+```
+
+The verification checks returned amounts against canonical evidence without converting servings or inventing prices. `git diff --check` found no whitespace errors. No residual issue remains from the two assigned findings within this focused proof.
+
+The [eight browser feedback checks and screenshots](review-feedback/report.md) retain their original source hashes and historical provenance. This review does not rebuild or relabel that evidence. The visible feedback source and browser test remain unchanged. Full verification, Test, Lint, CI, publication, and release acceptance remain with the outer executor.
+
+## Earlier review repair evidence
 
 This review started at `ad32535238a3fba3d6c2b02bb6142547d4c57b69`. The results below cover its uncommitted worktree repairs. They do not establish acceptance of a later commit.
 

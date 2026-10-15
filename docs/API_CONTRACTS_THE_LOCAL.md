@@ -298,7 +298,7 @@ Unanchored generation with a per-person ceiling requires usable budget evidence.
 
 The route planner has no menu-item or nutrition evidence. [`preparePlanGeneration`](../lib/planGeneration.server.ts) checks the query and reconciled `foodNeeds` before route selection. Detected meal-price, dietary, or calorie constraints return `422 MEAL_CONSTRAINTS_UNSUPPORTED` with an explicit limitation. A food-serving venue preference alone remains supported.
 
-An explicit per-pint ceiling in the query filters candidates separately from the per-person route budget. A candidate needs a known `cheapestPrice` at or below that ceiling. `preparePlanGeneration` owns the accepted ceiling syntax and filtering.
+Drink-owned prices in the query and each `foodNeeds` field share one recognition boundary in `planPriceAmounts`. Pint, beer, and unspecified drink limits constrain recorded beer pint prices. Both price directions retain the strictest ceiling separately from route totals. Candidates and alternatives require attributable, non-stale canonical evidence at or below the ceiling. Explicit other servings, quantities, non-beer selections, and zero-proof selections return `422 DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` when they request these drink limits. The planner does not convert bottle, cocktail, or half-pint prices into pints.
 
 ### Errors
 
@@ -308,6 +308,7 @@ An explicit per-pint ceiling in the query filters candidates separately from the
 | `400` | neither `query` nor `context` | `NIGHT_CONTEXT_REQUIRED` |
 | `400` | invalid `cityId` | `CITY_INVALID` |
 | `422` | detected meal-price, dietary, or calorie constraint | `MEAL_CONSTRAINTS_UNSUPPORTED` |
+| `422` | drink price limit requires an unsupported drink or serving | `DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` |
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
 | `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
 | `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |
