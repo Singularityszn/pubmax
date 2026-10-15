@@ -1,7 +1,7 @@
 // Deterministic Night OS Ask router (keyless path). Picks 1–2 allowlisted tools
 // from the user query without calling a paid model.
 
-import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
+import { detectWhatsOnIntent, WHATS_ON_REQUEST_RE } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/venueResolution";
@@ -102,7 +102,11 @@ function namedDrinkVenue(query: string): string | null {
 
 function askRequestClauses(query: string): string[] {
   const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
-  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
+  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|${WHATS_ON_REQUEST_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
+}
+
+export function resolveAskWhatsOnQuery(query: string): string | null {
+  return askRequestClauses(query).find((clause) => detectWhatsOnIntent(clause)) ?? null;
 }
 
 function isCityStatusRequest(query: string): boolean {
@@ -128,7 +132,8 @@ function priceQuestion(query: string): string {
     stripTrailingQualifiers(stripTrailingPunctuation(clause)),
   );
   const priceClauses = clauses.filter((clause) =>
-    !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
+    !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause)
+      || (clauses.length > 1 && detectWhatsOnIntent(clause)))
       && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
   );
   return priceClauses.join(" and ");
@@ -525,6 +530,11 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
 
   const journey = resolveAskJourney(text);
   if (journey) push("journey", { from: "London Bridge", ...journey });
+
+  const whatsOnQuery = resolveAskWhatsOnQuery(text);
+  if ((priceIntent.kind === "menu" || priceIntent.kind === "recorded-drinks") && clauses.length > 1 && whatsOnQuery) {
+    push("whats_on", { query: whatsOnQuery });
+  }
 
   if (priceIntent.kind === "unsupported") return calls;
   if (priceIntent.kind === "menu") {

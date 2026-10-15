@@ -40,6 +40,11 @@ const KIND_TERMS: Record<WhatsOnKind, RegExp> = {
 // A generic "what's on" phrasing carries a What's-On intent even without a kind.
 const WHATS_ON_PHRASE = /\b(?:what'?s on|whats on|anything on|on tonight|things to do|what is on)\b/i;
 
+export const WHATS_ON_REQUEST_RE = new RegExp(
+  String.raw`(?:live\s+)?(?:${[...Object.values(KIND_TERMS).map((pattern) => pattern.source), WHATS_ON_PHRASE.source].join("|")})`,
+  "i",
+);
+
 // Words that follow "near"/"in"/"around" but are NOT areas.
 const NON_AREA =
   /^(?:me|here|us|mine|my area|there|now|tonight|today|the\s+\S+|a\s+\S+|an\s+\S+)$/i;

@@ -28,7 +28,8 @@ function dedupeCards(results: AskToolResult[]): AskCard[] {
     const keptCards: AskCard[] = [];
     for (const card of result.cards) {
       if (seenKeys.has(card.key)) continue;
-      if (card.venueId && venueIdsFromEarlierResults.has(card.venueId)) continue;
+      if (card.venueId && !card.menuEvidence && card.provenance?.kind !== "whats-on"
+        && venueIdsFromEarlierResults.has(card.venueId)) continue;
       seenKeys.add(card.key);
       keptCards.push(card);
     }
@@ -94,6 +95,8 @@ function mergeToolResults(results: AskToolResult[]): {
           mergedCards.length > 0 &&
           result.ok &&
           result.cards.length === 0 &&
+          result.tool !== "whats_on" &&
+          result.tool !== "venue_drinks" &&
           !result.degraded
         ),
     )

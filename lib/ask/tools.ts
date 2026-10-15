@@ -2,7 +2,7 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
-import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskJourney, resolveAskPriceIntent, resolveAskWhatsOnQuery, routeAskDeterministically } from "@/lib/ask/router";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import {
@@ -1025,9 +1025,9 @@ export async function runAskTool(
     const journey = resolveAskJourney(ctx.query);
     if (journey) toolArgs = { ...toolArgs, from: str(args.from) || "London Bridge", ...journey };
   }
-  if (intent.kind === "menu" && !isIndependentAskTool(name)) {
-    toolName = "venue_drinks";
-    toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
+  if (name === "whats_on") {
+    const query = resolveAskWhatsOnQuery(ctx.query);
+    if (query) toolArgs = { ...toolArgs, query };
   }
   const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
   const discoveryCall = isVenueDiscoveryAsk(ctx.query) && (answersPrice || name === "venue_heritage")
@@ -1035,7 +1035,7 @@ export async function runAskTool(
   if (discoveryCall) {
     toolName = discoveryCall.name;
     toolArgs = discoveryCall.args;
-  } else if (answersPrice && intent.kind === "recorded-drinks") {
+  } else if (answersPrice && (intent.kind === "menu" || intent.kind === "recorded-drinks")) {
     toolName = "venue_drinks";
     toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
   } else if (answersPrice && intent.kind === "drink-venues") {
