@@ -17,7 +17,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "6 August 2026";
+const LAST_UPDATED = "15 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -120,6 +120,9 @@ export default function TermsPage() {
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
           history. Only your handle is public.
+          We keep former display names privately where needed to remove your
+          name from public Night Story text after you clear your profile. Each
+          record is removed when that Story or your account is deleted.
           Social uses a private product account tied to your Supabase sign-in
           and stable profile. PUBMAXX doesn&rsquo;t use your email or handle to join
           accounts.

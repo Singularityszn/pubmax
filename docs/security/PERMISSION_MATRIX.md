@@ -47,6 +47,16 @@ side effect, asserted as a truth read of the row it was aimed at, taken either
 side of the attempt. A resource id that names nothing must answer exactly as
 one that belongs to somebody else, or the refusal is an existence oracle.
 
+**Profile-clear redaction names (0178).** `private_story_redaction_names` is
+service-only. Neither browser role can read or write it, including an account's
+own retained name. `clear_profile_for_caller` is service-only too; the route
+supplies the verified caller. A locked ownership check, per-Story name capture,
+contribution withdrawal and profile clearing share one transaction. No public
+profile or contributor DTO includes retained names. The effective proof is
+`__tests__/nightStoryProfileClearEffective.test.ts`. Names leave with the Story
+or the auth account. This fixes profile clearing; it does not certify the
+separate full auth-account deletion flow's Story redaction.
+
 ## Actors and doors
 
 | Actor | How it reaches the app |

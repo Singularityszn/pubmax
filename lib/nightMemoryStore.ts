@@ -27,6 +27,13 @@ import type { PendingPlanRecap } from "@/lib/planRecap";
 import { redactPublicStoryFields, redactStoryView, type DepartedContributor } from "@/lib/storyRedaction";
 import { cleanText } from "@/lib/textClean";
 
+import {
+  memoryStoryContributors as contributors,
+  memoryStoryConsents as consents,
+  memoryStoryRedactionNames,
+  withdrawMemoryStoryContributions,
+} from "@/lib/nightStoryMemory";
+
 type PublishVisibility = "public" | "unlisted";
 type ProposalWithToken = {
   proposal: NightStoryPublicationProposal;
@@ -36,8 +43,6 @@ type ProposalWithToken = {
 const memories = new Map<string, NightMemory>();
 const moments = new Map<string, NightMoment>();
 const stories = new Map<string, NightStory>();
-const contributors = new Map<string, StoryContributor[]>();
-const consents = new Map<string, MomentConsent[]>();
 const proposals = new Map<string, NightStoryPublicationProposal & { tokenHash: string }>();
 
 export function __resetNightMemoryStore(): void {
@@ -46,6 +51,7 @@ export function __resetNightMemoryStore(): void {
   stories.clear();
   contributors.clear();
   consents.clear();
+  memoryStoryRedactionNames.clear();
   proposals.clear();
 }
 
@@ -499,6 +505,7 @@ async function removeMemoryFromMemory(
     for (const story of memoryStories) {
       stories.delete(story.id);
       contributors.delete(story.id);
+      memoryStoryRedactionNames.delete(story.id);
       consents.delete(story.id);
     }
     memories.delete(memoryId);
@@ -715,25 +722,19 @@ async function getConsents(storyId: string): Promise<MomentConsent[]> {
 }
 
 /**
- * The departed contributors of a Story (Wayfinder 5.5) — everyone whose content
- * and identity the publish gate must redact. Two independent, additive triggers,
- * unioned here so redaction has ONE input regardless of how someone left:
- *   • CONSENT WITHDRAWN — a contributor withdrew publication consent (the
- *     existing per-owner consents API writes status "withdrawn").
- *   • ACCOUNT DELETED — the profile-delete hook marked their contributor rows
- *     "withdrawn" across every Story (markContributorsDepartedByProfileId).
- * Each departed id is resolved to its handle + display name. A profile row that
- * is genuinely MISSING stays fail-soft: that id keeps a null handle, so its
- * owned Moments are still dropped and only free-text mentions go unscrubbed. A
- * profile read we could not RUN is a different fact, so it is `unavailable` and
- * fails closed - scoped to a Story that actually has a departed contributor,
- * because a Story with nobody to protect returns before any profile is read.
+ * Union contributors and consent owners who withdrew. Profile clearing also
+ * withdraws accepted contributions, in the same operation that preserves names
+ * privately for the affected Stories. Public projections never carry the names.
+ * A genuinely absent profile still permits owned Moments to be removed and any
+ * retained names to be scrubbed. A failed profile or private-name read is
+ * unavailable. A Story with nobody departed needs neither identity lookup.
  */
 type DepartedReadResult =
   | { status: "found"; departed: DepartedContributor[] }
   | { status: "unavailable" };
 
 async function resolveDepartedContributors(
+  storyId: string,
   contributorsList: StoryContributor[],
   consentsList: MomentConsent[],
 ): Promise<DepartedReadResult> {
@@ -747,10 +748,37 @@ async function resolveDepartedContributors(
   if (departedIds.size === 0) return { status: "found", departed: [] };
   const store = profileStore();
   try {
+    const namesByAccount = await selectStore(
+      async () => memoryStoryRedactionNames.get(storyId) ?? new Map<string, string[]>(),
+      async () => {
+        const { data, error, count } = await requireSupabaseAdmin()
+          .from("private_story_redaction_names")
+          .select("account_id,display_name", { count: "exact" })
+          .eq("story_id", storyId)
+          .in("account_id", [...departedIds]);
+        // PostgREST can cap rows. A partial identity set cannot safely redact
+        // a Story, so require proof that every matching name was returned.
+        if (error || !data || count === null || data.length !== count) {
+          throw new Error("Story redaction names are unavailable or incomplete.");
+        }
+        const namesByAccount = new Map<string, string[]>();
+        for (const row of data ?? []) {
+          const names = namesByAccount.get(row.account_id) ?? [];
+          names.push(row.display_name);
+          namesByAccount.set(row.account_id, names);
+        }
+        return namesByAccount;
+      },
+    )();
     const departed = await Promise.all(
       [...departedIds].sort().map(async (profileId) => {
         const profile = await store.getByUserId(profileId);
-        return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
+        return {
+          profileId,
+          handle: profile?.handle ?? null,
+          displayName: profile?.displayName ?? null,
+          displayNames: namesByAccount.get(profileId) ?? [],
+        };
       }),
     );
     return { status: "found", departed };
@@ -770,20 +798,7 @@ export async function markContributorsDepartedByProfileId(profileId: string): Pr
   const id = typeof profileId === "string" ? profileId.trim() : "";
   if (!id) return 0;
   if (!isSupabaseConfigured()) {
-    let count = 0;
-    for (const [storyId, list] of contributors.entries()) {
-      let changed = false;
-      const next = list.map((contributor) => {
-        if (contributor.profileId === id && contributor.status === "accepted") {
-          changed = true;
-          count += 1;
-          return { ...contributor, status: "withdrawn" as const };
-        }
-        return contributor;
-      });
-      if (changed) contributors.set(storyId, next);
-    }
-    return count;
+    return withdrawMemoryStoryContributions(id);
   }
   const { data, error } = await requireSupabaseAdmin()
     .from("night_story_contributors")
@@ -843,7 +858,7 @@ async function readPublicProjection(
 ): Promise<NightStoryReadResult> {
   const consentsRead = await readConsents(story.id);
   if (consentsRead.status !== "found") return { status: "unavailable" };
-  const departedRead = await resolveDepartedContributors(contributorsList, consentsRead.rows);
+  const departedRead = await resolveDepartedContributors(story.id, contributorsList, consentsRead.rows);
   if (departedRead.status !== "found") return { status: "unavailable" };
   return {
     status: "found",
@@ -943,7 +958,7 @@ export async function readPublishedRecapSource(storyId: string): Promise<Publish
   if (contributorsRead.status !== "found" || consentsRead.status !== "found") {
     return { status: "unavailable" };
   }
-  const departedRead = await resolveDepartedContributors(contributorsRead.rows, consentsRead.rows);
+  const departedRead = await resolveDepartedContributors(story.id, contributorsRead.rows, consentsRead.rows);
   if (departedRead.status !== "found") return { status: "unavailable" };
   const { departed } = departedRead;
 

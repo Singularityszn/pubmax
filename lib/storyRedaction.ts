@@ -39,6 +39,8 @@ export type DepartedContributor = {
   profileId: string;
   handle?: string | null;
   displayName?: string | null;
+  /** Private names retained for this Story after profile clearing. Never a DTO. */
+  displayNames?: readonly string[];
 };
 
 function escapeRegExp(value: string): string {
@@ -56,7 +58,7 @@ function identityNeedles(departed: DepartedContributor[]): string[] {
   const needles: string[] = [];
   const ordered = [...departed].sort((a, b) => a.profileId.localeCompare(b.profileId));
   for (const person of ordered) {
-    for (const raw of [person.handle, person.displayName]) {
+    for (const raw of [person.handle, person.displayName, ...(person.displayNames ?? [])]) {
       const value = typeof raw === "string" ? raw.trim() : "";
       if (!value) continue;
       const key = value.toLocaleLowerCase();

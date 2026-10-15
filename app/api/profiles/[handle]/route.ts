@@ -41,7 +41,6 @@ import {
 } from "@/lib/profileStore";
 import { publicCoverUrls } from "@/lib/profileCoverPhotoStore";
 import { followStore } from "@/lib/followStore";
-import { markContributorsDepartedByProfileId } from "@/lib/nightMemoryStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { referralStore } from "@/lib/referralStore";
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
@@ -420,28 +419,6 @@ export async function DELETE(
     if (ownerUserId) {
       await privateIdentityStore().erase(ownerUserId);
       await referralStore().eraseAccount(ownerUserId);
-    }
-
-    // Redaction on account deletion (Wayfinder 5.5): mark this account's Story
-    // contributions "withdrawn" so the publish gate erases their content +
-    // identity from every published Story on the next public read — without
-    // destroying the rest of anyone's Story. Additive, and fail-soft: a marking
-    // hiccup must not fail the delete the caller already succeeded at, but it is
-    // logged loudly so the owner can reconcile.
-    if (ownerUserId) {
-      try {
-        const marked = await markContributorsDepartedByProfileId(ownerUserId);
-        if (marked > 0) {
-          console.info(
-            `[redaction] account deletion for @${handle}: marked ${marked} Story contribution(s) departed`,
-          );
-        }
-      } catch (err) {
-        console.error(
-          `[redaction] account deletion for @${handle}: FAILED to mark Story contributions departed: reconcile manually`,
-          err,
-        );
-      }
     }
 
     return jsonNoStore({ profile: publicProfileFromRecord(profile) }, { status: 200 });

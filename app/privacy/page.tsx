@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "6 October 2026";
+const LAST_UPDATED = "15 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -212,6 +212,15 @@ export default function PrivacyPage() {
           counts on that invite page. The Plan host can remove an RSVP from the
           list. Closing or deleting the Plan removes those invite RSVPs and
           reactions with it.
+        </p>
+
+        <p className="legalBody">
+          When you clear your profile, we keep the display names needed to remove
+          your name from Night Stories you contributed to. Only our server can
+          read these names. They are used to remove mentions from public titles,
+          summaries and captions. They are not added to public contributor lists.
+          Each record is removed when that Story or your account is deleted.
+          Other people&rsquo;s private source moments are not rewritten.
         </p>
 
         <h3 className="legalH3">What you post</h3>

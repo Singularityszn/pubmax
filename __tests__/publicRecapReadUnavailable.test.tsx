@@ -32,7 +32,7 @@ vi.mock("next/og", () => ({
   },
 }));
 
-type TableAnswer = { data: unknown; error: { message: string } | null };
+type TableAnswer = { data: unknown; error: { message: string } | null; count?: number | null };
 
 const store = vi.hoisted(() => ({
   configured: true,
@@ -44,13 +44,20 @@ const store = vi.hoisted(() => ({
  * chain settles on the answer the test configured for its table. */
 function chainFor(table: string) {
   store.asked.push(table);
-  const answer = store.answers.get(table) ?? { data: [], error: null };
+  const stored = store.answers.get(table) ?? { data: [], error: null };
+  const answer = { ...stored, count: stored.count !== undefined ? stored.count :
+    Array.isArray(stored.data) ? stored.data.length : null };
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "in", "order", "limit", "maybeSingle", "single"]) {
+  let countRequested = false;
+  chain.select = (_columns: string, options?: { count?: string }) => {
+    countRequested = options?.count === "exact";
+    return chain;
+  };
+  for (const method of ["eq", "in", "order", "limit", "maybeSingle", "single"]) {
     chain[method] = () => chain;
   }
   chain.then = (resolve: (value: TableAnswer) => unknown, reject: (reason: unknown) => unknown) =>
-    Promise.resolve(answer).then(resolve, reject);
+    Promise.resolve({ ...answer, count: countRequested ? answer.count : null }).then(resolve, reject);
   return chain;
 }
 
@@ -151,6 +158,48 @@ beforeEach(() => {
 });
 
 describe("the store read has three answers", () => {
+  it("uses private per-Story names after the profile has been cleared", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("night_stories", { data: publishedStoryRow({
+      title: "Jordan and Jules", summary: "Jordan joined Jules",
+    }), error: null });
+    store.answers.set("profiles", { data: [{ handle: "jordanx", display_name: null }], error: null });
+    store.answers.set("private_story_redaction_names", { data: [
+      { account_id: "departed", display_name: "Jordan" },
+      { account_id: "departed", display_name: "Jules" },
+    ], error: null });
+    store.answers.set("night_moments", { data: [
+      { ...momentRow("m1"), caption: "Jordan and Jules joined @jordanx" },
+    ], error: null });
+    const read = await readPublishedRecapSource(STORY_ID);
+    expect(read.status).toBe("found");
+    if (read.status !== "found") return;
+    expect(read.source.story.title).toBe("a friend and a friend");
+    expect(read.source.story.summary).toBe("a friend joined a friend");
+    expect(read.source.moments[0]!.caption).toBe("a friend and a friend joined a friend");
+    expect((await getNightStory(STORY_ID, null))!.title).toBe("a friend and a friend");
+  });
+
+  it("refuses a truncated redaction-name read instead of emitting partly scrubbed text", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("private_story_redaction_names", {
+      data: [{ account_id: "departed", display_name: "Jordan" }], count: 2, error: null,
+    });
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    expect(store.asked).not.toContain("night_moments");
+  });
+
+  it("fails closed if the private redaction names cannot be read", async () => {
+    seedPublishedStory();
+    seedWithdrawnContributorWithMoment();
+    store.answers.set("private_story_redaction_names", { data: null, error: OUTAGE });
+    await expect(readPublishedRecapSource(STORY_ID)).resolves.toEqual({ status: "unavailable" });
+    await expect(readNightStory(STORY_ID, null)).resolves.toEqual({ status: "unavailable" });
+    expect(store.asked).not.toContain("night_moments");
+  });
+
   it("answers found when every read ran", async () => {
     seedPublishedStory();
     const read = await readPublishedRecapSource(STORY_ID);

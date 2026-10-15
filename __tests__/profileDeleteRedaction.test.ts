@@ -21,6 +21,8 @@ import {
   createNightMemory,
   createNightStory,
   getPublishedRecapSource,
+  getNightStory,
+  listNightMoments,
   proposeNightStoryPublication,
   setMomentPublicationConsent,
   upsertStoryContributor,
@@ -51,7 +53,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     __resetMemoryPrivateIdentities();
   });
 
-  it("redacts the deleted account's Moments + identity from a published Story, keeping the rest", async () => {
+  it.each([false, true])("redacts profile-clear names including prior withdrawal=%s", async (withdrawFirst) => {
     // A linked account 'friend' owning handle 'jordanx', contributing to a Story.
     await profileStore().createOwned("jordanx", "friend");
     await profileStore().update("jordanx", { displayName: "Jordan" });
@@ -59,9 +61,9 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     const memory = await createNightMemory("host", { title: "Friday orbit" });
     const hostMoment = await addNightMoment("host", memory!.id, {
       kind: "quote",
-      caption: "Great night with @jordanx",
+      caption: "Great night with Jordan and @jordanx",
     });
-    const story = await createNightStory("host", { memoryId: memory!.id, title: "Orbit with Jordan" });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Orbit with Jordan", summary: "Jordan joined us" });
     await upsertStoryContributor("host", story!.id, { handle: "jordanx", role: "contributor" });
     await acceptStoryContribution("friend", story!.id);
     const friendMoment = await addStoryMoment("friend", story!.id, { kind: "quote", caption: "My round" });
@@ -79,15 +81,32 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     const before = await getPublishedRecapSource(story!.id);
     expect(before!.moments.map((m) => m.id).sort()).toEqual([hostMoment!.id, friendMoment!.id].sort());
 
-    // The owner deletes their account.
+    if (withdrawFirst) {
+      await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "withdrawn");
+    }
+    const refused = await del("jordanx", "stranger");
+    expect(refused.status).toBe(403);
+    expect((await profileStore().getByUserId("friend"))!.displayName).toBe("Jordan");
+
+    // The owner clears their profile. Full auth-account deletion is a separate route.
     const res = await del("jordanx", "friend");
     expect(res.status).toBe(200);
 
     // The gate now emits only the host's Moment, with a scrubbed caption.
     const after = await getPublishedRecapSource(story!.id);
     expect(after!.moments.map((m) => m.id)).toEqual([hostMoment!.id]);
-    expect(defined(after!.moments[0]).caption).toBe("Great night with a friend");
-    expect(JSON.stringify(after!.moments)).not.toMatch(/jordan/i);
+    expect(defined(after!.moments[0]).caption).toBe("Great night with a friend and a friend");
+    expect(after!.story.title).toBe("Orbit with a friend");
+    expect(after!.story.summary).toBe("a friend joined us");
+    expect(JSON.stringify(after)).not.toMatch(/jordan/i);
+    expect((await getNightStory(story!.id, null))!.title).toBe("Orbit with a friend");
+    const privateMoments = await listNightMoments("host", memory!.id);
+    expect(privateMoments!.find((moment) => moment.id === hostMoment!.id)!.caption)
+      .toBe("Great night with Jordan and @jordanx");
+
+    // Clearing twice must not discard the only name the first clear removed.
+    expect((await del("jordanx", "friend")).status).toBe(200);
+    expect((await getPublishedRecapSource(story!.id))!.story.title).toBe("Orbit with a friend");
   });
 
   it("still deletes (does not fail) when the account contributes to no Story", async () => {

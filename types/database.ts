@@ -3047,6 +3047,39 @@ export type Database = {
           },
         ];
       };
+      private_story_redaction_names: {
+        Row: {
+          story_id: string;
+          account_id: string;
+          display_name: string;
+        };
+        Insert: {
+          story_id: string;
+          account_id: string;
+          display_name: string;
+        };
+        Update: {
+          story_id?: string;
+          account_id?: string;
+          display_name?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "private_story_redaction_names_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "private_story_redaction_names_story_id_fkey";
+            columns: ["story_id"];
+            isOneToOne: false;
+            referencedRelation: "night_stories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profile_cover_photos: {
         Row: {
           id: string;
@@ -6420,6 +6453,19 @@ export type Database = {
           attempts: number;
           lease_token: string;
         }[];
+      };
+      clear_profile_for_caller: {
+        Args: {
+          p_handle: string | null;
+          p_caller_user_id: string | null;
+        };
+        Returns: Database["public"]["Tables"]["profiles"]["Row"][];
+        SetofOptions: {
+          from: "*";
+          to: "profiles";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
       complete_analytics_event_receipt: {
         Args: {

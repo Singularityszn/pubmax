@@ -28,6 +28,7 @@ import {
 import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
 import { admin, isUniqueViolation, selectStore } from "@/lib/storeBackend";
 import { cleanHttpUrl, cleanText } from "@/lib/textClean";
+import { withdrawMemoryStoryContributions } from "@/lib/nightStoryMemory";
 
 /** Owned-image moderation states persisted on profiles (migrations 0089/0096). */
 type ProfileAvatarModerationState =
@@ -1018,34 +1019,13 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) return { status: "not-found" };
 
-    const row = patchToRow(cleanPatch({
-      displayName: null,
-      avatarUrl: null,
-      homeCity: null,
-      bio: null,
-      favouriteDrink: null,
-      interests: null,
-      workplace: null,
-    }));
-    for (const slot of PROFILE_IMAGE_SLOTS) {
-      const columns = IMAGE_COLUMNS[slot];
-      row[columns.objectKey] = null;
-      row[columns.generation] = null;
-      row[columns.moderationState] = null;
-      Object.assign(row, clearImageReportRow(slot));
-    }
-    row.updated_at = new Date().toISOString();
-
-    let query = admin()
-      .from(TABLE)
-      .update(row)
-      .eq("handle", key);
-    const caller = callerUserId?.trim() || null;
-    query = caller
-      ? query.or(`user_id.is.null,user_id.eq.${caller}`)
-      : query.is("user_id", null);
-
-    const { data, error } = await query.select("*").limit(1);
+    // Migration 0178 owns the locked ownership check, private redaction names,
+    // contribution withdrawal and profile clear as one transaction. No fallback:
+    // clearing without preserving the names would disclose them in Story text.
+    const { data, error } = await admin().rpc("clear_profile_for_caller", {
+      p_handle: key,
+      p_caller_user_id: callerUserId?.trim() || null,
+    });
     if (error) throw new Error(error.message);
     const deleted = (data ?? [])[0];
     if (deleted) {
@@ -1426,6 +1406,10 @@ export const memoryProfileStore: ProfileStore = {
     const caller = callerUserId?.trim() || null;
     if (existing.userId && existing.userId !== caller) {
       return { status: "forbidden" };
+    }
+
+    if (existing.userId) {
+      withdrawMemoryStoryContributions(existing.userId, existing.displayName);
     }
 
     const cleared: ProfileRecord = {
