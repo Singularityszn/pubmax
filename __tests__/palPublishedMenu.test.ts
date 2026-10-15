@@ -20,7 +20,7 @@ import { createPalChatSession } from "@/lib/palChatClient";
 import { resetJourneyCache } from "@/lib/citymcp/client";
 import * as priceUpdates from "@/lib/priceUpdates.server";
 import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
-import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import { parseDrinkPriceUpdates, reviewedDrinkItemId } from "@/lib/drinkPriceUpdates";
 import { publishedMenuCards, publishedMenuAnswer } from "@/lib/ask/publishedMenu.server";
 import type { AskCard } from "@/lib/ask/types";
 
@@ -621,10 +621,16 @@ const categoryRequests = [
   { subject: "Wine menu Organic Pinot Grigio under £7.20", accepted: false },
   { subject: "Wine menu Organic Pinot Grigio under £10", accepted: true },
   { subject: "Wine menu Missing Merlot under £10", accepted: false },
+  { subject: 'Wine menu "Organic Pinot Grigio" under £10', accepted: true },
+  { subject: "Wine menu 125ml Organic Pinot Grigio under £10", accepted: false },
   { subject: "Cocktail menu Organic Pinot Grigio under £10", accepted: false },
 ] as const;
 
-it.each(categoryRequests.flatMap((record) => dietaryBoundaries.map((boundary) => ({ ...record, boundary }))))(
+const menuRequestPrefixes = ["", "Show me the ", "Tell me the ", "Please show me the ", "Could you tell me the "] as const;
+
+it.each(categoryRequests.flatMap((record) => menuRequestPrefixes.flatMap((prefix) =>
+  dietaryBoundaries.map((boundary) => ({ ...record, subject: `${prefix}${record.subject}`, boundary })),
+)))(
   "preserves menu category and item constraints through $boundary: $subject", async ({ subject, accepted, boundary }) => {
     const query = `${subject} at Sherlock Holmes`;
     let cards: AskCard[];
@@ -676,3 +682,36 @@ it.each(categoryRequests.flatMap((record) => dietaryBoundaries.map((boundary) =>
     if (subject.includes("Organic")) expect(cards.every((card) => card.menuEvidence?.itemName === "Organic Pinot Grigio, Riff, Italy")).toBe(true);
   },
 );
+
+it.each([
+  ['Show me the wine menu 175ml glass "House Wine" under £10', [7.2]],
+  ['Tell me the wine menu 175ml glass "House Wine" under £7.20', []],
+  ['Please show me the wine menu 250ml glass "House Wine" under £10', []],
+  ['Could you tell me the coffee menu 175ml glass "House Wine" under £10', []],
+] as const)("retains named items and all constraints in disposable menu facts: %s", async (subject, expectedPrices) => {
+  const drink = parseDrinkPriceUpdates([
+    { drinkName: "House Wine", category: "wine", priceGbp: 7.2, servingSize: "175ml glass" },
+    { drinkName: "House Wine", category: "wine", priceGbp: 20, servingSize: "bottle" },
+    { drinkName: "Other Wine", category: "wine", priceGbp: 6, servingSize: "175ml glass" },
+    { drinkName: "House Wine", category: "cocktail", priceGbp: 3, servingSize: "175ml glass" },
+  ].map((item) => ({ ...item,
+    itemId: reviewedDrinkItemId({ ...item, venueKey: "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568" }),
+    venueKey: "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+    source: { label: "Request grammar fixture", licence: "Test only", url: "https://example.com/menu" },
+    observedAt: "2026-10-13T09:43:11.443Z", lane: "publisher",
+  })));
+  expect(drink).toHaveLength(4);
+  vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue({ drink, food: [] });
+  const query = `${subject} at The New Inn`;
+  const { cards } = await publishedMenuCards("venue-17qpap6", query);
+  expect(cards.map((card) => card.price)).toEqual(expectedPrices);
+  for (const post of [ask, chat]) {
+    const body = await (await post(request(query))).json();
+    expect(body.cards).toEqual(cards);
+  }
+  for (const card of cards) expect(card.menuEvidence).toMatchObject({
+    itemName: "House Wine", category: "wine", serving: "175ml glass", currency: "GBP",
+    source: "Request grammar fixture", sourceUrl: "https://example.com/menu",
+    observedAt: "2026-10-13T09:43:11.443Z", availability: "unknown",
+  });
+});

@@ -133,6 +133,12 @@ function priceQuestion(query: string): string {
   return priceClauses.join(" and ");
 }
 
+function stripPriceRequestPrefix(subject: string): string {
+  return subject
+    .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:tell me|(?:help me\s+)?(?:find(?: me| us)?|show me|get(?: me| us)?)))(?:\s+|$)/i, "")
+    .replace(/^(?:a|an|the)(?:\s+|$)/i, "");
+}
+
 export function namedMenuRequest(query: string): { venueName: string; subject: string; category?: DrinkCategory } | null {
   const question = priceQuestion(query);
   const venueName = namedDrinkVenue(question);
@@ -141,12 +147,13 @@ export function namedMenuRequest(query: string): { venueName: string; subject: s
   if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
   const priceSubject = priceComparisonSubject(question);
   if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
-  const categoryPrefix = subject.match(/^(.+?)\s+(?:menu|prices?|costs?)\b/i);
+  const categorySubject = stripPriceRequestPrefix(subject);
+  const categoryPrefix = categorySubject.match(/^(.+?)\s+(?:menu|prices?|costs?)\b/i);
   const bareCategory = priceSubject ? recordedPriceCategory(priceSubject) : undefined;
   const category = bareCategory ?? (categoryPrefix ? recordedPriceCategory(categoryPrefix[1]!) : undefined);
   return {
     venueName,
-    subject: bareCategory ? "drinks" : category && categoryPrefix ? subject.slice(categoryPrefix[1]!.length).trim() : subject,
+    subject: bareCategory ? "drinks" : category && categoryPrefix ? categorySubject.slice(categoryPrefix[1]!.length).trim() : subject,
     ...(category ? { category } : {}),
   };
 }
@@ -166,8 +173,7 @@ function priceComparisonSubject(query: string): string | null {
     stripTrailingPunctuation(subject).replace(/\s+costs?$/i, ""),
   ).replace(/^(?:a|an|the)(?:\s+|$)/i, "");
   let precedingItem = !/^how much/i.test(comparison[0])
-    ? query.slice(0, comparison.index)
-      .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me|(?:please\s+)?(?:help me\s+)?(?:find(?: me| us)?|show me|get(?: me| us)?))\s*/i, "")
+    ? stripPriceRequestPrefix(query.slice(0, comparison.index).trim())
     : "";
   if (!itemPrice) {
     precedingItem = precedingItem.replace(new RegExp(`^(?:plan|sort(?: me)?)\\s+(?:a\\s+)?(?:big\\s+)?${PLAN_COMPARISON_SUBJECT}(?:\\s+for\\s+(?:two|three|four|five|six|a few|\\d+)(?:\\s+of us)?)?\\s*,?(?:\\s*(?:with|and))?\\s*$`, "i"), "");
