@@ -56,9 +56,8 @@ export function planPriceSubjectText(value: string): string {
     const before = value.slice(0, index).replace(new RegExp(PLAN_PRICE_AMOUNT, "gi"), (amount) => " ".repeat(amount.length));
     const after = value.slice(index + word.length);
     const qualified = new RegExp(String.raw`${FOOD_SERVING_QUALIFIER}$`, "i").test(before);
-    const nounContents = /^\s+of\b/i.test(after);
-    const predicate = new RegExp(String.raw`^\s+${PLAN_FOOD_SUBJECT}\b`, "i").test(after);
-    return !qualified && !nounContents && predicate ? "serves " : word;
+    const predicate = new RegExp(String.raw`^\s+(?!(?:of|to|for|and|plus|priced|cost(?:s|ing)?|${LIMIT})\b|${PLAN_PRICE_SUBJECT_BOUNDARY}|${PLAN_PRICE_AMOUNT})[a-z0-9]`, "i").test(after);
+    return !qualified && predicate ? "serves " : word;
   });
   const spans = planPriceLocationSpans(value);
   let text = "";

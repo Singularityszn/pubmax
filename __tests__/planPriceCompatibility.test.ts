@@ -20,6 +20,10 @@ it("initializes and parses plan prices when RegExp lookbehind is unavailable", a
       expect(planPriceLimits(`${rate} serving pizza, pub route budget of£20`))
         .toEqual({ pintCeiling: 5, routeBudgetPence: 2000 });
     }
+    for (const object of ["beer", "drinks", "real ale", "cider", "soft drinks", "mixed drinks and food", "craft beverages"]) {
+      expect(planPriceLimits(`£5 pint at X serving ${object}, under£20 per person`))
+        .toEqual({ pintCeiling: 5, routeBudgetPence: 2000 });
+    }
     expect(planPriceSubjectText("£10 pint at X and servings to share"))
       .toContain("and servings to share");
     expect(planPriceSubjectText("£10 pint at X and 2 servings for two"))

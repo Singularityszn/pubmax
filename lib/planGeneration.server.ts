@@ -245,7 +245,8 @@ function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
 	const before = value.slice(0, item.index);
 	const after = value.slice(item.index + item[0].length);
 	const pricedOrBundled = new RegExp(String.raw`^[\s,]*(?:priced|cost(?:s|ing)?|for\s*${PLAN_PRICE_AMOUNT}|(?:and|plus|[+&])\s*(?:(?:an?|one|two)\s+)?${PLAN_DRINK_ITEM})\b`, "i");
-	return /\b(?:with|serving|serves)\s+$/i.test(before) && !pricedOrBundled.test(after);
+	const amenity = new RegExp(String.raw`(?:\b(?:with|serving|serves)\s+|\b(?:serving|serves)\s+(?:(?!${PLAN_PRICE_AMOUNT}|[,;.!?])[\s\S])*(?:\b(?:and|plus)|[+&])\s*)$`, "i");
+	return amenity.test(before) && !pricedOrBundled.test(after);
 }
 
 function pricedDrinkIncludesMeal(beforeDrink: string, explicitFoodIntent: boolean): boolean {
