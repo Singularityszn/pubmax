@@ -57,7 +57,7 @@ vi.mock("@/lib/walkRouteStore", () => ({
 }));
 
 import { GET, POST } from "@/app/api/plans/generate/route";
-import { planPriceLimits } from "@/lib/planPriceLimits";
+import { planPriceAmounts, planPriceLimits } from "@/lib/planPriceLimits";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
@@ -170,7 +170,10 @@ function drinkRatePhrases(pounds: number): string[] {
     `one ${item} under£${pounds}`,
     `1 ${item} under£${pounds}`,
     `£${pounds} for one ${item}`,
-  ]);
+  ]).concat(["pint of beer", "a pint of beer", "one pint of beer", "1 pint of beer", "pint of the beer"].flatMap((subject) => [
+    `${subject} under£${pounds}`,
+    `£${pounds} for ${subject}`,
+  ]));
 }
 
 function drinkRateInputs(phrase: string) {
@@ -184,7 +187,23 @@ function drinkRateInputs(phrase: string) {
   ];
 }
 
+const unsupportedServingSubjects = [
+  "330 ml of beer", "330ml of beer", "330 ml of the beer", "330ml of a beer", "33cl of beer", "0.33L of beer",
+  "two pints of beer", "half a pint of beer", "half a pint of the beer", "1/2 pint of beer",
+  "two bottles of the beer", "a can of beer", "one glass of the beer", "2 shots of beer",
+  "seven pints of beer", "a jug of beer", "a litre of beer", "330 millilitres of beer",
+  "2 packs of beer", "a pitcher of beer", "a stein of beer", "a six-pack of beer",
+  "pint of cider", "pint of 330ml beer", "pint of beer 330ml",
+];
+
 describe("POST /api/plans/generate", () => {
+  it.each(unsupportedServingSubjects)("retains complete raw serving spans: %s", (subject) => {
+    const [before] = planPriceAmounts(`${subject} under£5`);
+    expect(before).toMatchObject({ pence: 500, routeBudget: null, drink: { beforeStart: 0, afterEnd: null, supported: false } });
+    const [after] = planPriceAmounts(`£5 for ${subject}`);
+    expect(after).toMatchObject({ pence: 500, routeBudget: null, drink: { beforeStart: null, afterEnd: ` for ${subject}`.length, supported: false } });
+  });
+
   it.each([
     "330ml beers under£5", "£5 for a 330ml beer",
     "330 ml beers under£5", "£5 for a 330 ml beer",
@@ -197,6 +216,7 @@ describe("POST /api/plans/generate", () => {
     "two 330ml beers under£5", "£5 for two 330ml beers",
     "2 bottles of beer under£5", "£5 for 2 bottles of beer",
     "pub route budget of£20 for 330ml beers", "pub route budget of£20 for two beers",
+    ...unsupportedServingSubjects.flatMap((subject) => [`${subject} under£5`, `£5 for ${subject}`]),
   ].flatMap((phrase) => [
     { query: `3 pubs in Clapham, ${phrase}` },
     { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", phrase] } },
@@ -386,6 +406,11 @@ describe("POST /api/plans/generate", () => {
     `PIZZA & ${item.toUpperCase()} UNDER£10`, `pizza, beer and ${item} under£10`,
     `route budget of£10 for a ${item} and pizza`,
     `total budget of£10 for pizza and a ${item}`,
+  ]).concat([
+    "pizza and a pint of beer under£10", "pint of beer and pizza under£10",
+    "£10 for a pint of beer and pizza", "£10 for pizza and a pint of beer",
+    "PIZZA & PINT OF BEER UNDER£10", "pizza, beer and pint of beer under£10",
+    "route total£10 for pint of beer & pizza", "route total£10 for pizza & pint of beer",
   ]).flatMap((phrase) => [
     { query: `One ${phrase} in Soho`, context: { stopCount: 1 } },
     { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [phrase] } },

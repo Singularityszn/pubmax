@@ -2,7 +2,13 @@
 
 Date: 15 October 2026.
 
-## Current price-ownership and handoff review
+## Current serving-subject review
+
+The [serving-subject residual proof](serving-subject-review.md) covers the correction above starting HEAD `26db13b8a4888d6e260bc7cd87bb0da0e04f543f`.
+All 1,455 focused route tests passed against the source hashes in that report.
+The earlier browser evidence retains its original source binding.
+
+## Earlier price-ownership and handoff review
 
 This review starts at `3e4804c2f6b4d3f056505e22a27a852ac0e4c591`. Four preparation regressions reproduced the reported defect before correction. Both query and structured beer-first rates became £5 route totals. Price-first £1 beer rates retained candidates despite the impossible ceiling.
 
