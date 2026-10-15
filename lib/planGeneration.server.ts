@@ -8,6 +8,7 @@ import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { CATEGORY_META } from "@/lib/drinks";
 import { drinkLensCoverageNote, trustedDrinkLensPrices, trustedNoAlcoholLensPrices, type MapLensPrice } from "@/lib/mapExperienceLens";
@@ -259,47 +260,49 @@ function pricedDrinkIncludesMeal(beforeDrink: string, explicitFoodIntent: boolea
 
 /** Bind each amount before exempting drink rates or a pub-route budget. */
 function hasMealPriceConstraint(value: string, explicitFoodIntent = false): boolean {
-	const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
-		.filter((item) => !isGenericFoodAmenity(value, item));
-	if (!foodItems.length && !explicitFoodIntent) return false;
-	const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_FOOD_ITEM}\b`, "i");
-	const bundleAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_DRINK_ITEM}\b(?:${PLAN_ITEM_LIST_JOIN}${PLAN_DRINK_ITEM}\b)*${PLAN_ITEM_LIST_JOIN}${PLAN_FOOD_ITEM}\b`, "i");
-	const drinkRate = new RegExp(String.raw`^\s*(?:per|a|each)\s+${PLAN_DRINK_ITEM}\b`, "i");
-	return planPriceAmounts(value).some((price) => {
-		const before = value.slice(0, price.index);
-		const after = value.slice(price.end);
-		if (drinkRate.test(after)) return false;
-		if (foodAfterPrice.test(after) || bundleAfterPrice.test(after)) return true;
-		if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)
-			&& /\b(?:route\s+budget|(?:and|with)\s+(?:a\s+)?budget)(?:\s+of)?\s*$/i.test(before)) return false;
-		const pricedDrink = PLAN_DRINK_BEFORE_PRICE.exec(before);
-		if (pricedDrink) return pricedDrinkIncludesMeal(before.slice(0, pricedDrink.index), explicitFoodIntent);
-		const afterDrink = PLAN_DRINK_AFTER_PRICE.exec(after);
-		if (afterDrink) {
-			let remaining = after.slice(afterDrink[0].length);
-			const nextItem = new RegExp(String.raw`^${PLAN_ITEM_LIST_JOIN}(\w+)`, "i");
-			for (let item = nextItem.exec(remaining); explicitFoodIntent && item; item = nextItem.exec(remaining)) {
-				if (!new RegExp(String.raw`^${PLAN_DRINK_ITEM}$`, "i").test(item[1]!)) return true;
-				remaining = remaining.slice(item[0].length);
+	return value.split(/[;!?]|\.(?!\d)/).some((value) => {
+		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
+			.filter((item) => !isGenericFoodAmenity(value, item));
+		if (!foodItems.length && !explicitFoodIntent) return false;
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_FOOD_ITEM}\b`, "i");
+		const drinkRate = new RegExp(String.raw`^\s*(?:per|a|each)\s+${PLAN_DRINK_ITEM}\b`, "i");
+		return planPriceAmounts(value).some((price) => {
+			const before = value.slice(0, price.index);
+			const after = value.slice(price.end);
+			if (drinkRate.test(after)) return false;
+			if (foodAfterPrice.test(after)) return true;
+			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
+			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
+				&& /\b(?:route\s+budget|(?:and|with)\s+(?:a\s+)?budget)(?:\s+of)?\s*$/i.test(budgetClause)) return false;
+			const pricedDrink = PLAN_DRINK_BEFORE_PRICE.exec(before);
+			if (pricedDrink) return pricedDrinkIncludesMeal(before.slice(0, pricedDrink.index), explicitFoodIntent);
+			const afterDrink = PLAN_DRINK_AFTER_PRICE.exec(after);
+			if (afterDrink) {
+				const item = explicitFoodIntent ? String.raw`\w+` : String.raw`(?:${PLAN_FOOD_ITEM}|${PLAN_DRINK_ITEM})`;
+				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
+					.exec(after.slice(afterDrink[0].length))?.[0] ?? "";
+				if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
+				return explicitFoodIntent
+					? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
+					: new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i").test(list);
 			}
-			return false;
-		}
-		if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
-		const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
-			/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
-		if (/^\s*(?:per\s+person|each)\b/i.test(after) && foodIsLaterPreference) return false;
-		if ((foodItems.length > 0 && foodItems.every((item) => item.index > price.index))
-			&& /\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)) return false;
-		return true;
+			if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
+			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
+				/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
+			if (/^\s*(?:per\s+person|each)\b/i.test(after) && foodIsLaterPreference) return false;
+			if ((foodItems.length > 0 && foodItems.every((item) => item.index > price.index))
+				&& /\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)) return false;
+			return true;
+		});
 	});
 }
 
 /** The pub-route generator has no menu-item or nutrition proof. */
 function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
-	const foodRequest = [query, ...foodNeeds].join(". ");
-	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest);
+	const foodRequests = [query, ...foodNeeds];
+	const requiresNutrition = foodRequests.some((foodRequest) => /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest));
 	const allergens = "(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
-	const requiresDiet = new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest);
+	const requiresDiet = foodRequests.some((foodRequest) => new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest));
 	const requiresMealPrice = hasMealPriceConstraint(query)
 		|| foodNeeds.some((value) => hasMealPriceConstraint(value, true));
 	return requiresNutrition || requiresDiet || requiresMealPrice;
@@ -347,6 +350,18 @@ export async function preparePlanGeneration(
 	}
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
+	}
+	const priceLimits = planPriceLimits(query, ...context.foodNeeds);
+	if (priceLimits.routeBudgetPence !== null
+		&& (context.budgetLimitPence === null || priceLimits.routeBudgetPence < context.budgetLimitPence)) {
+		context.budgetLimitPence = priceLimits.routeBudgetPence;
+		reconciled.fieldSources.budgetLimitPence = "context";
+		reconciled.reasons = reconciled.reasons.filter(({ field }) => field !== "budgetLimitPence");
+		reconciled.reasons.push({
+			field: "budgetLimitPence",
+			evidence: formatGbp(priceLimits.routeBudgetPence / 100),
+			explanation: "Applied the strictest requested route budget.",
+		});
 	}
 	const cityId = parsedRequest.value.cityId ? parseCityId(parsedRequest.value.cityId) : DEFAULT_CITY_ID;
 	if (!cityId) {
@@ -411,7 +426,7 @@ export async function preparePlanGeneration(
 		)
 		: null;
 	const venues = await loadConciergeVenues(cityId);
-	const pintCap = planPriceLimits(query).pintCeiling;
+	const pintCap = priceLimits.pintCeiling;
 	const pintEvidence = pintCap === null ? null : await planPriceEvidenceForVenues(venues, requestNow);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
