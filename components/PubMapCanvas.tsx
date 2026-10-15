@@ -132,7 +132,9 @@ import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/
 import {
   BASEMAP_RETRY_NOTICE,
   PIN_PAINT_RETRY_NOTICE,
+  basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
+  openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
   overviewSkipsVenueWait,
@@ -1575,7 +1577,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
+        // The opening keeps its in-flight basemap tiles while the arrival
+        // flight zooms, so the pins can arrive during it. The first idle hands
+        // every later zoom back to MapLibre's default.
+        cancelPendingTileRequestsWhileZooming: openingCancelsPendingTiles(
+          reducedRef.current,
+        ),
       });
+      if (!map.cancelPendingTileRequestsWhileZooming) {
+        const settledMap = map;
+        settledMap.once("idle", () => {
+          settledMap.cancelPendingTileRequestsWhileZooming = true;
+        });
+      }
       markPubmaxTiming("pubmax:map-constructed");
       onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();
@@ -1856,6 +1870,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const areBasemapTilesLoaded = () => readBasemapTilesLoaded(map);
     let initialBasemapPending = true;
     let basemapTileReadyForPaint = false;
+    // The style generation whose primary basemap last loaded a tile. The pin
+    // reveal arm reads it so a paint this style already made is not forgotten
+    // (basemapPaintCarriesIntoReveal).
+    let basemapPaintStyleGeneration: number | null = null;
     let tileNoticeOwner: BasemapNoticeOwner = "none";
     let tileFailureStamps: number[] = [];
     let tileSpend = INITIAL_TILE_FAILURE_SPEND;
@@ -2127,6 +2145,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (primaryBasemapPainted) {
         initialBasemapPending = false;
         basemapTileReadyForPaint = true;
+        basemapPaintStyleGeneration = styleGeneration;
         silentRetryAwaitingPaint = false;
       }
       const recoveredFailures = failedBasemapTiles.recordSuccess({
@@ -2486,7 +2505,21 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // after tile readiness crosses a paint frame. The timeout deliberately
       // degrades to usable pins over the themed container when community tiles
       // are partial/offline instead of leaving the product invisible.
+      //
+      // A tile THIS style already painted still counts. The opening arrival
+      // flight starts the moment the scene is built, and a zooming camera has
+      // its pending tile requests cancelled until it stops, so a gate that
+      // forgot the painted tiles held the pins until the flight had landed.
+      // The basemap under them has a frame either way, and the pins are drawn
+      // by the same camera, so they cannot paint at a stale position.
+      const basemapPaintCarries = basemapPaintCarriesIntoReveal({
+        basemapPainted: basemapTileReadyForPaint,
+        paintedStyleGeneration: basemapPaintStyleGeneration,
+        armedStyleGeneration: generation,
+        reducedMotion: reducedRef.current,
+      });
       beginTileFailureGeneration();
+      basemapTileReadyForPaint = basemapPaintCarries;
       initialBasemapPending = true;
       pinRevealCoordinator.arm();
 

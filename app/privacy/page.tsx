@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "6 October 2026";
+const LAST_UPDATED = "15 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -479,7 +479,8 @@ export default function PrivacyPage() {
             the provider. The first-party browser proxy doesn&rsquo;t forward
             cookies or sign-in headers. For named product events, the server
             passes the request user agent and raw IP address to PostHog along
-            with the validated referrer and screen context. PUBMAXX doesn&rsquo;t
+            with the validated referrer, screen context and the analytics
+            session the event happened in. PUBMAXX doesn&rsquo;t
             put that raw IP address in its own logs or database; its own rate
             limit keeps only a salted hash.
           </li>

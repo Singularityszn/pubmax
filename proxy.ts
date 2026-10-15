@@ -61,8 +61,49 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
   "/near",
 ]);
 
+// THE SAME TRADE FOR THE PUBLIC SEO DETAIL PAGES (task vercel-f2-seo-cdn,
+// 2026-10-15). 445 sitemap URLs sit on these five route shapes, and with
+// roughly a dozen human page views a day the crawlers that robots.txt invites
+// were paying a full server render on every fetch, uncached (`private,
+// no-store`, `x-vercel-cache: MISS`). Each page renders only bundled datasets
+// (cited heritage, the price dataset, curated landmarks, the governed drink
+// landings): no cookie, no header, no search param, no session and nothing
+// personal, so one copy may be handed to every visitor. Same terms as the
+// list above: `force-static`, an ISR window, and the inline slot is the ONLY
+// thing that differs. A `[segment]` matches exactly one non-empty path
+// segment, so `/historic` (it reads search params) and `/borough` stay on the
+// nonce, and so does every deeper path such as an `opengraph-image` route.
+//
+// `/ledger/[id]` is NOT here and may not join on these terms: its document
+// resolves a viewer from the `Authorization` header to gate Family Table
+// content. That route needs its own decision first.
+//
+// `__tests__/cdnCachedDocuments.test.ts` holds each pattern to the page file
+// at the same path under app/, which must declare `force-static`.
+export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
+  "/historic/[slug]",
+  "/borough/[slug]",
+  "/landmark/[id]",
+  "/drink/[slug]",
+  "/area/[slug]/drink/[brand]",
+]);
+
+/** True when `pathname` fills `pattern` segment for segment. */
+export function matchesDocumentRoute(pattern: string, pathname: string): boolean {
+  const want = pattern.split("/");
+  const got = pathname.split("/");
+  if (want.length !== got.length) return false;
+  return want.every((segment, index) =>
+    /^\[[a-z]+\]$/.test(segment) ? got[index] !== "" : segment === got[index],
+  );
+}
+
 function servesCdnCachedDocument(pathname: string): boolean {
-  return CDN_CACHED_DOCUMENT_PATHS.has(pathname);
+  if (CDN_CACHED_DOCUMENT_PATHS.has(pathname)) return true;
+  for (const pattern of CDN_CACHED_DOCUMENT_ROUTES) {
+    if (matchesDocumentRoute(pattern, pathname)) return true;
+  }
+  return false;
 }
 
 // Preview and development deploys must never be indexed. VERCEL_ENV is the
@@ -466,7 +507,7 @@ export function securityProxy(request: NextRequest) {
     : `'nonce-${nonce}'`;
   // Voice AudioWorklets are same-origin files under /vendor/elevenlabs, copied
   // by `npm run dev` and `npm run build` and passed as workletPaths when a session starts.
-  // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the five
+  // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the
   // prerendered documents). data: and blob: are not script sources: a data:
   // URL would run without a nonce.
   const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;

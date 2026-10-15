@@ -161,13 +161,14 @@ is the machine definition. Five numbers in six insights.
 | 2 | First action within 60 seconds | The release metric, plus its funnel companion |
 | 3 | Landing to Map to venue sheet | `discovery_viewed`, `$pageview` on `/map`, `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
-| 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75, by route |
+| 5 | Top routes by LCP | `$web_vitals`, p75 of `$web_vitals_LCP_value`, by `$pathname` |
 
 Three limits to state every time a figure is quoted.
 
 1. Every rate is a rate over CONSENTED visitors. It is never a rate over all traffic.
-2. A named event carries no `$session_id`. A session-scoped funnel over named events
-   answers nothing. Use a time window over `distinct_id`.
+2. A named event carries `$session_id` only when the browser SDK had one, so a
+   session-scoped funnel over named events undercounts. Use a time window over
+   `distinct_id`.
 3. Tile 3 crosses both transports. Read step 1 to step 3 as the reliable pair.
 
 ### 3.2 Who acts on which number
