@@ -200,26 +200,51 @@ const unsupportedServingSubjects = [
 
 describe("POST /api/plans/generate", () => {
   it.each([
-    "One serving under£10 in Soho", "£10 for one serving in Soho",
-    "Two servings under£10 in Soho", "£10 for two servings in Soho",
-    "serving under£10", "£10 serving", "servings under£10", "£10 servings",
-    "one serving 10 pounds", "one serving for 10 quid", "10 pounds for a serving",
-    "one serving priced under£10", "one serving costs£10", "£10 PINT AND A SERVING",
-    ...["a serving", "two servings", "half a serving", "2/3 servings"].flatMap((food) => [
-      `${food} under£10`, `£10 for ${food}`,
-      ...[" and ", " plus ", "+", "&"].flatMap((join) => [
-        `£10 pint${join}${food}`, `pint${join}${food} under£10`,
-        `£10 ${food}${join}pint`, `${food}${join}pint under£10`,
-        `£10 pint at pub${join}${food}`, `pint at pub${join}${food} under£10`,
+    ...[
+      "One pub in Soho, one serving to share under£10",
+      "£10 for a serving to share",
+      "£10 pint at pub and a serving to share",
+    ].map((query) => ({ query })),
+    ...[
+      "One serving under£10 in Soho", "£10 for one serving in Soho",
+      "Two servings under£10 in Soho", "£10 for two servings in Soho",
+      "serving under£10", "£10 serving", "servings under£10", "£10 servings",
+      "one serving 10 pounds", "one serving for 10 quid", "10 pounds for a serving",
+      "one serving priced under£10", "one serving costs£10", "£10 PINT AND A SERVING",
+      ...["a serving", "two servings", "half a serving", "2/3 servings"].flatMap((food) => [
+        `${food} under£10`, `£10 for ${food}`,
+        ...[" and ", " plus ", "+", "&"].flatMap((join) => [
+          `£10 pint${join}${food}`, `pint${join}${food} under£10`,
+          `£10 ${food}${join}pint`, `${food}${join}pint under£10`,
+          `£10 pint at pub${join}${food}`, `pint at pub${join}${food} under£10`,
+        ]),
       ]),
+      ...["in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((modifier) => [
+        `£10 pint ${modifier} X and a serving`, `pint ${modifier} X and a serving £10`,
+      ]),
+      ...["to share", "for two", "for the table"].flatMap((modifier) => [
+        `One pub in Soho, one serving ${modifier} under£10`,
+        ...["in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((location) => [
+          `£10 pint ${location} X & a serving ${modifier}`,
+          `pint ${location} X & a serving ${modifier} £10`,
+        ]),
+        ...["a serving", "two servings", "2 servings", "half a serving", "2/3 servings", "a generous serving"].flatMap((noun) => {
+          const food = `${noun} ${modifier}`;
+          return [
+            `${food} under£10`, `£10 for ${food}`,
+            ...[" and ", " plus ", "+", "&"].flatMap((join) => [
+              `£10 pint${join}${food}`, `pint${join}${food} under£10`,
+              `£10 ${food}${join}pint`, `${food}${join}pint under£10`,
+              `£10 pint at pub${join}${food}`, `pint at pub${join}${food} under£10`,
+            ]),
+          ];
+        }),
+      ]),
+    ].flatMap((phrase) => [
+      { query: phrase.includes("Soho") ? phrase : `3 pubs in Clapham, ${phrase}` },
+      ...(phrase.length <= 40 ? [{ query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }] : []),
     ]),
-    ...["in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((modifier) => [
-      `£10 pint ${modifier} X and a serving`, `pint ${modifier} X and a serving £10`,
-    ]),
-  ].flatMap((phrase) => [
-    { query: phrase.includes("Soho") ? phrase : `3 pubs in Clapham, ${phrase}` },
-    ...(phrase.length <= 40 ? [{ query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }] : []),
-  ]))("refuses priced generic serving nouns before paid work: %j", async (input) => {
+  ])("refuses priced generic serving nouns before paid work: %j", async (input) => {
     const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),
     }), PLAN_GENERATION_TEST_NOW);
@@ -238,11 +263,16 @@ describe("POST /api/plans/generate", () => {
   it.each([
     "£5 pint at pub serving pizza", "pint under£5 at pub serving pizza",
     "£5 pint serving pizza", "pint under£5 serving pizza",
+    "pint under £ 5 serving pizza", "pint under5 pounds serving pizza", "pint under5 quid serving pizza",
     "£5 pint at pub serving hot pizza", "£5 pint at pub serving a pizza",
     "£5 pint at pub serving 2 pizzas", "£5 pint at pub serving food",
     "£5 pint at Beer and Burger serving pizza",
     "£5 pint at pub serves pizza", "£5 pint at pub with pizza",
     "£5 pint; a serving later", "£5 pint, servings afterwards",
+    ...["to share", "for two", "for the table"].flatMap((modifier) => [
+      `£5 pint serving pizza ${modifier}`, `£5 pint at X serving pizza ${modifier}`,
+      `£5 pint; a serving ${modifier} later`,
+    ]),
   ].flatMap((phrase) => [
     { query: `3 pubs in Clapham, ${phrase}, pub route budget of£20` },
     { query: "3 pubs in Clapham", context: { foodNeeds: [phrase, "pub route budget of£20"] } },
