@@ -296,6 +296,10 @@ The response excerpt above omits price fields. [`buildPlanGenerationStops`](../l
 
 Unanchored generation with a per-person ceiling requires usable budget evidence. Non-beer and zero-proof contexts cannot satisfy it with pint prices, so they return `422 GROUNDED_CONSTRAINTS_UNSATISFIED` with `details.rejected.budgetEvidence` rather than an estimated route within the ceiling. [`selectPlanGenerationCandidates`](../lib/planGenerationSelection.server.ts) owns the selection boundary.
 
+The route planner has no menu-item or nutrition evidence. [`preparePlanGeneration`](../lib/planGeneration.server.ts) checks the query and reconciled `foodNeeds` before route selection. Detected meal-price, dietary, or calorie constraints return `422 MEAL_CONSTRAINTS_UNSUPPORTED` with an explicit limitation. A food-serving venue preference alone remains supported.
+
+An explicit per-pint ceiling in the query filters candidates separately from the per-person route budget. A candidate needs a known `cheapestPrice` at or below that ceiling. `preparePlanGeneration` owns the accepted ceiling syntax and filtering.
+
 ### Errors
 
 | Status | Condition | Current body |
@@ -303,6 +307,7 @@ Unanchored generation with a per-person ceiling requires usable budget evidence.
 | `400` | malformed JSON | `MALFORMED_REQUEST` |
 | `400` | neither `query` nor `context` | `NIGHT_CONTEXT_REQUIRED` |
 | `400` | invalid `cityId` | `CITY_INVALID` |
+| `422` | detected meal-price, dietary, or calorie constraint | `MEAL_CONSTRAINTS_UNSUPPORTED` |
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
 | `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
 | `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |
