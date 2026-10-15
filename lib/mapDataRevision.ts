@@ -32,10 +32,10 @@ export const EXPECTED_MAP_DATA_REVISION =
 export const MAP_DATA_REVISION_SKEW_EVENT = "pubmax:map-data-revision-skew";
 
 /** Which map pack disagreed. A closed set, never a URL. */
-export type MapDataRevisionSkewAsset = "manifest" | "shard" | "index";
+type MapDataRevisionSkewAsset = "manifest" | "shard" | "index";
 
 /** What the loader did about it: painted the served pack, or refused it. */
-export type MapDataRevisionSkewOutcome = "adopted" | "refused";
+type MapDataRevisionSkewOutcome = "adopted" | "refused";
 
 export type MapDataRevisionSkew = {
   asset: MapDataRevisionSkewAsset;
