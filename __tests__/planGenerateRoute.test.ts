@@ -200,6 +200,49 @@ const unsupportedServingSubjects = [
 
 describe("POST /api/plans/generate", () => {
   it.each([
+    ...[
+      "a serving of chips", "fish and chips", "a cheese and tomato pizza",
+      "two generous servings of chips", "a bowl of fish and chips", "half a cheese and tomato pizza",
+      "one and a half servings of chips", "2/3 of fish and chips", "a large pub fish and chips",
+      "cheese & tomato pizza", "cheese+tomato pizza", "cheese plus tomato pizza",
+      "a burger and chips", "chips and pizza",
+    ].flatMap((food) => [
+      `£10 ${food}`, `${food} under£10`,
+      ...[" and ", " plus ", "+", "&"].flatMap((join) => [
+        `£10 pint${join}${food}`, `pint${join}${food} under£10`,
+        `£10 ${food}${join}pint`, `${food}${join}pint under£10`,
+        `£10 pint at pub${join}${food}`, `pint at pub${join}${food} under£10`,
+        `£10 beer, ${food}${join}pint`,
+      ]),
+    ]),
+    ...["in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((modifier) =>
+      [" and ", " plus ", "+", "&"].flatMap((join) => ["a serving of chips", "fish and chips", "cheese and tomato pizza"].flatMap((food) => [
+        `£10 pint ${modifier} X${join}${food}`, `pint ${modifier} X${join}${food} £10`,
+      ]))),
+    "£10 PINT AND A SERVING OF CHIPS", "£10 PINT & FISH AND CHIPS",
+    "£10 PINT AT PUB AND A CHEESE AND TOMATO PIZZA",
+    "pub route budget of£20 for pint and a serving of chips",
+    "route total£20 pint at pub&fish and chips",
+  ].flatMap((phrase) => [
+    { query: `3 pubs in Clapham, ${phrase}` },
+    ...(phrase.length <= 40 ? [{ query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }] : []),
+  ]))("retains complete coordinated food phrases at preparation and POST: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+      .toEqual({ preparation: 422, post: 422 });
+    if (!("response" in prepared)) throw new Error("Expected meal limitation");
+    expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+  });
+
+  it.each([
     ...[" and ", " plus ", "+", "&"].flatMap((join) => [
       "a slice of pizza", "a portion of chips", "1/2 a pizza", "two small pizzas",
       "a large pub meal", "a bowl of curry", "a plate of chips", "half a pub pizza",
@@ -439,6 +482,22 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
+    ...[
+      "a serving of chips", "fish and chips", "cheese and tomato pizza", "burger and chips",
+      "fish plus chips", "fish+chips", "fish&chips", "cheese+tomato pizza",
+    ].flatMap((food) => [
+      ...["with", "serving", "serves"].flatMap((predicate) => [
+        { query: `3 pubs in Clapham, £5 pint at Cock and Bottle ${predicate} ${food}`, total: null, ceiling: 500 },
+        { query: `3 pubs in Clapham, pint at Beer and Burger under£5 ${predicate} ${food}`, total: null, ceiling: 500 },
+        { query: "3 pubs in Clapham", context: { foodNeeds: [`£5 pint at X ${predicate} ${food.replaceAll(" and ", "&")}`] }, total: null, ceiling: 500 },
+        { query: `3 pubs in Clapham, £5 pint at Cock and Bottle ${predicate} ${food}, route total£20`, total: 2000, ceiling: 500 },
+      ]),
+      { query: `3 pubs in Clapham, pints under£5, under£20 per person, ${food} later`, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham under£20 per person", context: { foodNeeds: [`£5 per pint, ${food.replaceAll(" and ", "&")} later`] }, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [food, "pints under£5", "pub route budget of£20"] }, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: ["pub route budget of£20", "pints under£5", food] }, total: 2000, ceiling: 500 },
+      { query: `3 pubs in Clapham under£20 per person with ${food} afterwards`, total: 2000, ceiling: null },
+    ]),
     ...["with", "serving"].flatMap((amenity) => [
       { query: `3 pubs in Clapham, £5 pint at pub ${amenity} pizza, under£20 per person`, total: 2000, ceiling: 500 },
       { query: "3 pubs in Clapham", context: { foodNeeds: [`£5 pint at X ${amenity} pizza, pub total£20`] }, total: 2000, ceiling: 500 },

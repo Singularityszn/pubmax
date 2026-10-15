@@ -19,9 +19,9 @@ const EXPLICIT_ROUTE_BUDGET = new RegExp(String.raw`\b(?:(?:pubs?(?:\s+route)?|b
 const ROUTE_BUDGET_PREFIX = new RegExp(String.raw`\bbudget(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_LIMIT_PREFIX = new RegExp(String.raw`\b${LIMIT}\s*$`, "i");
 
-export const PLAN_FOOD_SUBJECT = String.raw`(?:\band\s+(?:a\s+)?(?:half|quarter)\b|(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serving|serves|and|plus|for|priced|cost(?:s|ing)?|${LIMIT})\b))[^,£+&;!?])*?\b${PLAN_FOOD_ITEM}\b`;
+export const PLAN_FOOD_SUBJECT = String.raw`(?:(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serving(?!\s+of\b)|serves|for|priced|cost(?:s|ing)?|${LIMIT})\b))[^,£;!?])*\b${PLAN_FOOD_ITEM}\b`;
 const LOCATION_LIST = String.raw`(?:\b(?:and|plus)\b|[+&])\s*(?:${PLAN_FOOD_SUBJECT}|${DRINK_SUBJECT}\b)`;
-const LOCATION_MODIFIER = new RegExp(String.raw`^(?:(?!${PLAN_PRICE_AMOUNT}|[,;.!?]|${LOCATION_LIST}|\b(?:${LIMIT}|priced|cost(?:s|ing)?|for)\b)[\s\S])*`, "i");
+const LOCATION_MODIFIER = new RegExp(String.raw`^(?:\b(?:with|serving|serves)\s+${PLAN_FOOD_SUBJECT}\b|(?!${PLAN_PRICE_AMOUNT}|[,;.!?]|${LOCATION_LIST}|\b(?:${LIMIT}|priced|cost(?:s|ing)?|for)\b)[\s\S])*`, "i");
 const VENUE_NAME_WORD = String.raw`[A-Z][a-z][a-zA-Z'’]*`;
 const VENUE_NAME_PART = String.raw`${VENUE_NAME_WORD}(?:\s+${VENUE_NAME_WORD})*`;
 const COORDINATED_VENUE_NAME = new RegExp(String.raw`^\s+(?!(?:The\s+)?(?:Pubs?|Bars?|Stops?)\b)${VENUE_NAME_PART}(?:(?:\s+(?:and|plus)\s+|\s*[+&]\s*)${VENUE_NAME_PART})+\b`);
