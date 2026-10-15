@@ -230,7 +230,6 @@ type PlanGenerationPreparation = {
 };
 
 const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
-const PLAN_FOOD_QUANTITY = String.raw`(?:(?:an?|\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:thir|four|fif|six|seven|eigh|nine)teen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|dozen)[ -]+)*`;
 const PLAN_ITEM_LIST_JOIN = String.raw`(?:\s*,\s*|\s*\b(?:and|plus)\b\s*|\s*[+&]\s*)(?:(?:an?|one|two)\s+)?`;
 
 function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
@@ -264,7 +263,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?${PLAN_FOOD_QUANTITY}(?:(?:slices?|portions?)\s+of\s+${PLAN_FOOD_QUANTITY})?${PLAN_FOOD_ITEM}\b`, "i");
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)(?:(?!\b(?:with|per|each|afterwards|later)\b)[^,£])*\b${PLAN_FOOD_ITEM}\b`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
@@ -290,8 +289,10 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
 				/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
 			if (/^\s*(?:per\s+person|each)\b/i.test(after) && foodIsLaterPreference) return false;
-			if ((foodItems.length > 0 && foodItems.every((item) => item.index > price.index))
-				&& /\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)) return false;
+			if (price.routeBudget === "limit"
+				&& foodItems.length > 0 && foodItems.every((item) => item.index > price.index)
+				&& (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
+					|| /^\s*(?:(?:per\s+person|each)\s*)?(?:with\b|,)/i.test(after) || foodIsLaterPreference)) return false;
 			return true;
 		});
 	});
