@@ -70,6 +70,7 @@ function mergeToolResults(results: AskToolResult[]): {
   hints: string[];
   degraded: boolean;
   toolsUsed: string[];
+  resolvedVenueId?: string;
 } {
   const proposals: AskProposal[] = [];
   const sources: AskSource[] = [];
@@ -101,9 +102,11 @@ function mergeToolResults(results: AskToolResult[]): {
   if (mergedCards.length < totalCardCount) {
     hints.push(`Showing the first ${mergedCards.length}.`);
   }
+  const resolvedVenueId = results.find((result) => result.ok && result.resolvedVenueId)?.resolvedVenueId;
 
   return {
     cards: mergedCards,
+    ...(resolvedVenueId ? { resolvedVenueId } : {}),
     proposals: dedupeProposals(proposals),
     sources: dedupeSources(sources),
     hints,
@@ -165,7 +168,7 @@ export type RunAskInput = {
  * Run one Ask turn. Always returns a grounded body; never throws for soft
  * tool failures (those become degraded status + honest copy).
  */
-export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
+export async function runAsk(input: RunAskInput): Promise<AskResponseBody & { resolvedVenueId?: string }> {
   const query = input.query.trim().slice(0, 500);
   const unsupported = unsupportedPriceComparison(query);
   const cityId = resolveAskCityId(input.cityId);
@@ -233,6 +236,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     sources: merged.sources,
     status: merged.degraded ? "degraded" : "ready",
     toolsUsed: merged.toolsUsed,
+    ...(merged.resolvedVenueId ? { resolvedVenueId: merged.resolvedVenueId } : {}),
   };
 }
 

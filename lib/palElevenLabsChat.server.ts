@@ -201,8 +201,7 @@ export async function runPalElevenLabsChatTurn(
   if (unsupported || recordedDrinkComparison(query)) {
     const result = await runAsk({ query, cityId, skipModel: true });
     const conversationId = unsupported ? "" : prior.conversationId
-      ?? (result.cards.length || (result.status === "ready" && result.proposals.some((proposal) => proposal.kind === "open_venue"))
-        ? `conv_${randomUUID().replaceAll("-", "")}` : "");
+      ?? (result.resolvedVenueId ? `conv_${randomUUID().replaceAll("-", "")}` : "");
     if (conversationId) {
       try {
         await registerPubPalToolTurn(conversationId, {

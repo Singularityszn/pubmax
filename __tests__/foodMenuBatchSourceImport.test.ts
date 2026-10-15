@@ -18,11 +18,54 @@ function snapshot(filename: string): { generatedAt: string; updates: FoodPriceUp
   return JSON.parse(readFileSync(join(process.cwd(), "public/data/food_price_updates", filename), "utf8"));
 }
 
+function expectPreservedRows(priorRows: FoodPriceUpdate[]): void {
+  const eagleKey = "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933";
+  const targets = priorRows.filter((row) => row.venueKey === eagleKey && row.itemName === "Ice cream");
+  expect(targets).toHaveLength(1);
+  const target = defined(targets[0]);
+  expect(target).toEqual({
+    venueKey: eagleKey,
+    itemName: "Ice cream",
+    category: "desserts",
+    priceGbp: 5.5,
+    caloriesKcal: 238,
+    servingSize: "3 scoops",
+    observedAt: "2026-10-13T06:51:38.364Z",
+    source: {
+      label: "The Eagle - official published menu",
+      url: "https://www.theeaglew12.co.uk/food-drink",
+      licence: "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished.",
+    },
+  });
+  expect(applyFoodPriceUpdatesToMenu(eagleKey, [], [target])).toMatchObject([
+    { id: "food-1j3poi9", name: "Ice cream", category: "desserts", priceGbp: 5.5, caloriesKcal: 238, servingSize: "3 scoops" },
+  ]);
+  const historicalRows = priorRows.map((row) => {
+    if (row !== target) return row;
+    const historical = { ...row };
+    delete historical.servingSize;
+    return historical;
+  });
+  const hash = createHash("sha256").update(JSON.stringify(canonical(historicalRows))).digest("hex");
+  expect(hash).toBe(receipt.sourceInputImport.preservedRowsSha256);
+}
+
 describe.each(["latest.json", "prices_20261013.json"])("reviewed menu batch in %s", (filename) => {
-  it("preserves every normalized value in all 2,572 existing rows", () => {
+  it("preserves all 2,572 historical rows with only the approved Eagle serving correction", () => {
     const priorRows = snapshot(filename).updates.slice(0, 2572);
-    const hash = createHash("sha256").update(JSON.stringify(canonical(priorRows))).digest("hex");
-    expect(hash).toBe(receipt.sourceInputImport.preservedRowsSha256);
+    expectPreservedRows(priorRows);
+    expect(priorRows).toEqual(snapshot(filename).updates.slice(0, 2572));
+  });
+
+  it.each(["another row", "another serving", "another target field", "different correction", "missing correction"])("rejects historical drift: %s", (mutation) => {
+    const priorRows = snapshot(filename).updates.slice(0, 2572);
+    const target = defined(priorRows.find((row) => row.venueKey.startsWith("the eagle|") && row.itemName === "Ice cream"));
+    if (mutation === "another row") defined(priorRows[0]).priceGbp += 1;
+    if (mutation === "another serving") defined(priorRows[0]).servingSize = "3 scoops";
+    if (mutation === "another target field") target.caloriesKcal = 239;
+    if (mutation === "different correction") target.servingSize = "2 scoops";
+    if (mutation === "missing correction") delete target.servingSize;
+    expect(() => expectPreservedRows(priorRows)).toThrow();
   });
 
   it("adds exactly the 48 reviewed rows and uses the actual newest input capture stamp", () => {
@@ -91,4 +134,8 @@ describe.each(["latest.json", "prices_20261013.json"])("reviewed menu batch in %
     expect(imported.some((row) => /^\/?\s*add\b/i.test(row.itemName))).toBe(false);
     expect(imported.find((row) => row.itemName === "8oz Bavette steak")).toBeDefined();
   });
+});
+
+it("keeps the latest and dated food packs identical", () => {
+  expect(snapshot("latest.json")).toEqual(snapshot("prices_20261013.json"));
 });

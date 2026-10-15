@@ -16,8 +16,9 @@ import { registerPubPalToolTurn, readOwnedPubPalToolTurn, __resetPubPalToolTurnS
 import { routeAskDeterministically, resolveAskPriceIntent } from "@/lib/ask/router";
 import { NAMED_MENU_PRICE_REQUESTS, JOURNEY_ENDPOINT_REQUESTS } from "./fixtures/askPriceSubjects";
 import { runAskTool } from "@/lib/ask/tools";
+import { runAsk } from "@/lib/ask/runAsk";
 import { createPalChatSession } from "@/lib/palChatClient";
-import { resetJourneyCache } from "@/lib/citymcp/client";
+import { resetCityStatusCache, resetJourneyCache } from "@/lib/citymcp/client";
 import * as priceUpdates from "@/lib/priceUpdates.server";
 import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
 import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
@@ -39,8 +40,9 @@ beforeEach(() => {
   vi.stubGlobal("fetch", offlineFetch);
   __resetPubPalToolTurnStore();
   __resetCommunityPrices();
+  resetCityStatusCache();
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => { resetCityStatusCache(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 const portionCases = [
   { query: "Price of 8oz Bavette steak at The New Inn", venueId: "venue-17qpap6", item: "8oz Bavette steak", price: 23, serving: "8oz", caloriesKcal: 1394,
@@ -638,9 +640,23 @@ it("requires publisher calories and every conjunctive numeric and dietary bound"
   expect(cards.map((card) => card.menuEvidence?.itemName)).toEqual(["Qualifying"]);
 });
 
-it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn"])("retains initial deterministic context through the client and owned store: %s", async (query) => {
+const mixedVenueQueries = [
+  "Wine prices at Fox and Anchor and are there Tube delays?",
+  "Price of Unicorn stew at The New Inn and are there Tube delays?",
+  "Price of Mixed Olives at The New Inn and are there Tube delays?",
+  "Gin prices at Fox and Anchor and are there Tube delays?",
+];
+
+it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn", ...mixedVenueQueries])("retains initial deterministic context through the client and owned store: %s", async (query) => {
   vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
   vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+  if (mixedVenueQueries.includes(query)) {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("Disposable CityMCP failure"); }));
+    const combined = await runAsk({ query, skipModel: true });
+    expect(combined.status).toBe("degraded");
+    expect(combined.toolsUsed).toEqual(["city_status", "venue_drinks"]);
+    expect(combined.answer).toContain("City status is unavailable just now.");
+  }
   const payloads: Array<{ query: string; threadId?: string }> = [];
   const session = createPalChatSession({ fetchImpl: async (_url, init) => {
     const input = JSON.parse(String(init?.body));
@@ -652,14 +668,11 @@ it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes
   await session(query, "london");
   const first = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
   if (!first.ok) throw new Error("Expected deterministic answer");
+  if (mixedVenueQueries.includes(query)) expect(first.message).toContain("City status is unavailable just now.");
   if (/Fox and Anchor|Unicorn/.test(query)) {
     expect(first.cards).toEqual([]);
     expect(first.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue" }));
   }
-  expect(first.conversationId).toMatch(/^conv_[A-Za-z0-9]{8,64}$/);
-  const stored = await readOwnedPubPalToolTurn(first.conversationId, "menu-owner");
-  expect(stored).toMatchObject({ query, cards: first.cards, hints: [first.message] });
-  expect(await readOwnedPubPalToolTurn(first.conversationId, "another-owner")).toBeNull();
   let nextMessage = "";
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: "wss://example.com?conversation_id=conv_followup01" })));
   vi.stubGlobal("WebSocket", class {
@@ -681,9 +694,13 @@ it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes
   expect(payloads[1]?.threadId).toMatch(/^conv_[A-Za-z0-9]{8,64}$/);
   expect(nextMessage).toContain(query);
   expect(nextMessage).toContain("Current user message: How do I get there?");
+  expect(first.conversationId).toMatch(/^conv_[A-Za-z0-9]{8,64}$/);
+  const stored = await readOwnedPubPalToolTurn(first.conversationId, "menu-owner");
+  expect(stored).toMatchObject({ query, cards: first.cards, hints: [first.message] });
+  expect(await readOwnedPubPalToolTurn(first.conversationId, "another-owner")).toBeNull();
 });
 
-it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn"])("keeps deterministic continuations isolated from foreign and expired threads: %s", async (query) => {
+it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn", ...mixedVenueQueries])("keeps deterministic continuations isolated from foreign and expired threads: %s", async (query) => {
   vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
   vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
   const first = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
@@ -735,4 +752,23 @@ it("keeps unavailable zero-card menu replies unregistered", async () => {
   const result = await runPalElevenLabsChatTurn({ query: "Price of Mixed Olives at The New Inn", ownerId: "menu-owner" });
   expect(result).toMatchObject({ ok: true, cards: [], conversationId: "" });
   if (result.ok) expect(result.message).toContain("couldn't read");
+});
+
+it.each([
+  "Price of Mixed Olives at The Lamb and are there Tube delays?",
+  "Wine prices at Unknown Test Venue and are there Tube delays?",
+  "Price of Mixed Olives at The New Inn and are there Tube delays?",
+])("keeps failed venue outcomes unregistered despite successful transit: %s", async (query) => {
+  vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+  vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ jsonrpc: "2.0", result: {
+    structuredContent: { asOf: "2026-10-15T12:00:00Z", signals: [], tubeLines: [] },
+  } })));
+  if (query.includes("The New Inn")) vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue(null);
+  const result = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
+  expect(result).toMatchObject({ ok: true, conversationId: "", toolsUsed: ["city_status", "venue_drinks"] });
+  if (!result.ok) throw new Error("Expected contained venue failure");
+  expect(result.cards).toHaveLength(1);
+  expect(result.cards[0]?.provenance?.kind).toBe("citymcp");
+  expect(result.message).toContain("London right now");
 });

@@ -39,6 +39,7 @@ export type AskToolResult = {
   provenance: AskProvenance[];
   cards: AskCard[];
   priceEvidence?: AskPriceEvidence[];
+  resolvedVenueId?: string;
   proposals: AskProposal[];
   answerHint: string;
   degraded?: boolean;

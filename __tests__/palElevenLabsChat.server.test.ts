@@ -211,12 +211,16 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(["Wine prices at Sherlock Holmes", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn"])("refuses an initial deterministic answer when its owned registration fails: %s", async (query) => {
+  it.each(["Wine prices at Sherlock Holmes", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn",
+    "Wine prices at Fox and Anchor and are there Tube delays?",
+    "Price of Unicorn stew at The New Inn and are there Tube delays?",
+  ])("refuses an initial deterministic answer when its owned registration fails: %s", async (query) => {
+    if (query.includes("Tube delays")) vi.stubGlobal("fetch", vi.fn(offlineFetch));
     storeMocks.registerPubPalToolTurn.mockRejectedValueOnce(new Error("Store unavailable"));
     const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
     expect(outcome).toEqual({ ok: false, code: "UNAVAILABLE" });
     expect(wsState.socketsOpened).toBe(0);
-    expect(fetch).not.toHaveBeenCalled();
+    if (!query.includes("Tube delays")) expect(fetch).not.toHaveBeenCalled();
   });
 
   it("review regression: returns independent transit with the unsupported price answer", async () => {

@@ -477,6 +477,7 @@ export async function toolVenueDrinks(
   if (isMenuRequest) {
     return {
       ok: !menu.unavailable, tool: "venue_drinks", data: { venueId: venue.id, menu: menu.cards.map((card) => card.menuEvidence) },
+      ...(!menu.unavailable ? { resolvedVenueId: venue.id } : {}),
       cards: menu.cards, provenance: askCardSources(menu.cards),
       priceEvidence: menu.cards.flatMap((card) => card.menuEvidence && card.price !== null
         ? [{ ...card.menuEvidence, cardKey: card.key, venueId: card.venueId, priceGbp: card.price }] : []),
@@ -563,6 +564,8 @@ export async function toolVenueDrinks(
     ],
     proposals: [openProposal(venue.id, venue.name)],
     answerHint,
+    ...(!read.degraded || (menuReadAllowed && !menu.unavailable) || (includeListedPint && venue.cheapestPrice != null)
+      ? { resolvedVenueId: venue.id } : {}),
     ...(read.degraded || menu.unavailable ? { degraded: true } : {}),
   };
 }
