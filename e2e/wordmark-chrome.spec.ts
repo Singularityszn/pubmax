@@ -39,6 +39,9 @@ for (const view of CASES) {
 
     const wordmark = page.locator(view.selector).first();
     await expect(wordmark).toBeVisible({ timeout: 45_000 });
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
     await expect(wordmark).toHaveAccessibleName("PUBMAXX");
     const box = await wordmark.boundingBox();
     expect(box).not.toBeNull();
