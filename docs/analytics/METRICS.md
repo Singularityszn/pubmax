@@ -201,7 +201,7 @@ count is never reported as a rate.
 | Near answers served | `near_answer_ready` with `resultBand` other than `0` | All `near_answer_ready` | An empty answer is reported, so the denominator is honest |
 | Price loop | `price_submitted` | `price_submit_viewed` | The composer's own funnel. `price_submit_failed` is the third line |
 | Loop moments | Each of the six in TRACKING_PLAN 5.10 | Its own pair | Read as pairs. Neither line alone says anything |
-| Release health | `web_vital` p75 by `route` | Not a rate | Compare across `release` to see what a deploy moved |
+| Release health | `$web_vitals` p75 by `$pathname` | Not a rate | Compare across `release` to see what a deploy moved |
 
 ## 4. What this file will not define
 

@@ -137,7 +137,7 @@ seven insights: tile 2 ships its funnel companion beside the figure it answers w
 | 2 | First action within 60 seconds | The HogQL in 2.1, plus the funnel in 2.2 |
 | 3 | Landing to Map to venue sheet | `discovery_viewed` (landing), `$pageview` (`/map`), `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
-| 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75 of `value`, broken down by `route` |
+| 5 | Top routes by LCP | `$web_vitals`, p75 of `$web_vitals_LCP_value`, broken down by `$pathname` |
 | 6 | The four loop moments (5.10) | `late_food_viewed` / `late_food_added`, `briefing_viewed` / `briefing_opened`, `voice_started`, `recap_viewed` |
 
 Two honest limits on that table.
@@ -395,7 +395,6 @@ vocabularies. The column here is the question the event exists to answer.
 | `native_push_prompt_enable` | The push explainer was accepted. |
 | `native_push_prompt_later` | It was deferred. |
 | `activity_pulse` | One coarse day bucket per identity per day. The return-rate rail. |
-| `web_vital` | Field performance, per metric, per route. Tile 5. |
 | `error_shown` | An error notice was put in front of a reader, on which surface, and of which kind. |
 
 ### 5.10 The four loop moments

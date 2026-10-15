@@ -118,16 +118,17 @@ describe("sanitizeEvent", () => {
       .toEqual({ tier: "direct" });
   });
 
-  it("keeps only bounded performance fields for web vitals", () => {
-    // `route` is required (a known template); an unknown `attribution` key is
-    // dropped — only the sanitized `target` selector is allowed through.
+  it("has no web_vital product event: the browser SDK's $web_vitals is the one vitals pipeline", () => {
+    // A custom web_vital beacon used to double-count every page load beside
+    // PostHog's own $web_vitals and cost up to five /api/events invocations per
+    // page view. A stale tab still sending it is dropped at the registry.
+    expect(isKnownEvent("web_vital")).toBe(false);
     expect(sanitizeEvent("web_vital", {
       metric: "INP",
       value: 143,
       rating: "good",
       route: "/near",
-      attribution: "button#private-account-control",
-    })?.props).toEqual({ metric: "INP", value: 143, rating: "good", route: "/near" });
+    })).toBeNull();
   });
 
   describe("crew north star metric (crew_committed participants)", () => {

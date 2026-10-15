@@ -17,9 +17,10 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 // and dead clicks, and disables session replay, but it leaves
 // `capture_exceptions` and `capture_performance` on, so a device also sends
 // `$exception` on an uncaught error and `$web_vitals` on a page load without
-// the product asking. Batching is off, so every one of those is its own
-// request against this budget, and a component throwing in a render loop is
-// exactly the flood the budget is here to wall. 240 leaves a table of phones
+// the product asking. Batching is on, so one flush carries every event queued
+// since the last, but a component throwing in a render loop still flushes
+// request after request, which is exactly the flood the budget is here to
+// wall. 240 leaves a table of phones
 // sharing one carrier address room for their captures and their cold-load
 // asset fetches, and walls a loop. The budget lives in
 // the leaf `lib/ingestRateLimit.ts`, which imports nothing, compares before it records

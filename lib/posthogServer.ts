@@ -6,6 +6,11 @@ import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 
 const POSTHOG_EU_CAPTURE_URL = "https://eu.i.posthog.com/capture/";
 const POSTHOG_TIMEOUT_MS = 1_500;
+// Every event this app sends names its sender, so none lands in PostHog with
+// no $lib. The browser SDK stamps its own ("web"); a named product event
+// relayed by /api/events and a server-originated event each say which they are.
+const POSTHOG_EVENTS_RELAY_LIB = "pubmaxx-events-relay";
+const POSTHOG_SERVER_LIB = "pubmaxx-server";
 
 function posthogProjectToken(): string {
   return process.env.POSTHOG_PROJECT_API_KEY?.trim()
@@ -17,11 +22,24 @@ export function isPosthogConfigured(): boolean {
   return Boolean(posthogProjectToken());
 }
 
+function coarseCurrentUrl(origin: string, path: string): URL | null {
+  try {
+    const url = new URL(path, origin);
+    return url.origin === origin ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function capturePosthogEvent(input: {
   event: AnalyticsEvent;
   path: string | null;
   anonymousId: unknown;
   analyticsConsent: unknown;
+  /** The request's own origin; with `path` it forms the coarse $current_url. */
+  origin?: string;
+  /** The browser SDK's session id, already validated by the caller. */
+  sessionId?: string;
   clientIp?: string;
   userAgent?: string;
   referrer?: string;
@@ -34,6 +52,7 @@ export async function capturePosthogEvent(input: {
 }): Promise<boolean> {
   const apiKey = posthogProjectToken();
   if (!apiKey || input.analyticsConsent !== true || !isAnonymousAnalyticsId(input.anonymousId)) return false;
+  const currentUrl = input.origin && input.path ? coarseCurrentUrl(input.origin, input.path) : null;
 
   try {
     const response = await fetch(POSTHOG_EU_CAPTURE_URL, {
@@ -51,6 +70,13 @@ export async function capturePosthogEvent(input: {
           ...currentAnalyticsAttributionProps(),
           path: input.path,
           distinct_id: input.anonymousId,
+          $lib: POSTHOG_EVENTS_RELAY_LIB,
+          ...(input.sessionId ? { $session_id: input.sessionId } : {}),
+          // The same coarse surface path a browser $pageview carries, never the
+          // raw path, so web analytics can place the event on its page.
+          ...(currentUrl
+            ? { $current_url: currentUrl.href, $host: currentUrl.host, $pathname: input.path }
+            : {}),
           ...(input.clientIp ? { $ip: input.clientIp } : {}),
           ...(input.userAgent ? { $raw_user_agent: input.userAgent } : {}),
           ...(input.referrer ? { $referrer: input.referrer } : {}),
@@ -96,6 +122,7 @@ export function capturePosthogServerEvent(input: {
         ...input.properties,
         ...currentAnalyticsAttributionProps(),
         distinct_id: input.distinctId,
+        $lib: POSTHOG_SERVER_LIB,
         $process_person_profile: false,
       },
       timestamp: new Date().toISOString(),

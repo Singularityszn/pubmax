@@ -206,6 +206,64 @@ describe("POST /api/events", () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain("Mozilla/5.0");
   });
 
+  it("forwards a named event with $lib, the browser session and the coarse $current_url", async () => {
+    // PostHog counted 184 of 313 weekly events with no $lib, and none of them
+    // joined a session: a relayed event must say who sent it and which
+    // browser session it belongs to, on the same coarse path as a $pageview.
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const sessionId = "019a1b2c-3d4e-7f60-8a1b-2c3d4e5f6071";
+
+    await POST(new Request("https://pubmaxxing.com/api/events", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: "tonight_screen_view",
+        path: "/plan/dave-stag-do?ref=x",
+        anonymousId: "anon_0123456789abcdef",
+        analyticsConsent: true,
+        context: { sessionId },
+      }),
+    }));
+
+    const payload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    const surface = analyticsSurfaceFromPath("/plan/dave-stag-do");
+    expect(surface).toBe("/plan/[id]");
+    expect(payload.properties).toMatchObject({
+      $lib: "pubmaxx-events-relay",
+      $session_id: sessionId,
+      $current_url: `https://pubmaxxing.com${surface}`,
+      $host: "pubmaxxing.com",
+      $pathname: surface,
+    });
+    expect(JSON.stringify(payload)).not.toContain("dave-stag-do");
+    expect(JSON.stringify(payload)).not.toContain("ref=x");
+  });
+
+  it("stamps $lib but no session or URL it cannot vouch for", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await POST(post(JSON.stringify({
+      name: "tonight_screen_view",
+      path: "/not-a-known-surface/with/depth",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+      context: { sessionId: "person@example.com" },
+    })));
+
+    const payload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(payload.properties.$lib).toBe("pubmaxx-events-relay");
+    expect(payload.properties).not.toHaveProperty("$session_id");
+    expect(payload.properties).not.toHaveProperty("$current_url");
+    expect(payload.properties).not.toHaveProperty("$pathname");
+    expect(JSON.stringify(payload)).not.toContain("person@example.com");
+  });
+
   it("drops malformed client context before forwarding", async () => {
     process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
