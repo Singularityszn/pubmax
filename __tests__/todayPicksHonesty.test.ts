@@ -85,6 +85,8 @@ describe("Today picks card honesty", () => {
     expect(ready).toContain('href="https://example.com/pub"');
     expect(ready).toContain("Fixture publisher");
     expect(ready).toContain('href="/map?sel=venue-s2ppfm"');
+    expect(ready).toContain('data-picks-state="ready"');
+    expect(ready).not.toContain("data-picks-status=");
     expect(ready).not.toContain(PICKS_EMPTY_LINE.night);
   });
 

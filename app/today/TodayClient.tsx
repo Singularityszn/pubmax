@@ -238,7 +238,6 @@ function PicksCard({
         className="todayCard todayPicksFallback"
         aria-labelledby="today-picks-title"
         data-testid="today-picks"
-        data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
         data-picks-state={state.kind}
       >
         <div className="todayCardHead">
