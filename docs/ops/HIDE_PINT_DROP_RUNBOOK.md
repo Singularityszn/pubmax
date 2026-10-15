@@ -2,9 +2,11 @@
 
 How an operator takes a single Pint Drop off every public surface without
 deleting it. The row stays in `public.pint_drops` as a Hidden Pint Drop
-(`CONTEXT.md`), stays in the moderator queue, and comes back with one call.
-Nothing in this runbook adds a table, a column or a migration: it uses the
-moderation state that already exists.
+(`CONTEXT.md`) and comes back with one call. A pint priced from the venue
+sheet also wrote a paired community price, which is a separate record with
+its own hide; step 1 finds it and step 2 hides it too. Nothing in this
+runbook adds a table, a column or a migration: it uses the moderation state
+that already exists.
 
 Agents do not run these steps against production. The captain or an operator
 with the admin token or the Supabase SQL editor does.
@@ -24,13 +26,27 @@ status = 'hidden', moderated_at = now(), moderator_note = <note, if given>
 where id = <drop id>
 ```
 
-`/admin` only lists drops that are already in a queue (reported, hidden,
-pending, confirmed), so a drop nobody has reported needs its id looked up first
-(step 1) and the action sent directly (step 2).
+The API applies that to whatever status the row has, and keeps the previous
+note when none is sent. The SQL in step 2 adds a `status = 'visible'` guard
+the API does not have, so check the status in step 1 before using either.
 
-## Every public read already filters on `status`
+A one-tap price from the venue sheet (`POST /api/price-submit`, a pint of
+beer) writes a `public.community_prices` row first and then the paired Pint
+Drop (`lib/oneTapPintDrop.server.ts`). Nothing links the two rows by id, and
+the community price has its own hide: `hidden_at`, set by
+`POST /api/admin/community-prices` with `action: "hide"`, which also
+re-syncs the price-trust credit (`app/api/admin/community-prices/route.ts`).
+Hiding the Pint Drop leaves that price public, so both are hidden.
 
-Audited on 15 Oct 2026 against `main` at `9d7a17c`. No surface reads around it.
+`/admin` only lists Pint Drops that are already in a queue (reported, hidden,
+pending, confirmed), so a drop nobody has reported needs its id looked up
+first (step 1) and the action sent directly (step 2).
+
+## Every public Pint Drop read already filters on `status`
+
+Audited on 15 Oct 2026 against `main` at `9d7a17c`. No Pint Drop surface
+reads around it. The paired community price is a different record, covered
+above.
 
 | Surface | Read path | Filter |
 | --- | --- | --- |
@@ -52,9 +68,9 @@ Pint Drop (runbook)".
 
 ## Procedure
 
-### 1. Find the row (read only)
+### 1. Find the rows (read only)
 
-In the Supabase SQL editor for the production project:
+In the Supabase SQL editor for the production project, the Pint Drop:
 
 ```sql
 select id, venue_id, handle, drink, price_gbp, status, visibility, provenance,
@@ -71,34 +87,76 @@ select id, venue_id, handle, drink, price_gbp, status, visibility, provenance,
 
 Do not filter on `venue_id`: a drop can be stored under a legacy alias of the
 canonical venue id (`lib/storedVenueRef.ts`), so read it off the result
-instead. Expect exactly one row with `status = 'visible'`. Write down its `id`
-and its current `moderator_note` (the undo puts it back). If there are none or
-several, stop and ask.
+instead. Expect exactly one row with `status = 'visible'`. Write down its
+`id`, `venue_id` and current `moderator_note`. If there are none or several,
+or the status is not `visible`, stop and ask: the API would overwrite a
+`pending` or report-hidden row's moderation state.
 
-If `confirmation_id` is set, the drop was confirmed with a second drop
-(`confirming_drop_id`). Hiding this one leaves the other drop and its
+Then the paired community price, if there is one:
+
+```sql
+select id, venue_id, drink_category, price_pennies, contributor_handle,
+       submitted_at, hidden_at, moderated_at, moderator_note
+  from public.community_prices
+ where venue_id = '<venue_id from the Pint Drop row>'
+   and lower(ltrim(btrim(contributor_handle), '@')) = '<handle>'
+   and drink_category = 'beer'
+   and price_pennies = <price in pennies>
+   and submitted_at between timestamptz '<drop created_at>' - interval '5 minutes'
+                        and timestamptz '<drop created_at>' + interval '5 minutes';
+```
+
+A one-tap price lands within seconds of its drop. Zero rows means the drop
+came from the Pint Drop composer alone and there is nothing else to hide. One
+row with `hidden_at` null is the pair: write down its `id`. Several rows:
+stop and ask.
+
+If `confirmation_id` is set on the Pint Drop, it was confirmed with a second
+drop (`confirming_drop_id`). Hiding this one leaves the other drop and its
 confirmation as they are, so the price can still read confirmed on the pin.
-Decide about the other drop separately; this runbook hides one row.
+Decide about the other drop separately.
 
-### 2. Hide it
+### 2. Check it is public now
 
-Preferred, the admin action (the same code path `/admin` uses, so it logs and
-stamps the decision like any moderator call). `ADMIN_TOKEN` is the
-production value from the Vercel project, exported in the operator's own
-shell; never paste it into a ticket or a PR.
+The step 3 check only means something if the same read shows the rows first:
+
+```sh
+curl -sS 'https://pubmaxxing.com/api/pint-drops?venueId=<canonical venue id>' | grep -c '<drop id>'
+curl -sS 'https://pubmaxxing.com/api/price-submit?venueId=<canonical venue id>' | grep -c '<price id>'
+```
+
+Each prints `1`. A `0` for the drop means it is not public on that read (a
+`friends` or `legacy` visibility, or the wrong venue id): stop and find out
+why before hiding anything.
+
+### 3. Hide them
+
+Use the admin actions. They are the code paths `/admin` uses, so they log
+the decision, and the community price route also re-syncs price trust,
+which no SQL here does. `ADMIN_TOKEN` is the production value from the
+Vercel project, exported in the operator's own shell; never paste it into a
+ticket or a PR.
 
 ```sh
 curl -sS -X POST 'https://pubmaxxing.com/api/pint-drops' \
   -H 'content-type: application/json' \
   -H "x-admin-token: $ADMIN_TOKEN" \
   -d '{"action":"keep_hidden","id":"<drop id>","note":"<why, who asked, date>"}'
+
+curl -sS -X POST 'https://pubmaxxing.com/api/admin/community-prices' \
+  -H 'content-type: application/json' \
+  -H "x-admin-token: $ADMIN_TOKEN" \
+  -d '{"action":"hide","id":"<price id>","note":"<why, who asked, date>"}'
 ```
 
-`200 {"ok":true}` means one row changed. `404` means no row has that id.
-`403` means the token is wrong. `503` means the store is down: nothing changed.
+`200 {"ok":true}` means the row changed. `404` means no row has that id.
+`403` means the token is wrong. A `503` from the Pint Drop route means
+nothing changed. A `503` naming trust reconciliation from the price route
+means the price is hidden but its trust credit is not: send
+`{"action":"reconcile","id":"<price id>"}` to the same route.
 
-Equivalent SQL, if the API is not an option. It touches one row and refuses
-to touch a row that is not currently visible:
+SQL for the Pint Drop, only if the API is down. It touches one row and
+refuses a row that is not currently visible:
 
 ```sql
 begin;
@@ -113,17 +171,26 @@ returning id, status, moderated_at, moderator_note;
 commit;
 ```
 
-### 3. Check it
+Do not hide the community price by SQL: setting `hidden_at` alone leaves its
+trust credit standing. Wait for the API, or follow up with `reconcile`.
+
+### 4. Check it
 
 ```sh
-# Public read: the id must be absent.
 curl -sS 'https://pubmaxxing.com/api/pint-drops?venueId=<canonical venue id>' | grep -c '<drop id>'
-# Moderator read: the id must be present, with the note.
-curl -sS 'https://pubmaxxing.com/api/pint-drops?status=hidden' -H "x-admin-token: $ADMIN_TOKEN" | grep -c '<drop id>'
+curl -sS 'https://pubmaxxing.com/api/price-submit?venueId=<canonical venue id>' | grep -c '<price id>'
 ```
 
-The first prints `0`, the second `1`. Then open the pub on the map and check
-the Pints tab and the Golden Thread.
+Both now print `0`. Confirm the stored state in SQL rather than through the
+moderator queue, which lists only the newest 500 hidden drops:
+
+```sql
+select id, status, moderated_at, moderator_note from public.pint_drops where id = '<drop id>';
+select id, hidden_at, moderator_note from public.community_prices where id = '<price id>';
+```
+
+Then open the pub on the map and check the Pints tab, the Golden Thread and
+the community price row.
 
 ### Undo
 
@@ -131,10 +198,17 @@ the Pints tab and the Golden Thread.
 curl -sS -X POST 'https://pubmaxxing.com/api/pint-drops' \
   -H 'content-type: application/json' \
   -H "x-admin-token: $ADMIN_TOKEN" \
-  -d '{"action":"restore","id":"<drop id>"}'
+  -d '{"action":"restore","id":"<drop id>","note":"<why restored>"}'
+
+curl -sS -X POST 'https://pubmaxxing.com/api/admin/community-prices' \
+  -H 'content-type: application/json' \
+  -H "x-admin-token: $ADMIN_TOKEN" \
+  -d '{"action":"restore","id":"<price id>","note":"<why restored>"}'
 ```
 
-or in SQL, putting back the note written down in step 1:
+`restore` cannot clear a note, only replace it, so send one saying why. To
+put the Pint Drop's original note back exactly (the value from step 1), use
+SQL:
 
 ```sql
 update public.pint_drops
@@ -145,8 +219,8 @@ returning id, status;
 
 ## What stays true after a hide
 
-- The row, its photos and its report trail stay in the database. Photos are
-  not signed for public readers while the row is hidden.
+- The rows, their photos and their report trail stay in the database. Pint
+  Drop photos are not signed for public readers while the row is hidden.
 - A later report on the drop puts it back in the moderator queue and clears
   `moderated_at` and `moderator_note` (migration 0116), but never makes it
   visible again. Only `restore` does.
@@ -158,4 +232,4 @@ returning id, status;
 
 | Date | Drop | Venue | Reason | Done by |
 | --- | --- | --- | --- | --- |
-| Pending | `tester`, Hatton Lager, £4.50, logged 1 Sep 2026 | The Sir Christopher Hatton, 4 Leather Ln, EC1N 7RA (`venue-1vle947`) | Owner asked for it to be hidden, not deleted | Operator, not yet run |
+| Pending | `tester`, Hatton Lager, £4.50, logged 1 Sep 2026, plus its paired community price if step 1 finds one | The Sir Christopher Hatton, 4 Leather Ln, EC1N 7RA (`venue-1vle947`) | Owner asked for it to be hidden, not deleted | Operator, not yet run |
