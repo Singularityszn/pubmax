@@ -505,6 +505,32 @@ export function createSlimShardLoader(
   // shard urls that have successfully contributed venues (so inBounds skips them).
   const loadedUrls = new Set<string>();
 
+  // Keep shard reads below the local HTTP connection budget. Every loader
+  // operation shares these slots, including queued reads in shardPromises.
+  const shardReadLimit = 4;
+  let activeShardReads = 0;
+  const queuedShardReads: Array<() => void> = [];
+
+  async function readShardWithSlot(
+    path: string,
+    readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
+  ): Promise<SlimShardLoadResult> {
+    await new Promise<void>((resolve) => {
+      const start = () => {
+        activeShardReads += 1;
+        resolve();
+      };
+      if (activeShardReads < shardReadLimit) start();
+      else queuedShardReads.push(start);
+    });
+    try {
+      return await loadSlimVenuesFromPathResult(path, readOptions);
+    } finally {
+      activeShardReads -= 1;
+      queuedShardReads.shift()?.();
+    }
+  }
+
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       let payload: unknown;
@@ -614,7 +640,7 @@ export function createSlimShardLoader(
       EXPECTED_MAP_DATA_REVISION === undefined
         ? options
         : { ...options, expectedRevision: EXPECTED_MAP_DATA_REVISION };
-    const p = loadSlimVenuesFromPathResult(shardRequestPath(url), shardOptions)
+    const p = readShardWithSlot(shardRequestPath(url), shardOptions)
       .then((result) => {
         if (result.status === "ready") {
           loadedUrls.add(url);

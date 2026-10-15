@@ -8,8 +8,14 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("server-only", () => ({}));
 // next/font is not runnable under vitest; stub faces so the root layout can
 // export metadata without constructing real font CSS.
+// The root layout reads each Google face's generated fallback from
+// style.fontFamily, so the stub keeps next/font's "primary, fallback" shape.
 vi.mock("next/font/google", () => {
-  const face = () => ({ className: "font-mock", variable: "--font-mock" });
+  const face = () => ({
+    className: "font-mock",
+    variable: "--font-mock",
+    style: { fontFamily: "'Mock', 'Mock Fallback'" },
+  });
   return {
     Space_Grotesk: face,
     Inter: face,
