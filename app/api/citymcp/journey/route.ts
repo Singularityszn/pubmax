@@ -1,4 +1,5 @@
 // GET  /api/citymcp/journey?fromLat=&fromLng=&toLat=&toLng=&limit=
+// GET  /api/citymcp/journey?stops=lat,lng;lat,lng;...&limit=   (one crawl, every leg)
 // POST /api/citymcp/journey { fromLat, fromLng, toLat, toLng, limit }
 //
 // Thin CityMCP London `get_journey` proxy. Coords are formatted as the
@@ -7,8 +8,14 @@
 // for a viewer's location: coordinates stay out of URLs and every response is
 // private/no-store.
 //
-// Fail-soft: any upstream failure lands as 200 + `{ error, journeys: [] }`.
-// Missing / out-of-range coords are a client mistake and return 400.
+// The `stops` GET is the Crawl Route lane (F10): one request answers every leg
+// between consecutive Crawl Stops, so a crawl pays one function invocation and
+// one rate-limit check instead of one per leg, and one CDN key per route. The
+// caller rounds each stop to 4 decimals (~11 m) so the key repeats.
+//
+// Fail-soft: any upstream failure lands as 200 + `{ error, journeys: [] }`
+// (per leg in the `stops` lane). Missing / out-of-range coords are a client
+// mistake and return 400.
 
 import { publicApiError } from "@/lib/apiError";
 import {
@@ -28,6 +35,13 @@ const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 3;
 const CACHE_MAX_AGE_S = 120;
 const CACHE_STALE_WHILE_REVALIDATE_S = 600;
+
+/** A Crawl Route maps at most WALK_ROUTE_MAX_STOPS (12) stops, so 11 legs. */
+const MAX_STOPS = 12;
+/** Legs asked of CityMCP at once, so one crawl never stampedes the upstream. */
+const LEG_CONCURRENCY = 4;
+/** Per-leg upstream ceiling: three rounds of four legs stay inside maxDuration. */
+const LEG_TIMEOUT_MS = 4_000;
 
 /** Rough UK bounding box — enough to reject clearly bad coords. */
 const LAT_MIN = 49;
@@ -155,10 +169,77 @@ async function respondWithJourney(
   );
 }
 
+type CrawlLegAnswer = { journeys: CityJourney[]; error?: string };
+
+/** Parse `lat,lng;lat,lng;...` into UK points, or null when any stop is bad. */
+function parseStops(raw: string): Array<{ lat: number; lng: number }> | null {
+  const parts = raw.split(";");
+  if (parts.length < 2 || parts.length > MAX_STOPS) return null;
+  const stops: Array<{ lat: number; lng: number }> = [];
+  for (const part of parts) {
+    const [latRaw, lngRaw, extra] = part.split(",");
+    if (extra !== undefined) return null;
+    const lat = parseCoord(latRaw);
+    const lng = parseCoord(lngRaw);
+    if (lat === null || lng === null || !isUkLatLng(lat, lng)) return null;
+    stops.push({ lat, lng });
+  }
+  return stops;
+}
+
+async function respondWithCrawlLegs(request: Request, params: URLSearchParams): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      compatibilityFields: { legs: [] },
+    });
+  }
+
+  const stops = parseStops(params.get("stops") ?? "");
+  if (!stops) {
+    return publicApiError(
+      `Add 2 to ${MAX_STOPS} UK stops as lat,lng separated by semicolons.`,
+      "INVALID_REQUEST",
+      400,
+      { compatibilityFields: { legs: [] } },
+    );
+  }
+
+  const limit = parseLimit(params.get("limit"));
+  const points = stops.map((stop) => formatJourneyPoint(stop.lat, stop.lng));
+  const legs: CrawlLegAnswer[] = new Array(points.length - 1);
+  for (let start = 0; start < legs.length; start += LEG_CONCURRENCY) {
+    const end = Math.min(start + LEG_CONCURRENCY, legs.length);
+    await Promise.all(
+      Array.from({ length: end - start }, async (_, offset) => {
+        const index = start + offset;
+        try {
+          const result = await fetchJourney(
+            { from: points[index]!, to: points[index + 1]! },
+            { cache: true, timeoutMs: LEG_TIMEOUT_MS, retries: 0 },
+          );
+          legs[index] = { journeys: result.journeys.slice(0, limit) };
+        } catch (err) {
+          legs[index] = {
+            journeys: [],
+            error: err instanceof CityMcpError ? err.message : "CityMCP request failed",
+          };
+        }
+      }),
+    );
+  }
+
+  // A route with a failed leg is not pinned at the edge: the next request
+  // retries it rather than reading the hole for the next two minutes.
+  const complete = legs.every((leg) => leg.error === undefined);
+  return jsonResponse({ legs, asOf: null }, { cache: complete });
+}
+
 export const GET = withRouteTiming("citymcp/journey", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
+  if (params.has("stops")) return respondWithCrawlLegs(request, params);
   return respondWithJourney(
     request,
     {
