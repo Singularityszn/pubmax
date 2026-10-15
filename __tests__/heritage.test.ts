@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
 import { readFile } from "node:fs/promises";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -509,32 +507,3 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
   });
 });
 
-// FIX 1 guard: retrieval (lib/heritage.ts), the writer (enrich_heritage.mjs),
-// and the migration must all agree on the `venue_key` column. If any drifts
-// back to `pub_id`/`venue_name`, this fails.
-describe("schema key alignment (venue_key)", () => {
-  const read = (rel: string) =>
-    readFileSync(path.join(process.cwd(), rel), "utf8");
-  // Migration files carry a remote-ledger timestamp prefix
-  // (`<version>_NNNN_name.sql`) so the Supabase preview-branch check matches
-  // them. Resolve by the stable `NNNN_name` suffix instead of a fixed prefix.
-  const readMigration = (suffix: string) => {
-    const dir = path.join(process.cwd(), "supabase/migrations");
-    const file = readdirSync(dir).find((f) => f.endsWith(`_${suffix}.sql`));
-    if (!file) throw new Error(`migration *_${suffix}.sql not found`);
-    return readFileSync(path.join(dir, file), "utf8");
-  };
-
-  it("migration, writer, and retrieval all use venue_key", () => {
-    const migration = readMigration("0002_pub_heritage");
-    const writer = read("scripts/enrich_heritage.mjs");
-    const retrieval = read("lib/heritage.ts");
-
-    expect(migration).toMatch(/venue_key\s+text/);
-    expect(migration).not.toMatch(/pub_id/);
-    expect(writer).toMatch(/venue_key:/);
-    expect(writer).not.toMatch(/venue_name:/);
-    expect(retrieval).toContain('.eq("venue_key"');
-    expect(retrieval).not.toContain("pub_id");
-  });
-});

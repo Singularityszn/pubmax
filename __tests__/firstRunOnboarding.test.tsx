@@ -215,12 +215,12 @@ afterEach(async () => {
 });
 
 describe("first-run budget question", () => {
-  it("states why it asks and what stays private, and holds Continue until answered", async () => {
+  it("discloses budget storage and transmission, and holds Continue until answered", async () => {
     await tap("Use London");
 
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
     expect(container.textContent).toContain("We use this to count the pubs near you that come in under it.");
-    expect(container.textContent).toContain("Only you see your answer. It stays on this device.");
+    expect(container.textContent).toContain("Your budget is saved on this device. When you plan a night, it goes in the planner link and to our server.");
     expect(buttonContaining("Continue").disabled).toBe(true);
 
     await tap("£6 or less");
