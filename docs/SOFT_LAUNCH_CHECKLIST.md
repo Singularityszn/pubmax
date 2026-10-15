@@ -166,8 +166,9 @@ is the machine definition. Five numbers in six insights.
 Three limits to state every time a figure is quoted.
 
 1. Every rate is a rate over CONSENTED visitors. It is never a rate over all traffic.
-2. A named event carries no `$session_id`. A session-scoped funnel over named events
-   answers nothing. Use a time window over `distinct_id`.
+2. A named event carries `$session_id` only when the browser SDK had one, so a
+   session-scoped funnel over named events undercounts. Use a time window over
+   `distinct_id`.
 3. Tile 3 crosses both transports. Read step 1 to step 3 as the reliable pair.
 
 ### 3.2 Who acts on which number

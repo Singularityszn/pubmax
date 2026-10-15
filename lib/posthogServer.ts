@@ -22,6 +22,25 @@ export function isPosthogConfigured(): boolean {
   return Boolean(posthogProjectToken());
 }
 
+// PostHog leaves an event out of its session when the session id's UUIDv7 time
+// is later than the event, and the session id is minted on the visitor's clock
+// while this timestamp is the server's. A clock running ahead by a few minutes
+// is common, so the event is moved up to its session's start; a session id
+// further ahead than that is not trusted and is dropped.
+const MAX_SESSION_CLOCK_SKEW_MS = 5 * 60_000;
+
+function sessionAlignedTimestamp(
+  sessionId: string | undefined,
+  eventMs: number,
+): { sessionId?: string; timestampMs: number } {
+  if (!sessionId) return { timestampMs: eventMs };
+  const sessionStartMs = Number.parseInt(sessionId.replace(/-/g, "").slice(0, 12), 16);
+  if (!Number.isFinite(sessionStartMs) || sessionStartMs - eventMs > MAX_SESSION_CLOCK_SKEW_MS) {
+    return { timestampMs: eventMs };
+  }
+  return { sessionId, timestampMs: Math.max(eventMs, sessionStartMs) };
+}
+
 function coarseCurrentUrl(origin: string, path: string): URL | null {
   try {
     const url = new URL(path, origin);
@@ -53,6 +72,9 @@ export async function capturePosthogEvent(input: {
   const apiKey = posthogProjectToken();
   if (!apiKey || input.analyticsConsent !== true || !isAnonymousAnalyticsId(input.anonymousId)) return false;
   const currentUrl = input.origin && input.path ? coarseCurrentUrl(input.origin, input.path) : null;
+  const occurredMs = input.occurredAt ? Date.parse(input.occurredAt) : Number.NaN;
+  const eventMs = Number.isFinite(occurredMs) ? occurredMs : Date.now();
+  const { sessionId, timestampMs } = sessionAlignedTimestamp(input.sessionId, eventMs);
 
   try {
     const response = await fetch(POSTHOG_EU_CAPTURE_URL, {
@@ -67,15 +89,17 @@ export async function capturePosthogEvent(input: {
           // the lane an event says it came from. lib/analyticsAttribution.mjs
           // owns both words; a named event carries no $host by design, and
           // docs/analytics/METRICS.md says environment is the filter instead.
+          // $current_url below names the host only because web analytics needs
+          // a URL to place the event on its page.
           ...currentAnalyticsAttributionProps(),
           path: input.path,
           distinct_id: input.anonymousId,
           $lib: POSTHOG_EVENTS_RELAY_LIB,
-          ...(input.sessionId ? { $session_id: input.sessionId } : {}),
+          ...(sessionId ? { $session_id: sessionId } : {}),
           // The same coarse surface path a browser $pageview carries, never the
           // raw path, so web analytics can place the event on its page.
           ...(currentUrl
-            ? { $current_url: currentUrl.href, $host: currentUrl.host, $pathname: input.path }
+            ? { $current_url: currentUrl.href, $pathname: input.path }
             : {}),
           ...(input.clientIp ? { $ip: input.clientIp } : {}),
           ...(input.userAgent ? { $raw_user_agent: input.userAgent } : {}),
@@ -86,7 +110,7 @@ export async function capturePosthogEvent(input: {
           ...(input.viewportHeight ? { $viewport_height: input.viewportHeight } : {}),
           ...(input.insertId ? { $insert_id: input.insertId } : {}),
         },
-        timestamp: input.occurredAt ?? new Date().toISOString(),
+        timestamp: new Date(timestampMs).toISOString(),
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),

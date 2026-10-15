@@ -16,7 +16,7 @@ Project: PostHog EU (pubmaxxing.com).
 ## Product events
 
 - Named journeys use `trackEvent` → `/api/events` (closed registry in `lib/analyticsEvents.ts`).
-- The relay stamps `$lib: "pubmaxx-events-relay"`, the browser SDK's `$session_id` (sent by the browser, UUIDv7-checked by the route) and a `$current_url` / `$pathname` built from the same coarse surface path, so a named event joins its session. Server-originated events carry `$lib: "pubmaxx-server"`.
+- The relay stamps `$lib: "pubmaxx-events-relay"`, the browser SDK's `$session_id` (sent by the browser, UUIDv7-checked by the route) and a `$current_url` / `$pathname` built from the same coarse surface path, so a named event joins its session. It still carries no `$host`; `environment` is the filter. A session id minted on a clock up to 5 minutes ahead moves the event's timestamp up to the session start (PostHog drops an event dated before its session); further ahead, the session id is dropped. Server-originated events carry `$lib: "pubmaxx-server"`.
 - Event names for dashboards: `docs/analytics/POSTHOG_EVENT_NAMES.md`.
 
 ## Source maps

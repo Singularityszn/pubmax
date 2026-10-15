@@ -235,11 +235,52 @@ describe("POST /api/events", () => {
       $lib: "pubmaxx-events-relay",
       $session_id: sessionId,
       $current_url: `https://pubmaxxing.com${surface}`,
-      $host: "pubmaxxing.com",
       $pathname: surface,
     });
+    // A named event carries no $host (lib/analyticsAttribution.mjs).
+    expect(payload.properties).not.toHaveProperty("$host");
     expect(JSON.stringify(payload)).not.toContain("dave-stag-do");
     expect(JSON.stringify(payload)).not.toContain("ref=x");
+  });
+
+  describe("a visitor clock running ahead of the server", () => {
+    // UUIDv7 carries its mint time in the first 48 bits; posthog-js mints the
+    // session id on the visitor's clock.
+    const sessionIdMintedAt = (ms: number): string => {
+      const hex = ms.toString(16).padStart(12, "0");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7f60-8a1b-2c3d4e5f6071`;
+    };
+
+    async function forwardedWith(sessionId: string): Promise<{ timestamp: string; properties: Record<string, unknown> }> {
+      process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+      const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      await POST(post(JSON.stringify({
+        name: "tonight_screen_view",
+        path: "/tonight",
+        anonymousId: "anon_0123456789abcdef",
+        analyticsConsent: true,
+        context: { sessionId },
+      })));
+      return JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    }
+
+    it("moves the event up to its session's start so PostHog keeps it in the session", async () => {
+      const sessionStart = Date.now() + 90_000;
+      const sessionId = sessionIdMintedAt(sessionStart);
+      const payload = await forwardedWith(sessionId);
+      expect(payload.properties.$session_id).toBe(sessionId);
+      expect(Date.parse(payload.timestamp)).toBe(sessionStart);
+    });
+
+    it("drops a session id minted implausibly far in the future", async () => {
+      const before = Date.now();
+      const payload = await forwardedWith(sessionIdMintedAt(before + 60 * 60_000));
+      expect(payload.properties).not.toHaveProperty("$session_id");
+      expect(Date.parse(payload.timestamp)).toBeLessThanOrEqual(Date.now());
+      expect(Date.parse(payload.timestamp)).toBeGreaterThanOrEqual(before);
+    });
   });
 
   it("stamps $lib but no session or URL it cannot vouch for", async () => {

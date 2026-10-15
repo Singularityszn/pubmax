@@ -62,10 +62,11 @@ Three consequences.
 
 ### 1.3 The three limits inherited from the tracking plan
 
-Named events carry no `$session_id`, a named event's page is `path` rather than
-`$pathname`, and no account identity ever joins the pseudonymous id (ADR 0009).
-Section 1 of `docs/analytics/TRACKING_PLAN.md` owns those facts. A window over
-`distinct_id` is the only session-shaped tool available.
+A named event carries `$session_id` only when the browser SDK had one, its page is
+the product-event surface in `path` (repeated in `$pathname`, a narrower vocabulary
+than a pageview's), and no account identity ever joins the pseudonymous id (ADR
+0009). Section 1 of `docs/analytics/TRACKING_PLAN.md` owns those facts. A window over
+`distinct_id` stays the reliable session-shaped tool; a session funnel undercounts.
 
 ## 2. The north star: weekly repeating crew nights
 

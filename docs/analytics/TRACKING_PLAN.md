@@ -23,12 +23,17 @@ Four facts that decide how every query below is written.
    and `/api/events` re-checks consent plus the pseudonymous id before it forwards
    anything. Every rate in this plan is a rate over CONSENTED visitors. It is not a
    rate over all traffic, and it may never be reported as one.
-2. **Named events carry no `$session_id`.** `capturePosthogEvent` sends the event
-   name, its props, `path`, and `distinct_id`. Session-scoped funnels therefore do
-   not work on named events. Time-window funnels on `distinct_id` do.
-3. **A named event's page is `path`, not `$pathname`.** A browser SDK event uses
-   `$pathname` from the closed vocabulary in `lib/analyticsPath.ts`. A query that
-   mixes the two transports must read the right property for each step.
+2. **A named event carries `$session_id` only when the browser SDK had one.**
+   `trackEvent` sends the SDK's session id once consent has started the SDK, and
+   `capturePosthogEvent` forwards it with `$lib: "pubmaxx-events-relay"`. An event
+   sent before the SDK booted, or before 15 October 2026, has none. A session-scoped
+   funnel over named events therefore undercounts; a time-window funnel on
+   `distinct_id` stays the reliable shape.
+3. **A named event's page is `path`, and `$pathname` repeats it.** Both hold the
+   product-event surface from `lib/analyticsSurface.ts`, which is narrower than the
+   pageview vocabulary a browser SDK event's `$pathname` uses (`lib/analyticsPath.ts`).
+   An unrecognised page sends `path: null` and no `$pathname`. A query that mixes
+   the two transports must not expect the two vocabularies to match.
 4. **No account identity ever joins the analytics id.** ADR 0009. A query that needs
    a person is the wrong query.
 5. **Every event names its lane and its build.** Both transports stamp `environment`
