@@ -272,7 +272,8 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
 		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?!(?:with|and|plus|per|each|afterwards|later)\b)${PLAN_FOOD_SUBJECT}`, "i");
-		return planPriceAmounts(value).some((price) => {
+		const prices = planPriceAmounts(value);
+		return prices.some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
 			if (price.drink?.perServing) return false;
@@ -298,6 +299,12 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
 				/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
 			if (/^\s*(?:per\s+person|each)\b/i.test(after) && foodIsLaterPreference) return false;
+			// An unpriced amenity after a drink rate cannot own a later comma-separated route limit.
+			if (price.routeBudget === "limit"
+				&& foodItems.length > 0 && foodItems.every((item) => prices.some((drinkPrice) =>
+					drinkPrice.drink && drinkPrice.end < item.index && item.index < before.lastIndexOf(",")
+					&& /^\s*(?:with|serving|serves)\b/i.test(value.slice(drinkPrice.end, item.index))
+					&& !/[,;!?£]|\.(?!\d)/.test(value.slice(drinkPrice.end, item.index))))) return false;
 			if (price.routeBudget === "limit"
 				&& foodItems.length > 0 && foodItems.every((item) => item.index > price.index)
 				&& (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
