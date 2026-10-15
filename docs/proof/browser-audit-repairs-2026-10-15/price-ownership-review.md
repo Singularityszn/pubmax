@@ -1,5 +1,8 @@
 # Serving qualifiers and route-budget ownership
 
+This is historical proof for the earlier R1 and R2 corrections.
+The [serving-subject review](serving-subject-review.md) records the subsequent residual correction and its current source hashes.
+
 This review fixes the selected R1 and R2 findings above starting HEAD `0dabd3ce43c737e988dd87a2cdec0b2e3c038bac`.
 The proof applies to the modified worktree files identified below.
 

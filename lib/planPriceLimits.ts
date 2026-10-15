@@ -1,11 +1,16 @@
 export const PLAN_PRICE_AMOUNT = String.raw`(?:£\s*(\d+(?:[.,]\d{1,2})?)(?!\d|[.,]\d)|(\d+(?:[.,]\d{1,2})?)\s*(?:pounds?|quid)\b)`;
 const LIMIT = String.raw`(?:under|below|up to|less than|max(?:imum)?)`;
 export const PLAN_DRINK_ITEM = String.raw`(?:pints?|drinks?|beers?)`;
-const METRIC_SERVING = String.raw`\d+(?:[.,]\d+)?\s*(?:ml|cl|l)`;
+const MEASURED_SERVING = String.raw`\d+(?:[.,]\d+)?\s*[a-z]+`;
 const DRINK_CONTAINER = String.raw`(?:bottles?|cans?|glass(?:es)?|shots?)`;
-const DRINK_SUBJECT = String.raw`(?:(?:${METRIC_SERVING}\s*|half[ -](?:a\s+)?|(?:bottled|canned|one|two|three|four|five|six|\d+)\s+|${DRINK_CONTAINER}\s+of\s+))*(?:${PLAN_DRINK_ITEM}|${DRINK_CONTAINER}|cocktails?)(?:\s+(?:${METRIC_SERVING}|${DRINK_CONTAINER}))?`;
+const SERVING_QUANTITY = String.raw`(?:an?|the|each|one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|double|triple|several|few|dozen|\d+(?:/\d+)?)`;
+const SERVING_PREFIX = String.raw`(?:(?:${MEASURED_SERVING}|bottled|canned|${SERVING_QUANTITY})[ -]+(?:of\s+)?)`;
+const DRINK_NOUN = String.raw`(?:${PLAN_DRINK_ITEM}|${DRINK_CONTAINER}|cocktails?|[a-z]+(?:-[a-z]+)*(?=\s+of\s+))`;
+const CONTENTS_WORD = String.raw`(?!(?:and|plus|in|with|for|per|each|at|under|below|up|less|than|max(?:imum)?|priced|cost(?:s|ing)?|afterwards|later)\b)[a-z]+`;
+const DRINK_SUBJECT = String.raw`(?:${SERVING_PREFIX})*${DRINK_NOUN}(?:\s+of\s+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?)(?:[ -]+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?))*)?(?:\s+(?:${MEASURED_SERVING}|${DRINK_CONTAINER}))?`;
 const PLAN_DRINK_BEFORE_PRICE = new RegExp(String.raw`\b(${DRINK_SUBJECT})\b\s+(?:(?:priced|cost(?:s|ing)?)\s+)?(?:(?:for|at)\s+)?(?:${LIMIT}\s*)?$`, "i");
-const PLAN_DRINK_AFTER_PRICE = new RegExp(String.raw`^\s*(?:(?:for|per|each)\s+)?(?:(?:an?|one|each)\s+)?(${DRINK_SUBJECT})\b`, "i");
+const PLAN_DRINK_AFTER_PRICE = new RegExp(String.raw`^\s*(?:(?:for|per|each)\s+)?(${DRINK_SUBJECT})\b`, "i");
+const SUPPORTED_DRINK_SUBJECT = new RegExp(String.raw`^(?:(?:an?|each|one|1)\s+)?(?:${PLAN_DRINK_ITEM}|pint\s+of\s+(?:the\s+)?beer)$`, "i");
 const EXPLICIT_ROUTE_BUDGET = new RegExp(String.raw`\b(?:(?:pubs?(?:\s+route)?|bars?|stops?|crawl|route|total|per[ -]person)\s+budget|(?:pubs?|crawl|route)\s+total)(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_BUDGET_PREFIX = new RegExp(String.raw`\bbudget(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_LIMIT_PREFIX = new RegExp(String.raw`\b${LIMIT}\s*$`, "i");
@@ -39,7 +44,7 @@ export function planPriceAmounts(query: string): Array<{
         beforeStart: beforeDrink?.index ?? null,
         afterEnd: afterDrink?.[0].length ?? null,
         perServing: /^\s*(?:per|a|each)\s+/i.test(afterDrink?.[0] ?? ""),
-        supported: [beforeDrink, afterDrink].every((match) => !match || new RegExp(String.raw`^(?:(?:one|1)\s+)?${PLAN_DRINK_ITEM}$`, "i").test(match[1]!)),
+        supported: [beforeDrink, afterDrink].every((match) => !match || SUPPORTED_DRINK_SUBJECT.test(match[1]!)),
       } : null,
     };
   });
