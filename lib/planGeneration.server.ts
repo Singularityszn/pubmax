@@ -230,6 +230,7 @@ type PlanGenerationPreparation = {
 };
 
 const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
+const PLAN_FOOD_QUANTITY = String.raw`(?:(?:an?|\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:thir|four|fif|six|seven|eigh|nine)teen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|dozen)[ -]+)*`;
 const PLAN_ITEM_LIST_JOIN = String.raw`(?:\s*,\s*|\s*\b(?:and|plus)\b\s*|\s*[+&]\s*)(?:(?:an?|one|two)\s+)?`;
 
 function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
@@ -263,7 +264,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?(?:(?:slices?|portions?)\s+of\s+(?:(?:an?|one|two)\s+)?)?${PLAN_FOOD_ITEM}\b`, "i");
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?${PLAN_FOOD_QUANTITY}(?:(?:slices?|portions?)\s+of\s+${PLAN_FOOD_QUANTITY})?${PLAN_FOOD_ITEM}\b`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);

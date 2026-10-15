@@ -219,11 +219,17 @@ describe("POST /api/plans/generate", () => {
     expect(body.stops).toHaveLength(3);
   });
 
-  it.each(["slice of pizza", "a slice of pizza", "slice of a pizza", "a portion of chips", "two portions of chips"].flatMap((subject) => [
+  it.each([
+    "slice of pizza", "a slice of pizza", "slice of a pizza", "a portion of chips", "two portions of chips",
+    ...["three", "3", "four", "ten", "a dozen"].flatMap((quantity) => [
+      `${quantity} portions of chips`, `${quantity} slices of pizza`,
+    ]),
+  ].flatMap((subject) => [
     `${subject} under£5`, `£5 for ${subject}`,
   ]).flatMap((phrase) => [
     { query: `3 pubs in Clapham, ${phrase}` },
     { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: [`pubs, ${phrase}`] } },
   ]))("keeps non-drink portions under meal refusal: %j", async (input) => {
     const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),
@@ -231,13 +237,38 @@ describe("POST /api/plans/generate", () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),
     }));
-    expect(response.status).toBe(422);
+    expect({
+      preparation: "response" in prepared ? prepared.response.status : "prepared",
+      post: response.status,
+    }).toEqual({ preparation: 422, post: 422 });
     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     if (!("response" in prepared)) throw new Error("Expected meal limitation");
     expect(prepared.response.status).toBe(422);
     expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { query: "3 pubs in Clapham under£20 per person with four slices of pizza afterwards" },
+    { query: "3 pubs in Clapham, under£20 per person, three portions of chips later" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pubs under£20, 3 portions of chips later"] } },
+    { query: "3 pubs in Clapham, under£20 per person, pints under£5, ten portions of chips later" },
+    { query: "3 pubs in Clapham under£20 per person", context: { foodNeeds: ["£5 per pint, ten portions of chips later"] } },
+  ])("preserves route and drink budgets with unpriced food quantities: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
+    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+    expect(body.inferredContext.budgetLimitPence).toBe(2000);
+    expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+    expect(body.stops).toHaveLength(3);
   });
 
   it.each(unsupportedServingSubjects)("retains complete raw serving spans: %s", (subject) => {
