@@ -421,7 +421,9 @@ describe("service worker map cache", () => {
     expect(response).toMatchObject({ status: 0, type: "error" });
   });
 
-  it("does not cache a stale network London monolith", async () => {
+  it("passes a stale network London monolith to the page without caching it", async () => {
+    // The page, not the worker, decides about a skewed pack (lib/slimShards.ts):
+    // an error here left every worker-controlled visit with no pins at all.
     const monolith = fakeResponse("cors");
     monolith.json?.mockResolvedValue({ revision: "previous", rows: [] });
     const { listeners, put } = workerHarness({ response: monolith });
@@ -430,8 +432,7 @@ describe("service worker map cache", () => {
       new Request("https://pubmaxxing.com/data/venues_slim.json?v=test"),
     );
 
-    const response = await event.response;
-    expect(response).toMatchObject({ status: 0, type: "error" });
+    await expect(event.response).resolves.toBe(monolith);
     await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
     expect(put).not.toHaveBeenCalled();
   });
@@ -468,7 +469,7 @@ describe("service worker map cache", () => {
     expect(response).toBe(manifest);
   });
 
-  it("rejects and does not cache a network shard from another revision", async () => {
+  it("passes a network shard from another revision to the page without caching it", async () => {
     const shard = {
       ok: true,
       type: "cors" as const,
@@ -482,10 +483,68 @@ describe("service worker map cache", () => {
       new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=other-deploy"),
     );
 
+    await expect(event.response).resolves.toBe(shard);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("passes a skewed network manifest to the page when no matching copy is cached", async () => {
+    // Old worker and HTML, new packs: the page asks for its baked revision and
+    // the server holds the next one. The page adopts it and reports the skew.
+    const manifest = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ version: 2, revision: "next-deploy", shards: [] })),
+    };
+    manifest.clone.mockReturnValue(manifest);
+    const { listeners, put } = workerHarness({ response: manifest });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.manifest.json?v=test"),
+    );
+
+    await expect(event.response).resolves.toBe(manifest);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("still answers a malformed network venue manifest with an error", async () => {
+    const manifest = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ version: 2, revision: "next-deploy", shards: "broken" })),
+    };
+    manifest.clone.mockReturnValue(manifest);
+    const { listeners, put } = workerHarness({ response: manifest });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.manifest.json?v=test"),
+    );
+
     const response = await event.response;
     expect(response).toMatchObject({ status: 0, type: "error" });
     await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
     expect(put).not.toHaveBeenCalled();
+  });
+
+  it("still answers a failed network venue shard with an error", async () => {
+    const shard = {
+      ok: false,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "stale-deploy", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({ response: shard });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=test"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
   });
 
   it("does not serve an unversioned cached venue shard", async () => {
