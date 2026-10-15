@@ -2576,6 +2576,9 @@ function PlanComposerForm({
         </button>
       </div>
       <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <p className="planResult__provenance">One pint per person at each stop. Meal prices are not verified.</p>
+      )}
       {routeStatusLine}
       <PlanResultProvenance />
       {routeStaleNotice}

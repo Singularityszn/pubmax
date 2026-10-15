@@ -24,7 +24,7 @@ const C: RouteViewStop = {
 
 describe("the Plan result summary line", () => {
   it("reads stops, price each and walk, each only when it is real", () => {
-    expect(routeSummaryLine([A, B, C])).toBe("3 stops · £17.40 each · 9 min walk");
+    expect(routeSummaryLine([A, B, C])).toBe("3 stops · £17.40 each for pints · 9 min walk");
   });
 
   it("drops the price when one stop has none, rather than totalling a guess", () => {
@@ -34,7 +34,7 @@ describe("the Plan result summary line", () => {
   });
 
   it("says one stop in the singular and prints no walk for it", () => {
-    expect(routeSummaryLine([A])).toBe("1 stop · £5.60 each");
+    expect(routeSummaryLine([A])).toBe("1 stop · £5.60 each for pints");
   });
 
   it("prints whole pounds without pence in the summary and pence on every stamp", () => {
