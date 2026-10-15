@@ -261,6 +261,17 @@ export function buildMapVenueListModel(
   };
 }
 
+/**
+ * The list's answer while it is CLOSED: the count the chrome prints, and no
+ * rows. A closed list renders nothing (MapVenueList), but the full model sorts
+ * every venue in view by distance and labels each one, and it was rebuilt on
+ * every camera frame and every venue tap - a long task on a phone for a panel
+ * nobody had open (map-p99-vitals-tail). Opening the list builds the real one.
+ */
+export function closedMapVenueListModel(total: number): MapVenueListModel {
+  return { rows: [], total, shown: 0, truncated: total > 0, coverageNote: null };
+}
+
 function sortMapVenueListRowsCheapest(
   rows: LogNearbyCandidate[],
   venues: Venue[],

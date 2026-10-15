@@ -11,6 +11,7 @@ vi.mock("@/lib/nativePlatform", () => ({
 }));
 
 import ClientErrorReporter, { CLIENT_ERROR_SESSION_CAP } from "@/components/ClientErrorReporter";
+import { reportMapDataRevisionSkew } from "@/lib/mapDataRevision";
 import { defined } from "@/__tests__/helpers/defined";
 
 // GAP 16, the browser half. What matters is that a thrown error reaches the
@@ -153,8 +154,55 @@ describe("ClientErrorReporter", () => {
     const removed = remove.mock.calls.map(([type]) => type);
     expect(removed).toContain("error");
     expect(removed).toContain("unhandledrejection");
+    expect(removed).toContain("pubmax:map-data-revision-skew");
 
     // The shared afterEach unmount must stay safe on an unmounted root.
     root = createRoot(document.createElement("div"));
+  });
+
+  it("reports a map pack revision skew, which throws nothing on its own", () => {
+    window.history.replaceState({}, "", "/map");
+
+    act(() => {
+      reportMapDataRevisionSkew({
+        asset: "manifest",
+        outcome: "adopted",
+        expected: "target-sha",
+        served: "previous-sha",
+      });
+    });
+
+    expect(sentPayloads()).toEqual([
+      {
+        kind: "error",
+        name: "MapDataRevisionSkew",
+        message: "map manifest revision skew: expected target-sha, served previous-sha, adopted",
+        path: "/map",
+        shell: "web",
+      },
+    ]);
+  });
+
+  it("reports a skew the map found before the reporter attached", () => {
+    act(() => {
+      root.unmount();
+    });
+    reportMapDataRevisionSkew({
+      asset: "shard",
+      outcome: "refused",
+      expected: "target-sha",
+      served: "early-sha",
+    });
+    expect(sendBeacon).not.toHaveBeenCalled();
+
+    root = createRoot(container);
+    act(() => {
+      root.render(createElement(ClientErrorReporter));
+    });
+
+    expect(sentPayloads()[0]).toMatchObject({
+      name: "MapDataRevisionSkew",
+      message: "map shard revision skew: expected target-sha, served early-sha, refused",
+    });
   });
 });

@@ -662,7 +662,7 @@ describe("the middleware gate needs BOTH keys", () => {
     }
   });
 
-  it("keeps Clerk on its frontend API and ordinary documents", async () => {
+  it("keeps Clerk on its frontend API and ordinary documents, never on /ingest", async () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
     vi.resetModules();
@@ -701,11 +701,15 @@ describe("the middleware gate needs BOTH keys", () => {
       }
       expect(clerkResponse.status).toBe(418);
       expect(documentResponse.status).toBe(418);
-      expect(ingestResponse.status).toBe(418);
-      expect(clerkProxy).toHaveBeenCalledTimes(3);
+      // /ingest is the PostHog relay, not a Clerk consumer: it goes straight to
+      // securityProxy, which hands it to the route untouched.
+      expect(ingestResponse.status).toBe(200);
+      expect(ingestResponse.headers.get("x-middleware-next")).toBe("1");
+      expect(ingestResponse.headers.get("Content-Security-Policy")).toBeNull();
+      expect(clerkProxy).toHaveBeenCalledTimes(2);
       expect(
         clerkProxy.mock.calls.map(([request]) => request.nextUrl.pathname),
-      ).toEqual(["/__clerk/v1/environment", "/login", "/ingest/e"]);
+      ).toEqual(["/__clerk/v1/environment", "/login"]);
     } finally {
       vi.doUnmock("@clerk/nextjs/server");
       vi.resetModules();
@@ -727,6 +731,25 @@ describe("the proxy export Next.js actually runs", () => {
         config,
         url: "https://pubmaxxing.com/api/price-submit",
       }),
+    ).toBe(true);
+  });
+
+  // PostHog's browser client posts to trailing-slash paths (`/ingest/e/`,
+  // `/ingest/flags/`). The trailing-slash rule claimed every one, so each event
+  // paid a proxy invocation in front of the relay route's own.
+  it("keeps the PostHog relay off the proxy on the canonical host", () => {
+    for (const path of ["/ingest/e/", "/ingest/flags/?v=2", "/ingest/e", "/ingest/static/array.js"]) {
+      expect(
+        unstable_doesMiddlewareMatch({ config, url: `https://pubmaxxing.com${path}` }),
+        path,
+      ).toBe(false);
+    }
+    // The trailing-slash 308 still runs everywhere else.
+    expect(
+      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/places/" }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/ingestion/" }),
     ).toBe(true);
   });
 

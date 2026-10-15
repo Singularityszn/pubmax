@@ -212,6 +212,8 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     ...runtimeDataPackIncludes,
+    // Every root-layout document executes the canonical pre-paint script.
+    "/*": ["./public/theme-init.js"],
     // Both freshness readers need every registered artifact (see above).
     "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
     "/api/cron/freshness-audit": withRuntimeDataPacks(
