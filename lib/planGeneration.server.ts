@@ -22,11 +22,13 @@ import {
 	canAffectRoute,
 	claimsForEntity,
 } from "@/lib/nightSignalClaims";
-import { planPriceLimits } from "@/lib/planPriceLimits";
+import { PLAN_DRINK_AFTER_PRICE, PLAN_DRINK_BEFORE_PRICE, PLAN_PRICE_AMOUNT, planPriceAmounts, planPriceLimits } from "@/lib/planPriceLimits";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
+import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { planScoringDrinkCategory, scoreVenueForPlan } from "@/lib/planGenerationRanking";
@@ -226,9 +228,8 @@ type PlanGenerationPreparation = {
 	anchor: PlanGenerationAnchor | null;
 };
 
-const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?)`;
+const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 const PLAN_DRINK_ITEM = String.raw`(?:pints?|drinks?|beers?)`;
-const PLAN_PRICE_AMOUNT = String.raw`(?:£\s*\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s*(?:pounds?|quid)\b)`;
 const PLAN_ITEM_LIST_JOIN = String.raw`(?:\s*,\s*|\s*\b(?:and|plus)\b\s*|\s*[+&]\s*)(?:(?:an?|one|two)\s+)?`;
 
 function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
@@ -239,7 +240,7 @@ function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
 	return /\b(?:with|serving|serves)\s+$/i.test(before) && !pricedOrBundled.test(after);
 }
 
-function pricedDrinkIncludesMeal(beforeDrink: string): boolean {
+function pricedDrinkIncludesMeal(beforeDrink: string, explicitFoodIntent: boolean): boolean {
 	const items = [...beforeDrink.matchAll(new RegExp(String.raw`\b(?:${PLAN_FOOD_ITEM}|${PLAN_DRINK_ITEM})\b`, "gi"))].reverse();
 	let nextItemStart = beforeDrink.length;
 	for (const [index, item] of items.entries()) {
@@ -253,32 +254,41 @@ function pricedDrinkIncludesMeal(beforeDrink: string): boolean {
 		}
 		nextItemStart = item.index;
 	}
-	return false;
+	return explicitFoodIntent && /(?:\b(?:and|plus)|[+&])\s*(?:(?:an?|one|two)\s+)?$/i.test(beforeDrink);
 }
 
 /** Bind each amount before exempting drink rates or a pub-route budget. */
-function hasMealPriceConstraint(value: string): boolean {
+function hasMealPriceConstraint(value: string, explicitFoodIntent = false): boolean {
 	const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 		.filter((item) => !isGenericFoodAmenity(value, item));
-	if (!foodItems.length) return false;
+	if (!foodItems.length && !explicitFoodIntent) return false;
 	const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_FOOD_ITEM}\b`, "i");
 	const bundleAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_DRINK_ITEM}\b(?:${PLAN_ITEM_LIST_JOIN}${PLAN_DRINK_ITEM}\b)*${PLAN_ITEM_LIST_JOIN}${PLAN_FOOD_ITEM}\b`, "i");
 	const drinkRate = new RegExp(String.raw`^\s*(?:per|a|each)\s+${PLAN_DRINK_ITEM}\b`, "i");
-	const drinkBeforePrice = new RegExp(String.raw`\b${PLAN_DRINK_ITEM}\b[\s,]*(?:(?:priced|cost(?:s|ing)?)\s+)?(?:(?:for|at)\s+)?(?:(?:under|below|up to|less than|max(?:imum)?)\s*)?$`, "i");
-	const drinkAfterPrice = new RegExp(String.raw`^\s*(?:(?:for|per)\s+)?(?:(?:an?|one|each)\s+)?${PLAN_DRINK_ITEM}\b`, "i");
-	return [...value.matchAll(new RegExp(PLAN_PRICE_AMOUNT, "gi"))].some((price) => {
+	return planPriceAmounts(value).some((price) => {
 		const before = value.slice(0, price.index);
-		const after = value.slice(price.index + price[0].length);
+		const after = value.slice(price.end);
 		if (drinkRate.test(after)) return false;
 		if (foodAfterPrice.test(after) || bundleAfterPrice.test(after)) return true;
-		if (/\b(?:route\s+budget|(?:and|with)\s+(?:a\s+)?budget)(?:\s+of)?\s*$/i.test(before)) return false;
-		const pricedDrink = drinkBeforePrice.exec(before);
-		if (pricedDrink) return pricedDrinkIncludesMeal(before.slice(0, pricedDrink.index));
-		if (drinkAfterPrice.test(after)) return false;
-		const foodIsLaterPreference = foodItems.every((item) =>
+		if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)
+			&& /\b(?:route\s+budget|(?:and|with)\s+(?:a\s+)?budget)(?:\s+of)?\s*$/i.test(before)) return false;
+		const pricedDrink = PLAN_DRINK_BEFORE_PRICE.exec(before);
+		if (pricedDrink) return pricedDrinkIncludesMeal(before.slice(0, pricedDrink.index), explicitFoodIntent);
+		const afterDrink = PLAN_DRINK_AFTER_PRICE.exec(after);
+		if (afterDrink) {
+			let remaining = after.slice(afterDrink[0].length);
+			const nextItem = new RegExp(String.raw`^${PLAN_ITEM_LIST_JOIN}(\w+)`, "i");
+			for (let item = nextItem.exec(remaining); explicitFoodIntent && item; item = nextItem.exec(remaining)) {
+				if (!new RegExp(String.raw`^${PLAN_DRINK_ITEM}$`, "i").test(item[1]!)) return true;
+				remaining = remaining.slice(item[0].length);
+			}
+			return false;
+		}
+		if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
+		const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
 			/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
 		if (/^\s*(?:per\s+person|each)\b/i.test(after) && foodIsLaterPreference) return false;
-		if (foodItems.every((item) => item.index > price.index)
+		if ((foodItems.length > 0 && foodItems.every((item) => item.index > price.index))
 			&& /\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)) return false;
 		return true;
 	});
@@ -290,7 +300,8 @@ function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): bool
 	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest);
 	const allergens = "(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
 	const requiresDiet = new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest);
-	const requiresMealPrice = [query, ...foodNeeds].some(hasMealPriceConstraint);
+	const requiresMealPrice = hasMealPriceConstraint(query)
+		|| foodNeeds.some((value) => hasMealPriceConstraint(value, true));
 	return requiresNutrition || requiresDiet || requiresMealPrice;
 }
 
@@ -401,10 +412,17 @@ export async function preparePlanGeneration(
 		: null;
 	const venues = await loadConciergeVenues(cityId);
 	const pintCap = planPriceLimits(query).pintCeiling;
+	const pintEvidence = pintCap === null ? null : await planPriceEvidenceForVenues(venues, requestNow);
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
 		: undefined;
-	const candidates = venues
+	const cappedVenues = pintCap === null ? venues : venues.flatMap((venue) => {
+		const price = pintEvidence!.get(venue.id);
+		return price && priceEvidenceUsableForCeiling(price) && price.pence! <= Math.round(pintCap * 100)
+			? [{ ...venue, cheapestPrice: price.pence! / 100 }]
+			: [];
+	});
+	const candidates = cappedVenues
 		.map((venue) => {
 			const distance = distanceKm(area.centre, venue);
 			const tonightEvents = tonightByVenue.get(venue.id) ?? [];
@@ -424,7 +442,6 @@ export async function preparePlanGeneration(
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
-			&& (pintCap === null || (venue.cheapestPrice !== null && venue.cheapestPrice <= pintCap))
 			&& venue.promoted !== true
 			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
 		.sort((a, b) => b.score - a.score);

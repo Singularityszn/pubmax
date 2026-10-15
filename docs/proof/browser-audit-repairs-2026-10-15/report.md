@@ -105,3 +105,39 @@ The [before browser snapshot](r5-result-before.txt) records the incorrect £6.20
 The route suite passed 184 tests. The same 15 onboarding browser cases passed on the corrected local production build. An independent subagent checked 46 bounded pricing cases across query and structured food inputs. Those predicate checks supplement the live browser and API evidence. They do not establish full app acceptance.
 
 Full `npm run verify:no-mistakes` passed on the follow-up candidate. Its coverage phase passed 22,162 tests with one existing skipped test. Database phases passed 554 and ten tests. The gate also passed lint, type checking, policy, dead-code, and dependency checks. Three live stores remained unmeasurable without credentials. Existing development-only vulnerability waivers remain in force. These artifacts show the working-tree candidate before publication. They are not evidence of a production deployment or of physical devices.
+
+
+## Selected review repairs after e83d35f82
+
+The review phase reproduced the five selected findings through executable interfaces before changing product code.
+The initial API/parser run reported 34 failures and 221 passes.
+The rendered onboarding run reported the Arnos Arms discovery failure and 33 passes.
+A test syntax error blocked the first API attempt. The corrected API attempt produced the counts above.
+
+The shared price parser now recognises priced, costing, and for-a-pint clauses in either order with route totals.
+It supports pound symbols, decimal commas, pounds, and quid.
+The meal guard checks each structured food entry separately, including amounts without a recognised meal noun.
+Bare meal budgets require explicit pub, route, or crawl ownership to qualify as route budgets.
+The previously accepted structured `pizza and a budget` example now requires explicit route ownership under this selected decision.
+Unpriced food preferences, independently priced drinks, and explicit route budgets retain behavioral coverage.
+
+Capped candidate preparation now joins canonical prices before ranking.
+It excludes stale, missing, and over-ceiling canonical records from the shared candidate pool used for stops and alternatives.
+The regressions use shipped canonical records rather than inventing fresh prices.
+Nearby discovery now displays the listed £5.50 Arnos Arms pint outside planner-area discs.
+Planning from that location asks for a supported patch before completing onboarding.
+The located Soho handoff and coordinate-storage assertions remain covered.
+
+Focused verification command for this review round:
+
+```sh
+node_modules/.bin/vitest run __tests__/planGenerateRoute.test.ts __tests__/firstRunOnboarding.test.tsx --reporter=dot
+```
+
+The final focused run passed 312 tests across both files with no skipped tests.
+The first focused run passed 311 tests and exposed a missing history-settlement wait in the new onboarding regression.
+That test now uses the existing history-settlement helper before selecting another patch and before checking document navigation.
+Product source did not change between those two focused runs.
+
+This round does not run the full test suite, lint, production builds, browser suites, CI, or deployment checks.
+Those phases remain with the outer executor. Earlier evidence above does not establish acceptance of this revised source.

@@ -246,11 +246,6 @@ export default function FirstRunOnboarding({
     const locatedArea = from.kind === "location"
       ? venueAreaClaim({ latitude: from.lat, longitude: from.lng }, getNightAreasForCity("london")).area
       : null;
-    if (from.kind === "location" && !locatedArea) {
-      setLocateState("outside");
-      setShowPatches(true);
-      return;
-    }
     setOrigin(from);
     const areaId = from.kind === "patch" ? from.id : locatedArea ? `area:${locatedArea.slug}` : null;
     writeOnboardingPatch(areaId);
@@ -352,6 +347,15 @@ export default function FirstRunOnboarding({
 
   function startPlan() {
     if (!companion) return;
+    const locatedArea = origin?.kind === "location" ? tryGetNightArea(venueAreaClaim(
+      { latitude: origin.lat, longitude: origin.lng }, getNightAreasForCity("london"),
+    ).area?.slug)?.slug : undefined;
+    if (origin?.kind === "location" && !locatedArea) {
+      setLocateState("idle");
+      setShowPatches(true);
+      setStep("location");
+      return;
+    }
     writePreferredCity("london");
     writeFirstRunCompanion(companion);
     if (isNativeApp()) markNativeFirstRunRouted();
@@ -365,9 +369,7 @@ export default function FirstRunOnboarding({
       patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
       budget,
       ...(origin?.kind === "location" ? {
-        nightArea: tryGetNightArea(venueAreaClaim(
-          { latitude: origin.lat, longitude: origin.lng }, getNightAreasForCity("london"),
-        ).area?.slug)?.slug,
+        nightArea: locatedArea,
       } : {}),
     });
     stepHistory.leave(openPlanner);
