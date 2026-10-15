@@ -22,7 +22,7 @@ Each visit ends in exactly one outcome.
 | --- | --- |
 | `painted` | The pin layers first became visible (`pubmax:pins-visible`). |
 | `timeout` | The pins had not painted 30 s (`MAP_LOAD_TIMEOUT_MS`) after the map's first render. |
-| `abandoned` | The page was hidden for good (`pagehide`, sent by beacon) or the map unmounted before the pins painted or timed out. |
+| `abandoned` | The page was hidden for good (`pagehide`, sent by beacon) or the map unmounted before the pins painted or timed out. An exit before the SDK loaded is sent from the next consented page (`pubmaxx:map-load-timing-outbox:v1`, one row, a day at most, cleared when consent is withdrawn). |
 
 ## Properties
 
@@ -90,9 +90,12 @@ Four things about the query that are easy to get wrong.
   how long the pins would have taken is unknown. They stay in `visits` and
   `abandoned_rate` and are kept out of the percentiles only. A rising rate with steady
   percentiles is still a slower map.
-- **The rate is a floor.** An abandoned visit rides the PostHog SDK, so a visitor who
-  leaves before that SDK has loaded (a very slow first load, or consent granted
-  moments before leaving) sends nothing.
+- **Some exits arrive late.** A visitor who leaves before the PostHog SDK has loaded
+  (a very slow first load, or consent granted moments before leaving) has no way to
+  send. That exit waits in a consent-scoped local outbox and goes on their next
+  consented page, stamped with the time they left. Only a visitor who never comes
+  back within a day, or whose browser blocks storage, is missing, so the rate is
+  still a slight floor.
 - **Cold landings only.** `landed_on_map` keeps visits whose document opened on the
   map. For in-app returns, drop that filter and read `ttp_ms - mount_ms`.
   Split further by `nav_type`, `sw_controlled` or `effective_type` with the same

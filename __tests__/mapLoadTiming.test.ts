@@ -215,6 +215,76 @@ describe("map_load_timing at the browser SDK boundary", () => {
   });
 });
 
+describe("map_load_timing exits before the SDK has loaded", () => {
+  const OUTBOX_KEY = "pubmaxx:map-load-timing-outbox:v1";
+  const ABANDONED: MapLoadTimingProps = (() => {
+    const props: MapLoadTimingProps = { ...PAINTED, outcome: "abandoned" };
+    delete props.pins_visible_ms;
+    return props;
+  })();
+
+  /** A page that has consent but whose SDK never loaded before it unloaded. */
+  async function exitBeforeSdk(): Promise<void> {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", "");
+    const { capturePosthogMapLoadTiming, syncPosthogConsent } = await import("@/lib/posthogClient");
+    syncPosthogConsent(true);
+    capturePosthogMapLoadTiming(ABANDONED, { beacon: true });
+    vi.resetModules();
+  }
+
+  it("keeps the exit and sends it once, under its own time, from the next consented page", async () => {
+    const before = Date.now();
+    await exitBeforeSdk();
+    expect(window.localStorage.getItem(OUTBOX_KEY)).not.toBeNull();
+
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", "phc_test");
+    const { syncPosthogConsent } = await import("@/lib/posthogClient");
+    syncPosthogConsent(true);
+    await vi.waitFor(() => expect(posthogState.captures).toHaveLength(1));
+
+    const [name, props, options] = posthogState.captures[0] ?? [];
+    expect(name).toBe(MAP_LOAD_TIMING_EVENT);
+    expect(props).toEqual(ABANDONED);
+    const timestamp = (options as { timestamp?: Date } | undefined)?.timestamp;
+    expect(timestamp?.getTime()).toBeGreaterThanOrEqual(before);
+    expect(timestamp?.getTime()).toBeLessThanOrEqual(Date.now());
+    expect(window.localStorage.getItem(OUTBOX_KEY)).toBeNull();
+  });
+
+  it("forgets the stored exit when consent is withdrawn", async () => {
+    await exitBeforeSdk();
+    const { syncPosthogConsent } = await import("@/lib/posthogClient");
+    syncPosthogConsent(false);
+    expect(window.localStorage.getItem(OUTBOX_KEY)).toBeNull();
+  });
+
+  it("drops a stored exit that is over a day old or outside the closed shape", async () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", "phc_test");
+    window.localStorage.setItem(OUTBOX_KEY, JSON.stringify({
+      timing: ABANDONED,
+      at: Date.now() - 90_000_000,
+    }));
+    const first = await import("@/lib/posthogClient");
+    first.syncPosthogConsent(true);
+    await vi.waitFor(() => expect(posthogState.optedOut).toBe(false));
+    expect(posthogState.captures).toEqual([]);
+    expect(window.localStorage.getItem(OUTBOX_KEY)).toBeNull();
+
+    window.localStorage.setItem(OUTBOX_KEY, JSON.stringify({
+      timing: { ...ABANDONED, email: "person@example.com", outcome: "fast" },
+      at: Date.now(),
+    }));
+    first.syncPosthogConsent(false);
+    window.localStorage.setItem(OUTBOX_KEY, JSON.stringify({
+      timing: { ...ABANDONED, outcome: "fast" },
+      at: Date.now(),
+    }));
+    first.syncPosthogConsent(true);
+    await vi.waitFor(() => expect(posthogState.optedOut).toBe(false));
+    expect(posthogState.captures).toEqual([]);
+  });
+});
+
 describe("startMapLoadTiming", () => {
   async function start(overrides: Partial<Parameters<
     typeof import("@/lib/mapLoadTiming").startMapLoadTiming

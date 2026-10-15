@@ -98,7 +98,53 @@ let captureEnabled = false;
 const pendingPageviews: PendingPageview[] = [];
 // One map visit sends one timing event; a visit that ends before the SDK has
 // loaded keeps only its own, so the queue cannot grow.
-let pendingMapLoadTiming: MapLoadTimingProps | null = null;
+type PendingMapLoadTiming = { timing: MapLoadTimingProps; at: number };
+let pendingMapLoadTiming: PendingMapLoadTiming | null = null;
+// A visit abandoned before the SDK loaded cannot leave this page, so it waits
+// here, consent-scoped, and the next consented page sends it through the SDK
+// under its own time. One row, a day at most: an old exit is not this week's.
+const MAP_LOAD_TIMING_OUTBOX_KEY = "pubmaxx:map-load-timing-outbox:v1";
+const MAP_LOAD_TIMING_OUTBOX_MAX_AGE_MS = 86_400_000;
+
+function writeMapLoadTimingOutbox(row: PendingMapLoadTiming): void {
+  try {
+    window.localStorage.setItem(MAP_LOAD_TIMING_OUTBOX_KEY, JSON.stringify(row));
+  } catch { /* storage blocked: the exit is lost, as before */ }
+}
+
+function clearMapLoadTimingOutbox(): void {
+  try {
+    if (typeof window !== "undefined") window.localStorage.removeItem(MAP_LOAD_TIMING_OUTBOX_KEY);
+  } catch { /* best effort */ }
+}
+
+/** Read and remove the stored exit, rebuilt through the closed shape. */
+function takeMapLoadTimingOutbox(now: number): PendingMapLoadTiming | null {
+  if (typeof window === "undefined") return null;
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(MAP_LOAD_TIMING_OUTBOX_KEY);
+    window.localStorage.removeItem(MAP_LOAD_TIMING_OUTBOX_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const row = JSON.parse(raw) as { timing?: unknown; at?: unknown };
+    const timing = sanitizeMapLoadTimingProps(row.timing);
+    const at = row.at;
+    if (
+      !timing
+      || typeof at !== "number"
+      || !Number.isFinite(at)
+      || at > now
+      || now - at > MAP_LOAD_TIMING_OUTBOX_MAX_AGE_MS
+    ) return null;
+    return { timing, at };
+  } catch {
+    return null;
+  }
+}
 let lastObservedPageviewPathname: string | null = null;
 
 function safeExceptionType(value: unknown): string {
@@ -380,6 +426,7 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
   if (!consentAllowed) {
     pendingPageviews.length = 0;
     pendingMapLoadTiming = null;
+    clearMapLoadTimingOutbox();
     lastObservedPageviewPathname = null;
     if (initialized) client?.opt_out_capturing();
     return;
@@ -422,16 +469,22 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
         $pubmaxx_anonymous_id: pageview.anonymousId,
       });
     }
-    const timing = pendingMapLoadTiming;
+    const pending = pendingMapLoadTiming;
     pendingMapLoadTiming = null;
-    if (timing) loadedClient.capture(MAP_LOAD_TIMING_EVENT, timing);
+    const stored = takeMapLoadTimingOutbox(Date.now());
+    for (const row of [stored, pending]) {
+      if (!row || (row === stored && pending && stored.at === pending.at)) continue;
+      loadedClient.capture(MAP_LOAD_TIMING_EVENT, row.timing, { timestamp: new Date(row.at) });
+    }
   }).catch(() => undefined);
 }
 
 /**
  * Send one map visit's field timing through the browser SDK. Silent without
  * analytics consent; before_send rebuilds the closed shape again. A visit that
- * ends as the page is hidden goes by beacon so the tail is not lost on exit.
+ * ends as the page is hidden goes by beacon so the tail is not lost on exit,
+ * and one that ends before the SDK has loaded waits in a consent-scoped outbox
+ * for the next consented page.
  */
 export function capturePosthogMapLoadTiming(
   props: MapLoadTimingProps,
@@ -441,7 +494,8 @@ export function capturePosthogMapLoadTiming(
   const timing = sanitizeMapLoadTimingProps(props);
   if (!timing) return;
   if (!initialized || !client || !captureEnabled) {
-    pendingMapLoadTiming = timing;
+    pendingMapLoadTiming = { timing, at: Date.now() };
+    if (options.beacon) writeMapLoadTimingOutbox(pendingMapLoadTiming);
     return;
   }
   client.capture(
