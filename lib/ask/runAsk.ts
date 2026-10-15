@@ -21,20 +21,18 @@ import type {
 const MAX_TURNS = 6;
 
 function dedupeCards(results: AskToolResult[]): AskCard[] {
-  const seenKeys = new Set<string>();
-  const venueIdsFromEarlierResults = new Set<string>();
+  const seen = new Set<string>();
   const out: AskCard[] = [];
   for (const result of results) {
-    const keptCards: AskCard[] = [];
     for (const card of result.cards) {
-      if (seenKeys.has(card.key)) continue;
-      if (card.venueId && venueIdsFromEarlierResults.has(card.venueId)) continue;
-      seenKeys.add(card.key);
-      keptCards.push(card);
-    }
-    out.push(...keptCards);
-    for (const card of keptCards) {
-      if (card.venueId) venueIdsFromEarlierResults.add(card.venueId);
+      const identity = JSON.stringify([
+        card.venueId, card.title, card.place, card.note, card.price,
+        card.provenance?.kind, card.provenance?.label, card.provenance?.url,
+        card.menuEvidence,
+      ]);
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      out.push(card);
     }
   }
   return out.slice(0, 8);
@@ -88,17 +86,21 @@ function mergeToolResults(results: AskToolResult[]): {
 
   const totalCardCount = results.reduce((total, result) => total + result.cards.length, 0);
   const mergedCards = dedupeCards(results);
-  const hints = hintCandidates
-    .filter(
-      ({ result }) =>
-        !(
-          mergedCards.length > 0 &&
-          result.ok &&
-          result.cards.length === 0 &&
-          !result.degraded
-        ),
-    )
-    .map(({ hint }) => hint);
+  const hasSearchCards = results.some((result) => result.tool === "search_venues" && result.ok && result.cards.length > 0);
+  const hints = [...new Set(
+    hintCandidates
+      .filter(
+        ({ result }) =>
+          !(
+            hasSearchCards &&
+            result.tool === "search_venues" &&
+            result.ok &&
+            result.cards.length === 0 &&
+            !result.degraded
+          ),
+      )
+      .map(({ hint }) => hint),
+  )];
   if (mergedCards.length < totalCardCount) {
     hints.push(`Showing the first ${mergedCards.length}.`);
   }

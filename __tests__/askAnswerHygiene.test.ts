@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { composeAnswer, mergeToolResults } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import type { AskToolContext, AskToolResult } from "@/lib/ask/toolContract";
-import type { AskCard } from "@/lib/ask/types";
+import type { AskCard, AskMenuEvidence } from "@/lib/ask/types";
 
 const PLUMBING_TOKENS = [
   "CityMCP",
@@ -65,14 +65,14 @@ describe("Pal answer hygiene", () => {
     expect(result.answerHint).not.toContain("What's On ask");
   });
 
-  it("counts one card for one pub, whichever tools answered it", () => {
-    const card = (key: string, venueId: string): AskCard => ({
+  it("deduplicates the same evidence while retaining distinct prices for one pub", () => {
+    const card = (key: string, venueId: string, price = 5.4): AskCard => ({
       key,
       venueId,
       title: "The Lamb",
       place: "Bloomsbury",
       note: "",
-      price: 5.4,
+      price,
       provenance: { label: "On record", kind: "directory" },
     });
     const result = (cards: AskCard[], tool: AskToolResult["tool"] = "search_venues"): AskToolResult => ({
@@ -87,8 +87,8 @@ describe("Pal answer hygiene", () => {
     const merged = mergeToolResults([
       result([
         card("venue-1:drink-1", "venue-1"),
-        card("venue-1:drink-2", "venue-1"),
-        card("venue-1:drink-3", "venue-1"),
+        card("venue-1:drink-2", "venue-1", 6.4),
+        card("venue-1:drink-3", "venue-1", 7.4),
       ]),
       result([card("venue-1", "venue-1"), card("venue-2", "venue-2")]),
     ]);
@@ -166,6 +166,49 @@ describe("Pal answer hygiene", () => {
     expect(composeAnswer(merged.hints, merged.cards, merged.toolsUsed)).toContain(
       "Couldn't read tonight's listings.",
     );
+  });
+
+  it("retains independent empty answers and removes repeated hints", () => {
+    const result = (tool: AskToolResult["tool"], answerHint: string): AskToolResult => ({
+      ok: true, tool, data: null, provenance: [], cards: [], proposals: [], answerHint,
+    });
+    const merged = mergeToolResults([
+      { ...result("city_status", "Northern: Minor delays"), cards: [{
+        key: "city-status", venueId: "", title: "London right now", place: "", note: "Northern: Minor delays", price: null,
+      }] },
+      result("venue_prices", "No recorded prices at this pub."),
+      result("venue_drinks", "No accepted menu item matches."),
+      result("journey", "No journey options came back for that pair."),
+      result("whats_on", "No live music listed tonight."),
+      result("whats_on", "No live music listed tonight."),
+    ]);
+    expect(merged.hints).toEqual([
+      "Northern: Minor delays", "No recorded prices at this pub.", "No accepted menu item matches.",
+      "No journey options came back for that pair.", "No live music listed tonight.",
+    ]);
+  });
+
+  it("deduplicates identical menu evidence and retains distinct servings and sources", () => {
+    const menuEvidence: AskMenuEvidence = {
+      kind: "published-menu", itemId: "wine", itemName: "Wine", menu: "drink", category: "wine", currency: "GBP",
+      serving: "125ml", caloriesKcal: null, caloriesProvenance: null, dietary: [], dietaryProvenance: null,
+      observedAt: "2026-10-15", source: "Official menu", sourceUrl: "https://example.com/menu", licence: "Test only", availability: "unknown",
+    };
+    const card: AskCard = {
+      key: "wine-125", venueId: "venue-1", title: "Wine at The Lamb", place: "Bloomsbury", note: "Recorded wine", price: 7,
+      provenance: { kind: "published-menu", label: "Official menu", url: "https://example.com/menu" },
+      menuEvidence,
+    };
+    const result = (cards: AskCard[]): AskToolResult => ({ ok: true, tool: "venue_drinks", data: null, provenance: [], cards, proposals: [], answerHint: "" });
+    const merged = mergeToolResults([
+      result([card]),
+      result([
+        { ...card, key: "same-wine" },
+        { ...card, key: "wine-175", menuEvidence: { ...menuEvidence, serving: "175ml" } },
+        { ...card, key: "wine-other-source", menuEvidence: { ...menuEvidence, sourceUrl: "https://example.com/other-menu" } },
+      ]),
+    ]);
+    expect(merged.cards.map((item) => item.key)).toEqual(["wine-125", "wine-175", "wine-other-source"]);
   });
 
   it("composes pub counts from retained cards", () => {
