@@ -22,9 +22,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   BUILD_WRITTEN_STATIC_ASSET_PREFIXES,
+  STATIC_ASSET_EXTENSIONS,
   STATIC_ASSET_PREFIXES,
   isBuildWrittenStaticAssetPrefix,
+  isStaticAssetFile,
   isStaticAssetPath,
+  staticAssetExtensionMatcherAlternative,
   staticAssetHeaderSources,
   staticAssetMatcherAlternatives,
 } from "@/lib/staticAssetPrefixes.mjs";
@@ -165,6 +168,88 @@ describe("static asset prefixes", () => {
     ).toBe(false);
   });
 
+  it("is the extension branch proxy.ts's matcher literal excludes", () => {
+    expect(generalMatcherSource()).toContain(
+      staticAssetExtensionMatcherAlternative(),
+    );
+  });
+
+  // F1 of the Vercel insights read (15 Oct 2026): live headers carried a fresh
+  // nonce on `/theme-init.js?v=splash-1`, so a Node function ran in front of a
+  // file the CDN held, before first paint. Every committed file at the root of
+  // public/, and the mascot art under public/pal/, stays off the proxy.
+  it("keeps every root public file and the /pal art off the proxy", () => {
+    const rootFiles = [...COMMITTED_PATHS]
+      .filter((path) => /^public\/[^/]+$/.test(path))
+      .map((path) => path.slice("public".length));
+    expect(rootFiles).toContain("/theme-init.js");
+    expect(rootFiles).toContain("/map-first-paint-init.js");
+    const proxied = [
+      ...rootFiles,
+      "/theme-init.js?v=splash-1",
+      "/map-first-paint-init.js?v=splash-1",
+      "/pal/pal-wave.webp",
+      "/robots.txt",
+    ].filter((path) =>
+      unstable_doesMiddlewareMatch({
+        config,
+        url: `https://pubmaxxing.com${path}`,
+      }),
+    );
+    // offline.html is a document the service worker serves, so it keeps its
+    // nonce; it is the one root file the list leaves out on purpose.
+    expect(proxied).toEqual(["/offline.html"]);
+  });
+
+  // Codex review on #2103: `/u/foo.png` normalises to the handle `foopng` and
+  // renders a real profile. An extension proves a file only where the files
+  // live, so every nested dynamic page keeps the proxy and its nonce.
+  it("never lets an extension take a dynamic page off the proxy", () => {
+    for (const path of [
+      "/u/foo.png",
+      "/u/foo.js",
+      "/p/abc.json",
+      "/pub/the-bell.svg",
+      "/crawls/soho.txt",
+      "/pal/chat/x.webp",
+    ]) {
+      expect(
+        unstable_doesMiddlewareMatch({ config, url: `https://pubmaxxing.com${path}` }),
+        path,
+      ).toBe(true);
+      expect(isStaticAssetFile(path), path).toBe(false);
+    }
+  });
+
+  it("finds no dynamic page segment where the extension rule applies", () => {
+    for (const directory of ["app", "app/pal"]) {
+      const dynamic = [...COMMITTED_PATHS].filter((path) =>
+        new RegExp(`^${directory}/\\[`).test(path),
+      );
+      expect(dynamic, directory).toEqual([]);
+    }
+  });
+
+  // A route HANDLER that answers bytes (`/og.png`, `/robots.txt`) has no use
+  // for a nonce or a Clerk session. A PAGE does, so no page path may end in a
+  // listed extension, or excluding the file would strip a document's nonce.
+  it("never names an extension an app page path ends in", () => {
+    const pagePaths = [...COMMITTED_PATHS].filter((path) =>
+      /^app\/(?:.+\/)?page\.(?:tsx|ts|jsx|js|mdx)$/.test(path),
+    );
+    expect(pagePaths.length).toBeGreaterThan(0);
+    for (const pagePath of pagePaths) {
+      for (const segment of pagePath.split("/").slice(1, -1)) {
+        const dot = segment.lastIndexOf(".");
+        if (dot === -1) continue;
+        expect(STATIC_ASSET_EXTENSIONS, pagePath).not.toContain(
+          segment.slice(dot + 1),
+        );
+      }
+    }
+    expect(STATIC_ASSET_EXTENSIONS).not.toContain("html");
+  });
+
   it("keeps webpack-mode HMR off the proxy so the WebSocket can upgrade", () => {
     // Importers: this suite + Next's matcher. Callers: `next dev --webpack`
     // HMR client. Without the exclusion the handshake returns ordinary HTTP
@@ -179,7 +264,16 @@ describe("static asset prefixes", () => {
   });
 
   it("still runs the proxy on every document, /pal included", () => {
-    for (const path of ["/", "/map", "/pal", "/login", "/tonight", "/u/you"]) {
+    for (const path of [
+      "/",
+      "/map",
+      "/pal",
+      "/pal/chat",
+      "/login",
+      "/tonight",
+      "/u/you",
+      "/offline.html",
+    ]) {
       expect(
         unstable_doesMiddlewareMatch({
           config,
@@ -196,6 +290,17 @@ describe("static asset prefixes", () => {
     expect(isStaticAssetPath("/data")).toBe(false);
     expect(isStaticAssetPath("/landing-page")).toBe(false);
     expect(isStaticAssetPath("/pal/chat")).toBe(false);
+    expect(isStaticAssetPath("/theme-init.js")).toBe(true);
+    expect(isStaticAssetPath("/pal/pal-wave.webp")).toBe(true);
+  });
+
+  it("reads a file extension only off the last path segment", () => {
+    expect(isStaticAssetFile("/sw.js")).toBe(true);
+    expect(isStaticAssetFile("/manifest.webmanifest")).toBe(true);
+    expect(isStaticAssetFile("/offline.html")).toBe(false);
+    expect(isStaticAssetFile("/pal")).toBe(false);
+    expect(isStaticAssetFile("/a.png/next")).toBe(false);
+    expect(isStaticAssetFile("/pint-index/data.csv")).toBe(false);
   });
 
   it("hands next.config.mjs one header source per prefix", () => {
