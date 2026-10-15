@@ -263,7 +263,9 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodSubject = String.raw`(?:(?!\b(?:with|per|each|afterwards|later|at|in)\b)[^,£])*\b${PLAN_FOOD_ITEM}\b`;
+		const venueAmenity = String.raw`(?:\d+|one|two|three|four|five|six)\s+(?:pubs?|bars?|stops?)\s+(?:serving|serves|where|with)\b`;
+		const subjectBoundary = String.raw`\b(?:with|per|each|afterwards|later|at|in|from|near|around|within|inside|outside|by|where|${venueAmenity})\b`;
+		const foodSubject = String.raw`(?:(?!${subjectBoundary})[^,£])*\b${PLAN_FOOD_ITEM}\b`;
 		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)${foodSubject}`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
@@ -287,7 +289,8 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
 			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
 				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
-			if (price.routeBudget === "explicit") return false;
+			if (price.routeBudget === "explicit"
+				|| (price.routeBudget === "limit" && new RegExp(String.raw`^\s*(?:for\s+)?${venueAmenity}`, "i").test(after))) return false;
 			if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
 			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
 				/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
