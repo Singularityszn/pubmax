@@ -28,6 +28,7 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   if (!updates) return { cards: [], unavailable: true };
   const request = namedMenuRequest(query);
   const subject = request?.subject ?? "drinks";
+  category = request?.category ?? category;
   const dietaryInquiry = subject.match(/^(?:is|are)\s+(.+?)\s+(?:vegan|vegetarian|gluten[- ]free)(?:\s+(?:and|or)\s+(?:vegan|vegetarian|gluten[- ]free))*$/i)
     ?? subject.match(/^(?:what are (?:the )?)?dietary labels (?:for|of)\s+(.+)$/i);
   const selection = dietaryInquiry?.[1] ?? subject;
@@ -39,7 +40,7 @@ export async function publishedMenuCards(venueId: string, query: string, categor
     .map((label) => label.toLowerCase().replace(" ", "-"));
   const foodOnly = /\b(?:food|meals?|lunch|dinner|breakfast|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free)\b/i.test(subject);
   const allItems = /\bmenu\b/i.test(subject) && !foodOnly && !/\bdrinks?\b/i.test(subject);
-  const itemQuery = category ? "" : words(selection
+  const itemQuery = words(selection
     .replace(BUDGET_RE, " ")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:does|do)\s+(.+?)\s+(?:have|contain)\s*$/i, "$1")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:are\s+(?:there\s+)?in|in)\s+/i, " ")

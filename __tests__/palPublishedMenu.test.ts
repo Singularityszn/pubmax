@@ -609,3 +609,70 @@ it("stores configured intercepted evidence in the owner's existing thread", asyn
   expect(replay).toMatchObject({ query, cards: [{ price: 5, menuEvidence: { caloriesKcal: 163 } }] });
   expect(await readOwnedPubPalToolTurn("conv_menureplay01", "another-owner")).toBeNull();
 });
+
+const categoryRequests = [
+  { subject: "Wine prices", accepted: true },
+  { subject: "Price of a wine", accepted: true },
+  { subject: "Good wine prices", accepted: true },
+  { subject: "Wine menu", accepted: true },
+  { subject: "Wine prices under £10", accepted: true },
+  { subject: "Wine prices under GBP10", accepted: true },
+  { subject: "Wine prices under £1", accepted: false },
+  { subject: "Wine menu Organic Pinot Grigio under £7.20", accepted: false },
+  { subject: "Wine menu Organic Pinot Grigio under £10", accepted: true },
+  { subject: "Wine menu Missing Merlot under £10", accepted: false },
+  { subject: "Cocktail menu Organic Pinot Grigio under £10", accepted: false },
+] as const;
+
+it.each(categoryRequests.flatMap((record) => dietaryBoundaries.map((boundary) => ({ ...record, boundary }))))(
+  "preserves menu category and item constraints through $boundary: $subject", async ({ subject, accepted, boundary }) => {
+    const query = `${subject} at Sherlock Holmes`;
+    let cards: AskCard[];
+    if (boundary === "reader") {
+      ({ cards } = await publishedMenuCards("venue-gk2fp9", query));
+    } else if (boundary === "ask" || boundary === "keyless chat") {
+      ({ cards } = await (await (boundary === "ask" ? ask : chat)(request(query))).json());
+    } else if (boundary === "chat session") {
+      const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+      const result = await session(query, "london");
+      if (!result || result.status === "error") throw new Error("Chat session returned no answer");
+      ({ cards } = result);
+    } else if (boundary === "tool dispatch") {
+      ({ cards } = await runAskTool("venue_prices", { venueName: "The Lamb", drinkCategory: "beer" }, { query, cityId: "london", skipModel: true }));
+    } else {
+      await registerPubPalToolTurn("conv_category01", { query, cityId: "london", ownerId: "menu-owner" });
+      if (boundary === "configured chat") {
+        vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+        vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+        const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+        vi.stubGlobal("fetch", fetcher);
+        const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_category01" });
+        if (!result.ok) throw new Error("Configured interception failed");
+        ({ cards } = result);
+        expect(fetcher).not.toHaveBeenCalled();
+      } else {
+        vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+        const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+          method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+          body: JSON.stringify({ conversation_id: "conv_category01", parameters: { venueName: "The Lamb", drinkCategory: "beer", query: "Pint at The Lamb" } }),
+        }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+        expect(response.status).toBe(200);
+        ({ cards } = (await response.json()).result);
+      }
+      expect((await readOwnedPubPalToolTurn("conv_category01", "menu-owner"))?.cards).toEqual(cards);
+    }
+    if (!accepted) {
+      expect(cards).toEqual([]);
+      return;
+    }
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.every((card) => card.menuEvidence?.category === "wine")).toBe(true);
+    expect(cards).toContainEqual(expect.objectContaining({ venueId: "venue-gk2fp9", price: 7.2,
+      menuEvidence: expect.objectContaining({ itemName: "Organic Pinot Grigio, Riff, Italy", category: "wine", serving: null,
+        caloriesKcal: null, observedAt: "2026-09-21T18:41:07.759Z",
+        sourceUrl: "https://www.greeneking.co.uk/pubs/greater-london/sherlock-holmes/menu", availability: "unknown" }),
+    }));
+    if (subject.includes("under")) expect(cards.every((card) => card.price !== null && card.price < 10)).toBe(true);
+    if (subject.includes("Organic")) expect(cards.every((card) => card.menuEvidence?.itemName === "Organic Pinot Grigio, Riff, Italy")).toBe(true);
+  },
+);

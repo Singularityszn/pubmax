@@ -49,7 +49,6 @@ const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affo
 const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?:\s+(?:of|for))?|costs?(?:\s+(?:of|for))?)\b/i;
 const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
 const NON_PINT_DRINK_RE = /\b(?:wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
-const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
 const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
 const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";
 const IMPLICIT_PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:and\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}(?:\\s+(?:and\\s+)?${VENUE_COMPARISON_MODIFIERS})*)?$`, "i");
@@ -71,6 +70,11 @@ const RECORDED_PRICE_CATEGORIES: ReadonlyArray<readonly [RegExp, DrinkCategory]>
   [/^(?:alcohol[- ]free|non[- ]alcoholic)$/i, "alcohol-free"],
 ];
 
+function recordedPriceCategory(subject: string): DrinkCategory | undefined {
+  const categorySubject = subject.replace(/^(?:(?:listed|recorded|decent|good|local)\s+)+/i, "");
+  return RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1];
+}
+
 export type UnsupportedPriceComparison = {
   code: "UNSUPPORTED_FOOD_PRICE_COMPARISON" | "UNSUPPORTED_DRINK_PRICE_COMPARISON" | "UNSUPPORTED_PRICE_COMPARISON";
   answer: string;
@@ -78,7 +82,7 @@ export type UnsupportedPriceComparison = {
 
 type AskPriceIntent =
   | { kind: "none" | "plan" | "drink-venues" }
-  | { kind: "menu"; venueName: string }
+  | { kind: "menu"; venueName: string; category?: DrinkCategory }
   | { kind: "pub-price"; venueName: string | null }
   | { kind: "pint"; venueName: string | null; foodAvailability: boolean }
   | { kind: "recorded-drinks"; venueName: string; category?: DrinkCategory }
@@ -129,7 +133,7 @@ function priceQuestion(query: string): string {
   return priceClauses.join(" and ");
 }
 
-export function namedMenuRequest(query: string): { venueName: string; subject: string } | null {
+export function namedMenuRequest(query: string): { venueName: string; subject: string; category?: DrinkCategory } | null {
   const question = priceQuestion(query);
   const venueName = namedDrinkVenue(question);
   if (!venueName || PRICE_COMPARISON_RE.test(question)) return null;
@@ -137,7 +141,14 @@ export function namedMenuRequest(query: string): { venueName: string; subject: s
   if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
   const priceSubject = priceComparisonSubject(question);
   if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
-  return { venueName, subject };
+  const categoryPrefix = subject.match(/^(.+?)\s+(?:menu|prices?|costs?)\b/i);
+  const bareCategory = priceSubject ? recordedPriceCategory(priceSubject) : undefined;
+  const category = bareCategory ?? (categoryPrefix ? recordedPriceCategory(categoryPrefix[1]!) : undefined);
+  return {
+    venueName,
+    subject: bareCategory ? "drinks" : category && categoryPrefix ? subject.slice(categoryPrefix[1]!.length).trim() : subject,
+    ...(category ? { category } : {}),
+  };
 }
 
 function priceComparisonSubject(query: string): string | null {
@@ -184,8 +195,8 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
   query = priceQuestion(query);
   const subject = priceComparisonSubject(query);
   const menu = namedMenuRequest(query);
-  const bareCategory = subject && RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(subject));
-  if (menu && !bareCategory && !/^drinks?$/i.test(subject ?? "")) return { kind: "menu", venueName: menu.venueName };
+  const bareCategory = subject && recordedPriceCategory(subject);
+  if (menu && !bareCategory && !/^drinks?$/i.test(subject ?? "")) return { kind: "menu", venueName: menu.venueName, ...(menu.category ? { category: menu.category } : {}) };
   if (subject === null) return { kind: "none" };
   const comparative = PRICE_COMPARISON_RE.test(query);
   const venueName = namedDrinkVenue(query);
@@ -213,9 +224,7 @@ export function resolveAskPriceIntent(query: string): AskPriceIntent {
     };
   }
   const categorySubject = subject.replace(/^(?:(?:listed|recorded|decent|good|local)\s+)+/i, "");
-  const category = RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)
-    ? RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1]
-    : undefined;
+  const category = recordedPriceCategory(subject);
   if (/^drinks?$/i.test(categorySubject)) {
     return venueName ? { kind: "recorded-drinks", venueName } : { kind: "drink-venues" };
   }
@@ -261,9 +270,7 @@ export function unsupportedPriceComparison(query: string): UnsupportedPriceCompa
 /** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
 export function recordedDrinkComparison(query: string): RoutedToolCall | null {
   const intent = resolveAskPriceIntent(query);
-  return intent.kind === "menu"
-    ? { name: "venue_drinks", args: { venueName: intent.venueName } }
-    : intent.kind === "recorded-drinks"
+  return intent.kind === "menu" || intent.kind === "recorded-drinks"
     ? { name: "venue_drinks", args: { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) } }
     : null;
 }
@@ -514,7 +521,7 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
 
   if (priceIntent.kind === "unsupported") return calls;
   if (priceIntent.kind === "menu") {
-    push("venue_drinks", { venueName: priceIntent.venueName });
+    push("venue_drinks", { venueName: priceIntent.venueName, ...(priceIntent.category ? { drinkCategory: priceIntent.category } : {}) });
     return calls;
   }
 

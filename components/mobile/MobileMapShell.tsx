@@ -343,7 +343,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
             {searchProps ? (
-              <MapSearchSuggest {...searchProps} />
+              <MapSearchSuggest {...searchProps} onClose={onBack} />
             ) : searchContent}
           </div>
         ) : null}
@@ -444,7 +444,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
             {searchProps ? (
-              <MapSearchSuggest {...searchProps} />
+              <MapSearchSuggest {...searchProps} onClose={onBack} />
             ) : searchContent}
           </div>
         ) : null}

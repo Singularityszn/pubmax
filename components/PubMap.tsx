@@ -6424,7 +6424,6 @@ export default function PubMap({
           id: "mobileMapSearchInput",
           mode: "overlay",
           placeholder: mapSearchPlaceholder,
-          onClose: () => changeMapOverlay("none"),
         }}
         filtersContent={renderMobileFiltersPanel()}
         drinkContent={

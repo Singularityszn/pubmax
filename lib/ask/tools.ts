@@ -1027,7 +1027,7 @@ export async function runAskTool(
   }
   if (intent.kind === "menu" && !isIndependentAskTool(name)) {
     toolName = "venue_drinks";
-    toolArgs = { venueName: intent.venueName };
+    toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
   }
   const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
   const discoveryCall = isVenueDiscoveryAsk(ctx.query) && (answersPrice || name === "venue_heritage")
