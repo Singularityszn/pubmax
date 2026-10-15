@@ -1,0 +1,25 @@
+{
+  "rig": "390x844 isMobile, 4x CPU, Chrome Slow 4G, local production builds, SwiftShader WebGL, stubbed basemap",
+  "venueSelectionInpMs": {
+    "interaction": "pointerdown on .mapPeekAnswer (selectVenue) on /map",
+    "before": [952, 936, 800, 1064, 848, 1104, 1248, 1168, 1144, 1000, 984, 1088, 1136, 984, 1272, 1080, 1136, 1176],
+    "after": [784, 1024, 976, 936, 960, 912, 744, 904, 776, 888, 912, 800, 872],
+    "mannWhitneyU": 28,
+    "p": 0.0004
+  },
+  "venuePanelAfterHeldReadCls": {
+    "scenario": "/api/venue/[id] held 6000 ms so the panel chunk lands first",
+    "before": [0.287, 0.287, 0.287],
+    "after": [0.0042, 0.0042, 0.0042]
+  },
+  "mapCanvasTapMidLoadInpMs": {
+    "interaction": "tap on empty map at (195,420), ~18 s into a throttled /map load",
+    "before": [736, 616, 544, 696, 640, 432, 464, 480, 592, 528, 768],
+    "after": [952, 880, 744, 696, 472, 776, 376, 504, 728, 392, 472],
+    "mannWhitneyP": 0.65
+  },
+  "routeMediansLoadScrollTap": {
+    "before": {"/map": {"cls": 0}, "/": {"cls": 0, "inpMs": 44}, "/u/you": {"cls": 0.0266}, "/tonight": {"cls": 0.004, "inpMs": 64}, "/plan": {"cls": 0, "inpMs": 88}, "/out": {"cls": 0.0431}, "/places": {"cls": 0}, "/pal": {"cls": 0, "inpMs": 284}},
+    "after": {"/map": {"cls": 0}, "/": {"cls": 0, "inpMs": 40}, "/u/you": {"cls": 0.0266}, "/tonight": {"cls": 0, "inpMs": 48}, "/plan": {"cls": 0, "inpMs": 76}, "/out": {"cls": 0.0431}, "/places": {"cls": 0.0011}, "/pal": {"cls": 0, "inpMs": 288}}
+  }
+}

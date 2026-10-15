@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   freshestCommunityPrice,
+  freshestPintByVenue,
   freshestPintPrice,
   validateCommunityPrice,
   type CommunityPrice,
@@ -1288,15 +1289,18 @@ export function useCommunityPrices(): CommunityPricesState {
   }, [reportedIds]);
 
   // The freshest beer observation per venue - what a pin can carry. Derived,
-  // never stored, so it can't drift from the per-category lists.
-  const freshestByVenueId = useMemo(() => {
-    const freshest = new Map<string, CommunityPrice>();
-    for (const [venueId, rows] of byVenueId) {
-      const top = freshestPintPrice(rows);
-      if (top) freshest.set(venueId, top);
-    }
-    return freshest;
-  }, [byVenueId]);
+  // never stored, so it can't drift from the per-category lists. The previous
+  // answer is kept when nothing a pin carries changed (freshestPintByVenue), so
+  // opening a pub with no new pint price does not rebuild every pin.
+  const [freshestByVenueId, setFreshestByVenueId] = useState(() =>
+    freshestPintByVenue(byVenueId),
+  );
+  const [freshestReadFrom, setFreshestReadFrom] = useState(byVenueId);
+  if (freshestReadFrom !== byVenueId) {
+    setFreshestReadFrom(byVenueId);
+    const next = freshestPintByVenue(byVenueId, freshestByVenueId);
+    if (next !== freshestByVenueId) setFreshestByVenueId(next);
+  }
 
   return {
     byVenueId,
