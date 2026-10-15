@@ -149,7 +149,183 @@ function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 
   }), now);
 }
 
+function drinkRatePhrases(pounds: number): string[] {
+  return ["pint", "beer", "drink"].flatMap((item) => [
+    `${item}s under£${pounds}`,
+    `£${pounds} for a ${item}`,
+    `£${pounds} per ${item}`,
+    `${item}s priced under £${pounds}`,
+    `${item}s costing under £${pounds}`,
+    `${item}s for under£${pounds}`,
+    `${item}s cost £${pounds}`,
+    `${item}s priced for under £${pounds}`,
+    `${item}s costing for under£${pounds}`,
+    `under £${pounds} for a ${item}`,
+    `maximum £${pounds} per ${item}`,
+    `£${pounds} a ${item}`,
+    `£${pounds} ${item}s`,
+    `${item}s priced under ${pounds} pounds`,
+    `${item}s costing under ${pounds} quid`,
+    `${item}s for under £${pounds},00`,
+  ]);
+}
+
+function drinkRateInputs(phrase: string) {
+  return [
+    { query: `3 pubs in Clapham, ${phrase}, pizza afterwards`, total: null },
+    { query: `3 pubs in Clapham, ${phrase}, under£20 per person, pizza afterwards`, total: 2000 },
+    { query: `3 pubs in Clapham, under£20 per person, ${phrase}, pizza afterwards`, total: 2000 },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", phrase] }, total: null },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", phrase, "pub route budget of£20"] }, total: 2000 },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pub route budget of£20", phrase, "pizza"] }, total: 2000 },
+  ];
+}
+
 describe("POST /api/plans/generate", () => {
+  it.each(drinkRatePhrases(5).flatMap(drinkRateInputs))(
+    "enforces every accepted drink price through preparation and selection: %j", async ({ total, ...input }) => {
+      const now = Date.parse("2026-10-15T12:00:00Z");
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+        const venues = await actual.loadConciergeVenues("london");
+        loadConciergeVenuesMock.mockResolvedValueOnce(venues);
+        const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+          method: "POST", body: JSON.stringify(input),
+        }), now);
+        if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
+        expect(result.prepared.context.budgetLimitPence).toBe(total);
+        const evidence = await planPriceEvidenceForVenues(venues, now);
+        expect(result.prepared.candidates.length).toBeGreaterThan(3);
+        for (const { venue } of result.prepared.candidates) {
+          expect(priceEvidenceUsableForCeiling(evidence.get(venue.id)!)).toBe(true);
+          expect(evidence.get(venue.id)!.pence).toBeLessThanOrEqual(500);
+          expect(venue.cheapestPrice).toBe(evidence.get(venue.id)!.pence! / 100);
+        }
+        loadConciergeVenuesMock.mockResolvedValueOnce(venues);
+        const response = await POST(new Request("http://localhost/api/plans/generate", {
+          method: "POST", body: JSON.stringify(input),
+        }));
+        const body = await response.json();
+        expect(response.status, JSON.stringify(body)).toBe(200);
+        expect(body.inferredContext.budgetLimitPence).toBe(total);
+        expect(body.stops).toHaveLength(3);
+        const stops = body.stops.flatMap((stop: { venueId: string; alternatives: Array<{ venueId: string }> }) => [stop, ...stop.alternatives]);
+        expect(stops.length).toBeGreaterThan(3);
+        for (const stop of stops) {
+          const price = evidence.get(stop.venueId)!;
+          expect(priceEvidenceUsableForCeiling(price)).toBe(true);
+          expect(price.pence).toBeLessThanOrEqual(500);
+          expect(stop.estimatedPintPricePence).toBe(price.pence);
+          if (total !== null) expect(stop.priceEvidence).toEqual(price);
+        }
+        if (total !== null) {
+          expect(body.budgetSummary).toMatchObject({ limitPence: total, withinLimit: true });
+          for (const [index, stop] of body.stops.entries()) {
+            for (const alternative of stop.alternatives) {
+              const route = body.stops.map((selected: { venueId: string }, position: number) => position === index ? alternative : selected);
+              expect(route.reduce((sum: number, selected: { venueId: string }) => sum + evidence.get(selected.venueId)!.pence!, 0)).toBeLessThanOrEqual(total);
+            }
+          }
+        }
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
+
+  it.each(drinkRatePhrases(1).flatMap(drinkRateInputs))(
+    "refuses impossible drink prices through selection: %j", async ({ total, ...input }) => {
+      const now = Date.parse("2026-10-15T12:00:00Z");
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
+        const response = await POST(new Request("http://localhost/api/plans/generate", {
+          method: "POST", body: JSON.stringify(input),
+        }));
+        expect(response.status).toBe(422);
+        expect(await response.json()).toMatchObject({ code: total === null ? "GROUNDED_VENUES_INSUFFICIENT" : "GROUNDED_CONSTRAINTS_UNSATISFIED" });
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    { query: "3 pubs in Clapham, beers under£6", context: { foodNeeds: ["pizza", "£5 per drink"] } },
+    { query: "3 pubs in Clapham, £5 per drink", context: { foodNeeds: ["pizza", "beers under£6"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", "beers under£6", "£5 per drink"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", "£5 per drink", "beers under£6"] } },
+  ])("retains conflicting drink ceilings across representations: %j", async (input) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
+    expect(result.prepared.context.budgetLimitPence).toBeNull();
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+  });
+
+  it.each(["beer", "drink", "pint"].flatMap((item) => [
+    `pizza and a ${item} under£10`, `${item} and pizza under£10`,
+    `£10 for a ${item} and pizza`, `£10 for pizza and a ${item}`,
+    `PIZZA & ${item.toUpperCase()} UNDER£10`, `pizza, beer and ${item} under£10`,
+  ]).flatMap((phrase) => [
+    { query: `One ${phrase} in Soho`, context: { stopCount: 1 } },
+    { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [phrase] } },
+  ]))("retains meal bundle ownership for every drink alias: %j", async (input) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+  });
+
+  it.each([
+    "bottles under£5", "£5 for a bottle", "cocktails under£5", "£5 per cocktail",
+    "half pints under£5", "£5 per half-pint", "bottled beers under£5", "£5 for two beers",
+    "two pints under£5", "£5 per can", "cans under£5", "£5 per glass",
+    "bottles of beer under£5", "beer bottles under£5", "£5 for a beer bottle",
+    "£5 for a bottle of beer", "glasses under£5", "shots under£5", "£5 for a shot",
+  ].flatMap((phrase) => [
+    { query: `3 pubs in Clapham, ${phrase}` },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", phrase] } },
+  ]))("explicitly refuses unsupported drink servings: %j", async (input) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+  });
+
+  it.each([
+    { drinkCategory: "wine" }, { drinkCategory: "cocktail" }, { zeroProof: true },
+  ])("does not substitute pint prices for a selected drink rate: %j", async (context) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, drinks under£5", context }),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it.each([
+    { query: "3 pubs in Clapham, beers under£5", context: { foodNeeds: ["pizza"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", "beers under£5"] } },
+    { query: "3 pubs in Clapham, £1 for a beer", context: { foodNeeds: ["pizza"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", "£1 for a beer"] } },
+  ])("keeps drink rates separate from totals: %j", async (input) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
+    expect(result.prepared.context.budgetLimitPence).toBeNull();
+    if (JSON.stringify(input).includes("£1")) expect(result.prepared.candidates).toHaveLength(0);
+    else expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+  });
+
   it.each([
     { query: "One pub in Soho. Steak with a budget of £20", context: { stopCount: 1 } },
     { query: "One pub in Soho, steak with a budget of £20", context: { stopCount: 1 } },

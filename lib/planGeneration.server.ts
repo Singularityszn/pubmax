@@ -23,7 +23,7 @@ import {
 	canAffectRoute,
 	claimsForEntity,
 } from "@/lib/nightSignalClaims";
-import { PLAN_DRINK_AFTER_PRICE, PLAN_DRINK_BEFORE_PRICE, PLAN_PRICE_AMOUNT, planPriceAmounts, planPriceLimits } from "@/lib/planPriceLimits";
+import { PLAN_DRINK_ITEM, PLAN_PRICE_AMOUNT, planPriceAmounts, planPriceLimits } from "@/lib/planPriceLimits";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
@@ -230,7 +230,6 @@ type PlanGenerationPreparation = {
 };
 
 const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
-const PLAN_DRINK_ITEM = String.raw`(?:pints?|drinks?|beers?)`;
 const PLAN_ITEM_LIST_JOIN = String.raw`(?:\s*,\s*|\s*\b(?:and|plus)\b\s*|\s*[+&]\s*)(?:(?:an?|one|two)\s+)?`;
 
 function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
@@ -265,22 +264,21 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
 		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_FOOD_ITEM}\b`, "i");
-		const drinkRate = new RegExp(String.raw`^\s*(?:per|a|each)\s+${PLAN_DRINK_ITEM}\b`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
-			if (drinkRate.test(after)) return false;
+			if (price.drink?.perServing) return false;
 			if (foodAfterPrice.test(after)) return true;
 			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
 			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
 				&& /\b(?:route\s+budget|(?:and|with)\s+(?:a\s+)?budget)(?:\s+of)?\s*$/i.test(budgetClause)) return false;
-			const pricedDrink = PLAN_DRINK_BEFORE_PRICE.exec(before);
-			if (pricedDrink) return pricedDrinkIncludesMeal(before.slice(0, pricedDrink.index), explicitFoodIntent);
-			const afterDrink = PLAN_DRINK_AFTER_PRICE.exec(after);
-			if (afterDrink) {
+			if (price.drink && price.drink.beforeStart !== null) {
+				return pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent);
+			}
+			if (price.drink && price.drink.afterEnd !== null) {
 				const item = explicitFoodIntent ? String.raw`\w+` : String.raw`(?:${PLAN_FOOD_ITEM}|${PLAN_DRINK_ITEM})`;
 				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
-					.exec(after.slice(afterDrink[0].length))?.[0] ?? "";
+					.exec(after.slice(price.drink.afterEnd))?.[0] ?? "";
 				if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
 				return explicitFoodIntent
 					? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
@@ -351,7 +349,16 @@ export async function preparePlanGeneration(
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	}
-	const priceLimits = planPriceLimits(query, ...context.foodNeeds);
+	const priceInputs = [query, ...context.foodNeeds];
+	if (priceInputs.some((value) => planPriceAmounts(value).some(({ drink }) =>
+		drink && (!drink.supported || !planUsesPintPrices(context))))) {
+		return { response: publicApiError(
+			"This route planner can check these drink limits only against recorded beer pint prices. Choose pints or remove the unsupported drink or serving limit.",
+			"DRINK_PRICE_CONSTRAINTS_UNSUPPORTED",
+			422,
+		) };
+	}
+	const priceLimits = planPriceLimits(...priceInputs);
 	if (priceLimits.routeBudgetPence !== null
 		&& (context.budgetLimitPence === null || priceLimits.routeBudgetPence < context.budgetLimitPence)) {
 		context.budgetLimitPence = priceLimits.routeBudgetPence;
