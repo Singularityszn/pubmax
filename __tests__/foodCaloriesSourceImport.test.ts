@@ -30,13 +30,16 @@ describe("committed Eagle menu receipt", () => {
     }
   });
 
-  it("retains only item, price and calorie facts in each nutrition excerpt", () => {
+  it("retains only item, price, portion and calorie facts in each nutrition excerpt", () => {
     expect(venue.sourceNutritionObservations).toHaveLength(42);
     for (const fact of venue.sourceNutritionObservations) {
       const item = defined(venue.candidateFoodItems.find((candidate) => candidate.itemName === fact.itemName));
       const lines = fact.sourceExcerpt.split("\n");
-      expect(lines.length).toBe(2);
-      const [nameAndPrice, calories] = lines;
+      const serving = "servingSize" in fact ? fact.servingSize : undefined;
+      expect(lines.length).toBe(serving ? 3 : 2);
+      const nameAndPrice = lines[0];
+      const calories = lines.at(-1);
+      if (serving) expect(lines[1]).toBe(serving);
       const [name, price] = defined(nameAndPrice).split("£");
       expect(defined(name).trim()).toBe(item.itemName);
       expect(Number(defined(price))).toBe(item.priceGbp);

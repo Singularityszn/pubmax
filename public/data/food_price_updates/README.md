@@ -56,6 +56,14 @@ The runtime menu retains separate `caloriesProvenance`, including its source URL
 so a later price-only update cannot redate an earlier calorie fact.
 This import does not add an automatic producer or revive the refresh lane.
 
+The offline `scripts/repair-eagle-food-portion.mjs` repairs one omitted fact
+from the retained, hash-pinned Eagle capture. It adds `servingSize: "3 scoops"`
+to the Ice cream receipt and both October runtime packs. It preserves the
+£5.50 price, 238 kcal, item identity, source and observation date.
+Run it from the repository root with the retained capture path as its only argument.
+It validates all records before publication and makes no change on a repeated run.
+It fetches nothing and does not refresh the retired lane.
+
 ## File naming
 
 `prices_YYYYMMDD.json` - one file per import. `latest.json` is a stable alias.

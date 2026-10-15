@@ -104,5 +104,5 @@ export function foodCategoryColor(category: FoodCategory): string {
 }
 
 export function foodServingSize(item: FoodItem): string | null {
-  return item.servingSize ?? item.name.match(/(?<![\p{L}\p{N}])\d+(?:\.\d+)?\s*(?:ml|cl|l|oz|scoops?)\b/giu)?.join(" ") ?? null;
+  return item.servingSize ?? item.name.match(/(?<![\p{L}\p{N}])\d+(?:\.\d+)?\s*(?:ml|cl|l|oz|kg|scoops?)\b/giu)?.join(" ") ?? null;
 }

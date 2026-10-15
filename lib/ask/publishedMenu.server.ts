@@ -14,13 +14,13 @@ function words(value: string): string {
   return value.toLocaleLowerCase("en-GB").replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
-const SERVING_RE = /(?<![\p{L}\p{N}])[-+]?(?:\d[\d.,]*|\.\d+)\s*(?:ml|cl|l|oz|scoops?)\b|\b(?:pint|glass|bottle|double|single)\b/giu;
+const SERVING_RE = /(?<![\p{L}\p{N}])[-+]?(?:\d[\d.,]*|\.\d+)\s*(?:ml|cl|l|oz|kg|scoops?)\b|\b(?:pint|glass|bottle|double|single)\b/giu;
 const BUDGET_RE = /\bunder\s*(?:£|GBP)\s*(\d+(?:\.\d{1,2})?)(?![\d.])/i;
 
 const CALORIE_RE = /\b(?:under|below)\s*(\d+(?:\.\d+)?)\s*(?:kcal|calories)\b/i;
 
 function servingIdentity(value: string): string {
-  return value.toLowerCase().replace(/\s+(?=(?:ml|cl|l|oz|scoops?)\b)/g, "").replace(/\s+/g, " ").trim();
+  return value.toLowerCase().replace(/\s+(?=(?:ml|cl|l|oz|kg|scoops?)\b)/g, "").replace(/\s+/g, " ").trim();
 }
 
 export async function publishedMenuCards(venueId: string, query: string, category?: DrinkCategory): Promise<{ cards: AskCard[]; unavailable: boolean }> {

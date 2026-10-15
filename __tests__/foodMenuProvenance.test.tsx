@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import pack from "../public/data/food_price_updates/latest.json";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -103,16 +104,21 @@ describe("food menu price evidence", () => {
 });
 
 it("renders factual portions through the food update consumer without changing whole-serving facts", () => {
-  const updates = parseFoodPriceUpdates([{ venueKey: "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933", itemName: "Ice cream", category: "desserts",
-    servingSize: "3 scoops", priceGbp: 5.5, caloriesKcal: 238,
-    source: { label: "Recorded menu fixture", url: "https://example.com/menu", licence: "Test" }, observedAt: "2026-10-13T06:51:38.364Z" }]);
+  const updates = parseFoodPriceUpdates(pack);
   const items = applyFoodPriceUpdatesToMenu("the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933", [], updates);
-  expect(items[0]).toMatchObject({ id: "food-1j3poi9", servingSize: "3 scoops", priceGbp: 5.5, caloriesKcal: 238 });
-  const html = renderToStaticMarkup(createElement(FoodMenu, { items }));
+  const iceCream = items.find((row) => row.id === "food-1j3poi9");
+  expect(iceCream).toMatchObject({ id: "food-1j3poi9", servingSize: "3 scoops", priceGbp: 5.5, caloriesKcal: 238 });
+  const html = renderToStaticMarkup(createElement(FoodMenu, { items: iceCream ? [iceCream] : [] }));
   const doc = new DOMParser().parseFromString(html, "text/html");
   expect(doc.querySelector(".drinkRow")?.textContent).toContain("3 scoops");
   expect(doc.querySelector(".drinkRow")?.textContent).toContain("238 kcal");
   expect(doc.querySelector(".drinkPrice")?.textContent).toContain("£5.50");
+  const ribs = items.find((row) => row.name === "1kg Brewhouse Pork Ribs");
+  expect(ribs).toBeDefined();
+  const ribsDoc = new DOMParser().parseFromString(renderToStaticMarkup(createElement(FoodMenu, { items: ribs ? [ribs] : [] })), "text/html");
+  expect(ribsDoc.querySelector(".drinkServing")?.textContent).toBe("1kg");
+  expect(ribsDoc.querySelector(".drinkPrice")?.textContent).toBe("£40.00");
+  expect(ribsDoc.querySelector(".foodCalories")?.textContent).toContain("3102 kcal");
   expect(new DOMParser().parseFromString(renderFood({ name: "8oz Bavette steak" }), "text/html").querySelector(".drinkServing")?.textContent).toBe("8oz");
   expect(new DOMParser().parseFromString(renderFood(), "text/html").querySelector(".drinkServing")).toBeNull();
 });

@@ -22,6 +22,7 @@ import * as priceUpdates from "@/lib/priceUpdates.server";
 import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
 import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
 import { publishedMenuCards, publishedMenuAnswer } from "@/lib/ask/publishedMenu.server";
+import { __resetCommunityPrices } from "@/lib/communityPriceStore";
 import type { AskCard } from "@/lib/ask/types";
 
 function request(query: string) {
@@ -37,23 +38,28 @@ beforeEach(() => {
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", offlineFetch);
   __resetPubPalToolTurnStore();
+  __resetCommunityPrices();
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 const portionCases = [
-  { query: "Price of 8oz Bavette steak at The New Inn", venueId: "venue-17qpap6", item: "8oz Bavette steak", price: 23, caloriesKcal: 1394,
+  { query: "Price of 8oz Bavette steak at The New Inn", venueId: "venue-17qpap6", item: "8oz Bavette steak", price: 23, serving: "8oz", caloriesKcal: 1394,
     source: "The New Inn - official published menu", sourceUrl: "https://www.newinnealing.com/food-and-drink", observedAt: "2026-10-13T09:43:11.443Z" },
-  { query: "Price of 10oz West Country Ribeye Steak at The Eagle, Hammersmith and Fulham", venueId: "venue-1hz0avt", item: "10oz West Country Ribeye Steak", price: 44, caloriesKcal: 776,
+  { query: "Price of 10oz West Country Ribeye Steak at The Eagle, Hammersmith and Fulham", venueId: "venue-1hz0avt", item: "10oz West Country Ribeye Steak", price: 44, serving: "10oz", caloriesKcal: 776,
+    source: "The Eagle - official published menu", sourceUrl: "https://www.theeaglew12.co.uk/food-drink", observedAt: "2026-10-13T06:51:38.364Z" },
+  { query: "Price of 1kg Brewhouse Pork Ribs at The Eagle, Hammersmith and Fulham", venueId: "venue-1hz0avt", item: "1kg Brewhouse Pork Ribs", price: 40, serving: "1kg", caloriesKcal: 3102,
+    source: "The Eagle - official published menu", sourceUrl: "https://www.theeaglew12.co.uk/food-drink", observedAt: "2026-10-13T06:51:38.364Z" },
+  { query: "Price of 3 scoops Ice cream at The Eagle, Hammersmith and Fulham", venueId: "venue-1hz0avt", item: "Ice cream", price: 5.5, serving: "3 scoops", caloriesKcal: 238,
     source: "The Eagle - official published menu", sourceUrl: "https://www.theeaglew12.co.uk/food-drink", observedAt: "2026-10-13T06:51:38.364Z" },
 ] as const;
 const portionRequests = portionCases.flatMap((record) => [
   { ...record, accepted: true },
-  { ...record, query: record.query.replace("oz", " oz"), accepted: true },
-  { ...record, query: record.query.replace(/\d+oz/, "12oz"), accepted: false },
-  { ...record, query: record.query.replace(/\d+oz/, "-8oz"), accepted: false },
-  { ...record, query: record.query.replace(/\d+oz/, "0.8oz"), accepted: false },
-  { ...record, query: record.query.replace(/\d+oz/, "8oz glass"), accepted: false },
-  { ...record, query: record.query.replace(/\d+oz/, "125ml"), accepted: false },
+  { ...record, query: record.query.replace(record.serving, record.serving.replace(/\s/g, "").replace(/(\d)([a-z])/i, "$1 $2")), accepted: true },
+  { ...record, query: record.query.replace(record.serving, "12oz"), accepted: false },
+  { ...record, query: record.query.replace(record.serving, "-8oz"), accepted: false },
+  { ...record, query: record.query.replace(record.serving, "0.8oz"), accepted: false },
+  { ...record, query: record.query.replace(record.serving, "8oz glass"), accepted: false },
+  { ...record, query: record.query.replace(record.serving, "125ml"), accepted: false },
   { ...record, query: record.query.replace("Price of", "Vegan gluten-free price of"), accepted: false },
   { ...record, query: `Is ${record.item} vegan at ${record.query.split(" at ")[1]}?`, accepted: true },
 ]);
@@ -114,7 +120,7 @@ it.each(portionRequests.flatMap((record) => ["reader", "ask", "keyless chat", "c
   }
   expect(cards).toHaveLength(1);
   expect(cards[0]).toMatchObject({ venueId, price: record.price,
-    menuEvidence: { itemName: record.item, menu: "food", currency: "GBP", serving: record.item.match(/\d+oz/)?.[0], caloriesKcal: record.caloriesKcal,
+    menuEvidence: { itemName: record.item, menu: "food", currency: "GBP", serving: record.serving, caloriesKcal: record.caloriesKcal,
       source: record.source, sourceUrl: record.sourceUrl, observedAt: record.observedAt, dietary: [], dietaryProvenance: null,
       caloriesProvenance: { source: record.source, sourceUrl: record.sourceUrl, observedAt: record.observedAt }, availability: "unknown" },
     provenance: { kind: "published-menu", label: record.source, url: record.sourceUrl },
@@ -123,7 +129,7 @@ it.each(portionRequests.flatMap((record) => ["reader", "ask", "keyless chat", "c
   expect(answer).toContain(`£${record.price.toFixed(2)}`);
   expect(answer).toContain(`${record.caloriesKcal} kcal published for this item.`);
   expect(answer).toContain(`Price observed ${record.observedAt.slice(0, 10)}.`);
-  expect(answer).toContain(`Published serving: ${record.item.match(/\d+oz/)?.[0]}.`);
+  expect(answer).toContain(`Published serving: ${record.serving}.`);
   expect(answer).toContain("Dietary labels not recorded.");
   expect(answer).toContain("Availability unknown.");
   expect(answer).not.toMatch(/allergy.safe|in stock/i);
@@ -632,7 +638,7 @@ it("requires publisher calories and every conjunctive numeric and dietary bound"
   expect(cards.map((card) => card.menuEvidence?.itemName)).toEqual(["Qualifying"]);
 });
 
-it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes"])("retains initial deterministic context through the client and owned store: %s", async (query) => {
+it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn"])("retains initial deterministic context through the client and owned store: %s", async (query) => {
   vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
   vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
   const payloads: Array<{ query: string; threadId?: string }> = [];
@@ -646,6 +652,10 @@ it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes
   await session(query, "london");
   const first = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
   if (!first.ok) throw new Error("Expected deterministic answer");
+  if (/Fox and Anchor|Unicorn/.test(query)) {
+    expect(first.cards).toEqual([]);
+    expect(first.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue" }));
+  }
   expect(first.conversationId).toMatch(/^conv_[A-Za-z0-9]{8,64}$/);
   const stored = await readOwnedPubPalToolTurn(first.conversationId, "menu-owner");
   expect(stored).toMatchObject({ query, cards: first.cards, hints: [first.message] });
@@ -673,10 +683,10 @@ it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Sherlock Holmes
   expect(nextMessage).toContain("Current user message: How do I get there?");
 });
 
-it("keeps deterministic continuations isolated from foreign and expired threads", async () => {
+it.each(["Price of Mixed Olives at The New Inn", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn"])("keeps deterministic continuations isolated from foreign and expired threads: %s", async (query) => {
   vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
   vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
-  const first = await runPalElevenLabsChatTurn({ query: "Price of Mixed Olives at The New Inn", ownerId: "menu-owner" });
+  const first = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
   if (!first.ok) throw new Error("Expected initial answer");
   const foreign = await runPalElevenLabsChatTurn({ query: "Wine prices at Sherlock Holmes", threadId: first.conversationId, ownerId: "another-owner" });
   if (!foreign.ok) throw new Error("Expected isolated answer");
@@ -684,7 +694,7 @@ it("keeps deterministic continuations isolated from foreign and expired threads"
   expect(await readOwnedPubPalToolTurn(foreign.conversationId, "menu-owner")).toBeNull();
   expect(await readOwnedPubPalToolTurn(foreign.conversationId, "another-owner")).toMatchObject({ turns: [], summary: "" });
   const original = await readOwnedPubPalToolTurn(first.conversationId, "menu-owner");
-  expect(original?.query).toBe("Price of Mixed Olives at The New Inn");
+  expect(original?.query).toBe(query);
   if (!original) throw new Error("Expected owned row");
   vi.spyOn(Date, "now").mockReturnValue(original.expiresAt + 1);
   const expired = await runPalElevenLabsChatTurn({ query: "Wine prices at Sherlock Holmes", threadId: first.conversationId, ownerId: "menu-owner" });
@@ -695,11 +705,34 @@ it("keeps deterministic continuations isolated from foreign and expired threads"
 });
 
 it.each(["3 scoops", "3scoops", "2 scoops"])("matches explicit food portions without dividing item facts: %s", async (portion) => {
-  const food = parseFoodPriceUpdates([{ venueKey: "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933", itemName: "Ice cream", category: "desserts",
-    servingSize: "3 scoops", priceGbp: 5.5, caloriesKcal: 238,
-    source: { label: "Recorded portion fixture", url: "https://example.com/menu", licence: "Test" }, observedAt: "2026-10-13T06:51:38.364Z" }]);
-  vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue({ food, drink: [] });
   const { cards } = await publishedMenuCards("venue-1hz0avt", `Price of ${portion} Ice cream at The Eagle, Hammersmith and Fulham`);
   if (portion === "2 scoops") expect(cards).toEqual([]);
   else expect(cards).toMatchObject([{ price: 5.5, menuEvidence: { itemId: "food-1j3poi9", serving: "3 scoops", caloriesKcal: 238 } }]);
+});
+
+it.each([
+  "Price of 2kg Brewhouse Pork Ribs at The Eagle, Hammersmith and Fulham",
+  "Price of -1kg Brewhouse Pork Ribs at The Eagle, Hammersmith and Fulham",
+  "Price of 0.1kg Brewhouse Pork Ribs at The Eagle, Hammersmith and Fulham",
+  "Price of 1kg glass Brewhouse Pork Ribs at The Eagle, Hammersmith and Fulham",
+  "Price of 1kg Mixed Olives at The New Inn",
+])("rejects unrecorded kilogram portions: %s", async (query) => {
+  const { cards } = await publishedMenuCards(query.includes("The New Inn") ? "venue-17qpap6" : "venue-1hz0avt", query);
+  expect(cards).toEqual([]);
+});
+
+it.each(["Price of Mixed Olives at The Lamb", "Wine prices at Unknown Test Venue"])('keeps unresolved deterministic replies unregistered: %s', async (query) => {
+  vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+  vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+  const result = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
+  expect(result).toMatchObject({ ok: true, cards: [], proposals: [], conversationId: "" });
+});
+
+it("keeps unavailable zero-card menu replies unregistered", async () => {
+  vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+  vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+  vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue(null);
+  const result = await runPalElevenLabsChatTurn({ query: "Price of Mixed Olives at The New Inn", ownerId: "menu-owner" });
+  expect(result).toMatchObject({ ok: true, cards: [], conversationId: "" });
+  if (result.ok) expect(result.message).toContain("couldn't read");
 });

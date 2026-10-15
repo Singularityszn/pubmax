@@ -59,6 +59,7 @@ const config: KnipConfig = {
     "scripts/record_concierge_intent_probabilities.ts",
     // Standalone disposable Plan browser proof; traces its database helper too.
     "scripts/e2e/run-disposable-plan-browser.mjs",
+    "scripts/repair-eagle-food-portion.mjs",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,

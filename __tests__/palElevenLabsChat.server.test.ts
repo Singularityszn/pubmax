@@ -211,9 +211,9 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.unstubAllGlobals();
   });
 
-  it("refuses an initial deterministic answer when its owned registration fails", async () => {
+  it.each(["Wine prices at Sherlock Holmes", "Wine prices at Fox and Anchor", "Price of Unicorn stew at The New Inn"])("refuses an initial deterministic answer when its owned registration fails: %s", async (query) => {
     storeMocks.registerPubPalToolTurn.mockRejectedValueOnce(new Error("Store unavailable"));
-    const outcome = await runPalElevenLabsChatTurn({ query: "Wine prices at Sherlock Holmes", ownerId: "menu-owner" });
+    const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "menu-owner" });
     expect(outcome).toEqual({ ok: false, code: "UNAVAILABLE" });
     expect(wsState.socketsOpened).toBe(0);
     expect(fetch).not.toHaveBeenCalled();
@@ -233,7 +233,7 @@ describe("runPalElevenLabsChatTurn", () => {
   it.each(NAMED_QUALIFIED_PRICE_REQUESTS.filter(({ query }) => /this evening|now|later/.test(query)))("accepts named time-qualified prices in configured chat: $query", async ({ query, tool }) => {
     const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
     if (tool === "venue_drinks") {
-      expect(outcome).toMatchObject({ ok: true, conversationId: "", toolsUsed: ["venue_drinks"] });
+      expect(outcome).toMatchObject({ ok: true, conversationId: expect.stringMatching(/^conv_[a-z0-9]{32}$/), toolsUsed: ["venue_drinks"] });
       expect(wsState.socketsOpened).toBe(0);
       expect(fetch).not.toHaveBeenCalled();
     } else {

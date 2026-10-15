@@ -493,7 +493,8 @@
             "url": "https://www.theeaglew12.co.uk/food-drink",
             "licence": "All rights reserved - first-party publisher, attributed use only."
           },
-          "observedAt": "2026-10-13T06:51:38.364Z"
+          "observedAt": "2026-10-13T06:51:38.364Z",
+          "servingSize": "3 scoops"
         },
         {
           "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
@@ -733,7 +734,8 @@
         {
           "itemName": "Ice cream",
           "sourceStatedCaloriesKcal": 238,
-          "sourceExcerpt": "Ice cream£5.50\n238kcal"
+          "sourceExcerpt": "Ice cream£5.50\n3 scoops\n238kcal",
+          "servingSize": "3 scoops"
         },
         {
           "itemName": "Affogato",
