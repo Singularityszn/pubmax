@@ -263,7 +263,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_FOOD_ITEM}\b`, "i");
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?(?:(?:slices?|portions?)\s+of\s+(?:(?:an?|one|two)\s+)?)?${PLAN_FOOD_ITEM}\b`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
