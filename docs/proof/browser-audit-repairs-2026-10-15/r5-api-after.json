@@ -1,0 +1,1632 @@
+[
+  {
+    "input": {
+      "query": "One pizza and a pint under £10 in Soho",
+      "context": {
+        "stopCount": 1
+      }
+    },
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+    "stopCount": 0,
+    "response": {
+      "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+      "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+      "retryable": false
+    }
+  },
+  {
+    "input": {
+      "query": "One pizza in Soho, priced under £10",
+      "context": {
+        "stopCount": 1
+      }
+    },
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+    "stopCount": 0,
+    "response": {
+      "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+      "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+      "retryable": false
+    }
+  },
+  {
+    "input": {
+      "query": "3 pubs in Clapham under £20 per person with pizza afterwards",
+      "context": {
+        "stopCount": 3
+      }
+    },
+    "status": 200,
+    "code": null,
+    "error": null,
+    "stopCount": 3,
+    "response": {
+      "grounded": true,
+      "groundingProof": "eyJ2IjoxLCJ2ZW51ZUlkcyI6WyJ2ZW51ZS0xMWUwaGtoIiwidmVudWUtMTJ4MHA5aiIsInZlbnVlLTFldGYyMnIiLCJ2ZW51ZS01ZmNnZ2UiLCJ2ZW51ZS1sNXF5ZTciLCJ2ZW51ZS11ejJsOHYiLCJ2ZW51ZS15aG9kajYiXSwib3BlcmF0aW9uRGlnZXN0IjoiMDNlY2I4YzRjNGY0YTQ3NzZmNjBmNWIxNGQwMmQxNmEzMTc1ZTc3NThmNTNjNzc2YjIxZTM0ZDM0NTRlYWMxYSIsImlzc3VlZEF0IjoxNzkyMDY1OTIxMzE3LCJleHBpcmVzQXQiOjE3OTIwNzMxMjEzMTd9.J8MJDIiidFJ423qOZOeWn2mpyhfOGRRwAipQ_CENHY0",
+      "operationKey": "create-581729b7-5031-441a-8dda-9cf7214392a9",
+      "inferredContext": {
+        "nightArea": "clapham",
+        "daypart": "daytime",
+        "partyType": "friends",
+        "groupSize": null,
+        "stopCount": 3,
+        "budget": "standard",
+        "budgetLimitPence": 2000,
+        "zeroProof": false,
+        "drinkCategory": null,
+        "wetherspoonsPreferred": false,
+        "atmosphere": [],
+        "foodNeeds": [
+          "pizza"
+        ],
+        "accessibility": [],
+        "transportConstraints": []
+      },
+      "contextFieldSources": {
+        "nightArea": "query",
+        "daypart": "default",
+        "partyType": "default",
+        "groupSize": "default",
+        "stopCount": "context",
+        "budget": "default",
+        "budgetLimitPence": "query",
+        "zeroProof": "default",
+        "drinkCategory": "default",
+        "wetherspoonsPreferred": "default",
+        "atmosphere": "default",
+        "foodNeeds": "default",
+        "accessibility": "default",
+        "transportConstraints": "default"
+      },
+      "confidence": 0.86,
+      "planningConfidence": {
+        "level": "medium",
+        "score": 0.86,
+        "routeReady": true,
+        "missingEvidence": [
+          "current_opening_hours"
+        ],
+        "warnings": [
+          "Check current opening hours before relying on this route."
+        ],
+        "provenance": [
+          {
+            "kind": "venue_dataset",
+            "label": "PUBMAXX Venue Dataset"
+          },
+          {
+            "kind": "night_area_review",
+            "label": "Clapham route review",
+            "asOf": "2026-07-13T00:00:00.000Z"
+          }
+        ]
+      },
+      "budgetSummary": {
+        "currency": "GBP",
+        "limitPence": 2000,
+        "estimatedPerPersonPence": 1820,
+        "estimatedCrewPence": 1820,
+        "withinLimit": true,
+        "basis": "one-recorded-pint-per-stop"
+      },
+      "routeTotals": {
+        "stopCount": 3,
+        "straightLineWalkingKm": 0.31,
+        "estimatedWalkingMinutes": 4,
+        "distanceBasis": "straight-line"
+      },
+      "routeTiming": {
+        "walkingSpeedKmh": 4.8,
+        "walkingMinutes": 4,
+        "transferUncertaintyMinutes": 10,
+        "scheduledRouteMinutes": 164,
+        "basis": "straight-line walking estimate; add five minutes uncertainty per transfer"
+      },
+      "endingRecommendations": [
+        {
+          "kind": "food",
+          "label": "Find food",
+          "reason": "No late food worth pointing you to round here yet.",
+          "preselected": false,
+          "requiresConfirmation": true,
+          "confidence": "low",
+          "warnings": [
+            "No late food worth pointing you to round here yet."
+          ],
+          "options": []
+        },
+        {
+          "kind": "get_home",
+          "label": "Get home",
+          "reason": "Keep Clapham Common visible as the route's transport anchor.",
+          "preselected": true,
+          "requiresConfirmation": true,
+          "confidence": "medium",
+          "warnings": [
+            "Live status, destination routing, and last-service times load during the night."
+          ],
+          "options": [
+            {
+              "id": "transport:clapham-common",
+              "label": "Clapham Common",
+              "detail": "Open TfL only after you confirm.",
+              "href": "https://tfl.gov.uk/plan-a-journey/",
+              "provenance": [
+                {
+                  "kind": "night_area_review",
+                  "label": "Clapham Common transport anchor"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "keep_going",
+          "label": "Keep going",
+          "reason": "2 more pubs close by. Check prices and hours before you go.",
+          "preselected": false,
+          "requiresConfirmation": true,
+          "confidence": "low",
+          "warnings": [
+            "Closing times are not checked. We show extra spend only when a price is recorded."
+          ],
+          "options": [
+            {
+              "id": "venue-uz2l8v",
+              "label": "Prince of Wales",
+              "detail": "0.4 km straight-line · about £5.80 for one recorded pint · closing time not checked",
+              "priceImpactPence": 580,
+              "closingConfidence": "unknown",
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Prince of Wales"
+                }
+              ]
+            },
+            {
+              "id": "venue-5fcgge",
+              "label": "Cafe Sol",
+              "detail": "0.5 km straight-line · about £5.60 for one recorded pint · closing time not checked",
+              "priceImpactPence": 560,
+              "closingConfidence": "unknown",
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Cafe Sol"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "weatherEvidence": null,
+      "nightArea": {
+        "id": "clapham",
+        "slug": "clapham",
+        "coverageStatus": "route_ready",
+        "coverageScore": 88,
+        "routeReadyReasons": [
+          "venue_density",
+          "identity_conflict",
+          "price_coverage",
+          "amenity_coverage",
+          "opening_hours",
+          "transport_anchor",
+          "route_feasibility",
+          "terminal_get_home",
+          "terminal_food",
+          "unreviewed_source"
+        ],
+        "missingEvidence": [],
+        "gate": {
+          "version": 1,
+          "passed": true,
+          "checks": [
+            {
+              "code": "venue_density",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:venue_density:v1"
+              ]
+            },
+            {
+              "code": "identity_conflict",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:identity_conflict:v1"
+              ]
+            },
+            {
+              "code": "price_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:price_coverage:v1"
+              ]
+            },
+            {
+              "code": "amenity_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:amenity_coverage:v1"
+              ]
+            },
+            {
+              "code": "opening_hours",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:opening_hours:v1"
+              ]
+            },
+            {
+              "code": "transport_anchor",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:transport_anchor:v1"
+              ]
+            },
+            {
+              "code": "route_feasibility",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:route_feasibility:v1"
+              ]
+            },
+            {
+              "code": "terminal_get_home",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:terminal_get_home:v1"
+              ]
+            },
+            {
+              "code": "terminal_food",
+              "required": true,
+              "passed": true,
+              "observed": "unavailable_after_review",
+              "evidenceRefs": [
+                "fixture:terminal_food:v1"
+              ]
+            },
+            {
+              "code": "unreviewed_source",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:unreviewed_source:v1"
+              ]
+            }
+          ]
+        },
+        "lastReviewedAt": "2026-07-13T00:00:00.000Z",
+        "reviewExpiresAt": "2027-01-01T00:00:00.000Z",
+        "routeReady": true
+      },
+      "constraintReport": {
+        "version": 1,
+        "source": "plan-intake-v1",
+        "hardConstraints": [
+          {
+            "code": "safety",
+            "status": "satisfied",
+            "message": "Stops with an active reviewed avoid signal were excluded."
+          },
+          {
+            "code": "exclusions",
+            "status": "satisfied",
+            "message": "Excluded and promoted venues were not eligible."
+          },
+          {
+            "code": "transport_feasibility",
+            "status": "satisfied",
+            "message": "Travel time uses 4.8 km/h direct-distance walking plus 5 minutes uncertainty per leg; pavement routing is not claimed."
+          },
+          {
+            "code": "budget_ceiling",
+            "status": "satisfied",
+            "message": "The attributable, non-stale recorded one-pint-per-stop total is within the per-person ceiling."
+          }
+        ],
+        "softRelaxations": []
+      },
+      "district": {
+        "id": "clapham",
+        "slug": "clapham",
+        "coverageStatus": "route_ready",
+        "coverageScore": 88,
+        "routeReadyReasons": [
+          "venue_density",
+          "identity_conflict",
+          "price_coverage",
+          "amenity_coverage",
+          "opening_hours",
+          "transport_anchor",
+          "route_feasibility",
+          "terminal_get_home",
+          "terminal_food",
+          "unreviewed_source"
+        ],
+        "missingEvidence": [],
+        "gate": {
+          "version": 1,
+          "passed": true,
+          "checks": [
+            {
+              "code": "venue_density",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:venue_density:v1"
+              ]
+            },
+            {
+              "code": "identity_conflict",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:identity_conflict:v1"
+              ]
+            },
+            {
+              "code": "price_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:price_coverage:v1"
+              ]
+            },
+            {
+              "code": "amenity_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:amenity_coverage:v1"
+              ]
+            },
+            {
+              "code": "opening_hours",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:opening_hours:v1"
+              ]
+            },
+            {
+              "code": "transport_anchor",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:transport_anchor:v1"
+              ]
+            },
+            {
+              "code": "route_feasibility",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:route_feasibility:v1"
+              ]
+            },
+            {
+              "code": "terminal_get_home",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:terminal_get_home:v1"
+              ]
+            },
+            {
+              "code": "terminal_food",
+              "required": true,
+              "passed": true,
+              "observed": "unavailable_after_review",
+              "evidenceRefs": [
+                "fixture:terminal_food:v1"
+              ]
+            },
+            {
+              "code": "unreviewed_source",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:unreviewed_source:v1"
+              ]
+            }
+          ]
+        },
+        "lastReviewedAt": "2026-07-13T00:00:00.000Z",
+        "reviewExpiresAt": "2027-01-01T00:00:00.000Z",
+        "routeReady": true
+      },
+      "explanations": [
+        {
+          "field": "nightArea",
+          "evidence": "Clapham",
+          "explanation": "Matched the requested area."
+        },
+        {
+          "field": "budgetLimitPence",
+          "evidence": "£20.00",
+          "explanation": "Matched the explicit per-person route budget."
+        },
+        {
+          "field": "stopCount",
+          "evidence": "explicit context",
+          "explanation": "Applied from the explicit Night Context correction."
+        }
+      ],
+      "stops": [
+        {
+          "venueId": "venue-12x0p9j",
+          "venueName": "The Stonhouse",
+          "position": 0,
+          "walkingMinutesFromPrevious": null,
+          "distanceKm": 0.22,
+          "estimatedPintPricePence": 580,
+          "priceEvidence": {
+            "pence": 580,
+            "source": {
+              "label": "Pint Prices",
+              "url": "https://www.pint-prices.com/pub/165%20Stonhouse%20St,%20London%20SW4%206BJ,%20UK/The%20Stonhouse",
+              "observedAt": "2026-10-02T11:48:33.000Z"
+            },
+            "confidenceState": "fresh"
+          },
+          "selectedDrinkPriceEvidence": null,
+          "accessEvidence": {},
+          "evidence": [
+            "matched the food need at venue level"
+          ],
+          "constraintFlags": [],
+          "operationalEvidence": {
+            "openingAtVisit": "unknown",
+            "openingSource": null,
+            "visitWindow": null,
+            "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+          },
+          "provenance": [
+            {
+              "kind": "venue_dataset",
+              "label": "PUBMAXX venue record for The Stonhouse"
+            },
+            {
+              "kind": "night_area_review",
+              "label": "Clapham route review",
+              "asOf": "2026-07-13T00:00:00.000Z"
+            }
+          ],
+          "reason": "Close to the heart of the area, matched the food need at venue level.",
+          "alternatives": [
+            {
+              "venueId": "venue-l5qye7",
+              "venueName": "The Bread & Roses",
+              "distanceKm": 0.23,
+              "estimatedPintPricePence": 550,
+              "priceEvidence": {
+                "pence": 550,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/68%20Clapham%20Manor%20St,%20London%20SW4%206DZ,%20UK/The%20Bread%20%26%20Roses",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for The Bread & Roses"
+                }
+              ]
+            },
+            {
+              "venueId": "venue-5fcgge",
+              "venueName": "Cafe Sol",
+              "distanceKm": 0.29,
+              "estimatedPintPricePence": 560,
+              "priceEvidence": {
+                "pence": 560,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/56%20Clapham%20High%20St,%20London%20SW4%207UL/Cafe%20Sol",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Cafe Sol"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "venueId": "venue-11e0hkh",
+          "venueName": "The Belle Vue",
+          "position": 1,
+          "walkingMinutesFromPrevious": 3,
+          "distanceKm": 0.03,
+          "estimatedPintPricePence": 600,
+          "priceEvidence": {
+            "pence": 600,
+            "source": {
+              "label": "Pint Prices",
+              "url": "https://www.pint-prices.com/pub/1%20Clapham%20Common%20South%20Side,%20London%20SW4%207AA/The%20Belle%20Vue",
+              "observedAt": "2026-10-02T11:48:33.000Z"
+            },
+            "confidenceState": "fresh"
+          },
+          "selectedDrinkPriceEvidence": null,
+          "accessEvidence": {},
+          "evidence": [
+            "matched the food need at venue level"
+          ],
+          "constraintFlags": [],
+          "operationalEvidence": {
+            "openingAtVisit": "unknown",
+            "openingSource": null,
+            "visitWindow": null,
+            "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+          },
+          "provenance": [
+            {
+              "kind": "venue_dataset",
+              "label": "PUBMAXX venue record for The Belle Vue"
+            },
+            {
+              "kind": "night_area_review",
+              "label": "Clapham route review",
+              "asOf": "2026-07-13T00:00:00.000Z"
+            }
+          ],
+          "reason": "Close to the heart of the area, matched the food need at venue level.",
+          "alternatives": [
+            {
+              "venueId": "venue-uz2l8v",
+              "venueName": "Prince of Wales",
+              "distanceKm": 0.38,
+              "estimatedPintPricePence": 580,
+              "priceEvidence": {
+                "pence": 580,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/38%20Old%20Town,%20London%20SW4%200LB/Prince%20of%20Wales",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Prince of Wales"
+                }
+              ]
+            },
+            {
+              "venueId": "venue-5fcgge",
+              "venueName": "Cafe Sol",
+              "distanceKm": 0.41,
+              "estimatedPintPricePence": 560,
+              "priceEvidence": {
+                "pence": 560,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/56%20Clapham%20High%20St,%20London%20SW4%207UL/Cafe%20Sol",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Cafe Sol"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "venueId": "venue-yhodj6",
+          "venueName": "The Alexandra",
+          "position": 2,
+          "walkingMinutesFromPrevious": 1,
+          "distanceKm": 0.08,
+          "estimatedPintPricePence": 640,
+          "priceEvidence": {
+            "pence": 640,
+            "source": {
+              "label": "Pint Prices",
+              "url": "https://www.pint-prices.com/pub/14%20Clapham%20Common%20South%20Side,%20London%20SW4%207AA/The%20Alexandra",
+              "observedAt": "2026-10-02T11:48:33.000Z"
+            },
+            "confidenceState": "fresh"
+          },
+          "selectedDrinkPriceEvidence": null,
+          "accessEvidence": {},
+          "evidence": [
+            "matched the food need at venue level"
+          ],
+          "constraintFlags": [],
+          "operationalEvidence": {
+            "openingAtVisit": "unknown",
+            "openingSource": null,
+            "visitWindow": null,
+            "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+          },
+          "provenance": [
+            {
+              "kind": "venue_dataset",
+              "label": "PUBMAXX venue record for The Alexandra"
+            },
+            {
+              "kind": "night_area_review",
+              "label": "Clapham route review",
+              "asOf": "2026-07-13T00:00:00.000Z"
+            }
+          ],
+          "reason": "Close to the heart of the area, matched the food need at venue level.",
+          "alternatives": [
+            {
+              "venueId": "venue-uz2l8v",
+              "venueName": "Prince of Wales",
+              "distanceKm": 0.39,
+              "estimatedPintPricePence": 580,
+              "priceEvidence": {
+                "pence": 580,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/38%20Old%20Town,%20London%20SW4%200LB/Prince%20of%20Wales",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Prince of Wales"
+                }
+              ]
+            },
+            {
+              "venueId": "venue-1etf22r",
+              "venueName": "Lotus Bar",
+              "distanceKm": 0.42,
+              "estimatedPintPricePence": 800,
+              "priceEvidence": {
+                "pence": 800,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/76%20Clapham%20High%20St,%20London%20SW4%207UL,%20UK/Lotus%20Bar",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Lotus Bar"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "contextEffects": [
+        "budget",
+        "daypart",
+        "foodNeeds",
+        "budgetLimitPence"
+      ],
+      "missingContextEvidence": [],
+      "relevantSignals": [],
+      "nightSignalClaims": []
+    }
+  },
+  {
+    "input": {
+      "query": "One pub in Soho",
+      "context": {
+        "stopCount": 1,
+        "foodNeeds": [
+          "One pizza and a pint under £10"
+        ]
+      }
+    },
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+    "stopCount": 0,
+    "response": {
+      "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+      "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+      "retryable": false
+    }
+  },
+  {
+    "input": {
+      "query": "One pub in Soho",
+      "context": {
+        "stopCount": 1,
+        "foodNeeds": [
+          "pizza in Soho, priced under £10"
+        ]
+      }
+    },
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+    "stopCount": 0,
+    "response": {
+      "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+      "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+      "retryable": false
+    }
+  },
+  {
+    "input": {
+      "query": "3 pubs in Clapham under £20 per person",
+      "context": {
+        "stopCount": 3,
+        "foodNeeds": [
+          "£20 per person with pizza afterwards"
+        ]
+      }
+    },
+    "status": 200,
+    "code": null,
+    "error": null,
+    "stopCount": 3,
+    "response": {
+      "grounded": true,
+      "groundingProof": "eyJ2IjoxLCJ2ZW51ZUlkcyI6WyJ2ZW51ZS0xMWUwaGtoIiwidmVudWUtMTJ4MHA5aiIsInZlbnVlLTFldGYyMnIiLCJ2ZW51ZS01ZmNnZ2UiLCJ2ZW51ZS1sNXF5ZTciLCJ2ZW51ZS11ejJsOHYiLCJ2ZW51ZS15aG9kajYiXSwib3BlcmF0aW9uRGlnZXN0IjoiYzE3NDVlNTI3MjU0NzAzMGI4NjgwMDY4ZTQ3ZDk2MjUwODc0MmRhNTExZWVmMmRkNDVjNDUwZWQ4YmJhYTE3MyIsImlzc3VlZEF0IjoxNzkyMDY1OTIxMzkzLCJleHBpcmVzQXQiOjE3OTIwNzMxMjEzOTN9.iW21FHaVGKTek0HsX-3W8HABzYzKHZnsA5n5QmeJi9w",
+      "operationKey": "create-697af3a0-9716-4a16-9a18-771d2335ae45",
+      "inferredContext": {
+        "nightArea": "clapham",
+        "daypart": "daytime",
+        "partyType": "friends",
+        "groupSize": null,
+        "stopCount": 3,
+        "budget": "standard",
+        "budgetLimitPence": 2000,
+        "zeroProof": false,
+        "drinkCategory": null,
+        "wetherspoonsPreferred": false,
+        "atmosphere": [],
+        "foodNeeds": [
+          "£20 per person with pizza afterwards"
+        ],
+        "accessibility": [],
+        "transportConstraints": []
+      },
+      "contextFieldSources": {
+        "nightArea": "query",
+        "daypart": "default",
+        "partyType": "default",
+        "groupSize": "default",
+        "stopCount": "context",
+        "budget": "default",
+        "budgetLimitPence": "query",
+        "zeroProof": "default",
+        "drinkCategory": "default",
+        "wetherspoonsPreferred": "default",
+        "atmosphere": "default",
+        "foodNeeds": "context",
+        "accessibility": "default",
+        "transportConstraints": "default"
+      },
+      "confidence": 0.86,
+      "planningConfidence": {
+        "level": "medium",
+        "score": 0.86,
+        "routeReady": true,
+        "missingEvidence": [
+          "current_opening_hours"
+        ],
+        "warnings": [
+          "Check current opening hours before relying on this route."
+        ],
+        "provenance": [
+          {
+            "kind": "venue_dataset",
+            "label": "PUBMAXX Venue Dataset"
+          },
+          {
+            "kind": "night_area_review",
+            "label": "Clapham route review",
+            "asOf": "2026-07-13T00:00:00.000Z"
+          }
+        ]
+      },
+      "budgetSummary": {
+        "currency": "GBP",
+        "limitPence": 2000,
+        "estimatedPerPersonPence": 1820,
+        "estimatedCrewPence": 1820,
+        "withinLimit": true,
+        "basis": "one-recorded-pint-per-stop"
+      },
+      "routeTotals": {
+        "stopCount": 3,
+        "straightLineWalkingKm": 0.31,
+        "estimatedWalkingMinutes": 4,
+        "distanceBasis": "straight-line"
+      },
+      "routeTiming": {
+        "walkingSpeedKmh": 4.8,
+        "walkingMinutes": 4,
+        "transferUncertaintyMinutes": 10,
+        "scheduledRouteMinutes": 164,
+        "basis": "straight-line walking estimate; add five minutes uncertainty per transfer"
+      },
+      "endingRecommendations": [
+        {
+          "kind": "food",
+          "label": "Find food",
+          "reason": "No late food worth pointing you to round here yet.",
+          "preselected": false,
+          "requiresConfirmation": true,
+          "confidence": "low",
+          "warnings": [
+            "No late food worth pointing you to round here yet."
+          ],
+          "options": []
+        },
+        {
+          "kind": "get_home",
+          "label": "Get home",
+          "reason": "Keep Clapham Common visible as the route's transport anchor.",
+          "preselected": true,
+          "requiresConfirmation": true,
+          "confidence": "medium",
+          "warnings": [
+            "Live status, destination routing, and last-service times load during the night."
+          ],
+          "options": [
+            {
+              "id": "transport:clapham-common",
+              "label": "Clapham Common",
+              "detail": "Open TfL only after you confirm.",
+              "href": "https://tfl.gov.uk/plan-a-journey/",
+              "provenance": [
+                {
+                  "kind": "night_area_review",
+                  "label": "Clapham Common transport anchor"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "keep_going",
+          "label": "Keep going",
+          "reason": "2 more pubs close by. Check prices and hours before you go.",
+          "preselected": false,
+          "requiresConfirmation": true,
+          "confidence": "low",
+          "warnings": [
+            "Closing times are not checked. We show extra spend only when a price is recorded."
+          ],
+          "options": [
+            {
+              "id": "venue-uz2l8v",
+              "label": "Prince of Wales",
+              "detail": "0.4 km straight-line · about £5.80 for one recorded pint · closing time not checked",
+              "priceImpactPence": 580,
+              "closingConfidence": "unknown",
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Prince of Wales"
+                }
+              ]
+            },
+            {
+              "id": "venue-5fcgge",
+              "label": "Cafe Sol",
+              "detail": "0.5 km straight-line · about £5.60 for one recorded pint · closing time not checked",
+              "priceImpactPence": 560,
+              "closingConfidence": "unknown",
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Cafe Sol"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "weatherEvidence": null,
+      "nightArea": {
+        "id": "clapham",
+        "slug": "clapham",
+        "coverageStatus": "route_ready",
+        "coverageScore": 88,
+        "routeReadyReasons": [
+          "venue_density",
+          "identity_conflict",
+          "price_coverage",
+          "amenity_coverage",
+          "opening_hours",
+          "transport_anchor",
+          "route_feasibility",
+          "terminal_get_home",
+          "terminal_food",
+          "unreviewed_source"
+        ],
+        "missingEvidence": [],
+        "gate": {
+          "version": 1,
+          "passed": true,
+          "checks": [
+            {
+              "code": "venue_density",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:venue_density:v1"
+              ]
+            },
+            {
+              "code": "identity_conflict",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:identity_conflict:v1"
+              ]
+            },
+            {
+              "code": "price_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:price_coverage:v1"
+              ]
+            },
+            {
+              "code": "amenity_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:amenity_coverage:v1"
+              ]
+            },
+            {
+              "code": "opening_hours",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:opening_hours:v1"
+              ]
+            },
+            {
+              "code": "transport_anchor",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:transport_anchor:v1"
+              ]
+            },
+            {
+              "code": "route_feasibility",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:route_feasibility:v1"
+              ]
+            },
+            {
+              "code": "terminal_get_home",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:terminal_get_home:v1"
+              ]
+            },
+            {
+              "code": "terminal_food",
+              "required": true,
+              "passed": true,
+              "observed": "unavailable_after_review",
+              "evidenceRefs": [
+                "fixture:terminal_food:v1"
+              ]
+            },
+            {
+              "code": "unreviewed_source",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:unreviewed_source:v1"
+              ]
+            }
+          ]
+        },
+        "lastReviewedAt": "2026-07-13T00:00:00.000Z",
+        "reviewExpiresAt": "2027-01-01T00:00:00.000Z",
+        "routeReady": true
+      },
+      "constraintReport": {
+        "version": 1,
+        "source": "plan-intake-v1",
+        "hardConstraints": [
+          {
+            "code": "safety",
+            "status": "satisfied",
+            "message": "Stops with an active reviewed avoid signal were excluded."
+          },
+          {
+            "code": "exclusions",
+            "status": "satisfied",
+            "message": "Excluded and promoted venues were not eligible."
+          },
+          {
+            "code": "transport_feasibility",
+            "status": "satisfied",
+            "message": "Travel time uses 4.8 km/h direct-distance walking plus 5 minutes uncertainty per leg; pavement routing is not claimed."
+          },
+          {
+            "code": "budget_ceiling",
+            "status": "satisfied",
+            "message": "The attributable, non-stale recorded one-pint-per-stop total is within the per-person ceiling."
+          }
+        ],
+        "softRelaxations": []
+      },
+      "district": {
+        "id": "clapham",
+        "slug": "clapham",
+        "coverageStatus": "route_ready",
+        "coverageScore": 88,
+        "routeReadyReasons": [
+          "venue_density",
+          "identity_conflict",
+          "price_coverage",
+          "amenity_coverage",
+          "opening_hours",
+          "transport_anchor",
+          "route_feasibility",
+          "terminal_get_home",
+          "terminal_food",
+          "unreviewed_source"
+        ],
+        "missingEvidence": [],
+        "gate": {
+          "version": 1,
+          "passed": true,
+          "checks": [
+            {
+              "code": "venue_density",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:venue_density:v1"
+              ]
+            },
+            {
+              "code": "identity_conflict",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:identity_conflict:v1"
+              ]
+            },
+            {
+              "code": "price_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:price_coverage:v1"
+              ]
+            },
+            {
+              "code": "amenity_coverage",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:amenity_coverage:v1"
+              ]
+            },
+            {
+              "code": "opening_hours",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:opening_hours:v1"
+              ]
+            },
+            {
+              "code": "transport_anchor",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:transport_anchor:v1"
+              ]
+            },
+            {
+              "code": "route_feasibility",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:route_feasibility:v1"
+              ]
+            },
+            {
+              "code": "terminal_get_home",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:terminal_get_home:v1"
+              ]
+            },
+            {
+              "code": "terminal_food",
+              "required": true,
+              "passed": true,
+              "observed": "unavailable_after_review",
+              "evidenceRefs": [
+                "fixture:terminal_food:v1"
+              ]
+            },
+            {
+              "code": "unreviewed_source",
+              "required": true,
+              "passed": true,
+              "observed": "reviewed",
+              "evidenceRefs": [
+                "fixture:unreviewed_source:v1"
+              ]
+            }
+          ]
+        },
+        "lastReviewedAt": "2026-07-13T00:00:00.000Z",
+        "reviewExpiresAt": "2027-01-01T00:00:00.000Z",
+        "routeReady": true
+      },
+      "explanations": [
+        {
+          "field": "nightArea",
+          "evidence": "Clapham",
+          "explanation": "Matched the requested area."
+        },
+        {
+          "field": "budgetLimitPence",
+          "evidence": "£20.00",
+          "explanation": "Matched the explicit per-person route budget."
+        },
+        {
+          "field": "stopCount",
+          "evidence": "explicit context",
+          "explanation": "Applied from the explicit Night Context correction."
+        },
+        {
+          "field": "foodNeeds",
+          "evidence": "explicit context",
+          "explanation": "Applied from the explicit Night Context correction."
+        }
+      ],
+      "stops": [
+        {
+          "venueId": "venue-12x0p9j",
+          "venueName": "The Stonhouse",
+          "position": 0,
+          "walkingMinutesFromPrevious": null,
+          "distanceKm": 0.22,
+          "estimatedPintPricePence": 580,
+          "priceEvidence": {
+            "pence": 580,
+            "source": {
+              "label": "Pint Prices",
+              "url": "https://www.pint-prices.com/pub/165%20Stonhouse%20St,%20London%20SW4%206BJ,%20UK/The%20Stonhouse",
+              "observedAt": "2026-10-02T11:48:33.000Z"
+            },
+            "confidenceState": "fresh"
+          },
+          "selectedDrinkPriceEvidence": null,
+          "accessEvidence": {},
+          "evidence": [
+            "matched the food need at venue level"
+          ],
+          "constraintFlags": [],
+          "operationalEvidence": {
+            "openingAtVisit": "unknown",
+            "openingSource": null,
+            "visitWindow": null,
+            "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+          },
+          "provenance": [
+            {
+              "kind": "venue_dataset",
+              "label": "PUBMAXX venue record for The Stonhouse"
+            },
+            {
+              "kind": "night_area_review",
+              "label": "Clapham route review",
+              "asOf": "2026-07-13T00:00:00.000Z"
+            }
+          ],
+          "reason": "Close to the heart of the area, matched the food need at venue level.",
+          "alternatives": [
+            {
+              "venueId": "venue-l5qye7",
+              "venueName": "The Bread & Roses",
+              "distanceKm": 0.23,
+              "estimatedPintPricePence": 550,
+              "priceEvidence": {
+                "pence": 550,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/68%20Clapham%20Manor%20St,%20London%20SW4%206DZ,%20UK/The%20Bread%20%26%20Roses",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for The Bread & Roses"
+                }
+              ]
+            },
+            {
+              "venueId": "venue-5fcgge",
+              "venueName": "Cafe Sol",
+              "distanceKm": 0.29,
+              "estimatedPintPricePence": 560,
+              "priceEvidence": {
+                "pence": 560,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/56%20Clapham%20High%20St,%20London%20SW4%207UL/Cafe%20Sol",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Cafe Sol"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "venueId": "venue-11e0hkh",
+          "venueName": "The Belle Vue",
+          "position": 1,
+          "walkingMinutesFromPrevious": 3,
+          "distanceKm": 0.03,
+          "estimatedPintPricePence": 600,
+          "priceEvidence": {
+            "pence": 600,
+            "source": {
+              "label": "Pint Prices",
+              "url": "https://www.pint-prices.com/pub/1%20Clapham%20Common%20South%20Side,%20London%20SW4%207AA/The%20Belle%20Vue",
+              "observedAt": "2026-10-02T11:48:33.000Z"
+            },
+            "confidenceState": "fresh"
+          },
+          "selectedDrinkPriceEvidence": null,
+          "accessEvidence": {},
+          "evidence": [
+            "matched the food need at venue level"
+          ],
+          "constraintFlags": [],
+          "operationalEvidence": {
+            "openingAtVisit": "unknown",
+            "openingSource": null,
+            "visitWindow": null,
+            "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+          },
+          "provenance": [
+            {
+              "kind": "venue_dataset",
+              "label": "PUBMAXX venue record for The Belle Vue"
+            },
+            {
+              "kind": "night_area_review",
+              "label": "Clapham route review",
+              "asOf": "2026-07-13T00:00:00.000Z"
+            }
+          ],
+          "reason": "Close to the heart of the area, matched the food need at venue level.",
+          "alternatives": [
+            {
+              "venueId": "venue-uz2l8v",
+              "venueName": "Prince of Wales",
+              "distanceKm": 0.38,
+              "estimatedPintPricePence": 580,
+              "priceEvidence": {
+                "pence": 580,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/38%20Old%20Town,%20London%20SW4%200LB/Prince%20of%20Wales",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Prince of Wales"
+                }
+              ]
+            },
+            {
+              "venueId": "venue-5fcgge",
+              "venueName": "Cafe Sol",
+              "distanceKm": 0.41,
+              "estimatedPintPricePence": 560,
+              "priceEvidence": {
+                "pence": 560,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/56%20Clapham%20High%20St,%20London%20SW4%207UL/Cafe%20Sol",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Cafe Sol"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "venueId": "venue-yhodj6",
+          "venueName": "The Alexandra",
+          "position": 2,
+          "walkingMinutesFromPrevious": 1,
+          "distanceKm": 0.08,
+          "estimatedPintPricePence": 640,
+          "priceEvidence": {
+            "pence": 640,
+            "source": {
+              "label": "Pint Prices",
+              "url": "https://www.pint-prices.com/pub/14%20Clapham%20Common%20South%20Side,%20London%20SW4%207AA/The%20Alexandra",
+              "observedAt": "2026-10-02T11:48:33.000Z"
+            },
+            "confidenceState": "fresh"
+          },
+          "selectedDrinkPriceEvidence": null,
+          "accessEvidence": {},
+          "evidence": [
+            "matched the food need at venue level"
+          ],
+          "constraintFlags": [],
+          "operationalEvidence": {
+            "openingAtVisit": "unknown",
+            "openingSource": null,
+            "visitWindow": null,
+            "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+          },
+          "provenance": [
+            {
+              "kind": "venue_dataset",
+              "label": "PUBMAXX venue record for The Alexandra"
+            },
+            {
+              "kind": "night_area_review",
+              "label": "Clapham route review",
+              "asOf": "2026-07-13T00:00:00.000Z"
+            }
+          ],
+          "reason": "Close to the heart of the area, matched the food need at venue level.",
+          "alternatives": [
+            {
+              "venueId": "venue-uz2l8v",
+              "venueName": "Prince of Wales",
+              "distanceKm": 0.39,
+              "estimatedPintPricePence": 580,
+              "priceEvidence": {
+                "pence": 580,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/38%20Old%20Town,%20London%20SW4%200LB/Prince%20of%20Wales",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Prince of Wales"
+                }
+              ]
+            },
+            {
+              "venueId": "venue-1etf22r",
+              "venueName": "Lotus Bar",
+              "distanceKm": 0.42,
+              "estimatedPintPricePence": 800,
+              "priceEvidence": {
+                "pence": 800,
+                "source": {
+                  "label": "Pint Prices",
+                  "url": "https://www.pint-prices.com/pub/76%20Clapham%20High%20St,%20London%20SW4%207UL,%20UK/Lotus%20Bar",
+                  "observedAt": "2026-10-02T11:48:33.000Z"
+                },
+                "confidenceState": "fresh"
+              },
+              "selectedDrinkPriceEvidence": null,
+              "accessEvidence": {},
+              "constraintFlags": [],
+              "operationalEvidence": {
+                "openingAtVisit": "unknown",
+                "openingSource": null,
+                "visitWindow": null,
+                "transportBasis": "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+              },
+              "provenance": [
+                {
+                  "kind": "venue_dataset",
+                  "label": "PUBMAXX venue record for Lotus Bar"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "contextEffects": [
+        "budget",
+        "daypart",
+        "foodNeeds",
+        "budgetLimitPence"
+      ],
+      "missingContextEvidence": [],
+      "relevantSignals": [],
+      "nightSignalClaims": []
+    }
+  }
+]

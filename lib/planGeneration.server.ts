@@ -225,22 +225,70 @@ type PlanGenerationPreparation = {
 	anchor: PlanGenerationAnchor | null;
 };
 
+const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips)`;
+const PLAN_DRINK_ITEM = String.raw`(?:pints?|drinks?|beers?)`;
+const PLAN_PRICE_AMOUNT = String.raw`(?:£\s*\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s*(?:pounds?|quid)\b)`;
+const PLAN_ITEM_LIST_JOIN = String.raw`(?:\s*,\s*|\s*\b(?:and|plus)\b\s*|\s*[+&]\s*)(?:(?:an?|one|two)\s+)?`;
+
+function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
+	if (item[0].toLowerCase() !== "food") return false;
+	const before = value.slice(0, item.index);
+	const after = value.slice(item.index + item[0].length);
+	const pricedOrBundled = new RegExp(String.raw`^[\s,]*(?:priced|cost(?:s|ing)?|for\s*${PLAN_PRICE_AMOUNT}|(?:and|plus|[+&])\s*(?:(?:an?|one|two)\s+)?${PLAN_DRINK_ITEM})\b`, "i");
+	return /\b(?:with|serving|serves)\s+$/i.test(before) && !pricedOrBundled.test(after);
+}
+
+function pricedDrinkIncludesMeal(beforeDrink: string): boolean {
+	const items = [...beforeDrink.matchAll(new RegExp(String.raw`\b(?:${PLAN_FOOD_ITEM}|${PLAN_DRINK_ITEM})\b`, "gi"))].reverse();
+	let nextItemStart = beforeDrink.length;
+	for (const [index, item] of items.entries()) {
+		const join = beforeDrink.slice(item.index + item[0].length, nextItemStart);
+		// A comma before a newly priced drink starts its own price phrase.
+		if (index === 0 && !/\b(?:and|plus)\b|[+&]/i.test(join)) return false;
+		if (/[;.!?]/.test(join)) return false;
+		if (index > 0 && !/^[\s,]*(?:(?:and|plus|[+&])\s*)?(?:(?:an?|one|two|three|four|five|six|\d+)\s*)?$/i.test(join)) return false;
+		if (new RegExp(String.raw`^${PLAN_FOOD_ITEM}$`, "i").test(item[0])) {
+			return !/\b(?:afterwards|later)\b/i.test(join);
+		}
+		nextItemStart = item.index;
+	}
+	return false;
+}
+
+/** Bind each amount before exempting drink rates or a pub-route budget. */
+function hasMealPriceConstraint(value: string): boolean {
+	const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
+		.filter((item) => !isGenericFoodAmenity(value, item));
+	if (!foodItems.length) return false;
+	const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_FOOD_ITEM}\b`, "i");
+	const bundleAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?:(?:an?|one|two)\s+)?${PLAN_DRINK_ITEM}\b(?:${PLAN_ITEM_LIST_JOIN}${PLAN_DRINK_ITEM}\b)*${PLAN_ITEM_LIST_JOIN}${PLAN_FOOD_ITEM}\b`, "i");
+	const drinkRate = new RegExp(String.raw`^\s*(?:per|a|each)\s+${PLAN_DRINK_ITEM}\b`, "i");
+	const drinkBeforePrice = new RegExp(String.raw`\b${PLAN_DRINK_ITEM}\b[\s,]*(?:(?:priced|cost(?:s|ing)?)\s+)?(?:(?:for|at)\s+)?(?:(?:under|below|up to|less than|max(?:imum)?)\s*)?$`, "i");
+	const drinkAfterPrice = new RegExp(String.raw`^\s*(?:(?:for|per)\s+)?(?:(?:an?|one|each)\s+)?${PLAN_DRINK_ITEM}\b`, "i");
+	return [...value.matchAll(new RegExp(PLAN_PRICE_AMOUNT, "gi"))].some((price) => {
+		const before = value.slice(0, price.index);
+		const after = value.slice(price.index + price[0].length);
+		if (drinkRate.test(after)) return false;
+		if (foodAfterPrice.test(after) || bundleAfterPrice.test(after)) return true;
+		const pricedDrink = drinkBeforePrice.exec(before);
+		if (pricedDrink) return pricedDrinkIncludesMeal(before.slice(0, pricedDrink.index));
+		if (drinkAfterPrice.test(after)) return false;
+		const foodIsLaterPreference = foodItems.every((item) =>
+			/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
+		if (/^\s*(?:per\s+person|each)\b/i.test(after) && foodIsLaterPreference) return false;
+		if (foodItems.every((item) => item.index > price.index)
+			&& /\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(before)) return false;
+		return true;
+	});
+}
+
 /** The pub-route generator has no menu-item or nutrition proof. */
 function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
 	const foodRequest = [query, ...foodNeeds].join(". ");
 	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest);
 	const allergens = "(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
 	const requiresDiet = new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest);
-	const food = /\b(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips)\b/i;
-	const amount = "(?:£\\s*\\d+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?\\s*(?:pounds?|quid)\\b)";
-	const drinkPrice = new RegExp(`${amount}\\s*(?:(?:per|a|each|for a|for each)\\s+)?(?:pints?|drinks?|beers?)\\b|\\b(?:pints?|drinks?|beers?)\\s+(?:(?:priced|cost(?:s|ing)?)\\s+)?(?:(?:for\\s+)?(?:under|below|up to|less than|max(?:imum)?)\\s*|for\\s+)?${amount}`, "gi");
-	const requiresMealPrice = [query, ...foodNeeds].some((value) => {
-		const mealRequest = value
-			.replace(drinkPrice, " ")
-			.replace(/\b(?:with|serving|serves)\s+food\b(?!\s+(?:priced|cost(?:s|ing)?|for)\b)/gi, " ");
-		return mealRequest.split(/[,;.!?](?!\d)/).some((clause) =>
-			food.test(clause) && new RegExp(amount, "i").test(clause));
-	});
+	const requiresMealPrice = [query, ...foodNeeds].some(hasMealPriceConstraint);
 	return requiresNutrition || requiresDiet || requiresMealPrice;
 }
 

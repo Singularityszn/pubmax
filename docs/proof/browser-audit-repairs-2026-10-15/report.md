@@ -50,3 +50,27 @@ The screenshots show different deployments and data-store conditions. They are b
 This change does not implement nutrition-backed meal planning. Authenticated Pub Pal, ElevenLabs provider behavior, real iPhone and Android devices, formal latency, and retention remain separate acceptance work. Native-shell browser simulation is not physical-device proof.
 
 No production deployment, provider configuration, account data, or public plan changed during this work. The open-source voice assessment is separate research. No speech provider was replaced.
+
+
+## Follow-up: meal and drink price ownership
+
+A later review found that `One pizza and a pint under £10 in Soho` still returned a £6.20 pint. Reproduction used the published PR source `534d222ca59dc85f3caacd4d5a0fdf597ab7f591` in a local production build. The browser selected one stop and displayed The Lyric without meal evidence. This was a remaining defect, not accepted product behavior.
+
+The follow-up binds each amount before allowing drink-only prices or a pub-route budget. Meal and drink bundles require menu evidence. Explicit pint rates remain supported. A route budget followed by a later food preference remains supported.
+
+| Input | Before status | Corrected local status | Corrected result |
+| --- | ---: | ---: | --- |
+| One pizza and a pint under £10 in Soho | 200 | 422 | Explicit meal limitation, no stops |
+| One pizza in Soho, priced under £10 | 200 | 422 | Explicit meal limitation, no stops |
+| 3 pubs in Clapham under £20 per person with pizza afterwards | 422 | 200 | Three pub stops |
+| One pub in Soho, with structured food need `One pizza and a pint under £10` | 200 | 422 | Explicit meal limitation, no stops |
+| One pub in Soho, with structured food need `pizza in Soho, priced under £10` | 200 | 422 | Explicit meal limitation, no stops |
+| 3 pubs in Clapham under £20 per person, with structured food need `£20 per person with pizza afterwards` | 422 | 200 | Three pub stops |
+
+The [before API summary](r5-api-before.json) contains derived statuses and stop counts. The [after API evidence](r5-api-after.json) includes full responses. These requests used an isolated keyless fixture runtime. They do not prove production data availability.
+
+The [before browser snapshot](r5-result-before.txt) records the incorrect £6.20 pint. The [after snapshot](r5-result-after.txt) and [visible limitation](r5-after-limitation.png) record the corrected message. The [before](r5-before.png) and [after](r5-after.png) overview images show the same submitted query. Their top-of-page view does not display the complete result.
+
+The route suite passed 184 tests. The same 15 onboarding browser cases passed on the corrected local production build. An independent subagent checked 46 bounded pricing cases across query and structured food inputs. Those predicate checks supplement the live browser and API evidence. They do not establish full app acceptance.
+
+Full `npm run verify:no-mistakes` passed on the follow-up candidate. Its coverage phase passed 22,162 tests with one existing skipped test. Database phases passed 554 and ten tests. The gate also passed lint, type checking, policy, dead-code, and dependency checks. Three live stores remained unmeasurable without credentials. Existing development-only vulnerability waivers remain in force. These artifacts show the working-tree candidate before publication. They are not evidence of a production deployment or of physical devices.
