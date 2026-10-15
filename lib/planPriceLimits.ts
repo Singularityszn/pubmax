@@ -6,10 +6,11 @@ const DRINK_CONTAINER = String.raw`(?:bottles?|cans?|glass(?:es)?|shots?|jugs?|l
 const SERVING_QUANTITY = String.raw`(?:an?|the|each|one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|double|triple|several|few|dozen|\d+(?:/\d+)?)`;
 const SERVING_PREFIX = String.raw`(?:(?:${MEASURED_SERVING}|bottled|canned|${SERVING_QUANTITY})[ -]+(?:of\s+)?|${SERVING_QUANTITY}\s*[x×]\s*)`;
 const DRINK_NOUN = String.raw`(?:${PLAN_DRINK_ITEM}|${DRINK_CONTAINER}|cocktails?)`;
-export const PLAN_FOOD_ITEM = String.raw`(?:meals?|slices?|portions?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 export const PLAN_VENUE_AMENITY = String.raw`(?:\d+|one|two|three|four|five|six)\s+(?:pubs?|bars?|stops?)\s+(?:serving|serves|where|with)\b`;
 const LOCATION_START = String.raw`(?:at|in|from|near|around|within|inside|outside|by|where)`;
 const PLAN_PRICE_SUBJECT_BOUNDARY = String.raw`\b(?:with|per|each|afterwards|later|${LOCATION_START}|${PLAN_VENUE_AMENITY})\b`;
+const FOOD_SERVING_NOUN = String.raw`servings?(?=\s*(?:[,£;!?+&]|$)|\s+(?:of|and|plus|for|priced|cost(?:s|ing)?|${LIMIT}|${PLAN_PRICE_SUBJECT_BOUNDARY}|\d+(?:[.,]\d{1,2})?\s*(?:pounds?|quid))\b)`;
+export const PLAN_FOOD_ITEM = String.raw`(?:${FOOD_SERVING_NOUN}|meals?|slices?|portions?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 const CONTENTS_WORD = String.raw`(?!(?:and|plus|for|under|below|up|less|than|max(?:imum)?|priced|cost(?:s|ing)?)\b|${PLAN_PRICE_SUBJECT_BOUNDARY})[a-z]+`;
 const DRINK_SUBJECT = String.raw`(?:${SERVING_PREFIX})*${DRINK_NOUN}(?:\s+of\s+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?)(?:[ -]+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?))*)?(?:\s+(?:${MEASURED_SERVING}|${DRINK_CONTAINER}))?`;
 const PLAN_DRINK_BEFORE_PRICE = new RegExp(String.raw`\b(${DRINK_SUBJECT})\b\s+(?:(?:priced|cost(?:s|ing)?)\s+)?(?:(?:for|at)\s+)?(?:${LIMIT}\s*)?$`, "i");
