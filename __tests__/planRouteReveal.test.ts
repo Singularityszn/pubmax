@@ -16,6 +16,7 @@ import {
 function mountStatus(): { status: HTMLElement; scrollIntoView: ReturnType<typeof vi.fn> } {
   const status = document.createElement("p");
   status.id = "plan-route-status";
+  status.textContent = "Route refreshed.";
   const scrollIntoView = vi.fn();
   status.scrollIntoView = scrollIntoView as unknown as typeof status.scrollIntoView;
   document.body.appendChild(status);
@@ -62,6 +63,34 @@ describe("revealPlanRouteStatus", () => {
     revealPlanRouteStatus(document);
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
+  });
+
+  it("reveals the populated error instead of an empty status", () => {
+    const { status, scrollIntoView } = mountStatus();
+    status.textContent = "";
+    const error = document.createElement("p");
+    error.id = "plan-composer-error";
+    error.textContent = "This route planner cannot verify meal prices.";
+    error.tabIndex = -1;
+    const scrollError = vi.fn();
+    error.scrollIntoView = scrollError;
+    document.body.appendChild(error);
+
+    revealPlanRouteStatus(document, true);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollError).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
+    expect(document.activeElement).toBe(error);
+  });
+
+  it("does not scroll or focus an empty route status", () => {
+    const { status, scrollIntoView } = mountStatus();
+    status.textContent = "";
+
+    revealPlanRouteStatus(document, false);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(status);
   });
 
   it("does nothing when no route status is on the page", () => {

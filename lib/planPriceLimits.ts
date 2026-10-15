@@ -22,14 +22,14 @@ export function planPriceAmounts(query: string): Array<{
   });
 }
 
-export function planPriceLimits(query: string): {
+export function planPriceLimits(...queries: string[]): {
   pintCeiling: number | null;
   routeBudgetPence: number | null;
 } {
-  const amounts = planPriceAmounts(query);
+  const amounts = queries.flatMap((query) => planPriceAmounts(query).map((amount) => ({ ...amount, query })));
   const pintPrices = amounts.filter((amount) => amount.pintRate).map((amount) => amount.pence);
   const routePrices = amounts.filter((amount) => !amount.pintRate
-    && new RegExp(String.raw`\b(?:${LIMIT}|budget(?: of)?)\s*$`, "i").test(query.slice(0, amount.index)))
+    && new RegExp(String.raw`\b(?:${LIMIT}|budget(?: of)?)\s*$`, "i").test(amount.query.slice(0, amount.index)))
     .map((amount) => amount.pence);
   return {
     pintCeiling: pintPrices.length ? Math.min(...pintPrices) / 100 : null,

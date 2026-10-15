@@ -817,8 +817,8 @@ export function revealPlanRouteStatus(
   root: ParentNode | Document = document,
   reducedMotion?: boolean,
 ): void {
-  const status = root.querySelector("#plan-route-status");
-  if (!(status instanceof HTMLElement)) return;
+  const status = root.querySelector("#plan-composer-error") ?? root.querySelector("#plan-route-status");
+  if (!(status instanceof HTMLElement) || !status.textContent?.trim()) return;
   const reduce =
     reducedMotion ??
     (typeof window !== "undefined" &&
@@ -1173,7 +1173,7 @@ export function AcceptedContextPanel({
  * `message`; this is the exact element the form renders it in.
  */
 export function PlanComposerErrorNotice({ message }: { message: string }) {
-  return <p className="planComposer__error" role="alert">{message}</p>;
+  return <p id="plan-composer-error" className="planComposer__error" role="alert" tabIndex={-1}>{message}</p>;
 }
 
 type ComposerDraftFields = {
@@ -2140,7 +2140,7 @@ function PlanComposerForm({
       setError(failureStatus);
       if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
-      setTuneOpen(false);
+      setRouteRevealTick((tick) => tick + 1);
     } finally {
       setSorting(false);
     }
@@ -2291,7 +2291,7 @@ function PlanComposerForm({
   ) : null;
   const routeStatusLine = (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
-      {error && !routeSorted && routeStatus === error
+      {error && routeStatus === error
         ? null
         : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>
