@@ -207,9 +207,9 @@ describe("GET /api/citymcp/status", () => {
       const freshBody = await fresh.json();
       expect(freshBody.stale).toBeUndefined();
       // F10: /map spends this on every load, off the first-pin path, so the
-      // edge holds it five minutes and serves stale while one request refreshes.
+      // edge holds it five minutes, and never serves it older than ten.
       expect(fresh.headers.get("cache-control")).toBe(
-        "public, s-maxage=300, stale-while-revalidate=600",
+        "public, s-maxage=300, stale-while-revalidate=300",
       );
 
       // Age past the 5min city_status TTL so the next request refetches.

@@ -9,9 +9,10 @@
 // private/no-store.
 //
 // The `stops` GET is the Crawl Route lane (F10): one request answers every leg
-// between consecutive Crawl Stops, so a crawl pays one function invocation and
-// one rate-limit check instead of one per leg, and one CDN key per route. The
-// caller rounds each stop to 4 decimals (~11 m) so the key repeats.
+// between consecutive Crawl Stops, so a crawl pays one function invocation
+// instead of one per leg, and one CDN key per route. The caller rounds each
+// stop to 4 decimals (~11 m) so the key repeats. Each leg still spends its own
+// token of the shared rate-limit budget.
 //
 // Fail-soft: any upstream failure lands as 200 + `{ error, journeys: [] }`
 // (per leg in the `stops` lane). Missing / out-of-range coords are a client
@@ -188,13 +189,6 @@ function parseStops(raw: string): Array<{ lat: number; lng: number }> | null {
 }
 
 async function respondWithCrawlLegs(request: Request, params: URLSearchParams): Promise<Response> {
-  if (await isCityMcpLimited(request)) {
-    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-      compatibilityFields: { legs: [] },
-    });
-  }
-
   const stops = parseStops(params.get("stops") ?? "");
   if (!stops) {
     return publicApiError(
@@ -203,6 +197,20 @@ async function respondWithCrawlLegs(request: Request, params: URLSearchParams): 
       400,
       { compatibilityFields: { legs: [] } },
     );
+  }
+
+  // Every leg is an upstream call, so every leg spends one token of the shared
+  // CityMCP budget, exactly as the per-leg GETs did: a 12-stop request with
+  // invented coordinates must not buy 11 paid calls for the price of one. The
+  // checks run together, so the crawl waits on one round trip, not eleven.
+  const verdicts = await Promise.all(
+    Array.from({ length: stops.length - 1 }, () => isCityMcpLimited(request)),
+  );
+  if (verdicts.some(Boolean)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      compatibilityFields: { legs: [] },
+    });
   }
 
   const limit = parseLimit(params.get("limit"));

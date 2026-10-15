@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// F10: one Crawl Route pays one function invocation, one rate-limit check and
-// one CDN key, not one of each per leg. The limiter is spied so the test counts
-// the checks; its verdict stays "not limited".
+// F10: one Crawl Route pays one function invocation and one CDN key, not one
+// per leg, while every leg still spends its own rate-limit token. The limiter
+// is spied so the test counts the checks; its verdict is "not limited" unless a
+// test says otherwise.
 const limiter = vi.hoisted(() => ({ isCityMcpLimited: vi.fn(async () => false) }));
 vi.mock("@/lib/citymcpRateLimit", () => limiter);
 
@@ -50,7 +51,8 @@ function upstreamArgs(): Array<{ from: string; to: string }> {
 
 beforeEach(() => {
   resetJourneyCache();
-  limiter.isCityMcpLimited.mockClear();
+  limiter.isCityMcpLimited.mockReset();
+  limiter.isCityMcpLimited.mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -58,7 +60,7 @@ afterEach(() => {
 });
 
 describe("GET /api/citymcp/journey?stops= (one crawl, every leg)", () => {
-  it("answers every consecutive leg in order behind one rate-limit check", async () => {
+  it("answers every consecutive leg in order, one rate-limit token per leg", async () => {
     let minutes = 10;
     global.fetch = vi.fn(async () => journeyFrame(minutes++));
 
@@ -72,7 +74,7 @@ describe("GET /api/citymcp/journey?stops= (one crawl, every leg)", () => {
     expect(res.headers.get("cache-control")).toBe(
       "public, s-maxage=120, stale-while-revalidate=600",
     );
-    expect(limiter.isCityMcpLimited).toHaveBeenCalledTimes(1);
+    expect(limiter.isCityMcpLimited).toHaveBeenCalledTimes(2);
     expect(upstreamArgs()).toEqual([
       { from: "51.51200,-0.10400", to: "51.51000,-0.12100" },
       { from: "51.51000,-0.12100", to: "51.51500,-0.13000" },
@@ -84,6 +86,21 @@ describe("GET /api/citymcp/journey?stops= (one crawl, every leg)", () => {
     expect(body.legs.map((leg: { journeys: Array<{ durationMinutes: number }> }) =>
       leg.journeys[0]!.durationMinutes,
     )).toEqual([10, 11]);
+  });
+
+  it("refuses the whole crawl when the budget cannot cover every leg", async () => {
+    global.fetch = vi.fn(async () => journeyFrame(5));
+    limiter.isCityMcpLimited
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    const res = await GET(
+      new Request("http://localhost/api/citymcp/journey?stops=51.512,-0.104;51.51,-0.121;51.515,-0.13"),
+    );
+
+    expect(res.status).toBe(429);
+    expect((await res.json()).legs).toEqual([]);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("keeps a route with a failed leg off the edge and says which leg failed", async () => {
