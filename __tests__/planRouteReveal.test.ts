@@ -65,7 +65,7 @@ describe("revealPlanRouteStatus", () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
   });
 
-  it("reveals the populated error instead of an empty status", () => {
+  it.each([false, true])("immediately reveals the populated error with reduced motion %s", (reducedMotion) => {
     const { status, scrollIntoView } = mountStatus();
     status.textContent = "";
     const error = document.createElement("p");
@@ -76,10 +76,10 @@ describe("revealPlanRouteStatus", () => {
     error.scrollIntoView = scrollError;
     document.body.appendChild(error);
 
-    revealPlanRouteStatus(document, true);
+    revealPlanRouteStatus(document, reducedMotion);
 
     expect(scrollIntoView).not.toHaveBeenCalled();
-    expect(scrollError).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
+    expect(scrollError).toHaveBeenCalledWith({ behavior: "instant", block: "start" });
     expect(document.activeElement).toBe(error);
   });
 
