@@ -42,8 +42,11 @@ export const MAP_LOAD_MILESTONES = {
 } as const;
 export type MapLoadMilestone = keyof typeof MAP_LOAD_MILESTONES;
 
-/** Ten minutes: anything later is a stuck clock, not a load. */
-const MAX_TIMING_MS = 600_000;
+/**
+ * Every value is a point on the document's clock, not a duration, so a map
+ * opened late in a long-lived tab still reports. A day is the stuck-clock cap.
+ */
+const MAX_TIMING_MS = 86_400_000;
 const MAX_VIEWPORT_PX = 10_000;
 const MAX_VENUE_COUNT = 200_000;
 const MAX_HARDWARE_CONCURRENCY = 256;

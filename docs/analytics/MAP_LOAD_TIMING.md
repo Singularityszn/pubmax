@@ -60,9 +60,9 @@ SELECT
     count() AS visits,
     round(countIf(properties.outcome = 'timeout') / count(), 4) AS timeout_rate,
     round(countIf(properties.outcome = 'abandoned') / count(), 4) AS abandoned_rate,
-    quantile(0.50)(ttp_ms) AS p50_ms,
-    quantile(0.95)(ttp_ms) AS p95_ms,
-    quantile(0.99)(ttp_ms) AS p99_ms
+    quantileIf(0.50)(ttp_ms, properties.outcome != 'abandoned') AS p50_ms,
+    quantileIf(0.95)(ttp_ms, properties.outcome != 'abandoned') AS p95_ms,
+    quantileIf(0.99)(ttp_ms, properties.outcome != 'abandoned') AS p99_ms
 FROM (
     SELECT
         properties,
@@ -76,7 +76,6 @@ FROM (
       AND toString(properties.landed_on_map) = 'true'
       AND toString(properties.hidden_before_pins) = 'false'
 )
-WHERE properties.outcome IN ('painted', 'timeout')
 GROUP BY device_class
 ORDER BY device_class
 ```
@@ -88,8 +87,12 @@ Three things about the query that are easy to get wrong.
   never painted. Leaving timeouts out would hide exactly the tail this event exists
   to show.
 - **Abandoned visits are a rate, not a time.** The visitor left before the pins, so
-  how long the pins would have taken is unknown. Read `abandoned_rate` beside the
-  percentiles. A rising rate with steady percentiles is still a slower map.
+  how long the pins would have taken is unknown. They stay in `visits` and
+  `abandoned_rate` and are kept out of the percentiles only. A rising rate with steady
+  percentiles is still a slower map.
+- **The rate is a floor.** An abandoned visit rides the PostHog SDK, so a visitor who
+  leaves before that SDK has loaded (a very slow first load, or consent granted
+  moments before leaving) sends nothing.
 - **Cold landings only.** `landed_on_map` keeps visits whose document opened on the
   map. For in-app returns, drop that filter and read `ttp_ms - mount_ms`.
   Split further by `nav_type`, `sw_controlled` or `effective_type` with the same

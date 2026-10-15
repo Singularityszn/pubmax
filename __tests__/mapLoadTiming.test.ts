@@ -104,7 +104,20 @@ describe("map_load_timing event shape", () => {
     expect(sanitizeMapLoadTimingProps({ ...PAINTED, surface: "/u/someone?x=1" })).toBeNull();
     expect(sanitizeMapLoadTimingProps({ ...PAINTED, elapsed_ms: -1 })).toBeNull();
     expect(sanitizeMapLoadTimingProps({ ...PAINTED, venue_count: Number.NaN })).toBeNull();
-    expect(sanitizeMapLoadTimingProps({ ...PAINTED, pins_visible_ms: 900_000 })).toBeNull();
+    expect(sanitizeMapLoadTimingProps({ ...PAINTED, pins_visible_ms: 90_000_000 })).toBeNull();
+  });
+
+  it("keeps a visit to a map opened late in a long-lived tab", () => {
+    const late = {
+      ...PAINTED,
+      mount_ms: 3_600_000,
+      map_constructed_ms: 3_600_400,
+      scene_built_ms: 3_601_100,
+      first_pins_ms: 3_600_900,
+      pins_visible_ms: 3_601_800,
+      elapsed_ms: 3_601_810,
+    };
+    expect(sanitizeMapLoadTimingProps(late)).toEqual(late);
   });
 
   it("never lets a tail visit claim a paint time, and a painted one must carry it", () => {
