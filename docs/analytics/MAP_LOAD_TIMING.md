@@ -80,7 +80,7 @@ GROUP BY device_class
 ORDER BY device_class
 ```
 
-Three things about the query that are easy to get wrong.
+Four things about the query that are easy to get wrong.
 
 - **A timeout is in the percentile, not left out.** It counts at its `elapsed_ms`,
   which is a floor of about 30 s, so a p99 near 30,000 ms means the slowest visits
