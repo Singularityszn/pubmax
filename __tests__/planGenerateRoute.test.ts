@@ -199,6 +199,30 @@ const unsupportedServingSubjects = [
 ];
 
 describe("POST /api/plans/generate", () => {
+  it.each([
+    "£20 for three pub meals", "£20 for half a pub pizza", "£20 for a large portion of pub food",
+    "£10 for beer, a pub lunch and a pint", "£10 for a pint & a large pub burger",
+    "pints under£5 from pubs; pizza under£10", "£5 pint near pubs, pizza under£10",
+    "route total£20 from pubs; pizza £10", "£10 for half a pub pizza and a pint",
+  ].flatMap((phrase) => [
+    { query: `3 pubs in Clapham, ${phrase}` },
+    { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } },
+  ]))("preserves food modifiers beside venue transitions: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect("response" in prepared ? prepared.response.status : 200).toBe(422);
+    if (!("response" in prepared)) throw new Error("Expected meal limitation");
+    expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
   it.each(["pub lunch", "pub meal", "pub food", "pub burger", "bar lunch", "bar meal", "bar food", "bar burger"].flatMap((subject) => [
     `under £20 for a ${subject}`,
     `pubs under£20 for a ${subject}`,
@@ -234,6 +258,35 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
+    ...["at", "in", "from", "near", "around", "within", "inside", "outside", "by"].flatMap((preposition) =>
+      ["pubs serving pizza", "bars serving lunch"].flatMap((amenity) => [
+        { phrase: `£5 for a pint ${preposition} ${amenity}`, typed: `£5 for a pint ${preposition} ${amenity}`, total: null, ceiling: 500 },
+        { phrase: `pints under£5 ${preposition} ${amenity}`, typed: `pints under£5 ${preposition} ${amenity}`, total: null, ceiling: 500 },
+        { phrase: `pub route budget of£20 for drinks ${preposition} ${amenity}`, typed: `pub total£20 ${preposition} ${amenity}`, total: 2000, ceiling: null },
+        { phrase: `£5 for beer and a pint ${preposition} ${amenity}`, typed: `£5 beer&pint ${preposition} ${amenity}`, total: null, ceiling: 500 },
+      ]).flatMap(({ phrase, typed, ...expected }) => [
+        { query: `3 pubs in Clapham, ${phrase}`, ...expected },
+        { query: "3 pubs in Clapham", context: { foodNeeds: [typed] }, ...expected },
+      ])),
+    ...[
+      { phrase: "£5 for a pint where food is served", total: null, ceiling: 500 },
+      { phrase: "pints under£5 where food is served", total: null, ceiling: 500 },
+      { phrase: "route total£20 from pubs serving pizza", total: 2000, ceiling: null },
+      { phrase: "route total£20 where food is served", total: 2000, ceiling: null },
+      { phrase: "£5 beer&pint where food is served", total: null, ceiling: 500 },
+      ...["pubs serving pizza", "bars serving lunch", "pubs serving food"].flatMap((amenity) => [
+        { phrase: `route total£20 for 3 ${amenity}`, total: 2000, ceiling: null },
+        { phrase: `under£20 for three ${amenity}`, total: 2000, ceiling: null },
+      ]),
+    ].flatMap(({ phrase, ...expected }) => [
+      { query: `3 pubs in Clapham, ${phrase}`, ...expected },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] }, ...expected },
+    ]),
+    ...["at", "in", "from", "near", "around", "within", "inside", "outside", "by"].flatMap((preposition) => [
+      { query: `3 pubs in Clapham, £5 for a pint ${preposition} pubs where food is served`, total: null, ceiling: 500 },
+      { query: `3 pubs in Clapham, pints under£5 ${preposition} pubs where food is served`, total: null, ceiling: 500 },
+      { query: `3 pubs in Clapham, route total£20 ${preposition} pubs where food is served`, total: 2000, ceiling: null },
+    ]),
     ...["lunch", "food", "pizza"].flatMap((food) => ["pubs", "bars"].flatMap((venue) => ["at", "in"].flatMap((preposition) => [
       `£5 for a pint ${preposition} ${venue} serving ${food}`,
       `pints under£5 ${preposition} ${venue} serving ${food}`,
