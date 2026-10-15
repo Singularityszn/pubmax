@@ -59,6 +59,8 @@ const config: KnipConfig = {
     "scripts/record_concierge_intent_probabilities.ts",
     // Standalone disposable Plan browser proof; traces its database helper too.
     "scripts/e2e/run-disposable-plan-browser.mjs",
+    // Forked by e2e/web-first-run-journey.spec.ts for real fixture-clock HTTP.
+    "scripts/e2e/canonical-price-server.ts",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
