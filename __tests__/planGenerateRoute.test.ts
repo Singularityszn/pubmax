@@ -200,6 +200,77 @@ const unsupportedServingSubjects = [
 
 describe("POST /api/plans/generate", () => {
   it.each([
+    ...[" and ", " plus ", "+", "&"].flatMap((join) => [
+      "a slice of pizza", "a portion of chips", "1/2 a pizza", "two small pizzas",
+      "a large pub meal", "a bowl of curry", "a plate of chips", "half a pub pizza",
+      "one and a half pizzas", "2/3 of a pizza", "a hot burger",
+    ].flatMap((food) => [
+      { phrase: `£10 pint at X${join}${food}`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+      { phrase: `pint at X${join}${food} £10`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+    ])),
+    ...["in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((modifier) =>
+      [" and ", " plus ", "+", "&"].flatMap((join) => ["slice of pizza", "a hot burger", "1/2 pub meal"].flatMap((food) => [
+        { phrase: `£10 pint ${modifier} X${join}${food}`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+        { phrase: `pint ${modifier} X${join}${food} £10`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+      ]))),
+    { phrase: "£10 pint at pub and a slice of pizza", code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+    ...["Cock and Bottle", "Rose and Crown", "Beer and Burger", "Lamb & Flag", "Fox plus Hounds", "Cock&Bottle", "Beer+Burger", "The Bread and Beer"].flatMap((venue) => [
+      { phrase: `£5 pint at ${venue}`, code: null },
+      { phrase: `pint at ${venue} under£5`, code: null },
+      { phrase: `£5 pint at ${venue} with food`, code: null },
+      { phrase: `£5 pint at ${venue} serving pizza`, code: null },
+      { phrase: `£10 pint at ${venue} and a hot burger`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+      { phrase: `pint at ${venue}&a slice of pizza £10`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+      { phrase: `pint at ${venue} with pizza priced under£10`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
+    ]),
+  ].flatMap(({ phrase, code }) => [
+    { input: { query: `3 pubs in Clapham, ${phrase}` }, code },
+    ...(phrase.length <= 40 ? [{ input: { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }, code }] : []),
+  ]))("retains complete location subjects: %j", async ({ input, code }) => {
+    const now = Date.parse("2026-10-15T12:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), now);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      const body = await response.json();
+      expect({ preparation: "prepared" in prepared ? 200 : prepared.response.status, post: response.status, code: body.code ?? null })
+        .toEqual({ preparation: code ? 422 : 200, post: code ? 422 : 200, code });
+      if (code) {
+        if (!("response" in prepared)) throw new Error("Expected meal limitation");
+        expect((await prepared.response.json()).code).toBe(code);
+        expect(body.code).toBe(code);
+        expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+        expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+      } else {
+        if (!("prepared" in prepared)) throw new Error("Expected preparation");
+        expect(prepared.prepared.context.budgetLimitPence).toBeNull();
+        expect(body.inferredContext.budgetLimitPence).toBeNull();
+        expect(body.stops).toHaveLength(3);
+        const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+        const evidence = await planPriceEvidenceForVenues(await actual.loadConciergeVenues("london"), now);
+        for (const { venue } of prepared.prepared.candidates) {
+          const price = evidence.get(venue.id)!;
+          expect(priceEvidenceUsableForCeiling(price)).toBe(true);
+          expect(price.pence).toBeLessThanOrEqual(500);
+        }
+        for (const stop of body.stops) {
+          for (const candidate of [stop, ...stop.alternatives]) {
+            const price = evidence.get(candidate.venueId)!;
+            expect(priceEvidenceUsableForCeiling(price)).toBe(true);
+            expect(price.pence).toBeLessThanOrEqual(500);
+            expect(candidate.estimatedPintPricePence).toBe(price.pence);
+          }
+        }
+      }
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it.each([
     ...["priced under£10", "under£10", "for £10"].flatMap((price) => [
       { phrase: `pint at pub with pizza ${price}`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
       { phrase: `pizza at pub ${price}`, code: "MEAL_CONSTRAINTS_UNSUPPORTED" },
