@@ -101,6 +101,9 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     const res = await del("jordanx", "friend");
     expect(res.status).toBe(200);
 
+    expect((await getNightStory(story!.id, "host"))!.publishedMomentIds)
+      .not.toContain(friendMoment!.id);
+
     // The gate now emits only the host's Moment, with a scrubbed caption.
     const after = await getPublishedRecapSource(story!.id);
     expect(after!.moments.map((m) => m.id)).toEqual([hostMoment!.id]);
@@ -124,6 +127,30 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     // Clearing twice must not discard the only name the first clear removed.
     expect((await del("jordanx", "friend")).status).toBe(200);
     expect((await getPublishedRecapSource(story!.id))!.story.title).toBe("Orbit with a friend");
+  });
+
+  it.each([false, true])("keeps an invited identity redacted after re-entry, display name=%s", async (hasName) => {
+    await profileStore().createOwned("guestx", "guest");
+    if (hasName) await profileStore().update("guestx", { displayName: "Jordan" });
+    const identity = hasName ? "Jordan" : "@guestx";
+    const memory = (await createNightMemory("host", { title: "Private night" }))!;
+    const moment = (await addNightMoment("host", memory.id, { kind: "quote", caption: `With ${identity}` }))!;
+    const story = (await createNightStory("host", { memoryId: memory.id, title: `With ${identity}` }))!;
+    await upsertStoryContributor("host", story.id, { handle: "guestx", role: "contributor" });
+    const proposed = (await proposeNightStoryPublication("host", story.id, {
+      momentIds: [moment.id], visibility: "public",
+    }))!;
+    await confirmNightStoryPublication("host", story.id, {
+      proposalId: proposed.proposal.id, confirmationToken: proposed.confirmationToken,
+    });
+    expect((await getPublishedRecapSource(story.id))!.story.title).toBe(`With ${identity}`);
+    expect((await del("guestx", "guest")).status).toBe(200);
+    expect((await getPublishedRecapSource(story.id))!.story.title).toBe("With a friend");
+    await upsertStoryContributor("host", story.id, { handle: "guestx", role: "contributor" });
+    await acceptStoryContribution("guest", story.id);
+    const after = (await getPublishedRecapSource(story.id))!;
+    expect(after.story.title).toBe("With a friend");
+    expect(after.moments[0]!.caption).toBe("With a friend");
   });
 
   it("still deletes (does not fail) when the account contributes to no Story", async () => {

@@ -28,6 +28,7 @@ import { redactPublicStoryFields, redactStoryView, type DepartedContributor } fr
 import { cleanText } from "@/lib/textClean";
 
 import {
+  memoryStories as stories,
   memoryStoryContributors as contributors,
   memoryStoryConsents as consents,
   memoryStoryRedactionNames,
@@ -42,7 +43,6 @@ type ProposalWithToken = {
 
 const memories = new Map<string, NightMemory>();
 const moments = new Map<string, NightMoment>();
-const stories = new Map<string, NightStory>();
 const proposals = new Map<string, NightStoryPublicationProposal & { tokenHash: string }>();
 
 export function __resetNightMemoryStore(): void {

@@ -120,9 +120,10 @@ export default function TermsPage() {
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
           history. Only your handle is public.
-          We keep former display names privately where needed to remove your
-          name from public Night Story text after you clear your profile. Each
-          record is removed when that Story or your account is deleted.
+          We keep former names and handles privately where needed to remove your
+          identity from public Night Story text after you clear your profile. Each
+          record is removed when that Story or your account is deleted. Rejoining
+          an affected Story does not undo its redaction.
           Social uses a private product account tied to your Supabase sign-in
           and stable profile. PUBMAXX doesn&rsquo;t use your email or handle to join
           accounts.

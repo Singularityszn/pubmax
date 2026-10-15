@@ -1409,7 +1409,7 @@ export const memoryProfileStore: ProfileStore = {
     }
 
     if (existing.userId) {
-      withdrawMemoryStoryContributions(existing.userId, existing.displayName);
+      withdrawMemoryStoryContributions(existing.userId, { handle: existing.handle, displayName: existing.displayName });
     }
 
     const cleared: ProfileRecord = {

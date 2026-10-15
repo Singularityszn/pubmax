@@ -215,11 +215,12 @@ export default function PrivacyPage() {
         </p>
 
         <p className="legalBody">
-          When you clear your profile, we keep the display names needed to remove
-          your name from Night Stories you contributed to. Only our server can
+          When you clear your profile, we keep the names and handles needed to remove
+          your identity from Night Stories linked to your account. Only our server can
           read these names. They are used to remove mentions from public titles,
           summaries and captions. They are not added to public contributor lists.
-          Each record is removed when that Story or your account is deleted.
+          Each record is removed when that Story or your account is deleted. Rejoining
+          an affected Story does not undo its redaction.
           Other people&rsquo;s private source moments are not rewritten.
         </p>
 

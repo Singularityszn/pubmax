@@ -97,7 +97,7 @@ begin
     -- capture and withdrawal statements.
     with withdrawn as (
       update public.night_story_contributors set status = 'withdrawn'
-       where profile_id = owned.user_id and status = 'accepted'
+       where profile_id = owned.user_id and status <> 'withdrawn'
        returning story_id
     ), withdrawn_consents as (
       -- A consent can survive its contributor relation. Withdraw it before
@@ -109,7 +109,7 @@ begin
         returning story_id
     )
     insert into public.private_story_redaction_names (story_id, account_id, display_name)
-    select affected.story_id, owned.user_id, owned.display_name
+    select affected.story_id, owned.user_id, identity_name
     from (
       select story_id from withdrawn
       union
@@ -118,7 +118,8 @@ begin
       union
       select story_id from withdrawn_consents
     ) affected
-    where nullif(btrim(owned.display_name), '') is not null
+    cross join lateral unnest(array[owned.handle, owned.display_name]) identity_name
+    where nullif(btrim(identity_name), '') is not null
     on conflict do nothing;
 
     delete from public.night_story_moments sm

@@ -67,7 +67,7 @@ Story with a departed contributor. There is no unsafe fallback.
 Names already erased by earlier profile clears cannot be reconstructed by this
 migration. No names are inferred or backfilled from another person's text.
 
-Retained names are service-only, scoped to affected Stories, and removed with
+Retained names and handles are service-only, scoped to affected Stories, and removed with
 the Story or auth account. They are absent from contributor/profile DTOs.
 Private source Moments are never rewritten. Rollback removes redaction
 material, so restore the earlier application deliberately and assess the
@@ -106,3 +106,28 @@ unwaived high or critical finding.
 After the consent-only repair, all 20 focused database and DELETE integration
 tests passed. TypeScript and scoped lint passed. The final-head publication
 gate must still run the complete verification command.
+
+## Further review regressions
+
+A pending invitation with no consent row did not retain its identity. A profile
+without a display name also had no durable redaction identity. New SQL and
+DELETE integration cases failed before repair, then passed after capturing the
+handle and any display name for every existing contributor or consent relation.
+Invited participation is withdrawn too. Memory clearing now removes the same
+owned publication entries as the database, without changing source Moments.
+The focused database and DELETE integration run passed 25 tests.
+
+Retained identities remain in the public redaction set after re-invitation,
+acceptance or consent re-approval. Rejoining an affected Story does not undo
+its earlier clear. The privacy notice and terms describe this behavior.
+
+The request boundary is a completed profile clear: public reads begun after
+the successful DELETE must redact. An overlapping request that already read
+the complete earlier state can return that earlier state. No system can recall
+text already read or buffered for delivery. A single database snapshot would
+not eliminate that case. The regression and rollout claims do not promise
+revocation of responses already in flight or copies already received.
+
+After the pending-invitation and memory publication repair, seven related
+suites passed all 114 tests. TypeScript and scoped lint passed. Final-head full
+verification remains the publication gate.

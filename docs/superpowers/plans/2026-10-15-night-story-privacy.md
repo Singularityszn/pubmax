@@ -56,3 +56,5 @@ Independent review: fixed acceptance interleaving using UPDATE RETURNING in one 
 Local verification: verify:no-mistakes passed, 22,049 coverage tests and 574 PostgreSQL tests. Later completeness guard reproduced RED then GREEN; final related run passed 268 tests and TypeScript. Final-head publication gate still pending. Original primary file/symlink preservation: 492 compared hashes unchanged, one previously deleted path has no blob.
 
 Gate review repair retained in commit 4f56810b: contribution acceptance and consent writes lock the same profile row. Follow-up consent-only regression failed before repair, then passed in both stores. Final focused database and DELETE integration: 20 tests passed. Final-head gate remains pending.
+
+Further review: preserve d4783b3b re-entry repair. Pending invitations and handle-only identities now retain redaction. Memory removes owned publication entries like SQL. RED: six failures; GREEN: all 25 focused tests pass. Public-read acceptance is requests begun after successful DELETE; overlapping old snapshots cannot be recalled. Final gate must use manual finding decisions.

@@ -77,9 +77,9 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
       cover_moderation_state = 'hidden', cover_report_count = 1, cover_report_actors = array['reporter']
       where handle = 'jordanx'`);
     expect(clear()).toBe("1");
-    expect(JSON.parse(state())).toEqual({ name: null, bio: null, status: "withdrawn", names: 3 });
-    expect(session.sql(`select string_agg(display_name, ',' order by story_id)
-      from public.private_story_redaction_names`)).toBe("Jordan,Jordan,Jordan");
+    expect(JSON.parse(state())).toEqual({ name: null, bio: null, status: "withdrawn", names: 6 });
+    expect(session.sql(`select string_agg(display_name, ',' order by story_id, display_name)
+      from public.private_story_redaction_names`)).toBe("Jordan,jordanx,Jordan,jordanx,Jordan,jordanx");
     expect(session.sql(`select count(*) from public.private_story_redaction_names where story_id = '${story(4)}'`)).toBe("0");
     expect(session.sql("select caption from public.night_moments")).toBe("Private source");
     expect(session.sql(`select bool_and(avatar_object_key is null and avatar_generation is null
@@ -104,8 +104,25 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
       where story_id = '${story(3)}'`)).toBe("0");
     if (!withdrawFirst) expect(withdraw()).toBe("t");
     expect(session.sql(`select display_name from public.private_story_redaction_names
-      where story_id = '${story(3)}' and account_id = '${friend}'`)).toBe("Jordan");
+      where story_id = '${story(3)}' and account_id = '${friend}' and display_name = 'Jordan'`)).toBe("Jordan");
     expect(session.sql("select caption from public.night_moments")).toBe("Private source");
+  });
+
+  it.each([false, true])("retains invited identities through clear and re-entry, display name=%s", (hasName) => {
+    session.sql(`update public.night_story_contributors set status = 'invited'
+      where story_id = '${story(1)}' and profile_id = '${friend}';`);
+    if (!hasName) session.sql("update public.profiles set display_name = null where handle = 'jordanx'");
+    expect(clear()).toBe("1");
+    expect(session.sql(`select status from public.night_story_contributors
+      where story_id = '${story(1)}' and profile_id = '${friend}'`)).toBe("withdrawn");
+    session.sql(`update public.night_story_contributors set status = 'invited'
+      where story_id = '${story(1)}' and profile_id = '${friend}';
+      set role service_role;
+      select * from public.accept_night_story_contribution_atomic('${friend}', '${story(1)}', now());`);
+    expect(session.sql(`select count(*) from public.private_story_redaction_names
+      where story_id = '${story(1)}' and account_id = '${friend}' and display_name = 'jordanx'`)).toBe("1");
+    if (hasName) expect(session.sql(`select count(*) from public.private_story_redaction_names
+      where story_id = '${story(1)}' and account_id = '${friend}' and display_name = 'Jordan'`)).toBe("1");
   });
 
   it("refuses another caller and anonymous callers without changing any state", () => {
@@ -157,7 +174,7 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
     expect(session.sql(`select status from public.night_moment_consents
       where story_id = '${story(3)}' and moment_id = '${story(11)}'`)).toBe("approved");
     expect(session.sql(`select count(*) from public.private_story_redaction_names
-      where account_id = '${friend}'`)).toBe("3");
+      where account_id = '${friend}'`)).toBe("6");
   });
 
   it("serializes acceptance with profile clearing", async () => {
@@ -182,7 +199,7 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
       expect(session.sql(`select status from public.night_story_contributors
         where story_id = '${story(4)}' and profile_id = '${friend}'`)).toBe("withdrawn");
       expect(session.sql(`select display_name from public.private_story_redaction_names
-        where story_id = '${story(4)}' and account_id = '${friend}'`)).toBe("Jordan");
+        where story_id = '${story(4)}' and account_id = '${friend}' and display_name = 'Jordan'`)).toBe("Jordan");
     } finally {
       session.sql("drop trigger pause_story_acceptance on public.night_story_contributors; drop function public.pause_story_acceptance()");
     }
@@ -213,7 +230,7 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
       expect(session.sql(`select status from public.night_moment_consents
         where story_id = '${story(4)}' and moment_id = '${story(11)}'`)).toBe("withdrawn");
       expect(session.sql(`select display_name from public.private_story_redaction_names
-        where story_id = '${story(4)}' and account_id = '${friend}'`)).toBe("Jordan");
+        where story_id = '${story(4)}' and account_id = '${friend}' and display_name = 'Jordan'`)).toBe("Jordan");
     } finally {
       session.sql("drop trigger pause_consent_withdrawal on public.night_moment_consents; drop function public.pause_consent_withdrawal()");
     }
@@ -222,11 +239,11 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
   it("retains names through repeated clears and a second display name", () => {
     clear();
     clear();
-    expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("3");
+    expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("6");
     session.sql("update public.profiles set display_name = 'Jules' where handle = 'jordanx'");
     clear();
-    expect(session.sql("select string_agg(distinct display_name, ',' order by display_name) from public.private_story_redaction_names")).toBe("Jordan,Jules");
-    expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("6");
+    expect(session.sql("select string_agg(distinct display_name, ',' order by display_name) from public.private_story_redaction_names")).toBe("Jordan,Jules,jordanx");
+    expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("9");
   });
 
   it("rolls back clear and withdrawal if the private name write fails", () => {
@@ -262,7 +279,7 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
   it("removes retained names when the Story or full auth account is deleted", () => {
     clear();
     session.sql(`delete from public.night_stories where id = '${story(1)}'`);
-    expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("2");
+    expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("4");
     session.sql(`delete from auth.users where id = '${friend}'`);
     expect(session.sql("select count(*) from public.private_story_redaction_names")).toBe("0");
   });
