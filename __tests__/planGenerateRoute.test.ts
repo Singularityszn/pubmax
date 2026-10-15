@@ -199,6 +199,76 @@ const unsupportedServingSubjects = [
 ];
 
 describe("POST /api/plans/generate", () => {
+  it.each([
+    ...[
+      "£5 for a pint at pubs serving pizza", "pints under£5 at pubs serving pizza",
+      "£5 for a pint at pubs serving food", "pints under£5 at pubs serving food",
+      "£5 for a pint in pubs serving pizza", "pints under£5 in pubs serving pizza",
+      "£5 for a pint with pizza afterwards", "pints under£5 with pizza afterwards",
+      "£5 for a pint, pizza afterwards", "pints under£5, pizza afterwards",
+    ].flatMap((phrase) => [
+      { query: `3 pubs in Clapham, ${phrase}`, total: null, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] }, total: null, ceiling: 500 },
+    ]),
+    ...[
+      "route budget of£20 at pubs serving pizza", "route total£20 for drinks with pizza",
+      "route budget of£20 with pizza afterwards", "route budget of£20 at pubs serving food",
+    ].flatMap((phrase) => [
+      { query: `3 pubs in Clapham, ${phrase}`, total: 2000, ceiling: null },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] }, total: 2000, ceiling: null },
+    ]),
+    ...["food", "pizza"].map((food) => ({
+      query: `3 pubs in Clapham, pub route budget of£20 for drinks at pubs serving ${food}`,
+      total: 2000, ceiling: null,
+    })),
+  ])("keeps price subjects separate from venue food preferences: %j", async ({ total, ceiling, ...input }) => {
+    const now = Date.parse("2026-10-15T12:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+      const venues = await actual.loadConciergeVenues("london");
+      loadConciergeVenuesMock.mockResolvedValueOnce(venues);
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), now);
+      loadConciergeVenuesMock.mockResolvedValueOnce(venues);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      const body = await response.json();
+      expect({ preparation: "prepared" in prepared ? 200 : prepared.response.status, post: response.status }, JSON.stringify(body))
+        .toEqual({ preparation: 200, post: 200 });
+      if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
+      expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+      expect(body.inferredContext.budgetLimitPence).toBe(total);
+      expect(body.stops).toHaveLength(3);
+      const evidence = await planPriceEvidenceForVenues(venues, now);
+      for (const { venue } of prepared.prepared.candidates) {
+        const price = evidence.get(venue.id)!;
+        if (ceiling !== null) {
+          expect(priceEvidenceUsableForCeiling(price)).toBe(true);
+          expect(price.pence).toBeLessThanOrEqual(ceiling);
+        }
+      }
+      for (const [index, stop] of body.stops.entries()) {
+        for (const candidate of [stop, ...stop.alternatives]) {
+          if (ceiling !== null) {
+            const price = evidence.get(candidate.venueId)!;
+            expect(priceEvidenceUsableForCeiling(price)).toBe(true);
+            expect(price.pence).toBeLessThanOrEqual(ceiling);
+            expect(candidate.estimatedPintPricePence).toBe(price.pence);
+          }
+          if (total !== null) {
+            const route = body.stops.map((selected: { venueId: string }, position: number) => position === index ? candidate : selected);
+            expect(route.reduce((sum: number, selected: { venueId: string }) => sum + evidence.get(selected.venueId)!.pence!, 0)).toBeLessThanOrEqual(total);
+          }
+        }
+      }
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it.each(["group of four", "party of four", "group of 4"].flatMap((group) => [
     { query: `3 pubs in Clapham for a ${group} under£20 per person` },
     { query: `3 pubs in Clapham for a ${group} under£20 per person`, context: { foodNeeds: ["pizza"] } },
@@ -223,6 +293,7 @@ describe("POST /api/plans/generate", () => {
     "slice of pizza", "a slice of pizza", "slice of a pizza", "a portion of chips", "two portions of chips",
     "half a pizza", "1/2 a pizza", "quarter of a pizza", "one and a half portions of chips",
     "three large slices of pizza", "a freshly baked pizza", "a cheese and tomato pizza",
+    "a serving of pizza", "a generous serving of pizza",
     ...["three", "3", "four", "ten", "a dozen"].flatMap((quantity) => [
       `${quantity} portions of chips`, `${quantity} slices of pizza`,
     ]),

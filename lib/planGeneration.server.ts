@@ -263,19 +263,17 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)(?:(?!\b(?:with|per|each|afterwards|later)\b)[^,£])*\b${PLAN_FOOD_ITEM}\b`, "i");
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)(?:(?!\b(?:with|per|each|afterwards|later|at|in|pubs?|bars?|stops?)\b)[^,£])*\b${PLAN_FOOD_ITEM}\b`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
 			if (price.drink?.perServing) return false;
-			if (foodAfterPrice.test(after)) return true;
-			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
-			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
-				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
 			if (price.drink && price.drink.beforeStart !== null) {
-				return pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent);
+				return foodAfterPrice.test(after)
+					|| pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent);
 			}
 			if (price.drink && price.drink.afterEnd !== null) {
+				if (foodAfterPrice.test(after)) return true;
 				const item = explicitFoodIntent ? String.raw`\w+` : String.raw`(?:${PLAN_FOOD_ITEM}|${PLAN_DRINK_ITEM})`;
 				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
 					.exec(after.slice(price.drink.afterEnd))?.[0] ?? "";
@@ -284,6 +282,10 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 					? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
 					: new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i").test(list);
 			}
+			if (foodAfterPrice.test(after)) return true;
+			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
+			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
+				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
 			if (price.routeBudget === "explicit") return false;
 			if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
 			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
