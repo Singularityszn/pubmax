@@ -123,7 +123,7 @@ export function writeOnboardingPatch(id: string | null, storage?: Storage | null
   }
 }
 
-/** The held patch id, or null when none is held. */
+/** The held patch id or `area:` identifier, never the browser's coordinates. */
 export function readOnboardingPatch(storage?: Storage | null): string | null {
   const store = storage ?? safeSessionStorage();
   if (!store) return null;
