@@ -88,6 +88,26 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
       and cover_report_count = 0 and cardinality(cover_report_actors) = 0) from public.profiles`)).toBe("t");
   });
 
+  it.each([false, true])("withdraws consent-only publication and retains its name, prior withdrawal=%s", (withdrawFirst) => {
+    session.sql(`update public.night_moment_consents set status = 'approved'
+      where story_id = '${story(3)}';
+      insert into public.night_story_moments (story_id, moment_id, position)
+        values ('${story(3)}', '${story(11)}', 0);`);
+    const withdraw = () => session.sql(`set role service_role;
+      select public.set_night_moment_publication_consent_atomic(
+        '${friend}', '${story(3)}', '${story(11)}', 'withdrawn', now());`);
+    if (withdrawFirst) expect(withdraw()).toBe("t");
+    expect(clear()).toBe("1");
+    expect(session.sql(`select status from public.night_moment_consents
+      where story_id = '${story(3)}'`)).toBe("withdrawn");
+    expect(session.sql(`select count(*) from public.night_story_moments
+      where story_id = '${story(3)}'`)).toBe("0");
+    if (!withdrawFirst) expect(withdraw()).toBe("t");
+    expect(session.sql(`select display_name from public.private_story_redaction_names
+      where story_id = '${story(3)}' and account_id = '${friend}'`)).toBe("Jordan");
+    expect(session.sql("select caption from public.night_moments")).toBe("Private source");
+  });
+
   it("refuses another caller and anonymous callers without changing any state", () => {
     const before = state();
     expect(clear(stranger)).toBe("0");

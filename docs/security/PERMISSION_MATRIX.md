@@ -51,7 +51,7 @@ one that belongs to somebody else, or the refusal is an existence oracle.
 service-only. Neither browser role can read or write it, including an account's
 own retained name. `clear_profile_for_caller` is service-only too; the route
 supplies the verified caller. A locked ownership check, per-Story name capture,
-contribution withdrawal and profile clearing share one transaction. No public
+contribution and owned-consent withdrawal and profile clearing share one transaction. No public
 profile or contributor DTO includes retained names. The effective proof is
 `__tests__/nightStoryProfileClearEffective.test.ts`. Names leave with the Story
 or the auth account. This fixes profile clearing; it does not certify the

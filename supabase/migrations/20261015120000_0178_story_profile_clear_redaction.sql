@@ -99,6 +99,14 @@ begin
       update public.night_story_contributors set status = 'withdrawn'
        where profile_id = owned.user_id and status = 'accepted'
        returning story_id
+    ), withdrawn_consents as (
+      -- A consent can survive its contributor relation. Withdraw it before
+      -- clearing the only display name, including approved and pending rows.
+      update public.night_moment_consents
+        set status = 'withdrawn',
+            decided_at = case when status = 'withdrawn' then decided_at else now() end
+        where owner_id = owned.user_id
+        returning story_id
     )
     insert into public.private_story_redaction_names (story_id, account_id, display_name)
     select affected.story_id, owned.user_id, owned.display_name
@@ -108,11 +116,15 @@ begin
       select c.story_id from public.night_story_contributors c
        where c.profile_id = owned.user_id and c.status = 'withdrawn'
       union
-      select c.story_id from public.night_moment_consents c
-       where c.owner_id = owned.user_id and c.status = 'withdrawn'
+      select story_id from withdrawn_consents
     ) affected
     where nullif(btrim(owned.display_name), '') is not null
     on conflict do nothing;
+
+    delete from public.night_story_moments sm
+      using public.night_moment_consents c
+      where c.owner_id = owned.user_id and c.status = 'withdrawn'
+        and sm.story_id = c.story_id and sm.moment_id = c.moment_id;
   end if;
 
   return query update public.profiles set

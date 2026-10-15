@@ -21,10 +21,13 @@ export function withdrawMemoryStoryContributions(accountId: string, displayName?
       return { ...row, status: "withdrawn" };
     }));
   }
+  const decidedAt = new Date().toISOString();
   for (const [storyId, rows] of memoryStoryConsents) {
-    if (rows.some((row) => row.ownerId === accountId && row.status === "withdrawn")) {
+    memoryStoryConsents.set(storyId, rows.map((row) => {
+      if (row.ownerId !== accountId) return row;
       affected.add(storyId);
-    }
+      return row.status === "withdrawn" ? row : { ...row, status: "withdrawn", decidedAt };
+    }));
   }
   const name = displayName?.trim();
   if (name) {

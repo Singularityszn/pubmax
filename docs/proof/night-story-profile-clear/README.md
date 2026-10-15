@@ -16,7 +16,7 @@ handler and in-memory stores produced:
 
 Command: `npm test -- __tests__/profileDeleteRedaction.test.ts --maxWorkers=1`.
 The extended regression failed before implementation on the surviving caption.
-After implementation both prior-withdrawal cases passed, including title,
+After implementation all four contributor/consent-only and prior-withdrawal cases passed, including title,
 summary, public Story, recap, repeated clear, wrong caller and unchanged private
 source caption assertions. Authentication is a test boundary; this is a route
 handler integration test, not a browser or real-account acceptance run.
@@ -27,7 +27,7 @@ handler integration test, not a browser or real-account acceptance run.
 starts the repository's PostgreSQL 16 harness, applies its platform fixture and
 all 195 migrations, then exercises the real SQL function and access rules.
 
-Ten tests passed. They cover accepted, already-withdrawn and consent-only
+Fourteen tests passed. They cover accepted, already-withdrawn and consent-only
 relations, per-Story scope, repeated clears with a second name, populated image
 state, wrong and anonymous caller refusal, failed name-storage rollback,
 browser SELECT/DELETE/RPC refusal, Story/account cascades, re-apply and rollback.
@@ -38,6 +38,20 @@ capture. The old two-statement version left one withdrawn contribution without
 a matching retained name. The revised withdrawal CTE supplies the IDs actually
 withdrawn, and the same probe reports zero such rows. No production trigger is
 installed by the probe; the harness removes its test trigger after the assertion.
+
+Review also found a real transaction race: acceptance and consent writes did
+not lock the profile row. Both service-only mutation RPCs now take the same
+profile lock as clearing. Two concurrent-session PostgreSQL tests cover these
+interleavings.
+
+A further ordered probe found that an approved consent without a contributor
+row survived profile clearing. Its later withdrawal then lacked a retained
+name. The regression failed in both the database and the real DELETE/public
+reader integration. Clearing now withdraws every existing consent owned by the
+profile and retains the name in the same transaction. Both withdrawal orders
+pass, and private source captions stay unchanged. The database also removes
+the cleared owner's publication joins. This includes historical consent-only
+relations without changing another owner's consent.
 
 ## Scope and rollout
 
@@ -88,3 +102,7 @@ checking passed. Lint reported zero errors and 17 existing complexity warnings.
 Freshness passed with three credential-dependent feeds explicitly unresolved;
 this does not prove those live feeds healthy. The dependency audit reported no
 unwaived high or critical finding.
+
+After the consent-only repair, all 20 focused database and DELETE integration
+tests passed. TypeScript and scoped lint passed. The final-head publication
+gate must still run the complete verification command.

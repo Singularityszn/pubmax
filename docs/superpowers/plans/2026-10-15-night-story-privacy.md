@@ -54,3 +54,5 @@ Baseline: 2 focused files, 10 tests passed with 512 MiB Node heap and one worker
 Independent review: fixed acceptance interleaving using UPDATE RETURNING in one CTE. Regression observed one withdrawn row without a name before repair, zero after. Populated image-state proof added. Full auth-delete redaction remains outside this profile-clear repair.
 
 Local verification: verify:no-mistakes passed, 22,049 coverage tests and 574 PostgreSQL tests. Later completeness guard reproduced RED then GREEN; final related run passed 268 tests and TypeScript. Final-head publication gate still pending. Original primary file/symlink preservation: 492 compared hashes unchanged, one previously deleted path has no blob.
+
+Gate review repair retained in commit 4f56810b: contribution acceptance and consent writes lock the same profile row. Follow-up consent-only regression failed before repair, then passed in both stores. Final focused database and DELETE integration: 20 tests passed. Final-head gate remains pending.

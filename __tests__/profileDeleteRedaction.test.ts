@@ -27,6 +27,8 @@ import {
   setMomentPublicationConsent,
   upsertStoryContributor,
 } from "@/lib/nightMemoryStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
+import { memoryStoryContributors } from "@/lib/nightStoryMemory";
 import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
 import {
   __resetMemoryReferrals,
@@ -47,13 +49,15 @@ const del = (handle: string, token: string) =>
 
 describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () => {
   beforeEach(() => {
+    __resetPintDrops();
     __resetNightMemoryStore();
     __resetMemoryProfiles();
     __resetMemoryReferrals();
     __resetMemoryPrivateIdentities();
   });
 
-  it.each([false, true])("redacts profile-clear names including prior withdrawal=%s", async (withdrawFirst) => {
+  it.each([[false, false], [true, false], [false, true], [true, true]])(
+    "redacts profile-clear names, prior withdrawal=%s, consent-only=%s", async (withdrawFirst, consentOnly) => {
     // A linked account 'friend' owning handle 'jordanx', contributing to a Story.
     await profileStore().createOwned("jordanx", "friend");
     await profileStore().update("jordanx", { displayName: "Jordan" });
@@ -81,6 +85,11 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     const before = await getPublishedRecapSource(story!.id);
     expect(before!.moments.map((m) => m.id).sort()).toEqual([hostMoment!.id, friendMoment!.id].sort());
 
+    // Historical consent rows can outlive their contributor relation.
+    if (consentOnly) {
+      memoryStoryContributors.set(story!.id,
+        memoryStoryContributors.get(story!.id)!.filter((row) => row.profileId !== "friend"));
+    }
     if (withdrawFirst) {
       await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "withdrawn");
     }
