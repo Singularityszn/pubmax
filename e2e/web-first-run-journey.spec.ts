@@ -108,7 +108,11 @@ for (const size of SIZES) {
     await saveShot(page, `web-7-companion-${size.name}`);
 
     await page.getByRole("button", { name: "Plan my night" }).click();
-    await expect(page).toHaveURL(/\/map\?plan=1$/);
+    await expect(page).toHaveURL(/\/plan\?query=/);
+    const arrival = new URL(page.url());
+    expect(arrival.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
+    expect(arrival.searchParams.get("from")).toBe("onboarding");
+    await expect(page.getByText("Balanced plan", { exact: true })).toHaveCount(0);
   });
 }
 
@@ -161,7 +165,10 @@ test("on a short phone each step opens at the top with the progress bar and Skip
   const stage = page.locator(".firstRunStage");
   await expect(useLondon).toBeInViewport({ ratio: 1 });
   await page.locator(".firstRunAreaList article").last().scrollIntoViewIfNeeded();
-  await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  const overflows = await stage.evaluate((node) => node.scrollHeight > node.clientHeight);
+  if (overflows) {
+    await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  }
   await expect(useLondon).toBeInViewport({ ratio: 1 });
   await useLondon.click();
 

@@ -136,6 +136,41 @@ function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 
 }
 
 describe("POST /api/plans/generate", () => {
+  it("preserves an onboarding pint ceiling separately from the route total", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 5 }),
+      generatedVenue("v3", { cheapestPrice: 4.5 }),
+      generatedVenue("v4", { cheapestPrice: 6 }),
+    ]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "3 pubs in Clapham, under £15 per person, maximum £5 per pint" }),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error("Expected a prepared pub route");
+    expect(result.prepared.context.budgetLimitPence).toBe(1500);
+    expect(result.prepared.candidates.map(({ venue }) => venue.id).sort()).toEqual(["v1", "v2", "v3"]);
+  });
+
+  it.each([
+    "One vegan meal under £10 and under 500 calories in Soho",
+    "One meal under 500kcal in Soho",
+    "One meal under 500calories in Soho",
+  ])("refuses unsupported meal constraints in %s", async (query) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        context: { stopCount: 1 },
+      }),
+    }));
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(body.error).toMatch(/meal.*dietary.*calorie/i);
+    expect(body).not.toHaveProperty("stops");
+  });
+
   beforeEach(() => {
     isLimitedMock.mockClear();
     isLimitedMock.mockResolvedValue(false);

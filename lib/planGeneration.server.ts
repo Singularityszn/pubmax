@@ -225,6 +225,16 @@ type PlanGenerationPreparation = {
 	anchor: PlanGenerationAnchor | null;
 };
 
+/** The pub-route generator has no menu-item or nutrition proof. */
+function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
+	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(query);
+	const requiresDiet = /\b(?:vegan|vegetarian|halal|kosher|gluten[ -]free|allerg(?:y|ies|en|ens))\b/i.test(query)
+		|| foodNeeds.some((need) => /\b(?:vegan|vegetarian|halal|kosher|gluten[ -]free)\b/i.test(need));
+	const requiresMealPrice = /\b(?:meal|lunch|dinner|breakfast|dish|food|eat)\b/i.test(query)
+		&& /(?:£|\b(?:pounds?|quid)\b)/i.test(query);
+	return requiresNutrition || requiresDiet || requiresMealPrice;
+}
+
 export async function preparePlanGeneration(
 	request: Request,
 	requestNow: number = Date.now(),
@@ -264,6 +274,13 @@ export async function preparePlanGeneration(
 	}
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
+	if (requiresMenuEvidence(query, context.foodNeeds)) {
+		return { response: publicApiError(
+			"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+			"MEAL_CONSTRAINTS_UNSUPPORTED",
+			422,
+		) };
+	}
 	if (!context.nightArea) {
 		return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	}
@@ -328,6 +345,8 @@ export async function preparePlanGeneration(
 		)
 		: null;
 	const venues = await loadConciergeVenues(cityId);
+	const pintCapMatch = query.match(/\b(?:maximum|max|under|up to)\s*£\s*(\d{1,3}(?:[.,]\d{1,2})?)\s*(?:per|a|each)\s+pint\b/i);
+	const pintCap = pintCapMatch ? Number(pintCapMatch[1]!.replace(",", ".")) : null;
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
 		: undefined;
@@ -351,6 +370,7 @@ export async function preparePlanGeneration(
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm
+			&& (pintCap === null || (venue.cheapestPrice !== null && venue.cheapestPrice <= pintCap))
 			&& venue.promoted !== true
 			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
 		.sort((a, b) => b.score - a.score);

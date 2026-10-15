@@ -185,7 +185,7 @@ export function releasePromptBudget(surface: PromptSurface, storage?: Storage | 
 
 /**
  * Whether the page at `pathname` owns the foot of the screen at `viewportWidth`:
- * the map family at phone width (MOBILE_MAX_WIDTH). A pathname we cannot read
+ * the map family and the plan composer at phone width (MOBILE_MAX_WIDTH). A pathname we cannot read
  * answers false, which is how every other route behaves.
  */
 export function routeOwnsScreenFoot(
@@ -195,7 +195,7 @@ export function routeOwnsScreenFoot(
   if (!(viewportWidth <= MOBILE_MAX_WIDTH)) return false;
   if (typeof pathname !== "string") return false;
   const path = (pathname.split(/[?#]/)[0] ?? "").replace(/\/+$/, "");
-  return path === "/map" || path.startsWith("/map/");
+  return path === "/map" || path.startsWith("/map/") || path === "/plan";
 }
 
 /**
