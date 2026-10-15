@@ -21,10 +21,14 @@ it("initializes and parses plan prices when RegExp lookbehind is unavailable", a
         .toEqual({ pintCeiling: 5, routeBudgetPence: 2000 });
     }
     for (const object of ["beer", "drinks", "real ale", "cider", "soft drinks", "mixed drinks and food", "craft beverages"]) {
-      for (const antecedent of ["", "each ", "each regularly ", "with a garden ", "with a sunny terrace regularly "]) {
+      for (const antecedent of ["", "each ", "one ", "two ", "each regularly ", "with a garden ", "with a sunny terrace regularly ", "with a kitchen ", "with a restaurant ", "with a rooftop ", "with 2 bars ", "with a shed "]) {
         expect(planPriceLimits(`£5 pint at X ${antecedent}serving ${object}, under£20 per person`))
           .toEqual({ pintCeiling: 5, routeBudgetPence: 2000 });
       }
+    }
+    for (const subject of ["a serving weighing 200g", "one serving enough for two", "a generous serving suitable for sharing", "each serving weighing 200g", "a 200g serving weighing 200g"]) {
+      expect(planPriceSubjectText(`£10 pint at X&${subject}`)).toContain(`&${subject}`);
+      expect(planPriceSubjectText(`${subject} under£10`)).toBe(`${subject} under£10`);
     }
     expect(planPriceSubjectText("£10 pint at X and servings to share"))
       .toContain("and servings to share");
