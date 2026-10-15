@@ -755,4 +755,33 @@ describe("first-run handoff to the planner", () => {
       expect(stored).not.toContain("-0.1365");
     }
   });
+  it("shows nearby listed prices outside planner-area discs", async () => {
+    slim.load.mockResolvedValueOnce({ status: "ready", rows: [
+      { id: "arnos-arms", name: "Arnos Arms", lat: 51.6162, lng: -0.132117, cheapestPrice: 5.5, borough: "Enfield" },
+    ] });
+    stubGeolocation((ok) => ok({ coords: { latitude: 51.6162, longitude: -0.132117 } } as GeolocationPosition));
+    await reachLocation();
+    await tap("Use my location");
+    await settle();
+    expect(container.textContent).toContain("Arnos Arms");
+    expect(container.textContent).toContain("£5.50");
+    expect(container.textContent).not.toContain("We don't list prices where you are yet");
+    await tap("That looks right");
+    await tap("Plan my night");
+    expect(openPlanner).not.toHaveBeenCalled();
+    expect(hasSeenTour()).toBe(false);
+    expect(container.textContent).toContain("Or pick where you’re drinking");
+    await historySettles();
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Plan my night");
+    await historySettles();
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(readPlannerHandoff()).toEqual({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "six" });
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      expect(JSON.stringify(Object.entries(storage))).not.toMatch(/51\.6162|-0\.132117/);
+    }
+  });
+
 });

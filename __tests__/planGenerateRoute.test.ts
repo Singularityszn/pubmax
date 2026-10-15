@@ -57,6 +57,10 @@ vi.mock("@/lib/walkRouteStore", () => ({
 }));
 
 import { GET, POST } from "@/app/api/plans/generate/route";
+import { planPriceLimits } from "@/lib/planPriceLimits";
+import { inferNightContext } from "@/lib/nightPlanning";
+import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
+import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
 import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
@@ -114,6 +118,16 @@ function generatedVenue(
   };
 }
 
+async function cappedTestVenues(): Promise<ConciergeVenue[]> {
+  const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+  const venues = await actual.loadConciergeVenues("london");
+  return ["Feeley's", "The Beehive - JD Wetherspoon", "Effra Social", "Prince of Wales"].map((name) => {
+    const venue = venues.find((candidate) => candidate.name === name);
+    if (!venue) throw new Error(`Missing canonical fixture: ${name}`);
+    return venue;
+  });
+}
+
 function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 2") {
   loadConciergeVenuesMock.mockResolvedValueOnce([
     generatedVenue("v1", { cheapestPrice: 4 }),
@@ -137,6 +151,105 @@ function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 
 
 describe("POST /api/plans/generate", () => {
   it.each([
+    "pints priced under £5", "pints costing under £5", "pints for under £5",
+    "under £5 for a pint", "pints priced under 5 pounds", "pints costing under 5 quid",
+    "pints for under£5", "under£5 for a pint", "pints priced under £5,00",
+  ].flatMap((rate) => [
+    `3 pubs in Clapham, under £20 per person, ${rate}`,
+    `3 pubs in Clapham, ${rate}, under £20 per person`,
+  ]))("binds independently priced pint clauses: %s", (query) => {
+    expect(planPriceLimits(query)).toEqual({ pintCeiling: 5, routeBudgetPence: 2000 });
+    expect(inferNightContext(query).context.budgetLimitPence).toBe(2000);
+  });
+
+  it.each([
+    "One steak in Soho with a budget of £20",
+    "steak and a budget of £20",
+    "salad under£10", "curry under£10",
+    "salad and a pint under£10", "a pint and salad under£10",
+  ].flatMap((meal) => [
+    { query: meal.includes("Soho") ? meal : `One ${meal} in Soho`, context: { stopCount: 1 } },
+    { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [meal] } },
+  ]).concat([
+    ...["soup under£10", "soup and a pint under£10", "£10 for a pint and soup", "soup, beer and pint under£10"].map((food) => ({
+      query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [food] },
+    })),
+    { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: ["under£10"] } },
+    { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: ["pizza and a budget of £20 per person"] } },
+  ]))("refuses unowned food amounts: %j", async (input) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it.each([
+    { query: "3 pubs in Clapham with salad and a budget of £20 per person" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["salad", "pints priced under£5"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["salad, pub route budget of £20"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["salad", "under £5 for a pint"] } },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["salad"] } },
+  ])("preserves owned route and drink money with food preferences: %j", async (input) => {
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    expect(result).toHaveProperty("prepared");
+  });
+
+  it("excludes stale canonical evidence from standalone pint-cap candidates", async () => {
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, maximum £5 per pint" }),
+    }), Date.parse("2026-10-15T12:00:00Z"));
+    if (!("prepared" in result)) throw new Error("Expected preparation before route selection");
+    expect(result.prepared.context.budgetLimitPence).toBeNull();
+    expect(result.prepared.candidates.map(({ venue }) => venue.name)).not.toContain("Junction (Clapham)");
+    const evidence = await planPriceEvidenceForVenues(result.prepared.candidates.map(({ venue }) => venue), result.prepared.requestNow);
+    for (const candidate of result.prepared.candidates) {
+      expect(priceEvidenceUsableForCeiling(evidence.get(candidate.venue.id)!)).toBe(true);
+      expect(evidence.get(candidate.venue.id)!.pence).toBeLessThanOrEqual(500);
+    }
+  });
+
+  it("keeps canonical pint ceilings on selected stops and alternatives", async () => {
+    const now = Date.parse("2026-10-15T12:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, maximum £5 per pint" }),
+      }));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.stops).toHaveLength(3);
+      const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+      const evidence = await planPriceEvidenceForVenues(await actual.loadConciergeVenues("london"), now);
+      const stops = body.stops.flatMap((stop: { venueId: string; alternatives: Array<{ venueId: string }> }) => [stop, ...stop.alternatives]);
+      expect(stops.length).toBeGreaterThan(3);
+      for (const stop of stops) {
+        const price = evidence.get(stop.venueId);
+        expect(price).toBeDefined();
+        expect(priceEvidenceUsableForCeiling(price!)).toBe(true);
+        expect(price!.pence).toBeLessThanOrEqual(500);
+      }
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("uses canonical amounts rather than slim prices for a pint ceiling", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      ...(await cappedTestVenues()).map((venue) => ({ ...venue, cheapestPrice: 0.01 })),
+      generatedVenue("missing-canonical", { cheapestPrice: 0.01 }),
+    ]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, pints under £5" }),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error("Expected canonical price filtering");
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.cheapestPrice).sort()).toEqual([2.89, 4.2, 4.7]);
+  });
+
+  it.each([
     { query: "3 pubs in Clapham, under £20 per person, pints under £5", total: 2000 },
     { query: "3 pubs in Clapham, pints under £5, under £20 per person", total: 2000 },
     { query: "3 pubs in Clapham, maximum £5 per pint", total: null },
@@ -146,20 +259,24 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, £5 per pint, under £20 per person", total: 2000 },
     { query: "3 pubs in Clapham, under £20 per person, £5 pints", total: 2000 },
     { query: "3 pubs in Clapham, under £20 per person, pints under £5.00", total: 2000 },
+    { query: "3 pubs in Clapham, under £20 per person, pints priced under £5", total: 2000 },
+    { query: "3 pubs in Clapham, pints priced under £5, under £20 per person", total: 2000 },
+    { query: "3 pubs in Clapham, under £20 per person, pints costing under £5", total: 2000 },
+    { query: "3 pubs in Clapham, pints costing under £5, under £20 per person", total: 2000 },
+    { query: "3 pubs in Clapham, under £20 per person, pints for under £5", total: 2000 },
+    { query: "3 pubs in Clapham, pints for under £5, under £20 per person", total: 2000 },
+    { query: "3 pubs in Clapham, under £20 per person, under £5 for a pint", total: 2000 },
+    { query: "3 pubs in Clapham, under £5 for a pint, under £20 per person", total: 2000 },
+    { query: "3 pubs in Clapham, pints costing under 5 quid, under 20 pounds per person", total: 2000 },
   ])("keeps pint rates separate from route totals: $query", async ({ query, total }) => {
-    loadConciergeVenuesMock.mockResolvedValueOnce([
-      generatedVenue("v1", { cheapestPrice: 4 }),
-      generatedVenue("v2", { cheapestPrice: 5 }),
-      generatedVenue("v3", { cheapestPrice: 4.5 }),
-      generatedVenue("v4", { cheapestPrice: 6 }),
-    ]);
+    loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({ query }),
     }), PLAN_GENERATION_TEST_NOW);
     if (!("prepared" in result)) throw new Error("Expected a prepared pub route");
     expect(result.prepared.context.budgetLimitPence).toBe(total);
-    expect(result.prepared.candidates.map(({ venue }) => venue.id).sort()).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
   });
 
   it.each([
@@ -182,7 +299,7 @@ describe("POST /api/plans/generate", () => {
 
   it.each([
     { query: "3 pubs in Clapham with pizza and a budget of £20 per person" },
-    { query: "3 pubs in Clapham under £20 per person", context: { foodNeeds: ["pizza and a budget of £20 per person"] } },
+    { query: "3 pubs in Clapham under £20 per person", context: { foodNeeds: ["pizza with a route budget of £20"] } },
   ])("preserves an explicit route budget with an unpriced food preference: %j", async (input) => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
@@ -353,7 +470,7 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham with steak afterwards, under £20 per person", foodNeeds: [] },
     { query: "3 pubs in Clapham with sandwich afterwards, under £20 per person", foodNeeds: [] },
   ])("preserves food amenities and drink budgets: $query", async ({ query, foodNeeds }) => {
-    loadConciergeVenuesMock.mockResolvedValueOnce([
+    loadConciergeVenuesMock.mockResolvedValueOnce(query.includes("per pint") ? await cappedTestVenues() : [
       generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
     ]);
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
@@ -376,18 +493,17 @@ describe("POST /api/plans/generate", () => {
     "pizza with £5 pints",
     "pizza with £5 for a pint",
     "food under £5 per pint",
+    "pizza, pints priced under £5",
+    "pizza, pints costing under £5",
+    "pizza, pints for under £5",
+    "pizza, under £5 for a pint",
     "pizza and a pint, pints under £5",
     "pint and pizza later, pints under £5",
   ].flatMap((foodNeed) => [
     { source: "query", query: `3 pubs in Clapham, under £20 per person, maximum £5 per pint, ${foodNeed}`, foodNeeds: undefined },
     { source: "foodNeeds", query: "3 pubs in Clapham, under £20 per person, maximum £5 per pint", foodNeeds: [foodNeed] },
   ]))("preserves drink budgets with $source: $query $foodNeeds", async ({ query, foodNeeds }) => {
-    loadConciergeVenuesMock.mockResolvedValueOnce([
-      generatedVenue("v1", { cheapestPrice: 4 }),
-      generatedVenue("v2", { cheapestPrice: 5 }),
-      generatedVenue("v3", { cheapestPrice: 4.5 }),
-      generatedVenue("v4", { cheapestPrice: 6 }),
-    ]);
+    loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({
@@ -398,7 +514,7 @@ describe("POST /api/plans/generate", () => {
     if (!("prepared" in result)) throw new Error(`Expected a prepared food-aware pub route: ${JSON.stringify({ query, foodNeeds, response: await result.response.json() })}`);
     expect(result.prepared.context.budgetLimitPence).toBe(2000);
     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [query.includes("pizza") ? "pizza" : "food"]);
-    expect(result.prepared.candidates.map(({ venue }) => venue.id).sort()).toEqual(["v1", "v2", "v3"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
   });
 
   beforeEach(() => {
