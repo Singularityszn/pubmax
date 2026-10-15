@@ -69,28 +69,28 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
     venues: venues.map((venue) => ({
       id: venue.id,
       name: venue.name,
-      area: venue.borough ?? "",
+      area: venue.locality?.trim() || venue.borough || "",
     })),
   };
 }
 
 function packFromCurrentVenues(
   cityId: CityId,
-  venues: readonly Pick<Venue, "id" | "name" | "primaryBorough">[],
+  venues: readonly Pick<Venue, "id" | "name" | "primaryBorough" | "locality">[],
 ): MapSearchPack {
   return {
     cityId,
     venues: venues.map((venue) => ({
       id: venue.id,
       name: venue.name,
-      area: venue.primaryBorough ?? "",
+      area: venue.locality?.trim() || venue.primaryBorough || "",
     })),
   };
 }
 
 export type MapSearchIndexLoadOptions = {
   currentCityId?: CityId;
-  currentVenues?: readonly Pick<Venue, "id" | "name" | "primaryBorough">[];
+  currentVenues?: readonly Pick<Venue, "id" | "name" | "primaryBorough" | "locality">[];
 };
 
 export function loadMapSearchIndex(

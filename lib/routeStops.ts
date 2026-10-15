@@ -18,6 +18,7 @@ export type RouteStopPlace = {
   address: string;
   /** Curated story tag, the venue's own name for where it sits. */
   storyTag?: string;
+  locality?: string;
   primaryBorough?: string;
   visibleBoroughs?: readonly string[];
 };
@@ -67,6 +68,7 @@ export function venueStreetLabel(address: string): string | null {
 export function routeStopAreaLabel(stop: RouteStopPlace): string {
   return (
     stop.storyTag?.trim() ||
+    stop.locality?.trim() ||
     stop.primaryBorough?.trim() ||
     stop.visibleBoroughs?.[0]?.trim() ||
     UNKNOWN_AREA

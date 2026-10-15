@@ -160,7 +160,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       cityId: "london",
       query: "only arms",
       venues: [
-        venue({ id: "only", name: "The Only Arms" }),
+        venue({ id: "only", name: "The Only Arms", locality: "Hatton Garden" }),
         venue({ id: "other", name: "Different Tavern" }),
       ],
       userLocation: null,
@@ -168,6 +168,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     });
     expect(result.areas).toHaveLength(0);
     expect(result.pubs.map((pub) => pub.id)).toEqual(["only"]);
+    expect(defined(result.pubs[0]).boroughLabel).toBe("Hatton Garden");
   });
 
   it("matches many Venues by name and caps the group", () => {

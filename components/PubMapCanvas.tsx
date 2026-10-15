@@ -78,6 +78,7 @@ import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { mapReaderPositionGeoJSON, type MapReaderPosition } from "@/lib/mapReaderPosition";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, venueFromDetailPayload, type Venue } from "@/lib/venues";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import type {
   CategoryPriceIndexStatus,
   MapLensPrice,
@@ -4569,7 +4570,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           </span>
           <strong>{hoverDetail?.name ?? hovered.name}</strong>
           <span className="venueHoverMeta">
-            {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
+            {hoverDetail?.locality || hoverDetail?.primaryBorough
+              ? `${venueAreaLabel(hoverDetail)} · `
+              : ""}
             {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
               <>
                 {/* The figure wears its price band (lib/priceBand.ts). */}

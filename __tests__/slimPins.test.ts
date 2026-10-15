@@ -10,6 +10,7 @@ const slim: SlimVenue = {
   lng: -0.0498,
   cheapestPrice: 5.2,
   borough: "Tower Hamlets",
+  locality: "Wapping",
   filterHints: {
     searchText: "prospect of whitby wine",
     amenities: {
@@ -45,6 +46,7 @@ describe("slimVenueToPin", () => {
     expect(pin.longitude).toBe(-0.0498);
     expect(pin.cheapestPrice).toBe(5.2);
     expect(pin.primaryBorough).toBe("Tower Hamlets");
+    expect(pin.locality).toBe("Wapping");
   });
 
   it("preserves a null cheapestPrice (bucketed as no-price by the canvas)", () => {

@@ -115,7 +115,7 @@ export type PubSuggestion = {
   name: string;
   kind?: VenueKind;
   typeLabel: string;
-  /** The pub's borough, for a quiet second-line hint ("" when unknown). */
+  /** The pub's neighbourhood, with borough fallback, for a quiet second-line hint. */
   boroughLabel: string;
   /** "£5.20" verified cheapest, or null when nothing is priced yet. */
   priceLabel: string | null;
@@ -396,7 +396,7 @@ function buildPubSuggestion(
     name: venue.name,
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
     typeLabel: venueKindLabel(venue.kind),
-    boroughLabel: (venue.primaryBorough ?? "").trim(),
+    boroughLabel: venue.locality?.trim() || venue.primaryBorough?.trim() || "",
     priceLabel:
       price !== null && canShowPrice ? formatGbp(price) : null,
     anchor,
