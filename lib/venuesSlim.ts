@@ -27,7 +27,11 @@ import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
-import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
+import {
+  EXPECTED_MAP_DATA_REVISION,
+  MAP_DATA_REVISION,
+  reportMapDataRevisionSkew,
+} from "@/lib/mapDataRevision";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -218,6 +222,18 @@ function normalizeRows(data: unknown): SlimVenue[] {
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
   expectedRevision?: string;
+  /**
+   * A self-contained pack (a whole index, never one shard of a manifest) whose
+   * revision still disagrees after a cache-bypassed read is painted as served
+   * rather than refused: one file cannot be mixed with itself, and an empty map
+   * is worse than the previous deploy's pins. Either way the skew is reported.
+   */
+  acceptRevisionSkew?: boolean;
+  /**
+   * Told the served revision when a pack is refused for its revision alone, so
+   * a caller holding a manifest can report it (lib/slimShards.ts).
+   */
+  onRevisionSkew?: (served: unknown) => void;
 };
 
 export type SlimVenueLoadResult = {
@@ -235,7 +251,7 @@ function directMonolithRequest(path: string): {
     options:
       EXPECTED_MAP_DATA_REVISION === undefined
         ? {}
-        : { expectedRevision: EXPECTED_MAP_DATA_REVISION },
+        : { expectedRevision: EXPECTED_MAP_DATA_REVISION, acceptRevisionSkew: true },
   };
 }
 
@@ -286,6 +302,24 @@ function normalizedRowsFromPayload(
   if (!payloadRows) return null;
   const rows = normalizeRows(payloadRows);
   return { rows, complete: rows.length === payloadRows.length };
+}
+
+/**
+ * A payload refused ONLY for its revision: well formed, complete and non-empty
+ * under any revision but the expected one. Null for anything else wrong with it.
+ */
+function revisionSkewedRows(
+  value: unknown,
+  expectedRevision?: string,
+): { rows: SlimVenue[]; served: unknown } | null {
+  if (expectedRevision === undefined) return null;
+  const payload = normalizedRowsFromPayload(value, undefined);
+  if (!payload?.complete || payload.rows.length === 0) return null;
+  const served =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as { revision?: unknown }).revision
+      : undefined;
+  return served === expectedRevision ? null : { rows: payload.rows, served };
 }
 
 async function readOfflineFallback(
@@ -347,6 +381,19 @@ async function loadSlimVenuesFromPathUnshared(
         options.expectedRevision,
       );
       if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
+      const skewed = !payload ? revisionSkewedRows(data, options.expectedRevision) : null;
+      if (skewed && options.acceptRevisionSkew) {
+        reportMapDataRevisionSkew({
+          asset: "index",
+          outcome: "adopted",
+          expected: options.expectedRevision,
+          served: skewed.served,
+        });
+        // Never mirrored: the offline copy answers only the revision it was
+        // asked for, and this one is somebody else's.
+        return { rows: omitClosedCuratedVenues(skewed.rows), status: "ready" };
+      }
+      if (skewed) options.onRevisionSkew?.(skewed.served);
       return { rows: [], status: "unavailable" };
     }
     const { rows: parsedRows, complete } = payload;
