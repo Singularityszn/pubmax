@@ -22,7 +22,6 @@ import {
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import { siteJsonLd } from "@/lib/siteJsonLd";
-import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
@@ -411,7 +410,6 @@ export default async function RootLayout({
                     production-only, registers after load. */}
                 <OfflineReady />
                 <ClientErrorReporter />
-                <PerformanceVitals />
                 {/* Metrics funnel (Wave M) — consent-gated, render-nothing
                     signals: daily return-rate pulse and the A2HS install funnel. */}
                 <DailyActivityPulse />
@@ -435,7 +433,6 @@ export default async function RootLayout({
               <DeferredShellExtras />
               <OfflineReady />
               <ClientErrorReporter />
-              <PerformanceVitals />
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
