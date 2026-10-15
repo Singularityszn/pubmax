@@ -9,7 +9,6 @@ const DRINK_NOUN = String.raw`(?:${PLAN_DRINK_ITEM}|${DRINK_CONTAINER}|cocktails
 export const PLAN_VENUE_AMENITY = String.raw`(?:\d+|one|two|three|four|five|six)\s+(?:pubs?|bars?|stops?)\s+(?:serving|serves|where|with)\b`;
 const LOCATION_START = String.raw`(?:at|in|from|near|around|within|inside|outside|by|where)`;
 const PLAN_PRICE_SUBJECT_BOUNDARY = String.raw`\b(?:with|per|each|afterwards|later|${LOCATION_START}|${PLAN_VENUE_AMENITY})\b`;
-const FOOD_SERVING_QUALIFIER = String.raw`(?:${SERVING_QUANTITY}\s+(?:of\s+)?)+(?:(?!(?:${DRINK_NOUN}|pubs?|bars?|stops?|venues?|pounds?|quid|serving|serves|and|plus|for|${LIMIT})\b|${PLAN_PRICE_SUBJECT_BOUNDARY})[a-z]+[ -]+)*`;
 const FOOD_SERVING_NOUN = String.raw`servings?(?:[ -]+(?!(?:${LOCATION_START}|per|each|afterwards|later|and|plus|priced|cost(?:s|ing)?|${LIMIT}|${DRINK_NOUN}|pubs?|bars?|stops?|venues?)\b|${PLAN_PRICE_AMOUNT})[a-z0-9]+(?:/\d+)?)*`;
 export const PLAN_FOOD_ITEM = String.raw`(?:${FOOD_SERVING_NOUN}|meals?|slices?|portions?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 const CONTENTS_WORD = String.raw`(?!(?:and|plus|for|under|below|up|less|than|max(?:imum)?|priced|cost(?:s|ing)?)\b|${PLAN_PRICE_SUBJECT_BOUNDARY})[a-z]+`;
@@ -53,11 +52,9 @@ function planPriceLocationSpans(value: string): Array<{ start: number; end: numb
 
 export function planPriceSubjectText(value: string): string {
   value = value.replace(/\bserving\b/gi, (word: string, index: number) => {
-    const before = value.slice(0, index).replace(new RegExp(PLAN_PRICE_AMOUNT, "gi"), (amount) => " ".repeat(amount.length));
     const after = value.slice(index + word.length);
-    const qualified = new RegExp(String.raw`${FOOD_SERVING_QUALIFIER}$`, "i").test(before);
     const predicate = new RegExp(String.raw`^\s+(?!(?:of|to|for|and|plus|priced|cost(?:s|ing)?|${LIMIT})\b|${PLAN_PRICE_SUBJECT_BOUNDARY}|${PLAN_PRICE_AMOUNT})[a-z0-9]`, "i").test(after);
-    return !qualified && predicate ? "serves " : word;
+    return predicate ? "serves " : word;
   });
   const spans = planPriceLocationSpans(value);
   let text = "";

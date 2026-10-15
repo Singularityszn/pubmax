@@ -202,8 +202,12 @@ describe("POST /api/plans/generate", () => {
   it.each([
     "beer", "drinks", "real ale", "cider", "soft drinks", "mixed drinks and food",
     "locally brewed craft beverages",
-  ].flatMap((object) => {
-    const amenity = `serving ${object}`;
+  ].flatMap((object) => [
+    "", "each ", "all ", "both ", "each regularly ", "all currently ",
+    "with a garden ", "with a sunny terrace ", "with two bars ",
+    "with an outdoor area regularly ", "with a terrace and a garden ",
+  ].flatMap((antecedent) => {
+    const amenity = `${antecedent}serving ${object}`;
     return [
       { query: `3 pubs in Soho ${amenity}, under£20 per person` },
       { query: `3 pubs in Soho, under£20 per person, ${amenity}` },
@@ -213,10 +217,12 @@ describe("POST /api/plans/generate", () => {
       ].filter((field) => field.length <= 40).map((field) => ({
         query: "3 pubs in Clapham", context: { foodNeeds: [field] },
       })),
-      { query: "3 pubs in Clapham", context: { foodNeeds: [amenity, "under£20 per person"] } },
-      { query: "3 pubs in Clapham", context: { foodNeeds: ["under£20 per person", amenity] } },
+      ...(amenity.length <= 40 ? [
+        { query: "3 pubs in Clapham", context: { foodNeeds: [amenity, "under£20 per person"] } },
+        { query: "3 pubs in Clapham", context: { foodNeeds: ["under£20 per person", amenity] } },
+      ] : []),
     ];
-  }))("keeps venue serving predicates independent from route budgets: %j", async (input) => {
+  })))("keeps venue serving predicates independent from route budgets: %j", async (input) => {
     const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),
     }), PLAN_GENERATION_TEST_NOW);
@@ -303,11 +309,14 @@ describe("POST /api/plans/generate", () => {
 
   it.each([
     ...["beer", "drinks", "real ale", "mixed drinks and food", "craft beverages"].flatMap((object) => [
-      `£5 pint serving ${object}`, `pint under£5 serving ${object}`,
+      "", "each ", "each regularly ", "with a garden ", "with a sunny terrace regularly ",
+      "with a terrace and a garden ",
+    ].flatMap((antecedent) => [
+      `£5 pint ${antecedent}serving ${object}`, `pint under£5 ${antecedent}serving ${object}`,
       ...["at", "in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((location) => [
-        `£5 pint ${location} X serving ${object}`, `pint ${location} X under£5 serving ${object}`,
+        `£5 pint ${location} X ${antecedent}serving ${object}`, `pint ${location} X under£5 ${antecedent}serving ${object}`,
       ]),
-    ]),
+    ])),
     "£5 pint at pub serving pizza", "pint under£5 at pub serving pizza",
     "£5 pint serving pizza", "pint under£5 serving pizza",
     "pint under £ 5 serving pizza", "pint under5 pounds serving pizza", "pint under5 quid serving pizza",
