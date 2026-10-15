@@ -26,8 +26,8 @@ import {
 import {
 	PLAN_DRINK_ITEM,
 	PLAN_FOOD_ITEM,
+	PLAN_FOOD_SUBJECT,
 	PLAN_PRICE_AMOUNT,
-	PLAN_PRICE_SUBJECT_BOUNDARY,
 	PLAN_VENUE_AMENITY,
 	planPriceAmounts,
 	planPriceLimits,
@@ -271,8 +271,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodSubject = String.raw`(?:(?!${PLAN_PRICE_SUBJECT_BOUNDARY})[^,£])*\b${PLAN_FOOD_ITEM}\b`;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)${foodSubject}`, "i");
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?!(?:with|and|plus|per|each|afterwards|later)\b)${PLAN_FOOD_SUBJECT}`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
@@ -281,7 +280,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 				if (foodAfterPrice.test(after)) return true;
 				if (price.drink.beforeStart !== null
 					&& pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent)) return true;
-				const item = String.raw`(?:${foodSubject}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
+				const item = String.raw`(?:${PLAN_FOOD_SUBJECT}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
 				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
 					.exec(after.slice(price.drink.afterEnd ?? 0))?.[0] ?? "";
 				if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;

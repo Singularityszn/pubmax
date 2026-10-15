@@ -9,7 +9,7 @@ const DRINK_NOUN = String.raw`(?:${PLAN_DRINK_ITEM}|${DRINK_CONTAINER}|cocktails
 export const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 export const PLAN_VENUE_AMENITY = String.raw`(?:\d+|one|two|three|four|five|six)\s+(?:pubs?|bars?|stops?)\s+(?:serving|serves|where|with)\b`;
 const LOCATION_START = String.raw`(?:at|in|from|near|around|within|inside|outside|by|where)`;
-export const PLAN_PRICE_SUBJECT_BOUNDARY = String.raw`\b(?:with|per|each|afterwards|later|${LOCATION_START}|${PLAN_VENUE_AMENITY})\b`;
+const PLAN_PRICE_SUBJECT_BOUNDARY = String.raw`\b(?:with|per|each|afterwards|later|${LOCATION_START}|${PLAN_VENUE_AMENITY})\b`;
 const CONTENTS_WORD = String.raw`(?!(?:and|plus|for|under|below|up|less|than|max(?:imum)?|priced|cost(?:s|ing)?)\b|${PLAN_PRICE_SUBJECT_BOUNDARY})[a-z]+`;
 const DRINK_SUBJECT = String.raw`(?:${SERVING_PREFIX})*${DRINK_NOUN}(?:\s+of\s+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?)(?:[ -]+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?))*)?(?:\s+(?:${MEASURED_SERVING}|${DRINK_CONTAINER}))?`;
 const PLAN_DRINK_BEFORE_PRICE = new RegExp(String.raw`\b(${DRINK_SUBJECT})\b\s+(?:(?:priced|cost(?:s|ing)?)\s+)?(?:(?:for|at)\s+)?(?:${LIMIT}\s*)?$`, "i");
@@ -19,25 +19,34 @@ const EXPLICIT_ROUTE_BUDGET = new RegExp(String.raw`\b(?:(?:pubs?(?:\s+route)?|b
 const ROUTE_BUDGET_PREFIX = new RegExp(String.raw`\bbudget(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_LIMIT_PREFIX = new RegExp(String.raw`\b${LIMIT}\s*$`, "i");
 
-const LOCATION_ITEM = String.raw`(?:(?:${SERVING_QUANTITY}|pub)[ -]+)*(?:${PLAN_FOOD_ITEM}|${DRINK_NOUN})\b`;
-const LOCATION_LIST = String.raw`(?:\b(?:and|plus)\b|[+&])\s*${LOCATION_ITEM}`;
-const LOCATION_MODIFIER = String.raw`${LOCATION_START}\b(?:(?!${PLAN_PRICE_AMOUNT}|[,;.!?]|${LOCATION_LIST}|\b(?:${LIMIT}|priced|cost(?:s|ing)?|for)\b)[\s\S])*`;
-const SUBJECT_LOCATION = new RegExp(String.raw`(\b(?:${DRINK_SUBJECT}|${PLAN_FOOD_ITEM})\b|${PLAN_PRICE_AMOUNT})(\s+${LOCATION_MODIFIER})`, "gi");
+export const PLAN_FOOD_SUBJECT = String.raw`(?:\band\s+(?:a\s+)?(?:half|quarter)\b|(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serving|serves|and|plus|for|priced|cost(?:s|ing)?|${LIMIT})\b))[^,£+&;!?])*?\b${PLAN_FOOD_ITEM}\b`;
+const LOCATION_LIST = String.raw`(?:\b(?:and|plus)\b|[+&])\s*(?:${PLAN_FOOD_SUBJECT}|${DRINK_SUBJECT}\b)`;
+const LOCATION_MODIFIER = new RegExp(String.raw`^(?:(?!${PLAN_PRICE_AMOUNT}|[,;.!?]|${LOCATION_LIST}|\b(?:${LIMIT}|priced|cost(?:s|ing)?|for)\b)[\s\S])*`, "i");
+const VENUE_NAME_WORD = String.raw`[A-Z][a-z][a-zA-Z'’]*`;
+const VENUE_NAME_PART = String.raw`${VENUE_NAME_WORD}(?:\s+${VENUE_NAME_WORD})*`;
+const COORDINATED_VENUE_NAME = new RegExp(String.raw`^\s+(?!(?:The\s+)?(?:Pubs?|Bars?|Stops?)\b)${VENUE_NAME_PART}(?:(?:\s+(?:and|plus)\s+|\s*[+&]\s*)${VENUE_NAME_PART})+\b`);
+const SUBJECT_LOCATION = new RegExp(String.raw`(\b(?:${DRINK_SUBJECT}|${PLAN_FOOD_SUBJECT})\b|${PLAN_PRICE_AMOUNT})(\s+${LOCATION_START}\b)`, "gi");
 const FOLLOWING_PRICE = new RegExp(String.raw`^\s*(?:(?:priced|cost(?:s|ing)?)\s+)?(?:for\s*)?(?:${LIMIT}\s*)?${PLAN_PRICE_AMOUNT}`, "i");
-const LOCATION_FOOD = new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i");
+const LOCATION_FOOD = new RegExp(String.raw`\b${PLAN_FOOD_SUBJECT}`, "i");
 
 function planPriceLocationSpans(value: string): Array<{ start: number; end: number }> {
-  return [...value.matchAll(SUBJECT_LOCATION)].map((match) => {
+  const spans: Array<{ start: number; end: number }> = [];
+  const locations = new RegExp(SUBJECT_LOCATION);
+  let match: RegExpExecArray | null;
+  while ((match = locations.exec(value))) {
     const start = match.index + match[1]!.length;
-    let end = match.index + match[0].length;
-    const modifier = value.slice(start, end);
+    const nameEnd = locations.lastIndex + (COORDINATED_VENUE_NAME.exec(value.slice(locations.lastIndex))?.[0].length ?? 0);
+    let end = nameEnd + LOCATION_MODIFIER.exec(value.slice(nameEnd))![0].length;
+    const modifier = value.slice(nameEnd, end);
     const food = LOCATION_FOOD.exec(modifier);
     if (food && FOLLOWING_PRICE.test(value.slice(end))) {
       const amenity = /\b(?:with|serving|serves|where)\b/i.exec(modifier.slice(0, food.index));
-      end = start + (amenity?.index ?? food.index);
+      end = nameEnd + (amenity?.index ?? food.index);
     }
-    return { start, end };
-  });
+    spans.push({ start, end });
+    locations.lastIndex = end;
+  }
+  return spans;
 }
 
 export function planPriceSubjectText(value: string): string {
