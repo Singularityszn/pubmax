@@ -83,7 +83,7 @@ for (const size of SIZES) {
     // The location ask has its own screen and its own reason, and nothing has
     // asked the browser yet.
     await expect(page.getByRole("heading", { name: "Find the cheapest pint near you." })).toBeVisible();
-    await expect(page.getByText("We only use it to rank pubs nearby. Your location is never stored.")).toBeVisible();
+    await expect(page.getByText("We use your location to rank nearby pubs and pick an area for your plan. Your coordinates are never stored or sent.")).toBeVisible();
     await expectTouchTarget(page.getByRole("button", { name: "Use my location" }));
     await saveShot(page, `web-4-location-${size.name}`);
 
@@ -118,6 +118,32 @@ for (const size of SIZES) {
 
 test.describe("with location allowed", () => {
   test.use({ geolocation: { latitude: 51.5136, longitude: -0.1365 }, permissions: ["geolocation"] });
+
+  test("carries a located Soho area and bounded budget into the planner", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openJourneyFromTheApp(page);
+    await page.getByRole("button", { name: "Use London" }).click();
+    await page.getByRole("button", { name: "£6 or less" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Use my location" }).click();
+    await page.getByRole("button", { name: "That looks right" }).click();
+    const generated = page.waitForRequest((request) => request.url().includes("/api/plans/generate") && request.method() === "POST");
+    await page.getByRole("button", { name: "Plan my night" }).click();
+    await expect(page).toHaveURL(/\/plan\?query=/);
+    const arrival = new URL(page.url());
+    expect(arrival.searchParams.get("query")).toBe("3 pubs in Piccadilly & Soho, under £18 per person, maximum £6 per pint");
+    expect(arrival.searchParams.get("from")).toBe("onboarding");
+    const request = await generated;
+    expect(request.postDataJSON().query).toBe(arrival.searchParams.get("query"));
+    const response = await request.response();
+    expect(response).not.toBeNull();
+    const result = await response!.json();
+    expect(result.code).not.toBe("NIGHT_AREA_REQUIRED");
+    expect(result.inferredContext).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1800 });
+    const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }));
+    expect(storage).not.toContain("51.5136");
+    expect(storage).not.toContain("-0.1365");
+  });
 
   test("answers from where the reader stands", async ({ page }) => {
     test.setTimeout(120_000);
