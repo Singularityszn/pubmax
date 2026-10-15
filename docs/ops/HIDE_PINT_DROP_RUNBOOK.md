@@ -111,10 +111,21 @@ came from the Pint Drop composer alone and there is nothing else to hide. One
 row with `hidden_at` null is the pair: write down its `id`. Several rows:
 stop and ask.
 
-If `confirmation_id` is set on the Pint Drop, it was confirmed with a second
-drop (`confirming_drop_id`). Hiding this one leaves the other drop and its
-confirmation as they are, so the price can still read confirmed on the pin.
-Decide about the other drop separately.
+If `confirmation_id` is set on the Pint Drop, it was confirmed together with
+another drop. Find that one by the shared id, not by `confirming_drop_id`:
+both drops carry the same confirmation record, so on the second drop of the
+pair `confirming_drop_id` is the drop's own id.
+
+```sql
+select id, handle, drink, price_gbp, status, created_at
+  from public.pint_drops
+ where confirmation_id = '<confirmation_id>'
+   and id <> '<drop id>';
+```
+
+Hiding this drop leaves the other one and its confirmation as they are, so
+the price can still read confirmed on the pin. Decide about the other drop
+separately.
 
 ### 2. Check it is public now
 
