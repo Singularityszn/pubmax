@@ -6239,6 +6239,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      accept_night_story_contribution_atomic: {
+        Args: {
+          p_actor_id: string | null;
+          p_story_id: string | null;
+          p_joined_at: string | null;
+        };
+        Returns: Database["public"]["Tables"]["night_story_contributors"]["Row"][];
+        SetofOptions: {
+          from: "*";
+          to: "night_story_contributors";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       accept_social_crew_invitation_atomic: {
         Args: {
           p_actor_account_id: string | null;
@@ -7763,6 +7777,16 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      set_night_moment_publication_consent_atomic: {
+        Args: {
+          p_actor_id: string | null;
+          p_story_id: string | null;
+          p_moment_id: string | null;
+          p_status: string | null;
+          p_decided_at: string | null;
+        };
+        Returns: boolean;
       };
       set_social_block: {
         Args: {

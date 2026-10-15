@@ -20,6 +20,64 @@ create policy private_story_redaction_names_client_deny
   on public.private_story_redaction_names for all to anon, authenticated
   using (false) with check (false);
 
+create or replace function public.accept_night_story_contribution_atomic(
+  p_actor_id uuid,
+  p_story_id uuid,
+  p_joined_at timestamptz
+)
+returns setof public.night_story_contributors
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  perform 1 from public.profiles where user_id = p_actor_id for update;
+  return query update public.night_story_contributors
+    set status = 'accepted', joined_at = p_joined_at
+    where story_id = p_story_id
+      and profile_id = p_actor_id
+      and status = 'invited'
+    returning *;
+end;
+$$;
+revoke all on function public.accept_night_story_contribution_atomic(uuid, uuid, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.accept_night_story_contribution_atomic(uuid, uuid, timestamptz)
+  to service_role;
+
+create or replace function public.set_night_moment_publication_consent_atomic(
+  p_actor_id uuid,
+  p_story_id uuid,
+  p_moment_id uuid,
+  p_status text,
+  p_decided_at timestamptz
+)
+returns boolean
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if p_status is null or p_status not in ('approved', 'withdrawn') then
+    return false;
+  end if;
+
+  perform 1 from public.profiles where user_id = p_actor_id for update;
+  insert into public.night_moment_consents (story_id, moment_id, owner_id, status, decided_at)
+    values (p_story_id, p_moment_id, p_actor_id, p_status, p_decided_at)
+    on conflict (story_id, moment_id) do update set
+      owner_id = excluded.owner_id,
+      status = excluded.status,
+      decided_at = excluded.decided_at;
+
+  if p_status = 'withdrawn' then
+    delete from public.night_story_moments
+     where story_id = p_story_id and moment_id = p_moment_id;
+  end if;
+  return true;
+end;
+$$;
+revoke all on function public.set_night_moment_publication_consent_atomic(uuid, uuid, uuid, text, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.set_night_moment_publication_consent_atomic(uuid, uuid, uuid, text, timestamptz)
+  to service_role;
+
 create or replace function public.clear_profile_for_caller(p_handle text, p_caller_user_id uuid)
 returns setof public.profiles
 language plpgsql security definer set search_path = ''

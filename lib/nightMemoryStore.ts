@@ -1226,16 +1226,15 @@ export async function acceptStoryContributionResult(actorId: string, storyId: st
     return { ok: true, value: accepted };
   }
   try {
-    const { data, error } = await requireSupabaseAdmin().from("night_story_contributors")
-      .update({ status: "accepted", joined_at: joinedAt })
-      .eq("story_id", storyId)
-      .eq("profile_id", actorId)
-      .eq("status", "invited")
-      .select("*")
-      .maybeSingle();
+    const { data, error } = await requireSupabaseAdmin().rpc("accept_night_story_contribution_atomic", {
+      p_actor_id: actorId,
+      p_story_id: storyId,
+      p_joined_at: joinedAt,
+    });
     if (error) return { ok: false, error: "error" };
-    return data
-      ? { ok: true, value: contributorFromRow(data as Record<string, unknown>) }
+    const accepted = (data ?? [])[0];
+    return accepted
+      ? { ok: true, value: contributorFromRow(accepted as Record<string, unknown>) }
       : { ok: false, error: "not_found" };
   } catch {
     return { ok: false, error: "error" };
@@ -1302,18 +1301,14 @@ export async function setMomentPublicationConsent(
     }
     return consent;
   }
-  const admin = requireSupabaseAdmin();
-  const { error } = await admin.from("night_moment_consents").upsert({
-    story_id: storyId,
-    moment_id: momentId,
-    owner_id: actorId,
-    status,
-    decided_at: consent.decidedAt,
-  }, { onConflict: "story_id,moment_id" });
-  if (error) return null;
-  if (status === "withdrawn") {
-    await admin.from("night_story_moments").delete().eq("story_id", storyId).eq("moment_id", momentId);
-  }
+  const { data, error } = await requireSupabaseAdmin().rpc("set_night_moment_publication_consent_atomic", {
+    p_actor_id: actorId,
+    p_story_id: storyId,
+    p_moment_id: momentId,
+    p_status: status,
+    p_decided_at: consent.decidedAt,
+  });
+  if (error || data !== true) return null;
   return consent;
 }
 

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { listMigrations } from "../scripts/qa/migration-apply-list.mjs";
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
@@ -45,6 +46,17 @@ beforeEach(() => {
 function clear(caller = friend) {
   return session.sql(`set role service_role;
     select count(*) from public.clear_profile_for_caller('jordanx', '${caller}');`);
+}
+function clearAsync(caller = friend) {
+  return session.sqlAsync(`set role service_role;
+    select count(*) from public.clear_profile_for_caller('jordanx', '${caller}');`);
+}
+async function waitForAdvisoryLock(key: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (session.sql(`select not pg_try_advisory_lock(${key})`) === "t") return;
+    await sleep(10);
+  }
+  throw new Error(`Timed out waiting for advisory lock ${key}.`);
 }
 function state() {
   return session.sql(`select json_build_object(
@@ -109,6 +121,65 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
     }
   });
 
+  it("serializes acceptance with profile clearing", async () => {
+    session.sql(`
+      insert into public.night_story_contributors (story_id, profile_id, role, status)
+        values ('${story(4)}', '${friend}', 'contributor', 'invited');
+      create function public.pause_story_acceptance() returns trigger language plpgsql as $$
+      begin
+        perform pg_advisory_xact_lock(178001);
+        perform pg_sleep(0.4);
+        return new;
+      end $$;
+      create trigger pause_story_acceptance before update on public.night_story_contributors
+        for each row when (old.status = 'invited' and new.status = 'accepted')
+        execute function public.pause_story_acceptance();
+    `);
+    try {
+      const accepting = session.sqlAsync(`set role service_role;
+        select * from public.accept_night_story_contribution_atomic('${friend}', '${story(4)}', now());`);
+      await waitForAdvisoryLock(178001);
+      await Promise.all([accepting, clearAsync()]);
+      expect(session.sql(`select status from public.night_story_contributors
+        where story_id = '${story(4)}' and profile_id = '${friend}'`)).toBe("withdrawn");
+      expect(session.sql(`select display_name from public.private_story_redaction_names
+        where story_id = '${story(4)}' and account_id = '${friend}'`)).toBe("Jordan");
+    } finally {
+      session.sql("drop trigger pause_story_acceptance on public.night_story_contributors; drop function public.pause_story_acceptance()");
+    }
+  });
+
+  it("serializes consent withdrawal with profile clearing", async () => {
+    session.sql(`
+      insert into public.night_moment_consents (story_id, moment_id, owner_id, status, decided_at)
+        values ('${story(4)}', '${story(11)}', '${friend}', 'approved', now());
+      insert into public.night_story_moments (story_id, moment_id, position)
+        values ('${story(4)}', '${story(11)}', 0);
+      create function public.pause_consent_withdrawal() returns trigger language plpgsql as $$
+      begin
+        perform pg_advisory_xact_lock(178002);
+        perform pg_sleep(0.4);
+        return new;
+      end $$;
+      create trigger pause_consent_withdrawal before update on public.night_moment_consents
+        for each row when (old.status = 'approved' and new.status = 'withdrawn')
+        execute function public.pause_consent_withdrawal();
+    `);
+    try {
+      const withdrawing = session.sqlAsync(`set role service_role;
+        select public.set_night_moment_publication_consent_atomic(
+          '${friend}', '${story(4)}', '${story(11)}', 'withdrawn', now());`);
+      await waitForAdvisoryLock(178002);
+      await Promise.all([withdrawing, clearAsync()]);
+      expect(session.sql(`select status from public.night_moment_consents
+        where story_id = '${story(4)}' and moment_id = '${story(11)}'`)).toBe("withdrawn");
+      expect(session.sql(`select display_name from public.private_story_redaction_names
+        where story_id = '${story(4)}' and account_id = '${friend}'`)).toBe("Jordan");
+    } finally {
+      session.sql("drop trigger pause_consent_withdrawal on public.night_moment_consents; drop function public.pause_consent_withdrawal()");
+    }
+  });
+
   it("retains names through repeated clears and a second display name", () => {
     clear();
     clear();
@@ -141,6 +212,8 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
       "select * from public.private_story_redaction_names",
       "delete from public.private_story_redaction_names",
       `select * from public.clear_profile_for_caller('jordanx', '${friend}')`,
+      `select * from public.accept_night_story_contribution_atomic('${friend}', '${story(1)}', now())`,
+      `select public.set_night_moment_publication_consent_atomic('${friend}', '${story(3)}', '${story(11)}', 'withdrawn', now())`,
     ]) {
       expect(session.expectRefusal(`set role ${role}; ${statement}`)).toMatch(/permission denied/i);
     }
@@ -168,6 +241,8 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
     session.applyFile(join(root, "supabase/migrations/rollback", migration.replace(".sql", "_rollback.sql")));
     expect(session.expectRefusal("select * from public.private_story_redaction_names")).toMatch(/does not exist/);
     expect(session.expectRefusal(`select * from public.clear_profile_for_caller('jordanx', '${friend}')`)).toMatch(/does not exist/);
+    expect(session.expectRefusal(`select * from public.accept_night_story_contribution_atomic('${friend}', '${story(1)}', now())`)).toMatch(/does not exist/);
+    expect(session.expectRefusal(`select public.set_night_moment_publication_consent_atomic('${friend}', '${story(3)}', '${story(11)}', 'withdrawn', now())`)).toMatch(/does not exist/);
     expect(session.sql("select count(*) from public.profiles where handle = 'jordanx'")).toBe("1");
   });
 });
