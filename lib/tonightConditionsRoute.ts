@@ -48,7 +48,7 @@ export async function resolveTonightConditions(
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
   };
   const facts = observationFacts({ observation, nightArea: area.slug, now, stale });
-  const verdict = stale
+  const verdict = stale || weather.tempC === null
     ? null
     : evaluateDrinkWeather({
         tempC: weather.tempC,

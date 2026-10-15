@@ -105,6 +105,15 @@ describe("supabaseWeatherSnapshotStore", () => {
     expect(snap?.observations.map((o) => o.nightArea).sort()).toEqual(["brixton", "clapham"]);
   });
 
+  it("does not send a missing feels-like value to the non-null durable column", async () => {
+    const outcome = await supabaseWeatherSnapshotStore.writeSnapshot([
+      obs("clapham", { feelsLikeC: null }),
+      obs("brixton"),
+    ], GENERATED);
+    expect(outcome).toEqual({ written: 1 });
+    expect(db.rows.map((row) => row.night_area)).toEqual(["brixton"]);
+  });
+
   it("flags failed:true on a hard write error (no fake success)", async () => {
     db.failWrite = true;
     const outcome = await supabaseWeatherSnapshotStore.writeSnapshot([obs("clapham")], GENERATED);

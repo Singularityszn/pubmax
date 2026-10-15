@@ -29,7 +29,7 @@ export const PINT_CEILING_GBP = 6;
 const NEAR_RADIUS_KM = 2.5;
 
 export type ConditionsWeather = {
-  tempC: number;
+  tempC: number | null;
   precipitationProbabilityPct: number;
 };
 
@@ -163,7 +163,7 @@ export function summariseTonightConditions(args: {
   facts: ObservationFacts;
 }): TonightConditionsSummary {
   const { weather, now, tally, timeZone, facts } = args;
-  const verdict = facts.stale
+  const verdict = facts.stale || weather.tempC === null
     ? null
     : evaluateDrinkWeather({
         tempC: weather.tempC,

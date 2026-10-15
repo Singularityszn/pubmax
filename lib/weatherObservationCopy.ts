@@ -8,7 +8,7 @@ import { daylightForNightArea } from "@/lib/weatherDaylight";
 import type { NightAreaWeatherObservation } from "@/lib/weatherSnapshots";
 
 export type WeatherObservationFactsInput = {
-  feelsLikeC: number;
+  feelsLikeC: number | null;
   condition: string;
   precipitationProbabilityPct: number;
   windKph: number | null;
@@ -48,7 +48,9 @@ function dayNightLabel(isDay: boolean | null): string | null {
  * and carry no sunset or day or night.
  */
 export function formatWeatherObservationFacts(input: WeatherObservationFactsInput): string {
-  const temp = `${Math.round(input.feelsLikeC)}°C feels like`;
+  const temp = typeof input.feelsLikeC === "number"
+    ? `${Math.round(input.feelsLikeC)}°C feels like`
+    : null;
   const condition = input.condition.trim().toLocaleLowerCase("en-GB");
   const rain = `${Math.round(input.precipitationProbabilityPct)}% chance of rain`;
   const wind =

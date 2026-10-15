@@ -49,11 +49,13 @@ async function observation([nightArea, [lat, lng]]) {
   if (!response.ok) throw new Error(`${nightArea}: Open-Meteo returned ${response.status}`);
   const body = await response.json();
   const observedAt = typeof body?.current?.time === "string" ? new Date(`${body.current.time}Z`) : new Date(Number.NaN);
-  const feelsLikeC = body?.current?.apparent_temperature;
+  const feelsLikeC = Number.isFinite(body?.current?.apparent_temperature)
+    ? body.current.apparent_temperature
+    : null;
   const weatherCode = body?.current?.weather_code;
   const windKph = body?.current?.wind_speed_10m;
   const precipitationProbabilityPct = body?.hourly?.precipitation_probability?.[0];
-  if (![observedAt.getTime(), feelsLikeC, weatherCode, windKph, precipitationProbabilityPct].every(Number.isFinite)) {
+  if (![observedAt.getTime(), weatherCode, windKph, precipitationProbabilityPct].every(Number.isFinite)) {
     throw new Error(`${nightArea}: Open-Meteo response did not satisfy the cache contract`);
   }
   return {

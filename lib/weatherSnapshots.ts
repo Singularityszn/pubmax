@@ -13,7 +13,8 @@ export type NightAreaWeatherObservation = {
   observedAt: string;
   expiresAt: string;
   condition: string;
-  feelsLikeC: number;
+  /** Null when the weather source did not provide apparent temperature. */
+  feelsLikeC: number | null;
   precipitationProbabilityPct: number;
   windKph: number | null;
   source: WeatherEvidenceSource;
@@ -25,7 +26,8 @@ export type WeatherSnapshot = {
   observations: NightAreaWeatherObservation[];
 };
 
-export type PlanningWeather = NightAreaWeatherObservation & {
+export type PlanningWeather = Omit<NightAreaWeatherObservation, "feelsLikeC"> & {
+  feelsLikeC: number;
   kind: "warm-dry" | "rainy" | "cold" | "mild";
 };
 
@@ -68,7 +70,9 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
   const observedAt = iso(row.observedAt);
   const expiresAt = iso(row.expiresAt);
   const condition = text(row.condition, 120);
-  const feelsLikeC = boundedNumber(row.feelsLikeC, -40, 60);
+  const feelsLikeC = row.feelsLikeC === null || typeof row.feelsLikeC === "undefined"
+    ? null
+    : boundedNumber(row.feelsLikeC, -40, 60);
   const precipitationProbabilityPct = boundedNumber(row.precipitationProbabilityPct, 0, 100);
   const windKph = row.windKph === null
     ? null
@@ -79,7 +83,8 @@ export function validateWeatherObservation(value: unknown): NightAreaWeatherObse
   const sourceUrl = httpUrl(sourceRow?.sourceUrl);
   const publisher = text(sourceRow?.publisher, 160);
   const publishedAt = iso(sourceRow?.publishedAt);
-  if (!nightArea || !observedAt || !expiresAt || !condition || feelsLikeC === null
+  if (!nightArea || !observedAt || !expiresAt || !condition
+    || (row.feelsLikeC !== null && typeof row.feelsLikeC !== "undefined" && feelsLikeC === null)
     || precipitationProbabilityPct === null || windKph === undefined || !sourceUrl || !publisher || !publishedAt) return null;
   if (Date.parse(expiresAt) <= Date.parse(observedAt) || Date.parse(publishedAt) > Date.parse(observedAt)) return null;
   return {
@@ -134,7 +139,9 @@ export function validateWeatherSnapshot(value: unknown): WeatherSnapshot | null 
   return { version: WEATHER_SNAPSHOT_VERSION, generatedAt, observations };
 }
 
-function weatherKind(observation: NightAreaWeatherObservation): PlanningWeather["kind"] {
+function weatherKind(
+  observation: Omit<NightAreaWeatherObservation, "feelsLikeC"> & { feelsLikeC: number },
+): PlanningWeather["kind"] {
   const condition = observation.condition.toLocaleLowerCase("en-GB");
   if (observation.precipitationProbabilityPct >= 40 || /rain|drizzle|storm|shower|snow/.test(condition)) return "rainy";
   if (observation.feelsLikeC < 10) return "cold";
@@ -150,5 +157,11 @@ export function planningWeatherForArea(
 ): PlanningWeather | null {
   const read = latestWeatherForArea(value, nightArea, now);
   if (!read || read.stale) return null;
-  return { ...read.observation, kind: weatherKind(read.observation) };
+  const feelsLikeC = read.observation.feelsLikeC;
+  if (feelsLikeC === null) return null;
+  const observation = { ...read.observation, feelsLikeC };
+  return {
+    ...observation,
+    kind: weatherKind(observation),
+  };
 }

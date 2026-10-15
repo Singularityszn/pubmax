@@ -234,7 +234,24 @@ function PicksCard({
   const checked = picksCheckedLabel(state.checkedAt);
   if (picks.length === 0 && filteredPickCount === 0 && hypedPubs.length > 0) {
     return (
-      <div className="todayPicksFallback" data-testid="today-picks" data-picks-state={state.kind}>
+      <section
+        className="todayCard todayPicksFallback"
+        aria-labelledby="today-picks-title"
+        data-testid="today-picks"
+        data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
+        data-picks-state={state.kind}
+      >
+        <div className="todayCardHead">
+          <span className="todayCardIcon" aria-hidden="true">
+            <CalendarClock size={18} />
+          </span>
+          <div>
+            <p className="todayCardEyebrow">Tonight</p>
+            <h2 className="todayCardTitle" id="today-picks-title">
+              Top picks for tonight.
+            </h2>
+          </div>
+        </div>
         <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
         <p className="todayCardEmpty">
           {state.reason ?? (picksStatus === "degraded" ? picksListLine(picksStatus, slot) : "No confirmed events listed tonight.")}
@@ -245,7 +262,7 @@ function PicksCard({
             <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </p>
-      </div>
+      </section>
     );
   }
   return (

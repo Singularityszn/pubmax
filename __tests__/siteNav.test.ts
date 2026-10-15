@@ -21,9 +21,9 @@ vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
 // SiteNavMore keeps real markup so the overflow link contract is tested.
 
-async function renderSiteNav(): Promise<string> {
+async function renderSiteNav(active?: "today" | "tonight"): Promise<string> {
   const { default: SiteNav } = await import("@/components/nav/SiteNav");
-  return renderToStaticMarkup(createElement(SiteNav));
+  return renderToStaticMarkup(createElement(SiteNav, active ? { active } : undefined));
 }
 
 describe("SiteNav desktop Moment affordance (audit D2)", () => {
@@ -116,5 +116,19 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
   it("keeps More markup free of em dashes", async () => {
     const markup = await renderSiteNav();
     expect(markup).not.toContain("—");
+  });
+});
+
+describe("SiteNav current page state", () => {
+  it("does not mark Tonight current when the host page is Today", async () => {
+    const markup = await renderSiteNav("today");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(0);
+  });
+
+  it("marks Tonight current when the host page is Tonight", async () => {
+    const markup = await renderSiteNav("tonight");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(1);
   });
 });

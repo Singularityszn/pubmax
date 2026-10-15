@@ -80,7 +80,7 @@ export function buildWeatherBrief(
   if (!read) return null;
   const { observation, stale } = read;
   const { factsLine, checkedLabel, isDay } = observationFacts({ observation, nightArea: area, now, stale });
-  const verdict = stale
+  const verdict = stale || observation.feelsLikeC === null
     ? null
     : evaluateDrinkWeather({
         tempC: observation.feelsLikeC,

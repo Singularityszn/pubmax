@@ -36,6 +36,20 @@ describe("formatWeatherObservationFacts", () => {
     });
     expect(line).toBe("Last read of the sky: 9°C feels like, rain, 80% chance of rain, 28 km/h wind.");
   });
+
+  it("omits feels-like copy when the source has no apparent temperature", () => {
+    const line = formatWeatherObservationFacts({
+      feelsLikeC: null,
+      condition: "Cloudy",
+      precipitationProbabilityPct: 22,
+      windKph: 14.4,
+      isDay: true,
+      sunsetAt: "2026-09-24T17:54:00.000Z",
+      now: NOW,
+    });
+    expect(line).toBe("cloudy, 22% chance of rain, 14 km/h wind, sunset 18:54, daylight.");
+    expect(line).not.toContain("feels like");
+  });
 });
 
 describe("observationFacts", () => {

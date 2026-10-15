@@ -17,7 +17,7 @@ const NOW_MS = NOW.getTime();
 // A well-formed weather snapshot with one observation for the default area.
 // `ageHours` positions observedAt before NOW; `ttlHours` sets the expiry window.
 function snapshot(overrides: {
-  feelsLikeC?: number;
+  feelsLikeC?: number | null;
   precipitationProbabilityPct?: number;
   condition?: string;
   ageHours?: number;
@@ -36,7 +36,7 @@ function snapshot(overrides: {
         observedAt,
         expiresAt,
         condition: overrides.condition ?? "Cloudy",
-        feelsLikeC: overrides.feelsLikeC ?? 19.4,
+        feelsLikeC: overrides.feelsLikeC === undefined ? 19.4 : overrides.feelsLikeC,
         precipitationProbabilityPct: overrides.precipitationProbabilityPct ?? 0,
         windKph: 13.3,
         source: {
@@ -103,6 +103,13 @@ describe("buildWeatherBrief", () => {
 
     expect(brief.factsLine).toMatch(/^24°C feels like, cloudy, 70% chance of rain, /);
     expect(brief.ruleId).toBe("hard-rain");
+  });
+
+  it("keeps factual weather copy when feels-like is missing", () => {
+    const brief = buildWeatherBrief(snapshot({ feelsLikeC: null }), NOW) as WeatherBrief;
+    expect(brief.factsLine).toMatch(/^cloudy, 0% chance of rain, /);
+    expect(brief.factsLine).not.toContain("feels like");
+    expect(brief.ruleId).toBeNull();
   });
 
   it("still shows a stale-but-real observation, marked Last checked", () => {

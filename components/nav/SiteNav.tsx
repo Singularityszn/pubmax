@@ -89,7 +89,7 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
   if (active === "social" || active === "feed" || active === "discover" || active === "crawls") {
     return undefined;
   }
-  if (active === "today" || active === "tonight") return "now";
+  if (active === "tonight") return "now";
   // Borough pages are data/discovery, not Social. There is no primary tab for
   // them, so they light nothing on the desktop nav rather than wrongly lighting
   // Social (the mobile tab bar already excludes /borough from its match set).
@@ -127,7 +127,7 @@ export default function SiteNav({
   // signal as the mobile tab bar. The gliding brass underline was removed so
   // desktop does not double-encode "here".
   const activeKey = links.find((link) =>
-    primaryActive ? primaryActive === link.key : matchesPath(pathname, link),
+    active !== undefined ? primaryActive === link.key : matchesPath(pathname, link),
   )?.key;
 
   return (
