@@ -204,6 +204,8 @@ describe("POST /api/plans/generate", () => {
       "One pub in Soho, one serving to share under£10",
       "£10 for a serving to share",
       "£10 pint at pub and a serving to share",
+      "One pub in Soho, £10 for servings to share",
+      "One pub in Soho, servings to share under£10",
     ].map((query) => ({ query })),
     ...[
       "One serving under£10 in Soho", "£10 for one serving in Soho",
@@ -228,7 +230,7 @@ describe("POST /api/plans/generate", () => {
           `£10 pint ${location} X & a serving ${modifier}`,
           `pint ${location} X & a serving ${modifier} £10`,
         ]),
-        ...["a serving", "two servings", "2 servings", "half a serving", "2/3 servings", "a generous serving"].flatMap((noun) => {
+        ...["a serving", "servings", "two servings", "2 servings", "half a serving", "2/3 servings", "a generous serving"].flatMap((noun) => {
           const food = `${noun} ${modifier}`;
           return [
             `${food} under£10`, `£10 for ${food}`,
@@ -302,6 +304,32 @@ describe("POST /api/plans/generate", () => {
         expect(candidate.estimatedPintPricePence).toBeLessThanOrEqual(500);
       }
     }
+  });
+
+  it.each(["a serving", "servings", "two servings", "a generous serving"].flatMap((noun) =>
+    ["to share", "for two", "for the table", "with friends"].flatMap((modifier) => {
+      const food = `${noun} ${modifier} later`;
+      return [
+        { query: `3 pubs in Clapham, ${food}, under£20 per person` },
+        { query: `3 pubs in Clapham, under£20 per person, ${food}` },
+        { query: "3 pubs in Clapham", context: { foodNeeds: [food, "under£20 per person"] } },
+        { query: "3 pubs in Clapham", context: { foodNeeds: ["under£20 per person", food] } },
+      ];
+    }),
+  ))("keeps complete later serving preferences independent from route budgets: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+      .toEqual({ preparation: 200, post: 200 });
+    if (!("prepared" in prepared)) throw new Error("Expected a pub route");
+    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+    const body = await response.json();
+    expect(body.inferredContext.budgetLimitPence).toBe(2000);
+    expect(body.stops).toHaveLength(3);
   });
 
   it.each([
