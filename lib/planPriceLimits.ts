@@ -19,11 +19,36 @@ const EXPLICIT_ROUTE_BUDGET = new RegExp(String.raw`\b(?:(?:pubs?(?:\s+route)?|b
 const ROUTE_BUDGET_PREFIX = new RegExp(String.raw`\bbudget(?:\s+of)?(?:\s+${LIMIT})?\s*$`, "i");
 const ROUTE_LIMIT_PREFIX = new RegExp(String.raw`\b${LIMIT}\s*$`, "i");
 
-const LOCATION_MODIFIER = String.raw`${LOCATION_START}\b(?:(?!${PLAN_PRICE_AMOUNT}|[£,;.!?+&]|\b(?:and|plus|${LIMIT}|priced|cost(?:s|ing)?)\b)[\s\S])*`;
+const LOCATION_ITEM = String.raw`(?:(?:${SERVING_QUANTITY}|pub)[ -]+)*(?:${PLAN_FOOD_ITEM}|${DRINK_NOUN})\b`;
+const LOCATION_LIST = String.raw`(?:\b(?:and|plus)\b|[+&])\s*${LOCATION_ITEM}`;
+const LOCATION_MODIFIER = String.raw`${LOCATION_START}\b(?:(?!${PLAN_PRICE_AMOUNT}|[,;.!?]|${LOCATION_LIST}|\b(?:${LIMIT}|priced|cost(?:s|ing)?|for)\b)[\s\S])*`;
 const SUBJECT_LOCATION = new RegExp(String.raw`(\b(?:${DRINK_SUBJECT}|${PLAN_FOOD_ITEM})\b|${PLAN_PRICE_AMOUNT})(\s+${LOCATION_MODIFIER})`, "gi");
+const FOLLOWING_PRICE = new RegExp(String.raw`^\s*(?:(?:priced|cost(?:s|ing)?)\s+)?(?:for\s*)?(?:${LIMIT}\s*)?${PLAN_PRICE_AMOUNT}`, "i");
+const LOCATION_FOOD = new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i");
+
+function planPriceLocationSpans(value: string): Array<{ start: number; end: number }> {
+  return [...value.matchAll(SUBJECT_LOCATION)].map((match) => {
+    const start = match.index + match[1]!.length;
+    let end = match.index + match[0].length;
+    const modifier = value.slice(start, end);
+    const food = LOCATION_FOOD.exec(modifier);
+    if (food && FOLLOWING_PRICE.test(value.slice(end))) {
+      const amenity = /\b(?:with|serving|serves|where)\b/i.exec(modifier.slice(0, food.index));
+      end = start + (amenity?.index ?? food.index);
+    }
+    return { start, end };
+  });
+}
 
 export function planPriceSubjectText(value: string): string {
-  return value.replace(SUBJECT_LOCATION, (match, subject: string) => subject + " ".repeat(match.length - subject.length));
+  const spans = planPriceLocationSpans(value);
+  let text = "";
+  let offset = 0;
+  for (const { start, end } of spans) {
+    text += value.slice(offset, start) + " ".repeat(end - start);
+    offset = end;
+  }
+  return text + value.slice(offset);
 }
 
 export function planPriceAmounts(query: string): Array<{
