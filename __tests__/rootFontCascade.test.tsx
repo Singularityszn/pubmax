@@ -76,22 +76,17 @@ it("uses matched fallbacks before hydration and restores both complete generated
     restoreAttributes(Array.from(parsed.documentElement.attributes, ({ name, value }) => [name, value] as const));
     html.replaceChildren(...Array.from(parsed.documentElement.childNodes, (node) => document.importNode(node, true)));
 
-    const expectCompleteFamilies = () => {
-      const computed = getComputedStyle(html);
-      expect.soft(computed.getPropertyValue("--font-display").trim())
-        .toBe("'Space Grotesk', 'Space Grotesk Fallback'");
-      expect.soft(computed.getPropertyValue("--font-body").trim())
-        .toBe("'Inter', 'Inter Fallback'");
-    };
+    const families = (name: string) => postcss.list
+      .comma(getComputedStyle(html).getPropertyValue(name))
+      .map((family) => family.trim().replace(/^(["'])(.*)\1$/, "$2"));
     // This is the server-created document before any client initializer runs.
-    expect(getComputedStyle(html).getPropertyValue("--font-display").trim())
-      .toBe("'Space Grotesk Fallback'");
-    expect(getComputedStyle(html).getPropertyValue("--font-body").trim())
-      .toBe("'Inter Fallback'");
+    expect(families("--font-display")).toEqual(["Space Grotesk Fallback"]);
+    expect(families("--font-body")).toEqual(["Inter Fallback"]);
     await act(async () => { root = hydrateRoot(document, shell); });
     expect(document.querySelector("main")?.textContent).toBe("Choose a pub");
     expect(html.dataset.theme).toBe("light");
-    expectCompleteFamilies();
+    expect(families("--font-display")).toEqual(["Space Grotesk", "Space Grotesk Fallback"]);
+    expect(families("--font-body")).toEqual(["Inter", "Inter Fallback"]);
   } finally {
     act(() => root?.unmount());
     html.replaceChildren(...previousChildren);
