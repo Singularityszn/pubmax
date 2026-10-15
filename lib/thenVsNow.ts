@@ -1,6 +1,8 @@
 import { lastOf } from "@/lib/tuple";
+import { isWithinMaxAge } from "@/lib/communityPrice";
 import type { Provenance } from "@/lib/curation";
-import type { Venue } from "@/lib/venues";
+import { AGED_PRICE_LINE } from "@/lib/venuePriceLane";
+import { formatFreshness, type Venue } from "@/lib/venues";
 
 // "Then vs Now" — connect a venue's baseline dataset price ("then") to the most
 // recent community-reported Pint Drop price ("now"). Pure/testable: no fetch, no
@@ -201,9 +203,10 @@ export function parseEraYear(era: string | null | undefined): number | null {
 export type VenuePriceStamp = {
   gbp: number;
   provenance: Provenance;
+  isFresh?: boolean;
   // A human label for the moment this price is FROM: an era string for a
   // historical drop, "Baseline on record" for the dataset price, "Community
-  // tonight" for the newest priced drop.
+  // tonight" for a fresh drop, or its age and standing when it is stale.
   label: string;
 };
 
@@ -223,7 +226,8 @@ export type VenuePriceStory = {
   venueName: string;
   // The dataset baseline "price on record" (sourced/editorial), when present.
   baseline: VenuePriceStamp | null;
-  // The freshest priced community drop ("now"), when present.
+  // The newest priced community drop, when present. Its label says whether it
+  // is still fresh enough to describe as tonight's price.
   now: VenuePriceStamp | null;
   // now.gbp - baseline.gbp, and its percent, when BOTH are present. Mirrors
   // computeThenVsNow so the venue surface can reuse the same delta framing.
@@ -282,14 +286,16 @@ function bestInflationAnchor(drops: VenuePriceStoryDrop[]): VenueInflationAnchor
 }
 
 // Build the whole per-venue price story in one pass. Pure: hand it the selected
-// venue and that venue's drops. Each of the three surfaces (baseline / now /
-// inflation) is resolved independently, so a venue can show any subset — and
-// when it has none, `isEmpty` is true for an honest empty state. Provenance is
+// venue and that venue's drops. Each of the three surfaces (baseline /
+// community / inflation) is resolved independently, so a venue can show any
+// subset. When it has none, `isEmpty` is true for an honest empty state.
+// Provenance is
 // NEVER flattened: the dataset baseline is "sourced", `now` and the inflation
 // anchor carry their drop's own provenance.
 export function computeVenuePriceStory(
   venue: Venue,
   drops: VenuePriceStoryDrop[],
+  now: number = Date.now(),
 ): VenuePriceStory {
   const baselineGbp = venue.cheapestPrice;
   const baseline: VenuePriceStamp | null = isFiniteNumber(baselineGbp)
@@ -302,20 +308,26 @@ export function computeVenuePriceStory(
       }
     : null;
 
-  const nowDrop = mostRecentPricedDrop(drops);
-  const now: VenuePriceStamp | null =
-    nowDrop && isFiniteNumber(nowDrop.priceGbp)
-      ? {
-          gbp: nowDrop.priceGbp,
-          provenance: (nowDrop as VenuePriceStoryDrop).provenance,
-          label: "Community tonight",
-        }
-      : null;
+  const nowDrop = mostRecentPricedDrop(drops) as VenuePriceStoryDrop | null;
+  const nowStamp: VenuePriceStamp | null = (() => {
+    if (!nowDrop || !isFiniteNumber(nowDrop.priceGbp)) return null;
+    const submittedAt = Date.parse(nowDrop.createdAt);
+    const isFresh = isWithinMaxAge({ submittedAt }, now);
+    const freshness = formatFreshness(nowDrop.createdAt, new Date(now));
+    return {
+      gbp: nowDrop.priceGbp,
+      provenance: nowDrop.provenance,
+      isFresh,
+      label: isFresh
+        ? "Community tonight"
+        : [freshness, AGED_PRICE_LINE].filter(Boolean).join(" · "),
+    };
+  })();
 
   let deltaGbp: number | null = null;
   let pct: number | null = null;
-  if (baseline && now) {
-    deltaGbp = now.gbp - baseline.gbp;
+  if (baseline && nowStamp) {
+    deltaGbp = nowStamp.gbp - baseline.gbp;
     pct = baseline.gbp !== 0 ? (deltaGbp / baseline.gbp) * 100 : 0;
   }
 
@@ -325,10 +337,10 @@ export function computeVenuePriceStory(
     venueId: venue.id,
     venueName: venue.name,
     baseline,
-    now,
+    now: nowStamp,
     deltaGbp,
     pct,
     inflation,
-    isEmpty: !baseline && !now && !inflation,
+    isEmpty: !baseline && !nowStamp && !inflation,
   };
 }
