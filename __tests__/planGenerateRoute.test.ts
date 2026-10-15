@@ -170,6 +170,16 @@ describe("POST /api/plans/generate", () => {
     "A £10 pizza in Soho",
     "Can I get a pizza in Soho under £10?",
     "3 pubs in Soho, pizza costs under £10",
+    "One burger under £10 in Soho",
+    "One pub in Soho with pizza priced under £10",
+    "One pub in Soho with pizza in the evening under £10",
+    "One meal without nuts in Soho",
+    "One meal free of nuts in Soho",
+    "One meal free from nuts in Soho",
+    "One pub in Soho with food priced under £10",
+    "One pub in Soho with pizza under £10 and pints under £5",
+    "One pub in Soho with a £10.50 burger",
+    "One pub in Soho with a 10,50 quid burger",
   ])("refuses unsupported meal constraints in %s", async (query) => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
@@ -193,13 +203,38 @@ describe("POST /api/plans/generate", () => {
     { foodNeeds: ["pizza under £10"] },
     { foodNeeds: ["kebab under 10 pounds"] },
     { foodNeeds: ["chips under 5 quid"] },
+    { foodNeeds: ["vegan meal under £10 under 500 calories"] },
+    { foodNeeds: ["meal under 500kcal"] },
+    { foodNeeds: ["meal under 500calories"] },
+    { foodNeeds: ["nut-free meal"] },
+    { foodNeeds: ["meal without nuts"] },
+    { foodNeeds: ["meal free of nuts"] },
+    { foodNeeds: ["meal free from nuts"] },
+    { foodNeeds: ["burger under £10"] },
+    { foodNeeds: ["pub with pizza priced under £10"] },
+    { foodNeeds: ["pub with pizza in the evening under £10"] },
+    { foodNeeds: ["with food priced under £10"] },
+    { foodNeeds: ["pizza under £10 and pints under £5"] },
+    { foodNeeds: ["dish under £10"] },
+    { foodNeeds: ["food under £10"] },
+    { foodNeeds: ["pizza under £10 per person"] },
+    { foodNeeds: ["pizza under £10 each at a pub"] },
+    { foodNeeds: ["pizza in Soho under £10"] },
+    { foodNeeds: ["meal in Soho for £10"] },
+    { foodNeeds: ["£10 pizza"] },
+    { foodNeeds: ["pubs, pizza costs under £10"] },
+    { foodNeeds: ["£10.50 burger"] },
+    { foodNeeds: ["10,50 quid burger"] },
   ])("refuses unsupported structured food constraints: %j", async (context) => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({ query: "One pub in Soho", context: { stopCount: 1, ...context } }),
     }));
     expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    const body = await response.json();
+    expect(body).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(body.error).toMatch(/meal.*dietary.*calorie/i);
+    expect(body).not.toHaveProperty("stops");
   });
 
   it.each([
@@ -220,6 +255,39 @@ describe("POST /api/plans/generate", () => {
     if (!("prepared" in result)) throw new Error("Expected a prepared food-aware pub route");
     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds);
     expect(result.prepared.candidates).toHaveLength(3);
+  });
+
+  it.each([
+    "with food, under £20 per person",
+    "serving food under £20",
+    "pizza afterwards, under £20 per person",
+    "pizza, maximum £5 per pint",
+    "pizza under £5 per pint",
+    "pizza with pints under £5",
+    "pizza with £5 pints",
+    "pizza with £5 for a pint",
+    "food under £5 per pint",
+  ].flatMap((foodNeed) => [
+    { source: "query", query: `3 pubs in Clapham, under £20 per person, maximum £5 per pint, ${foodNeed}`, foodNeeds: undefined },
+    { source: "foodNeeds", query: "3 pubs in Clapham, under £20 per person, maximum £5 per pint", foodNeeds: [foodNeed] },
+  ]))("preserves drink budgets with $source: $query $foodNeeds", async ({ query, foodNeeds }) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 4 }),
+      generatedVenue("v2", { cheapestPrice: 5 }),
+      generatedVenue("v3", { cheapestPrice: 4.5 }),
+      generatedVenue("v4", { cheapestPrice: 6 }),
+    ]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        context: foodNeeds ? { foodNeeds } : undefined,
+      }),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error("Expected a prepared food-aware pub route");
+    expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [query.includes("pizza") ? "pizza" : "food"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.id).sort()).toEqual(["v1", "v2", "v3"]);
   });
 
   beforeEach(() => {

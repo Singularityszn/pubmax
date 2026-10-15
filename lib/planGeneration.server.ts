@@ -229,16 +229,17 @@ type PlanGenerationPreparation = {
 function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
 	const foodRequest = [query, ...foodNeeds].join(". ");
 	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest);
-	const requiresDiet = /\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|(?:gluten|nuts?|peanuts?|dairy|lactose|eggs?|soy|soya|sesame|shellfish|wheat)[ -]free|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\b/i.test(foodRequest);
-	const food = "\\b(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|kebabs?|chips)\\b";
+	const allergens = "(?:gluten|nuts?|peanuts?|dairy|milk|lactose|eggs?|soy|soya|sesame|shellfish|wheat)";
+	const requiresDiet = new RegExp(`\\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|${allergens}[ -]free|(?:without|no|avoid|free\\s+(?:of|from))\\s+${allergens}|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\\b`, "i").test(foodRequest);
+	const food = /\b(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips)\b/i;
 	const amount = "(?:£\\s*\\d+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?\\s*(?:pounds?|quid)\\b)";
-	const pricedFood = new RegExp(`${food}\\s+(?:cost(?:s|ing)?\\s+)?(?:(?:for\\s+)?(?:under|below|up to|less than|max(?:imum)?)\\s*|for\\s+)?${amount}|${amount}\\s+(?:(?:per|a|for(?: a)?)\\s+)?${food}`, "i");
+	const drinkPrice = new RegExp(`${amount}\\s*(?:(?:per|a|each|for a|for each)\\s+)?(?:pints?|drinks?|beers?)\\b|\\b(?:pints?|drinks?|beers?)\\s+(?:(?:priced|cost(?:s|ing)?)\\s+)?(?:(?:for\\s+)?(?:under|below|up to|less than|max(?:imum)?)\\s*|for\\s+)?${amount}`, "gi");
 	const requiresMealPrice = [query, ...foodNeeds].some((value) => {
-		const mealRequest = value.replace(/\b(?:with|serving|serves)\s+food\b/gi, "");
-		const foodIndex = mealRequest.search(new RegExp(food, "i"));
-		const routeIndex = mealRequest.search(/\b(?:pubs?|bars?|stops?|crawl|route)\b/i);
-		return pricedFood.test(mealRequest)
-			|| (foodIndex >= 0 && (routeIndex < 0 || foodIndex < routeIndex) && new RegExp(amount, "i").test(mealRequest));
+		const mealRequest = value
+			.replace(drinkPrice, " ")
+			.replace(/\b(?:with|serving|serves)\s+food\b(?!\s+(?:priced|cost(?:s|ing)?|for)\b)/gi, " ");
+		return mealRequest.split(/[,;.!?](?!\d)/).some((clause) =>
+			food.test(clause) && new RegExp(amount, "i").test(clause));
 	});
 	return requiresNutrition || requiresDiet || requiresMealPrice;
 }
