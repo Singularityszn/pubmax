@@ -1,6 +1,11 @@
+import { fork } from "node:child_process";
+import { once } from "node:events";
 import { mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
+
+import { E2E_SERVER_ENV } from "../playwright.config";
 
 import {
   LANDING_FIRST_RUN_HREF,
@@ -19,6 +24,36 @@ const SIZES = [
   { name: "phone-390x844", width: 390, height: 844 },
   { name: "desktop-1440x900", width: 1440, height: 900 },
 ] as const;
+
+const canonicalPriceTest = test.extend({
+  baseURL: async ({ baseURL: harnessURL }, provide, testInfo) => {
+    const server = fork(resolve("scripts/e2e/canonical-price-server.ts"), [], {
+      execArgv: ["--import", "tsx"],
+      env: { ...process.env, ...E2E_SERVER_ENV, OPENROUTER_API_KEY: "", NODE_ENV: "production" },
+      stdio: ["ignore", "inherit", "inherit", "ipc"],
+    });
+    const exited = once(server, "exit");
+    try {
+      const [ready] = await Promise.race([
+        once(server, "message"),
+        exited.then(([code]) => { throw new Error(`Canonical-price server exited before readiness (${code}).`); }),
+      ]) as [{ baseURL: string; now: number }];
+      await testInfo.attach("canonical-price-server", {
+        body: JSON.stringify({ ...ready, ambientBaseURL: harnessURL }),
+        contentType: "application/json",
+      });
+      await provide(ready.baseURL);
+    } finally {
+      server.kill();
+      await exited;
+    }
+  },
+  storageState: async ({ baseURL }, provide, testInfo) => {
+    const state = testInfo.project.use.storageState;
+    if (!state || typeof state === "string") throw new Error("The journey requires the harness browser state.");
+    await provide({ ...state, origins: state.origins.map((origin) => ({ ...origin, origin: baseURL! })) });
+  },
+});
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => Math.max(
@@ -119,7 +154,7 @@ for (const size of SIZES) {
 test.describe("with location allowed", () => {
   test.use({ geolocation: { latitude: 51.5136, longitude: -0.1365 }, permissions: ["geolocation"] });
 
-  test("carries a located Soho area and bounded budget into the planner", async ({ page }) => {
+  canonicalPriceTest("carries a located Soho area and bounded budget into the planner", async ({ page }) => {
     test.setTimeout(120_000);
     await openJourneyFromTheApp(page);
     await page.getByRole("button", { name: "Use London" }).click();
@@ -138,8 +173,15 @@ test.describe("with location allowed", () => {
     const response = await request.response();
     expect(response).not.toBeNull();
     const result = await response!.json();
+    expect(response!.status(), JSON.stringify(result)).toBe(200);
     expect(result.code).not.toBe("NIGHT_AREA_REQUIRED");
     expect(result.inferredContext).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1800 });
+    expect(result.budgetSummary).toMatchObject({ limitPence: 1800, withinLimit: true });
+    expect(result.stops).toHaveLength(3);
+    for (const stop of result.stops) {
+      expect(stop.estimatedPintPricePence).toBeGreaterThan(0);
+      expect(stop.estimatedPintPricePence).toBeLessThanOrEqual(600);
+    }
     const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }));
     expect(storage).not.toContain("51.5136");
     expect(storage).not.toContain("-0.1365");

@@ -101,6 +101,57 @@ if (
   );
 }
 
+export const E2E_SERVER_ENV = {
+  NODE_OPTIONS: E2E_NODE_OPTIONS,
+  NEXT_DIST_DIR,
+  // E2E builds run from a checkout whose generated data is stamped
+  // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
+  // fixtures and tripping the restored-build guard.
+  NEXT_PUBLIC_SW_VERSION: "local",
+  NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+  NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
+  // Browser auth stays provider-shaped in keyless E2E. Identity specs
+  // seed a Supabase session and intercept this non-routable boundary;
+  // server stores remain keyless and in memory.
+  NEXT_PUBLIC_SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : E2E_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+    E2E_SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : "",
+  SUPABASE_SERVICE_ROLE_KEY: DISPOSABLE_PLAN_DB ? DISPOSABLE_SERVICE_ROLE_KEY! : "",
+  OPENROUTER_API_KEY: DISPOSABLE_PLAN_DB ? "" : process.env.OPENROUTER_API_KEY ?? "",
+  VERCEL_ENV: DISPOSABLE_PLAN_DB ? "development" : process.env.VERCEL_ENV ?? "",
+  NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
+  PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+  ADMIN_TOKEN: E2E_ADMIN_TOKEN,
+  RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
+  PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
+  PUBMAX_E2E_LOGIN: "0",
+  PUBMAX_E2E_KEYLESS: DISPOSABLE_PLAN_DB ? "0" : "1",
+  // Auth regressions may opt into the real public Supabase project.
+  // Keep these as pass-throughs: browser tests must not fake auth over
+  // the wire, and ordinary keyless runs remain network-independent.
+  ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
+    ? {
+        NEXT_PUBLIC_SUPABASE_URL:
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+      }
+    : {}),
+  ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
+    ? {
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      }
+    : {}),
+  // The one remaining rollout flag: the Social launch rollback switch.
+  ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
+    ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
+    : {}),
+  ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
+    ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
+    : {}),
+};
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -408,56 +459,7 @@ export default defineConfig({
           : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
-        env: {
-          NODE_OPTIONS: E2E_NODE_OPTIONS,
-          NEXT_DIST_DIR,
-          // E2E builds run from a checkout whose generated data is stamped
-          // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
-          // fixtures and tripping the restored-build guard.
-          NEXT_PUBLIC_SW_VERSION: "local",
-          NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
-          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
-          // Browser auth stays provider-shaped in keyless E2E. Identity specs
-          // seed a Supabase session and intercept this non-routable boundary;
-          // server stores remain keyless and in memory.
-          NEXT_PUBLIC_SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : E2E_SUPABASE_URL,
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-            E2E_SUPABASE_PUBLISHABLE_KEY,
-          SUPABASE_URL: DISPOSABLE_PLAN_DB ? DISPOSABLE_SUPABASE_URL! : "",
-          SUPABASE_SERVICE_ROLE_KEY: DISPOSABLE_PLAN_DB ? DISPOSABLE_SERVICE_ROLE_KEY! : "",
-          OPENROUTER_API_KEY: DISPOSABLE_PLAN_DB ? "" : process.env.OPENROUTER_API_KEY ?? "",
-          VERCEL_ENV: DISPOSABLE_PLAN_DB ? "development" : process.env.VERCEL_ENV ?? "",
-          NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
-          PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
-          ADMIN_TOKEN: E2E_ADMIN_TOKEN,
-          RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
-          PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
-          PUBMAX_E2E_LOGIN: "0",
-          PUBMAX_E2E_KEYLESS: DISPOSABLE_PLAN_DB ? "0" : "1",
-          // Auth regressions may opt into the real public Supabase project.
-          // Keep these as pass-throughs: browser tests must not fake auth over
-          // the wire, and ordinary keyless runs remain network-independent.
-          ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
-            ? {
-                NEXT_PUBLIC_SUPABASE_URL:
-                  process.env.NEXT_PUBLIC_SUPABASE_URL,
-              }
-            : {}),
-          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN && !DISPOSABLE_PLAN_DB
-            ? {
-                NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-                  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-              }
-            : {}),
-          // The one remaining rollout flag: the Social launch rollback switch.
-          ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
-            ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
-            : {}),
-          ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
-            ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
-            : {}),
-        },
+        env: E2E_SERVER_ENV,
         url: BASE_URL,
         reuseExistingServer: !DISPOSABLE_PLAN_DB && !process.env.CI && !SCREENSHOT_RUN,
         // Production build can take a while cold; give it room in CI.
