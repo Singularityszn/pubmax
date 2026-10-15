@@ -68,16 +68,6 @@ describe("cached weather snapshots", () => {
     }
   });
 
-  it("keeps a source row with no feels-like value for factual display, not planning", () => {
-    const observation = snapshot.observations[0];
-    const withoutFeelsLike = validateWeatherSnapshot({
-      ...snapshot,
-      observations: [{ ...observation, feelsLikeC: null }],
-    });
-    expect(withoutFeelsLike?.observations[0]?.feelsLikeC).toBeNull();
-    expect(planningWeatherForArea(withoutFeelsLike, "clapham", Date.parse("2026-07-16T19:00:00.000Z"))).toBeNull();
-  });
-
   it("classifies wet weather without inventing garden suitability", () => {
     const wet = {
       ...snapshot,

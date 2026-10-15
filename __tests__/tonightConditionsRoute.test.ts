@@ -38,13 +38,6 @@ const WARM_DRY = snapshot([
   },
 ]);
 
-const NO_FEELS_LIKE = snapshot([
-  {
-    ...defined(WARM_DRY.observations[0]),
-    feelsLikeC: null,
-  },
-]);
-
 const EMPTY = snapshot([]);
 
 // The same reading, two days old: long past its 12h expiry at NOW.
@@ -105,17 +98,6 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
     expect(summary?.venueClaim).toBeNull();
   });
 
-  it("keeps the facts line but drops feels-like and drink claims when source value is absent", async () => {
-    const summary = await resolveTonightConditions({ point: null, now: NOW, snapshot: NO_FEELS_LIKE });
-    expect(summary).toMatchObject({
-      drinkLine: "",
-      drinkSuggestion: "",
-      venueClaim: null,
-    });
-    expect(summary?.factsLine).toContain("clear");
-    expect(summary?.factsLine).not.toContain("feels like");
-  });
-
   it("stale fixture -> facts and age only, no drink verdict or venue claim", async () => {
     let loaded = false;
     const summary = await resolveTonightConditions({
@@ -135,7 +117,7 @@ describe("resolveTonightConditions (hermetic weather seam)", () => {
       drinkSuggestion: "",
       venueClaim: null,
     });
-    expect(summary?.factsLine).toBe("Last read of the sky: 22°C feels like, clear, 0% chance of rain, 12 km/h wind.");
+    expect(summary?.factsLine).toBe("Last read of the sky: feels like 22°C, clear, 0% chance of rain, 12 km/h wind.");
     expect(summary?.factsLine).not.toMatch(/garden/i);
   });
 

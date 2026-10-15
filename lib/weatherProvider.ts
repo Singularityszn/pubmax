@@ -70,13 +70,11 @@ async function observationFor(
   };
   const timeRaw = typeof body?.current?.time === "string" ? `${body.current.time}Z` : "";
   const observedAtMs = Date.parse(timeRaw);
-  const feelsLikeC = Number.isFinite(body?.current?.apparent_temperature)
-    ? body?.current?.apparent_temperature as number
-    : null;
+  const feelsLikeC = body?.current?.apparent_temperature;
   const weatherCode = body?.current?.weather_code;
   const windKph = body?.current?.wind_speed_10m;
   const precip = body?.hourly?.precipitation_probability?.[0];
-  if (![observedAtMs, weatherCode, windKph, precip].every((v) => Number.isFinite(v as number))) {
+  if (![observedAtMs, feelsLikeC, weatherCode, windKph, precip].every((v) => Number.isFinite(v as number))) {
     // Loud-but-soft: a payload that doesn't satisfy the contract is skipped,
     // never coerced into a fake reading.
     console.warn(`[weather-provider] ${nightArea}: Open-Meteo payload did not satisfy the contract — skipped.`);

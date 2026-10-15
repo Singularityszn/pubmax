@@ -141,7 +141,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
       </div>
 
       {/* Deliberately no body line. The greeting above carries the observation's
-          facts line ("24°C feels like, clear, 0% chance of rain, daylight.") and
+          facts line ("Feels like 24°C, clear, 0% chance of rain, daylight.") and
           the verdict already names the drink,
           so a "Reach for a cold lager or cider." sentence here would be the
           third telling of the same two facts. Each said once, on the surface

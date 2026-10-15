@@ -13,17 +13,12 @@ function openMeteoTime(): string {
   return new Date(Date.now() - 3_600_000).toISOString().slice(0, 16);
 }
 
-function okPayload(apparentTemperature: number | undefined) {
+function okPayload() {
   return {
     ok: true,
     status: 200,
     json: async () => ({
-      current: {
-        time: openMeteoTime(),
-        ...(apparentTemperature === undefined ? {} : { apparent_temperature: apparentTemperature }),
-        weather_code: 1,
-        wind_speed_10m: 10,
-      },
+      current: { time: openMeteoTime(), apparent_temperature: 18, weather_code: 1, wind_speed_10m: 10 },
       hourly: { precipitation_probability: [20] },
     }),
   };
@@ -54,7 +49,7 @@ describe("GET /api/cron/refresh-weather", () => {
   });
 
   it("writes fresh observations to the store on success", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => okPayload(18)));
+    vi.stubGlobal("fetch", vi.fn(async () => okPayload()));
     const res = await GET(req("Bearer test-secret"));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -62,15 +57,6 @@ describe("GET /api/cron/refresh-weather", () => {
     expect(body.written).toBe(LONDON_NIGHT_AREA_SLUGS.length);
     const snap = await memoryWeatherSnapshotStore.readSnapshot();
     expect(snap?.observations).toHaveLength(LONDON_NIGHT_AREA_SLUGS.length);
-  });
-
-  it("keeps a provider row when apparent temperature is absent", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => okPayload(undefined)));
-    const res = await GET(req("Bearer test-secret"));
-    expect(res.status).toBe(200);
-    const snap = await memoryWeatherSnapshotStore.readSnapshot();
-    expect(snap?.observations).toHaveLength(LONDON_NIGHT_AREA_SLUGS.length);
-    expect(snap?.observations[0]?.feelsLikeC).toBeNull();
   });
 
   it("502s and writes nothing when the provider is down (never fakes data)", async () => {

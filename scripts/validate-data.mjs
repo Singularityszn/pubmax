@@ -3459,11 +3459,9 @@ function hasValidWeatherCondition(row) {
 
 function hasValidFeelsLikeC(row) {
   return (
-    row?.feelsLikeC === null ||
-    row?.feelsLikeC === undefined ||
-    (typeof row?.feelsLikeC === "number" &&
-      row.feelsLikeC >= -40 &&
-      row.feelsLikeC <= 60)
+    typeof row?.feelsLikeC === "number" &&
+    row.feelsLikeC >= -40 &&
+    row.feelsLikeC <= 60
   );
 }
 

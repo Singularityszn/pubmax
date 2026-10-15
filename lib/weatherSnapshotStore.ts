@@ -101,10 +101,7 @@ type WeatherRow = {
   generated_at: string;
 };
 
-function toRow(
-  observation: NightAreaWeatherObservation & { feelsLikeC: number },
-  generatedAt: string,
-): WeatherRow {
+function toRow(observation: NightAreaWeatherObservation, generatedAt: string): WeatherRow {
   return {
     night_area: observation.nightArea,
     observed_at: observation.observedAt,
@@ -139,11 +136,7 @@ function fromRow(row: WeatherRow): NightAreaWeatherObservation | null {
 
 export const supabaseWeatherSnapshotStore: WeatherSnapshotStore = {
   async writeSnapshot(observations, generatedAt) {
-    const durableObservations = observations.filter(
-      (observation): observation is NightAreaWeatherObservation & { feelsLikeC: number } =>
-        observation.feelsLikeC !== null,
-    );
-    if (durableObservations.length === 0) return { written: 0 };
+    if (observations.length === 0) return { written: 0 };
     return guard<WriteWeatherOutcome>({
       context: "writeSnapshot",
       onSchemaMiss: () => memoryWeatherSnapshotStore.writeSnapshot(observations, generatedAt),
@@ -152,9 +145,9 @@ export const supabaseWeatherSnapshotStore: WeatherSnapshotStore = {
       run: async () => {
         const { error } = await requireSupabaseAdmin()
           .from("weather_snapshots")
-          .upsert(durableObservations.map((o) => toRow(o, generatedAt)), { onConflict: "night_area" });
+          .upsert(observations.map((o) => toRow(o, generatedAt)), { onConflict: "night_area" });
         if (error) throw new Error(error.message);
-        return { written: durableObservations.length };
+        return { written: observations.length };
       },
     });
   },
