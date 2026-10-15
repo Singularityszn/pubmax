@@ -200,6 +200,29 @@ const unsupportedServingSubjects = [
 
 describe("POST /api/plans/generate", () => {
   it.each([
+    "One slice under £10 in Soho", "One portion under £10 in Soho",
+    "£10 for one slice in Soho", "£10 for one portion in Soho",
+    "2 slices under £10 in Soho", "2 portions under £10 in Soho",
+  ].flatMap((phrase) => [
+    { query: phrase },
+    { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } },
+  ]))("refuses priced food servings with unspecified items: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect("response" in prepared ? prepared.response.status : 200).toBe(422);
+    if (!("response" in prepared)) throw new Error("Expected meal limitation");
+    expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ...[
       "a serving of chips", "fish and chips", "a cheese and tomato pizza",
       "two generous servings of chips", "a bowl of fish and chips", "half a cheese and tomato pizza",

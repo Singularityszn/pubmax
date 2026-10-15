@@ -16,8 +16,11 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         const query = page.getByRole("textbox", { name: "Describe the outing" }).first();
         await expect(query).not.toHaveAttribute("readonly");
         await query.fill("3 pubs in Clapham");
+        const initialResponse = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
         await page.getByRole("button", { name: "Sort it", exact: true }).click();
-        const tune = page.getByRole("button", { name: "Tune details", exact: true });
+        expect((await initialResponse).status()).toBe(200);
+        await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
+        const tune = page.getByRole("button", { name: "Tune details", exact: true }).and(page.locator('[aria-haspopup="dialog"]'));
         await expect(tune).toBeVisible();
         await tune.click();
         const sheet = page.getByRole("dialog", { name: "Tune details" });
