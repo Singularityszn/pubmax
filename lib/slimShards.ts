@@ -529,10 +529,20 @@ export function createSlimShardLoader(
   // read, is the pack the server holds: around a deploy that is the previous
   // or the next revision, and refusing it left the map with no pins at all.
   // Its shards are then held to ITS revision, so a mixed pack is still refused.
-  function adoptSkewedManifest(parsed: ShardManifest): ShardManifest {
+  // Only a manifest that NAMES its revision can be adopted: one with none
+  // would leave its shards unchecked, free to mix any revision.
+  function adoptable(parsed: ShardManifest | null): parsed is ShardManifest & { revision: string } {
+    return typeof parsed?.revision === "string";
+  }
+
+  function adoptSkewedManifest(parsed: ShardManifest & { revision: string }): ShardManifest {
     packRevision = parsed.revision;
-    packRequestRevision = parsed.revision ?? MAP_DATA_REVISION;
+    packRequestRevision = parsed.revision;
     manifestRevisionRejected = false;
+    // Whatever loaded before adoption (the core guessed under the baked
+    // revision) belongs to another pack; forget it so the adopted pack's own
+    // shards are read in its place and coverage is not claimed for a mix.
+    loadedUrls.clear();
     reportMapDataRevisionSkew({
       asset: "manifest",
       outcome: "adopted",
@@ -603,7 +613,7 @@ export function createSlimShardLoader(
         manifestRevisionRejected = false;
         return parsed;
       }
-      if (wellFormed) return adoptSkewedManifest(wellFormed);
+      if (adoptable(wellFormed)) return adoptSkewedManifest(wellFormed);
       if (expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
         manifestRevisionRejected = true;
         reportMapDataRevisionSkew({
@@ -621,7 +631,7 @@ export function createSlimShardLoader(
       // Only a manifest that once matched is ever mirrored, so a stored one
       // that disagrees is the previous deploy's, with its shards mirrored
       // under its own revision beside it.
-      if (wellFormed) return adoptSkewedManifest(wellFormed);
+      if (adoptable(wellFormed)) return adoptSkewedManifest(wellFormed);
       if (
         stored !== null &&
         stored !== undefined &&
@@ -691,7 +701,9 @@ export function createSlimShardLoader(
       const created = loadSlimVenuesFromPathResult(key, shardOptions)
         .then((result) => {
           if (result.status === "ready") {
-            loadedUrls.add(url);
+            // A read that lands after another pack was adopted contributed
+            // rows, but it does not cover anything in the adopted pack.
+            if (key === shardRequestPath(url, packRequestRevision)) loadedUrls.add(url);
           } else {
             shardPromises.delete(key);
           }

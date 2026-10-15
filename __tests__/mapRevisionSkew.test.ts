@@ -58,8 +58,10 @@ function serve({ bodies, noStore = {} }: Served) {
     requests.push(init?.cache === "no-store" ? `${url} [no-store]` : url);
     const path = defined(url.split("?")[0]);
     const source = init?.cache === "no-store" && path in noStore ? noStore : bodies;
-    if (path in source) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(source[path]) } as Response);
+    // A full URL wins over its path: that is a copy cached under one `?v=` key.
+    const key = url in source ? url : path;
+    if (key in source) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(source[key]) } as Response);
     }
     return Promise.resolve({ ok: false, status: 404, body: null } as unknown as Response);
   });
@@ -196,6 +198,65 @@ describe("a map whose packs disagree with the baked revision", () => {
     expect(opening.status).toBe("unavailable");
     expect(drain()).toEqual([
       `map manifest revision skew: expected ${BAKED}, served previous, refused`,
+    ]);
+  });
+
+  it("re-reads the core under the adopted revision after a baked-revision guess painted", async () => {
+    // Old HTML whose baked core still answers from a copy cached under its own
+    // `?v=` key, while the server holds the next deploy's whole pack.
+    const { createSlimShardLoader, drain } = await productionLoader();
+    serve({
+      bodies: {
+        ...londonPacks({ manifest: "next", core: "next", cell: "next" }),
+        [`/data/venues_slim.core.json?v=${BAKED}`]: { revision: BAKED, rows: [row("core-old", 51.5, -0.12)] },
+      },
+    });
+
+    const loader = createSlimShardLoader("london", { deferSpatial: true });
+    const opening = await loader.initialResult(OPENING);
+    expect(opening).toMatchObject({ status: "ready", rows: [row("core-old", 51.5, -0.12)] });
+
+    const everywhere = { west: -0.2, south: 51.45, east: 0.1, north: 51.55 };
+    const ring = await loader.inBounds(everywhere);
+
+    // The adopted pack's own core replaces the guess rather than being skipped.
+    expect(ring.map((venue) => venue.id).sort()).toEqual(["cell-1", "core-1"]);
+    expect(requests).toContain("/data/venues_slim.core.json?v=next");
+    expect(loader.coverageComplete(everywhere)).toBe(true);
+    expect(drain()).toEqual([
+      `map manifest revision skew: expected ${BAKED}, served next, adopted`,
+    ]);
+  });
+
+  it("does not claim coverage for a mixed pack after adoption", async () => {
+    const { createSlimShardLoader, drain } = await productionLoader();
+    serve({ bodies: londonPacks({ manifest: "next", core: BAKED, cell: "next" }) });
+
+    const loader = createSlimShardLoader("london", { deferSpatial: true });
+    await loader.initialResult(OPENING);
+    const everywhere = { west: -0.2, south: 51.45, east: 0.1, north: 51.55 };
+    await loader.inBounds(everywhere);
+
+    expect(loader.coverageComplete(everywhere)).toBe(false);
+    expect(drain()).toEqual([
+      `map manifest revision skew: expected ${BAKED}, served next, adopted`,
+      "map shard revision skew: expected next, served target, refused",
+    ]);
+  });
+
+  it("refuses a manifest that names no revision, since its shards could be any", async () => {
+    const { createSlimShardLoader, drain } = await productionLoader();
+    const bodies = londonPacks({ manifest: "previous", core: "previous", cell: "other" });
+    delete (bodies["/data/venues_slim.manifest.json"] as { revision?: string }).revision;
+    serve({ bodies });
+
+    const loader = createSlimShardLoader("london");
+    const opening = await loader.initialResult(OPENING);
+
+    expect(opening).toEqual({ rows: [], status: "unavailable" });
+    expect(requests.some((request) => request.includes("cell.e"))).toBe(false);
+    expect(drain()).toEqual([
+      `map manifest revision skew: expected ${BAKED}, served none, refused`,
     ]);
   });
 
