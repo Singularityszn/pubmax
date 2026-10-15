@@ -200,6 +200,47 @@ const unsupportedServingSubjects = [
 
 describe("POST /api/plans/generate", () => {
   it.each([
+    ...["at", "in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((modifier) => [
+      `£10 pint ${modifier} pub and pizza`,
+      `pints under£10 ${modifier} pub and pizza`,
+      `pint ${modifier} pub and pizza under£10`,
+      `route total£20 pint ${modifier} pub&pizza`,
+    ]),
+    "£10 for a pint from the pub and a pizza",
+    "pints under£10 from pubs and pizza",
+    "£10 pint from the pub and a pizza",
+    "£10 for a pint from the pub and half a pizza",
+    "£10 pint from pub&half a pizza",
+    "£10 pint from pub&pub lunch",
+    "£10 half a pizza from pub&pint",
+    "route total£20 pint from pub&pub lunch",
+    "£10 for a pint from the pub and a pub lunch",
+    "a pint from the pub and a pizza under£10",
+    "route total£20 for a pint from the pub and a pizza",
+    "pub route budget of£20 for drinks from the pub and a pizza",
+    "£10 for a pizza and a pint from the pub",
+    "£10 for beer from the pub, a pizza and a pint",
+    "£10 FOR A PINT FROM THE PUB & A PIZZA",
+  ].flatMap((phrase) => [
+    { query: `3 pubs in Clapham, ${phrase}` },
+    ...(phrase.length <= 40 ? [{ query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }] : []),
+  ]))("refuses coordinated meals across venue modifiers: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect({ preparation: "response" in prepared ? prepared.response.status : "prepared", post: response.status })
+      .toEqual({ preparation: 422, post: 422 });
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    if (!("response" in prepared)) throw new Error("Expected meal limitation");
+    expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
     "£20 for three pub meals", "£20 for half a pub pizza", "£20 for a large portion of pub food",
     "£10 for beer, a pub lunch and a pint", "£10 for a pint & a large pub burger",
     "pints under£5 from pubs; pizza under£10", "£5 pint near pubs, pizza under£10",
@@ -258,6 +299,23 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
+    ...[
+      "pint of beer from pubs under 5 pounds",
+      "pint of beer near pubs under 5 quid",
+      "5 pounds for a pint of beer from pubs",
+      "5 quid for a pint of beer near pubs",
+    ].flatMap((phrase) => [
+      { query: `3 pubs in Clapham, ${phrase}`, total: null, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] }, total: null, ceiling: 500 },
+    ]),
+    ...["at", "in", "from", "near", "around", "within", "inside", "outside", "by", "where"].flatMap((modifier) => [
+      { phrase: `£5 for a pint of beer ${modifier} pubs serving pizza`, typed: `£5 pint of beer ${modifier} pubs with food` },
+      { phrase: `pint of beer ${modifier} pubs under£5`, typed: `pint of beer ${modifier} pubs under£5` },
+      { phrase: `pint of beer under£5 ${modifier} pubs serving pizza`, typed: `pint of beer under£5 ${modifier} pubs` },
+    ].flatMap(({ phrase, typed }) => [
+      { query: `3 pubs in Clapham, ${phrase}`, total: null, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [typed] }, total: null, ceiling: 500 },
+    ])),
     ...["at", "in", "from", "near", "around", "within", "inside", "outside", "by"].flatMap((preposition) =>
       ["pubs serving pizza", "bars serving lunch"].flatMap((amenity) => [
         { phrase: `£5 for a pint ${preposition} ${amenity}`, typed: `£5 for a pint ${preposition} ${amenity}`, total: null, ceiling: 500 },
@@ -467,6 +525,11 @@ describe("POST /api/plans/generate", () => {
   });
 
   it.each([
+    ...["at", "in", "from", "near", "where"].flatMap((modifier) =>
+      ["two pints", "half a pint", "bottle of beer", "pint of cider", "330ml beer"].flatMap((subject) => [
+        `£5 ${subject} ${modifier} pubs`,
+        `${subject} ${modifier} pubs under£5`,
+      ])),
     "330ml beers under£5", "£5 for a 330ml beer",
     "330 ml beers under£5", "£5 for a 330 ml beer",
     "33cl beers under£5", "£5 for a 33cl beer",
