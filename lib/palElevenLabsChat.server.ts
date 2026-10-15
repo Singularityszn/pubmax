@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
 import { recordedDrinkComparison, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
@@ -198,18 +200,25 @@ export async function runPalElevenLabsChatTurn(
   const unsupported = unsupportedPriceComparison(query);
   if (unsupported || recordedDrinkComparison(query)) {
     const result = await runAsk({ query, cityId, skipModel: true });
-    if (!unsupported && prior.conversationId) {
-      await registerPubPalToolTurn(prior.conversationId, {
-        query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
-        cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
-      });
+    const conversationId = unsupported ? "" : prior.conversationId
+      ?? (result.cards.length ? `conv_${randomUUID().replaceAll("-", "")}` : "");
+    if (conversationId) {
+      try {
+        await registerPubPalToolTurn(conversationId, {
+          query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
+          cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
+        });
+      } catch {
+        recordFailure("UNAVAILABLE", "registration");
+        return { ok: false, code: "UNAVAILABLE" };
+      }
     }
     return {
       ok: true,
       message: result.answer,
       cards: result.cards,
       proposals: result.proposals,
-      conversationId: !unsupported ? prior.conversationId ?? "" : "",
+      conversationId,
       toolsUsed: result.toolsUsed,
     };
   }

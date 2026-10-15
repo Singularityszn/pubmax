@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import FoodMenu from "@/components/food/FoodMenu";
 import type { FoodItem } from "@/lib/food";
+import { applyFoodPriceUpdatesToMenu, parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
 
 const item = {
   id: "food-lunch",
@@ -99,4 +100,19 @@ describe("food menu price evidence", () => {
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Snapshot from");
   });
+});
+
+it("renders factual portions through the food update consumer without changing whole-serving facts", () => {
+  const updates = parseFoodPriceUpdates([{ venueKey: "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933", itemName: "Ice cream", category: "desserts",
+    servingSize: "3 scoops", priceGbp: 5.5, caloriesKcal: 238,
+    source: { label: "Recorded menu fixture", url: "https://example.com/menu", licence: "Test" }, observedAt: "2026-10-13T06:51:38.364Z" }]);
+  const items = applyFoodPriceUpdatesToMenu("the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933", [], updates);
+  expect(items[0]).toMatchObject({ id: "food-1j3poi9", servingSize: "3 scoops", priceGbp: 5.5, caloriesKcal: 238 });
+  const html = renderToStaticMarkup(createElement(FoodMenu, { items }));
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  expect(doc.querySelector(".drinkRow")?.textContent).toContain("3 scoops");
+  expect(doc.querySelector(".drinkRow")?.textContent).toContain("238 kcal");
+  expect(doc.querySelector(".drinkPrice")?.textContent).toContain("£5.50");
+  expect(new DOMParser().parseFromString(renderFood({ name: "8oz Bavette steak" }), "text/html").querySelector(".drinkServing")?.textContent).toBe("8oz");
+  expect(new DOMParser().parseFromString(renderFood(), "text/html").querySelector(".drinkServing")).toBeNull();
 });

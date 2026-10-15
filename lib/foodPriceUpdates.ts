@@ -13,6 +13,7 @@ export type FoodPriceUpdate = {
   itemName: string;
   category: FoodCategory;
   priceGbp: number;
+  servingSize?: string;
   caloriesKcal?: number;
   description?: string;
   dietary?: FoodDietary[];
@@ -41,6 +42,7 @@ function isValidFoodPriceUpdate(
   if (row.caloriesKcal !== undefined && (!isFiniteNumber(row.caloriesKcal) || row.caloriesKcal < 0)) {
     return false;
   }
+  if (row.servingSize !== undefined && !isNonEmptyString(row.servingSize)) return false;
   if (row.description !== undefined && !isNonEmptyString(row.description)) return false;
   if (!isValidDietary(row.dietary)) return false;
   const source = row.source;
@@ -93,6 +95,7 @@ function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
     category: update.category,
     priceGbp: update.priceGbp,
     description: update.description,
+    servingSize: update.servingSize,
     dietary: update.dietary,
     ...(update.dietary !== undefined ? { dietaryProvenance: { ...updateProvenance(update), sourceUrl: update.source.url } } : {}),
     provenance: updateProvenance(update),
@@ -123,6 +126,7 @@ export function applyFoodPriceUpdatesToMenu(
       priceGbp: update.priceGbp,
       provenance: updateProvenance(update),
       description: update.description ?? item.description,
+      servingSize: update.servingSize ?? item.servingSize,
       dietary: update.dietary ?? item.dietary,
       dietaryProvenance: update.dietary !== undefined
         ? { ...updateProvenance(update), sourceUrl: update.source.url }

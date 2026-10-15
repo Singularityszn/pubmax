@@ -36,6 +36,7 @@ export type FoodItem = {
   name: string;
   category: FoodCategory;
   priceGbp: number;
+  servingSize?: string;
   /** Publisher-stated energy for the menu item, without a health or per-person claim. */
   caloriesKcal?: number;
   /** Kept separate when a later price-only observation updates the menu row. */
@@ -100,4 +101,8 @@ export function foodCategoryColor(category: FoodCategory): string {
     other: "#5c5347",
   };
   return colors[category];
+}
+
+export function foodServingSize(item: FoodItem): string | null {
+  return item.servingSize ?? item.name.match(/(?<![\p{L}\p{N}])\d+(?:\.\d+)?\s*(?:ml|cl|l|oz|scoops?)\b/giu)?.join(" ") ?? null;
 }

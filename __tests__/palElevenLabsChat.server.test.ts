@@ -211,6 +211,14 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.unstubAllGlobals();
   });
 
+  it("refuses an initial deterministic answer when its owned registration fails", async () => {
+    storeMocks.registerPubPalToolTurn.mockRejectedValueOnce(new Error("Store unavailable"));
+    const outcome = await runPalElevenLabsChatTurn({ query: "Wine prices at Sherlock Holmes", ownerId: "menu-owner" });
+    expect(outcome).toEqual({ ok: false, code: "UNAVAILABLE" });
+    expect(wsState.socketsOpened).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("review regression: returns independent transit with the unsupported price answer", async () => {
     vi.stubGlobal("fetch", offlineFetch);
     const outcome = await runPalElevenLabsChatTurn({ query: "Any tube delays and how much is a burger in Camden?", ownerId: "11111111-1111-4111-8111-111111111111" });

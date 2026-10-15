@@ -4,6 +4,7 @@ import { formatObservedDate, SNAPSHOT_CAPTION_PREFIX } from "@/lib/dataFreshness
 import PriceBadge from "@/components/PriceBadge";
 import {
   foodCategoryColor,
+  foodServingSize,
   groupFoodByCategory,
   type FoodCategory,
   type FoodItem,
@@ -37,6 +38,7 @@ function ProvChip({ prov, source }: { prov: FoodProvenance; source?: string }) {
 }
 
 function FoodRow({ item }: { item: FoodItem }) {
+  const serving = foodServingSize(item);
   const observed = new Date(item.provenance.observedAt);
   const hasDate = !isDemoProvenance(item.provenance) && Number.isFinite(observed.getTime());
   const calorieProv = item.caloriesProvenance;
@@ -59,6 +61,7 @@ function FoodRow({ item }: { item: FoodItem }) {
     <li className="drinkRow">
       <div className="drinkRowMain">
         <span className="drinkName">{item.name}</span>
+        {serving ? <span className="drinkServing">{serving}</span> : null}
         {item.description ? <span className="drinkMeta">{item.description}</span> : null}
         {dietary ? <span className="drinkServing">{dietary}</span> : null}
         {hasCalories && calorieProv && calorieDate ? (

@@ -37,7 +37,7 @@ for (const width of [390, 1440]) {
         await expect(card).toContainText("Dietary labels not recorded.");
       }
       if (scenario.foodCalories !== undefined) {
-        await expect(card).toContainText("Serving size not recorded.");
+        await expect(card).toContainText(`Published serving: ${scenario.item.match(/\d+oz/)?.[0]}.`);
         await expect(card).toContainText("Dietary labels not recorded.");
         await expect(card).toContainText(`Price observed ${scenario.observed}.`);
       }

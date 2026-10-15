@@ -7,17 +7,20 @@ import { venuePriceUpdatesFor } from "@/lib/priceUpdates.server";
 import { isDemoDrinkProvenance, type DrinkCategory } from "@/lib/drinks";
 import { namedMenuRequest } from "@/lib/ask/router";
 import type { AskCard, AskMenuEvidence } from "@/lib/ask/types";
+import { foodServingSize } from "@/lib/food";
 import { formatGbp } from "@/lib/formatGbp";
 
 function words(value: string): string {
   return value.toLocaleLowerCase("en-GB").replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
-const SERVING_RE = /(?<![\p{L}\p{N}])[-+]?(?:\d[\d.,]*|\.\d+)\s*(?:ml|cl|l|oz)\b|\b(?:pint|glass|bottle|double|single)\b/giu;
-const BUDGET_RE = /\bunder\s+(?:£|GBP)\s*(\d+(?:\.\d{1,2})?)(?![\d.])/i;
+const SERVING_RE = /(?<![\p{L}\p{N}])[-+]?(?:\d[\d.,]*|\.\d+)\s*(?:ml|cl|l|oz|scoops?)\b|\b(?:pint|glass|bottle|double|single)\b/giu;
+const BUDGET_RE = /\bunder\s*(?:£|GBP)\s*(\d+(?:\.\d{1,2})?)(?![\d.])/i;
+
+const CALORIE_RE = /\b(?:under|below)\s*(\d+(?:\.\d+)?)\s*(?:kcal|calories)\b/i;
 
 function servingIdentity(value: string): string {
-  return value.toLowerCase().replace(/\s+(?=(?:ml|cl|l|oz)\b)/g, "").replace(/\s+/g, " ").trim();
+  return value.toLowerCase().replace(/\s+(?=(?:ml|cl|l|oz|scoops?)\b)/g, "").replace(/\s+/g, " ").trim();
 }
 
 export async function publishedMenuCards(venueId: string, query: string, category?: DrinkCategory): Promise<{ cards: AskCard[]; unavailable: boolean }> {
@@ -33,6 +36,8 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   const selection = dietaryInquiry?.[1] ?? subject;
   const budget = selection.match(BUDGET_RE);
   const maxPrice = budget ? Number(budget[1]) : null;
+  const calorieLimit = selection.match(CALORIE_RE);
+  const maxCalories = calorieLimit ? Number(calorieLimit[1]) : null;
   const servings = subject.match(SERVING_RE);
   const serving = servings ? servingIdentity(servings.join(" ")) : null;
   const dietary = (selection.match(/\b(?:vegan|vegetarian|gluten[- ]free)\b/gi) ?? [])
@@ -41,6 +46,7 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   const allItems = /\bmenu\b/i.test(subject) && !foodOnly && !/\bdrinks?\b/i.test(subject);
   const itemQuery = category ? "" : words(selection
     .replace(BUDGET_RE, " ")
+    .replace(CALORIE_RE, " ")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:does|do)\s+(.+?)\s+(?:have|contain)\s*$/i, "$1")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:are\s+(?:there\s+)?in|in)\s+/i, " ")
     .replace(/^what(?:'s| is| are)?\s+(?:the\s+)?(?:published\s+)?(?:calories|calorie(?: count| content)?|kcal)\s+(?:(?:are|is)\s+)?(?:in|of|for)\s+/i, " ")
@@ -51,10 +57,10 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   const cards: AskCard[] = [];
   const add = (evidence: AskMenuEvidence, price: number) => {
     if (maxPrice !== null && price >= maxPrice) return;
+    if (maxCalories !== null && (!evidence.caloriesProvenance || evidence.caloriesKcal === null || evidence.caloriesKcal >= maxCalories)) return;
     if (!matches(evidence.itemName)) return;
     if (serving) {
-      const recorded = evidence.menu === "food" ? evidence.itemName.match(SERVING_RE)?.join(" ") : evidence.serving;
-      if (!recorded || servingIdentity(recorded) !== serving) return;
+      if (!evidence.serving || servingIdentity(evidence.serving) !== serving) return;
     }
     if (dietary.length && (!evidence.dietaryProvenance || !dietary.every((label) => evidence.dietary.some((recorded) => recorded === label)))) return;
     const calories = evidence.caloriesKcal === null ? "Published calories not recorded." : `${evidence.caloriesKcal} kcal published for this item.`;
@@ -75,7 +81,7 @@ export async function publishedMenuCards(venueId: string, query: string, categor
   if (!category && (foodOnly || allItems || itemQuery)) {
     for (const item of venueFoodMenuForInspector(venue, updates.food)) {
       add({ kind: "published-menu", itemId: item.id, itemName: item.name, menu: "food", category: item.category,
-        currency: "GBP", serving: null, caloriesKcal: item.caloriesKcal ?? null,
+        currency: "GBP", serving: foodServingSize(item), caloriesKcal: item.caloriesKcal ?? null,
         caloriesProvenance: item.caloriesProvenance ?? null, dietary: item.dietary ?? [], dietaryProvenance: item.dietaryProvenance ?? null,
         observedAt: item.provenance.observedAt, source: item.provenance.source, sourceUrl: item.source ?? null,
         licence: item.provenance.licence, availability: "unknown" }, item.priceGbp);
