@@ -489,6 +489,7 @@ describe("POST /api/plans/generate", () => {
       ...["with", "serving", "serves"].flatMap((predicate) => [
         { query: `3 pubs in Clapham, £5 pint at Cock and Bottle ${predicate} ${food}`, total: null, ceiling: 500 },
         { query: `3 pubs in Clapham, pint at Beer and Burger under£5 ${predicate} ${food}`, total: null, ceiling: 500 },
+        { query: `3 pubs in Clapham, pint at Cock and Bottle under£5 ${predicate} ${food}, under £20 per person`, total: 2000, ceiling: 500 },
         { query: "3 pubs in Clapham", context: { foodNeeds: [`£5 pint at X ${predicate} ${food.replaceAll(" and ", "&")}`] }, total: null, ceiling: 500 },
         { query: `3 pubs in Clapham, £5 pint at Cock and Bottle ${predicate} ${food}, route total£20`, total: 2000, ceiling: 500 },
       ]),
@@ -501,6 +502,7 @@ describe("POST /api/plans/generate", () => {
     ...["with", "serving"].flatMap((amenity) => [
       { query: `3 pubs in Clapham, £5 pint at pub ${amenity} pizza, under£20 per person`, total: 2000, ceiling: 500 },
       { query: "3 pubs in Clapham", context: { foodNeeds: [`£5 pint at X ${amenity} pizza, pub total£20`] }, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [`pint at X under£5 ${amenity} pizza,under£20`] }, total: 2000, ceiling: 500 },
     ]),
     ...[
       "pint of beer from pubs under 5 pounds",
