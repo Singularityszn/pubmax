@@ -1,0 +1,60 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+········x···x······················································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One vegan meal in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674319}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One meal under 500 calories in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674321}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One pizza under £10 in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674323}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674325}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":""}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674327}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"not-a-city"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674328}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"manchester"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674330}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"intake":{"version":1,"area":{"kind":"night-patch","id":"hackney"},"timeWindow":null,"groupSize":4,"budget":{"tier":"standard","limitPence":null},"accessibilityNeeds":[],"skipped":["time-window"]}}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792072674332}
+
+·························································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses with the deployment ceiling's own sentence once it is spent
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1000,"windowMs":86400000,"ts":1792072674633}
+
+··············································
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for slice of pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for a portion of chips"}
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ __tests__/planGenerateRoute.test.ts:234:29
+    232|       method: "POST", body: JSON.stringify(input),
+    233|     }));
+    234|     expect(response.status).toBe(422);
+       |                             ^
+    235|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    236|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1512 passed (1514)
+   Start at  14:57:49
+   Duration  5.71s (tests 90%, transform 7%, import 3%)
+

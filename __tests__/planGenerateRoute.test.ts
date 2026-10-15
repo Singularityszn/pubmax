@@ -188,6 +188,8 @@ function drinkRateInputs(phrase: string) {
 }
 
 const unsupportedServingSubjects = [
+  "2x330ml beers", "2 x 330 ml beers", "2×330ml beers", "two x 330 ml beers",
+  "3x500ml beers", "2x beers", "two×beers", "12 beers", "three beers",
   "330 ml of beer", "330ml of beer", "330 ml of the beer", "330ml of a beer", "33cl of beer", "0.33L of beer",
   "two pints of beer", "half a pint of beer", "half a pint of the beer", "1/2 pint of beer",
   "two bottles of the beer", "a can of beer", "one glass of the beer", "2 shots of beer",
@@ -197,6 +199,47 @@ const unsupportedServingSubjects = [
 ];
 
 describe("POST /api/plans/generate", () => {
+  it.each(["group of four", "party of four", "group of 4"].flatMap((group) => [
+    { query: `3 pubs in Clapham for a ${group} under£20 per person` },
+    { query: `3 pubs in Clapham for a ${group} under£20 per person`, context: { foodNeeds: ["pizza"] } },
+  ]))("keeps non-drink group budgets through preparation and POST: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
+    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+    expect(prepared.prepared.context.groupSize).toBe(4);
+    expect(body.inferredContext.budgetLimitPence).toBe(2000);
+    expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+    expect(body.stops).toHaveLength(3);
+  });
+
+  it.each(["slice of pizza", "a slice of pizza", "slice of a pizza", "a portion of chips", "two portions of chips"].flatMap((subject) => [
+    `${subject} under£5`, `£5 for ${subject}`,
+  ]).flatMap((phrase) => [
+    { query: `3 pubs in Clapham, ${phrase}` },
+    { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } },
+  ]))("keeps non-drink portions under meal refusal: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    if (!("response" in prepared)) throw new Error("Expected meal limitation");
+    expect(prepared.response.status).toBe(422);
+    expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
   it.each(unsupportedServingSubjects)("retains complete raw serving spans: %s", (subject) => {
     const [before] = planPriceAmounts(`${subject} under£5`);
     expect(before).toMatchObject({ pence: 500, routeBudget: null, drink: { beforeStart: 0, afterEnd: null, supported: false } });
