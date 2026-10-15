@@ -241,18 +241,23 @@ describe("POST /api/plans/generate", () => {
     { query: `3 pubs in Clapham, ${amount} per person, pints under£5` },
     { query: "3 pubs in Clapham", context: { foodNeeds: [`${amount} per person, pints under£5`] } },
   ]))("preserves decimal per-person totals beside pint caps: %j", async (input) => {
-    const request = () => new Request("http://localhost/api/plans/generate", { method: "POST", body: JSON.stringify(input) });
-    const prepared = await preparePlanGeneration(request(), Date.now());
-    expect(prepared).toHaveProperty("prepared");
-    if (!("prepared" in prepared)) throw new Error("Expected route budget preparation");
-    expect(prepared.prepared.context).toMatchObject({ zeroProof: false, budgetLimitPence: 2000 });
-    const response = await POST(request());
-    const body = await response.json();
-    expect(response.status, JSON.stringify(body)).toBe(200);
-    expect(body.inferredContext).toMatchObject({ zeroProof: false, budgetLimitPence: 2000 });
-    expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
-    for (const entry of body.stops.flatMap((stop: { alternatives: unknown[] }) => [stop, ...stop.alternatives])) {
-      expect(entry.estimatedPintPricePence).toBeLessThanOrEqual(500);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const request = () => new Request("http://localhost/api/plans/generate", { method: "POST", body: JSON.stringify(input) });
+      const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
+      expect(prepared).toHaveProperty("prepared");
+      if (!("prepared" in prepared)) throw new Error("Expected route budget preparation");
+      expect(prepared.prepared.context).toMatchObject({ zeroProof: false, budgetLimitPence: 2000 });
+      const response = await POST(request());
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.inferredContext).toMatchObject({ zeroProof: false, budgetLimitPence: 2000 });
+      expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+      for (const entry of body.stops.flatMap((stop: { alternatives: unknown[] }) => [stop, ...stop.alternatives])) {
+        expect(entry.estimatedPintPricePence).toBeLessThanOrEqual(500);
+      }
+    } finally {
+      clock.mockRestore();
     }
   });
 
@@ -264,26 +269,31 @@ describe("POST /api/plans/generate", () => {
       cap: 5, total: 2000,
     })),
   ]))("keeps decimal currency out of alcohol-free intent: %j", async ({ cap, total, ...input }) => {
-    const request = () => new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    });
-    expect(inferNightContext(input.query).context.zeroProof).toBe(false);
-    const prepared = await preparePlanGeneration(request(), Date.now());
-    expect(prepared).toHaveProperty("prepared");
-    if (!("prepared" in prepared)) throw new Error("Expected canonical cap preparation");
-    expect(prepared.prepared.context).toMatchObject({ zeroProof: false, budgetLimitPence: total });
-    const response = await POST(request());
-    const body = await response.json();
-    if (cap < 1) {
-      expect(response.status).toBe(422);
-      expect(body).toMatchObject({ code: "GROUNDED_VENUES_INSUFFICIENT" });
-    } else {
-      expect(response.status, JSON.stringify(body)).toBe(200);
-      expect(body.inferredContext).toMatchObject({ zeroProof: false, budgetLimitPence: total });
-      for (const entry of body.stops.flatMap((stop: { alternatives: unknown[] }) => [stop, ...stop.alternatives])) {
-        expect(entry.estimatedPintPricePence).toBeLessThanOrEqual(cap * 100);
-        expect(entry.priceEvidence).toMatchObject({ pence: entry.estimatedPintPricePence });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const request = () => new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      });
+      expect(inferNightContext(input.query).context.zeroProof).toBe(false);
+      const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
+      expect(prepared).toHaveProperty("prepared");
+      if (!("prepared" in prepared)) throw new Error("Expected canonical cap preparation");
+      expect(prepared.prepared.context).toMatchObject({ zeroProof: false, budgetLimitPence: total });
+      const response = await POST(request());
+      const body = await response.json();
+      if (cap < 1) {
+        expect(response.status).toBe(422);
+        expect(body).toMatchObject({ code: "GROUNDED_VENUES_INSUFFICIENT" });
+      } else {
+        expect(response.status, JSON.stringify(body)).toBe(200);
+        expect(body.inferredContext).toMatchObject({ zeroProof: false, budgetLimitPence: total });
+        for (const entry of body.stops.flatMap((stop: { alternatives: unknown[] }) => [stop, ...stop.alternatives])) {
+          expect(entry.estimatedPintPricePence).toBeLessThanOrEqual(cap * 100);
+          expect(entry.priceEvidence).toMatchObject({ pence: entry.estimatedPintPricePence });
+        }
       }
+    } finally {
+      clock.mockRestore();
     }
   });
 
@@ -354,16 +364,21 @@ describe("POST /api/plans/generate", () => {
       ...(phrase.length <= 40 ? [{ query: "3 pubs in Soho", context: { foodNeeds: [phrase] } }] : []),
     ];
   })))("separates coordinated venue drink predicates from route limits: %j", async (input) => {
-    const request = () => new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    });
-    const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(request());
-    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
-      .toEqual({ preparation: 200, post: 200 });
-    if (!("prepared" in prepared)) throw new Error("Expected a pub route");
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    expect(await response.json()).toMatchObject({ inferredContext: { budgetLimitPence: 2000 }, stops: expect.any(Array) });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const request = () => new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      });
+      const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(request());
+      expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+        .toEqual({ preparation: 200, post: 200 });
+      if (!("prepared" in prepared)) throw new Error("Expected a pub route");
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      expect(await response.json()).toMatchObject({ inferredContext: { budgetLimitPence: 2000 }, stops: expect.any(Array) });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each(["rooftop", "snug", "mezzanine", "courtyard"].flatMap((venue) => [
@@ -372,16 +387,21 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Soho", context: { foodNeeds: [`under£20, with a ${venue} serving beer`] } },
     { query: "3 pubs in Soho", context: { foodNeeds: [`with a ${venue} serving beer`, "pub route budget of£20"] } },
   ]))("keeps unpriced venue amenities independent from typed route totals: %j", async (input) => {
-    const request = () => new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    });
-    const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(request());
-    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
-      .toEqual({ preparation: 200, post: 200 });
-    if (!("prepared" in prepared)) throw new Error("Expected a pub route");
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    expect(await response.json()).toMatchObject({ inferredContext: { budgetLimitPence: 2000 }, stops: expect.any(Array) });
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const request = () => new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      });
+      const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(request());
+      expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+        .toEqual({ preparation: 200, post: 200 });
+      if (!("prepared" in prepared)) throw new Error("Expected a pub route");
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      expect(await response.json()).toMatchObject({ inferredContext: { budgetLimitPence: 2000 }, stops: expect.any(Array) });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each([
@@ -408,24 +428,29 @@ describe("POST /api/plans/generate", () => {
       ] : []),
     ];
   })))("keeps venue serving predicates independent from route budgets: %j", async (input) => {
-    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }));
-    const body = await response.json();
-    const lacksSoftDrinkEvidence = !('context' in input) && input.query.includes("soft drinks");
-    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status }, JSON.stringify(body))
-      .toEqual({ preparation: 200, post: lacksSoftDrinkEvidence ? 422 : 200 });
-    if (!("prepared" in prepared)) throw new Error("Expected a pub route");
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    if (lacksSoftDrinkEvidence) {
-      expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
-      expect(body.details.rejected.budgetEvidence).toBeGreaterThan(0);
-    } else {
-      expect(body.inferredContext.budgetLimitPence).toBe(2000);
-      expect(body.stops).toHaveLength(3);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      const body = await response.json();
+      const lacksSoftDrinkEvidence = !('context' in input) && input.query.includes("soft drinks");
+      expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status }, JSON.stringify(body))
+        .toEqual({ preparation: 200, post: lacksSoftDrinkEvidence ? 422 : 200 });
+      if (!("prepared" in prepared)) throw new Error("Expected a pub route");
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      if (lacksSoftDrinkEvidence) {
+        expect(body.code).toBe("GROUNDED_CONSTRAINTS_UNSATISFIED");
+        expect(body.details.rejected.budgetEvidence).toBeGreaterThan(0);
+      } else {
+        expect(body.inferredContext.budgetLimitPence).toBe(2000);
+        expect(body.stops).toHaveLength(3);
+      }
+    } finally {
+      clock.mockRestore();
     }
   });
 
@@ -571,33 +596,38 @@ describe("POST /api/plans/generate", () => {
       { query: "3 pubs in Clapham", context: { foodNeeds: ["pub route budget of£20", phrase] } },
     ] : []),
   ]))("keeps serving verbs and unpriced serving preferences separate from drink caps: %j", async (input) => {
-    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }));
-    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
-      .toEqual({ preparation: 200, post: 200 });
-    if (!("prepared" in prepared)) throw new Error("Expected a pub route");
-    const body = await response.json();
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    expect(body.inferredContext.budgetLimitPence).toBe(2000);
-    expect(body.stops).toHaveLength(3);
-    const venues = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
-    const evidence = await planPriceEvidenceForVenues(await venues.loadConciergeVenues("london"), PLAN_GENERATION_TEST_NOW);
-    for (const { venue } of prepared.prepared.candidates) {
-      const price = evidence.get(venue.id)!;
-      expect(priceEvidenceUsableForCeiling(price)).toBe(true);
-      expect(price.pence).toBeLessThanOrEqual(500);
-    }
-    for (const stop of body.stops) {
-      for (const candidate of [stop, ...stop.alternatives]) {
-        const price = evidence.get(candidate.venueId)!;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+        .toEqual({ preparation: 200, post: 200 });
+      if (!("prepared" in prepared)) throw new Error("Expected a pub route");
+      const body = await response.json();
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      expect(body.inferredContext.budgetLimitPence).toBe(2000);
+      expect(body.stops).toHaveLength(3);
+      const venues = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+      const evidence = await planPriceEvidenceForVenues(await venues.loadConciergeVenues("london"), PLAN_GENERATION_TEST_NOW);
+      for (const { venue } of prepared.prepared.candidates) {
+        const price = evidence.get(venue.id)!;
         expect(priceEvidenceUsableForCeiling(price)).toBe(true);
         expect(price.pence).toBeLessThanOrEqual(500);
-        expect(candidate.estimatedPintPricePence).toBe(price.pence);
       }
+      for (const stop of body.stops) {
+        for (const candidate of [stop, ...stop.alternatives]) {
+          const price = evidence.get(candidate.venueId)!;
+          expect(priceEvidenceUsableForCeiling(price)).toBe(true);
+          expect(price.pence).toBeLessThanOrEqual(500);
+          expect(candidate.estimatedPintPricePence).toBe(price.pence);
+        }
+      }
+    } finally {
+      clock.mockRestore();
     }
   });
 
@@ -612,19 +642,24 @@ describe("POST /api/plans/generate", () => {
       ];
     }),
   ))("keeps complete later serving preferences independent from route budgets: %j", async (input) => {
-    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }));
-    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
-      .toEqual({ preparation: 200, post: 200 });
-    if (!("prepared" in prepared)) throw new Error("Expected a pub route");
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    const body = await response.json();
-    expect(body.inferredContext.budgetLimitPence).toBe(2000);
-    expect(body.stops).toHaveLength(3);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+        .toEqual({ preparation: 200, post: 200 });
+      if (!("prepared" in prepared)) throw new Error("Expected a pub route");
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      const body = await response.json();
+      expect(body.inferredContext.budgetLimitPence).toBe(2000);
+      expect(body.stops).toHaveLength(3);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each([
@@ -1103,20 +1138,25 @@ describe("POST /api/plans/generate", () => {
     { query: `3 pubs in Clapham for a ${group} under£20 per person` },
     { query: `3 pubs in Clapham for a ${group} under£20 per person`, context: { foodNeeds: ["pizza"] } },
   ]))("keeps non-drink group budgets through preparation and POST: %j", async (input) => {
-    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }));
-    const body = await response.json();
-    expect(response.status, JSON.stringify(body)).toBe(200);
-    if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    expect(prepared.prepared.context.groupSize).toBe(4);
-    expect(body.inferredContext.budgetLimitPence).toBe(2000);
-    expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
-    expect(body.stops).toHaveLength(3);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      expect(prepared.prepared.context.groupSize).toBe(4);
+      expect(body.inferredContext.budgetLimitPence).toBe(2000);
+      expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+      expect(body.stops).toHaveLength(3);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each([
@@ -1166,19 +1206,24 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, under£20, half a pizza later" },
     { query: "3 pubs in Clapham", context: { foodNeeds: ["under£20 with half a pizza afterwards"] } },
   ])("preserves route and drink budgets with unpriced food quantities: %j", async (input) => {
-    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }), PLAN_GENERATION_TEST_NOW);
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify(input),
-    }));
-    const body = await response.json();
-    expect(response.status, JSON.stringify(body)).toBe(200);
-    if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
-    expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
-    expect(body.inferredContext.budgetLimitPence).toBe(2000);
-    expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
-    expect(body.stops).toHaveLength(3);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), PLAN_GENERATION_TEST_NOW);
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }));
+      const body = await response.json();
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      if (!("prepared" in prepared)) throw new Error(JSON.stringify(await prepared.response.json()));
+      expect(prepared.prepared.context.budgetLimitPence).toBe(2000);
+      expect(body.inferredContext.budgetLimitPence).toBe(2000);
+      expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+      expect(body.stops).toHaveLength(3);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each(unsupportedServingSubjects)("retains complete raw serving spans: %s", (subject) => {
