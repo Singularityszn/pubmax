@@ -11,7 +11,9 @@ import {
   VENUE_DATA_RETRY_NOTICE,
   VENUE_DATA_RETRY_PENDING_NOTICE,
   VENUE_DATA_RETRY_SPENT_NOTICE,
+  basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
+  openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
   overviewSkipsVenueWait,
@@ -680,5 +682,84 @@ describe("pin reveal coordinator", () => {
 
     expect(h.reveals).toEqual([{ reason: "idle", generation: 1 }]);
     expect(h.visibility).toEqual([false, true]);
+  });
+  describe("the arrival flight (owner decision 15 Oct 2026)", () => {
+    const carried = (overrides: Partial<Parameters<typeof basemapPaintCarriesIntoReveal>[0]> = {}) =>
+      basemapPaintCarriesIntoReveal({
+        basemapPainted: true,
+        paintedStyleGeneration: 1,
+        armedStyleGeneration: 1,
+        reducedMotion: false,
+        ...overrides,
+      });
+
+    it("carries only a paint this style made, and never for reduced motion", () => {
+      expect(carried()).toBe(true);
+      // A theme swap or a context loss armed a newer style.
+      expect(carried({ armedStyleGeneration: 2 })).toBe(false);
+      expect(carried({ paintedStyleGeneration: null })).toBe(false);
+      // A silent tile retry already cleared the live latch.
+      expect(carried({ basemapPainted: false })).toBe(false);
+      // The camera jumps under reduced motion, so its gate is unchanged.
+      expect(carried({ reducedMotion: true })).toBe(false);
+    });
+
+    it("reveals pins on a flight frame when the basemap already painted", () => {
+      // A zooming camera has its tile requests cancelled, so the flight
+      // delivers render frames and no idle and no fresh tile.
+      const h = harness();
+      h.setBasemapPainted(carried());
+      h.coordinator.arm();
+      expect(h.visibility).toEqual([false]);
+
+      h.fireRender();
+
+      expect(h.visibility).toEqual([false, true]);
+      expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    });
+
+    it("keeps reduced motion waiting for a fresh tile, as it always did", () => {
+      const h = harness();
+      h.setBasemapPainted(carried({ reducedMotion: true }));
+      h.coordinator.arm();
+
+      h.fireRender();
+      expect(h.reveals).toEqual([]);
+
+      h.setBasemapPainted(true);
+      h.fireRender();
+      expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    });
+
+    it("keeps the opening's in-flight tiles while the flight zooms, except under reduced motion", () => {
+      // MapLibre's default cancels them, which left no basemap frame until
+      // the flight landed.
+      expect(openingCancelsPendingTiles(false)).toBe(false);
+      expect(openingCancelsPendingTiles(true)).toBe(true);
+      const source = readFileSync(
+        join(process.cwd(), "components/PubMapCanvas.tsx"),
+        "utf8",
+      );
+      expect(source).toMatch(
+        /cancelPendingTileRequestsWhileZooming: openingCancelsPendingTiles\(\s*reducedRef\.current,\s*\)/,
+      );
+      // Only the opening: the first idle hands later zooms back to the default.
+      expect(source).toMatch(
+        /settledMap\.once\("idle", \(\) => \{\s*settledMap\.cancelPendingTileRequestsWhileZooming = true;/,
+      );
+    });
+
+    it("is what the canvas arms with, after the tile-failure reset", () => {
+      const source = readFileSync(
+        join(process.cwd(), "components/PubMapCanvas.tsx"),
+        "utf8",
+      );
+      expect(source).toMatch(
+        /basemapTileReadyForPaint = true;\s*basemapPaintStyleGeneration = styleGeneration;/,
+      );
+      expect(source).toMatch(
+        /const basemapPaintCarries = basemapPaintCarriesIntoReveal\(\{\s*basemapPainted: basemapTileReadyForPaint,\s*paintedStyleGeneration: basemapPaintStyleGeneration,\s*armedStyleGeneration: generation,\s*reducedMotion: reducedRef\.current,\s*\}\);\s*beginTileFailureGeneration\(\);\s*basemapTileReadyForPaint = basemapPaintCarries;\s*initialBasemapPending = true;\s*pinRevealCoordinator\.arm\(\);/,
+      );
+    });
   });
 });

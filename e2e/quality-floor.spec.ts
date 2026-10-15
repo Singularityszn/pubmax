@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+import { MAP_CANVAS_READINESS_CEILING_MS } from "../lib/mapCanvasAvailability";
+
 // Quality-floor + security-seam E2E (PRD "Testing Decisions" — public pages under
 // CSP; owner-only profile edit rejected for non-owners; POI + non-alcoholic
 // filters flip visible UI state). Two shapes live here:
@@ -217,8 +219,14 @@ test("quality floor: a POI category toggle flips in the coordinated Layers sheet
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 
+  // The phone shell, and this control with it, is held back until the map's
+  // loading frame lets go (`mobileShellReady` in components/PubMap.tsx), and
+  // `.mapCanvasWrap` above is already visible on the loading skeleton. That
+  // release waits on the canvas's first painted pins, bounded by the shell's
+  // own readiness ceiling, so the default 10s expect timeout raced a slow
+  // runner's first frame rather than testing the toggle.
   const layersFab = page.getByRole("button", { name: "More map controls" });
-  await expect(layersFab).toBeVisible();
+  await expect(layersFab).toBeVisible({ timeout: MAP_CANVAS_READINESS_CEILING_MS });
   await layersFab.click();
 
   const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
