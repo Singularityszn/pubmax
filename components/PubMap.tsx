@@ -91,6 +91,7 @@ import {
 } from "@/lib/nearMeLocation";
 import {
   buildMapVenueListModel,
+  closedMapVenueListModel,
   buildLondonRestaurantListModel,
   buildUkBasePubListModel,
   type MapVenueListSortMode,
@@ -3318,22 +3319,27 @@ export default function PubMap({
     },
     [cityId, kindVisibleMapVenues, visibleVenueState],
   );
+  // Built only while the list is open: closed, it renders nothing and the
+  // chrome reads the count alone (closedMapVenueListModel).
   const mapVenueListModel = useMemo(
     () =>
-      buildMapVenueListModel(
-        mapVenueListVenues,
-        mapViewport.center,
-        undefined,
-        activeLensPrices,
-        activeLensNoun ?? undefined,
-        drinkIndexStatus,
-        mapListSortMode,
-        venueSignals,
-      ),
+      !mapListOpen
+        ? closedMapVenueListModel(mapVenueListVenues.length)
+        : buildMapVenueListModel(
+            mapVenueListVenues,
+            mapViewport.center,
+            undefined,
+            activeLensPrices,
+            activeLensNoun ?? undefined,
+            drinkIndexStatus,
+            mapListSortMode,
+            venueSignals,
+          ),
     [
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
+      mapListOpen,
       mapListSortMode,
       mapVenueListVenues,
       mapViewport.center,

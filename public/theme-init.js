@@ -1,13 +1,14 @@
 // The decisions that have to land BEFORE FIRST PAINT, in the order they matter:
 // the native shell's entry route, then the theme and view flags, then the
-// landing-only aperture splash. Served as a static file (covered by CSP
-// `script-src 'self'`) instead of an inline <script>, so it needs no per-build
-// hash, and loads render-blocking from the layout's head on every route.
+// landing-only aperture splash. These bytes are canonical source: the root
+// layout inlines them and carries its request nonce when present, while the
+// static /app-entry document loads this file directly under CSP `script-src 'self'`.
 //
 // Everything here is a no-flash guarantee of some kind: the page never shows
 // the wrong theme, and the shell never shows a route it is about to leave. One
-// file because one request: a second pre-paint script cost every web route a
-// fetch for a decision only the shell uses (see the entry block below).
+// canonical file keeps these decisions together: a second pre-paint script
+// cost every web route a fetch for a decision only the shell uses (see the
+// entry block below).
 //
 // Keep the theme half in sync with the ThemeToggle storage key ("pubmax-theme").
 // ---------------------------------------------------------------------------
@@ -34,8 +35,8 @@
 // public/map-first-paint-init.js is the house answer to a script only one
 // surface needs, loaded by that surface's own page, but this decision has to
 // land before the browser does any work on the document and a page-level script
-// is already too late. This file is the one that is already render-blocking in
-// the layout's head on every route, so the decision rides it and costs nothing.
+// is already too late. The root layout inlines these bytes, so every web route
+// keeps one render-blocking decision without another script request.
 //
 // WHAT IT DECIDES, AND WHAT IT DELIBERATELY DOES NOT. Both routing branches of
 // lib/entryDecision.ts's `decideEntry` are decidable from storage alone:

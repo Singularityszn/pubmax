@@ -22,7 +22,11 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+import { readThemeInitSource } from "@/lib/themeInit.server";
 
 import {
   ONBOARDING_PATH,
@@ -45,8 +49,7 @@ import {
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-// The decision rides theme-init.js now: see the "costs the website nothing"
-// case below for why it is not a file of its own.
+// Root documents inline these canonical bytes. /app-entry loads the same file.
 const ENTRY_INIT_SOURCE = rootFile("public/theme-init.js");
 
 /** A memory Storage, so each case starts from a known device state. */
@@ -242,26 +245,10 @@ describe("the native shell's pre-render entry decision", () => {
     expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
   });
 
-  it("costs the website nothing, because it rides a script every route already loads", () => {
-    // A NATIVE-ONLY SCRIPT MAY NOT COST A WEB READER A REQUEST. Shipped as its
-    // own file in <head> it was fetched on every route, and the perf gate on
-    // PR 1632 caught it: /discover and /drinks each measured 57 requests
-    // against a budget of 56. The decision is a no-op in every browser, so the
-    // request bought a web reader nothing at all.
-    //
-    // public/map-first-paint-init.js is the house answer to a script only one
-    // surface needs, and it is loaded by that surface's own page. This one
-    // cannot follow it: the head is the layout's, the decision has to land
-    // before the browser does any work on the document, and a page-level script
-    // is already too late. So it rides theme-init.js, which every route loads
-    // render-blocking in that same head. NO CEILING MOVED.
-    const layout = rootFile("app/layout.tsx");
-    expect(layout).not.toContain("native-entry-init");
-    expect(layout).toContain('<script src="/theme-init.js?v=splash-1" />');
-    // No async/defer on the file that now carries it: the whole point is to
-    // navigate before the landing document is rendered.
-    expect(layout).not.toContain('<script async src="/theme-init.js');
-    expect(layout).not.toContain('<script defer src="/theme-init.js');
+  it("uses the same canonical entry bytes for inline root and external app-entry boots", () => {
+    // performanceBudgetGate executes the layout and checks its synchronous,
+    // nonce-bound head script. These entry decisions use those exact bytes.
+    expect(readThemeInitSource()).toBe(ENTRY_INIT_SOURCE);
     // The file it used to be is gone, not merely unreferenced.
     expect(existsSync(join(process.cwd(), "public/native-entry-init.js"))).toBe(false);
   });
