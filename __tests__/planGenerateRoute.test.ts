@@ -335,8 +335,8 @@ describe("POST /api/plans/generate", () => {
     { phrase: "£5 pint at pubs with pizza", code: null },
   ].flatMap(({ phrase, code, ...rest }) => [
     { input: { query: `3 pubs in Clapham, ${phrase}` }, code },
-    ...(("typed" in rest ? rest.typed : phrase).length <= 40
-      ? [{ input: { query: "3 pubs in Clapham", context: { foodNeeds: ["typed" in rest ? rest.typed : phrase] } }, code }]
+    ...(("typed" in rest ? rest.typed ?? phrase : phrase).length <= 40
+      ? [{ input: { query: "3 pubs in Clapham", context: { foodNeeds: ["typed" in rest ? rest.typed ?? phrase : phrase] } }, code }]
       : []),
   ]))("preserves original location price ownership: %j", async ({ input, code }) => {
     const now = Date.parse("2026-10-15T12:00:00Z");
