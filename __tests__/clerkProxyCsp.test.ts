@@ -25,7 +25,12 @@ import {
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { GET as readPubPal } from "@/app/api/pub-pal/route";
 import { GET as readVersion } from "@/app/api/version/route";
-import { CDN_CACHED_DOCUMENT_PATHS, config, securityProxy } from "@/proxy";
+import {
+  CDN_CACHED_DOCUMENT_PATHS,
+  CDN_CACHED_DOCUMENT_ROUTES,
+  config,
+  securityProxy,
+} from "@/proxy";
 
 /**
  * The captain's development instance key. It is a PUBLISHABLE key, so it is
@@ -284,7 +289,17 @@ describe("the CSP the proxy actually ships", () => {
 // moderator acts. `__tests__/cdnCachedDocuments.test.ts` holds the page files
 // behind the list to `force-static`; this file holds the policy each answers.
 describe("the prerendered documents drop the nonce, and only they do", () => {
-  const CDN_CACHED = ["/", "/map", "/tonight", "/today", "/near"];
+  const CDN_CACHED_EXACT = ["/", "/map", "/tonight", "/today", "/near"];
+  // One live URL per public SEO route shape (task vercel-f2-seo-cdn,
+  // 2026-10-15). They take exactly the policy the exact paths take.
+  const CDN_CACHED_SEO = [
+    "/historic/the-gun",
+    "/borough/haringey",
+    "/landmark/big-ben",
+    "/drink/guinness",
+    "/area/clapham/drink/guinness",
+  ];
+  const CDN_CACHED = [...CDN_CACHED_EXACT, ...CDN_CACHED_SEO];
   // One from each family the decision explicitly keeps strict.
   const NONCED = [
     "/login",
@@ -304,6 +319,17 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/pal",
     "/map/london",
     "/map/arrival",
+    // The SEO families stop at the exact route shape. The index pages read
+    // search params, a deeper path is another route (an OG image), and the
+    // ledger resolves a viewer from the Authorization header.
+    "/historic",
+    "/borough",
+    "/drink",
+    "/area/clapham",
+    "/area/clapham/drink",
+    "/historic/the-gun/opengraph-image",
+    "/area/clapham/drink/guinness/opengraph-image",
+    "/ledger/venue-xjf3n0",
   ];
   // The signed-in surfaces, named apart from the family list above: a route
   // that resolves a session in its document is the one thing the widening may
@@ -324,7 +350,22 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
   });
 
   it("ships exactly the paths this file names, so a widening is a diff here too", () => {
-    expect([...CDN_CACHED_DOCUMENT_PATHS].sort()).toEqual([...CDN_CACHED].sort());
+    expect([...CDN_CACHED_DOCUMENT_PATHS].sort()).toEqual([...CDN_CACHED_EXACT].sort());
+    expect([...CDN_CACHED_DOCUMENT_ROUTES].sort()).toEqual(
+      [
+        "/area/[slug]/drink/[brand]",
+        "/borough/[slug]",
+        "/drink/[slug]",
+        "/historic/[slug]",
+        "/landmark/[id]",
+      ],
+    );
+  });
+
+  it("never lets a route pattern reach the ledger or a signed-in surface", () => {
+    for (const pattern of CDN_CACHED_DOCUMENT_ROUTES) {
+      expect(pattern).not.toMatch(/^\/(ledger|u|messages|admin|social|onboarding)\//);
+    }
   });
 
   it.each(CDN_CACHED)(
@@ -399,6 +440,8 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_PATHS");
     expect(proxySource).toContain("2026-08-09");
     expect(proxySource).toContain("2026-09-05");
+    expect(proxySource).toContain("vercel-f2-seo-cdn");
+    expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_ROUTES");
     expect(proxySource).toMatch(
       /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\[\s*"\/",\s*"\/map",\s*"\/tonight",\s*"\/today",\s*"\/near",?\s*\]\)/,
     );
