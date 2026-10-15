@@ -610,7 +610,7 @@ it("stores configured intercepted evidence in the owner's existing thread", asyn
   expect(await readOwnedPubPalToolTurn("conv_menureplay01", "another-owner")).toBeNull();
 });
 
-const categoryRequests = [
+const wineCategoryRequests = [
   { subject: "Wine prices", accepted: true },
   { subject: "Price of a wine", accepted: true },
   { subject: "Good wine prices", accepted: true },
@@ -626,53 +626,85 @@ const categoryRequests = [
   { subject: "Cocktail menu Organic Pinot Grigio under £10", accepted: false },
 ] as const;
 
+const categoryRequests = [
+  ...wineCategoryRequests.map((record) => ({ ...record, category: "wine" })),
+  ...[
+    { subject: "Beer menu", accepted: true },
+    { subject: "Beer menu under £10", accepted: true },
+    { subject: "Beer menu under GBP10", accepted: true },
+    { subject: "Recorded beer menu", accepted: true },
+    { subject: "Beer menu under £1", accepted: false },
+    { subject: "Beer menu AMSTEL under £10", accepted: true },
+    { subject: "Beer menu AMSTEL under £6.45", accepted: false },
+    { subject: "Beer menu Missing Lager under £10", accepted: false },
+    { subject: "Beer menu 125ml AMSTEL under £10", accepted: false },
+    { subject: "Beer menu Organic Pinot Grigio under £10", accepted: false },
+    { subject: "Wine menu AMSTEL under £10", accepted: false },
+    { subject: "Sake menu AMSTEL under £10", accepted: false },
+    { subject: "Beer menu vegan AMSTEL under £10", accepted: false },
+  ].map((record) => ({ ...record, category: "beer" })),
+];
+
 const menuRequestPrefixes = ["", "Show me the ", "Tell me the ", "Please show me the ", "Could you tell me the "] as const;
+
+async function menuCardsAtBoundary(query: string, venueId: string, boundary: typeof dietaryBoundaries[number]): Promise<AskCard[]> {
+  let cards: AskCard[];
+  if (boundary === "reader") {
+    ({ cards } = await publishedMenuCards(venueId, query));
+  } else if (boundary === "ask" || boundary === "keyless chat") {
+    ({ cards } = await (await (boundary === "ask" ? ask : chat)(request(query))).json());
+  } else if (boundary === "chat session") {
+    const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+    const result = await session(query, "london");
+    if (!result || result.status === "error") throw new Error("Chat session returned no answer");
+    ({ cards } = result);
+  } else if (boundary === "tool dispatch") {
+    ({ cards } = await runAskTool("venue_prices", { venueName: "The Lamb", drinkCategory: "cocktail" }, { query, cityId: "london", skipModel: true }));
+  } else {
+    await registerPubPalToolTurn("conv_category01", { query, cityId: "london", ownerId: "menu-owner" });
+    if (boundary === "configured chat") {
+      vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+      vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+      const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+      vi.stubGlobal("fetch", fetcher);
+      const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_category01" });
+      if (!result.ok) throw new Error("Configured interception failed");
+      ({ cards } = result);
+      expect(fetcher).not.toHaveBeenCalled();
+    } else {
+      vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+      const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+        method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+        body: JSON.stringify({ conversation_id: "conv_category01", parameters: { venueName: "The Lamb", drinkCategory: "cocktail", query: "Pint at The Lamb" } }),
+      }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+      expect(response.status).toBe(200);
+      ({ cards } = (await response.json()).result);
+    }
+    expect((await readOwnedPubPalToolTurn("conv_category01", "menu-owner"))?.cards).toEqual(cards);
+  }
+  return cards;
+}
 
 it.each(categoryRequests.flatMap((record) => menuRequestPrefixes.flatMap((prefix) =>
   dietaryBoundaries.map((boundary) => ({ ...record, subject: `${prefix}${record.subject}`, boundary })),
 )))(
-  "preserves menu category and item constraints through $boundary: $subject", async ({ subject, accepted, boundary }) => {
+  "preserves menu category and item constraints through $boundary: $subject", async ({ subject, accepted, category, boundary }) => {
     const query = `${subject} at Sherlock Holmes`;
-    let cards: AskCard[];
-    if (boundary === "reader") {
-      ({ cards } = await publishedMenuCards("venue-gk2fp9", query));
-    } else if (boundary === "ask" || boundary === "keyless chat") {
-      ({ cards } = await (await (boundary === "ask" ? ask : chat)(request(query))).json());
-    } else if (boundary === "chat session") {
-      const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
-      const result = await session(query, "london");
-      if (!result || result.status === "error") throw new Error("Chat session returned no answer");
-      ({ cards } = result);
-    } else if (boundary === "tool dispatch") {
-      ({ cards } = await runAskTool("venue_prices", { venueName: "The Lamb", drinkCategory: "beer" }, { query, cityId: "london", skipModel: true }));
-    } else {
-      await registerPubPalToolTurn("conv_category01", { query, cityId: "london", ownerId: "menu-owner" });
-      if (boundary === "configured chat") {
-        vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
-        vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
-        const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
-        vi.stubGlobal("fetch", fetcher);
-        const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_category01" });
-        if (!result.ok) throw new Error("Configured interception failed");
-        ({ cards } = result);
-        expect(fetcher).not.toHaveBeenCalled();
-      } else {
-        vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
-        const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
-          method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
-          body: JSON.stringify({ conversation_id: "conv_category01", parameters: { venueName: "The Lamb", drinkCategory: "beer", query: "Pint at The Lamb" } }),
-        }), { params: Promise.resolve({ toolName: "venue_prices" }) });
-        expect(response.status).toBe(200);
-        ({ cards } = (await response.json()).result);
-      }
-      expect((await readOwnedPubPalToolTurn("conv_category01", "menu-owner"))?.cards).toEqual(cards);
-    }
+    const cards = await menuCardsAtBoundary(query, "venue-gk2fp9", boundary);
     if (!accepted) {
       expect(cards).toEqual([]);
       return;
     }
     expect(cards.length).toBeGreaterThan(0);
-    expect(cards.every((card) => card.menuEvidence?.category === "wine")).toBe(true);
+    expect(cards.every((card) => card.menuEvidence?.category === category)).toBe(true);
+    if (category === "beer") {
+      expect(cards).toContainEqual(expect.objectContaining({ venueId: "venue-gk2fp9", price: 6.45,
+        menuEvidence: expect.objectContaining({ itemName: "AMSTEL", category: "beer", caloriesKcal: null, availability: "unknown" }),
+        provenance: expect.objectContaining({ kind: "published-menu" }),
+      }));
+      expect(cards).toHaveLength(subject.includes("AMSTEL") ? 1 : 6);
+      return;
+    }
     expect(cards).toContainEqual(expect.objectContaining({ venueId: "venue-gk2fp9", price: 7.2,
       menuEvidence: expect.objectContaining({ itemName: "Organic Pinot Grigio, Riff, Italy", category: "wine", serving: null,
         caloriesKcal: null, observedAt: "2026-09-21T18:41:07.759Z",
@@ -683,34 +715,43 @@ it.each(categoryRequests.flatMap((record) => menuRequestPrefixes.flatMap((prefix
   },
 );
 
-it.each([
+const servingCategoryRequests = [
   ['Show me the wine menu 175ml glass "House Wine" under £10', [7.2]],
   ['Tell me the wine menu 175ml glass "House Wine" under £7.20', []],
   ['Please show me the wine menu 250ml glass "House Wine" under £10', []],
   ['Could you tell me the coffee menu 175ml glass "House Wine" under £10', []],
-] as const)("retains named items and all constraints in disposable menu facts: %s", async (subject, expectedPrices) => {
+  ['Show me the beer menu 175ml glass "House Beer" under £10', [6.45]],
+  ['Tell me the beer menu 175ml glass "House Beer" under GBP6.45', []],
+  ['Please show me the beer menu 250ml glass "House Beer" under £10', []],
+  ['Could you tell me the wine menu 175ml glass "House Beer" under £6', []],
+] as const;
+
+it.each(servingCategoryRequests.flatMap(([subject, expectedPrices]) =>
+  dietaryBoundaries.map((boundary) => ({ subject, expectedPrices, boundary })),
+))("retains named items and all constraints in disposable menu facts through $boundary: $subject", async ({ subject, expectedPrices, boundary }) => {
   const drink = parseDrinkPriceUpdates([
     { drinkName: "House Wine", category: "wine", priceGbp: 7.2, servingSize: "175ml glass" },
     { drinkName: "House Wine", category: "wine", priceGbp: 20, servingSize: "bottle" },
     { drinkName: "Other Wine", category: "wine", priceGbp: 6, servingSize: "175ml glass" },
     { drinkName: "House Wine", category: "cocktail", priceGbp: 3, servingSize: "175ml glass" },
+    { drinkName: "House Beer", category: "beer", priceGbp: 6.45, servingSize: "175ml glass" },
+    { drinkName: "House Beer", category: "beer", priceGbp: 12, servingSize: "bottle" },
+    { drinkName: "Other Beer", category: "beer", priceGbp: 4, servingSize: "175ml glass" },
+    { drinkName: "House Beer", category: "wine", priceGbp: 7.2, servingSize: "175ml glass" },
   ].map((item) => ({ ...item,
     itemId: reviewedDrinkItemId({ ...item, venueKey: "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568" }),
     venueKey: "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
     source: { label: "Request grammar fixture", licence: "Test only", url: "https://example.com/menu" },
     observedAt: "2026-10-13T09:43:11.443Z", lane: "publisher",
   })));
-  expect(drink).toHaveLength(4);
+  expect(drink).toHaveLength(8);
   vi.spyOn(priceUpdates, "venuePriceUpdatesFor").mockResolvedValue({ drink, food: [] });
   const query = `${subject} at The New Inn`;
-  const { cards } = await publishedMenuCards("venue-17qpap6", query);
+  const cards = await menuCardsAtBoundary(query, "venue-17qpap6", boundary);
   expect(cards.map((card) => card.price)).toEqual(expectedPrices);
-  for (const post of [ask, chat]) {
-    const body = await (await post(request(query))).json();
-    expect(body.cards).toEqual(cards);
-  }
   for (const card of cards) expect(card.menuEvidence).toMatchObject({
-    itemName: "House Wine", category: "wine", serving: "175ml glass", currency: "GBP",
+    itemName: subject.includes("House Beer") ? "House Beer" : "House Wine",
+    category: subject.includes("beer menu") ? "beer" : "wine", serving: "175ml glass", currency: "GBP",
     source: "Request grammar fixture", sourceUrl: "https://example.com/menu",
     observedAt: "2026-10-13T09:43:11.443Z", availability: "unknown",
   });

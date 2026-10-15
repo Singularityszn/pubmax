@@ -58,6 +58,7 @@ const PLAN_COMPARISON_SUBJECT = `(?:(?:3|three)[- ]stop\\s+)?(?:${VENUE_COMPARIS
 const PLAN_COMPARISON_SUBJECT_RE = new RegExp(`^${PLAN_COMPARISON_SUBJECT}$`, "i");
 const PLAN_COMPARISON_TAIL_RE = new RegExp(`\\s+(?:and|with)\\s+(?:a\\s+)?${PLAN_COMPARISON_SUBJECT}$`, "i");
 const RECORDED_PRICE_CATEGORIES: ReadonlyArray<readonly [RegExp, DrinkCategory]> = [
+  [/^beer$/i, "beer"],
   [/^wine$/i, "wine"],
   [/^cocktails?$/i, "cocktail"],
   [/^coffee$/i, "coffee"],

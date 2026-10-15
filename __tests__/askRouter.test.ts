@@ -184,6 +184,10 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     "Prices at The Lamb",
     "Pint prices at The Lamb",
     "Pint costs at The Lamb",
+    "Beer prices at The Lamb",
+    "Show me the beer prices at The Lamb",
+    "Price of beer at The Lamb",
+    "How much is beer at The Lamb?",
   ])("preserves existing unspecified pub and pint price asks: %s", (query) => {
     expect(unsupportedPriceComparison(query)).toBeNull();
     expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["venue_prices"]);
