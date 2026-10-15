@@ -727,7 +727,8 @@ async function getConsents(storyId: string): Promise<MomentConsent[]> {
  * privately for the affected Stories. Public projections never carry the names.
  * A genuinely absent profile still permits owned Moments to be removed and any
  * retained names to be scrubbed. A failed profile or private-name read is
- * unavailable. A Story with nobody departed needs neither identity lookup.
+ * unavailable. A Story with no retained or departed identity needs no profile
+ * lookup.
  */
 type DepartedReadResult =
   | { status: "found"; departed: DepartedContributor[] }
@@ -745,7 +746,6 @@ async function resolveDepartedContributors(
   for (const consent of consentsList) {
     if (consent.status === "withdrawn") departedIds.add(consent.ownerId);
   }
-  if (departedIds.size === 0) return { status: "found", departed: [] };
   const store = profileStore();
   try {
     const namesByAccount = await selectStore(
@@ -754,8 +754,7 @@ async function resolveDepartedContributors(
         const { data, error, count } = await requireSupabaseAdmin()
           .from("private_story_redaction_names")
           .select("account_id,display_name", { count: "exact" })
-          .eq("story_id", storyId)
-          .in("account_id", [...departedIds]);
+          .eq("story_id", storyId);
         // PostgREST can cap rows. A partial identity set cannot safely redact
         // a Story, so require proof that every matching name was returned.
         if (error || !data || count === null || data.length !== count) {
@@ -770,6 +769,8 @@ async function resolveDepartedContributors(
         return namesByAccount;
       },
     )();
+    for (const accountId of namesByAccount.keys()) departedIds.add(accountId);
+    if (departedIds.size === 0) return { status: "found", departed: [] };
     const departed = await Promise.all(
       [...departedIds].sort().map(async (profileId) => {
         const profile = await store.getByUserId(profileId);

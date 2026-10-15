@@ -113,6 +113,14 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     expect(privateMoments!.find((moment) => moment.id === hostMoment!.id)!.caption)
       .toBe("Great night with Jordan and @jordanx");
 
+    await upsertStoryContributor("host", story!.id, { handle: "jordanx", role: "contributor" });
+    await acceptStoryContribution("friend", story!.id);
+    await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "approved");
+    const afterReentry = await getPublishedRecapSource(story!.id);
+    expect(afterReentry!.moments.map((m) => m.id)).toEqual([hostMoment!.id]);
+    expect(afterReentry!.story.title).toBe("Orbit with a friend");
+    expect((await getNightStory(story!.id, null))!.title).toBe("Orbit with a friend");
+
     // Clearing twice must not discard the only name the first clear removed.
     expect((await del("jordanx", "friend")).status).toBe(200);
     expect((await getPublishedRecapSource(story!.id))!.story.title).toBe("Orbit with a friend");

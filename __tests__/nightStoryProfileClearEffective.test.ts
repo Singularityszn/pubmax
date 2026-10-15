@@ -141,6 +141,25 @@ describe.skipIf(skip !== null)("profile-clear privacy transaction (0178)", () =>
     }
   });
 
+  it("keeps retained names after post-clear acceptance and approval", () => {
+    clear();
+    session.sql(`update public.night_story_contributors
+      set status = 'invited', joined_at = null
+      where story_id = '${story(1)}' and profile_id = '${friend}'`);
+    expect(session.sql(`set role service_role;
+      select count(*) from public.accept_night_story_contribution_atomic(
+        '${friend}', '${story(1)}', now())`)).toBe("1");
+    expect(session.sql(`set role service_role;
+      select public.set_night_moment_publication_consent_atomic(
+        '${friend}', '${story(3)}', '${story(11)}', 'approved', now())`)).toBe("t");
+    expect(session.sql(`select status from public.night_story_contributors
+      where story_id = '${story(1)}' and profile_id = '${friend}'`)).toBe("accepted");
+    expect(session.sql(`select status from public.night_moment_consents
+      where story_id = '${story(3)}' and moment_id = '${story(11)}'`)).toBe("approved");
+    expect(session.sql(`select count(*) from public.private_story_redaction_names
+      where account_id = '${friend}'`)).toBe("3");
+  });
+
   it("serializes acceptance with profile clearing", async () => {
     session.sql(`
       insert into public.night_story_contributors (story_id, profile_id, role, status)
