@@ -235,7 +235,7 @@ function PicksCard({
   if (picks.length === 0 && filteredPickCount === 0 && hypedPubs.length > 0) {
     return (
       <section
-        className="todayCard todayPicksFallback"
+        className="todayPicksFallback"
         aria-labelledby="today-picks-title"
         data-testid="today-picks"
         data-picks-state={state.kind}
