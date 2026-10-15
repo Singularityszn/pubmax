@@ -558,6 +558,32 @@ export function createSlimShardLoader(
       : undefined;
   }
 
+  // Keep shard reads below the local HTTP connection budget. Every loader
+  // operation shares these slots, including queued reads in shardPromises.
+  const shardReadLimit = 4;
+  let activeShardReads = 0;
+  const queuedShardReads: Array<() => void> = [];
+
+  async function readShardWithSlot(
+    path: string,
+    readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
+  ): Promise<SlimShardLoadResult> {
+    await new Promise<void>((resolve) => {
+      const start = () => {
+        activeShardReads += 1;
+        resolve();
+      };
+      if (activeShardReads < shardReadLimit) start();
+      else queuedShardReads.push(start);
+    });
+    try {
+      return await loadSlimVenuesFromPathResult(path, readOptions);
+    } finally {
+      activeShardReads -= 1;
+      queuedShardReads.shift()?.();
+    }
+  }
+
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       let payload: unknown;
@@ -698,7 +724,7 @@ export function createSlimShardLoader(
               onRevisionSkew: (served: unknown) => shardSkews.set(key, { served }),
             };
       shardSkews.delete(key);
-      const created = loadSlimVenuesFromPathResult(key, shardOptions)
+      const created = readShardWithSlot(key, shardOptions)
         .then((result) => {
           if (result.status === "ready") {
             // A read that lands after another pack was adopted contributed
