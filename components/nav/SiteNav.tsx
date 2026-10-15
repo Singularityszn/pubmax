@@ -127,7 +127,7 @@ export default function SiteNav({
   // signal as the mobile tab bar. The gliding brass underline was removed so
   // desktop does not double-encode "here".
   const activeKey = links.find((link) =>
-    active !== undefined ? primaryActive === link.key : matchesPath(pathname, link),
+    primaryActive ? primaryActive === link.key : matchesPath(pathname, link),
   )?.key;
 
   return (
