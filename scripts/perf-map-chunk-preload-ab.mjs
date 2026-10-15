@@ -4,7 +4,7 @@
 // (`window.__pubmaxPaintedMapTapPoints().length > 0`, the probe the CWV
 // baseline uses), FCP, LCP and when the MapLibre canvas chunk was requested.
 //
-//   node scripts/perf/ab-map-chunk-preload.mjs \
+//   node scripts/perf-map-chunk-preload-ab.mjs \
 //     --a http://127.0.0.1:3101 --b http://127.0.0.1:3102 \
 //     --device mobile --pairs 5
 //
@@ -28,6 +28,7 @@ const DEVICES = {
   },
 };
 const PIN_CEILING_MS = 45_000;
+import { readFileSync } from "node:fs";
 
 function arg(name, fallback) {
   const at = process.argv.indexOf(`--${name}`);
@@ -37,6 +38,12 @@ function arg(name, fallback) {
 const arms = { A: arg("a"), B: arg("b") };
 const deviceName = arg("device", "mobile");
 const pairs = Number(arg("pairs", "5"));
+// --inject <json>: one build, both arms served through the same interception of
+// the /map document; arm B's copy gains a preload link per listed chunk path
+// (paths as the build's own loaders name them, "static/chunks/<file>").
+const injectPath = arg("inject");
+const injectFiles = injectPath ? JSON.parse(readFileSync(injectPath, "utf8")) : null;
+const fetchPriority = arg("priority", "low");
 const device = DEVICES[deviceName];
 if (!arms.A || !arms.B || !device) {
   console.error("usage: --a <url> --b <url> [--device mobile|desktop] [--pairs 5]");
@@ -44,10 +51,12 @@ if (!arms.A || !arms.B || !device) {
 }
 
 const browser = await chromium.launch({
+  // Set CHROMIUM_PATH when the pinned Playwright browser is not installed.
+  executablePath: process.env.CHROMIUM_PATH || undefined,
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 
-async function openArm(base) {
+async function openArm(base, inject = false) {
   const context = await browser.newContext({ viewport: device.viewport });
   // A returning visitor as far as overlays go, the same flags the CWV probe
   // sets, so neither arm measures the first-run tour's own chunks.
@@ -68,6 +77,24 @@ async function openArm(base) {
     } catch {}
   });
   const page = await context.newPage();
+  if (injectFiles) {
+    await page.route(/\/map$/, async (route) => {
+      const response = await route.fetch();
+      let html = await response.text();
+      if (inject) {
+        const dpl = /\?dpl=([\w-]+)/.exec(html)?.[1];
+        const query = dpl ? `?dpl=${dpl}` : "";
+        const links = injectFiles
+          .map((file) => {
+            const as = file.endsWith(".css") ? "style" : "script";
+            return `<link rel="preload" as="${as}" fetchpriority="${fetchPriority}" href="/_next/${file}${query}"/>`;
+          })
+          .join("");
+        html = html.replace("</head>", `${links}</head>`);
+      }
+      await route.fulfill({ response, body: html });
+    });
+  }
   const session = await context.newCDPSession(page);
   await session.send("Network.enable");
   return { base, page, session };
@@ -100,6 +127,18 @@ async function sample(arm) {
       firstPin = await page.evaluate(() => performance.now());
       break;
     }
+    // With no basemap reachable (a sandbox whose network policy denies the
+    // tile host) no pin can paint; stop once the engine and the data marks
+    // are both in and have had 3 s to settle, instead of burning the ceiling.
+    const settled = await page
+      .evaluate(() => {
+        const at = (n) => performance.getEntriesByName(n)[0]?.startTime;
+        const built = at("pubmax:map-constructed");
+        const data = at("pubmax:first-pins");
+        return built !== undefined && data !== undefined && performance.now() > Math.max(built, data) + 3000;
+      })
+      .catch(() => false);
+    if (settled) break;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   const timings = await page.evaluate(() => {
@@ -114,7 +153,14 @@ async function sample(arm) {
       0,
       ...js.filter((r) => r.initiatorType === "script" && r.startTime < 1500).map((r) => r.responseEnd),
     );
+    const seen = new Map();
+    for (const r of js) {
+      const key = new URL(r.name).pathname;
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+    }
+    const duplicates = [...seen.values()].filter((n) => n > 1).length;
     return {
+      duplicates,
       fcp: paint ? Math.round(paint.startTime) : null,
       lcp: Math.round(window.__abLcp || 0) || null,
       chunkStart: biggest ? Math.round(biggest.startTime) : null,
@@ -123,6 +169,8 @@ async function sample(arm) {
       wave1End: Math.round(wave1End),
       scriptRequests: scripts.length,
       sceneBuilt: Math.round(mark("pubmax:map-scene-built") ?? -1),
+      chunkReady: Math.round(mark("pubmax:map-chunk-ready") ?? -1),
+      mapConstructed: Math.round(mark("pubmax:map-constructed") ?? -1),
       firstPinsMark: Math.round(mark("pubmax:first-pins") ?? -1),
     };
   });
@@ -138,7 +186,7 @@ const median = (xs) => {
   return v.length % 2 ? v[mid] : Math.round((v[mid - 1] + v[mid]) / 2);
 };
 
-const open = { A: await openArm(arms.A), B: await openArm(arms.B) };
+const open = { A: await openArm(arms.A), B: await openArm(arms.B, Boolean(injectFiles)) };
 // One throwaway load per arm: the first navigation of a fresh context reports
 // no paint timings (docs/rules/perf-budgets-and-measured-findings.md, rule 5).
 await sample(open.A);
@@ -155,7 +203,7 @@ for (let i = 1; i <= pairs; i += 1) {
     console.log(
       `pair ${i} ${name} firstPin=${r.firstPin ?? "NONE"} fcp=${r.fcp} lcp=${r.lcp} ` +
         `chunk ${r.chunkStart}->${r.chunkEnd} (${r.chunkVia}) wave1End=${r.wave1End} ` +
-        `sceneBuilt=${r.sceneBuilt} firstPinsMark=${r.firstPinsMark}`,
+        `chunkReady=${r.chunkReady} constructed=${r.mapConstructed} sceneBuilt=${r.sceneBuilt} firstPinsMark=${r.firstPinsMark} dupJs=${r.duplicates}`,
     );
   }
 }
@@ -171,6 +219,8 @@ for (const name of ["A", "B"]) {
   console.log(
     `${name}: canvas chunk requested median ${median(rs.map((r) => r.chunkStart))} ms, landed median ${median(rs.map((r) => r.chunkEnd))} ms`,
   );
+  console.log(`${name}: map-chunk-ready median ${median(rs.map((r) => r.chunkReady))} ms (${col("chunkReady")})`);
+  console.log(`${name}: map-constructed median ${median(rs.map((r) => r.mapConstructed))} ms (${col("mapConstructed")})`);
   console.log(`${name}: first-pins mark median ${median(rs.map((r) => r.firstPinsMark))} ms`);
 }
 console.log(`A/B end ${new Date().toISOString()}`);

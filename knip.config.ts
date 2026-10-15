@@ -118,6 +118,9 @@ const config: KnipConfig = {
 
     // The perf baseline harness, run by hand and cited by perf/ evidence.
     "scripts/perf-baseline.mjs",
+    // The /map canvas-chunk preload A/B, run by hand and cited by
+    // docs/proof/map-chunk-preload/.
+    "scripts/perf-map-chunk-preload-ab.mjs",
 
     // Run with execFileSync by scripts/perf-ab.mjs.
     "scripts/print-e2e-server-env.ts",
