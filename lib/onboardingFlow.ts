@@ -19,8 +19,8 @@
 //
 // Storage follows lib/firstRunTour.ts: SSR-safe and silent when storage is
 // blocked. The budget is in localStorage. The chosen patch and the planner
-// handoff are held in sessionStorage for this tab only. Nothing here is sent
-// anywhere.
+// handoff are held in sessionStorage for this tab only. BUDGET_QUESTION owns
+// the disclosure for storage and transmission through onboardingPlanHref.
 
 import { WALKABLE_RADIUS_KM, walkMinutesFromKm, type NearMeCard } from "@/lib/nearMeAnswer";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
@@ -170,7 +170,7 @@ export function onboardingPlanHref(handoff: PlannerHandoff | null): string {
 /** A handoff the planner never opened for is stale after this long. */
 const HANDOFF_MAX_AGE_MS = 10 * 60_000;
 
-/** Held for this tab only and read once by the planner the journey opens. */
+/** Held for this tab until the journey reads and clears it before navigation. */
 export function writePlannerHandoff(
   handoff: PlannerHandoff,
   storage?: Storage | null,
