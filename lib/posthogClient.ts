@@ -12,6 +12,11 @@ import {
   analyticsUrlWithoutQuery,
 } from "@/lib/analyticsPath";
 import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
+import {
+  MAP_LOAD_TIMING_EVENT,
+  sanitizeMapLoadTimingProps,
+  type MapLoadTimingProps,
+} from "@/lib/mapLoadTimingEvent";
 
 const SAFE_EXCEPTION_TYPES = new Set([
   "AggregateError",
@@ -91,6 +96,9 @@ let initialized = false;
 let consentAllowedNow = false;
 let captureEnabled = false;
 const pendingPageviews: PendingPageview[] = [];
+// One map visit sends one timing event; a visit that ends before the SDK has
+// loaded keeps only its own, so the queue cannot grow.
+let pendingMapLoadTiming: MapLoadTimingProps | null = null;
 let lastObservedPageviewPathname: string | null = null;
 
 function safeExceptionType(value: unknown): string {
@@ -238,6 +246,29 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
     };
   }
 
+  if (event.event === MAP_LOAD_TIMING_EVENT) {
+    const distinctId = event.properties.distinct_id;
+    if (!isAnonymousAnalyticsId(distinctId)) return null;
+    const timing = sanitizeMapLoadTimingProps(event.properties);
+    if (!timing) return null;
+    const known = timing.surface.startsWith("/");
+    const properties = standardBrowserProperties(
+      event.properties,
+      known ? timing.surface : undefined,
+    );
+    // An unnamed surface keeps no URL at all rather than a raw path.
+    if (!known) {
+      delete properties.$current_url;
+      delete properties.$pathname;
+    }
+    return {
+      uuid: event.uuid,
+      event: MAP_LOAD_TIMING_EVENT,
+      ...(event.timestamp ? { timestamp: event.timestamp } : {}),
+      properties: { ...properties, ...timing },
+    };
+  }
+
   if (event.event !== "$exception") return null;
 
   const distinctId = event.properties.distinct_id;
@@ -348,6 +379,7 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
   captureEnabled = false;
   if (!consentAllowed) {
     pendingPageviews.length = 0;
+    pendingMapLoadTiming = null;
     lastObservedPageviewPathname = null;
     if (initialized) client?.opt_out_capturing();
     return;
@@ -390,7 +422,33 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
         $pubmaxx_anonymous_id: pageview.anonymousId,
       });
     }
+    const timing = pendingMapLoadTiming;
+    pendingMapLoadTiming = null;
+    if (timing) loadedClient.capture(MAP_LOAD_TIMING_EVENT, timing);
   }).catch(() => undefined);
+}
+
+/**
+ * Send one map visit's field timing through the browser SDK. Silent without
+ * analytics consent; before_send rebuilds the closed shape again. A visit that
+ * ends as the page is hidden goes by beacon so the tail is not lost on exit.
+ */
+export function capturePosthogMapLoadTiming(
+  props: MapLoadTimingProps,
+  options: { beacon?: boolean } = {},
+): void {
+  if (!consentAllowedNow) return;
+  const timing = sanitizeMapLoadTimingProps(props);
+  if (!timing) return;
+  if (!initialized || !client || !captureEnabled) {
+    pendingMapLoadTiming = timing;
+    return;
+  }
+  client.capture(
+    MAP_LOAD_TIMING_EVENT,
+    timing,
+    options.beacon ? { transport: "sendBeacon" } : undefined,
+  );
 }
 
 export function capturePosthogPageview(pathname: string, anonymousId: string | null): void {
