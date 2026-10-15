@@ -189,7 +189,6 @@ describe("static asset prefixes", () => {
       "/theme-init.js?v=splash-1",
       "/map-first-paint-init.js?v=splash-1",
       "/pal/pal-wave.webp",
-      "/.well-known/assetlinks.json",
       "/robots.txt",
     ].filter((path) =>
       unstable_doesMiddlewareMatch({
@@ -200,6 +199,35 @@ describe("static asset prefixes", () => {
     // offline.html is a document the service worker serves, so it keeps its
     // nonce; it is the one root file the list leaves out on purpose.
     expect(proxied).toEqual(["/offline.html"]);
+  });
+
+  // Codex review on #2103: `/u/foo.png` normalises to the handle `foopng` and
+  // renders a real profile. An extension proves a file only where the files
+  // live, so every nested dynamic page keeps the proxy and its nonce.
+  it("never lets an extension take a dynamic page off the proxy", () => {
+    for (const path of [
+      "/u/foo.png",
+      "/u/foo.js",
+      "/p/abc.json",
+      "/pub/the-bell.svg",
+      "/crawls/soho.txt",
+      "/pal/chat/x.webp",
+    ]) {
+      expect(
+        unstable_doesMiddlewareMatch({ config, url: `https://pubmaxxing.com${path}` }),
+        path,
+      ).toBe(true);
+      expect(isStaticAssetFile(path), path).toBe(false);
+    }
+  });
+
+  it("finds no dynamic page segment where the extension rule applies", () => {
+    for (const directory of ["app", "app/pal"]) {
+      const dynamic = [...COMMITTED_PATHS].filter((path) =>
+        new RegExp(`^${directory}/\\[`).test(path),
+      );
+      expect(dynamic, directory).toEqual([]);
+    }
   });
 
   // A route HANDLER that answers bytes (`/og.png`, `/robots.txt`) has no use

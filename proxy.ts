@@ -617,7 +617,8 @@ export const config = {
     // are pure bytes the CDN already holds, and running a Node function in
     // front of them bought nothing while putting a function failure in front of
     // a healthy file. The last branch does the same for the files at the root
-    // of public/ and the /pal art, by extension: theme-init.js and
+    // of public/ and the /pal art, by extension, and ONLY there (a dynamic page
+    // such as /u/foo.png must keep its nonce): theme-init.js and
     // map-first-paint-init.js load in <head>, so a cold start here delayed
     // first paint. Next only reads a matcher it can analyse STATICALLY, so
     // the alternation is written out here as a literal;
@@ -626,7 +627,7 @@ export const config = {
     // fence refuses a prefix that collides with an app route.
     {
       source:
-        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|[^?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$).*)",
+        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
