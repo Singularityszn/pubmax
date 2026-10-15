@@ -221,6 +221,8 @@ describe("POST /api/plans/generate", () => {
 
   it.each([
     "slice of pizza", "a slice of pizza", "slice of a pizza", "a portion of chips", "two portions of chips",
+    "half a pizza", "1/2 a pizza", "quarter of a pizza", "one and a half portions of chips",
+    "three large slices of pizza", "a freshly baked pizza", "a cheese and tomato pizza",
     ...["three", "3", "four", "ten", "a dozen"].flatMap((quantity) => [
       `${quantity} portions of chips`, `${quantity} slices of pizza`,
     ]),
@@ -229,7 +231,7 @@ describe("POST /api/plans/generate", () => {
   ]).flatMap((phrase) => [
     { query: `3 pubs in Clapham, ${phrase}` },
     { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } },
-    { query: "3 pubs in Clapham", context: { foodNeeds: [`pubs, ${phrase}`] } },
+    ...(phrase.length + 6 <= 40 ? [{ query: "3 pubs in Clapham", context: { foodNeeds: [`pubs, ${phrase}`] } }] : []),
   ]))("keeps non-drink portions under meal refusal: %j", async (input) => {
     const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),
@@ -255,6 +257,13 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham", context: { foodNeeds: ["pubs under£20, 3 portions of chips later"] } },
     { query: "3 pubs in Clapham, under£20 per person, pints under£5, ten portions of chips later" },
     { query: "3 pubs in Clapham under£20 per person", context: { foodNeeds: ["£5 per pint, ten portions of chips later"] } },
+    { query: "3 pubs in Clapham under£20 per person with half a pizza afterwards" },
+    { query: "3 pubs in Clapham, under£20 per person, three large slices of pizza later" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["pubs under£20, half a pizza later"] } },
+    { query: "3 pubs in Clapham under£20 per person", context: { foodNeeds: ["£5 per pint, half a pizza later"] } },
+    { query: "3 pubs in Clapham, under£20 with half a pizza afterwards" },
+    { query: "3 pubs in Clapham, under£20, half a pizza later" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["under£20 with half a pizza afterwards"] } },
   ])("preserves route and drink budgets with unpriced food quantities: %j", async (input) => {
     const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST", body: JSON.stringify(input),

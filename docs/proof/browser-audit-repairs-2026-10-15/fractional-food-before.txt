@@ -1,0 +1,70 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+------·································x·x···x·x···x·x··x···x·x···x·x···x·x·····································································------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for half a pizza"}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:245:8
+    243|       preparation: "response" in prepared ? prepared.response.status :…
+    244|       post: response.status,
+    245|     }).toEqual({ preparation: 422, post: 422 });
+       |        ^
+    246|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    247|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs, £5 for half a pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for 1/2 a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs, £5 for 1/2 a pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for quarter of a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs, £5 for quarter of a pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for one and a half portions of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for three large slices of pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs, £5 for three large slices of pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for a freshly baked pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs, £5 for a freshly baked pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham, £5 for a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps non-drink portions under meal refusal: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs, £5 for a cheese and tomato pizza"]}}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:245:8
+    243|       preparation: "response" in prepared ? prepared.response.status :…
+    244|       post: response.status,
+    245|     }).toEqual({ preparation: 422, post: 422 });
+       |        ^
+    246|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    247|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  13 failed | 125 passed | 1506 skipped (1644)
+   Start at  15:15:01
+   Duration  1.11s (tests 43%, transform 42%, import 14%)
+
