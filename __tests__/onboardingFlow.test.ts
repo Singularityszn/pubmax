@@ -193,6 +193,13 @@ describe("the desktop handoff", () => {
     });
   });
 
+  it("uses a located handoff's public area centre", () => {
+    expect(desktopHandoffMoves({ patch: null, nightArea: "piccadilly-soho", budget: "six" })).toEqual({
+      maxPrice: 6,
+      center: [-0.134, 51.511],
+    });
+  });
+
   it("moves nothing the journey did not give", () => {
     expect(desktopHandoffMoves({ patch: null, budget: "any" })).toEqual({ maxPrice: null, center: null });
     expect(desktopHandoffMoves({ patch: null, budget: null })).toEqual({ maxPrice: null, center: null });

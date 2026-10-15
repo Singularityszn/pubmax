@@ -1,3 +1,4 @@
+import { planPriceLimits } from "@/lib/planPriceLimits";
 import { formatGbp } from "@/lib/formatGbp";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
@@ -129,10 +130,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     : /special|splash out|treat/.test(lower)
       ? "treat"
       : "standard";
-  const budgetLimitMatch = lower.match(/(?:under|up to|max(?:imum)?|budget(?: of)?)\s*£\s*(\d{1,3})(?:[.,](\d{1,2}))?(?:\s*(?:each|per person))?/);
-  const budgetLimitPence = budgetLimitMatch
-    ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
-    : null;
+  const budgetLimitPence = planPriceLimits(query).routeBudgetPence;
   if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: formatGbp(budgetLimitPence / 100), explanation: "Matched the explicit per-person route budget." });
   const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music", "garden"].filter((value) => lower.includes(value));
   // Chill is the everyday synonym for quiet on describe-first chips; ranking

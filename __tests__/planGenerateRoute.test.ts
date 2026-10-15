@@ -136,7 +136,17 @@ function prepareWineValueSearch(now: number, query = "cheap wine in Clapham for 
 }
 
 describe("POST /api/plans/generate", () => {
-  it("preserves an onboarding pint ceiling separately from the route total", async () => {
+  it.each([
+    { query: "3 pubs in Clapham, under £20 per person, pints under £5", total: 2000 },
+    { query: "3 pubs in Clapham, pints under £5, under £20 per person", total: 2000 },
+    { query: "3 pubs in Clapham, maximum £5 per pint", total: null },
+    { query: "3 pubs in Clapham, under £15 per person, maximum £5 per pint", total: 1500 },
+    { query: "3 pubs in Clapham, maximum £6 per pint, pints under £5", total: null },
+    { query: "3 pubs in Clapham, pints under £5, maximum £6 per pint", total: null },
+    { query: "3 pubs in Clapham, £5 per pint, under £20 per person", total: 2000 },
+    { query: "3 pubs in Clapham, under £20 per person, £5 pints", total: 2000 },
+    { query: "3 pubs in Clapham, under £20 per person, pints under £5.00", total: 2000 },
+  ])("keeps pint rates separate from route totals: $query", async ({ query, total }) => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1", { cheapestPrice: 4 }),
       generatedVenue("v2", { cheapestPrice: 5 }),
@@ -145,11 +155,79 @@ describe("POST /api/plans/generate", () => {
     ]);
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
       method: "POST",
-      body: JSON.stringify({ query: "3 pubs in Clapham, under £15 per person, maximum £5 per pint" }),
+      body: JSON.stringify({ query }),
     }), PLAN_GENERATION_TEST_NOW);
     if (!("prepared" in result)) throw new Error("Expected a prepared pub route");
-    expect(result.prepared.context.budgetLimitPence).toBe(1500);
+    expect(result.prepared.context.budgetLimitPence).toBe(total);
     expect(result.prepared.candidates.map(({ venue }) => venue.id).sort()).toEqual(["v1", "v2", "v3"]);
+  });
+
+  it.each([
+    "One Sunday roast under £15 in Soho",
+    "steak under £20 in Soho",
+    "sandwich under £8 in Soho",
+    "One Sunday roast and a pint under £15 in Soho",
+    "£20 for a pint and a steak in Soho",
+    "One pub in Soho with a sandwich priced under £8",
+  ].flatMap((meal) => [
+    { query: meal, context: { stopCount: 1 } },
+    { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [meal.replace(/^One pub in Soho with /, "").replace(/ in Soho$/, "")] } },
+  ]))("refuses unsupported priced meals through either input: %j", async (input) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it.each([
+    { query: "3 pubs in Clapham with pizza and a budget of £20 per person" },
+    { query: "3 pubs in Clapham under £20 per person", context: { foodNeeds: ["pizza and a budget of £20 per person"] } },
+  ])("preserves an explicit route budget with an unpriced food preference: %j", async (input) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
+    ]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error("Expected an unpriced food preference with a route budget");
+    expect(result.prepared.context.budgetLimitPence).toBe(2000);
+    expect(result.prepared.candidates).toHaveLength(3);
+  });
+
+  it.each([
+    { query: "One vegan meal in Soho" },
+    { query: "One meal under 500 calories in Soho" },
+    { query: "One pizza under £10 in Soho" },
+    { query: "3 pubs" },
+    { query: "" },
+    { query: "3 pubs in Soho", cityId: "not-a-city" },
+    { query: "3 pubs in Soho", cityId: "manchester" },
+    { intake: generationIntake({ area: { kind: "night-patch", id: "hackney" } }) },
+  ])("keeps the paid slot available after a deterministic refusal: %j", async (input) => {
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_PLAN_GENERATE", "1");
+    let paidCalls = 0;
+    isLimitedMock.mockImplementation(async (key, _durableKey, limit) =>
+      key === paidSpendBudgetKey("plan-generate") ? ++paidCalls > (limit ?? 0) : false);
+    const rejected = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect(rejected.status).toBeGreaterThanOrEqual(400);
+    expect(paidCalls).toBe(0);
+    expect(isLimitedMock.mock.calls[0]?.[0]).toMatch(/^plan-generate:/);
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
+    ]);
+    const valid = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham" }),
+    }), PLAN_GENERATION_TEST_NOW);
+    expect(valid).toHaveProperty("prepared");
+    expect(paidCalls).toBe(1);
+    const spent = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham" }),
+    }));
+    expect(spent.status).toBe(429);
+    expect(await spent.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT" });
   });
 
   it.each([
@@ -271,6 +349,9 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham under £20 per person with pizza afterwards", foodNeeds: ["pizza"] },
     { query: "3 pubs in Clapham with food, budget of £20", foodNeeds: ["food"] },
     { query: "3 pubs in Clapham with food under £20", foodNeeds: ["food"] },
+    { query: "3 pubs in Clapham with roast afterwards, under £20 per person", foodNeeds: [] },
+    { query: "3 pubs in Clapham with steak afterwards, under £20 per person", foodNeeds: [] },
+    { query: "3 pubs in Clapham with sandwich afterwards, under £20 per person", foodNeeds: [] },
   ])("preserves food amenities and drink budgets: $query", async ({ query, foodNeeds }) => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),

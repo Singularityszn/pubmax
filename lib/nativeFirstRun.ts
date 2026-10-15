@@ -143,7 +143,6 @@ export function readNativeFirstRunPatch(): string | null {
   }
 }
 
-/** Record the chosen patch id for the native journey. Null clears it: a located answer keeps no place. */
 export function rememberNativeFirstRunPatch(id: string | null): void {
   if (!isNativeApp()) return;
   const store = safeLocalStorage();

@@ -29,7 +29,7 @@ vi.mock("@/lib/nativePlatform", () => ({
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
 import { NATIVE_FIRST_RUN_PATCH_KEY, NATIVE_FIRST_RUN_STEP_KEY } from "@/lib/nativeFirstRun";
-import { ONBOARDING_STEPS, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
+import { ONBOARDING_STEPS, onboardingPlanHref, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { readHistoryStep } from "@/lib/useStepHistory";
 import { decideEntry, readEntryContext } from "@/lib/entryDecision";
 
@@ -293,7 +293,7 @@ describe("first-run location ask", () => {
     await reachLocation();
 
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
-    expect(container.textContent).toContain("We only use it to rank pubs nearby. Your location is never stored.");
+    expect(container.textContent).toContain("We use your location to rank nearby pubs and pick an area for your plan. Your coordinates are never stored or sent.");
     // The ask has not been made yet.
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
@@ -717,7 +717,12 @@ describe("first-run handoff to the planner", () => {
     expect(container.textContent).toContain("Cheapest listed around Soho");
   });
 
-  it("hands over the budget alone after a located answer, and keeps no coordinates", async () => {
+  it.each([
+    { reload: false, isNative: false },
+    { reload: true, isNative: false },
+    { reload: true, isNative: true },
+  ])("hands over a located area without coordinates: %j", async ({ reload, isNative }) => {
+    native.enabled = isNative;
     stubGeolocation((ok) =>
       ok({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition),
     );
@@ -727,8 +732,27 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await settle();
     await tap("That looks right");
+    if (reload) {
+      await act(async () => root?.unmount());
+      if (isNative) {
+        window.sessionStorage.clear();
+        window.history.replaceState(null, "", "/");
+      }
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+      });
+    }
     await tap("Plan my night");
 
-    expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven" });
+    expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven", nightArea: "piccadilly-soho" });
+    const href = new URL(onboardingPlanHref(readPlannerHandoff()), "http://localhost");
+    expect(href.searchParams.get("query")).toBe("3 pubs in Piccadilly & Soho, under £21 per person, maximum £7 per pint");
+    expect(href.searchParams.get("from")).toBe("onboarding");
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      const stored = JSON.stringify(Object.entries(storage));
+      expect(stored).not.toContain("51.5136");
+      expect(stored).not.toContain("-0.1365");
+    }
   });
 });

@@ -225,6 +225,15 @@ describe("first-run handoff in the phone planner", () => {
     expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1500 });
   });
 
+  it("carries a located handoff's named area and budget into generation", async () => {
+    writePlannerHandoff({ patch: null, nightArea: "piccadilly-soho", budget: "six" });
+    await render(wine);
+    expect(container.querySelector<HTMLSelectElement>("select")!.value).toBe("piccadilly-soho");
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("18");
+    await generate();
+    expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1800 });
+  });
+
   it("is read once: a second planner opens on its own defaults", async () => {
     writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
     await render(wine);

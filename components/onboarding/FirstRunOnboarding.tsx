@@ -31,6 +31,8 @@ import {
   rankNearMe,
   type NearMeCard,
 } from "@/lib/nearMeAnswer";
+import { getNightAreasForCity, tryGetNightArea } from "@/lib/nightAreas";
+import { venueAreaClaim } from "@/lib/venueTruth";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import {
   markNativeFirstRunRouted,
@@ -99,7 +101,9 @@ function openPlannerDocument(): void {
 
 function patchOrigin(id: string | null): OnboardingOrigin | null {
   const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
-  return patch ? { kind: "patch", ...patch } : null;
+  if (patch) return { kind: "patch", ...patch };
+  const area = id?.startsWith("area:") ? tryGetNightArea(id.slice(5)) : null;
+  return area ? { kind: "location", ...area.centre } : null;
 }
 
 /** The pinned action bar's one primary, named for the step it advances. */
@@ -239,9 +243,18 @@ export default function FirstRunOnboarding({
   // not run is not an empty area: it is its own answer, with a retry.
   const readAnswer = useCallback(async (from: OnboardingOrigin) => {
     const generation = beginAnswer();
+    const locatedArea = from.kind === "location"
+      ? venueAreaClaim({ latitude: from.lat, longitude: from.lng }, getNightAreasForCity("london")).area
+      : null;
+    if (from.kind === "location" && !locatedArea) {
+      setLocateState("outside");
+      setShowPatches(true);
+      return;
+    }
     setOrigin(from);
-    writeOnboardingPatch(from.kind === "patch" ? from.id : null);
-    rememberNativeFirstRunPatch(from.kind === "patch" ? from.id : null);
+    const areaId = from.kind === "patch" ? from.id : locatedArea ? `area:${locatedArea.slug}` : null;
+    writeOnboardingPatch(areaId);
+    rememberNativeFirstRunPatch(areaId);
     setAnswer({ status: "loading" });
     setStep("result");
     let read: SlimVenueLoadResult;
@@ -351,6 +364,11 @@ export default function FirstRunOnboarding({
     writePlannerHandoff({
       patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
       budget,
+      ...(origin?.kind === "location" ? {
+        nightArea: tryGetNightArea(venueAreaClaim(
+          { latitude: origin.lat, longitude: origin.lng }, getNightAreasForCity("london"),
+        ).area?.slug)?.slug,
+      } : {}),
     });
     stepHistory.leave(openPlanner);
   }

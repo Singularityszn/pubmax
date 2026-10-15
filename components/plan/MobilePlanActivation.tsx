@@ -12,7 +12,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
 import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
 import type { CityId } from "@/lib/cities";
-import { getNightAreasForCity, nearestRouteReadyNightArea, type NightAreaSlug } from "@/lib/nightAreas";
+import { getNightAreasForCity, isNightAreaRouteReady, nearestRouteReadyNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { budgetCeiling, clearPlannerHandoff, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
@@ -76,8 +76,9 @@ export function MobilePlanActivation({
     const patchArea = held?.patch
       ? nearestRouteReadyNightArea(cityId, [held.patch.lng, held.patch.lat])
       : null;
+    const namedArea = areas.find((candidate) => candidate.slug === held?.nightArea && isNightAreaRouteReady(candidate));
     const ceiling = held?.budget ? budgetCeiling(held.budget) : null;
-    return { area: patchArea?.slug ?? null, pintCeiling: ceiling };
+    return { area: namedArea?.slug ?? patchArea?.slug ?? null, pintCeiling: ceiling };
   });
   const [area, setArea] = useState<NightAreaSlug | null>(handoff.area ?? initialNightArea);
   const [areaTouched, setAreaTouched] = useState(handoff.area !== null);

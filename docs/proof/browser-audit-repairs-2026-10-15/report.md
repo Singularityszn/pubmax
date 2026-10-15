@@ -2,6 +2,37 @@
 
 Date: 15 October 2026.
 
+## Current review repair evidence
+
+This review started at `ad32535238a3fba3d6c2b02bb6142547d4c57b69`. The results below cover its uncommitted worktree repairs. They do not establish acceptance of a later commit.
+
+| Finding | Executable reproduction | Repair and focused result |
+| --- | --- | --- |
+| R1 | Rendered onboarding stored `patch: null` after an accepted Soho fix and lost its area. | The handoff retains the public area name. Web reload and native relaunch simulations preserve it without coordinates. Both map consumers accept named areas. |
+| R2 | Reversed budget phrases selected a £5 route total or admitted a £6 candidate. | One parser separates pint rates from route totals. Both phrase orders, standalone rates, and multiple caps retain the correct context and candidates. |
+| R3 | Unsupported meal and invalid requests consumed the one-slot deployment budget. | Deterministic preparation refusals precede paid consumption. One-slot regressions prove that the following valid request remains available and the next request receives `DAILY_BUDGET_SPENT`. |
+| R4 | Roast, steak, and sandwich prices returned successful pint-only responses. An explicit route budget with pizza was refused. | Query and structured inputs share the correction. Priced meals receive the explicit limitation. Unpriced food preferences with route budgets remain supported. |
+
+Before the source repairs, the focused route and rendered-onboarding command reported 22 failures and 214 passes. Two additional structured fixtures initially exceeded the existing 40-character input limit. Their corrected forms retain the meal and price while omitting redundant location text.
+
+The final focused command passed all 414 tests across six files:
+
+```sh
+node_modules/.bin/vitest run __tests__/planGenerateRoute.test.ts __tests__/firstRunOnboarding.test.tsx __tests__/onboardingFlow.test.ts __tests__/nightPlanning.test.ts __tests__/nativeFirstRun.test.ts __tests__/mobilePlanDrinkDefault.test.tsx --reporter=dot
+```
+
+The fresh browser attempt used this command:
+
+```sh
+PW_PORT=3268 PW_SKIP_KEYLESS_WEBSERVER=1 PW_NEXT_DIST_DIR=.next-review PUBMAX_TRACKED_OUTPUTS=public/data node_modules/.bin/playwright test e2e/web-first-run-journey.spec.ts --project=chromium --grep 'carries a located Soho' --workers=1
+```
+
+Its pre-repair production build succeeded. Browser launch failed because Playwright's required Chromium headless-shell revision 1248 was absent. The new browser regression did not execute. No browser installation or host search followed. The repaired source has no fresh browser or production-build proof from this phase.
+
+Full repository tests, lint, CI, publication, and final-commit validation belong to the outer executor. Physical devices, authenticated Pub Pal, provider settings, and retention remain unverified here.
+
+All screenshots, browser results, build results, and full-gate counts in the sections below are historical evidence from earlier candidates. They do not validate these review repairs.
+
 ## Observed failures and corrections
 
 | Flow | Before | Correction |
