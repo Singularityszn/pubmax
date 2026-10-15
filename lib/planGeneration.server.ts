@@ -39,7 +39,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
-import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
+import { priceEvidenceUsableForCeiling, type PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { planScoringDrinkCategory, scoreVenueForPlan } from "@/lib/planGenerationRanking";
@@ -218,6 +218,7 @@ type PlanGenerationCandidate = ScoredPlanCandidate & {
 	tonightEvents: WhatsOnRow[];
 	reasons: string[];
 	selectedDrinkPrice: MapLensPrice | null;
+	pintPriceEvidence: PlanPriceEvidence | null;
 };
 
 type PlanGenerationPreparation = {
@@ -278,7 +279,7 @@ function pricedDrinkListIncludesMeal(afterDrink: string, explicitFoodIntent: boo
 }
 
 function hasIndependentRouteBudgetClause(value: string, budgetClause: string, after: string): boolean {
-	return (/^\s*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(budgetClause)
+	return (/^\s*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)?\s*$/i.test(budgetClause)
 		|| new RegExp(String.raw`${PLAN_VENUE_ITEM_LIMIT_PREFIX}$`, "i").test(budgetClause))
 		&& (/^\s*(?:per\s+person|each)\b/i.test(after)
 			|| (/\bserves\b/i.test(value) && /^\s*(?:,|$)/.test(after)));
@@ -502,7 +503,8 @@ export async function preparePlanGeneration(
 				wetherspoonsMatchedIds,
 				drinkLensPrices,
 			);
-			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null };
+			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null,
+				pintPriceEvidence: pintEvidence?.get(venue.id) ?? null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm

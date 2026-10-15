@@ -10,7 +10,7 @@ export const PLAN_VENUE_AMENITY = String.raw`(?:\d+|one|two|three|four|five|six)
 const LOCATION_START = String.raw`(?:at|in|from|near|around|within|inside|outside|by|where)`;
 const PLAN_PRICE_SUBJECT_BOUNDARY = String.raw`\b(?:with|per|each|afterwards|later|${LOCATION_START}|${PLAN_VENUE_AMENITY})\b`;
 const FOOD_SERVING_MEASURE = String.raw`(?:(?:about|around|approximately|roughly|circa|almost|nearly|at least|at most|more than|less than|over|under|up to)\s+)?\d+(?:[.,]\d+)?\s*(?:mg|g|grams?|kg|kilograms?|ml|millilitres?|cl|centilitres?|l|litres?|oz|ounces?|lb|lbs)`;
-const FOOD_SERVING_PREFIX = new RegExp(String.raw`(?:^|(?:\b(?:and|plus)|[+&])\s*|\b(?:for|with)\s+|${PLAN_PRICE_AMOUNT})\s*(?:for\s+)?(?:${SERVING_QUANTITY}|${FOOD_SERVING_MEASURE})[ -]+(?:(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:${DRINK_NOUN}|pubs?|bars?|stops?|venues?)\b))(?:${FOOD_SERVING_MEASURE}|(?!${FOOD_SERVING_MEASURE}(?:[ -]|$))[a-z0-9]+(?:/\d+)?)[ -]+)*$`, "i");
+const FOOD_SERVING_PREFIX = new RegExp(String.raw`(?:^|\b|${PLAN_PRICE_AMOUNT})\s*(?:for\s+)?(?:${SERVING_QUANTITY}|${FOOD_SERVING_MEASURE})[ -]+(?:(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:${DRINK_NOUN}|pubs?|bars?|stops?|venues?)\b))(?:${FOOD_SERVING_MEASURE}|(?!${FOOD_SERVING_MEASURE}(?:[ -]|$))[a-z0-9]+(?:/\d+)?)[ -]+)*$`, "i");
 const FOOD_SERVING_NOUN = String.raw`servings?(?:[ -]+(?!(?:${LOCATION_START}|per|each|afterwards|later|and|plus|priced|cost(?:s|ing)?|${LIMIT}|${DRINK_NOUN}|pubs?|bars?|stops?|venues?)\b|${PLAN_PRICE_AMOUNT})[a-z0-9]+(?:/\d+)?)*`;
 export const PLAN_FOOD_ITEM = String.raw`(?:${FOOD_SERVING_NOUN}|meals?|slices?|portions?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 const CONTENTS_WORD = String.raw`(?!(?:and|plus|for|under|below|up|less|than|max(?:imum)?|priced|cost(?:s|ing)?)\b|${PLAN_PRICE_SUBJECT_BOUNDARY})[a-z]+`;
@@ -61,11 +61,11 @@ export function planPriceSubjectText(value: string): string {
     const before = value.slice(0, index).split(/,(?!\d)|[;!?]|\.(?!\d)/).at(-1) ?? "";
     const after = value.slice(index + word.length);
     const followingClause = after.split(/,(?!\d)|[;!?]|\.(?!\d)/)[0] ?? "";
-    const prefix = FOOD_SERVING_PREFIX.exec(before)?.[0];
+    const prefix = FOOD_SERVING_PREFIX.exec(before);
     const amount = new RegExp(PLAN_PRICE_AMOUNT, "i");
-    const joinedPrice = /^(?:\b(?:and|plus)|[+&])/i.test(prefix ?? "") && amount.test(before);
+    const joinedPrice = prefix && /(?:\b(?:and|plus)|[+&])[^,;!?£]*$/i.test(before.slice(0, prefix.index)) && amount.test(before);
     const venueLimit = new RegExp(String.raw`^\bserving\s+${DRINK_SUBJECT}\b\s*${VENUE_ITEM_JOIN}\s*${LIMIT}\s*${PLAN_PRICE_AMOUNT}`, "i").test(word + followingClause);
-    if (prefix && !venueLimit && (amount.test(prefix) || amount.test(followingClause) || joinedPrice)) return word;
+    if (prefix && !venueLimit && (amount.test(prefix[0]) || amount.test(followingClause) || joinedPrice)) return word;
     const predicate = new RegExp(String.raw`^\s+(?!(?:of|to|for|and|plus|priced|cost(?:s|ing)?|${LIMIT})\b|${PLAN_PRICE_SUBJECT_BOUNDARY}|${PLAN_PRICE_AMOUNT})[a-z0-9]`, "i").test(after);
     return predicate ? "serves " : word;
   });
@@ -104,7 +104,7 @@ export function planPriceAmounts(query: string): Array<{
       end,
       pence: Math.round(Number((amount[1] ?? amount[2]!).replace(",", ".")) * 100),
       routeBudget: explicitRouteBudget ? "explicit"
-        : ROUTE_BUDGET_PREFIX.test(before) || (!beforeDrink && !afterDrink && ROUTE_LIMIT_PREFIX.test(before)) ? "limit" : null,
+        : ROUTE_BUDGET_PREFIX.test(before) || (!beforeDrink && !afterDrink && (ROUTE_LIMIT_PREFIX.test(before) || /^\s*(?:per\s+person|each)\b/i.test(after))) ? "limit" : null,
       drink: beforeDrink || afterDrink ? {
         beforeStart: beforeDrink?.index ?? null,
         afterEnd: afterDrink?.[0].length ?? null,

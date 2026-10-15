@@ -199,6 +199,94 @@ const unsupportedServingSubjects = [
 ];
 
 describe("POST /api/plans/generate", () => {
+  it.each(["I want", "please get", "we would like", "could you find", "get"].flatMap((request) => [
+    ...["one serving weighing 200g under£10", "£10 for one serving weighing 200g"].map((phrase) => ({
+      query: `One pub in Soho, ${request} ${phrase}`, context: { stopCount: 1 },
+    })),
+    ...[" and ", " plus ", "+", "&"].flatMap((join) => [
+      `£10 pint at X${join}${request} a serving weighing 2g`,
+      `pint at X${join}${request} a serving weighing 2g £10`,
+    ]).flatMap((phrase) => [
+      { query: `One pub in Soho, ${phrase}`, context: { stopCount: 1 } },
+      ...(phrase.length <= 40 ? [{ query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [phrase] } }] : []),
+    ]),
+  ]))("retains serving ownership after request introductions: %j", async (input) => {
+    const request = () => new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    });
+    const prepared = await preparePlanGeneration(request(), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(request());
+    expect("response" in prepared ? await prepared.response.json() : null)
+      .toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+  });
+
+  it.each([
+    { query: "3 pubs in Clapham, 0.0 beer, maximum £5 per pint" },
+    { query: "3 pubs in Clapham, alcohol-free beer, maximum £5 per pint" },
+    { query: "3 pubs in Clapham", context: { zeroProof: true, foodNeeds: ["maximum £5 per pint"] } },
+  ])("keeps alcohol-free controls separate from canonical pint scarcity: %j", async (input) => {
+    const request = () => new Request("http://localhost/api/plans/generate", { method: "POST", body: JSON.stringify(input) });
+    const prepared = await preparePlanGeneration(request(), Date.now());
+    expect("response" in prepared ? await prepared.response.json() : null).toMatchObject({ code: "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED" });
+    const response = await POST(request());
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "DRINK_PRICE_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it.each(["£20.00", "£20,00", "20.00 pounds", "20,00 quid"].flatMap((amount) => [
+    { query: `3 pubs in Clapham, ${amount} per person, pints under£5` },
+    { query: "3 pubs in Clapham", context: { foodNeeds: [`${amount} per person, pints under£5`] } },
+  ]))("preserves decimal per-person totals beside pint caps: %j", async (input) => {
+    const request = () => new Request("http://localhost/api/plans/generate", { method: "POST", body: JSON.stringify(input) });
+    const prepared = await preparePlanGeneration(request(), Date.now());
+    expect(prepared).toHaveProperty("prepared");
+    if (!("prepared" in prepared)) throw new Error("Expected route budget preparation");
+    expect(prepared.prepared.context).toMatchObject({ zeroProof: false, budgetLimitPence: 2000 });
+    const response = await POST(request());
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext).toMatchObject({ zeroProof: false, budgetLimitPence: 2000 });
+    expect(body.budgetSummary).toMatchObject({ limitPence: 2000, withinLimit: true });
+    for (const entry of body.stops.flatMap((stop: { alternatives: unknown[] }) => [stop, ...stop.alternatives])) {
+      expect(entry.estimatedPintPricePence).toBeLessThanOrEqual(500);
+    }
+  });
+
+  it.each(["0.01", "10.00", "20.00"].flatMap((amount) => [
+    { query: `3 pubs in Clapham, maximum £${amount} per pint`, cap: Number(amount), total: null },
+    { query: "3 pubs in Clapham", context: { foodNeeds: [`maximum £${amount} per pint`] }, cap: Number(amount), total: null },
+    ...[false, true].map((reverse) => ({
+      query: `3 pubs in Clapham, ${reverse ? "maximum £5 per pint, under £20.00 per person" : "under £20.00 per person, maximum £5 per pint"}`,
+      cap: 5, total: 2000,
+    })),
+  ]))("keeps decimal currency out of alcohol-free intent: %j", async ({ cap, total, ...input }) => {
+    const request = () => new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    });
+    expect(inferNightContext(input.query).context.zeroProof).toBe(false);
+    const prepared = await preparePlanGeneration(request(), Date.now());
+    expect(prepared).toHaveProperty("prepared");
+    if (!("prepared" in prepared)) throw new Error("Expected canonical cap preparation");
+    expect(prepared.prepared.context).toMatchObject({ zeroProof: false, budgetLimitPence: total });
+    const response = await POST(request());
+    const body = await response.json();
+    if (cap < 1) {
+      expect(response.status).toBe(422);
+      expect(body).toMatchObject({ code: "GROUNDED_VENUES_INSUFFICIENT" });
+    } else {
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.inferredContext).toMatchObject({ zeroProof: false, budgetLimitPence: total });
+      for (const entry of body.stops.flatMap((stop: { alternatives: unknown[] }) => [stop, ...stop.alternatives])) {
+        expect(entry.estimatedPintPricePence).toBeLessThanOrEqual(cap * 100);
+        expect(entry.priceEvidence).toMatchObject({ pence: entry.estimatedPintPricePence });
+      }
+    }
+  });
+
   it.each([
     ...["one warm serving weighing 200g", "one serving containing nuts", "a softly warmed generous serving containing nuts", "each warm serving weighing 2g", "2/3 warm servings containing nuts", "one warm serving that weighs 200g", "one serving that contains nuts", "a 0.5kg serving weighing 200g", "a 0,5kg serving weighing 200g"].flatMap((food) => [
       `${food} under£10`, `£10 for ${food}`,
@@ -1521,12 +1609,21 @@ describe("POST /api/plans/generate", () => {
     }
   });
 
-  it("keeps canonical pint ceilings on selected stops and alternatives", async () => {
+  it.each([
+    { query: "3 pubs in Clapham, maximum £5 per pint" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["maximum £5 per pint"] } },
+  ])("keeps canonical pint ceilings on selected stops and alternatives: %j", async (input) => {
     const now = Date.parse("2026-10-15T12:00:00Z");
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
+      const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+        method: "POST", body: JSON.stringify(input),
+      }), now);
+      expect(prepared).toHaveProperty("prepared");
+      if (!("prepared" in prepared)) throw new Error("Expected cap preparation");
+      expect(prepared.prepared.context.budgetLimitPence).toBeNull();
       const response = await POST(new Request("http://localhost/api/plans/generate", {
-        method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, maximum £5 per pint" }),
+        method: "POST", body: JSON.stringify(input),
       }));
       expect(response.status).toBe(200);
       const body = await response.json();
@@ -1540,6 +1637,16 @@ describe("POST /api/plans/generate", () => {
         expect(price).toBeDefined();
         expect(priceEvidenceUsableForCeiling(price!)).toBe(true);
         expect(price!.pence).toBeLessThanOrEqual(500);
+        expect(stop).toMatchObject({ estimatedPintPricePence: price!.pence, priceEvidence: price!, priceCategory: "beer", priceServing: "pint" });
+      }
+      for (const [position, stop] of body.stops.entries()) {
+        for (const alternative of stop.alternatives) {
+          const replacement = body.stops.map((selected: { venueId: string }, index: number) => index === position ? alternative : selected);
+          expect(new Set(replacement.map((entry: { venueId: string }) => entry.venueId)).size).toBe(3);
+          for (const entry of replacement) {
+            expect(entry).toMatchObject({ priceEvidence: evidence.get(entry.venueId)!, priceCategory: "beer", priceServing: "pint" });
+          }
+        }
       }
     } finally {
       clock.mockRestore();
