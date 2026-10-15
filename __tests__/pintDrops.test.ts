@@ -1357,6 +1357,66 @@ describe("durable per-actor report uniqueness", () => {
   });
 });
 
+// docs/ops/HIDE_PINT_DROP_RUNBOOK.md: an operator hides one live drop that
+// nobody has reported. That is the moderator `keep_hidden` action on a VISIBLE
+// row, which the queue tests above only reach after reports.
+describe("operator hide of an unreported Pint Drop (runbook)", () => {
+  function operatorHide(id: string, note: string): Promise<Response> {
+    return POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "keep_hidden", id, note }),
+      }),
+    );
+  }
+
+  async function publicIds(venueId?: string): Promise<string[]> {
+    const res = await get(venueId);
+    expect(res.status).toBe(200);
+    return ((await res.json()).drops as Array<{ id: string }>).map((drop) => drop.id);
+  }
+
+  it("takes a visible drop off every public read and keeps it for review", async () => {
+    const created = await post({ venueId: VENUE, handle: "tester", drink: "Hatton Lager", priceGbp: 4.5 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+    expect(await publicIds(VENUE)).toContain(drop.id);
+    expect(await publicIds()).toContain(drop.id);
+
+    expect((await operatorHide(drop.id, "owner request: test drop")).status).toBe(200);
+
+    expect(await publicIds(VENUE)).not.toContain(drop.id);
+    expect(await publicIds()).not.toContain(drop.id);
+    const queue = (await (await modGet("hidden")).json()).drops as Array<{
+      id: string;
+      moderatorNote?: string;
+    }>;
+    expect(queue.find((row) => row.id === drop.id)?.moderatorNote).toBe("owner request: test drop");
+
+    // Reversible: restore puts the same row back.
+    expect((await modAction("restore", drop.id)).status).toBe(200);
+    expect(await publicIds(VENUE)).toContain(drop.id);
+  });
+
+  it("writes the same one-row update the runbook's SQL makes", async () => {
+    const select = vi.fn().mockResolvedValue({ data: [{ id: "drop-1" }], error: null });
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ update }));
+    adminRef.client = { from };
+
+    expect(await supabasePintDropStore.moderate("drop-1", "hidden", "owner request")).toBe(true);
+    expect(from).toHaveBeenCalledWith("pint_drops");
+    expect(update).toHaveBeenCalledWith({
+      status: "hidden",
+      moderated_at: expect.any(String),
+      moderator_note: "owner request",
+    });
+    expect(eq).toHaveBeenCalledWith("id", "drop-1");
+  });
+});
+
 describe("supabasePintDropStore.report — v2 RPC seam", () => {
   function reportIdentity(actorHash: string): PintDropReportIdentity {
     return { kind: "verified_account", actorHash };
