@@ -72,15 +72,10 @@ export function budgetCeiling(id: BudgetChoiceId): number | null {
   return BUDGET_CHOICES.find((choice) => choice.id === id)?.ceiling ?? null;
 }
 
-/**
- * The question and the reason for it. The privacy line is a promise, so it
- * says only what the code does: the answer is saved on this device and read by
- * the result screen.
- */
 export const BUDGET_QUESTION = {
   title: "What's a fair pint to you?",
   why: "We use this to count the pubs near you that come in under it.",
-  privacy: "Only you see your answer. It stays on this device.",
+  privacy: "Your budget is saved on this device. When you plan a night, it goes in the planner link and to our server.",
 } as const;
 
 /** The location ask's reason, spent on its own screen before the system prompt. */

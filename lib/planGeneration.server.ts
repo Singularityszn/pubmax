@@ -227,11 +227,19 @@ type PlanGenerationPreparation = {
 
 /** The pub-route generator has no menu-item or nutrition proof. */
 function requiresMenuEvidence(query: string, foodNeeds: readonly string[]): boolean {
-	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(query);
-	const requiresDiet = /\b(?:vegan|vegetarian|halal|kosher|gluten[ -]free|allerg(?:y|ies|en|ens))\b/i.test(query)
-		|| foodNeeds.some((need) => /\b(?:vegan|vegetarian|halal|kosher|gluten[ -]free)\b/i.test(need));
-	const requiresMealPrice = /\b(?:meal|lunch|dinner|breakfast|dish|food|eat)\b/i.test(query)
-		&& /(?:£|\b(?:pounds?|quid)\b)/i.test(query);
+	const foodRequest = [query, ...foodNeeds].join(". ");
+	const requiresNutrition = /(?:\b|\d)(?:calories?|kcals?|kilocalories?)\b/i.test(foodRequest);
+	const requiresDiet = /\b(?:vegan|vegetarian|pescatarian|halal|kosher|coeliac|celiac|(?:gluten|nuts?|peanuts?|dairy|lactose|eggs?|soy|soya|sesame|shellfish|wheat)[ -]free|allerg(?:y|ies|ic|en|ens)|intoleran(?:t|ce))\b/i.test(foodRequest);
+	const food = "\\b(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|kebabs?|chips)\\b";
+	const amount = "(?:£\\s*\\d+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?\\s*(?:pounds?|quid)\\b)";
+	const pricedFood = new RegExp(`${food}\\s+(?:cost(?:s|ing)?\\s+)?(?:(?:for\\s+)?(?:under|below|up to|less than|max(?:imum)?)\\s*|for\\s+)?${amount}|${amount}\\s+(?:(?:per|a|for(?: a)?)\\s+)?${food}`, "i");
+	const requiresMealPrice = [query, ...foodNeeds].some((value) => {
+		const mealRequest = value.replace(/\b(?:with|serving|serves)\s+food\b/gi, "");
+		const foodIndex = mealRequest.search(new RegExp(food, "i"));
+		const routeIndex = mealRequest.search(/\b(?:pubs?|bars?|stops?|crawl|route)\b/i);
+		return pricedFood.test(mealRequest)
+			|| (foodIndex >= 0 && (routeIndex < 0 || foodIndex < routeIndex) && new RegExp(amount, "i").test(mealRequest));
+	});
 	return requiresNutrition || requiresDiet || requiresMealPrice;
 }
 

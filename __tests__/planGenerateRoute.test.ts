@@ -156,6 +156,20 @@ describe("POST /api/plans/generate", () => {
     "One vegan meal under £10 and under 500 calories in Soho",
     "One meal under 500kcal in Soho",
     "One meal under 500calories in Soho",
+    "One pizza under £10 in Soho",
+    "One kebab under 10 pounds in Soho",
+    "Chips under 5 quid in Soho",
+    "One nut-free meal in Soho",
+    "One dairy free meal in Soho",
+    "One dish under £10 in Soho",
+    "Food under £10 in Soho",
+    "One pizza under £10 per person in Soho",
+    "One pizza under £10 each at a pub in Soho",
+    "One pizza in Soho under £10",
+    "Find a meal in Soho for £10",
+    "A £10 pizza in Soho",
+    "Can I get a pizza in Soho under £10?",
+    "3 pubs in Soho, pizza costs under £10",
   ])("refuses unsupported meal constraints in %s", async (query) => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
@@ -169,6 +183,43 @@ describe("POST /api/plans/generate", () => {
     expect(body).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
     expect(body.error).toMatch(/meal.*dietary.*calorie/i);
     expect(body).not.toHaveProperty("stops");
+  });
+
+  it.each([
+    { foodNeeds: ["nut-free"] },
+    { foodNeeds: ["dairy-free"] },
+    { foodNeeds: ["allergy to sesame"] },
+    { foodNeeds: ["under 500 calories"] },
+    { foodNeeds: ["pizza under £10"] },
+    { foodNeeds: ["kebab under 10 pounds"] },
+    { foodNeeds: ["chips under 5 quid"] },
+  ])("refuses unsupported structured food constraints: %j", async (context) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "One pub in Soho", context: { stopCount: 1, ...context } }),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+  });
+
+  it.each([
+    { query: "3 pubs in Clapham with food, under £20 per person", foodNeeds: ["food"] },
+    { query: "3 pubs in Clapham with food, under £20 each, maximum £5 per pint", foodNeeds: ["food"] },
+    { query: "3 pubs in Clapham with food, under 20 pounds per person", foodNeeds: ["food"] },
+    { query: "3 pubs in Clapham with pizza afterwards, under £20 per person", foodNeeds: ["pizza"] },
+    { query: "3 pubs in Clapham with food, budget of £20", foodNeeds: ["food"] },
+    { query: "3 pubs in Clapham with food under £20", foodNeeds: ["food"] },
+  ])("preserves food amenities and drink budgets: $query", async ({ query, foodNeeds }) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"), generatedVenue("v2"), generatedVenue("v3"),
+    ]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in result)) throw new Error("Expected a prepared food-aware pub route");
+    expect(result.prepared.context.foodNeeds).toEqual(foodNeeds);
+    expect(result.prepared.candidates).toHaveLength(3);
   });
 
   beforeEach(() => {
