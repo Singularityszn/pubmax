@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { expect, it, vi } from "vitest";
 
 it("initializes and parses plan prices when RegExp lookbehind is unavailable", async () => {
@@ -26,7 +27,7 @@ it("initializes and parses plan prices when RegExp lookbehind is unavailable", a
           .toEqual({ pintCeiling: 5, routeBudgetPence: 2000 });
       }
     }
-    for (const subject of ["a serving weighing 200g", "one serving enough for two", "a generous serving suitable for sharing", "each serving weighing 200g", "a 200g serving weighing 200g"]) {
+    for (const subject of ["a serving weighing 200g", "one serving enough for two", "a generous serving suitable for sharing", "each serving weighing 200g", "a 200g serving weighing 200g", "one warm serving weighing 200g", "one serving containing nuts", "a softly warmed generous serving containing nuts"]) {
       expect(planPriceSubjectText(`£10 pint at X&${subject}`)).toContain(`&${subject}`);
       expect(planPriceSubjectText(`${subject} under£10`)).toBe(`${subject} under£10`);
     }
@@ -38,4 +39,21 @@ it("initializes and parses plan prices when RegExp lookbehind is unavailable", a
     vi.unstubAllGlobals();
     vi.resetModules();
   }
+});
+
+
+it("parses long measurement antecedents without blocking the public price parser", () => {
+  const queries = ["1g ", "1 g "].map((measure) =>
+    `with one ${measure.repeat(30)}at X serving beer, under£20 per person`);
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
+    import { planPriceLimits } from "./lib/planPriceLimits.ts";
+    const queries = JSON.parse(process.argv[1]);
+    process.stdout.write(JSON.stringify(queries.map((query) => planPriceLimits(query))));
+  `, JSON.stringify(queries)], { encoding: "utf8", timeout: 5000 });
+  expect(result.error, result.stderr).toBeUndefined();
+  expect(result.status, result.stderr).toBe(0);
+  expect(JSON.parse(result.stdout)).toEqual([
+    { pintCeiling: null, routeBudgetPence: 2000 },
+    { pintCeiling: null, routeBudgetPence: 2000 },
+  ]);
 });

@@ -29,6 +29,7 @@ import {
 	PLAN_FOOD_SUBJECT,
 	PLAN_PRICE_AMOUNT,
 	PLAN_VENUE_AMENITY,
+	PLAN_VENUE_ITEM_LIMIT_PREFIX,
 	planPriceAmounts,
 	planPriceLimits,
 	planPriceSubjectText,
@@ -276,6 +277,13 @@ function pricedDrinkListIncludesMeal(afterDrink: string, explicitFoodIntent: boo
 		: new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i").test(list);
 }
 
+function hasIndependentRouteBudgetClause(value: string, budgetClause: string, after: string): boolean {
+	return (/^\s*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(budgetClause)
+		|| new RegExp(String.raw`${PLAN_VENUE_ITEM_LIMIT_PREFIX}$`, "i").test(budgetClause))
+		&& (/^\s*(?:per\s+person|each)\b/i.test(after)
+			|| (/\bserves\b/i.test(value) && /^\s*(?:,|$)/.test(after)));
+}
+
 /** Bind each amount before exempting drink rates or a pub-route budget. */
 function hasMealPriceConstraint(value: string, explicitFoodIntent = false): boolean {
 	return planPriceSubjectText(value).split(/[;!?]|\.(?!\d)/).some((value) => {
@@ -300,8 +308,8 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
 			if (price.routeBudget === "explicit"
 				|| (price.routeBudget === "limit" && new RegExp(String.raw`^\s*(?:for\s+)?${PLAN_VENUE_AMENITY}`, "i").test(after))) return false;
-			if (!foodItems.length && price.routeBudget === "limit" && /^\s*(?:per\s+person|each)\b/i.test(after)
-				&& /^\s*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(budgetClause)) return false;
+			if (price.routeBudget === "limit" && hasIndependentRouteBudgetClause(value, budgetClause, after)
+				&& foodItems.every((item) => /\bserves\b[^,;!?]*$/i.test(value.slice(0, item.index)))) return false;
 			if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
 			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
 				/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
