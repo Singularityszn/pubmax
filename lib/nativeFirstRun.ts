@@ -132,7 +132,6 @@ export function rememberNativeFirstRunStep(step: OnboardingStep): void {
   }
 }
 
-/** Read the patch id an unfinished journey chose. The onboarding UI validates it. */
 export function readNativeFirstRunPatch(): string | null {
   const store = safeLocalStorage();
   if (!store) return null;
