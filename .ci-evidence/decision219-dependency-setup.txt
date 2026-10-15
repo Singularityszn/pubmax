@@ -1,0 +1,13 @@
+npm warn deprecated acorn-import-assertions@1.9.0: package has been renamed to acorn-import-attributes
+
+added 728 packages, and audited 729 packages in 6s
+
+201 packages are looking for funding
+  run `npm fund` for details
+
+5 high severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.

@@ -1,0 +1,12 @@
+
+ RUN  v5.0.4 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4Z5VR5NYB7N7YYWH20YBXSC
+
+
+ Test Files  3 passed (3)
+      Tests  49 passed (49)
+   Start at  11:29:00
+   Duration  1.18s (environment 52%, tests 27%, import 16%, transform 3%, setup 1%)
+
+    Isolate  3 workers spawned · ~225ms startup each (spawn + environment, per file)
+             at least ~449ms faster with isolate: false — reuses workers across files instead of one per file
+

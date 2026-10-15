@@ -66,7 +66,6 @@ type VoiceSessionAttempt = {
   connectedAt: number | null;
   capTimer: number | null;
   startupTimer: number | null;
-  requestAbort: AbortController;
   voiceEndReported: boolean;
   voiceEndReason: VoiceEndReason | null;
 };
@@ -161,7 +160,6 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
 
   const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
     clearStartupTimer(attempt);
-    attempt.requestAbort.abort();
     if (attempt.connectedAt !== null && !attempt.voiceEndReported) {
       attempt.voiceEndReported = true;
       trackEvent("voice_ended", { reason: attempt.voiceEndReason ?? "disconnect" });
@@ -239,7 +237,6 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       connectedAt: null,
       capTimer: null,
       startupTimer: null,
-      requestAbort: new AbortController(),
       voiceEndReported: false,
       voiceEndReason: null,
     };
@@ -267,10 +264,13 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       issueGrant: async () => {
         const response = await authedActionFetch("/api/pub-pal/voice-token", {
           method: "POST",
-          signal: attempt.requestAbort.signal,
         }, { requiresIdentity: true });
-        if (response.ok) attempt.releaseRequired = true;
-        const body = await response.json() as VoiceTokenResponse;
+        let body: VoiceTokenResponse;
+        try {
+          body = await response.json() as VoiceTokenResponse;
+        } finally {
+          attempt.releaseRequired = response.ok;
+        }
         if (response.ok && body.conversationId) attempt.conversationId = body.conversationId;
         if (!response.ok || !body.signedUrl) {
           throw new PubPalVoiceStartError(

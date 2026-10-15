@@ -1,0 +1,103 @@
+
+ RUN  v5.0.4 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4Z5VR5NYB7N7YYWH20YBXSC
+
+ ❯ __tests__/pubPalVoice.test.tsx (41 tests | 10 failed | 27 skipped) 112ms
+   ❯ Pub Pal voice controls (41)
+     ❯ pending grant headers (7)
+       × releases the issued ID once after Cancel 52ms
+       × releases the issued ID once after unmount 7ms
+       × releases the issued ID once after writing 5ms
+       × releases the issued ID once after timeout 5ms
+       × keeps a retry connected when the cancelled grant finishes 6ms
+     ❯ pending grant body (7)
+       × releases the issued ID once after Cancel 4ms
+       × releases the issued ID once after unmount 4ms
+       × releases the issued ID once after writing 5ms
+       × releases the issued ID once after timeout 4ms
+       × keeps a retry connected when the cancelled grant finishes 5ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant headers > releases the issued ID once after Cancel
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant headers > releases the issued ID once after unmount
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant headers > releases the issued ID once after writing
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant headers > releases the issued ID once after timeout
+AssertionError: expected "vi.fn()" to be called 2 times, but got 1 times
+ ❯ __tests__/pubPalVoice.test.tsx:326:42
+    324|       await settle();
+    325|       expect(voice.startSession).not.toHaveBeenCalled();
+    326|       expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+       |                                          ^
+    327|       expect(JSON.parse(String((defined(requests.authedActionFetch.moc…
+    328|         action: "release", conversationId: "conv_voiceLate1",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant headers > keeps a retry connected when the cancelled grant finishes
+AssertionError: expected [] to deeply equal [ { action: 'release', …(1) } ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "action": "release",
+-     "conversationId": "conv_voiceLate1",
+-   },
+- ]
++ []
+
+ ❯ __tests__/pubPalVoice.test.tsx:387:26
+    385|         .flatMap(([, init]) => init?.body ? [JSON.parse(String(init.bo…
+    386|         .filter((body) => body.action === "release");
+    387|       expect(releases()).toEqual([{ action: "release", conversationId:…
+       |                          ^
+    388|       voice.endSession.mockImplementation(() => session.onDisconnect()…
+    389|       await act(async () => { container.querySelector<HTMLButtonElemen…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant body > releases the issued ID once after Cancel
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant body > releases the issued ID once after unmount
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant body > releases the issued ID once after writing
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant body > releases the issued ID once after timeout
+AssertionError: expected "vi.fn()" to be called once, but got 2 times
+ ❯ __tests__/pubPalVoice.test.tsx:321:42
+    319|       if (action === "timeout") expect(container.querySelector('[role=…
+    320|       if (action === "writing") expect(navigation.push).toHaveBeenCall…
+    321|       expect(requests.authedActionFetch).toHaveBeenCalledOnce();
+       |                                          ^
+    322|       grant.sendHeaders();
+    323|       grant.finish({ signedUrl: "wss://voice.example/late", conversati…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  __tests__/pubPalVoice.test.tsx > Pub Pal voice controls > pending grant body > keeps a retry connected when the cancelled grant finishes
+AssertionError: expected [ { action: 'release' } ] to deeply equal [ { action: 'release', …(1) } ]
+
+- Expected
++ Received
+
+  [
+    {
+      "action": "release",
+-     "conversationId": "conv_voiceLate1",
+    },
+  ]
+
+ ❯ __tests__/pubPalVoice.test.tsx:387:26
+    385|         .flatMap(([, init]) => init?.body ? [JSON.parse(String(init.bo…
+    386|         .filter((body) => body.action === "release");
+    387|       expect(releases()).toEqual([{ action: "release", conversationId:…
+       |                          ^
+    388|       voice.endSession.mockImplementation(() => session.onDisconnect()…
+    389|       await act(async () => { container.querySelector<HTMLButtonElemen…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed | 4 passed | 27 skipped (41)
+   Start at  11:28:21
+   Duration  564ms (environment 59%, tests 22%, import 11%, transform 7%, setup 1%)
+
