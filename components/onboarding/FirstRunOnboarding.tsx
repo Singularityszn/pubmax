@@ -45,10 +45,13 @@ import {
   ONBOARDING_STEPS,
   nextOnboardingStep,
   onboardingResult,
+  onboardingPlanHref,
   onboardingStepNumber,
   previousOnboardingStep,
   readBudgetChoice,
   readOnboardingPatch,
+  readPlannerHandoff,
+  clearPlannerHandoff,
   writeBudgetChoice,
   writeOnboardingPatch,
   writePlannerHandoff,
@@ -85,13 +88,13 @@ const GEO_OPTIONS: PositionOptions = {
 };
 
 /**
- * The map reads its arrival query once, when it mounts. A client navigation
- * can mount it before the address bar holds `?plan=1`, so the planner stayed
- * shut and the handoff below was never read. A document load always carries
- * the query, so this one step leaves the app router.
+ * The shared planner generates from this handoff instead of displaying the
+ * map's unrelated default crawl. A document load carries its query on mount.
  */
 function openPlannerDocument(): void {
-  window.location.assign(new URL("/map?plan=1", window.location.origin).href);
+  const href = onboardingPlanHref(readPlannerHandoff());
+  clearPlannerHandoff();
+  window.location.assign(new URL(href, window.location.origin).href);
 }
 
 function patchOrigin(id: string | null): OnboardingOrigin | null {

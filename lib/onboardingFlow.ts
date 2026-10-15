@@ -24,6 +24,8 @@
 
 import { WALKABLE_RADIUS_KM, walkMinutesFromKm, type NearMeCard } from "@/lib/nearMeAnswer";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
 /** The steps in the order a reader meets them. */
 export const ONBOARDING_STEPS = [
@@ -152,6 +154,23 @@ export type PlannerHandoff = {
   patch: { lat: number; lng: number } | null;
   budget: BudgetChoiceId | null;
 };
+
+/** Open the shared planner with the reader's choices, without a default map route. */
+export function onboardingPlanHref(handoff: PlannerHandoff | null): string {
+  const patch = handoff?.patch
+    ? NIGHT_PATCHES.find(({ lat, lng }) => lat === handoff.patch?.lat && lng === handoff.patch?.lng)
+    : null;
+  const ceiling = handoff?.budget ? budgetCeiling(handoff.budget) : null;
+  if (!patch && ceiling === null) return "/plan?from=onboarding";
+  const query = [
+    `${DEFAULT_PLAN_STOP_COUNT} pubs${patch ? ` in ${patch.label}` : ""}`,
+    ...(ceiling === null ? [] : [
+      `under £${ceiling * DEFAULT_PLAN_STOP_COUNT} per person`,
+      `maximum £${ceiling} per pint`,
+    ]),
+  ].join(", ");
+  return `/plan?${new URLSearchParams({ query, from: "onboarding" })}`;
+}
 
 /** A handoff the planner never opened for is stale after this long. */
 const HANDOFF_MAX_AGE_MS = 10 * 60_000;

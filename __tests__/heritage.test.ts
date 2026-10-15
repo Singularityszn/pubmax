@@ -1,5 +1,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { readFile } from "node:fs/promises";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, readFile: vi.fn(actual.readFile) };
+});
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,6 +64,28 @@ function post(body: unknown): Promise<Response> {
 const SOURCED_SOURCES = new Set(["osm", "wikidata", "wikipedia", "seed"]);
 
 describe("retrieveHeritage — trust boundary", () => {
+  it("reads a repeated fact once while keeping both source citations", async () => {
+    const cacheFact = "The Black Friar was built about 1875.";
+    const read = vi.mocked(readFile);
+    read.mockResolvedValueOnce(JSON.stringify({
+      "the blackfriar": [
+        { source: "wikipedia", fact: cacheFact, sourceRef: "https://example.org/history" },
+        { source: "seed", fact: ` ${cacheFact} `, sourceRef: "https://example.org/archive" },
+      ],
+    }));
+    try {
+      const result = await answerHeritage({ venueName: "The Blackfriar", question: "Tell me about this pub" });
+      expect(result.answer.match(/built about 1875/g)).toHaveLength(1);
+      expect(result.citations).toEqual([
+        { source: "wikipedia", ref: "https://example.org/history" },
+        { source: "seed", ref: "https://example.org/archive" },
+      ]);
+    } finally {
+      read.mockReset();
+      read.mockImplementation((await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises")).readFile);
+    }
+  });
+
   it("rejects unknown stored source labels instead of relabelling them", () => {
     expect(storedFactSource("webbing")).toBeNull();
     expect(storedFactSource("web ")).toBeNull();

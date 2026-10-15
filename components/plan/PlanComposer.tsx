@@ -99,6 +99,7 @@ import {
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
@@ -2116,6 +2117,9 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
+      if (new URLSearchParams(window.location.search).get("from") === "onboarding") {
+        recordPlanHighIntentAction();
+      }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
