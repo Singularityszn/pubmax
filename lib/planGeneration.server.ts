@@ -23,7 +23,16 @@ import {
 	canAffectRoute,
 	claimsForEntity,
 } from "@/lib/nightSignalClaims";
-import { PLAN_DRINK_ITEM, PLAN_PRICE_AMOUNT, planPriceAmounts, planPriceLimits } from "@/lib/planPriceLimits";
+import {
+	PLAN_DRINK_ITEM,
+	PLAN_FOOD_ITEM,
+	PLAN_PRICE_AMOUNT,
+	PLAN_PRICE_SUBJECT_BOUNDARY,
+	PLAN_VENUE_AMENITY,
+	planPriceAmounts,
+	planPriceLimits,
+	planPriceSubjectText,
+} from "@/lib/planPriceLimits";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
@@ -229,7 +238,6 @@ type PlanGenerationPreparation = {
 	anchor: PlanGenerationAnchor | null;
 };
 
-const PLAN_FOOD_ITEM = String.raw`(?:meals?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
 const PLAN_ITEM_LIST_JOIN = String.raw`(?:\s*,\s*|\s*\b(?:and|plus)\b\s*|\s*[+&]\s*)(?:(?:an?|one|two)\s+)?`;
 
 function isGenericFoodAmenity(value: string, item: RegExpExecArray): boolean {
@@ -259,27 +267,23 @@ function pricedDrinkIncludesMeal(beforeDrink: string, explicitFoodIntent: boolea
 
 /** Bind each amount before exempting drink rates or a pub-route budget. */
 function hasMealPriceConstraint(value: string, explicitFoodIntent = false): boolean {
-	return value.split(/[;!?]|\.(?!\d)/).some((value) => {
+	return planPriceSubjectText(value).split(/[;!?]|\.(?!\d)/).some((value) => {
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const venueAmenity = String.raw`(?:\d+|one|two|three|four|five|six)\s+(?:pubs?|bars?|stops?)\s+(?:serving|serves|where|with)\b`;
-		const subjectBoundary = String.raw`\b(?:with|per|each|afterwards|later|at|in|from|near|around|within|inside|outside|by|where|${venueAmenity})\b`;
-		const foodSubject = String.raw`(?:(?!${subjectBoundary})[^,£])*\b${PLAN_FOOD_ITEM}\b`;
+		const foodSubject = String.raw`(?:(?!${PLAN_PRICE_SUBJECT_BOUNDARY})[^,£])*\b${PLAN_FOOD_ITEM}\b`;
 		const foodAfterPrice = new RegExp(String.raw`^\s*(?!(?:with|and|plus|per|each|afterwards|later)\b)${foodSubject}`, "i");
 		return planPriceAmounts(value).some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
 			if (price.drink?.perServing) return false;
-			if (price.drink && price.drink.beforeStart !== null) {
-				return foodAfterPrice.test(after)
-					|| pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent);
-			}
-			if (price.drink && price.drink.afterEnd !== null) {
+			if (price.drink) {
 				if (foodAfterPrice.test(after)) return true;
+				if (price.drink.beforeStart !== null
+					&& pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent)) return true;
 				const item = String.raw`(?:${foodSubject}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
 				const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
-					.exec(after.slice(price.drink.afterEnd))?.[0] ?? "";
+					.exec(after.slice(price.drink.afterEnd ?? 0))?.[0] ?? "";
 				if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
 				return explicitFoodIntent
 					? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
@@ -290,7 +294,7 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
 				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
 			if (price.routeBudget === "explicit"
-				|| (price.routeBudget === "limit" && new RegExp(String.raw`^\s*(?:for\s+)?${venueAmenity}`, "i").test(after))) return false;
+				|| (price.routeBudget === "limit" && new RegExp(String.raw`^\s*(?:for\s+)?${PLAN_VENUE_AMENITY}`, "i").test(after))) return false;
 			if (!foodItems.length && /\b(?:with|serving|serves)\s+food[\s,]*(?:(?:a\s+)?budget(?:\s+of)?|under|below|up to|less than|max(?:imum)?)\s*$/i.test(before)) return false;
 			const foodIsLaterPreference = foodItems.length > 0 && foodItems.every((item) =>
 				/^[\s,]*(?:afterwards|later)\b/i.test(value.slice(item.index + item[0].length)));
