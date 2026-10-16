@@ -280,6 +280,29 @@
   line-height: var(--leading-normal);
 }
 
+/* The city waitlist is a quiet way onward, so it reads like the page's other
+   text link (.screenSecondary): ink, bold, underlined, a 44 px box. Bare, it
+   took the browser's own blue, and visited purple in the dark theme. */
+.placesWaitlistLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.placesWaitlistLink:hover {
+  color: var(--color-accent);
+}
+
+.placesWaitlistLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .placesAreaList {
   display: grid;
   gap: var(--space-3);
