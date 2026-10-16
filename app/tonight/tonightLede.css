@@ -125,34 +125,77 @@
   text-decoration: none;
 }
 
-/* Every card reads the same way: the area and the way onto the map share one
-   row under the name, so the map action sits high on every card (the first
-   one included, which once folded its reason away to keep the action above a
-   phone's consent card) and the reason below is never behind a toggle. */
-.tonightHypedPlace {
+/* Every card reads the same way: "Why this pub" and the way onto the map share
+   one row under the place, and the reason folds behind it on every card alike,
+   which keeps the first card whole above a short phone's docked consent card.
+   An opened reason takes the full width under the map action. */
+.tonightHypedActions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0 var(--space-2);
+  margin-top: 2px;
 }
 
-.tonightHypedPlace .tonightHypedArea,
-.tonightHypedPlace .tonightHypedMap,
-.tonightHypedPlace .tonightHypedUnmatched {
+.tonightHypedActions .tonightHypedMap,
+.tonightHypedActions .tonightHypedUnmatched {
   margin: 0;
 }
 
-.tonightHypedPlace .tonightHypedUnmatched {
+.tonightHypedReason[open] {
+  order: 2;
+  flex-basis: 100%;
+}
+
+.tonightHypedActions .tonightHypedUnmatched {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
 }
 
+/* The listed pint rides the area line, so a card is three short rows: the
+   name, the place and its pint, and the actions. */
+.tonightHypedArea {
+  flex-wrap: wrap;
+}
+
 .tonightHypedPrice {
-  margin: 2px 0 0;
+  white-space: nowrap;
+}
+
+.tonightHypedSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tonightHypedReasonToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
   font-size: 0.82rem;
+  font-weight: 600;
   color: var(--ink-soft);
+}
+
+.tonightHypedReasonToggle::-webkit-details-marker {
+  display: none;
+}
+
+.tonightHypedReason[open] > .tonightHypedReasonToggle .tonightHypedMoreChevron {
+  transform: rotate(180deg);
+}
+
+.tonightHypedReason .tonightHypedWhy {
+  margin-top: 0;
 }
 
 .tonightHypedPriceFigure {

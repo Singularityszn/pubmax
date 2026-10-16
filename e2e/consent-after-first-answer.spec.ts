@@ -320,9 +320,13 @@ for (const viewport of WIDTHS) {
         const actionBox = await mapAction.boundingBox();
         expect(actionBox?.height).toBeGreaterThanOrEqual(44);
         expect(boxesOverlap(actionBox as Box, box)).toBe(false);
-        // Every card reads the same way: the reason is never folded away, and
-        // the map action sits beside the area, above it.
-        await expect(firstPub.locator("details")).toHaveCount(0);
+        // Every card reads the same compact way: the reason folds behind "Why
+        // this pub" on every card alike, and opening it shows the reason and
+        // its credit.
+        const firstReason = firstPub.locator("details.tonightHypedReason");
+        await expect(firstReason).toHaveCount(1);
+        await expect(firstPub.locator(".tonightHypedWhy")).toBeHidden();
+        await firstReason.locator("summary").click();
         await expect(firstPub.locator(".tonightHypedWhy")).toBeVisible();
         await expect(firstPub.locator(".tonightHypedSource")).toBeVisible();
         await expect(page.locator(".tonightWeather")).toContainText(/sky|weather|wind/i);
@@ -336,10 +340,12 @@ for (const viewport of WIDTHS) {
             return transform === "none" ? 1 : Math.round(new DOMMatrixReadOnly(transform).a);
           });
         await expect.poll(() => chevronDirection(morePubs.locator(":scope > summary"))).toBe(-1);
-        await expect(page.locator(".tonightHypedRow details")).toHaveCount(0);
         const pubs = await page.locator(".tonightHypedRow").all();
         expect(pubs.length).toBeGreaterThan(1);
         for (const pub of pubs) {
+          const reason = pub.locator("details.tonightHypedReason");
+          await expect(reason).toHaveCount(1);
+          if ((await reason.getAttribute("open")) === null) await reason.locator("summary").click();
           await expect(pub.locator(".tonightHypedWhy")).toBeVisible();
           await expect(pub.locator(".tonightHypedSource")).toBeVisible();
           await expect(pub.locator(".tonightHypedChecked")).toBeVisible();

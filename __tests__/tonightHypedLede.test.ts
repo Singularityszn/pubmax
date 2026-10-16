@@ -167,7 +167,7 @@ describe("the tonight lede, hydrated", () => {
     expect(lede).not.toContain("Ticketmaster");
   });
 
-  it("shows every pub's reason the same way, with nothing behind a disclosure", async () => {
+  it("folds every pub's reason the same way, so no card is the odd one out", async () => {
     const rows = Array.from({ length: 6 }, (_, index) => ({
       ...HYPED[index % HYPED.length]!,
       name: `Pub ${index + 1}`,
@@ -177,16 +177,19 @@ describe("the tonight lede, hydrated", () => {
     const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
     expect(pubs).toHaveLength(6);
     for (const [index, pub] of pubs.entries()) {
-      expect(pub.querySelector("details")).toBeNull();
-      expect(pub.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
-      expect(pub.querySelector(".tonightHypedSource")?.getAttribute("href"))
+      const reason = pub.querySelector<HTMLDetailsElement>("details.tonightHypedReason");
+      expect(reason, `card ${index + 1} folds its reason`).not.toBeNull();
+      expect(reason!.open).toBe(false);
+      expect(reason!.querySelector("summary")?.textContent).toContain("Why this pub");
+      expect(reason!.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
+      expect(reason!.querySelector(".tonightHypedSource")?.getAttribute("href"))
         .toBe(rows[index]!.sources[0]!.url);
-      expect(pub.querySelector(".tonightHypedChecked")?.textContent).toContain("Checked");
+      expect(reason!.querySelector(".tonightHypedChecked")?.textContent).toContain("Checked");
     }
     const more = container.querySelector<HTMLDetailsElement>(".tonightHypedMore");
     more!.querySelector("summary")!.click();
     expect(more?.open).toBe(true);
-    expect(more?.querySelector("details")).toBeNull();
+    expect(more?.querySelectorAll("details.tonightHypedReason").length).toBeGreaterThan(0);
   });
 
   it("leads with pubs the map can open and prints the listed pint we hold", async () => {
@@ -207,7 +210,8 @@ describe("the tonight lede, hydrated", () => {
     const price = pubs[0]!.querySelector('[data-testid="tonight-hyped-price"]');
     expect(price?.textContent).toContain("Cheapest listed pint");
     expect(price?.textContent).toContain("£5.20");
-    expect(price?.textContent).toContain("1 September 2026");
+    expect(price?.textContent).toContain("listed 1 Sept");
+    expect(price?.querySelector("time")?.getAttribute("title")).toBe("1 September 2026");
     expect(pubs[1]!.querySelector('[data-testid="tonight-hyped-price"]')).toBeNull();
     expect(pubs[1]!.textContent).toContain("Not on our map yet");
   });

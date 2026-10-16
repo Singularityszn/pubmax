@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, ChevronDown, ExternalLink, MapPin } from "lucide-react";
+import { ChevronDown, ExternalLink, MapPin } from "lucide-react";
 
-import { formatObservedDate } from "@/lib/dataFreshness";
+import { formatObservedDate, formatObservedDayShort } from "@/lib/dataFreshness";
 import {
   hypedPubCredit,
   hypedPubMapHref,
@@ -24,9 +24,12 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
  *
  * Pubs the map can open come first. A pub we have not got on the map yet
  * still shows, after them, and says so, rather than being dropped for the
- * failing of our own index. Every card reads the same way: the place, the
- * way onto the map, the listed pint when we hold one, then the reason and
- * its credit, with nothing folded behind a toggle.
+ * failing of our own index. Every card reads the same compact way: the name,
+ * the area with its listed pint and day, then one row holding "Why this pub"
+ * (the reason and its credit, folded) and the way onto the map. Compact because the
+ * first card has to clear a short phone's docked consent card whole, and
+ * one shape for every card because a list that folds only its first row
+ * reads as broken.
  */
 export default function TonightHypedPubs({
   rows = [],
@@ -85,47 +88,58 @@ function HypedRow({
   return (
     <li className="tonightHypedRow createFabLane" data-testid="tonight-hyped-row">
       <h3 className="tonightHypedName">{row.name}</h3>
-      <div className="tonightHypedPlace">
-        <p className="tonightHypedArea">
-          <MapPin size={13} aria-hidden="true" />
-          <span>{row.area}</span>
-        </p>
+      <p className="tonightHypedArea">
+        <MapPin size={13} aria-hidden="true" />
+        <span>{row.area}</span>
+        {pint ? (
+          // The same figure the cheapest-pints list and the pub's own card
+          // read, never without the day it was listed.
+          <span className="tonightHypedPrice" data-testid="tonight-hyped-price">
+            {" · "}
+            <span className="tonightHypedSr">Cheapest listed pint </span>
+            <strong className="tonightHypedPriceFigure">{formatPrice(pint.priceGbp)}</strong>
+            {" · listed "}
+            <time
+              dateTime={pint.observedAt}
+              title={formatObservedDate(new Date(pint.observedAt))}
+            >
+              {formatObservedDayShort(new Date(pint.observedAt))}
+            </time>
+          </span>
+        ) : null}
+      </p>
+      <div className="tonightHypedActions">
+        <details className="tonightHypedReason">
+          <summary className="tonightHypedReasonToggle">
+            <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
+            Why this pub
+          </summary>
+          <p className="tonightHypedWhy">{row.whyLine}</p>
+          {credit ? (
+            <p className="tonightHypedCredit">
+              <a
+                className="tonightHypedSource"
+                href={credit.url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {credit.label}
+                <ExternalLink size={12} aria-hidden="true" />
+              </a>
+              <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
+            </p>
+          ) : null}
+        </details>
         {mapHref ? (
+          // No trailing arrow: at 320px the two actions share a row beside the
+          // create disc's lane only without it.
           <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
             Open on map
-            <ArrowRight size={13} aria-hidden="true" />
           </Link>
         ) : (
           <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
         )}
       </div>
-      {pint ? (
-        // The same figure the cheapest-pints list and the pub's own card read,
-        // with the day it was listed beside it.
-        <p className="tonightHypedPrice" data-testid="tonight-hyped-price">
-          <span>Cheapest listed pint</span>{" "}
-          <strong className="tonightHypedPriceFigure">{formatPrice(pint.priceGbp)}</strong>
-          <span className="tonightHypedPriceDate">
-            {" "}
-            · listed {formatObservedDate(new Date(pint.observedAt))}
-          </span>
-        </p>
-      ) : null}
-      <p className="tonightHypedWhy">{row.whyLine}</p>
-      {credit ? (
-        <p className="tonightHypedCredit">
-          <a
-            className="tonightHypedSource"
-            href={credit.url}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            {credit.label}
-            <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
-        </p>
-      ) : null}
     </li>
   );
 }
