@@ -1,0 +1,30 @@
+A/B start 2026-10-15T22:19:45.738Z device=desktop pairs=6
+A=http://127.0.0.1:3101 B=http://127.0.0.1:3101
+pair 1 A firstPin=NONE fcp=472 lcp=2640 chunk 693->1649 (script) wave1End=1649 chunkReady=2255 constructed=2239 sceneBuilt=-1 firstPinsMark=2479 dupJs=0
+pair 1 B firstPin=NONE fcp=460 lcp=2608 chunk 44->1523 (link) wave1End=1852 chunkReady=1182 constructed=2246 sceneBuilt=-1 firstPinsMark=2352 dupJs=0
+pair 2 B firstPin=NONE fcp=428 lcp=2500 chunk 41->1503 (link) wave1End=1898 chunkReady=1293 constructed=2188 sceneBuilt=-1 firstPinsMark=2301 dupJs=0
+pair 2 A firstPin=NONE fcp=448 lcp=2680 chunk 698->1662 (script) wave1End=1662 chunkReady=2343 constructed=2328 sceneBuilt=-1 firstPinsMark=2522 dupJs=0
+pair 3 A firstPin=NONE fcp=420 lcp=2808 chunk 702->1699 (script) wave1End=1699 chunkReady=2377 constructed=2353 sceneBuilt=-1 firstPinsMark=2565 dupJs=0
+pair 3 B firstPin=NONE fcp=464 lcp=2728 chunk 49->1537 (link) wave1End=1844 chunkReady=1222 constructed=2318 sceneBuilt=-1 firstPinsMark=2384 dupJs=0
+pair 4 B firstPin=NONE fcp=484 lcp=2408 chunk 61->1560 (link) wave1End=1906 chunkReady=1309 constructed=2068 sceneBuilt=-1 firstPinsMark=2208 dupJs=0
+pair 4 A firstPin=NONE fcp=440 lcp=2740 chunk 685->1641 (script) wave1End=1641 chunkReady=2358 constructed=2333 sceneBuilt=-1 firstPinsMark=2520 dupJs=0
+pair 5 A firstPin=NONE fcp=452 lcp=2704 chunk 681->1636 (script) wave1End=2002 chunkReady=2303 constructed=2273 sceneBuilt=-1 firstPinsMark=2522 dupJs=0
+pair 5 B firstPin=NONE fcp=436 lcp=2976 chunk 46->1507 (link) wave1End=1847 chunkReady=1228 constructed=2415 sceneBuilt=-1 firstPinsMark=2494 dupJs=0
+pair 6 B firstPin=NONE fcp=412 lcp=2568 chunk 50->1516 (link) wave1End=1834 chunkReady=1216 constructed=2093 sceneBuilt=-1 firstPinsMark=2176 dupJs=0
+pair 6 A firstPin=NONE fcp=484 lcp=2760 chunk 718->1663 (script) wave1End=1663 chunkReady=2350 constructed=2328 sceneBuilt=-1 firstPinsMark=2574 dupJs=0
+
+A: firstPin median null ms (NONE/NONE/NONE/NONE/NONE/NONE)
+A: fcp median 450 ms (472/448/420/440/452/484)
+A: lcp median 2722 ms (2640/2680/2808/2740/2704/2760)
+A: canvas chunk requested median 696 ms, landed median 1656 ms
+A: map-chunk-ready median 2347 ms (2255/2343/2377/2358/2303/2350)
+A: map-constructed median 2328 ms (2239/2328/2353/2333/2273/2328)
+A: first-pins mark median 2522 ms
+B: firstPin median null ms (NONE/NONE/NONE/NONE/NONE/NONE)
+B: fcp median 448 ms (460/428/464/484/436/412)
+B: lcp median 2588 ms (2608/2500/2728/2408/2976/2568)
+B: canvas chunk requested median 48 ms, landed median 1520 ms
+B: map-chunk-ready median 1225 ms (1182/1293/1222/1309/1228/1216)
+B: map-constructed median 2217 ms (2246/2188/2318/2068/2415/2093)
+B: first-pins mark median 2327 ms
+A/B end 2026-10-15T22:20:52.768Z
