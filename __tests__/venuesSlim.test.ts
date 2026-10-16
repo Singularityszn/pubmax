@@ -47,6 +47,7 @@ const SLIM_KEYS = [
   "id",
   "lat",
   "lng",
+  "locality",
   "name",
 ];
 
@@ -177,6 +178,13 @@ function matchingIdsFromFull(filters: Filters): string[] {
 }
 
 describe("venues_slim.json", () => {
+  it("carries Hatton Garden as reader area while retaining Camden borough", () => {
+    const hatton = slim.find((venue) => venue.name === "The Sir Christopher Hatton");
+    expect(hatton?.locality).toBe("Hatton Garden");
+    expect(hatton?.borough).toBe("Camden");
+    expect(hatton ? slimVenueToPin(hatton).locality : undefined).toBe("Hatton Garden");
+  });
+
   it("is the payload URL used by the map loader", () => {
     expect(SLIM_VENUES_PATH).toBe("/data/venues_slim.json");
     expect(CITIES.london.slimVenuesPath).toBe(SLIM_VENUES_PATH);
@@ -304,6 +312,12 @@ describe("venues_slim.json", () => {
     expect(
       rows.some((row) => row.filterHints?.drinkText?.includes("guinness")),
     ).toBe(true);
+  });
+
+  it("keeps locality separate from the slim address search contract", () => {
+    const hatton = slim.find((row) => row.name === "The Sir Christopher Hatton");
+    expect(hatton?.locality).toBe("Hatton Garden");
+    expect(hatton?.filterHints?.searchText).not.toContain("hatton garden");
   });
 
   it("drink-lens filters use slim drinkCategories / drinkBrands hints", () => {

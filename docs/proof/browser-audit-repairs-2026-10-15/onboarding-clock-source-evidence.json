@@ -1,0 +1,98 @@
+{
+  "startingHead": "2122760f1f2c1413b9b98fe94d1218a768c9550e",
+  "base": "1f9a0a50dad3e193da400475447648a27a71a309",
+  "buildId": "build-TfctsWXpff2fKS",
+  "browser": {
+    "channel": "chrome",
+    "version": "154.0.8037.93"
+  },
+  "testSourceSha256": {
+    "e2e/web-first-run-journey.spec.ts": "86ff72dfe0067a6ca491be8f1fbbaa730ba5191721c8b1197e4ee2255f111551",
+    "playwright.config.ts": "c4a78f8ec1a7ecf513811afe4244c955af43925afd1d80d02d362657268e37db",
+    "scripts/e2e/canonical-price-server.ts": "89db0c38396efaedb0db8a6b5d6a0816e495a1035ef7b3b5a1b577306ec27d66"
+  },
+  "runtimeSourceSha256": {
+    "components/onboarding/FirstRunOnboarding.tsx": "6c99aa9ec69dd6783f04cfd5e75a3316a614f4d359cd19507afd7e672ee12138",
+    "components/plan/PlanComposer.tsx": "12816001797b31fe3688f077595fbe7cd52f2fe28dfb5621578e6be084e3df24",
+    "lib/heritage.ts": "a3bdeabf75df57901819894ab376103f127657744122bae64add4615630b1853",
+    "lib/nativeFirstRun.ts": "80543d87f7cc8899a1cf9566ba46d35f75db7841b6c2dda4bf9590325550b62c",
+    "lib/nightPlanning.ts": "43a1d88cbf07dd4971a5d2e890961881c1c11fe9be1c19d72bc3dd74258253c4",
+    "lib/onboardingFlow.ts": "16ee0a71e5caed2691d14247f7a827ad556251709fad00cc7b9c15119298f54e",
+    "lib/planGeneration.server.ts": "1d7195c6ef4d298a0a95c4cd57cf2edea6e0391df36d276524f3b1689b1e6cc0",
+    "lib/planGenerationDto.ts": "8a062d1b8801463d5ce7b4e4967c83fa0152a144e28a811bfa53765ad076fc19",
+    "lib/planPriceLimits.ts": "4d9a34548769ade85569ba69b794218ad4a35eb56b1a674735fe560cb6e4dee3",
+    "lib/planRouteView.ts": "c381d04a165f782dfa58d481e35ae78ec94af4845c42c6f02df6d4330f91d4ab",
+    "lib/promptBudget.ts": "b60b8bd356fae63bb60d30b554751ae080fab60a17d4a40db5dceb8277610be5",
+    "app/api/plans/generate/route.ts": "24f07776a661cdbcce69789446d975703e972e0de8f643071d1129924e95f6b6",
+    "lib/planRouteEvidence.server.ts": "9bfffee0b7ef362a3c6e0b9a3b80e047e2d1e1c8c7c5302d69c59f4d9166df7f",
+    "lib/planGenerationSelection.server.ts": "d2542083619fec8b1d161ffcac704c8746a6ad918370772c0dd9b82123d941a9",
+    "public/data/pint_prices_app_dataset.json": "a33051082249589f151f235b14149a3fc177a58f4000a299b5200f2ee6aa7bdf",
+    "data/freshness_registry.json": "c58390a8e8d801f209866554efb1e919965246cf8b3513e3ca1756895e98206b"
+  },
+  "applicationAndDataUnchanged": true,
+  "futureAmbientServerClock": "2027-10-15T12:00:00.000Z",
+  "fixtureDateNow": "2026-10-02T12:00:01.000Z",
+  "runs": {
+    "normal": {
+      "stats": {
+        "startTime": "2026-10-15T21:44:48.244Z",
+        "duration": 13723.009,
+        "expected": 10,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "configuredRetries": 0,
+      "serverClocks": [
+        {
+          "baseURL": "http://127.0.0.1:64103",
+          "now": 1790942401000,
+          "ambientBaseURL": "http://localhost:37821"
+        }
+      ]
+    },
+    "future": {
+      "stats": {
+        "startTime": "2026-10-15T21:45:02.184Z",
+        "duration": 14811.682,
+        "expected": 10,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "configuredRetries": 0,
+      "serverClocks": [
+        {
+          "baseURL": "http://127.0.0.1:64357",
+          "now": 1790942401000,
+          "ambientBaseURL": "http://localhost:37821"
+        }
+      ]
+    }
+  },
+  "harnessUnitTests": {
+    "passed": 3,
+    "exitCode": 0
+  },
+  "deliberateBuildReuse": {
+    "passed": 1,
+    "exitCode": 0
+  },
+  "touchedLint": {
+    "exitCode": 0
+  },
+  "cleanup": [
+    {
+      "port": 37821,
+      "closed": true
+    },
+    {
+      "port": 64103,
+      "closed": true
+    },
+    {
+      "port": 64357,
+      "closed": true
+    }
+  ]
+}

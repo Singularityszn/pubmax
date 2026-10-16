@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
-import { MAP_CANVAS_READINESS_CEILING_MS } from "../lib/mapCanvasAvailability";
 
 // Quality-floor + security-seam E2E (PRD "Testing Decisions" — public pages under
 // CSP; owner-only profile edit rejected for non-owners; POI + non-alcoholic
@@ -225,8 +225,9 @@ test("quality floor: a POI category toggle flips in the coordinated Layers sheet
   // release waits on the canvas's first painted pins, bounded by the shell's
   // own readiness ceiling, so the default 10s expect timeout raced a slow
   // runner's first frame rather than testing the toggle.
+  await expectMobileMapShellReady(page);
   const layersFab = page.getByRole("button", { name: "More map controls" });
-  await expect(layersFab).toBeVisible({ timeout: MAP_CANVAS_READINESS_CEILING_MS });
+  await expect(layersFab).toBeVisible();
   await layersFab.click();
 
   const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');

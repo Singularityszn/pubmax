@@ -1,0 +1,257 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M50A8YF57AJYAF4K4MF8KXBF
+
+x·x·x·x·x·x·x·x·x·x·x·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxx·x·x·x·xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx··························----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 180 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, One serving under£10 in Soho"}
+AssertionError: expected { preparation: 200, post: 422 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+    "post": 422,
+-   "preparation": 422,
++   "preparation": 200,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:228:8
+    226|     }));
+    227|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    228|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    229|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+    230|     expect(await prepared.response.json()).toMatchObject({ code: "MEAL…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/180]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 for one serving in Soho"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 for two servings in Soho"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 for a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 a serving and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, a serving and pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub and a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub and a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint plus a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 a serving plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, a serving plus pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub plus a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub plus a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub plus a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub plus a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint+a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 a serving+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, a serving+pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub+a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub+a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub+a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub+a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint&a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 a serving&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, a serving&pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub&a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub&a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub&a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub&a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 for two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint and two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 two servings and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, two servings and pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub and two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub and two servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub and two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub and two servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint plus two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 two servings plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, two servings plus pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub plus two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub plus two servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub plus two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub plus two servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint+two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 two servings+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, two servings+pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub+two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub+two servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub+two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub+two servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint&two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 two servings&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, two servings&pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub&two servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub&two servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub&two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub&two servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 for half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint and half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 half a serving and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, half a serving and pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub and half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub and half a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub and half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub and half a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint plus half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 half a serving plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, half a serving plus pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub plus half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub plus half a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub plus half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub plus half a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint+half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 half a serving+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, half a serving+pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub+half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub+half a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub+half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub+half a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint&half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 half a serving&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, half a serving&pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub&half a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub&half a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub&half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub&half a serving under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 for 2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint and 2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 2/3 servings and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, 2/3 servings and pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub and 2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub and 2/3 servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub and 2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub and 2/3 servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint plus 2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 2/3 servings plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, 2/3 servings plus pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub plus 2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub plus 2/3 servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub plus 2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub plus 2/3 servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint+2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 2/3 servings+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, 2/3 servings+pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub+2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub+2/3 servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub+2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub+2/3 servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint&2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 2/3 servings&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, 2/3 servings&pint under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint at pub&2/3 servings"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub&2/3 servings"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint at pub&2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint at pub&2/3 servings under£10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint in X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint in X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint in X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint in X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint from X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint from X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint from X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint near X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint near X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint near X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint near X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint around X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint around X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint around X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint around X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint within X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint within X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint within X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint within X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint inside X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint inside X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint inside X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint inside X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint outside X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint outside X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint outside X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint outside X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint by X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint by X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint by X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint by X and a serving £10"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, £10 pint where X and a serving"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint where X and a serving"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint where X and a serving £10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint where X and a serving £10"]}}
+AssertionError: expected { preparation: 200, post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": 200,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:228:8
+    226|     }));
+    227|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    228|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    229|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+    230|     expect(await prepared.response.json()).toMatchObject({ code: "MEAL…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/180]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, Two servings under£10 in Soho"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint and a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint plus a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint+a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint&a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint and two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint plus two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint+two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint&two servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint and half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint plus half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint+half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint&half a serving under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, 2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint and 2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint plus 2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint+2/3 servings under£10"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses priced generic serving nouns before paid work: {"query":"3 pubs in Clapham, pint&2/3 servings under£10"}
+AssertionError: expected { preparation: 200, post: 422 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+    "post": 422,
+-   "preparation": 422,
++   "preparation": 200,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:228:8
+    226|     }));
+    227|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    228|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    229|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+    230|     expect(await prepared.response.json()).toMatchObject({ code: "MEAL…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/180]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  180 failed | 106 passed | 4540 skipped (4826)
+   Start at  18:47:00
+   Duration  2.74s (tests 68%, transform 24%, import 9%)
+

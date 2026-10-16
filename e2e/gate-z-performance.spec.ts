@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 type GateZMetrics = {
   lcpMs: number;
@@ -55,7 +56,7 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
     }
 });
   await page.goto("/map");
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight", exact: true }).click();

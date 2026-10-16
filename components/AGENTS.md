@@ -21,6 +21,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
 - [A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER.](../docs/rules/components-map-canvas-and-pins.md#a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i)
 - [THE PINS ARRIVE DURING THE ARRIVAL FLIGHT, NEVER BEFORE THE BASEMAP.](../docs/rules/components-map-canvas-and-pins.md#the-pins-arrive-during-the-arrival-flight-never-before-the-basemap)
+- [THE DOCUMENT DRAWS THE OPENING PRICES BEFORE THE ENGINE, AND ONLY THE ONES IT WILL DRAW.](../docs/rules/components-map-canvas-and-pins.md#the-document-draws-the-opening-prices-before-the-engine-and-only-the-ones-it-wil)
 
 ## Sheets, chrome and navigation
 

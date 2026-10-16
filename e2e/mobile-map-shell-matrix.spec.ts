@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
-import { MAP_CANVAS_READINESS_CEILING_MS } from "../lib/mapCanvasAvailability";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -95,7 +95,7 @@ for (const viewport of VIEWPORTS) {
 
       const response = await page.goto("/map");
       expect(response?.status()).toBe(200);
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 30_000 });
+      await expectMobileMapShellReady(page, 30_000);
       // ONE bar (design judgement 2026-08-01, finding 2.3): no control rail.
       await expect(page.locator(".mobileMapRail")).toHaveCount(0);
       await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
@@ -266,7 +266,7 @@ test("TfL badges a badly disrupted line, and only that", async ({ page }) => {
   // The chip is phone shell chrome, held until the map's loading frame lets go
   // (`mobileShellReady` in components/PubMap.tsx), so it is owed the shell's
   // readiness ceiling rather than the default expect timeout.
-  await expect(tflChip).toBeVisible({ timeout: MAP_CANVAS_READINESS_CEILING_MS });
+  await expectMobileMapShellReady(page);
   await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveText("1");
   await expect(tflChip).toHaveAttribute(
     "aria-label",
@@ -343,7 +343,7 @@ for (const theme of THEMES) {
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     }, theme);
     await page.goto("/map");
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await expect.poll(() => page.evaluate(() =>
@@ -375,7 +375,7 @@ for (const theme of THEMES) {
         }
       }, { nextZoom: zoom, nextPitch: pitch });
       await page.goto("/map");
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+      await expectMobileMapShellReady(page, 45_000);
       await waitForMapPaint(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect.poll(() => page.evaluate(() => {

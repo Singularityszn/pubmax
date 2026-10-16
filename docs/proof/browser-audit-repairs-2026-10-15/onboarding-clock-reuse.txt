@@ -1,0 +1,11 @@
+
+Running 1 test using 1 worker
+
+(node:19943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19944) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✓ Running next.config.mjs took 362ms
+  ✓  1 [installed-chrome] › e2e/web-first-run-journey.spec.ts:157:3 › with location allowed › carries a located Soho area and bounded budget into the planner (2.9s)
+
+  1 passed (3.3s)

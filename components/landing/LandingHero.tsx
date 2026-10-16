@@ -118,6 +118,7 @@ type Answer = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   priceGbp: number;
   /** "a pint of Pravha" for the anchor; the slim index names no pint. */
   pintName: string | null;
@@ -145,6 +146,7 @@ function anchorAnswer(
     id: card.id,
     name: card.name,
     area: card.area,
+    primaryBorough: card.primaryBorough,
     priceGbp: card.priceGbp,
     pintName: card.pintName,
     drinkHref: card.drinkHref,
@@ -166,6 +168,7 @@ function nearAnswer(
     id: first.id,
     name: first.name,
     area: first.borough,
+    primaryBorough: first.borough,
     priceGbp: first.cheapestPrice,
     pintName: null,
     drinkHref: null,
@@ -177,6 +180,7 @@ function nearAnswer(
       id: card.id,
       name: card.name,
       area: card.borough,
+      primaryBorough: card.borough,
       priceGbp: card.cheapestPrice,
       walkMinutes: card.walkMinutes,
       hasThen: card.id in archive,
@@ -301,7 +305,7 @@ export default function LandingHero({
   // swap moves to that pub's own borough rather than keeping the anchor's.
   const photo = landingPhotoFor(
     answer
-      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.area) }
+      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.primaryBorough) }
       : {},
   );
   // The one filled action, and it is the same door whether or not a pub card
@@ -536,7 +540,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (
                   <span className="lpRailMeta">{row.walkMinutes} min walk</span>
-                ) : row.area !== answer.area ? (
+                ) : row.primaryBorough !== answer.primaryBorough ? (
                   <span className="lpRailMeta">{row.area}</span>
                 ) : null}
               </span>

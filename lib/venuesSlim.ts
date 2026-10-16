@@ -1,6 +1,6 @@
 // Client-safe loader for the SLIM venue index (public/data/venues_slim.json,
 // built by scripts/build_slim_index.mjs). This is the minimum the map needs to
-// render pins + labels + price colour + filter hints: the map fetches THIS
+// render pins + labels + price colour + neighbourhood + filter hints: the map fetches THIS
 // (~400 KB) on load
 // instead of the heavier source datasets, and fetches per-venue detail lazily
 // via /api/venue/[id] only when a venue is opened.
@@ -57,6 +57,8 @@ export type SlimVenue = {
    */
   priceObservedAt?: string;
   borough: string;
+  /** Neighbourhood label for reader-facing area surfaces. */
+  locality?: string;
   /**
    * Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
    * Absent when no station was comparable — honestly unknown, never bucketed.
@@ -158,6 +160,8 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const price = row.cheapestPrice;
   const priceOk =
     price === null || (typeof price === "number" && Number.isFinite(price));
+  const localityOk =
+    row.locality === undefined || typeof row.locality === "string";
   // zone, when present, must be a positive integer (fare zone). Absent is fine.
   const zoneOk =
     row.zone === undefined ||
@@ -176,6 +180,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   return (
     priceOk &&
     observedOk &&
+    localityOk &&
     zoneOk &&
     kindOk &&
     priceBandOk &&
@@ -200,6 +205,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
       ? { priceObservedAt: venue.priceObservedAt }
       : {}),
     borough: venue.borough,
+    ...(venue.locality !== undefined ? { locality: venue.locality } : {}),
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),

@@ -9,6 +9,7 @@ import {
   isBudgetChoiceId,
   nextOnboardingStep,
   onboardingResult,
+  onboardingPlanHref,
   onboardingStepNumber,
   previousOnboardingStep,
   clearPlannerHandoff,
@@ -192,8 +193,24 @@ describe("the desktop handoff", () => {
     });
   });
 
+
   it("moves nothing the journey did not give", () => {
     expect(desktopHandoffMoves({ patch: null, budget: "any" })).toEqual({ maxPrice: null, center: null });
     expect(desktopHandoffMoves({ patch: null, budget: null })).toEqual({ maxPrice: null, center: null });
+  });
+});
+
+
+describe("onboarding's plan destination", () => {
+  it("opens the canonical planner with Soho and the original pint ceiling", () => {
+    const href = onboardingPlanHref({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
+    const url = new URL(href, "https://pubmaxxing.com");
+    expect(url.pathname).toBe("/plan");
+    expect(url.searchParams.get("query")).toBe("3 pubs in Soho, under £15 per person, maximum £5 per pint");
+  });
+
+  it("does not invent a patch or a ceiling for an unanswered choice", () => {
+    const href = onboardingPlanHref({ patch: null, budget: "any" });
+    expect(href).toBe("/plan?from=onboarding");
   });
 });

@@ -55,6 +55,7 @@ type SlimRow = {
   id?: unknown;
   name?: unknown;
   borough?: unknown;
+  locality?: unknown;
   lat?: unknown;
   lng?: unknown;
   cheapestPrice?: unknown;
@@ -124,6 +125,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
       ...(typeof row.priceObservedAt === "string" && row.priceObservedAt
         ? { priceObservedAt: row.priceObservedAt }
         : {}),
+      ...(typeof row.locality === "string" ? { locality: row.locality } : {}),
       ...(typeof row.zone === "number" &&
       Number.isInteger(row.zone) &&
       row.zone > 0
