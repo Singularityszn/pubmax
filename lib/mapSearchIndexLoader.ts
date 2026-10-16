@@ -14,7 +14,7 @@ import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
 import type { Venue } from "@/lib/venues";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v1";
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v2";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
