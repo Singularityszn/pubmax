@@ -7,6 +7,7 @@ import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import {
+  isCompleteMapSearchIndex,
   loadMapSearchIndex,
 } from "@/lib/mapSearchIndexLoader";
 import {
@@ -150,14 +151,18 @@ export default function MapSearchSuggest({
   const [searchIndex, setSearchIndex] = useState<MapSearchIndex | null>(null);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
+  // An index missing a city pack is shown, and asked for again on the next
+  // focus or keystroke rather than kept until the page reloads.
+  const searchIndexCompleteRef = useRef(false);
   const ensureSearchIndex = useCallback(() => {
-    if (searchIndex || searchIndexPromiseRef.current) return;
+    if (searchIndexCompleteRef.current || searchIndexPromiseRef.current) return;
     setSearchIndexLoading(true);
     const pending = loadMapSearchIndex({
       currentCityId: cityId,
       currentVenues: venues,
     })
       .then((index) => {
+        searchIndexCompleteRef.current = isCompleteMapSearchIndex(index);
         setSearchIndex(index);
         return index;
       })
@@ -167,11 +172,11 @@ export default function MapSearchSuggest({
         setSearchIndexLoading(false);
       });
     searchIndexPromiseRef.current = pending;
-  }, [cityId, searchIndex, venues]);
+  }, [cityId, venues]);
 
   useEffect(() => {
-    if (mode === "overlay") ensureSearchIndex();
-  }, [cityId, ensureSearchIndex, mode]);
+    if (mode === "overlay" && !searchIndex) ensureSearchIndex();
+  }, [cityId, ensureSearchIndex, mode, searchIndex]);
 
   const suggestions = useMemo(
     () =>

@@ -33,6 +33,7 @@ const SEARCH_INDEX = {
 
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/mapSearchIndexLoader", () => ({
+  isCompleteMapSearchIndex: () => true,
   loadMapSearchIndex: vi.fn(() => Promise.resolve(SEARCH_INDEX)),
 }));
 

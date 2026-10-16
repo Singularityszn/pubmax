@@ -121,6 +121,11 @@ export type MapSearchIndexLoadOptions = {
   currentVenues?: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[];
 };
 
+/** Whether the index answers for every city, so a caller need not ask again. */
+export function isCompleteMapSearchIndex(index: MapSearchIndex): boolean {
+  return index === cachedIndex;
+}
+
 export function loadMapSearchIndex(
   options: MapSearchIndexLoadOptions = {},
 ): Promise<MapSearchIndex> {
@@ -156,7 +161,8 @@ export function loadMapSearchIndex(
         loaded.map(({ pack }) => pack),
       );
       // A city whose pack did not load is answered for now and asked for again
-      // on the next search, never kept as the session's index.
+      // on the next search (isCompleteMapSearchIndex is false), never kept as
+      // the session's index.
       if (loaded.every(({ complete }) => complete)) {
         cachedIndex = index;
         writeSurfaceSnapshot(SEARCH_INDEX_CACHE_KEY, index);

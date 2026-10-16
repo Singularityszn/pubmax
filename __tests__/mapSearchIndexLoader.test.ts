@@ -55,13 +55,14 @@ describe("loadMapSearchIndex", () => {
       rows: cityId === "london" ? LONDON_PACK : [],
       status: "ready",
     }));
-    const { loadMapSearchIndex } = await freshLoader();
+    const { isCompleteMapSearchIndex, loadMapSearchIndex } = await freshLoader();
 
     const index = await loadMapSearchIndex({
       currentCityId: "london",
       currentVenues: OPENING_SHARD_VENUES,
     });
 
+    expect(isCompleteMapSearchIndex(index)).toBe(true);
     expect(loadSlimVenuesForCityResult).toHaveBeenCalledWith("london");
     const dolphins = searchMapSearchIndex(index, "Dolphin")
       .filter((result) => result.kind === "venue")
@@ -97,12 +98,13 @@ describe("loadMapSearchIndex", () => {
         ? { rows: [], status: "unavailable" }
         : { rows: [], status: "ready" },
     );
-    const { loadMapSearchIndex } = await freshLoader();
+    const { isCompleteMapSearchIndex, loadMapSearchIndex } = await freshLoader();
 
-    await loadMapSearchIndex({
+    const partial = await loadMapSearchIndex({
       currentCityId: "london",
       currentVenues: OPENING_SHARD_VENUES,
     });
+    expect(isCompleteMapSearchIndex(partial)).toBe(false);
     expect(writeSurfaceSnapshot).not.toHaveBeenCalled();
 
     loadSlimVenuesForCityResult.mockImplementation(async (cityId) => ({
@@ -115,6 +117,7 @@ describe("loadMapSearchIndex", () => {
       listEnabledCities().length * 2,
     );
     expect(retried.venues.map((venue) => venue.id)).toContain("venue-eltcmh");
+    expect(isCompleteMapSearchIndex(retried)).toBe(true);
     expect(writeSurfaceSnapshot).toHaveBeenCalledTimes(1);
   });
 });
