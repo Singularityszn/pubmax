@@ -9,6 +9,7 @@ import {
   subscribeTour,
 } from "@/lib/firstRunTour";
 import { WEB_ONBOARDING_START_HREF } from "@/lib/firstRunRoute";
+import { isNativeApp } from "@/lib/nativePlatform";
 
 import "@/components/ui/chip.css";
 
@@ -25,6 +26,10 @@ export const NEAR_ONBOARDING_CHIP_LABEL = "New here? Set your budget and patch";
  * The server snapshot says "seen", so the prerendered document never carries
  * the chip and hydration never disagrees with it. It is a client navigation,
  * which is what lets `?start=web` past proxy.ts's document rule.
+ *
+ * It is a WEB door: inside the native shell FirstRunOnboardingGate ignores
+ * `?start=web` and, with no native handoff, sends the reader to /tonight, so a
+ * fresh install that deep-links to /near is not offered it.
  */
 export default function NearOnboardingChip() {
   const seen = useSyncExternalStore(
@@ -32,7 +37,9 @@ export default function NearOnboardingChip() {
     getTourSeenSnapshot,
     getTourSeenServerSnapshot,
   );
-  if (seen) return null;
+  // Probed only after the seen check: the hydration render reads the server
+  // snapshot ("seen") and returns before this, so it cannot disagree.
+  if (seen || isNativeApp()) return null;
   return (
     <p className="nmnFirstRunChip">
       <Link prefetch={false} href={WEB_ONBOARDING_START_HREF} className="uiChip">

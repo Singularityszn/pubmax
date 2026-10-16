@@ -114,6 +114,14 @@ describe("the first-run chip on /near", () => {
     expect(chipHref()).toBe("/onboarding?start=web");
   });
 
+  it("is not offered inside the native shell, where the web setup cannot start", async () => {
+    shell.native = true;
+    await render(createElement(NearOnboardingChip));
+
+    expect(chipHref()).toBeNull();
+    expect(container.textContent).toBe("");
+  });
+
   it("is absent for a visitor who already has the seen mark", async () => {
     markTourSeen();
     await render(createElement(NearOnboardingChip));
