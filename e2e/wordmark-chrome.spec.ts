@@ -7,6 +7,7 @@ const CASES = [
     path: "/",
     selector: ".lpWordmark .pubmaxxWordmark",
     hostSelector: ".lpWordmark",
+    paintedBeforeHydration: true,
   },
   {
     label: "mobile app navigation",
@@ -14,6 +15,7 @@ const CASES = [
     path: "/today",
     selector: ".siteNavBrand .pubmaxxWordmark",
     hostSelector: ".siteNavBrand",
+    paintedBeforeHydration: true,
   },
   {
     label: "desktop navigation",
@@ -21,6 +23,9 @@ const CASES = [
     path: "/map",
     selector: ".siteNavBrand .pubmaxxWordmark",
     hostSelector: ".siteNavBrand",
+    // The /map nav mounts on the client, after hydration has already handed
+    // the document the display face, so it has no fallback paint to check.
+    paintedBeforeHydration: false,
   },
 ] as const;
 
@@ -34,7 +39,26 @@ for (const view of CASES) {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     });
 
-    const response = await page.goto(view.path, { waitUntil: "domcontentloaded" });
+    // Hold the app's JS until the fallback face has been measured. Hydration
+    // is what clears the fallback-only --font-display, and a fast one can do
+    // it before the first read, so without the hold that read could land in
+    // either face. The server-rendered wordmark paints without any JS.
+    let releaseScripts!: () => void;
+    const scriptsHeld = new Promise<void>((resolve) => {
+      releaseScripts = resolve;
+    });
+    const isAppChunk = (url: URL) =>
+      url.pathname.startsWith("/_next/static/chunks/") && url.pathname.endsWith(".js");
+    if (view.paintedBeforeHydration) {
+      await page.route(isAppChunk, async (route) => {
+        await scriptsHeld;
+        await route.continue();
+      });
+    } else {
+      releaseScripts();
+    }
+
+    const response = await page.goto(view.path, { waitUntil: "commit" });
     expect(response?.status()).toBe(200);
 
     const wordmark = page.locator(view.selector).first();
@@ -74,7 +98,14 @@ for (const view of CASES) {
       expect(lockup.right).toBeLessThanOrEqual(lockup.host!.right);
     };
 
-    await expectUncut();
+    if (view.paintedBeforeHydration) {
+      expect(
+        await page.evaluate(() => document.documentElement.style.getPropertyValue("--font-display")),
+        "the first read is in the fallback face",
+      ).not.toBe("");
+      await expectUncut();
+      releaseScripts();
+    }
     await expect
       .poll(
         () => page.evaluate(() => document.documentElement.style.getPropertyValue("--font-display")),
