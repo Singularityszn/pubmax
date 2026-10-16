@@ -543,7 +543,7 @@ function walkToStation(
     return { walkMinutesEstimate: walkMinutesForKm(0), walkBasis: "straight" };
   }
   const to = { lat: station.lat, lng: station.lon };
-  const streetMetres = streetWalkMetres(from, to);
+  const streetMetres = streetWalkMetres(from, { ...to, name: station.commonName });
   if (streetMetres !== null) {
     return { walkMinutesEstimate: walkMinutesForKm(streetMetres / 1_000), walkBasis: "street" };
   }

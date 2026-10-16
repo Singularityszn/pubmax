@@ -90,6 +90,61 @@ describe("chooseByStreetWalk", () => {
   it("answers null for no candidates", () => {
     expect(chooseByStreetWalk(from, [], FIXTURE)).toBeNull();
   });
+
+  it("names a station by the one TfL says, when two of ours sit inside the match radius", () => {
+    // TfL's point sits nearer our Tottenham Court Road but names Leicester
+    // Square: the name decides, and the walk is Leicester Square's.
+    const close: StationWalkAccess = {
+      stations: [
+        { name: "Tottenham Court Road", lat: 51.5162, lng: -0.1311 },
+        { name: "Leicester Square", lat: 51.5172, lng: -0.1311 },
+      ],
+      cells: { "51.514,-0.132": [[0, 458], [1, 600]] },
+    };
+    const named = { lat: 51.5164, lng: -0.1311, name: "Leicester Square Underground Station" };
+    expect(streetWalkMetres(from, named, close)).toBe(600);
+    expect(streetWalkMetres(from, { lat: named.lat, lng: named.lng }, close)).toBe(458);
+  });
+});
+
+describe("chooseByStreetWalk on the committed table", () => {
+  const access = parseStationWalkAccess(raw);
+  const ours = (name: string) => {
+    const station = access.stations.find((s) => s.name === name);
+    if (!station) throw new Error(`no ${name} in the table`);
+    // TfL's hub point is never exactly ours: a few metres off.
+    return { id: name, commonName: `${name} Underground Station`, lat: station.lat + 0.0002, lon: station.lng };
+  };
+
+  it("passes over TfL's first when the cell leaves it out as a longer walk", () => {
+    // 51.485,-0.142: Battersea Power Station is the nearer straight line, but
+    // across the Thames; the cell keeps Pimlico at 1,090 m and drops it.
+    const from = { lat: 51.485, lng: -0.142 };
+    const batterseaPowerStation = ours("Battersea Power Station");
+    const pimlico = ours("Pimlico");
+    expect(streetWalkMetres(from, { lat: batterseaPowerStation.lat, lng: batterseaPowerStation.lon }, access)).toBeNull();
+    expect(chooseByStreetWalk(from, [batterseaPowerStation, pimlico], access)).toBe(pimlico);
+  });
+
+  it("never hands one station's walk to its neighbour inside the match radius", () => {
+    // 51.502,-0.076: the cell keeps Tower Gateway (1,096 m) but not Tower Hill,
+    // 159 m away. Tower Hill must not borrow the DLR station's walk.
+    const from = { lat: 51.502, lng: -0.076 };
+    const towerHill = ours("Tower Hill");
+    const towerGateway = ours("Tower Gateway");
+    const londonBridge = ours("London Bridge");
+    const bermondsey = ours("Bermondsey");
+    expect(streetWalkMetres(from, { lat: towerHill.lat, lng: towerHill.lon, name: towerHill.commonName }, access)).toBeNull();
+    expect(chooseByStreetWalk(from, [towerHill, londonBridge, bermondsey, towerGateway], access)).toBe(towerGateway);
+  });
+
+  it("keeps TfL's order when no candidate is a station the cell can speak for", () => {
+    const from = { lat: 51.502, lng: -0.076 };
+    const towerHill = ours("Tower Hill");
+    const nowhere = { id: "X", lat: 51.6, lon: -0.3 };
+    expect(chooseByStreetWalk(from, [nowhere, towerHill], access)).toBe(nowhere);
+    expect(chooseByStreetWalk(from, [towerHill, nowhere], access)).toBe(towerHill);
+  });
 });
 
 describe("parseStationWalkAccess", () => {

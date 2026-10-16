@@ -15,9 +15,10 @@
 // walk ends at the nearest door on foot rather than at the station point.
 //
 // THE RULE. A street walk is only ever answered for a point the table covers
-// AND a station the table can name within STATION_MATCH_M of the station TfL
-// chose. Anything else is null, and the caller keeps the straight line and
-// says so. A street walk is never shorter than the straight line.
+// AND a station the cell holds a walk to, once TfL's station is named as one
+// of ours (see matchStation). Anything else is null, and the caller keeps the
+// straight line and says so. A street walk is never shorter than the straight
+// line.
 
 import accessJson from "@/data/station_walk_access.json";
 import { coarsenViewerPoint } from "@/lib/geo";
@@ -41,10 +42,72 @@ export type StationWalkAccess = {
  * The furthest TfL's station point may sit from ours and still be the same
  * station. TfL places a hub and our source places a station point, so they
  * rarely coincide. Two of our stations can sit closer than this (Great
- * Portland Street and Regent's Park are 96 m apart), so of the cell's
- * stations inside it, the closest to TfL's point is the match.
+ * Portland Street and Regent's Park are 96 m apart, Tower Hill and Tower
+ * Gateway 159 m), so the match is made over the whole station list, never
+ * only the stations one cell happens to keep, and a name breaks the tie.
  */
 const STATION_MATCH_M = 200;
+
+/** "Tower Hill Underground Station" and "Tower Hill" both read "towerhill". */
+function nameKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(underground|dlr|rail|overground|elizabeth line)?\s*station\b/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[^a-z]/g, "");
+}
+
+/**
+ * The index of our station that TfL's station is: of ours within
+ * STATION_MATCH_M, the nearest whose name agrees with TfL's when one does,
+ * else the nearest. Null when none is that close.
+ */
+function matchStation(
+  station: { lat: number; lng: number; name?: string },
+  access: StationWalkAccess,
+): number | null {
+  const theirs = station.name ? nameKey(station.name) : "";
+  let near: { index: number; offset: number } | null = null;
+  let named: { index: number; offset: number } | null = null;
+  for (const [index, ours] of access.stations.entries()) {
+    const offset = haversineMeters(ours.lat, ours.lng, station.lat, station.lng);
+    if (offset > STATION_MATCH_M) continue;
+    if (near === null || offset < near.offset) near = { index, offset };
+    const mine = nameKey(ours.name);
+    if (theirs && mine && (theirs.startsWith(mine) || mine.startsWith(theirs))) {
+      if (named === null || offset < named.offset) named = { index, offset };
+    }
+  }
+  return (named ?? near)?.index ?? null;
+}
+
+/**
+ * The cell keeps each point's STATIONS_PER_CELL shortest street walks
+ * (scripts/build_station_walk_access.py), so a station we can name that the
+ * covered cell leaves out is known to be a longer walk than every one it
+ * keeps. It has no number, but it never wins a comparison.
+ */
+const LONGER_THAN_KEPT = Number.POSITIVE_INFINITY;
+
+function walkLookup(
+  from: { lat: number; lng: number },
+  station: { lat: number; lng: number; name?: string },
+  access: StationWalkAccess,
+): number | null {
+  const walks = access.cells[cellKey(from.lat, from.lng)];
+  if (!walks) return null;
+  const index = matchStation(station, access);
+  if (index === null) return null;
+  const kept = walks.find(([walkIndex]) => walkIndex === index);
+  if (!kept) return LONGER_THAN_KEPT;
+  const ours = access.stations[index]!;
+  // The floor is the straight line to where the walk ends: the nearest door
+  // when the table routed to entrances, TfL's station point otherwise.
+  const point = coarsenViewerPoint(from);
+  const ends = ours.entrances ?? [[station.lat, station.lng]];
+  const straight = Math.min(...ends.map(([lat, lng]) => haversineMeters(point.lat, point.lng, lat, lng)));
+  return Math.max(kept[1], straight);
+}
 
 function isStation(value: unknown): value is AccessStation {
   if (!value || typeof value !== "object") return false;
@@ -113,30 +176,14 @@ function bundledAccess(): StationWalkAccess {
  */
 export function streetWalkMetres(
   from: { lat: number; lng: number },
-  station: { lat: number; lng: number },
+  station: { lat: number; lng: number; name?: string },
   access: StationWalkAccess = bundledAccess(),
 ): number | null {
-  const walks = access.cells[cellKey(from.lat, from.lng)];
-  if (!walks) return null;
-  let best: { metres: number; offset: number; ours: AccessStation } | null = null;
-  for (const [index, metres] of walks) {
-    const ours = access.stations[index];
-    if (!ours) continue;
-    const offset = haversineMeters(ours.lat, ours.lng, station.lat, station.lng);
-    if (offset <= STATION_MATCH_M && (best === null || offset < best.offset)) {
-      best = { metres, offset, ours };
-    }
-  }
-  if (!best) return null;
-  // The floor is the straight line to where the walk ends: the nearest door
-  // when the table routed to entrances, TfL's station point otherwise.
-  const point = coarsenViewerPoint(from);
-  const ends = best.ours.entrances ?? [[station.lat, station.lng]];
-  const straight = Math.min(...ends.map(([lat, lng]) => haversineMeters(point.lat, point.lng, lat, lng)));
-  return Math.max(best.metres, straight);
+  const metres = walkLookup(from, station, access);
+  return metres === LONGER_THAN_KEPT ? null : metres;
 }
 
-type CandidateStation = { lat?: number; lon?: number };
+type CandidateStation = { lat?: number; lon?: number; commonName?: string };
 
 /**
  * Pick the station a drinker reaches soonest on foot from TfL's candidates.
@@ -145,8 +192,10 @@ type CandidateStation = { lat?: number; lon?: number };
  * line, and the first is not always the shortest walk: across Zone 1, 904 of
  * 6,907 grid points and 73 of the 663 curated pubs inside it reach a
  * different station first on foot. Re-ranking
- * applies only when TfL's own first choice has a street walk, so every
- * comparison is street against street. When it has none, TfL's order stands.
+ * applies only when TfL's own first choice is a station the covered cell can
+ * speak for: either a street walk, or one of ours the cell leaves out, which
+ * is longer than every walk it keeps. So every comparison is street against
+ * street. When TfL's first is a station we cannot name, TfL's order stands.
  */
 export function chooseByStreetWalk<T extends CandidateStation>(
   from: { lat: number; lng: number },
@@ -157,7 +206,7 @@ export function chooseByStreetWalk<T extends CandidateStation>(
   if (!first) return null;
   const walkTo = (candidate: T): number | null =>
     typeof candidate.lat === "number" && typeof candidate.lon === "number"
-      ? streetWalkMetres(from, { lat: candidate.lat, lng: candidate.lon }, access)
+      ? walkLookup(from, { lat: candidate.lat, lng: candidate.lon, name: candidate.commonName }, access)
       : null;
   let best = first;
   let bestWalk = walkTo(first);
