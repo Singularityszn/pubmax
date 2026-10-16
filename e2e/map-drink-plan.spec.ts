@@ -363,7 +363,12 @@ for (const scenario of [
     expect(body.inferredContext.zeroProof).toBe(scenario.zeroProof);
     expect(body.stops).toHaveLength(2);
     const sent = response.request().postDataJSON() as { context: Record<string, unknown> };
-    expect(sent.context.drinkCategory).toBe("soft-drink");
+    // A request that names its drink sends no map drink: the client leaves
+    // the words to the server (mapPlanDrinkDefaultContext in
+    // lib/mapPlanDrinkPresentation.ts), which answered soft-drink above. A
+    // location-only request carries the map's own Soft drinks. Either way the
+    // map's drink never overrides the one asked for.
+    expect([undefined, "soft-drink"]).toContain(sent.context.drinkCategory);
     await expect(page).toHaveURL(/[?&]drink=soft-drink(?:&|$)/);
     await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
     await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
@@ -426,7 +431,12 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
   await expect(route.locator(".routeList > li")).toHaveCount(2);
   await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
-  await expect(page).toHaveURL(sharedUrl);
+  // The reopened page may write its query in its own order (mode first), so
+  // the link is read by its parameters, not as one string.
+  await expect.poll(() => {
+    const url = new URL(page.url());
+    return [url.pathname, url.searchParams.get("drink"), url.searchParams.get("pubs")];
+  }).toEqual([new URL(sharedUrl).pathname, "soft-drink", stops]);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
