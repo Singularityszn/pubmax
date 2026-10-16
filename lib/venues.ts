@@ -3,6 +3,7 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { displayVenueAddress } from "@/lib/venueDisplay";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
@@ -72,6 +73,7 @@ export type VenuePrice = {
   price_gbp: number | null;
   price_text: string;
   address: string;
+  locality?: string;
   latitude: number;
   longitude: number;
   boroughs_visible: string;
@@ -168,6 +170,7 @@ export type Venue = {
   latitude: number;
   longitude: number;
   primaryBorough: string;
+  locality?: string;
   visibleBoroughs: string[];
   prices: VenuePrice[];
   cheapestPrice: number | null;
@@ -635,14 +638,18 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // other venue gets undefined (honestly unknown). Keyed by pub name +
     // borough so a common name doesn't cross-contaminate the wrong pub.
     const accessibility = getVenueAccessibility(first.pub_name, first.primary_borough);
+    const locality = sortedRows
+      .map((price) => String(price.locality ?? "").trim())
+      .find(Boolean);
 
     return {
       id: stableVenueIdFromKey(key),
       name: first.pub_name,
-      address: first.address,
+      address: displayVenueAddress(first.address),
       latitude: first.latitude,
       longitude: first.longitude,
       primaryBorough: first.primary_borough,
+      ...(locality ? { locality } : {}),
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,

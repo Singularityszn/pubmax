@@ -256,6 +256,17 @@ describe("getVenueIndex", () => {
 });
 
 describe("lookupCanonicalVenue", () => {
+  it("preserves locality on slim venue lookups", async () => {
+    await expect(lookupCanonicalVenue("venue-1vle947")).resolves.toMatchObject({
+      status: "found",
+      slimVenue: {
+        name: "The Sir Christopher Hatton",
+        borough: "Camden",
+        locality: "Hatton Garden",
+      },
+    });
+  });
+
   it("keeps base lookup available when OSM enrichment is unavailable", async () => {
     const realRead = fs.readFile.bind(fs);
     let failManchesterOsm = true;

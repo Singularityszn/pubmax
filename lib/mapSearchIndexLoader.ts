@@ -12,8 +12,9 @@ import {
 } from "@/lib/surfaceDataCache";
 import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
 import type { Venue } from "@/lib/venues";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v1";
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v2";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
@@ -69,28 +70,28 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
     venues: venues.map((venue) => ({
       id: venue.id,
       name: venue.name,
-      area: venue.borough ?? "",
+      area: venueAreaLabel({ locality: venue.locality, primaryBorough: venue.borough }),
     })),
   };
 }
 
 function packFromCurrentVenues(
   cityId: CityId,
-  venues: readonly Pick<Venue, "id" | "name" | "primaryBorough">[],
+  venues: readonly Pick<Venue, "id" | "name" | "primaryBorough" | "locality">[],
 ): MapSearchPack {
   return {
     cityId,
     venues: venues.map((venue) => ({
       id: venue.id,
       name: venue.name,
-      area: venue.primaryBorough ?? "",
+      area: venueAreaLabel(venue),
     })),
   };
 }
 
 export type MapSearchIndexLoadOptions = {
   currentCityId?: CityId;
-  currentVenues?: readonly Pick<Venue, "id" | "name" | "primaryBorough">[];
+  currentVenues?: readonly Pick<Venue, "id" | "name" | "primaryBorough" | "locality">[];
 };
 
 export function loadMapSearchIndex(
