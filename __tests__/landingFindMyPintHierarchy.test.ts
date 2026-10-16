@@ -75,9 +75,10 @@ describe("landing hierarchy: the price receipt door", () => {
       /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
     );
     expect(h.match(/data-primary-action/g)).toHaveLength(1);
-    // The pub's own Pint Drop door, quiet, still carrying that pub's figure.
+    // The pub's own Pint Drop door, quiet, still carrying that pub's figure in
+    // its href and saying what the tap does in its label.
     expect(h).toMatch(
-      /class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/,
+      /class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Log what you paid<\/a>/,
     );
     // No card behind the document: the same primary, and the plain receipt door.
     const bare = hero(render(false));
@@ -113,11 +114,11 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(rendered.match(/class="screenSecondary"/g)).toHaveLength(1);
     const secondary = rendered.match(/<div class="screenSecondary">([\s\S]*?)<\/div>/)?.[1] ?? "";
     const quietDoors = [...secondary.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(
-      (match) => [match[1], match[2]],
+      (match) => [match[1], (match[2] ?? "").replace(/&#x27;/g, "'")],
     );
     expect(quietDoors).toEqual([
-      ["/map?sel=venue-test&amp;log=1&amp;price=6.50", "Still £6.50?"],
-      ["/tonight", "Tonight"],
+      ["/map?sel=venue-test&amp;log=1&amp;price=6.50", "Log what you paid"],
+      ["/tonight", "What's on tonight"],
     ]);
     // The receipt door is dynamic, so the STATIC half of the row is the table
     // in lib/landingHero.ts, which is what e2e/mobile-button-system.spec.ts

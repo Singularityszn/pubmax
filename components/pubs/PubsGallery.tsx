@@ -8,7 +8,7 @@ import PubsFilters, {
   type PubsFilterKey,
 } from "@/components/pubs/PubsFilters";
 import VenueImage from "@/components/media/VenueImage";
-import { LANDING_FALLBACK_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
+import { LANDING_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
 import {
   SCRAPED_SOURCE_LABELS,
   type ScrapedPub,
@@ -165,7 +165,7 @@ export default function PubsGallery({
                         href={pintDropDoorHref(pub.id)}
                         prefetch={false}
                       >
-                        {LANDING_FALLBACK_RECEIPT_LABEL}
+                        {LANDING_RECEIPT_LABEL}
                       </Link>
                     </>
                   )}

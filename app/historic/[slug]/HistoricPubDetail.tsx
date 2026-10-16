@@ -17,7 +17,7 @@ import {
   venueStatusBadge,
 } from "@/lib/historicFilter";
 import { formatObservedDate } from "@/lib/dataFreshness";
-import { LANDING_FALLBACK_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
+import { LANDING_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
 import type { VenueListedPint } from "@/lib/venueListedPint";
@@ -70,7 +70,7 @@ function HistoricListedPint({
             <>
               {" "}
               <Link prefetch={false} href={pintDropDoorHref(venueId)} className="hdPriceLog">
-                {LANDING_FALLBACK_RECEIPT_LABEL}
+                {LANDING_RECEIPT_LABEL}
               </Link>
             </>
           ) : null}

@@ -227,24 +227,14 @@ body:has(.lp) {
 
 .lpPubCard--photo .lpPubThen { border-top-color: rgb(251 249 246 / 0.22); }
 
-/* The standing chip and the location control carry their own surfaces so they
-   read against the photograph rather than against the page they came from. */
+/* The standing chip carries its own surface so it reads against the
+   photograph rather than against the page it came from. */
 .lpPubCard--photo .lpStanding {
   background: rgb(251 249 246 / 0.14);
   color: var(--landing-photo-ink);
 }
 .lpPubCard--photo .lpStandingDot { background: var(--landing-photo-ink-soft); }
 
-.lpPubCard--photo .lpNearMe {
-  border-color: rgb(251 249 246 / 0.4);
-  color: var(--landing-photo-ink);
-}
-.lpPubCard--photo .lpNearMe:hover {
-  border-color: var(--landing-photo-ink);
-  background: rgb(251 249 246 / 0.12);
-}
-.lpPubCard--photo .lpNearMe:disabled { color: var(--landing-photo-ink-soft); }
-.lpPubCard--photo .lpNearMe svg { color: var(--landing-photo-ink); }
 
 
 .lpPubName {
@@ -376,6 +366,9 @@ a.lpPubPint:hover { color: var(--ink); }
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px) 0;
 }
+/* An empty or failed feed renders nothing, and the band goes with it rather
+   than leaving its padding behind as a blank gap. */
+.lpDrops:empty { display: none; }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
@@ -485,8 +478,8 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 @media (max-width: 640px) {
-  /* The answer card has its own right-aligned Near me control. Keep it out of
-     the same published compose lane the rail rows already reserve. */
+  /* The answer card's kicker line keeps out of the same published compose
+     lane the rail rows already reserve, so the floating + never sits on it. */
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .lpAnswerHead {
     padding-right: max(
       var(--space-4),
@@ -579,29 +572,6 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 .lpAnswerHead .kicker { min-width: 0; overflow-wrap: anywhere; }
 .lpAnswerWalk { color: var(--muted); font-weight: 600; }
-
-/* The one quiet control that asks for a location. A text control with a
-   hairline, never the coral: the Screen paints exactly one filled action. */
-.lpNearMe {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
-}
-.lpNearMe:hover { border-color: var(--ink); background: var(--panel); }
-.lpNearMe:disabled { color: var(--ink-soft); cursor: progress; }
-.lpNearMe svg { color: var(--river); }
 
 .lpNearLine { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: var(--leading-normal); }
 .lpNearLine:empty { display: none; }

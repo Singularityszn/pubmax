@@ -93,7 +93,7 @@ export { cityMapShareUrl } from "@/lib/cityMapHref";
 /**
  * OG / document title for a city map. Curated crawl wins when it resolves;
  * otherwise cult band title; else city display name + short map label.
- * Layout template appends `| PUBMAXXING`.
+ * Layout template appends `| PUBMAXX`.
  */
 export function cityMapOgTitle(
   cityId: CityId | string | null | undefined,
@@ -123,9 +123,9 @@ export function cityMapOgDescription(
   if (crawl) {
     const stops = resolveStopCount(options, crawl);
     if (stops) {
-      return `${stops}-stop crawl: ${crawl.name} in ${city.displayName}. Open it on PUBMAXXING.`;
+      return `${stops}-stop crawl: ${crawl.name} in ${city.displayName}. Open it on PUBMAXX.`;
     }
-    return `${crawl.name} crawl in ${city.displayName}. Open it on PUBMAXXING.`;
+    return `${crawl.name} crawl in ${city.displayName}. Open it on PUBMAXX.`;
   }
   const bandId = normalizeBandId(options.band ?? undefined);
   const band = bandId ? bandByIdForCity(id, bandId) : undefined;
@@ -138,7 +138,7 @@ export function cityMapOgDescription(
     const base = lastSpace > 80 ? cut.slice(0, lastSpace) : cut;
     return `${base.replace(/[.,;:\s]+$/u, "")}…`;
   }
-  return `${city.tagline}. Plan a crawl on PUBMAXXING.`;
+  return `${city.tagline}. Plan a crawl on PUBMAXX.`;
 }
 
 /**
@@ -180,5 +180,5 @@ export function cityMapOgAlt(
   cityId: CityId | string | null | undefined,
   options: CityMapShareOptions = {},
 ): string {
-  return `${cityMapOgTitle(cityId, options)} · PUBMAXXING`;
+  return `${cityMapOgTitle(cityId, options)} · PUBMAXX`;
 }

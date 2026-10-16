@@ -95,7 +95,7 @@ export default async function Image({ params }: PageProps) {
                 letterSpacing: 0.5,
               }}
             >
-              PUBMAXXING
+              PUBMAXX
             </div>
           </div>
           <div

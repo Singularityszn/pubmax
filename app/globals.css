@@ -3,7 +3,7 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 /* ────────────────────────────────────────────────────────────────────────
-   PUBMAXXING token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
+   PUBMAXX token scale — see DESIGN.md + docs/DESIGN_SYSTEM.md.
    Light default = neutral paper with a focused coral action colour.
    Dark overrides preserve the same semantic identity in app/theme.css.
 

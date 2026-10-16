@@ -63,12 +63,12 @@ export async function generateMetadata({
 
   if (!pub) {
     return {
-      title: "Historic pub. PUBMAXXING",
+      title: "Historic pub. PUBMAXX",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${pub.name}. Historic London pub | PUBMAXXING`;
+  const title = `${pub.name}. Historic London pub | PUBMAXX`;
   const description = metaDescription(pub);
   const canonical = `/historic/${pub.slug}`;
 

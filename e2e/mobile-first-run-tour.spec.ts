@@ -67,10 +67,10 @@ test.describe("mobile first-run tour", () => {
       }));
     });
     await page.goto("/u/you", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("dialog", { name: "PUBMAXXING" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "PUBMAXX" })).toHaveCount(0);
 
     await page.goto("/pal", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("dialog", { name: "PUBMAXXING" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "PUBMAXX" })).toHaveCount(0);
     // The meeting screen is painted on the server, so its button is tappable
     // before React answers it. A tap in that window does nothing.
     const meet = page.getByRole("button", { name: /Meet your Pub Pal/i });
