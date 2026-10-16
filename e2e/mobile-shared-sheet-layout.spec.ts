@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
@@ -230,7 +231,7 @@ test("mobile planner and contextual portal sheets retain the canonical bottom an
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
+  await expectMobileMapShellReady(page, 20_000);
 
   await page.getByRole("button", { name: "Describe the outing" }).click();
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');

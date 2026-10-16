@@ -62,10 +62,11 @@ Three consequences.
 
 ### 1.3 The three limits inherited from the tracking plan
 
-Named events carry no `$session_id`, a named event's page is `path` rather than
-`$pathname`, and no account identity ever joins the pseudonymous id (ADR 0009).
-Section 1 of `docs/analytics/TRACKING_PLAN.md` owns those facts. A window over
-`distinct_id` is the only session-shaped tool available.
+A named event carries `$session_id` only when the browser SDK had one, its page is
+the product-event surface in `path` (repeated in `$pathname`, a narrower vocabulary
+than a pageview's), and no account identity ever joins the pseudonymous id (ADR
+0009). Section 1 of `docs/analytics/TRACKING_PLAN.md` owns those facts. A window over
+`distinct_id` stays the reliable session-shaped tool; a session funnel undercounts.
 
 ## 2. The north star: weekly repeating crew nights
 
@@ -201,7 +202,7 @@ count is never reported as a rate.
 | Near answers served | `near_answer_ready` with `resultBand` other than `0` | All `near_answer_ready` | An empty answer is reported, so the denominator is honest |
 | Price loop | `price_submitted` | `price_submit_viewed` | The composer's own funnel. `price_submit_failed` is the third line |
 | Loop moments | Each of the six in TRACKING_PLAN 5.10 | Its own pair | Read as pairs. Neither line alone says anything |
-| Release health | `web_vital` p75 by `route` | Not a rate | Compare across `release` to see what a deploy moved |
+| Release health | `$web_vitals` p75 by `$pathname` | Not a rate | Compare across `release` to see what a deploy moved |
 
 ## 4. What this file will not define
 

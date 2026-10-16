@@ -37,9 +37,10 @@ describe("PUBMAXX primary navigation", () => {
       "/u/you",
     ]);
     expect(PRIMARY_NAV_ITEMS.find((item) => item.key === "now")?.match).toEqual([
-      "/today",
       "/tonight",
     ]);
+    expect(primaryNavKeyForPath("/today")).toBeUndefined();
+    expect(primaryNavKeyForPath("/tonight")).toBe("now");
   });
 
   it("lights Plan for the composer and a shared plan, and no tab for Social", () => {

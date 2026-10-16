@@ -325,6 +325,7 @@ import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { usePintDrops } from "@/components/map/usePintDrops";
+import { useMapLoadTiming } from "@/components/map/useMapLoadTiming";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import {
@@ -3018,6 +3019,8 @@ export default function PubMap({
     [pubVenues, savedIds],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  // Field time-to-pins for this visit (map_load_timing, consent-gated).
+  useMapLoadTiming(venues.length);
   // A shared planner link can name stops outside the opening viewport. The slim
   // shard loader quite correctly reads only the map the reader is looking at,
   // but the planner still owes the URL's ordered stops immediately. Warm those

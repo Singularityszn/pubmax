@@ -129,8 +129,9 @@ const deploymentId = process.env.DEPLOYMENT_VERSION ??
 // (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
 // `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
 // dynamic rendering (no static generation / ISR / PPR) on every route except
-// the two public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS, which
-// take `script-src 'unsafe-inline'` in exchange for a CDN copy.
+// the public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS and
+// CDN_CACHED_DOCUMENT_ROUTES, which take `script-src 'unsafe-inline'` in
+// exchange for a CDN copy.
 
 // Baseline security headers on every response.
 const securityHeaders = [

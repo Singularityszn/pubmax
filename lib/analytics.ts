@@ -30,6 +30,7 @@ import {
 } from "@/lib/analyticsIdentity";
 import {
   capturePosthogPageview,
+  posthogSessionId,
   syncPosthogConsent,
 } from "@/lib/posthogClient";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
@@ -54,6 +55,7 @@ type AnalyticsBrowserContext = {
   viewportWidth?: number;
   viewportHeight?: number;
   referrer?: string;
+  sessionId?: string;
 };
 
 function abortVerifiedFlush(): void {
@@ -356,6 +358,10 @@ function analyticsBrowserContext(): AnalyticsBrowserContext {
   if (Number.isFinite(viewportHeight)) context.viewportHeight = viewportHeight;
   const safeReferrer = analyticsReferrerFromUrl(referrer, window.location.origin);
   if (safeReferrer) context.referrer = safeReferrer;
+  // The browser SDK's session, so the forwarded event joins the pageviews and
+  // vitals of the same visit instead of standing alone in PostHog.
+  const sessionId = posthogSessionId();
+  if (sessionId) context.sessionId = sessionId;
   return context;
 }
 

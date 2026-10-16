@@ -19,10 +19,6 @@ vi.mock("@/lib/siteUrlConfig.mjs", () => ({
   PRODUCTION_SITE_ORIGIN: "https://example.test",
 }));
 
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ "x-nonce": "test-nonce" }),
-}));
-
 vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
   return {
@@ -73,9 +69,10 @@ describe("governed drink brand by Night Area landing page", () => {
     const landings = await loadDrinkBrandAreaLandings();
 
     expect(dynamicParams).toBe(false);
-    // The nonce makes the document dynamic, so a revalidate window would bound
-    // nothing and must not claim to.
-    expect("revalidate" in drinkBrandAreaLandingPageModule).toBe(false);
+    // task vercel-f2-seo-cdn: no nonce, so the document prerenders and the CDN
+    // holds it for the ISR window.
+    expect(drinkBrandAreaLandingPageModule.dynamic).toBe("force-static");
+    expect(drinkBrandAreaLandingPageModule.revalidate).toBe(3600);
     expect(await generateStaticParams()).toEqual(
       landings.map(({ areaSlug, brandSlug }) => ({ slug: areaSlug, brand: brandSlug })),
     );

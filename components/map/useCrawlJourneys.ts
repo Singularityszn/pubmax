@@ -1,7 +1,7 @@
 "use client";
 
-// London-only: fetch CityMCP TfL journeys for consecutive crawl stops.
-// Fail-soft — empty map on any error. Debounces on route identity; aborts
+// London-only: fetch CityMCP TfL journeys for consecutive crawl stops, every
+// leg of the route in one request (F10). Fail-soft — empty map on any error. Debounces on route identity; aborts
 // in-flight work on unmount / route change. React 19: deferred setState.
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,42 +18,49 @@ export type CrawlJourneyLegSummary = {
   modes: string[];
 };
 
-type JourneyApiResponse = {
-  journeys?: Array<{
-    durationMinutes?: number;
-    legs?: Array<{ mode?: string; summary?: string; durationMinutes?: number }>;
-  }>;
+type JourneyApiAnswer = {
+  durationMinutes?: number;
+  legs?: Array<{ mode?: string; summary?: string; durationMinutes?: number }>;
+};
+
+type CrawlLegsApiResponse = {
+  legs?: Array<{ journeys?: JourneyApiAnswer[]; error?: string }>;
   error?: string;
 };
 
 const EMPTY: CrawlJourneyLegSummary[] = [];
 
-function routeKey(route: readonly Venue[]): string {
-  return route.map((v) => `${v.id}:${v.latitude.toFixed(4)},${v.longitude.toFixed(4)}`).join("|");
+/** ~11 m: the precision `routeKey` already treats as the same stop. */
+const COORD_DECIMALS = 4;
+/** The journey route answers at most this many stops per request. */
+const MAX_STOPS_PER_REQUEST = 12;
+
+function stopPoint(venue: Venue): string {
+  return `${venue.latitude.toFixed(COORD_DECIMALS)},${venue.longitude.toFixed(COORD_DECIMALS)}`;
 }
 
-async function fetchLeg(
-  from: Venue,
-  to: Venue,
-  signal: AbortSignal,
-): Promise<CrawlJourneyLegSummary | null> {
+function routeKey(route: readonly Venue[]): string {
+  return route.map((v) => `${v.id}:${stopPoint(v)}`).join("|");
+}
+
+/**
+ * One GET for every leg of the crawl (F10). Coordinates are rounded so two
+ * readers mapping the same pubs share one CDN key, and the legs ride one
+ * request so a crawl pays one function invocation rather than one per leg.
+ */
+export function crawlJourneysUrl(route: readonly Venue[]): string {
   const params = new URLSearchParams({
-    fromLat: String(from.latitude),
-    fromLng: String(from.longitude),
-    toLat: String(to.latitude),
-    toLng: String(to.longitude),
+    stops: route.map(stopPoint).join(";"),
     limit: "1",
   });
-  const res = await fetch(`/api/citymcp/journey?${params}`, {
-    signal,
-    headers: { accept: "application/json" },
-  });
-  if (!res.ok) {
-    discardBody(res);
-    return null;
-  }
-  const body = (await res.json()) as JourneyApiResponse;
-  const best = body.journeys?.[0];
+  return `/api/citymcp/journey?${params}`;
+}
+
+function summariseLeg(
+  from: Venue,
+  to: Venue,
+  best: JourneyApiAnswer | undefined,
+): CrawlJourneyLegSummary | null {
   if (!best?.legs?.length) return null;
   const modes = best.legs
     .map((leg) => String(leg.mode ?? "").trim())
@@ -69,6 +76,55 @@ async function fetchLeg(
       typeof best.durationMinutes === "number" ? best.durationMinutes : undefined,
     modes,
   };
+}
+
+/** Pair each answered leg with the consecutive stops it joins. */
+export function crawlLegsFromResponse(
+  route: readonly Venue[],
+  body: CrawlLegsApiResponse,
+): CrawlJourneyLegSummary[] {
+  const out: CrawlJourneyLegSummary[] = [];
+  const legs = Array.isArray(body.legs) ? body.legs : [];
+  for (let i = 0; i < route.length - 1; i += 1) {
+    const from = route[i];
+    const to = route[i + 1];
+    if (!from || !to) continue;
+    const leg = summariseLeg(from, to, legs[i]?.journeys?.[0]);
+    if (leg) out.push(leg);
+  }
+  return out;
+}
+
+/**
+ * Split a route into request-sized runs of stops. Runs overlap by one stop so
+ * the leg between them is still asked; a mapped route (12 stops) is one run.
+ */
+export function crawlJourneyChunks(route: readonly Venue[]): Venue[][] {
+  const chunks: Venue[][] = [];
+  for (let start = 0; start < route.length - 1; start += MAX_STOPS_PER_REQUEST - 1) {
+    chunks.push(route.slice(start, start + MAX_STOPS_PER_REQUEST));
+  }
+  return chunks;
+}
+
+async function fetchCrawlLegs(
+  route: readonly Venue[],
+  signal: AbortSignal,
+): Promise<CrawlJourneyLegSummary[]> {
+  const results: CrawlJourneyLegSummary[] = [];
+  for (const chunk of crawlJourneyChunks(route)) {
+    if (signal.aborted) return EMPTY;
+    const res = await fetch(crawlJourneysUrl(chunk), {
+      signal,
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) {
+      discardBody(res);
+      continue;
+    }
+    results.push(...crawlLegsFromResponse(chunk, (await res.json()) as CrawlLegsApiResponse));
+  }
+  return results;
 }
 
 /**
@@ -100,33 +156,7 @@ export function useCrawlJourneys(
     Promise.resolve().then(() => setLoading(true));
 
     (async () => {
-      const pairs: Array<{ from: Venue; to: Venue; toIndex: number }> = [];
-      for (let i = 0; i < route.length - 1; i += 1) {
-        const from = route[i];
-        const to = route[i + 1];
-        if (from && to) pairs.push({ from, to, toIndex: i + 1 });
-      }
-
-      // Small concurrency so a 6-stop crawl doesn't stampede CityMCP.
-      const results: CrawlJourneyLegSummary[] = [];
-      const CONCURRENCY = 2;
-      for (let i = 0; i < pairs.length; i += CONCURRENCY) {
-        if (controller.signal.aborted) return;
-        const batch = pairs.slice(i, i + CONCURRENCY);
-        const settled = await Promise.all(
-          batch.map(async (pair) => {
-            try {
-              return await fetchLeg(pair.from, pair.to, controller.signal);
-            } catch {
-              return null;
-            }
-          }),
-        );
-        for (const leg of settled) {
-          if (leg) results.push(leg);
-        }
-      }
-
+      const results = await fetchCrawlLegs(route, controller.signal);
       if (controller.signal.aborted) return;
       Promise.resolve().then(() => {
         setLegs(results);

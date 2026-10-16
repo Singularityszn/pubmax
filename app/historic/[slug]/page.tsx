@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import JsonLd from "@/components/seo/JsonLd";
@@ -27,6 +26,17 @@ import "./historic-detail.css";
 // generateStaticParams pre-renders one static page per slug for clean SEO.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The data changes only on a deploy, so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
 
 // Trim + collapse the hook into a clean meta description, capped for SEO. Never
 // invents copy — an empty hook falls back to a neutral, honest sentence.
@@ -118,12 +128,9 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
   if (!pub) notFound();
 
-  // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   return (
     <main id="main" className="hdPage">
-      <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
+      <JsonLd data={historicPubJsonLd(pub)} />
       <SiteNav active="historic" />
 
       <HistoricPubDetail pub={pub} />

@@ -401,7 +401,7 @@ describe("PostHog browser privacy boundary", () => {
       disable_product_tours: true,
       disable_conversations: true,
       disable_external_dependency_loading: false,
-      request_batching: false,
+      request_batching: true,
       persistence: "localStorage+cookie",
       save_campaign_params: true,
       save_referrer: true,
