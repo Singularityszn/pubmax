@@ -320,10 +320,11 @@ for (const viewport of WIDTHS) {
         const actionBox = await mapAction.boundingBox();
         expect(actionBox?.height).toBeGreaterThanOrEqual(44);
         expect(boxesOverlap(actionBox as Box, box)).toBe(false);
-        await firstPub.locator("summary").click();
+        // Every card reads the same way: the reason is never folded away, and
+        // the map action sits beside the area, above it.
+        await expect(firstPub.locator("details")).toHaveCount(0);
         await expect(firstPub.locator(".tonightHypedWhy")).toBeVisible();
         await expect(firstPub.locator(".tonightHypedSource")).toBeVisible();
-        await expect(firstPub.getByRole("link", { name: "Open on map" })).toBeVisible();
         await expect(page.locator(".tonightWeather")).toContainText(/sky|weather|wind/i);
 
         const morePubs = page.locator(".tonightHypedMore");
@@ -335,21 +336,20 @@ for (const viewport of WIDTHS) {
             return transform === "none" ? 1 : Math.round(new DOMMatrixReadOnly(transform).a);
           });
         await expect.poll(() => chevronDirection(morePubs.locator(":scope > summary"))).toBe(-1);
-        await expect(page.locator(".tonightHypedDetails")).toHaveCount(1);
-        const laterPubs = (await page.locator(".tonightHypedRow").all()).slice(1);
-        expect(laterPubs.length).toBeGreaterThan(0);
-        for (const pub of laterPubs) {
+        await expect(page.locator(".tonightHypedRow details")).toHaveCount(0);
+        const pubs = await page.locator(".tonightHypedRow").all();
+        expect(pubs.length).toBeGreaterThan(1);
+        for (const pub of pubs) {
           await expect(pub.locator(".tonightHypedWhy")).toBeVisible();
           await expect(pub.locator(".tonightHypedSource")).toBeVisible();
           await expect(pub.locator(".tonightHypedChecked")).toBeVisible();
           const sourceBox = await pub.locator(".tonightHypedSource").boundingBox();
           expect(sourceBox?.height).toBeGreaterThanOrEqual(44);
         }
-        const firstSummary = firstPub.locator("summary");
-        await expect.poll(() => chevronDirection(firstSummary)).toBe(-1);
-        await firstSummary.click();
-        await expect.poll(() => chevronDirection(firstSummary)).toBe(1);
-        await expect(morePubs).toHaveAttribute("open", "");
+        const moreSummary = morePubs.locator(":scope > summary");
+        await moreSummary.click();
+        await expect.poll(() => chevronDirection(moreSummary)).toBe(1);
+        await expect(morePubs).not.toHaveAttribute("open", "");
       }
       await page.goto("/privacy", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);

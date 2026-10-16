@@ -1,5 +1,5 @@
-/* The three blocks the 7 September lede rebuild added: the pubs people are
-   talking about, the chain blocks under them, and the cheap pints a quiet
+/* The three blocks the 7 September lede rebuild added: the pubs Londoners
+   keep recommending, the chain blocks under them, and the cheap pints a quiet
    night answers with.
 
    All three take the row chrome the rest of this page already uses (one edge,
@@ -33,7 +33,7 @@
   gap: 10px;
 }
 
-/* Pubs people are talking about
+/* Pubs Londoners keep recommending
    ------------------------------------------------------------------ */
 
 .tonightHypedRow {
@@ -125,30 +125,39 @@
   text-decoration: none;
 }
 
-/* Two 44 px boxes in a row already carry the space between their words. */
-.tonightHypedCredit + .tonightHypedMap {
-  margin-top: 0;
-}
-
-.tonightHypedActions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
+/* Every card reads the same way: the area and the way onto the map share one
+   row under the name, so the map action sits high on every card (the first
+   one included, which once folded its reason away to keep the action above a
+   phone's consent card) and the reason below is never behind a toggle. */
+.tonightHypedPlace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 0 var(--space-2);
-  margin-top: var(--space-2);
 }
 
-.tonightHypedActions .tonightHypedMap,
-.tonightHypedDetails > .tonightHypedMoreToggle {
+.tonightHypedPlace .tonightHypedArea,
+.tonightHypedPlace .tonightHypedMap,
+.tonightHypedPlace .tonightHypedUnmatched {
   margin: 0;
 }
 
-.tonightHypedDetails[open] {
-  grid-column: 1 / -1;
+.tonightHypedPlace .tonightHypedUnmatched {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
-.tonightHypedDetails[open] .tonightHypedMoreChevron {
-  transform: rotate(180deg);
+.tonightHypedPrice {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.tonightHypedPriceFigure {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 /* Chain blocks
