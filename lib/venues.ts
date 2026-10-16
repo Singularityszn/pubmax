@@ -161,6 +161,8 @@ export type Venue = {
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
   /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
   siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
+  /** What OpenStreetMap states about the pub, from its own ODbL pack (lib/osmPubFacts.ts). Absent is unknown. */
+  osmFacts?: import("@/lib/osmPubFacts").OsmPubFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
   name: string;
