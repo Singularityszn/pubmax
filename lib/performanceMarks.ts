@@ -15,6 +15,8 @@ export type PubmaxPerformanceMark =
   | "pubmax:pin-entrance-settled";
 
 const FIRST_PINS_EVENT = "pubmax:first-pins";
+/** Dispatched on window when the pin layers are first made visible. */
+export const PINS_VISIBLE_EVENT = "pubmax:pins-visible";
 export const FIRST_PINS_SEEN_KEY = "pubmax:first-pins-seen:v1";
 
 declare global {
@@ -31,7 +33,17 @@ export function markPubmaxTiming(name: PubmaxPerformanceMark): void {
       // Timing marks are diagnostic only; locked-down browsers should not break UI.
     }
   }
-  if (name !== FIRST_PINS_EVENT || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  if (name === PINS_VISIBLE_EVENT) {
+    try {
+      window.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
+    } catch {
+      // The field-timing reporter listens for this; a restricted event API
+      // must never affect the pins themselves.
+    }
+    return;
+  }
+  if (name !== FIRST_PINS_EVENT) return;
   try {
     window.__pubmaxFirstPinsReady = true;
     try {
