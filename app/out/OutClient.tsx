@@ -71,7 +71,7 @@ export default function OutClient({ day, initialAnswer }: { day: OutDayWindow; i
     () => null,
   );
   const cityId = preferredCity ?? DEFAULT_CITY_ID;
-  const { body, failed, pending, retry } = useOutListings(day, cityId, initialAnswer);
+  const { body, failed, pending, retry, servedAt } = useOutListings(day, cityId, initialAnswer);
 
   useEffect(() => {
     trackEvent("out_screen_view");
@@ -119,7 +119,7 @@ export default function OutClient({ day, initialAnswer }: { day: OutDayWindow; i
     idPrefix: string,
     GroupTitle: "h3" | "h4",
   ) {
-    const groups = groupOutListings(rows);
+    const groups = groupOutListings(rows, servedAt);
     const showGroupTitles = groups.length > 1;
     const rowTitleLevel = showGroupTitles && GroupTitle === "h4" ? 5 : 4;
     return groups.map((group) => (

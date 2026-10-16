@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { buildOutResponse } from "@/lib/out/loadOut";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
@@ -6,6 +7,7 @@ import { outWindowToApiDay } from "@/lib/outListings";
 import type { OutResponse } from "@/lib/out/types";
 import { parseOutDayWindow } from "@/lib/outListings";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import { isOutLimited } from "@/lib/outRateLimit";
 
 import OutClient from "./OutClient";
 
@@ -50,8 +52,11 @@ export default async function OutPage({
   const apiDay = outWindowToApiDay(day);
   const servedAt = new Date().getTime();
   let body: OutResponse | null = null;
+  const request = new Request("https://pubmaxxing.com/out", { headers: await headers() });
   try {
-    body = await buildOutResponse({ city: DEFAULT_CITY_ID, day: apiDay }, { now: servedAt });
+    if (!(await isOutLimited(request))) {
+      body = await buildOutResponse({ city: DEFAULT_CITY_ID, day: apiDay }, { now: servedAt });
+    }
   } catch {
     // A failed public read is distinct from a day with no listings.
   }

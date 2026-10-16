@@ -12,7 +12,8 @@
 // is a product action (the map), never a listing.
 
 import { act, createElement } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -86,11 +87,11 @@ function body(rows: WhatsOnRow[]): OutResponse {
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready", initialAnswer?: HeldOutAnswer) {
+async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready", initialAnswer?: HeldOutAnswer, apiAnswer?: OutResponse) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
-      new Response(JSON.stringify({ ...body(rows), venueMatch }), {
+      new Response(JSON.stringify(apiAnswer ?? { ...body(rows), venueMatch }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -355,6 +356,47 @@ describe("a night with nothing on still has a way onward", () => {
 
 
 describe("the public server answer belongs to one city and service day", () => {
+  it.each(["tonight", "tomorrow", "weekend"] as const)(
+    "restores Open plans from a listings-only %s seed",
+    async (day) => {
+      const rows = [unmatchedRow(0)];
+      const seed = body(rows);
+      delete seed.openPlansStatus;
+      const apiAnswer = body(rows);
+      apiAnswer.openPlans = [{
+        crewId: "50000000-0000-4000-8000-000000000001",
+        title: "Meet at the Lexington",
+        startTime: "2026-09-07T19:30:00Z",
+        stopVenueId: "venue-lexington",
+        stopVenueName: "The Lexington",
+        hostHandle: "alice",
+        memberCount: 2,
+        meetingPoint: { kind: "venue", name: "The Lexington", lat: 51.53, lng: -0.11 },
+      }];
+      await renderOut(rows, day, "ready", {
+        city: "london", day: day === "tonight" ? "today" : day,
+        body: seed, failed: false, servedAt: NOW - 1_000,
+      }, apiAnswer);
+      expect(container.querySelector(".outOpenPlanTitle")?.textContent).toBe("Meet at the Lexington");
+      expect(container.querySelector(".outOpenPlanLink")?.getAttribute("href")).toBe(
+        "/social/crews/50000000-0000-4000-8000-000000000001",
+      );
+    },
+  );
+
+  it.each([
+    ["preview", "Open plans are in preview."],
+    ["degraded", "Open plans could not be checked."],
+  ] as const)("restores the %s Open plans status", async (status, line) => {
+    const rows = [unmatchedRow(0)];
+    const seed = body(rows);
+    delete seed.openPlansStatus;
+    await renderOut(rows, "tonight", "ready", {
+      city: "london", day: "today", body: seed, failed: false, servedAt: NOW - 1_000,
+    }, { ...body(rows), openPlansStatus: status, openPlans: status === "preview" ? null : [] });
+    expect(container.querySelector(".outPlans")?.textContent).toContain(line);
+  });
+
   it.each([
     { name: "a fresh London answer", city: "london" as const, age: 1_000, reads: 0 },
     { name: "an expired answer", city: "london" as const, age: 300_001, reads: 1 },
@@ -380,5 +422,55 @@ describe("the public server answer belongs to one city and service day", () => {
     });
     const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
     expect(calls).toHaveLength(1);
+  });
+});
+
+describe.each(["split", "unmatched-only", "unavailable"] as const)("%s seeded group labels survive hydration across the London service rollover", (mode) => {
+  it.each([
+    ["2026-10-17T02:59:59Z", "2026-10-17T03:00:01Z", "2026-10-17", "Sunday 18 October"],
+    ["2026-03-29T02:59:59Z", "2026-03-29T03:00:01Z", "2026-03-29", "Monday 30 March"],
+    ["2026-10-25T03:59:59Z", "2026-10-25T04:00:01Z", "2026-10-25", "Monday 26 October"],
+  ])("holds matched and unmatched labels from %s until the API answers", async (before, after, eventDate, nextLabel) => {
+    const startsAt = `${eventDate}T19:00:00Z`;
+    const nextStartsAt = new Date(Date.parse(startsAt) + 24 * 60 * 60_000).toISOString();
+    const allRows = [
+      { ...unmatchedRow(0), startsAt, venueId: "venue-lexington" },
+      { ...unmatchedRow(1), startsAt: nextStartsAt, venueId: "venue-lexington" },
+      { ...unmatchedRow(2), startsAt },
+      { ...unmatchedRow(3), startsAt: nextStartsAt },
+    ];
+    const rows = mode === "unmatched-only" ? allRows.slice(2) : allRows;
+    const response = { ...body(rows), venueMatch: mode === "unavailable" ? "unavailable" as const : "ready" as const };
+    const props = {
+      day: "weekend" as const,
+      initialAnswer: {
+        city: "london" as const, day: "weekend" as const,
+        body: response, failed: false, servedAt: Date.parse(before),
+      },
+    };
+    container = document.createElement("div");
+    document.body.append(container);
+    vi.setSystemTime(new Date(before));
+    container.innerHTML = renderToString(createElement(OutClient, props));
+    const labels = () => [...container.querySelectorAll(".outGroupTitle")].map((node) => node.textContent);
+    const heldLabels = mode === "split" ? ["Tomorrow", nextLabel, "Tomorrow", nextLabel] : ["Tomorrow", nextLabel];
+    expect(labels()).toEqual(heldLabels);
+
+    let resolveRead!: (response: Response) => void;
+    const read = new Promise<Response>((resolve) => { resolveRead = resolve; });
+    vi.stubGlobal("fetch", vi.fn(() => read));
+    const onRecoverableError = vi.fn();
+    vi.setSystemTime(new Date(after));
+    await act(async () => {
+      root = hydrateRoot(container, createElement(OutClient, props), { onRecoverableError });
+    });
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(labels()).toEqual(heldLabels);
+
+    await act(async () => {
+      resolveRead(Response.json(response));
+      await read;
+    });
+    expect(labels()).toEqual(mode === "split" ? ["Tonight", "Tomorrow", "Tonight", "Tomorrow"] : ["Tonight", "Tomorrow"]);
   });
 });

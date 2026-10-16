@@ -46,8 +46,9 @@ export function useOutListings(
   const apiDay = outWindowToApiDay(window);
   const [answer, setAnswer] = useState<HeldOutAnswer | null>(initialAnswer ?? null);
   const [generation, setGeneration] = useState(0);
+  const currentAnswer = answer?.city === city && answer.day === apiDay ? answer : null;
   const view = outAnswerView(
-    answer && answer.city === city ? answer : null,
+    currentAnswer,
     apiDay,
   );
 
@@ -61,6 +62,7 @@ export function useOutListings(
     const age = now - (initialAnswer?.servedAt ?? Number.NaN);
     if (
       generation === 0 && initialAnswer?.body?.status === "ready" &&
+      initialAnswer.body.openPlansStatus !== undefined &&
       initialAnswer.body.venueMatch === "ready" && initialAnswer.city === city && initialAnswer.day === apiDay &&
       age >= 0 && age < 5 * 60_000 &&
       londonServiceDayBounds(initialAnswer.servedAt).start === londonServiceDayBounds(now).start
@@ -108,5 +110,5 @@ export function useOutListings(
     };
   }, [apiDay, city, generation, initialAnswer]);
 
-  return { ...view, retry };
+  return { ...view, servedAt: currentAnswer?.servedAt, retry };
 }
