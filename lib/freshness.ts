@@ -66,6 +66,17 @@ export interface FreshnessDataset {
    * sentence would credit somebody with a collection nobody makes.
    */
   readonly retired?: boolean;
+  /**
+   * Opt-in: a path to every row's OWN expiry inside the artifact, `.`-separated,
+   * where `*` walks an array or an object's values
+   * (`areas.*.options.*.source.expiresAt`). A dataset whose rows each carry an
+   * expiry that the app enforces is not served by its file stamp alone: once the
+   * latest row expiry has passed, no row may be served and the dataset is stale
+   * whatever its budget says. late_food_evidence sat inside its 2,160h budget
+   * for two months after every one of its rows had expired, and the late-food
+   * answers were empty the whole time.
+   */
+  readonly rowExpiry?: string;
 }
 
 export interface FreshnessRegistry {
@@ -186,11 +197,51 @@ export type ArtifactRead =
   | { readonly kind: "unreadable"; readonly path: string; readonly error: string }
   | { readonly kind: "ok"; readonly path: string; readonly json: unknown };
 
+/** What a dataset's declared `rowExpiry` path found in its artifact. */
+export interface RowExpiryReading {
+  /** Rows that carry a parseable expiry at the declared path. */
+  readonly rows: number;
+  /** The latest of those expiries, or null when no row carries one. */
+  readonly latestExpiresAt: string | null;
+}
+
 /** A resolved stamp, or null plus the reason nothing could be resolved. */
 export interface StampResolution {
   readonly observedAt: string | null;
   /** Null when observedAt resolved, or when the dataset declares no stamp. */
   readonly reason: string | null;
+  /** Set when the dataset declares `rowExpiry` and its artifact was read. */
+  readonly rowExpiry?: RowExpiryReading;
+}
+
+/**
+ * Walk a `rowExpiry` path through parsed artifact JSON and keep the latest
+ * parseable expiry. `*` walks an array or an object's values; any other segment
+ * is a key. A value that is not a parseable date is not a row with an expiry.
+ * Mirrored dependency-free in scripts/check_freshness.mjs.
+ */
+export function readRowExpiry(path: string, json: unknown): RowExpiryReading {
+  let nodes: unknown[] = [json];
+  for (const segment of path.split(".")) {
+    const next: unknown[] = [];
+    for (const node of nodes) {
+      if (typeof node !== "object" || node === null) continue;
+      if (segment === "*") {
+        next.push(...(Array.isArray(node) ? node : Object.values(node)));
+      } else if (!Array.isArray(node) && Object.hasOwn(node, segment)) {
+        next.push((node as Record<string, unknown>)[segment]);
+      }
+    }
+    nodes = next;
+  }
+  let rows = 0;
+  let latest: string | null = null;
+  for (const value of nodes) {
+    if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) continue;
+    rows += 1;
+    if (latest === null || Date.parse(value) > Date.parse(latest)) latest = value;
+  }
+  return { rows, latestExpiresAt: latest };
 }
 
 /**
@@ -231,10 +282,12 @@ export function stampNeedsArtifact(spec: FreshnessStampSpec): boolean {
  * so a function ships exactly the artifacts its readers will open.
  */
 export function datasetOpensArtifact(
-  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack">,
+  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack" | "rowExpiry">,
 ): boolean {
   if (!dataset.artifact) return false;
-  return stampNeedsArtifact(dataset.stamp) || dataset.pack === true;
+  return (
+    stampNeedsArtifact(dataset.stamp) || dataset.pack === true || dataset.rowExpiry !== undefined
+  );
 }
 
 /**
@@ -382,6 +435,7 @@ export function evaluateDataset(
   observedAt: string | null,
   now: Date,
   unresolvedReason: string | null = null,
+  rowExpiry?: RowExpiryReading,
 ): FreshnessResult {
   const base = {
     id: dataset.id,
@@ -474,6 +528,33 @@ export function evaluateDataset(
 
   const ageHours = ageHoursOf(observedAt);
 
+  // A ROW THAT HAS EXPIRED MAY NOT BE SERVED, WHATEVER THE FILE'S AGE.
+  //
+  // Asked before the budget: a file inside its neglect budget whose every row
+  // has passed its own expiry serves nothing, and calling it fresh or a
+  // snapshot is the very blind spot that hid an empty late-food lane for two
+  // months. A declared path that finds no dated row is unknown, never fresh.
+  if (dataset.rowExpiry !== undefined) {
+    if (!rowExpiry || rowExpiry.latestExpiresAt === null) {
+      return {
+        ...base,
+        ageHours,
+        status: "unknown",
+        detail: `The registry declares row expiry "${dataset.rowExpiry}" but no row in the artifact carries a parseable one.`,
+      };
+    }
+    if (Date.parse(rowExpiry.latestExpiresAt) <= now.getTime()) {
+      return {
+        ...base,
+        ageHours,
+        status: "stale",
+        detail:
+          `Every one of the ${rowExpiry.rows} rows has passed its own expiry ` +
+          `(the latest was ${rowExpiry.latestExpiresAt}), so none of them may be served.`,
+      };
+    }
+  }
+
   if (dataset.stalenessBudgetHours === null) {
     // A lane DECLARED a snapshot and given no budget is one nothing may
     // lawfully advance, so there is nothing for it to be late for: it reports
@@ -546,8 +627,8 @@ export function evaluateRegistry(
   now: Date,
 ): FreshnessResult[] {
   return registry.datasets.map((dataset) => {
-    const { observedAt, reason } = stampFor(dataset);
-    return evaluateDataset(dataset, observedAt, now, reason);
+    const { observedAt, reason, rowExpiry } = stampFor(dataset);
+    return evaluateDataset(dataset, observedAt, now, reason, rowExpiry);
   });
 }
 
