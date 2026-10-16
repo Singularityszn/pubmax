@@ -138,7 +138,15 @@ export function createTrialSession({ adapter, fixtureIds, now, onDeliver = () =>
       if (turn.state !== "open") return turnId;
       pending = null;
       active = turnId;
-      adapter.startTurn({ turnId, utterance, signal: controller.signal, emit: (event) => receive(turnId, event) });
+      try {
+        adapter.startTurn({ turnId, utterance, signal: controller.signal, emit: (event) => receive(turnId, event) });
+      } catch (error) {
+        // A turn the adapter refused never started: close it, so activeTurn()
+        // never names it and its late events are dropped, then let the caller
+        // see why.
+        end(turnId, "adapter_error");
+        throw error;
+      }
       return turnId;
     },
     /** Cancels the open turn. Answers false when nothing is open. */

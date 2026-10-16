@@ -432,6 +432,27 @@ describe("what the session hands an adapter", () => {
     ]);
     expect(turns[0]!.signal).not.toBe(turns[1]!.signal);
   });
+
+  it("closes a turn the adapter throws on, so no turn is reported current and its late output drops", () => {
+    let handed: TrialTurn | null = null;
+    const adapter = {
+      startTurn: (turn: TrialTurn) => {
+        handed = turn;
+        throw new Error("adapter refused");
+      },
+    };
+    const session = createTrialSession({ adapter, fixtureIds: FIXTURE_IDS, now: () => 0 });
+
+    expect(() => session.startTurn("one")).toThrow("adapter refused");
+    expect(session.activeTurn()).toBeNull();
+    expect(handed!.signal.aborted).toBe(true);
+    handed!.emit({ type: "text", text: "late" });
+    expect(drops(session.log())).toEqual(["turn-1:text:cancelled"]);
+    expect(session.log()).toContainEqual(
+      expect.objectContaining({ kind: "mark", turnId: "turn-1", mark: "cancelled", cause: "adapter_error" }),
+    );
+    expect(session.cancel()).toBe(false);
+  });
 });
 
 describe("grounding and the closed event vocabulary", () => {

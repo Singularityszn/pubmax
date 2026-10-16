@@ -1,6 +1,6 @@
 export type TrialMark = "turn_started" | "first_text" | "first_audio" | "completed" | "cancelled";
 export type DropReason = "cancelled" | "superseded" | "after_completion" | "ungrounded" | "malformed";
-export type CancelCause = "user" | "superseded";
+export type CancelCause = "user" | "superseded" | "adapter_error";
 
 export type TrialEvent =
   | { type: "text"; text: string }
