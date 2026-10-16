@@ -64,7 +64,7 @@ describe("/pubs metadata", () => {
     });
 
     const meta = await generateMetadata();
-    expect(meta.title).toBe("Chains (3 chain pubs)");
+    expect(meta.title).toBe("Chains (3 pubs)");
     expect(await renderedHeading()).toBe(meta.title);
   });
 

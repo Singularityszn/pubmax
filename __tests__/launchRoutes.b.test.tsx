@@ -179,6 +179,6 @@ describe("launch routes (group b) carry one primary action", () => {
     const rendered = renderToStaticMarkup(await PubsPage({}));
     expect(primaryCount(rendered)).toBe(1);
     expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/);
-    expect(rendered).toMatch(/<h1[^>]*>Chains \(0 chain pubs\)<\/h1>/);
+    expect(rendered).toMatch(/<h1[^>]*>Chains \(0 pubs\)<\/h1>/);
   });
 });

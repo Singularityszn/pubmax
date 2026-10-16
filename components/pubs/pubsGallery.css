@@ -186,7 +186,9 @@
 
 .pubsCard {
   display: grid;
-  grid-template-rows: 168px auto;
+  /* The body takes the rest of the row's height (1fr), so every card in a
+     row ends at the same edge and its actions can sit on it. */
+  grid-template-rows: 168px 1fr;
   border: 1px solid var(--line);
   border-radius: 18px;
   overflow: hidden;
@@ -196,7 +198,7 @@
 }
 
 .pubsCard--no-art {
-  grid-template-rows: auto;
+  grid-template-rows: 1fr;
 }
 
 .pubsCard:hover {
@@ -323,8 +325,13 @@
   backdrop-filter: blur(6px);
 }
 
+/* A column, not a grid: a stretched grid shared the row's spare height out
+   between its lines, so a card beside a taller one printed its name, its
+   price and its actions with wide gaps between them. The lines pack at the
+   top and the actions sit on the card's foot, level across the row. */
 .pubsCardBody {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 12px 12px 14px;
 }
@@ -432,7 +439,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: auto;
+  padding-top: 2px;
 }
 
 .pubsMapLink,
@@ -512,11 +520,11 @@
   }
 
   .pubsCard {
-    grid-template-rows: 140px auto;
+    grid-template-rows: 140px 1fr;
   }
 
   .pubsCard.pubsCard--no-art {
-    grid-template-rows: auto;
+    grid-template-rows: 1fr;
   }
 
   .pubsCardGlyphHero svg {

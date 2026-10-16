@@ -20,7 +20,7 @@ const CHAINS_DESCRIPTION =
 
 function chainsHeading(count: number | null): string {
   if (count === null) return "Chains";
-  return `Chains (${count} chain pubs)`;
+  return `Chains (${count} pubs)`;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
