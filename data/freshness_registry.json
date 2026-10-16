@@ -294,10 +294,11 @@
       "class": "episodic",
       "artifact": "public/data/heritage_listings.json",
       "stamp": {
-        "kind": "field",
-        "pointer": "$retrievedAt"
+        "kind": "literal",
+        "value": "2026-07-18T00:00:00Z",
+        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically. lib/heritageListings.ts resolves this stamp and the venue sheet prints it beside every listed fact as the day the NHLE was read"
       },
-      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. The pack carries $retrievedAt, the day the NHLE was read, and the venue sheet prints it beside every listed fact. It first carried the 2026-07-18 ingest day this registry recorded for it.",
+      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. A regenerated pack carries $retrievedAt, the day the NHLE was read; point this stamp at it ({\"kind\": \"field\", \"pointer\": \"$retrievedAt\"}) in the same commit.",
       "stalenessBudgetHours": 8760,
       "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"

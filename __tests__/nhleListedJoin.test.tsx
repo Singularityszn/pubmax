@@ -6,8 +6,9 @@
 // scripts/build_heritage_listings.mjs matches Historic England's listed-building
 // points to the curated dataset AND to every London OSM pub no curated venue
 // owns, keyed by the `venue-uk-<osmRef>` id that pub's base sheet opens under.
-// The pack carries `$retrievedAt`; the Lore tab and the base sheet print it
-// beside the fact. A pub with no listing in the pack gets nothing, never
+// The read day is the registry's heritage_listings stamp (a regenerated pack
+// carries `$retrievedAt`); the Lore tab and the base sheet print it beside the
+// fact. A pub with no listing in the pack gets nothing, never
 // "not listed".
 
 import { readFileSync } from "node:fs";
@@ -20,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildListings, serialise } from "@/scripts/build_heritage_listings.mjs";
 import { baseVenueIdFor, londonBaseVenues } from "@/scripts/lib/heritageBaseVenues.mjs";
 import { heritageReadLabel, sanitizeHeritageFacts } from "@/lib/heritageFacts";
+import { resolveObservedAt } from "@/lib/freshness";
 import { getListedBuilding } from "@/lib/heritageListings";
 import VenueListedBuilding from "@/components/map/VenueListedBuilding";
 import { READ_PHASE_DELAY_MS } from "@/lib/useStaggeredRead";
@@ -84,19 +86,21 @@ describe("the London base pubs the join reads", () => {
 });
 
 describe("the dated source reaches the sheet", () => {
-  it("is in the committed pack and is what the registry reads", () => {
+  it("is the day the freshness registry holds the pack to", () => {
     const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
-    expect(Number.isFinite(Date.parse(pack.$retrievedAt))).toBe(true);
     const registry = JSON.parse(readFileSync(join(ROOT, "data/freshness_registry.json"), "utf8"));
     const row = registry.datasets.find((dataset: { id: string }) => dataset.id === "heritage_listings");
-    expect(row.stamp).toEqual({ kind: "field", pointer: "$retrievedAt" });
+    const readDay = resolveObservedAt(row.stamp, pack);
+    expect(Number.isFinite(Date.parse(readDay ?? ""))).toBe(true);
   });
 
   it("rides every listing the reader returns", async () => {
     const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+    const registry = JSON.parse(readFileSync(join(ROOT, "data/freshness_registry.json"), "utf8"));
+    const row = registry.datasets.find((dataset: { id: string }) => dataset.id === "heritage_listings");
     const [venueId] = Object.keys(pack.listings);
     const listed = await getListedBuilding(venueId);
-    expect(listed?.retrievedAt).toBe(pack.$retrievedAt);
+    expect(listed?.retrievedAt).toBe(resolveObservedAt(row.stamp, pack));
     expect(await getListedBuilding("venue-not-in-the-pack")).toBeNull();
   });
 
