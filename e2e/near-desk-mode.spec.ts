@@ -31,7 +31,7 @@ test.describe("near desk mode", () => {
     const modeSwitch = page.getByRole("radiogroup", { name: "Near mode" });
     await expect(modeSwitch).toBeVisible();
     const pintOption = page.getByRole("radio", { name: "Pint" });
-    const deskOption = page.getByRole("radio", { name: "Desk" });
+    const deskOption = page.getByRole("radio", { name: "Work spot" });
     await expect(pintOption).toHaveAttribute("aria-checked", "true");
     await expect(page.locator("section.nmn")).toBeVisible();
     await expect(page.locator(".nmnCard").first()).toBeVisible();
@@ -73,7 +73,7 @@ test.describe("near desk mode", () => {
     });
     const response = await page.goto("/near?mode=desk&patch=soho");
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole("radio", { name: "Desk" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("radio", { name: "Work spot" })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByText("No desks logged near here yet. Add a spot.")).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -93,7 +93,7 @@ test.describe("near desk mode", () => {
 
     // The bare page still honours the choice.
     await page.goto("/near");
-    await expect(page.getByRole("radio", { name: "Desk" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("radio", { name: "Work spot" })).toHaveAttribute("aria-checked", "true");
     expect(errors).toEqual([]);
   });
 

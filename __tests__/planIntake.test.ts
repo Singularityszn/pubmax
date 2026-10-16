@@ -291,19 +291,34 @@ describe("the composer's default First pint", () => {
   });
 
   it("is London wall time on a device that is not in London", () => {
-    // 21:42 UTC is 22:42 BST. Built from the device clock, the default read
-    // 22:00, which the London future check refuses, so Lock it in stayed
+    // 20:42 UTC is 21:42 BST. Built from the device clock, the default read
+    // 21:00, which the London future check refuses, so Lock it in stayed
     // disabled for every evening user whose device is not on London time.
     process.env.TZ = "UTC";
-    const now = new Date("2026-10-04T21:42:30.000Z");
+    const now = new Date("2026-10-04T20:42:30.000Z");
     const value = defaultLondonStartInput(now);
-    expect(value).toBe("2026-10-04T23:00");
-    expect(resolveFutureLondonStartIso(value, null, now)).toBe("2026-10-04T22:00:00.000Z");
+    expect(value).toBe("2026-10-04T22:00");
+    expect(resolveFutureLondonStartIso(value, null, now)).toBe("2026-10-04T21:00:00.000Z");
   });
 
   it("reads the same on a London device", () => {
     process.env.TZ = "Europe/London";
-    expect(defaultLondonStartInput(new Date("2026-10-04T21:42:30.000Z"))).toBe("2026-10-04T23:00");
+    expect(defaultLondonStartInput(new Date("2026-10-04T20:42:30.000Z"))).toBe("2026-10-04T22:00");
+  });
+
+  it("moves to tomorrow at 19:00 London from 22:30, never a first pint near midnight", () => {
+    process.env.TZ = "America/Los_Angeles";
+    // 21:29 UTC is 22:29 BST: still tonight.
+    expect(defaultLondonStartInput(new Date("2026-10-15T21:29:00.000Z"))).toBe("2026-10-15T22:45");
+    // 21:30 UTC is 22:30 BST.
+    expect(defaultLondonStartInput(new Date("2026-10-15T21:30:00.000Z"))).toBe("2026-10-16T19:00");
+    // 22:30 UTC is 23:30 BST: the sprint saw a 23:45 default here.
+    const late = new Date("2026-10-15T22:30:00.000Z");
+    const value = defaultLondonStartInput(late);
+    expect(value).toBe("2026-10-16T19:00");
+    expect(resolveFutureLondonStartIso(value, null, late)).toBe("2026-10-16T18:00:00.000Z");
+    // Across the month and the year, in GMT.
+    expect(defaultLondonStartInput(new Date("2026-12-31T23:10:00.000Z"))).toBe("2027-01-01T19:00");
   });
 
   it("starts an afternoon plan at 18:00 London, in summer and in winter", () => {

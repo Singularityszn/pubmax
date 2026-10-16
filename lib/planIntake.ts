@@ -27,6 +27,7 @@ export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
 export const PLAN_INTAKE_DRAFT_TTL_MS = DAY_MS;
 export const PLAN_INTAKE_MAX_RAW_BYTES = 12 * 1024;
 const LONDON_TIME_ZONE = "Europe/London";
+const LATE_DEFAULT_START_CUTOFF_MINUTES = 22 * 60 + 30;
 
 export const PLAN_INTAKE_STEPS = [
   "area",
@@ -327,16 +328,22 @@ export function resolveFutureLondonStartIso(
 /**
  * The composer's default First pint, as a London datetime-local value: at
  * least a quarter of an hour out, on a quarter, and 18:00 when that lands
- * before 17:00. It is built from London wall time, not the device clock,
- * because the lock check (`resolveFutureLondonStartIso`) reads the field as
- * London time.
+ * before 17:00. From 22:30 London it is tomorrow at 19:00, because a first
+ * pint near midnight is not a night out. It is built from London wall time,
+ * not the device clock, because the lock check (`resolveFutureLondonStartIso`)
+ * reads the field as London time.
  */
 export function defaultLondonStartInput(now = new Date()): string {
   const london = londonParts(now);
   // Wall-clock arithmetic in a zone-free Date: only the fields matter here.
   const wall = new Date(Date.UTC(london.year, london.month - 1, london.day, london.hour, 0));
-  wall.setUTCMinutes(Math.ceil((london.minute + 15) / 15) * 15);
-  if (wall.getUTCHours() < 17) wall.setUTCHours(18, 0, 0, 0);
+  if (london.hour * 60 + london.minute >= LATE_DEFAULT_START_CUTOFF_MINUTES) {
+    wall.setUTCDate(wall.getUTCDate() + 1);
+    wall.setUTCHours(19, 0, 0, 0);
+  } else {
+    wall.setUTCMinutes(Math.ceil((london.minute + 15) / 15) * 15);
+    if (wall.getUTCHours() < 17) wall.setUTCHours(18, 0, 0, 0);
+  }
   return londonInput({
     year: wall.getUTCFullYear(),
     month: wall.getUTCMonth() + 1,
