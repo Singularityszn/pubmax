@@ -6,7 +6,7 @@
 //
 //   node scripts/perf-map-chunk-preload-ab.mjs \
 //     --a http://127.0.0.1:3101 --b http://127.0.0.1:3102 \
-//     --device mobile --pairs 5
+//     --device mobile --pairs 5 [--inject <graph.json>] [--no-basemap]
 //
 // Rig rules carried from docs/proof/map-first-pin/README.md: one CDP session
 // per page, HTTP cache and origin storage cleared before every sample, the arm
@@ -44,6 +44,10 @@ const pairs = Number(arg("pairs", "5"));
 const injectPath = arg("inject");
 const injectFiles = injectPath ? JSON.parse(readFileSync(injectPath, "utf8")) : null;
 const fetchPriority = arg("priority", "low");
+// --no-basemap: only for a machine that cannot reach the basemap hosts, where
+// no pin can ever paint. Without it every sample polls to the full ceiling,
+// because on a real rig the first pin lands seconds after the engine marks.
+const noBasemap = process.argv.includes("--no-basemap");
 const device = DEVICES[deviceName];
 if (!arms.A || !arms.B || !device) {
   console.error("usage: --a <url> --b <url> [--device mobile|desktop] [--pairs 5]");
@@ -127,9 +131,12 @@ async function sample(arm) {
       firstPin = await page.evaluate(() => performance.now());
       break;
     }
-    // With no basemap reachable (a sandbox whose network policy denies the
-    // tile host) no pin can paint; stop once the engine and the data marks
-    // are both in and have had 3 s to settle, instead of burning the ceiling.
+    // With --no-basemap no pin can paint, so stop once the engine and the
+    // data marks are both in and have had 3 s to settle.
+    if (!noBasemap) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      continue;
+    }
     const settled = await page
       .evaluate(() => {
         const at = (n) => performance.getEntriesByName(n)[0]?.startTime;

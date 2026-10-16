@@ -31,7 +31,7 @@ rule sets was not met. Nothing in the product changes on this branch.
 | Desktop | 1440x900, no CPU throttle, Fast 4G (75 ms, 1,012,500 B/s down), `VITALS_DEVICES.desktop` |
 | Cold | HTTP cache and origin storage cleared before every sample; one throwaway load per arm first |
 | Order | six interleaved pairs per cell, order alternated each pair, the idle arm parked on `about:blank` |
-| Harness | `scripts/perf-map-chunk-preload-ab.mjs` |
+| Harness | `scripts/perf-map-chunk-preload-ab.mjs`; these runs stopped each sample 3 s after `map-constructed` and `first-pins` (now the `--no-basemap` flag), and without that flag every sample polls to the 45 s ceiling for a pin |
 
 ## Why the first pin is missing
 
