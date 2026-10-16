@@ -98,6 +98,36 @@ describe(".vercelignore covers what a deploy would otherwise upload", () => {
     }
   });
 
+  it("lists every gitignored secret-bearing path, whatever its size", () => {
+    // Size is not the test for these: each can hold a credential or private
+    // data, and the deploy's dirty-tree check (`git status --porcelain`) never
+    // shows a gitignored file, so nothing else would see one in an upload.
+    // Vercel's own default skips only `.env.local` and `.env.*.local`.
+    const lines = readFileSync(join(process.cwd(), ".vercelignore"), "utf8")
+      .split("\n")
+      .map((line) => line.trim());
+    for (const pattern of [
+      ".env*",
+      "*.env",
+      "/.clerk/",
+      "/.mcp.json",
+      "/.tavily/",
+      "/.context/",
+      "/.codex/",
+      "/.data/",
+      "*.dump",
+      "/pubmax-backups/",
+    ]) {
+      expect({ pattern, listed: lines.includes(pattern) }).toEqual({ pattern, listed: true });
+    }
+    const patterns = ignoredPrefixes();
+    for (const name of [".env", ".env.local", ".env.production", ".env.production.local"]) {
+      expect({ name, listed: isIgnored(name, patterns) }).toEqual({ name, listed: true });
+    }
+    // The committed template carries no values and stays in the upload.
+    expect(lines).toContain("!.env.example");
+  });
+
   it("no top-level directory over 5 MB is both unlisted and not a deploy input", () => {
     const patterns = ignoredPrefixes();
     const offenders: Record<string, string> = {};

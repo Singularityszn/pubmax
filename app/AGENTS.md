@@ -25,6 +25,7 @@ Full rules: [`docs/rules/app-landing-city-and-listing-pages.md`](../docs/rules/a
 - [A city is CHOSEN once, and the surfaces that read it follow.](../docs/rules/app-landing-city-and-listing-pages.md#a-city-is-chosen-once-and-the-surfaces-that-read-it-follow)
 - [THE ANSWER COMES FIRST, AND WHAT ACTS ON IT COMES AFTER IT.](../docs/rules/app-landing-city-and-listing-pages.md#the-answer-comes-first-and-what-acts-on-it-comes-after-it)
 - [The homepage share card IS the invite preview, so it may hold no figure of its own.](../docs/rules/app-landing-city-and-listing-pages.md#the-homepage-share-card-is-the-invite-preview-so-it-may-hold-no-figure-of-its-ow)
+- [A shared pint carries its source and its day, and its card reads the pint, never the link.](../docs/rules/app-landing-city-and-listing-pages.md#a-shared-pint-carries-its-source-and-its-day-and-its-card-reads-the-pint-never-t)
 - [The privacy notice is part of the data path, not marketing copy.](../docs/rules/app-landing-city-and-listing-pages.md#the-privacy-notice-is-part-of-the-data-path-not-marketing-copy)
 - [THE TWO DOCUMENTS A READER MEETS ON THEIR WORST VISIT ARE GOVERNED TOO.](../docs/rules/app-landing-city-and-listing-pages.md#the-two-documents-a-reader-meets-on-their-worst-visit-are-governed-too)
 

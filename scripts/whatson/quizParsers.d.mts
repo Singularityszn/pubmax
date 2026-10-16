@@ -59,7 +59,7 @@ export declare function nextWeeklyOccurrence(
 ): string | null;
 export declare function decodeEntities(text: unknown): string;
 export declare function parseQuestionOneVenuesPage(html: unknown): QuizCard[];
-export declare function parseQuestionOneNextPage(html: unknown): string | null;
+export declare function parseQuestionOneNextPage(html: unknown, pageUrl?: string): string | null;
 export declare function parseQuestionOneVenueDetail(html: unknown): QuizVenueDetail;
 export declare function isWeeklyCadence(title: unknown): boolean;
 export declare function placeNameFromQuestionOneTitle(title: unknown): string;

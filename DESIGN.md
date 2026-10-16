@@ -103,7 +103,7 @@ For the messaging exception to these surface and accent rules, see the [design s
 
 ### Named Rules
 
-**The One Accent Rule.** Coral owns primary CTA and Plan selection in both themes. Amber stays a route and price signal; pint, river, and brick never decorate chrome that isn’t a price band, heritage marker, or status.
+**The One Accent Rule.** Coral owns the one primary CTA per screen and the floating create disc in both themes; a selection (active tab, pressed chip) reads in ink (`--state-selected-*`, docs/DESIGN_SYSTEM.md "Coral is spent twice"). Amber stays a route and price signal; pint, river, and brick never decorate chrome that isn’t a price band, heritage marker, or status.
 
 **The No Purple Glow Rule.** Dark theme uses ink + amber bloom + pint neon only. No purple mesh, violet gradients, or grape bloom behind surfaces.
 

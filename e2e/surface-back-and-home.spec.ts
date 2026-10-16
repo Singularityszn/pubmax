@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 import { expectHydrated } from "./helpers/streamedPage";
 
 /**
@@ -41,7 +42,7 @@ async function openMap(page: Page): Promise<void> {
 
 async function openPhoneMap(page: Page): Promise<void> {
   await openMap(page);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 30_000 });
+  await expectMobileMapShellReady(page, 30_000);
 }
 
 /** The one Back control, wherever the surface lives. */

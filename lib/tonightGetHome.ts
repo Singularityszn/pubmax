@@ -5,12 +5,48 @@
 // (callers pass `now`), so it unit-tests without mocks. Tone rules match the
 // Last Pint card: state the fact and stop, never invent a time, never alarm.
 
+import { clockMinutes } from "@/lib/clock";
 import {
   describeLeaveCountdown,
   minutesUntilLeaveBy,
+  type LastTrain,
   type LastTrainResult,
 } from "@/lib/tfl";
 import { lineDisplayLabel } from "@/lib/tflDisruption";
+
+/**
+ * A last train's place in its SERVICE day, in minutes: 00:28 on the Friday
+ * timetable is 24:28, so 1468, and sorts after 23:50 (1430). A plain "HH:MM"
+ * string compare puts "00:15" before "23:50", which is the wrong way round.
+ * TfL's original `serviceHour` (hour >= 24 after midnight) wins when present;
+ * otherwise `pastMidnight` adds the day.
+ */
+export function lastTrainServiceRank(
+  train: Pick<LastTrain, "clock" | "pastMidnight" | "serviceHour">,
+): number {
+  const clock = clockMinutes(train.clock);
+  if (typeof train.serviceHour === "number" && Number.isFinite(clock)) {
+    return train.serviceHour * 60 + (clock % 60);
+  }
+  return clock + (train.pastMidnight ? 24 * 60 : 0);
+}
+
+/**
+ * The latest last train across serving lines: the one any line home hangs on,
+ * and the one the route's leave-by decision is computed from. Null when there
+ * are no trains.
+ */
+export function latestLastTrain<T extends Pick<LastTrain, "clock" | "pastMidnight" | "serviceHour">>(
+  trains: readonly T[] | undefined,
+): T | null {
+  let latest: T | null = null;
+  for (const train of trains ?? []) {
+    if (latest === null || lastTrainServiceRank(train) > lastTrainServiceRank(latest)) {
+      latest = train;
+    }
+  }
+  return latest;
+}
 
 export type GetHomeSummary = {
   // "Victoria line good service." or a short disruption note.
@@ -50,15 +86,10 @@ export function summariseGetHome(
     return null;
   }
 
-  // Anchor fact: the latest last train from the station across serving lines.
-  // "HH:MM" strings compare correctly within a service day; a past-midnight
-  // departure (00:28) is later than any same-evening one regardless of clock.
-  const lastTrain = result.trains.reduce((latest, train) => {
-    if (train.pastMidnight !== latest.pastMidnight) {
-      return train.pastMidnight ? train : latest;
-    }
-    return train.clock > latest.clock ? train : latest;
-  });
+  // Anchor fact: the latest last train from the station across serving lines,
+  // ranked in the service-day frame so a past-midnight 00:28 beats 23:50.
+  const lastTrain = latestLastTrain(result.trains);
+  if (!lastTrain) return null;
 
   // The decision's lines are the ones that matter for getting home; fall back
   // to the latest-running line when the decision is absent.

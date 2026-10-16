@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const MOBILE_VIEWPORTS = [
   { width: 390, height: 844 },
@@ -18,7 +18,7 @@ async function prepareReturningVisitor(page: Page): Promise<void> {
 }
 
 async function openVenueList(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   const layersSheet = page.locator(
     '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
   );
@@ -130,11 +130,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     test.setTimeout(120_000);
     await loadMobileMap(page, viewport);
     await expect(
-      page.getByRole("button", { name: "Describe the outing" }),
+      page.getByRole("button", { name: "Plan a pub crawl" }),
     ).toBeVisible();
     await openVenueList(page);
     await expect(
-      page.getByRole("button", { name: "Describe the outing" }),
+      page.getByRole("button", { name: "Plan a pub crawl" }),
     ).toHaveCount(0);
     // Opened from Map controls, the list offers Back, so its close names the map
     // it returns to (components/map/MapVenueList.tsx).
@@ -143,7 +143,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       .click();
     await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
     const plannerAction = page.getByRole("button", {
-      name: "Describe the outing",
+      name: "Plan a pub crawl",
     });
     await expect(plannerAction).toBeVisible();
     await plannerAction.click();

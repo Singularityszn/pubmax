@@ -95,7 +95,7 @@ describe("TonightSoftPlansModule", () => {
   it("lists soft plan chips into /plan occasions", () => {
     const html = renderToStaticMarkup(createElement(TonightSoftPlansModule, { hasQuietPint: false }));
     expect(html).toContain('data-testid="tonight-soft-plans"');
-    expect(html).toContain("Soft plans tonight");
+    expect(html).toContain("Ideas for tonight");
     expect(html).toContain("Coffee catch-up");
     expect(html).toContain("Alcohol-free outing");
     expect(html).toContain("Chill afternoon");

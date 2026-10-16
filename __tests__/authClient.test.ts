@@ -22,9 +22,10 @@ afterEach(() => {
 
 describe("browser auth client", () => {
   it("does not construct a Supabase client during server rendering", async () => {
-    const { getSupabaseBrowser } = await loadAuthClient();
+    const { getSupabaseBrowser, createNativeAuthClient } = await loadAuthClient();
 
     expect(getSupabaseBrowser()).toBeNull();
+    expect(await createNativeAuthClient("a".repeat(32))).toBeNull();
     expect(createClient).not.toHaveBeenCalled();
   });
 

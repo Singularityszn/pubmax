@@ -6,6 +6,14 @@
 // PWA (iOS 16.4+) gains web push, so an install today is a notifiable user
 // tomorrow.
 //
+// AND THEN ONLY AFTER A PRICE ANSWER IN THIS SITTING (product owner, Oct 2026
+// UX audit, P2-C). Proven value says the reader is worth asking; it does not
+// say WHEN. The ask waits until this session has handed them a listed pint
+// (`lib/priceAnswerMoment.ts`: the /near answer, or a pub sheet showing a
+// price), so it never lands on a first paint. A show starts the same cooldown
+// a decline does, so the sheet is offered at most once per
+// A2HS_DECLINE_COOLDOWN_DAYS whatever the reader did with it.
+//
 // This module is DOM-free and storage-injectable so it unit-tests in the node
 // vitest env: platform detection takes a plain snapshot of navigator/matchMedia
 // values, and every gate is a pure function of explicit inputs. The thin
@@ -25,8 +33,14 @@ import { isNativeApp } from "@/lib/nativePlatform";
 /** Milliseconds in one UTC day. Shared owner: lib/dayMs.ts. */
 const MS_PER_DAY = DAY_MS;
 
-/** How long a decline suppresses the prompt before it may re-offer. */
+/** How long a decline, or a show, suppresses the prompt before it may re-offer. */
 export const A2HS_DECLINE_COOLDOWN_DAYS = 14;
+
+/**
+ * How long this session's price answer stays the only thing on screen before
+ * the install sheet may ask (lib/priceAnswerMoment.ts).
+ */
+export const A2HS_ANSWER_DWELL_MS = 4000;
 
 /** localStorage slot for the persisted A2HS state. */
 const STORAGE_KEY = "pubmax:a2hs:v1";
@@ -55,6 +69,8 @@ export type A2hsState = {
   secondDayBucket: number | null;
   /** Day bucket of the most recent decline (drives the cooldown). */
   declinedDayBucket: number | null;
+  /** Day bucket the sheet was last shown (drives the same cooldown). */
+  shownDayBucket: number | null;
   /** Terminal outcome; once set to installed / dismissed-forever we never ask. */
   outcome: A2hsOutcome;
 };
@@ -63,6 +79,7 @@ export const EMPTY_A2HS_STATE: A2hsState = {
   firstDayBucket: null,
   secondDayBucket: null,
   declinedDayBucket: null,
+  shownDayBucket: null,
   outcome: "none",
 };
 
@@ -185,6 +202,7 @@ export function parseA2hsState(raw: string | null): A2hsState {
       firstDayBucket: bucket(parsed.firstDayBucket),
       secondDayBucket: bucket(parsed.secondDayBucket),
       declinedDayBucket: bucket(parsed.declinedDayBucket),
+      shownDayBucket: bucket(parsed.shownDayBucket),
       outcome,
     };
   } catch {
@@ -214,14 +232,20 @@ export function hasProvenValue(state: A2hsState, planCompleted: boolean): boolea
   return state.secondDayBucket !== null || planCompleted;
 }
 
-/** May we (re-)offer today given the decline cooldown? */
+/** May we (re-)offer today, given the cooldown from the last decline or show? */
 export function canReoffer(
   state: A2hsState,
   todayBucket: number,
   cooldownDays: number = A2HS_DECLINE_COOLDOWN_DAYS,
 ): boolean {
-  if (state.declinedDayBucket === null) return true;
-  return todayBucket - state.declinedDayBucket >= cooldownDays;
+  const last = Math.max(state.declinedDayBucket ?? -Infinity, state.shownDayBucket ?? -Infinity);
+  if (!Number.isFinite(last)) return true;
+  return todayBucket - last >= cooldownDays;
+}
+
+/** The sheet went up today: the cooldown runs from here even if it is ignored. */
+export function registerShown(state: A2hsState, todayBucket: number): A2hsState {
+  return { ...state, shownDayBucket: todayBucket };
 }
 
 export function registerDecline(state: A2hsState, todayBucket: number): A2hsState {
@@ -254,6 +278,7 @@ export type A2hsDecision = {
     | "unsupported-platform"
     | "unproven-value"
     | "decline-cooldown"
+    | "awaiting-price-answer"
     | "android-prompt-unavailable";
 };
 
@@ -265,19 +290,21 @@ export type A2hsEvaluateInput = {
   planCompleted: boolean;
   /** Did we capture a usable `beforeinstallprompt` event (Android path)? */
   androidPromptReady: boolean;
+  /** Has this session handed the reader a listed pint (lib/priceAnswerMoment.ts)? */
+  priceAnswerSeen: boolean;
   cooldownDays?: number;
 };
 
 /**
  * The single decision function. Order matters: terminal outcomes and platform
- * first (cheap, absolute), then the proven-value earn, then the decline
- * cooldown, then the Android-only requirement that we actually hold a native
+ * first (cheap, absolute), then the proven-value earn, then the cooldown,
+ * then the wait for this session's price answer, then the Android-only requirement that we actually hold a native
  * prompt to fire. Everything the component needs to decide whether — and which
  * — sheet to show comes out of here, so the whole policy is unit-testable
  * without a DOM.
  */
 export function evaluateA2hs(input: A2hsEvaluateInput): A2hsDecision {
-  const { platform, state, todayBucket, planCompleted, androidPromptReady } = input;
+  const { platform, state, todayBucket, planCompleted, androidPromptReady, priceAnswerSeen } = input;
 
   if (state.outcome === "installed") return { show: false, surface: null, reason: "already-installed" };
   if (state.outcome === "dismissed-forever") return { show: false, surface: null, reason: "dismissed-forever" };
@@ -288,6 +315,7 @@ export function evaluateA2hs(input: A2hsEvaluateInput): A2hsDecision {
   if (!canReoffer(state, todayBucket, input.cooldownDays)) {
     return { show: false, surface: null, reason: "decline-cooldown" };
   }
+  if (!priceAnswerSeen) return { show: false, surface: null, reason: "awaiting-price-answer" };
 
   if (platform === "android") {
     if (!androidPromptReady) return { show: false, surface: null, reason: "android-prompt-unavailable" };

@@ -19,6 +19,7 @@ import {
   type AskCard,
 } from "@/lib/conciergeAskClient";
 import type { AskProposal } from "@/lib/ask/types";
+import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
@@ -207,7 +208,7 @@ export default function MapConciergeAsk({
 
         <form className="mapConciergeAskForm" onSubmit={onSubmit}>
           <label className="mapConciergeAskSr" htmlFor="map-concierge-query">
-            Describe the outing
+            {PLAN_FIELD_LABEL}
           </label>
           <input
             id="map-concierge-query"

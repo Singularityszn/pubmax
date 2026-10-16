@@ -43,6 +43,7 @@ page, official API, open data) supports.
 | **CityMCP (buzz/status/journey/places)** | `citymcp.com/london/mcp` (keyless) | Proxied **per request**, short in-process TTLs (3–10 min) | Live | none (buzz quality rides CityMCP's own EXA-backed enrichment) | Live | live |
 | **Buzz digest** | CityMCP `get_place` deep synthesis | `app/api/citymcp/buzz` per request | Live but **content is EXA-blocked upstream** — returns `{buzz:null}` when CityMCP has no digest | none locally; upstream EXA-gated | Live | live |
 | **TfL line geometry / London POIs** | Curated GeoJSON | Manual | Static | none | Rarely changes | untracked (static) |
+| **Street walks to stations (Zone 1)** | Overture Maps streets (OSM, ODbL) through city2graph, pinned release | Manual `uv run scripts/build_station_walk_access.py --entrances <NaPTAN Stops.csv>` writes `data/station_walk_access.json` (walks end at the nearest NaPTAN entrance; without the flag, at the station point); `/api/last-train` reads it to pick the shortest street walk among TfL's first five stations and to walk the leave-by clock along the streets within 1 km of any Zone 1 station, and says `walkBasis: "straight"` everywhere else | Static | none | Rarely changes | untracked (static) |
 
 **Not a class in this table: historical pint prices.** `public/data/price_history/london.json`
 is dated evidence about the past, so it has no cadence and no staleness budget to

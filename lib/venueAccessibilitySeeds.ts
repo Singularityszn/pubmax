@@ -1,4 +1,5 @@
 import { normaliseVenueName } from "@/lib/curation";
+import { displayVenueName } from "@/lib/venueDisplay";
 import type { VenueAccessibility } from "@/lib/venueAccessibility";
 
 // Curated, provenance-stamped accessible-venue seed (PRD issue #28).
@@ -19,12 +20,12 @@ import type { VenueAccessibility } from "@/lib/venueAccessibility";
 //     field below is a fact its cited source states plainly — where a source is
 //     silent on a facet, the field is OMITTED (unknown). We do not infer.
 //
-// Keyed by normalised pub name (the same normalisation lib/curation.ts uses).
-// The keys are the EXACT names as they appear in
-// public/data/pint_prices_app_dataset.json — verified against the dataset — so a
-// seed lands on the real venue. Same-named pubs in the dataset are disambiguated
-// by carrying distinct names (e.g. "The Ice Wharf - JD Wetherspoon"); where a
-// bare name could collide we pin an optional `borough` guard.
+// Keyed by normalised pub name (the same normalisation lib/curation.ts uses),
+// AFTER the operator suffix is dropped (lib/venueDisplay.ts#displayVenueName):
+// the dataset files "The Ice Wharf - JD Wetherspoon" and a reader-facing venue
+// carries "The Ice Wharf", and both must land on one seed. Each key was verified
+// unique in public/data/pint_prices_app_dataset.json; where a bare name could
+// collide we pin an optional `borough` guard.
 //
 // Sources captured July 2026:
 //   - JDW app/table service (chain-wide): https://www.jdwetherspoon.com/order-and-pay-app/
@@ -49,7 +50,7 @@ const accessibilitySeeds: Record<string, AccessibilitySeed> = {
   // access". Table service is the chain-wide JDW app policy. The accessible
   // toilet was only weakly sourced (reviews, not the official page) so it is
   // left UNKNOWN rather than claimed.
-  "the ice wharf - jd wetherspoon": {
+  "the ice wharf": {
     venueHint: "The Ice Wharf — 28A/28B Jamestown Road, Camden NW1 (JDW)",
     stepFree: true,
     seatedService: true,
@@ -85,7 +86,7 @@ const accessibilitySeeds: Record<string, AccessibilitySeed> = {
   // clearly captured, so stepFree stays UNKNOWN. Table service is chain policy.
   // NB the dataset mis-tags this row's borough as "Havering" (address is SE4
   // Brockley) — so no borough guard; the name is unique enough to pin it.
-  "the brockley barge - jd wetherspoon": {
+  "the brockley barge": {
     venueHint: "The Brockley Barge — 184 Brockley Road, Lewisham SE4 (JDW)",
     accessibleToilet: true,
     seatedService: true,
@@ -101,7 +102,9 @@ export function getVenueAccessibility(
   pubName: string,
   primaryBorough: string,
 ): VenueAccessibility | undefined {
-  const seed = accessibilitySeeds[normaliseVenueName(pubName)];
+  // Keyed by the reader-facing name, so the dataset's "… - JD Wetherspoon" row
+  // and the display name a loader hands over land on the same seed.
+  const seed = accessibilitySeeds[normaliseVenueName(displayVenueName(pubName))];
   if (!seed) return undefined;
   // Borough guard (only when the seed pins one): must match case-insensitively.
   if (

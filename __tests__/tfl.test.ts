@@ -342,6 +342,98 @@ describe("minutesUntilDeparture — wrap decided by now, not the timetable flag"
   });
 });
 
+// LIB-D1: between 00:00 and 04:00 London the service day is YESTERDAY, so an
+// evening (hour<24) departure checked in the small hours has already left. It
+// used to be placed on today's date and read as ~22h away.
+describe("minutesUntilDeparture — evening trains seen from the small hours", () => {
+  it("plain path: a 23:00 train checked at 00:30 left 90 minutes ago", () => {
+    expect(minutesUntilDeparture(23 * 60, false, 30)).toBe(-90);
+  });
+
+  it("plain path: a 23:50 train is gone at 03:59 and is tonight's train again at 04:00", () => {
+    expect(minutesUntilDeparture(23 * 60 + 50, false, 3 * 60 + 59)).toBe(-249);
+    expect(minutesUntilDeparture(23 * 60 + 50, false, 4 * 60)).toBe(1190);
+  });
+
+  it("plain path: past-midnight trains are unchanged", () => {
+    expect(minutesUntilDeparture(28, true, 30)).toBe(-2);
+    expect(minutesUntilDeparture(40, true, 23 * 60 + 30)).toBe(70);
+  });
+
+  it("London BST: a 23:00 train at 00:30 BST is -90", () => {
+    // Sun 18 Oct 2026 00:30 BST.
+    const now = new Date("2026-10-17T23:30:00Z");
+    expect(minutesUntilDeparture(23 * 60, false, 30, now, 23)).toBe(-90);
+  });
+
+  it("London GMT: a 23:00 train at 00:30 GMT is -90", () => {
+    // Sat 12 Dec 2026 00:30 GMT.
+    const now = new Date("2026-12-12T00:30:00Z");
+    expect(minutesUntilDeparture(23 * 60, false, 30, now, 23)).toBe(-90);
+  });
+
+  it("London: a 23:50 train is gone at 03:59 and is the next evening's at 04:00", () => {
+    // 2026-12-12 03:59 GMT, then 04:00 GMT.
+    expect(
+      minutesUntilDeparture(23 * 60 + 50, false, 239, new Date("2026-12-12T03:59:00Z"), 23),
+    ).toBe(-249);
+    expect(
+      minutesUntilDeparture(23 * 60 + 50, false, 240, new Date("2026-12-12T04:00:00Z"), 23),
+    ).toBe(1190);
+  });
+
+  it("London: past-midnight trains are unchanged", () => {
+    // 00:30 GMT checking a 00:28 (hour 24) train.
+    expect(minutesUntilDeparture(28, true, 30, new Date("2026-12-12T00:30:00Z"), 24)).toBe(-2);
+    // 23:30 GMT checking a 00:40 (hour 24) train.
+    expect(minutesUntilDeparture(40, true, 23 * 60 + 30, new Date("2026-12-11T23:30:00Z"), 24)).toBe(
+      70,
+    );
+  });
+
+  describe("fall-back night 2026-10-25 (02:00 BST -> 01:00 GMT)", () => {
+    it("a 23:00 train at the first 01:30 (BST) left 150 real minutes ago", () => {
+      const now = new Date("2026-10-25T00:30:00Z");
+      expect(minutesUntilDeparture(23 * 60, false, 90, now, 23)).toBe(-150);
+    });
+
+    it("a 23:00 train at the repeated 01:30 (GMT) left 210 real minutes ago", () => {
+      const now = new Date("2026-10-25T01:30:00Z");
+      expect(minutesUntilDeparture(23 * 60, false, 90, now, 23)).toBe(-210);
+    });
+
+    it("a 25:30 train (first 01:30) checked at 00:30 BST is 60 minutes away", () => {
+      const now = new Date("2026-10-24T23:30:00Z");
+      expect(minutesUntilDeparture(90, true, 30, now, 25)).toBe(60);
+    });
+
+    it("evening checks before the change still resolve forward", () => {
+      const now = new Date("2026-10-24T21:00:00Z"); // 22:00 BST
+      expect(minutesUntilDeparture(23 * 60, false, 22 * 60, now, 23)).toBe(60);
+      // 26:57 -> 02:57 GMT on the 25th = 02:57Z, 357 real minutes away.
+      expect(minutesUntilDeparture(2 * 60 + 57, true, 22 * 60, now, 26)).toBe(357);
+    });
+  });
+
+  describe("spring-forward night 2027-03-28 (01:00 GMT -> 02:00 BST)", () => {
+    it("a 23:00 train at 00:30 GMT left 90 minutes ago", () => {
+      const now = new Date("2027-03-28T00:30:00Z");
+      expect(minutesUntilDeparture(23 * 60, false, 30, now, 23)).toBe(-90);
+    });
+
+    it("a 23:00 train at 02:30 BST left 150 real minutes ago", () => {
+      const now = new Date("2027-03-28T01:30:00Z");
+      expect(minutesUntilDeparture(23 * 60, false, 150, now, 23)).toBe(-150);
+    });
+
+    it("evening checks before the change still resolve forward", () => {
+      const now = new Date("2027-03-27T22:00:00Z"); // 22:00 GMT
+      // 26:57 -> 02:57 BST on the 28th = 01:57Z, 237 real minutes away.
+      expect(minutesUntilDeparture(2 * 60 + 57, true, 22 * 60, now, 26)).toBe(237);
+    });
+  });
+});
+
 // --- Last Pint Guardian: live leave-by countdown ------------------------------
 describe("minutesUntilLeaveBy", () => {
   const now = new Date("2026-07-10T22:00:00Z");

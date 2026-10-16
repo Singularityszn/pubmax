@@ -11,6 +11,7 @@ import {
 import { retiredVenueRef } from "@/lib/storedVenueRef";
 import { lookupRetiredVenue, resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { matchVenuePermalinkSlug } from "@/lib/venuePermalinkSlug";
+import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -26,7 +27,10 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 
 export type VenueRef = {
   id: string;
+  /** Reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /** The dataset's own name when it differs from `name`; search only, never rendered. */
+  sourceName?: string;
   borough: string;
   lat: number;
   lng: number;
@@ -82,6 +86,7 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
     index.set(v.id, {
       id: v.id,
       name: v.name,
+      ...(v.sourceName ? { sourceName: v.sourceName } : {}),
       borough: v.primaryBorough || "London",
       lat: v.latitude,
       lng: v.longitude,
@@ -104,7 +109,8 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
       typeof row.borough === "string" && row.borough ? row.borough : "London";
     const venue: VenueRef = {
       id: row.id,
-      name: row.name,
+      name: displayVenueName(row.name),
+      ...venueSourceNameField(row.name),
       borough,
       lat,
       lng,
@@ -117,7 +123,8 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
         : null;
     const slimVenue: SlimVenue = {
       id: row.id,
-      name: row.name,
+      name: displayVenueName(row.name),
+      ...venueSourceNameField(row.name),
       borough,
       lat,
       lng,
@@ -333,6 +340,7 @@ export async function resolveVenuePermalinkSlug(
   const candidates: {
     id: string;
     name: string;
+    sourceName?: string;
     searchText?: string;
   }[] = [];
   const candidateById = new Map<string, (typeof candidates)[number]>();
@@ -343,6 +351,7 @@ export async function resolveVenuePermalinkSlug(
       const row = {
         id: slimVenue.id,
         name: slimVenue.name,
+        ...(slimVenue.sourceName ? { sourceName: slimVenue.sourceName } : {}),
         ...(slimVenue.filterHints?.searchText
           ? { searchText: slimVenue.filterHints.searchText }
           : {}),

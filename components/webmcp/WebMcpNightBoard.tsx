@@ -235,7 +235,9 @@ function createActions({
       fetch("/api/citymcp/status", { signal: context.signal }).then(readApiJson),
       fetch("/api/citymcp/things-to-do?window=tonight&limit=6", { signal: context.signal }).then(readApiJson),
     ]);
-    if (context.signal.aborted) return actionError("cancelled", "London context read cancelled.");
+    if (context.signal.aborted || !isActive()) {
+      return actionError("cancelled", "London context read cancelled.");
+    }
     const status = statusResult.status === "fulfilled" ? projectStatus(statusResult.value) : null;
     const opportunities = opportunitiesResult.status === "fulfilled"
       ? projectOpportunities(opportunitiesResult.value)

@@ -40,12 +40,12 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
   return (
     <section
       className="tonightSoftPlans"
-      aria-label="Soft plans tonight"
+      aria-label="Ideas for tonight"
       data-testid="tonight-soft-plans"
     >
       {/* Each row's way-onward arrow sits in the lane the compose action floats
           in on a phone, so the row takes that lane (createFab.css). */}
-      <p className="tonightSoftPlansEyebrow">Soft plans tonight</p>
+      <p className="tonightSoftPlansEyebrow">Ideas for tonight</p>
       <ul className="tonightSoftPlansList">
         {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => {
           const Icon = CHIP_ICONS[chip.id];

@@ -79,7 +79,7 @@ export default function PrivacyPage() {
             data sales, no ad networks, no advertising trackers on the site.
           </li>
           <li>
-            <strong>Your nights are yours.</strong>{" "}Night Memories and private
+            <strong>Your nights are yours.</strong>{" "}Your memories and private
             plans aren&rsquo;t public unless you choose to share them.
           </li>
         </ul>
@@ -218,8 +218,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
-          messages to other people, Visit Reports, Recommendations, and Night
-          Memories. We keep these because they are the product. A price with no
+          messages to other people, Visit Reports, Recommendations, and your
+          memories. We keep these because they are the product. A price with no
           date and no source is worth nothing. Presence is always a deliberate
           tap; the app never tracks your location in the background.
         </p>
@@ -782,11 +782,11 @@ export default function PrivacyPage() {
               subscription itself belongs to your own browser&rsquo;s push service.
               We keep that stored row until the push service reports it dead or
               you ask us to remove it.
-              The separate Step Out weekly nudge is off by default. If you turn
-              it on, we store that preference against your account, bind it to
-              the same web push subscription, and may send at most one
-              place-bound push a week about a Wanted pub near your night patch,
-              an open Soft Plan, or a sourced deal. Turning it off withdraws the
+              The separate weekly nudge is off by default. If you turn it on,
+              we store that preference against your account, bind it to the
+              same web push subscription, and may send at most one push a week
+              about a pub on your list to try near your night patch, an open
+              plan for tonight, or a sourced deal. Turning it off withdraws the
               preference and removes the bound subscription.
             </dd>
           </div>
@@ -901,7 +901,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Push subscriptions:</strong>{" "}if you turned notifications
             on, the stored subscription row stays until your browser&rsquo;s
-            push service reports it dead or you ask us to remove it. A Step Out
+            push service reports it dead or you ask us to remove it. A weekly nudge
             opt-in preference and its last-sent stamp stay until you turn the
             nudge off or delete your account.
           </li>
@@ -929,7 +929,7 @@ export default function PrivacyPage() {
         <p className="legalBody">
           A portable copy you can take yourself, without asking us: open the You
           tab, go to Account settings and choose Download your data. It is one
-          JSON file of your Night Memories and Moments, the prices and Pint Drops
+          JSON file of your memories and Moments, the prices and Pint Drops
           you logged, and the messages you sent.
         </p>
         <p className="legalBody">

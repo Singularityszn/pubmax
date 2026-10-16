@@ -279,7 +279,7 @@ describe("PlanComposer describe prefill", () => {
 
     await act(async () => {
       typeInto("#plan-describe-first-query", "cheap wine in Soho for 2");
-      clickButton("Sort it");
+      clickButton("Plan it");
       await Promise.resolve();
     });
     // The route arriving closes the sheet it was asked from: let it land first.
@@ -303,7 +303,7 @@ describe("PlanComposer describe prefill", () => {
 
     await openTuneDetails();
     await act(async () => {
-      clickButton("Sort it again");
+      clickButton("Plan it again");
       await Promise.resolve();
     });
     const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
@@ -323,7 +323,7 @@ describe("PlanComposer describe prefill", () => {
     });
     expect(anyDrinks?.value).toBe("any");
     await act(async () => {
-      clickButton("Sort it again");
+      clickButton("Plan it again");
       await Promise.resolve();
     });
     const clearedCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
@@ -344,7 +344,7 @@ describe("PlanComposer describe prefill", () => {
     });
     expect(zeroDrinks?.value).toBe("zero-proof");
     await act(async () => {
-      clickButton("Sort it again");
+      clickButton("Plan it again");
       await Promise.resolve();
     });
     const zeroProofCalls = vi.mocked(fetch).mock.calls.filter(([input]) =>
@@ -437,7 +437,7 @@ describe("PlanComposer describe prefill", () => {
 
     await act(async () => {
       typeInto("#plan-describe-first-query", "Hackney crawl tonight");
-      clickButton("Sort it");
+      clickButton("Plan it");
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -461,7 +461,7 @@ describe("PlanComposer never drops a URL ask", () => {
     await mountComposer();
     await act(async () => {
       typeInto("#plan-describe-first-query", "Camden");
-      clickButton("Guide me instead");
+      clickButton("Step by step");
     });
 
     await act(async () => {

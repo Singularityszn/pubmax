@@ -52,6 +52,7 @@ import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { venueAcceptUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
@@ -774,7 +775,7 @@ export default function PalChat() {
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
         <label className="palChatSr" htmlFor={inputId}>
-          Describe the outing
+          {PLAN_FIELD_LABEL}
         </label>
         <input
           id={inputId}

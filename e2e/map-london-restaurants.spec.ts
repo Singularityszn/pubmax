@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // London restaurants that serve alcohol, asserted in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -124,9 +125,7 @@ test("List view gives a keyboard reader every restaurant in view", async ({ page
     })
     .toBeGreaterThan(500);
 
-  const more = page.getByRole("button", { name: "More map controls" });
-  await expect(more).toBeVisible({ timeout: 20_000 });
-  await more.click();
+  await (await mobileMapShellControl(page, "more")).click();
   const layersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
   await expect(layersSheet).toBeVisible({ timeout: 10_000 });
   await layersSheet.getByRole("tab", { name: "Layers" }).click();
