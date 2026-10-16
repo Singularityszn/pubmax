@@ -20,17 +20,30 @@ grid is the SAME rounding `coarsenViewerPoint` applies before a point leaves
 the browser (lib/geo.ts), so the server can look a request up without ever
 being sent a finer point. A walk is the street path between the nodes the
 grid point and the station snap to, plus both straight snap legs, so it can
-never be shorter than the straight line.
+never be shorter than the straight line to where it ends.
 
 HOW. city2graph turns Overture Maps transportation segments (OpenStreetMap
 under ODbL) into a street graph, split at Overture's own connectors. Rail,
 water and motorways are not walkable and are dropped. Stations come from
-data/tfl_station_zones.json, which records station points rather than
-entrances, so a walk ends at the station's mapped point.
+data/tfl_station_zones.json, which records one point per station.
+
+ENTRANCES. A station point can sit in the middle of a block, a long way round
+from the door. Given the DfT's NaPTAN stops CSV (Open Government Licence), the
+builder routes each station from all of its entrances at once (StopType TMU
+for the Underground, RSE for rail), so a walk ends at whichever door is the
+shortest walk. An entrance joins a station only when its name carries the
+station's name and it sits within ENTRANCE_MATCH_M of the station point; every
+entrance that cannot be joined is counted and printed, never guessed. A
+station with no joined entrance keeps its mapped point, and the output says
+which is which.
 
 RUN. A pinned Python tool under uv and NEVER a repo dependency:
 
-    uv run scripts/build_station_walk_access.py
+    uv run scripts/build_station_walk_access.py --entrances path/to/Stops.csv
+
+The NaPTAN download is https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv
+(all of Great Britain, about 100 MB). Without --entrances the build routes to
+station points, as the first pilot did.
 
 It reads Overture's public S3 bucket directly (no STAC catalog), pinned to
 OVERTURE_RELEASE, and writes only data/station_walk_access.json. Widening the
@@ -40,8 +53,11 @@ lib/stationWalkAccess.ts falls back to the straight line outside it.
 
 from __future__ import annotations
 
+import argparse
+import csv
 import json
 import math
+import re
 import sys
 from datetime import datetime, timezone
 from importlib.metadata import version
@@ -75,6 +91,11 @@ MAX_WALK_M = 2_000
 # A grid point further than this from any walkable street is inside a block or
 # a park, and the snap leg would be a guess, so that cell is left out.
 MAX_SNAP_M = 60.0
+# NaPTAN StopTypes for a door into a station: TMU is a tram, metro or
+# Underground entrance and RSE a rail station entrance.
+ENTRANCE_STOP_TYPES = {"TMU", "RSE"}
+ENTRANCE_MATCH_M = 400.0
+NAPTAN_COLUMNS = {"ATCOCode", "CommonName", "Latitude", "Longitude", "StopType"}
 NOT_WALKABLE_SUBTYPES = {"rail", "water"}
 NOT_WALKABLE_CLASSES = {"motorway"}
 
@@ -139,6 +160,51 @@ def grid_keys(bbox: tuple[float, float, float, float]) -> list[tuple[str, float,
     return out
 
 
+def name_tokens(name: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", name.lower().replace("'", "").replace("\u2019", ""))
+
+
+def load_entrances(path: Path, stations: list[dict]) -> tuple[list[list[tuple[float, float]]], dict]:
+    """Join NaPTAN entrances to stations; return per-station [(lat, lng)] and a tally."""
+    joined: list[list[tuple[float, float]]] = [[] for _ in stations]
+    tally = {"read": 0, "joined": 0, "unjoined": 0, "inactive": 0}
+    min_lng, min_lat, max_lng, max_lat = PILOT["network"]
+    with path.open(newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        missing = NAPTAN_COLUMNS - set(reader.fieldnames or [])
+        if missing:
+            raise SystemExit(f"{path} is not a NaPTAN stops CSV: missing {sorted(missing)}")
+        for row in reader:
+            if row["StopType"] not in ENTRANCE_STOP_TYPES:
+                continue
+            try:
+                lat, lng = float(row["Latitude"]), float(row["Longitude"])
+            except ValueError:
+                continue
+            if not (min_lng < lng < max_lng and min_lat < lat < max_lat):
+                continue
+            tally["read"] += 1
+            if row.get("Status", "active").strip().lower() not in ("active", "act", ""):
+                tally["inactive"] += 1
+                continue
+            entrance_name = " ".join(name_tokens(row["CommonName"]))
+            best: tuple[float, int] | None = None
+            for index, station in enumerate(stations):
+                station_name = " ".join(name_tokens(station["name"]))
+                if f" {station_name} " not in f" {entrance_name} ":
+                    continue
+                metres = haversine_m(lat, lng, station["lat"], station["lng"])
+                if metres <= ENTRANCE_MATCH_M and (best is None or metres < best[0]):
+                    best = (metres, index)
+            if best is None:
+                tally["unjoined"] += 1
+                print(f"entrance not joined to a station: {row['ATCOCode']} {row['CommonName']}", file=sys.stderr)
+                continue
+            joined[best[1]].append((lat, lng))
+            tally["joined"] += 1
+    return joined, tally
+
+
 def to_json(payload: dict) -> str:
     """One station and one cell per line, so a rebuild diffs by the cell."""
     head = {k: v for k, v in payload.items() if k not in ("stations", "cells")}
@@ -156,6 +222,10 @@ def to_json(payload: dict) -> str:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--entrances", type=Path, help="NaPTAN stops CSV; route to station entrances")
+    args = parser.parse_args()
+
     stations_all = json.loads(STATIONS_PATH.read_text())["stations"]
     min_lng, min_lat, max_lng, max_lat = PILOT["network"]
     stations = sorted(
@@ -165,6 +235,13 @@ def main() -> int:
     if not stations:
         print("no stations inside the pilot network box", file=sys.stderr)
         return 1
+
+    entrances: list[list[tuple[float, float]]] = [[] for _ in stations]
+    entrance_tally: dict | None = None
+    if args.entrances:
+        entrances, entrance_tally = load_entrances(args.entrances, stations)
+    # Where a walk to each station may end: its entrances, else its mapped point.
+    endpoints = [e or [(s["lat"], s["lng"])] for s, e in zip(stations, entrances)]
 
     graph = walk_graph(*load_segments(PILOT["network"]))
     node_ids = list(graph.nodes)
@@ -176,11 +253,20 @@ def main() -> int:
         i = int(d.argmin())
         return node_ids[i], float(d[i])
 
+    # One search per station from all of its endpoints at once: a virtual
+    # source joined to each endpoint's street node by that endpoint's snap leg,
+    # so a path length already includes the leg to whichever door it ends at.
     reach: list[dict] = []
-    for station in stations:
-        node, snap_m = snap(station["lat"], station["lng"])
-        lengths = nx.single_source_dijkstra_path_length(graph, node, cutoff=MAX_WALK_M, weight="m")
-        reach.append({"snap_m": snap_m, "lengths": lengths})
+    for index, points in enumerate(endpoints):
+        source = ("station", index)
+        graph.add_node(source)
+        for lat, lng in points:
+            node, snap_m = snap(lat, lng)
+            if not graph.has_edge(source, node) or graph[source][node]["m"] > snap_m:
+                graph.add_edge(source, node, m=snap_m)
+        lengths = nx.single_source_dijkstra_path_length(graph, source, cutoff=MAX_WALK_M, weight="m")
+        graph.remove_node(source)
+        reach.append({"lengths": lengths})
 
     cells: dict[str, list[list[int]]] = {}
     skipped_snap = 0
@@ -195,10 +281,11 @@ def main() -> int:
             path_m = r["lengths"].get(node)
             if path_m is None:
                 continue
-            walk_m = snap_m + path_m + r["snap_m"]
-            straight_m = haversine_m(lat, lng, station["lat"], station["lng"])
+            walk_m = snap_m + path_m
+            straight_m = min(haversine_m(lat, lng, elat, elng) for elat, elng in endpoints[index])
             # Triangle inequality: snap + path + snap is never shorter than the
-            # straight line. Rounding aside, a shorter one is a broken graph.
+            # straight line to the nearest place the walk may end. Rounding
+            # aside, a shorter one is a broken graph.
             if walk_m + 1 < straight_m:
                 print(f"walk shorter than straight line at {key} -> {station['name']}", file=sys.stderr)
                 return 1
@@ -215,11 +302,18 @@ def main() -> int:
             "source": "Overture Maps Foundation transportation segments",
             "release": OVERTURE_RELEASE,
             "licence": "ODbL-1.0. Contains OpenStreetMap data, © OpenStreetMap contributors, via Overture Maps.",
-            "stations": "data/tfl_station_zones.json (station points, not entrances)",
+            "stations": "data/tfl_station_zones.json (one point per station)",
+            "entrances": (
+                f"NaPTAN stops CSV, StopType {sorted(ENTRANCE_STOP_TYPES)}, Open Government Licence v3.0; "
+                f"{entrance_tally['joined']} joined, {entrance_tally['unjoined']} not joined"
+                if entrance_tally
+                else "none: every walk ends at the station point"
+            ),
             "method": (
                 "city2graph street graph split at Overture connectors; rail, water and motorways "
-                "dropped. Walk = snap leg + shortest street path + snap leg, never below the "
-                "straight line."
+                "dropped. Walk = snap leg + shortest street path + snap leg to the nearest "
+                "entrance on foot (the station point where none is joined), never below the "
+                "straight line to where it ends."
             ),
             "builder": "scripts/build_station_walk_access.py",
             "city2graph": version("city2graph"),
@@ -228,7 +322,11 @@ def main() -> int:
         "pilot": {"id": PILOT["id"], "label": PILOT["label"], "grid": list(PILOT["grid"])},
         "gridStepDegrees": GRID_STEP,
         "maxWalkMetres": MAX_WALK_M,
-        "stations": [{"name": s["name"], "lat": s["lat"], "lng": s["lng"]} for s in stations],
+        "stations": [
+            {"name": s["name"], "lat": s["lat"], "lng": s["lng"]}
+            | ({"entrances": [[round(a, 6), round(b, 6)] for a, b in e]} if e else {})
+            for s, e in zip(stations, entrances)
+        ],
         "cells": cells,
     }
     OUT_PATH.write_text(to_json(payload))
@@ -238,6 +336,12 @@ def main() -> int:
         f"wrote {OUT_PATH.relative_to(ROOT)}: {len(cells)} cells, {len(stations)} stations, "
         f"{skipped_snap} cells off-street; street/straight median {median:.2f}, p90 {p90:.2f}"
     )
+    if entrance_tally:
+        with_doors = sum(1 for e in entrances if e)
+        print(
+            f"entrances: {entrance_tally['joined']} joined to {with_doors}/{len(stations)} stations, "
+            f"{entrance_tally['unjoined']} not joined, {entrance_tally['inactive']} inactive"
+        )
     return 0
 
 

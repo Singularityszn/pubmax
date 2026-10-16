@@ -43,6 +43,20 @@ describe("streetWalkMetres", () => {
     expect(streetWalkMetres({ lat: 51.514, lng: -0.132 }, { lat: 51.517236, lng: -0.119841 }, FIXTURE)).toBeNull();
   });
 
+  it("floors a walk to entrances at the straight line to the nearest door, not the station point", () => {
+    // A door 150 m nearer than the station point: the walk may be shorter than
+    // the straight line to the point, but never than the line to the door.
+    const withDoors: StationWalkAccess = {
+      stations: [{ ...FIXTURE.stations[0]!, entrances: [[51.5150, -0.1315]] }],
+      cells: { "51.514,-0.132": [[0, 140]] },
+    };
+    const door = haversineMeters(51.514, -0.132, 51.515, -0.1315);
+    expect(streetWalkMetres({ lat: 51.514, lng: -0.132 }, FIXTURE.stations[0]!, withDoors)).toBe(
+      Math.max(140, door),
+    );
+    expect(140).toBeLessThan(haversineMeters(51.514, -0.132, 51.516211, -0.13111));
+  });
+
   it("is never shorter than the straight line", () => {
     const short: StationWalkAccess = { ...FIXTURE, cells: { "51.514,-0.132": [[0, 10]] } };
     const station = FIXTURE.stations[0]!;
@@ -87,6 +101,17 @@ describe("parseStationWalkAccess", () => {
     expect(parsed.cells).toEqual({ a: [[0, 100]] });
   });
 
+  it("keeps a station's entrances and refuses a malformed door", () => {
+    const station = FIXTURE.stations[0]!;
+    expect(
+      parseStationWalkAccess({ stations: [{ ...station, entrances: [[51.5, -0.13]] }], cells: {} }).stations[0],
+    ).toEqual({ ...station, entrances: [[51.5, -0.13]] });
+    expect(
+      parseStationWalkAccess({ stations: [{ ...station, entrances: [[51.5]] }], cells: {} }).stations,
+    ).toEqual([]);
+    expect(parseStationWalkAccess({ stations: [{ ...station, entrances: [] }], cells: {} }).stations).toEqual([]);
+  });
+
   it("reads a malformed table as empty rather than throwing", () => {
     expect(parseStationWalkAccess(null)).toEqual({ stations: [], cells: {} });
     expect(parseStationWalkAccess({ stations: [{ name: 1 }] })).toEqual({ stations: [], cells: {} });
@@ -124,13 +149,15 @@ describe("data/station_walk_access.json", () => {
     }
   });
 
-  it("never holds a street walk shorter than the straight line, nor past its cap", () => {
+  it("never holds a street walk shorter than the straight line to where it ends, nor past its cap", () => {
     for (const [key, walks] of Object.entries(access.cells)) {
       const [lat, lng] = key.split(",").map(Number) as [number, number];
       let previous = 0;
       for (const [index, metres] of walks) {
         const station = access.stations[index]!;
-        expect(metres + 1).toBeGreaterThanOrEqual(haversineMeters(lat, lng, station.lat, station.lng));
+        const ends = station.entrances ?? [[station.lat, station.lng]];
+        const straight = Math.min(...ends.map(([eLat, eLng]) => haversineMeters(lat, lng, eLat, eLng)));
+        expect(metres + 1).toBeGreaterThanOrEqual(straight);
         expect(metres).toBeLessThanOrEqual(raw.maxWalkMetres);
         expect(metres).toBeGreaterThanOrEqual(previous);
         previous = metres;

@@ -11,6 +11,9 @@
 // rounds a point to before it leaves the browser, so a lookup needs nothing
 // finer than what the server is already sent.
 //
+// A station the builder could join to NaPTAN entrances carries them, and its
+// walk ends at the nearest door on foot rather than at the station point.
+//
 // THE RULE. A street walk is only ever answered for a point the table covers
 // AND a station the table can name within STATION_MATCH_M of the station TfL
 // chose. Anything else is null, and the caller keeps the straight line and
@@ -20,7 +23,13 @@ import accessJson from "@/data/station_walk_access.json";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 
-type AccessStation = { name: string; lat: number; lng: number };
+type AccessStation = {
+  name: string;
+  lat: number;
+  lng: number;
+  /** [lat, lng] of each door the walk may end at; absent when it ends at the point. */
+  entrances?: [number, number][];
+};
 
 export type StationWalkAccess = {
   stations: AccessStation[];
@@ -45,7 +54,16 @@ function isStation(value: unknown): value is AccessStation {
     typeof s.lat === "number" &&
     Number.isFinite(s.lat) &&
     typeof s.lng === "number" &&
-    Number.isFinite(s.lng)
+    Number.isFinite(s.lng) &&
+    (s.entrances === undefined ||
+      (Array.isArray(s.entrances) &&
+        s.entrances.length > 0 &&
+        s.entrances.every(
+          (door) =>
+            Array.isArray(door) &&
+            door.length === 2 &&
+            door.every((n) => typeof n === "number" && Number.isFinite(n)),
+        )))
   );
 }
 
@@ -100,18 +118,21 @@ export function streetWalkMetres(
 ): number | null {
   const walks = access.cells[cellKey(from.lat, from.lng)];
   if (!walks) return null;
-  let best: { metres: number; offset: number } | null = null;
+  let best: { metres: number; offset: number; ours: AccessStation } | null = null;
   for (const [index, metres] of walks) {
     const ours = access.stations[index];
     if (!ours) continue;
     const offset = haversineMeters(ours.lat, ours.lng, station.lat, station.lng);
     if (offset <= STATION_MATCH_M && (best === null || offset < best.offset)) {
-      best = { metres, offset };
+      best = { metres, offset, ours };
     }
   }
   if (!best) return null;
+  // The floor is the straight line to where the walk ends: the nearest door
+  // when the table routed to entrances, TfL's station point otherwise.
   const point = coarsenViewerPoint(from);
-  const straight = haversineMeters(point.lat, point.lng, station.lat, station.lng);
+  const ends = best.ours.entrances ?? [[station.lat, station.lng]];
+  const straight = Math.min(...ends.map(([lat, lng]) => haversineMeters(point.lat, point.lng, lat, lng)));
   return Math.max(best.metres, straight);
 }
 
