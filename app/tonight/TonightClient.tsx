@@ -76,6 +76,7 @@ import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
   tonightAcceptedVenueId,
+  tonightListingLede,
   tonightOutEventsForStatus,
   tonightListingLanes,
   tonightEmptyLead,
@@ -102,6 +103,11 @@ import "./tonightOnTonightSummary.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
+
+function TonightListingLede({ lede }: { lede: string | null }) {
+  if (!lede) return null;
+  return <p className="tonightLede">{lede}</p>;
+}
 
 // Honest source-freshness label (L13 contract): an unknown source is stated as
 // such, never the request instant dressed as a check. An undatable source drops
@@ -361,6 +367,10 @@ export default function TonightClient({
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
+  const listingLede = useMemo(
+    () => tonightListingLede(listingsStatus, listingRows, selectableVenueIds),
+    [listingRows, listingsStatus, selectableVenueIds],
+  );
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
     [facets, ready],
@@ -449,10 +459,7 @@ export default function TonightClient({
           <TonightShareButton />
         </div>
         <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
-        <p className="tonightLede">
-          Quiz, sport, deals, live music and events from sourced listings. Open a
-          listed venue on the map.
-        </p>
+        <TonightListingLede lede={listingLede} />
         {ready || empty ? (
           <TonightProvenanceLines
             provenance={provenance}

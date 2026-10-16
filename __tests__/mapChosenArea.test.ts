@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   MAP_CHOSEN_AREA_KEY,
   clearMapChosenArea,
+  mapChosenAreaFlyTarget,
+  mapChosenAreaPickerKind,
+  rememberMapChosenAreaSelection,
   readMapChosenArea,
   resolveMapChosenAreaRestore,
   writeMapChosenArea,
   type MapChosenArea,
 } from "@/lib/mapChosenArea";
+import { LOCALITY_FLY_ZOOM } from "@/lib/mapSearchSuggest";
 
 function makeMemoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -24,6 +28,80 @@ function makeMemoryStorage(): Storage {
 }
 
 describe("mapChosenArea", () => {
+  it("replaces a stale remembered area when search selects a named area", () => {
+    const storage = makeMemoryStorage();
+    const remembered = {
+      cityId: "london" as const,
+      label: "Piccadilly & Soho",
+      slug: "piccadilly-soho",
+      center: [-0.134, 51.511] as [number, number],
+      kind: "night-area" as const,
+    } satisfies MapChosenArea;
+    writeMapChosenArea(remembered, storage);
+    rememberMapChosenAreaSelection(
+      {
+        cityId: "london",
+        kind: "night-area",
+        label: "Camden",
+        slug: "camden",
+        center: [-0.143, 51.539],
+      },
+      storage,
+    );
+
+    expect(readMapChosenArea(storage)).toEqual({
+      cityId: "london",
+      label: "Camden",
+      slug: "camden",
+      center: [-0.143, 51.539],
+      kind: "night-area",
+    });
+  });
+
+  it("stores a searched locality as a locality, not a Night Area", () => {
+    const storage = makeMemoryStorage();
+    rememberMapChosenAreaSelection(
+      {
+        cityId: "london",
+        kind: "locality",
+        label: "Willesden",
+        slug: "locality:willesden",
+        center: [-0.23, 51.55],
+      },
+      storage,
+    );
+
+    expect(JSON.parse(storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null")).toEqual({
+      cityId: "london",
+      label: "Willesden",
+      slug: "locality:willesden",
+      kind: "locality",
+      center: [-0.23, 51.55],
+    });
+  });
+
+  it("stores a searched borough as a borough, not a Night Area", () => {
+    const storage = makeMemoryStorage();
+    rememberMapChosenAreaSelection(
+      {
+        cityId: "london",
+        kind: "borough",
+        label: "Hackney",
+        slug: "borough:hackney",
+        center: [-0.06, 51.545],
+      },
+      storage,
+    );
+
+    expect(JSON.parse(storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null")).toEqual({
+      cityId: "london",
+      label: "Hackney",
+      slug: "borough:hackney",
+      kind: "borough",
+      center: [-0.06, 51.545],
+    });
+  });
+
   it("round-trips a remembered area", () => {
     const storage = makeMemoryStorage();
     expect(readMapChosenArea(storage)).toBeNull();
@@ -55,6 +133,23 @@ describe("mapChosenArea", () => {
     expect(readMapChosenArea(storage)).toBeNull();
   });
 
+  it.each([
+    ["non-finite longitude", "1e400", "51.5"],
+    ["longitude above 180", "180.01", "51.5"],
+    ["longitude below -180", "-180.01", "51.5"],
+    ["latitude above 90", "-0.1", "90.01"],
+    ["latitude below -90", "-0.1", "-90.01"],
+  ])("removes a stored row with %s", (_case, longitude, latitude) => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      `{"cityId":"london","label":"Bad","slug":"bad","kind":"locality","center":[${longitude},${latitude}]}`,
+    );
+
+    expect(readMapChosenArea(storage)).toBeNull();
+    expect(storage.getItem(MAP_CHOSEN_AREA_KEY)).toBeNull();
+  });
+
   it("returns a stable snapshot for useSyncExternalStore", () => {
     const storage = makeMemoryStorage();
     writeMapChosenArea(
@@ -70,6 +165,55 @@ describe("mapChosenArea", () => {
     const first = readMapChosenArea(storage);
     const second = readMapChosenArea(storage);
     expect(first).toBe(second);
+  });
+});
+
+describe("remembered named-place camera", () => {
+  it("classifies Choose Area locality rows before they reach storage", () => {
+    expect(mapChosenAreaPickerKind("locality:willesden")).toBe("locality");
+    expect(mapChosenAreaPickerKind("camden")).toBe("night-area");
+  });
+
+  it("restores a locality with the same zoom used by search selection", () => {
+    expect(
+      mapChosenAreaFlyTarget(
+        {
+          cityId: "london",
+          label: "Willesden",
+          slug: "locality:willesden",
+          kind: "locality",
+          center: [-0.23, 51.55],
+        },
+        LOCALITY_FLY_ZOOM,
+      ),
+    ).toEqual({ kind: "locality", zoom: LOCALITY_FLY_ZOOM });
+  });
+
+  it("keeps Night Areas and boroughs on their default camera zoom", () => {
+    expect(
+      mapChosenAreaFlyTarget(
+        {
+          cityId: "london",
+          label: "Camden",
+          slug: "camden",
+          kind: "night-area",
+          center: [-0.143, 51.539],
+        },
+        LOCALITY_FLY_ZOOM,
+      ),
+    ).toEqual({ kind: "area", zoom: undefined });
+    expect(
+      mapChosenAreaFlyTarget(
+        {
+          cityId: "london",
+          label: "Hackney",
+          slug: "borough:hackney",
+          kind: "borough",
+          center: [-0.06, 51.545],
+        },
+        LOCALITY_FLY_ZOOM,
+      ),
+    ).toEqual({ kind: "borough", zoom: undefined });
   });
 });
 
@@ -101,6 +245,62 @@ describe("resolveMapChosenAreaRestore", () => {
     expect(resolveMapChosenAreaRestore(base)).toEqual({
       action: "restore",
       area: CAMDEN,
+    });
+  });
+
+  it("restores a typed locality without relabelling it as a Night Area", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Willesden",
+        slug: "locality:willesden",
+        center: [-0.23, 51.55],
+        kind: "locality",
+      }),
+    );
+    const stored = readMapChosenArea(storage);
+
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored }),
+    ).toEqual({
+      action: "restore",
+      area: {
+        cityId: "london",
+        label: "Willesden",
+        slug: "locality:willesden",
+        center: [-0.23, 51.55],
+        kind: "locality",
+      },
+    });
+  });
+
+  it("restores a typed borough without relabelling it as a Night Area", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Hackney",
+        slug: "borough:hackney",
+        center: [-0.06, 51.545],
+        kind: "borough",
+      }),
+    );
+    const stored = readMapChosenArea(storage);
+
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored }),
+    ).toEqual({
+      action: "restore",
+      area: {
+        cityId: "london",
+        label: "Hackney",
+        slug: "borough:hackney",
+        center: [-0.06, 51.545],
+        kind: "borough",
+      },
     });
   });
 

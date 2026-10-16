@@ -358,6 +358,8 @@ function expectedVenueManifestVersion(pathname) {
 
 function isVenueShardPath(pathname) {
   return (
+    pathname === "/data/venues_slim.json" ||
+    /^\/data\/cities\/[^/]+\/venues_slim\.json$/.test(pathname) ||
     pathname === "/data/venues_slim.core.json" ||
     /^\/data\/venues_slim\.cell\..+\.json$/.test(pathname) ||
     /^\/data\/venues_slim\.(?!manifest|core|cell\.).+\.json$/.test(pathname) ||

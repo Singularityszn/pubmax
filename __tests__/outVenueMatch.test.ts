@@ -4,6 +4,7 @@ import {
   OUT_VENUE_MATCH_PROXIMITY_METERS,
   attachOutVenues,
   buildOutVenueMatchIndex,
+  isOutVenueId,
   matchOutRowVenue,
 } from "@/lib/out/venueMatch";
 import type { VenueRef } from "@/lib/venueIndex";
@@ -133,5 +134,34 @@ describe("attachOutVenues", () => {
     const row = liveRow();
     attachOutVenues([row], index);
     expect(row.venueId).toBeUndefined();
+  });
+});
+
+describe("isOutVenueId", () => {
+  it("uses precomputed membership instead of rescanning matcher buckets per row", () => {
+    expect(index.venueIds).toEqual(
+      new Set([
+        LEXINGTON.id,
+        DUBLIN_CASTLE.id,
+        WINDMILL_BRIXTON.id,
+        WINDMILL_SOHO.id,
+      ]),
+    );
+
+    const rejectBucketScan = <K, V>(map: Map<K, V>): Map<K, V> =>
+      new Proxy(map, {
+        get(target, property) {
+          if (property === "values") throw new Error("matcher bucket scan");
+          return Reflect.get(target, property, target);
+        },
+      });
+    const guardedIndex = {
+      ...index,
+      exactByKey: rejectBucketScan(index.exactByKey),
+      byNormalizedName: rejectBucketScan(index.byNormalizedName),
+    };
+
+    expect(isOutVenueId(guardedIndex, ` ${LEXINGTON.id} `)).toBe(true);
+    expect(isOutVenueId(guardedIndex, "venue-missing")).toBe(false);
   });
 });

@@ -133,7 +133,11 @@ import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
-import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
+import {
+  isUkBaseId,
+  type UkBasePub,
+  type UkBaseStreamStatus,
+} from "@/lib/ukBasePubs";
 import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
@@ -190,6 +194,7 @@ type PubMapCanvasProps = {
    */
   onUkBasePubClick?: (pub: UkBasePub) => void;
   onUkBasePubsChange?: (pubs: UkBasePub[]) => void;
+  onUkBaseStatusChange?: (status: UkBaseStreamStatus) => void;
   /**
    * Every drawable base pub currently resident from useUkBaseStreaming (padded
    * viewport shards in memory). Distinct from onUkBasePubsChange, which is the
@@ -456,6 +461,7 @@ export default function PubMapCanvas({
   onVenueClick,
   onUkBasePubClick,
   onUkBasePubsChange,
+  onUkBaseStatusChange,
   onUkBaseResidentPubsChange,
   onVisibleVenueIdsChange,
   onRenderedStateChange,
@@ -2970,6 +2976,9 @@ export default function PubMapCanvas({
     ukBaseResidentPubsRef.current = ukBase.pubs;
     onUkBaseResidentPubsChange?.(ukBase.pubs);
   }, [onUkBaseResidentPubsChange, ukBase.pubs]);
+  useEffect(() => {
+    onUkBaseStatusChange?.(ukBase.status);
+  }, [onUkBaseStatusChange, ukBase.status]);
 
   // Project coordinates through MapLibre rather than using getBounds(): at a
   // pitch or bearing, getBounds() is the enclosing rectangle and includes
@@ -3618,6 +3627,7 @@ export default function PubMapCanvas({
       data-route-stops={route.length}
       data-venue-count={venues.length}
       data-uk-base-count={ukBase.count}
+      data-uk-base-status={ukBase.status}
     >
       <div ref={containerRef} className="maplibreMap" />
       {/* The reader's dot is painted on the canvas, which says nothing to a

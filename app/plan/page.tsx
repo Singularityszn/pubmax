@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import PlanComposer from "@/components/plan/PlanComposer";
-import TonightAgentPanel from "@/components/plan/TonightAgentPanel";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "./plan.css";
@@ -28,7 +27,6 @@ export default function NewPlanPage() {
         <p>Get three to six useful stops, change anything you don&rsquo;t fancy, then send one plan the whole crew can open without an account.</p>
       </section>
       <PlanComposer />
-      <TonightAgentPanel />
     </main>
   );
 }

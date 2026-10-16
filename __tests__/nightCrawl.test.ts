@@ -7,6 +7,7 @@ import {
   nightCrawlActionNote,
   nightCrawlActionPayload,
   nightCrawlGlance,
+  nightCrawlHandoffTarget,
   nightCrawlHero,
   nightCrawlIdempotencyScope,
   nightCrawlNextStop,
@@ -91,6 +92,65 @@ describe("isFinalStop", () => {
     expect(isFinalStop(THREE, 2)).toBe(true);
     expect(isFinalStop(THREE, 99)).toBe(true);
     expect(isFinalStop([], 0)).toBe(false);
+  });
+});
+
+describe("nightCrawlHandoffTarget", () => {
+  it("hands a confirmed final-stop action to the existing ending flow", () => {
+    expect(
+      nightCrawlHandoffTarget({
+        stops: THREE,
+        actions: [action("arrived", 2)],
+        stopPosition: 2,
+        outcome: "confirmed",
+      }),
+    ).toBe("ending");
+  });
+
+  it("keeps non-final, failed, and held offline actions in Crawl mode", () => {
+    expect(
+      nightCrawlHandoffTarget({
+        stops: THREE,
+        actions: [action("arrived", 0), action("arrived", 1)],
+        stopPosition: 1,
+        outcome: "confirmed",
+      }),
+    ).toBe("crawl");
+    expect(
+      nightCrawlHandoffTarget({
+        stops: THREE,
+        actions: [action("arrived", 2)],
+        stopPosition: 2,
+        outcome: "rejected",
+      }),
+    ).toBe("crawl");
+    expect(
+      nightCrawlHandoffTarget({
+        stops: THREE,
+        actions: [action("arrived", 2)],
+        stopPosition: 2,
+        outcome: "offline",
+      }),
+    ).toBe("crawl");
+  });
+
+  it("requires one confirmed arrival before opening an ending", () => {
+    expect(
+      nightCrawlHandoffTarget({
+        stops: THREE,
+        actions: [action("skipped", 2)],
+        stopPosition: 2,
+        outcome: "confirmed",
+      }),
+    ).toBe("arrival_required");
+    expect(
+      nightCrawlHandoffTarget({
+        stops: THREE,
+        actions: [action("arrived", 0), action("skipped", 2)],
+        stopPosition: 2,
+        outcome: "confirmed",
+      }),
+    ).toBe("ending");
   });
 });
 

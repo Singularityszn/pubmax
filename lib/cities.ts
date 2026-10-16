@@ -89,7 +89,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     // Start at useful street-level context. The London button still exposes the
     // full-city overview, while granted location refines this to the local pub cloud.
-    mapView: { center: [-0.12, 51.52], zoom: 11.5, pitch: 38, bearing: -8 },
+    mapView: { center: [-0.12, 51.52], zoom: 12, pitch: 38, bearing: -8 },
     poisPath: "/data/london_pois.json",
     transitLinesPath: "/data/tfl_lines.json",
     lastRideLabel: "Last Pint",

@@ -582,7 +582,10 @@ type PlanMemoryState = {
   plans: Map<string, MemoryPlan>;
   sequence: number;
   createRequests: Map<string, { requestHash: string; planId: string }>;
-  joinRequests: Map<string, { requestHash: string; memberId: string }>;
+  joinRequests: Map<
+    string,
+    { requestHash: string; memberId: string; origin?: "plan" | "invite_rsvp" }
+  >;
   actionRequests: Map<string, { requestHash: string; actionId: string }>;
   /** invite_token -> plan id, the memory-store mirror of plans.invite_token. */
   inviteTokens: Map<string, string>;
@@ -718,7 +721,11 @@ export const memoryPlanStore: PlanStore = {
       plan.crewCommittedMemberId = memberId;
       plan.crewCommittedEventId = randomUUID();
     }
-    planMemory.joinRequests.set(`${id}:${keyHash}`, { requestHash, memberId });
+    planMemory.joinRequests.set(`${id}:${keyHash}`, {
+      requestHash,
+      memberId,
+      origin: "plan",
+    });
     return {
       ok: true,
       plan: publicState(plan),
@@ -928,14 +935,50 @@ export async function joinMemoryPlanInviteRsvpMember(
   if (isSupabaseConfigured()) return { ok: false, error: "error" };
   const memberName = cleanCrewName(name);
   if (!memberName) return { ok: false, error: "invalid" };
+  const memberId = planIdempotentUuid(`plan-join-member:${id}`, idempotencyKey);
+  const keyHash = planIdempotencyDigest(`plan-join-key:${id}`, idempotencyKey);
+  const replayKey = `${id}:${keyHash}`;
+  const existingReplay = planMemory.joinRequests.get(replayKey);
+  if (existingReplay && existingReplay.origin !== "invite_rsvp") {
+    return { ok: false, error: "conflict" };
+  }
   const joined = await memoryPlanStore.join(id, memberName, {
     collaborationAuthorized: false,
     idempotencyKey,
   });
-  if (!joined.ok) return joined;
-  const memberId = planIdempotentUuid(`plan-join-member:${id}`, idempotencyKey);
+  if (!joined.ok) {
+    if (joined.error !== "conflict") return joined;
+    const replay = planMemory.joinRequests.get(replayKey);
+    const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.id === memberId);
+    if (
+      !replay
+      || replay.origin !== "invite_rsvp"
+      || replay.memberId !== memberId
+      || !member
+    ) return joined;
+    member.name = memberName;
+    member.updatedAt = stamp();
+    replay.requestHash = planRequestDigest({ name: memberName, collaborationAuthorized: false });
+    const storedPlan = memoryPlans.get(id);
+    return storedPlan
+      ? {
+          ok: true,
+          plan: publicState(storedPlan),
+          memberToken: planIdempotencyDigest(`plan-join-token:${id}`, idempotencyKey),
+          role: "guest",
+          collaborationAuthorized: false,
+          memberId,
+          crewCommittedAt: storedPlan.crewCommittedMemberId === memberId ? storedPlan.crewCommittedAt : null,
+          crewCommittedEventId: storedPlan.crewCommittedMemberId === memberId ? storedPlan.crewCommittedEventId : null,
+        }
+      : { ok: false, error: "error" };
+  }
   const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.id === memberId);
-  if (!member) return { ok: false, error: "error" };
+  const replay = planMemory.joinRequests.get(replayKey);
+  if (!member || !replay || replay.memberId !== memberId) {
+    return { ok: false, error: "error" };
+  }
+  if (!existingReplay) replay.origin = "invite_rsvp";
   if (member.name !== memberName) {
     member.name = memberName;
     member.updatedAt = stamp();
@@ -956,7 +999,6 @@ export function memoryPlanCrewCommitment(
     crewCommittedEventId: plan.crewCommittedEventId,
   };
 }
-
 /**
  * Remove only a non-host member linked from an invite RSVP. Matching join
  * replay state leaves with the member so the same device can join again.

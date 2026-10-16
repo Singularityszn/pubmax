@@ -26,11 +26,14 @@ const RSVP_LIMIT = 8;
 const RSVP_WINDOW_MS = 60_000;
 
 assertServerEnv();
-
 export async function POST(request: Request, context: Context): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
+  const limiterKey = `plan-invite-rsvp:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const { id: planId } = await context.params;
   if (!isPlanId(planId)) {
     return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
@@ -52,7 +55,8 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
 
   const resolved = await resolveClassicInvitePlan(inviteToken);
-  if ("response" in resolved || resolved.planId !== planId) {
+  if ("response" in resolved) return resolved.response;
+  if (resolved.planId !== planId) {
     return publicApiError("This invite link isn't valid.", "NOT_FOUND", 404);
   }
 

@@ -101,6 +101,7 @@ describe("Tonight quiet pint module", () => {
     expect(html).toContain("A quiet pint, and a bit of history.");
     expect(html).toContain(`href="${venueMapUrl("venue-quiet")}"`);
     expect(html).toContain("Usually quiet on a Tuesday");
+    expect(html).not.toContain("Quiz, sport, deals, live music and events");
   });
 
   it("renders no quiet pint module when quietPint is null", () => {

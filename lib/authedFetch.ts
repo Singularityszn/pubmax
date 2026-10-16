@@ -5,6 +5,10 @@
 // handles — matching ProfileEditor's pattern.
 
 import { getAccessToken } from "@/lib/authClient";
+import {
+  readProviderIdentityRevision,
+  readProviderIdentitySignal,
+} from "@/lib/authProviderRevision";
 
 export const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session - try again.";
 
@@ -42,6 +46,119 @@ function abortError(): DOMException {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason === undefined ? abortError() : signal.reason;
+}
+
+type AccountBoundAction = Readonly<{
+  signal: AbortSignal;
+  accountRevision: number;
+}>;
+
+function callerActionSignals(
+  input: RequestInfo | URL,
+  initSignal?: AbortSignal,
+): AbortSignal[] {
+  const requestSignal = typeof Request !== "undefined" && input instanceof Request
+    ? input.signal
+    : undefined;
+  const callerSignal = initSignal ?? requestSignal;
+  return callerSignal ? [callerSignal] : [];
+}
+
+const fallbackAbortControllers = new WeakMap<AbortSignal, AbortController>();
+const fallbackAbortFollowers = new WeakMap<
+  AbortSignal,
+  Set<WeakRef<AbortSignal>>
+>();
+// A live native Response reaches its action signal. The weak key never keeps
+// a finished Response or its signal alive by itself.
+const retainedActionSignals = new WeakMap<Response, AbortSignal>();
+
+/** Test-only observer for the response-keyed signal lifetime contract. */
+export function readRetainedActionSignalForTest(
+  response: Response,
+): AbortSignal | undefined {
+  return retainedActionSignals.get(response);
+}
+
+/** Test-only observer for deterministic fallback cleanup checks. */
+export function readFallbackFollowerCountForTest(source: AbortSignal): number {
+  return fallbackAbortFollowers.get(source)?.size ?? 0;
+}
+
+function sourceAbortFollowers(source: AbortSignal): Set<WeakRef<AbortSignal>> {
+  const existing = fallbackAbortFollowers.get(source);
+  if (existing) return existing;
+
+  const followers = new Set<WeakRef<AbortSignal>>();
+  source.addEventListener("abort", () => {
+    for (const reference of followers) {
+      const signal = reference.deref();
+      const controller = signal
+        ? fallbackAbortControllers.get(signal)
+        : undefined;
+      if (controller && !signal?.aborted) {
+        controller.abort(abortReason(source));
+      }
+    }
+    followers.clear();
+  }, { once: true });
+  fallbackAbortFollowers.set(source, followers);
+  return followers;
+}
+
+function fallbackCompositeActionSignal(
+  signals: readonly AbortSignal[],
+): AbortSignal {
+  const controller = new AbortController();
+  const signal = controller.signal;
+  fallbackAbortControllers.set(signal, controller);
+
+  const alreadyAborted = signals.find((source) => source.aborted);
+  if (alreadyAborted) {
+    controller.abort(abortReason(alreadyAborted));
+    return signal;
+  }
+
+  // One listener per source holds only weak dependent signals. The returned
+  // Response keeps its signal live; first abort removes the same weak reference
+  // from every source without wrapping the Response.
+  const reference = new WeakRef(signal);
+  const followerSets: Set<WeakRef<AbortSignal>>[] = [];
+  signal.addEventListener("abort", () => {
+    for (const followers of followerSets) followers.delete(reference);
+  }, { once: true });
+  for (const source of signals) {
+    const followers = sourceAbortFollowers(source);
+    for (const reference of followers) {
+      const follower = reference.deref();
+      if (!follower || follower.aborted) followers.delete(reference);
+    }
+    followers.add(reference);
+    followerSets.push(followers);
+  }
+  return signal;
+}
+
+function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
+  const distinctSignals = [...new Set(signals)];
+  if (distinctSignals.length === 1) return distinctSignals[0] as AbortSignal;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any(distinctSignals);
+  }
+  return fallbackCompositeActionSignal(distinctSignals);
+}
+
+function bindAccountAction(callerSignals: readonly AbortSignal[]): AccountBoundAction {
+  const accountRevision = readProviderIdentityRevision();
+  const providerSignal = readProviderIdentitySignal();
+  return {
+    accountRevision,
+    signal: compositeActionSignal([providerSignal, ...callerSignals]),
+  };
+}
+
 function waitForAuthActionReadiness(deadline: number, signal?: AbortSignal): Promise<void> {
   if (
     authActionState.status === "signed-out" ||
@@ -49,10 +166,10 @@ function waitForAuthActionReadiness(deadline: number, signal?: AbortSignal): Pro
   ) {
     return Promise.resolve();
   }
-  if (signal?.aborted) return Promise.reject(abortError());
+  if (signal?.aborted) return Promise.reject(abortReason(signal));
 
   return new Promise((resolve, reject) => {
-    const finish = (error?: Error): void => {
+    const finish = (error?: unknown): void => {
       clearTimeout(timer);
       authActionStateListeners.delete(check);
       signal?.removeEventListener("abort", onAbort);
@@ -67,7 +184,7 @@ function waitForAuthActionReadiness(deadline: number, signal?: AbortSignal): Pro
         finish();
       }
     };
-    const onAbort = (): void => finish(abortError());
+    const onAbort = (): void => finish(abortReason(signal as AbortSignal));
     authActionStateListeners.add(check);
     signal?.addEventListener("abort", onAbort, { once: true });
     const timer = setTimeout(finish, Math.max(0, deadline - Date.now()));
@@ -76,7 +193,7 @@ function waitForAuthActionReadiness(deadline: number, signal?: AbortSignal): Pro
 }
 
 function waitForTokenRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.reject(abortError());
+  if (signal?.aborted) return Promise.reject(abortReason(signal));
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
@@ -84,34 +201,32 @@ function waitForTokenRetry(delayMs: number, signal?: AbortSignal): Promise<void>
     }, delayMs);
     const onAbort = (): void => {
       clearTimeout(timer);
-      reject(abortError());
+      reject(abortReason(signal as AbortSignal));
     };
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
-function readTokenBefore(deadline: number): Promise<string | null> {
+function readTokenBefore(deadline: number, signal?: AbortSignal): Promise<string | null> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return Promise.resolve(null);
-  return new Promise((resolve) => {
+  if (signal?.aborted) return Promise.reject(abortReason(signal));
+  return new Promise((resolve, reject) => {
     let settled = false;
-    const timeout = setTimeout(() => {
+    const finish = (token: string | null, error?: unknown): void => {
+      if (settled) return;
       settled = true;
-      resolve(null);
-    }, remaining);
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+      if (error) reject(error);
+      else resolve(token);
+    };
+    const onAbort = (): void => finish(null, abortReason(signal as AbortSignal));
+    const timeout = setTimeout(() => finish(null), remaining);
+    signal?.addEventListener("abort", onAbort, { once: true });
     void getAccessToken()
-      .then((token) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolve(token);
-      })
-      .catch(() => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        resolve(null);
-      });
+      .then((token) => finish(token))
+      .catch(() => finish(null));
   });
 }
 
@@ -133,39 +248,84 @@ export async function authedFetch(
   return fetch(input, { ...init, headers });
 }
 
-/**
- * Fetch for a request whose server action requires the signed-in account.
- * While auth is unresolved, this waits for the existing identity signal and
- * retries the browser session read within one bounded two-second window.
- * Signed-in requests never fall through to an anonymous network round-trip.
- */
-export async function authedActionFetch(
+type ActiveAuthActionResponse = Readonly<{
+  signal: AbortSignal;
+  accountRevision: number;
+  response: Response;
+}>;
+
+async function activeAuthActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
-): Promise<Response> {
+): Promise<ActiveAuthActionResponse> {
+  const callerSignals = callerActionSignals(input, init.signal ?? undefined);
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-  await waitForAuthActionReadiness(deadline, init.signal ?? undefined);
+  let action = authActionState.status === "unknown"
+    ? null
+    : bindAccountAction(callerSignals);
+  await waitForAuthActionReadiness(
+    deadline,
+    action?.signal ?? compositeActionSignal(callerSignals),
+  );
+  action ??= bindAccountAction(callerSignals);
 
   let token: string | null = null;
   for (const delayMs of AUTH_ACTION_TOKEN_RETRY_DELAYS_MS) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     if (delayMs > 0) {
-      await waitForTokenRetry(Math.min(delayMs, remaining), init.signal ?? undefined);
+      await waitForTokenRetry(Math.min(delayMs, remaining), action.signal);
     }
     if (Date.now() >= deadline) break;
-    token = await readTokenBefore(deadline);
+    token = await readTokenBefore(deadline, action.signal);
     if (token || Date.now() >= deadline) break;
   }
 
   const headers = new Headers(init.headers);
   if (token) {
     headers.set("authorization", `Bearer ${token}`);
-    return fetch(input, { ...init, headers });
+    const response = await fetch(input, { ...init, headers, signal: action.signal });
+    retainedActionSignals.set(response, action.signal);
+    return { ...action, response };
   }
 
   if (authActionState.status !== "signed-out") {
     throw new AuthActionSessionError();
   }
-  return fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers, signal: action.signal });
+  retainedActionSignals.set(response, action.signal);
+  return { ...action, response };
+}
+
+/**
+ * Fetch for a request whose server action requires the signed-in account.
+ * While auth is unresolved, this waits for the existing identity signal and
+ * retries the browser session read within one bounded two-second window.
+ * Once auth is usable, token lookup and the active fetch bind to that provider
+ * identity revision. An explicit init signal overrides the Request signal,
+ * matching the native fetch contract.
+ * The returned native Response retains the signal through its body lifecycle.
+ */
+export async function authedActionFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  return (await activeAuthActionFetch(input, init)).response;
+}
+
+export type AuthedActionJson<T> = Readonly<{
+  response: Response;
+  body: T;
+}>;
+
+/** Fetch and parse account-scoped JSON under one provider identity revision. */
+export async function authedActionJson<T = unknown>(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<AuthedActionJson<T>> {
+  const { signal, accountRevision, response } = await activeAuthActionFetch(input, init);
+  const body = (await response.json()) as T;
+  if (signal.aborted) throw abortReason(signal);
+  if (readProviderIdentityRevision() !== accountRevision) throw abortError();
+  return { response, body };
 }

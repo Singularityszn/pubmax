@@ -11,7 +11,9 @@ const POSTS = join(process.cwd(), "supabase/migrations/20260806145914_0072_socia
 const INTERACTIONS = join(process.cwd(), "supabase/migrations/20260806150000_0073_social_interactions.sql");
 const FORWARD = join(process.cwd(), "supabase/migrations/20260806151000_0074_social_composer.sql");
 const ADMIN_MODERATION = join(process.cwd(), "supabase/migrations/20260829120000_0123_social_admin_moderation.sql");
+const ADMIN_REVISION_GUARD = join(process.cwd(), "supabase/migrations/20260830120000_0124_social_admin_revision_guard.sql");
 const ADMIN_MODERATION_ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260829120000_0123_social_admin_moderation_rollback.sql");
+const ADMIN_REVISION_GUARD_ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260830120000_0124_social_admin_revision_guard_rollback.sql");
 const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260806151000_0074_social_composer_rollback.sql");
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
@@ -111,6 +113,7 @@ const MEDIA_STALE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 let postId = "";
 let retryPostId = "";
 let mediaObjectKey = "";
+let staleAdminPostId = "";
 
 beforeAll(async () => {
   database = await startDatabase();
@@ -145,6 +148,7 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     db.sql(`delete from public.social_posts where id='${legacy}'`);
     db.apply(FORWARD);
     db.apply(ADMIN_MODERATION);
+    db.apply(ADMIN_REVISION_GUARD);
     mediaObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
       '${ALICE}','${MEDIA}','${"a".repeat(64)}',1200,800,12345
     )`);
@@ -554,6 +558,61 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
       from public.social_posts where id='${stalePostId}'`)).toBe("pending:needs_review");
   });
 
+  it("binds admin moderation to revision zero and disables the legacy overload", () => {
+    const db = database!;
+    const staffRoleId = "55555555-5555-4555-8555-555555555555";
+    db.sql(`insert into public.private_social_staff_roles(id,profile_id,display_name,role,active)
+      values ('${staffRoleId}','${CAROL}','Carol Smith','moderator',true)
+      on conflict (id) do nothing`);
+    const currentPostId = db.sql(`select id from public.create_social_post(
+      '${ALICE}','alice','standard','public','Revision zero',null,null,array[]::text[],'open',
+      null,null,null,null,null,null,null,array[]::text[]
+    )`);
+    db.sql(`update public.social_post_moderation_jobs set state='done' where post_id='${currentPostId}';
+      update public.social_posts set moderation_state='needs_review' where id='${currentPostId}'`);
+
+    expect(db.sql(`select revision from public.social_posts where id='${currentPostId}'`)).toBe("0");
+    expect(db.sql(`select public.moderate_social_post_admin('${staffRoleId}','${currentPostId}',null,'approve')`))
+      .toBe("f");
+    expect(db.sql(`select moderation_state || ':' || count(*) over () from public.social_posts
+      where id='${currentPostId}'`)).toBe("needs_review:1");
+    expect(db.sql(`select count(*) from public.social_post_moderation_actions where post_id='${currentPostId}'`))
+      .toBe("0");
+
+    expect(db.sql(`select public.moderate_social_post_admin('${staffRoleId}','${currentPostId}',null,0,'approve')`))
+      .toBe("t");
+    expect(db.sql(`select moderation_state from public.social_posts where id='${currentPostId}'`))
+      .toBe("approved");
+
+    staleAdminPostId = db.sql(`select id from public.create_social_post(
+      '${ALICE}','alice','standard','public','Stale revision',null,null,array[]::text[],'open',
+      null,null,null,null,null,null,null,array[]::text[]
+    )`);
+    db.sql(`update public.social_posts set revision=1,moderation_state='needs_review' where id='${staleAdminPostId}';
+      update public.social_post_moderation_jobs set
+        revision=1,media_id=null,moderation_claim='Current revision',state='done'
+      where post_id='${staleAdminPostId}'`);
+    expect(db.sql(`select public.moderate_social_post_admin('${staffRoleId}','${staleAdminPostId}',null,0,'hide')`))
+      .toBe("f");
+    expect(db.sql(`select status || ':' || moderation_state || ':' || revision from public.social_posts
+      where id='${staleAdminPostId}'`)).toBe("visible:needs_review:1");
+    expect(db.sql(`select count(*) from public.social_post_moderation_actions where post_id='${staleAdminPostId}'`))
+      .toBe("0");
+
+    expect(db.sql("select to_regprocedure('public.moderate_social_post_admin(uuid,uuid,uuid,text)') is not null"))
+      .toBe("t");
+    expect(db.sql("select to_regprocedure('public.moderate_social_post_admin(uuid,uuid,uuid,integer,text)') is not null"))
+      .toBe("t");
+    expect(db.sql("select has_function_privilege('service_role','public.moderate_social_post_admin(uuid,uuid,uuid,text)','execute')"))
+      .toBe("t");
+    expect(db.sql("select has_function_privilege('service_role','public.moderate_social_post_admin(uuid,uuid,uuid,integer,text)','execute')"))
+      .toBe("t");
+    expect(db.sql("select has_function_privilege('anon','public.moderate_social_post_admin(uuid,uuid,uuid,text)','execute')"))
+      .toBe("f");
+    expect(db.sql("select has_function_privilege('authenticated','public.moderate_social_post_admin(uuid,uuid,uuid,integer,text)','execute')"))
+      .toBe("f");
+  });
+
   it("records cancellation and proposal events and notifications on photo replacement", () => {
     const db = database!;
     const replacedObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
@@ -588,6 +647,16 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
 
   it("rolls back Task 6 state and restores Task 3 public-Venue and edit rules", () => {
     const db = database!;
+    db.apply(ADMIN_REVISION_GUARD_ROLLBACK);
+    expect(db.sql("select to_regprocedure('public.moderate_social_post_admin(uuid,uuid,uuid,integer,text)') is null"))
+      .toBe("t");
+    expect(db.sql("select to_regprocedure('public.moderate_social_post_admin(uuid,uuid,uuid,text)') is not null"))
+      .toBe("t");
+    expect(db.sql(`select public.moderate_social_post_admin(
+      '55555555-5555-4555-8555-555555555555','${staleAdminPostId}',null,'hide'
+    )`)).toBe("f");
+    expect(db.sql(`select status || ':' || moderation_state || ':' || revision from public.social_posts
+      where id='${staleAdminPostId}'`)).toBe("visible:needs_review:1");
     db.apply(ADMIN_MODERATION_ROLLBACK);
     db.apply(ROLLBACK);
     expect(db.sql("select to_regclass('public.social_post_media') is null")).toBe("t");

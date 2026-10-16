@@ -40,15 +40,18 @@ export async function POST(request: Request): Promise<Response> {
   let input: unknown;
   try { input = await boundedJson(request); } catch { return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } }); }
   const value = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
-  if (!value || Object.keys(value).length !== 3 || typeof value.postId !== "string" ||
+  if (!value || Object.keys(value).length !== 4 || typeof value.postId !== "string" ||
     !UUID.test(value.postId) ||
     (value.mediaId !== null && (typeof value.mediaId !== "string" || !UUID.test(value.mediaId))) ||
+    !Number.isSafeInteger(value.expectedRevision) || Number(value.expectedRevision) < 0 ||
+    Number(value.expectedRevision) > 2_147_483_647 ||
     (value.action !== "approve" && value.action !== "hide")) return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {
     await socialPostConsentStore.moderateHeldForAdmin(
       staffRoleId,
       value.postId,
       value.mediaId as string | null,
+      Number(value.expectedRevision),
       value.action,
     );
     return json({ ok: true });

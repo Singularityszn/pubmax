@@ -34,6 +34,7 @@ import {
   nightCrawlActionNote,
   nightCrawlActionPayload,
   nightCrawlGlance,
+  nightCrawlHandoffTarget,
   nightCrawlHero,
   nightCrawlIdempotencyScope,
   nightCrawlNextStop,
@@ -42,6 +43,10 @@ import {
   type NightCrawlActionType,
 } from "@/lib/nightCrawl";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
+import {
+  requestNightModeEndingFromPlan,
+  requestNightModeEndingHandoff,
+} from "@/lib/nightModeHandoff";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import {
   applyActivePlanFlushRollback,
@@ -72,7 +77,7 @@ const CREW_CHIP: Partial<Record<CrewPresenceStatus, { label: string; tone: "here
   start_without_me: { label: "catching up", tone: "late" },
 };
 
-type NoteTone = "offline" | "rejected" | "forbidden" | "pending";
+type NoteTone = "offline" | "rejected" | "forbidden" | "pending" | "guidance";
 
 function initial(name: string): string {
   return (name.trim()[0] ?? "?").toUpperCase();
@@ -171,6 +176,48 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
   const showSurface = activeNow && open;
 
+  const engage = useCallback(() => {
+    try {
+      sessionStorage.removeItem(collapseKey);
+    } catch {
+      // storage-restricted: the surface still opens for this render
+    }
+    setOpen(true);
+  }, [collapseKey]);
+
+  const collapse = useCallback(() => {
+    try {
+      sessionStorage.setItem(collapseKey, "1");
+    } catch {
+      // storage-restricted: it re-opens next mount, acceptable
+    }
+    setOpen(false);
+  }, [collapseKey]);
+
+  const handOffConfirmedStop = useCallback(
+    (confirmedPlan: PlanState | undefined, stopPosition: number) => {
+      if (!confirmedPlan) return;
+      const target = nightCrawlHandoffTarget({
+        stops: confirmedPlan.stops,
+        actions: confirmedPlan.actions,
+        stopPosition,
+        outcome: "confirmed",
+      });
+      if (target === "arrival_required") {
+        setNote({
+          text: "Check in at one stop before finishing the night.",
+          tone: "guidance",
+        });
+      } else if (target === "ending") {
+        // Night Crawl owns Stop actions. The existing Tonight card owns ending
+        // choice, completion, and recap, so open that owner after Stop 1..N.
+        collapse();
+        requestNightModeEndingHandoff(planId);
+      }
+    },
+    [collapse, planId],
+  );
+
   const applyFlushResult = useCallback(
     (result: PlanMutationFlushResult) => {
       if (result.planId !== planId) return;
@@ -182,6 +229,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           return next;
         });
         setNote(null);
+        handOffConfirmedStop(result.plan, result.stopPosition);
         return;
       }
       if (result.outcome === "offline") return;
@@ -198,7 +246,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       });
       removePlanMutationOutboxEntry(result.entryId);
     },
-    [planId],
+    [handOffConfirmedStop, planId],
   );
 
   // Restore pending hold marks after reload so the advanced cursor stays honest.
@@ -241,21 +289,25 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     };
   }, [planId, showSurface, applyFlushResult]);
 
-  // Refresh crew + actions when the surface opens, so "who is where" and the done
-  // dispositions reflect the live night, not the page's first server render.
+  // Refresh the active Plan even while the Crawl overlay is closed. A final
+  // action may have confirmed through the site-wide outbox on another route;
+  // its canonical action log must still reopen the existing ending owner.
   useEffect(() => {
-    if (!showSurface) return;
+    if (!activeNow) return;
     let active = true;
     fetch(`/api/plans/${planId}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: PlanState | null) => {
-        if (active && body && Array.isArray(body.stops)) setPlan(body);
+        if (active && body && Array.isArray(body.stops)) {
+          setPlan(body);
+          requestNightModeEndingFromPlan(body);
+        }
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [showSurface, planId]);
+  }, [activeNow, planId]);
 
   const stops = plan.stops;
   const stack = useMemo(
@@ -276,24 +328,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     .map((member: CrewMemberDTO) => ({ member, chip: CREW_CHIP[member.status] }))
     .filter((entry): entry is { member: CrewMemberDTO; chip: NonNullable<(typeof CREW_CHIP)[CrewPresenceStatus]> } => Boolean(entry.chip))
     .slice(0, 5);
-
-  const engage = useCallback(() => {
-    try {
-      sessionStorage.removeItem(collapseKey);
-    } catch {
-      // storage-restricted: the surface still opens for this render
-    }
-    setOpen(true);
-  }, [collapseKey]);
-
-  const collapse = useCallback(() => {
-    try {
-      sessionStorage.setItem(collapseKey, "1");
-    } catch {
-      // storage-restricted: it re-opens next mount, acceptable
-    }
-    setOpen(false);
-  }, [collapseKey]);
 
   const runAction = useCallback(
     async (type: NightCrawlActionType) => {
@@ -368,6 +402,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         clearPersistentPlanMutationKey(scope, key);
         if (mine.plan) setPlan(mine.plan);
         reconcile("confirmed");
+        handOffConfirmedStop(mine.plan, stopPosition);
         setBusy(null);
         return;
       }
@@ -383,7 +418,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       reconcile("offline", stillQueued);
       setBusy(null);
     },
-    [busy, hero, cursor, stops.length, memberToken, planId, optimistic],
+    [busy, hero, cursor, stops, memberToken, planId, optimistic, handOffConfirmedStop],
   );
 
   if (!activeNow) return null;

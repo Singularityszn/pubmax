@@ -124,6 +124,31 @@ export function nightCrawlIdempotencyScope(planId: string, type: NightCrawlActio
 //   offline   → network drop or 5xx; keep advance only when the mutation is
 //               queued in the client outbox, otherwise roll back honestly.
 export type NightCrawlOutcome = "confirmed" | "rejected" | "forbidden" | "offline";
+export type NightCrawlHandoffTarget = "crawl" | "ending" | "arrival_required";
+
+/**
+ * A final Crawl Stop hands off only after its action is durable. A held offline
+ * action stays in Crawl mode until the outbox later confirms it, so a local
+ * optimistic mark can never unlock the completion flow on its own.
+ */
+export function nightCrawlHandoffTarget({
+  stops,
+  actions,
+  stopPosition,
+  outcome,
+}: {
+  stops: readonly PlanStopDTO[];
+  actions: readonly PlanActionDTO[] | undefined;
+  stopPosition: number;
+  outcome: NightCrawlOutcome;
+}): NightCrawlHandoffTarget {
+  if (outcome !== "confirmed") return "crawl";
+  const ordered = orderedStops(stops);
+  if (ordered.at(-1)?.position !== stopPosition) return "crawl";
+  return actions?.some((action) => action.type === "arrived")
+    ? "ending"
+    : "arrival_required";
+}
 
 export type NightCrawlActionReconciliation = {
   cursor: number;

@@ -4,17 +4,31 @@ import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 // Server-only Supabase admin client. Returns null when env is absent so every
 // caller degrades to the in-memory store / static cache instead of crashing.
 // No client-side client — all writes route through server handlers.
 let cached: SupabaseClient | null | undefined;
 
+function resolveServerSupabaseConfig() {
+  const isVercelProduction = process.env.VERCEL_ENV === "production";
+  return resolveSupabaseConfig(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      requireHttps: isVercelProduction,
+      expectedKeyRole: "secret",
+      allowUnknownKeyRole: !isVercelProduction,
+    },
+  );
+}
+
 export function getSupabaseAdmin(): SupabaseClient | null {
-  if (cached !== undefined) return cached;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cached = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
+  if (cached) return cached;
+  const config = resolveServerSupabaseConfig();
+  if (!config) return null;
+  cached = createClient(config.url, config.key, { auth: { persistSession: false } });
   return cached;
 }
 
@@ -30,7 +44,7 @@ export function requireSupabaseAdmin(): SupabaseClient {
 }
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return resolveServerSupabaseConfig() !== null;
 }
 
 export function requiresSupabaseStore(): boolean {

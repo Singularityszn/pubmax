@@ -30,6 +30,12 @@ import { rowsFromSlimPayload } from "@/lib/slimPayload";
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
+const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        throw new Error("A deploy revision is required for production map data");
+      })()
+    : "local");
 const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
 
 function offlineKeyForPath(path: string): string {
@@ -217,12 +223,27 @@ export type SlimVenueLoadResult = {
   status: "ready" | "unavailable";
 };
 
+function directMonolithRequest(path: string): {
+  path: string;
+  options: SlimVenueLoadOptions;
+} {
+  if (MAP_DATA_REVISION === "local") return { path, options: {} };
+  return {
+    path: `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`,
+    options: { expectedRevision: MAP_DATA_REVISION },
+  };
+}
+
 async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
+  cache: RequestCache = "default",
 ): Promise<unknown> {
   let earlyPayloadRejected = false;
-  const early = options.bypassInFlight ? undefined : takeEarlyWarmJson(path);
+  const early =
+    cache === "no-store" || options.bypassInFlight
+      ? undefined
+      : takeEarlyWarmJson(path);
   if (early) {
     try {
       return await early;
@@ -230,7 +251,7 @@ async function readSlimPayload(
       earlyPayloadRejected = true;
     }
   }
-  const response = earlyPayloadRejected
+  const response = earlyPayloadRejected || cache === "no-store"
     ? await fetch(path, { cache: "no-store" })
     : await fetch(path);
   if (!response.ok) {
@@ -250,6 +271,25 @@ function rowsFromPayload(
   if (Array.isArray(value) || typeof value !== "object" || value === null) return null;
   const revision = (value as { revision?: unknown }).revision;
   return revision === expectedRevision ? rows : null;
+}
+
+function normalizedRowsFromPayload(
+  value: unknown,
+  expectedRevision?: string,
+): { rows: SlimVenue[]; complete: boolean } | null {
+  const payloadRows = rowsFromPayload(value, expectedRevision);
+  if (!payloadRows) return null;
+  const rows = normalizeRows(payloadRows);
+  return { rows, complete: rows.length === payloadRows.length };
+}
+
+async function readOfflineFallback(
+  offlineKey: string,
+  expectedRevision?: string,
+): Promise<SlimVenue[] | null> {
+  const stored = await offlineCache.get<unknown>(offlineKey);
+  const payload = normalizedRowsFromPayload(stored, expectedRevision);
+  return payload?.complete && payload.rows.length > 0 ? payload.rows : null;
 }
 
 export function loadSlimVenuesFromPathResult(
@@ -284,13 +324,27 @@ async function loadSlimVenuesFromPathUnshared(
 ): Promise<SlimVenueLoadResult> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    const data: unknown = await readSlimPayload(path, options);
-    const payloadRows = rowsFromPayload(data, options.expectedRevision);
-    if (!payloadRows) {
+    let data: unknown = await readSlimPayload(path, options);
+    let payload = normalizedRowsFromPayload(data, options.expectedRevision);
+    if (
+      options.expectedRevision !== undefined &&
+      (!payload || !payload.complete)
+    ) {
+      data = await readSlimPayload(path, options, "no-store");
+      payload = normalizedRowsFromPayload(data, options.expectedRevision);
+    }
+    if (
+      !payload ||
+      (options.expectedRevision !== undefined && !payload.complete)
+    ) {
+      const fallback = await readOfflineFallback(
+        offlineKey,
+        options.expectedRevision,
+      );
+      if (fallback) return { rows: fallback, status: "ready" };
       return { rows: [], status: "unavailable" };
     }
-    const rows = normalizeRows(payloadRows);
-    const complete = rows.length === payloadRows.length;
+    const { rows, complete } = payload;
     if (complete && rows.length > 0) {
       const stored = options.expectedRevision
         ? { revision: options.expectedRevision, rows }
@@ -302,9 +356,11 @@ async function loadSlimVenuesFromPathUnshared(
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
-    const stored = await offlineCache.get<unknown>(offlineKey);
-    const fallback = normalizeRows(rowsFromPayload(stored, options.expectedRevision) ?? []);
-    if (fallback.length > 0) return { rows: fallback, status: "ready" };
+    const fallback = await readOfflineFallback(
+      offlineKey,
+      options.expectedRevision,
+    );
+    if (fallback) return { rows: fallback, status: "ready" };
     throw error;
   }
 }
@@ -313,7 +369,8 @@ async function loadSlimVenuesFromPathUnshared(
  * London default loader — same contract as before multi-city routing.
  */
 export async function loadSlimVenues(): Promise<SlimVenue[]> {
-  return loadSlimVenuesFromPath(SLIM_VENUES_PATH);
+  const request = directMonolithRequest(SLIM_VENUES_PATH);
+  return loadSlimVenuesFromPath(request.path, request.options);
 }
 
 /**
@@ -324,12 +381,14 @@ export async function loadSlimVenuesForCity(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
 ): Promise<SlimVenue[]> {
   const city = getCity(cityId);
-  return loadSlimVenuesFromPath(city.slimVenuesPath);
+  const request = directMonolithRequest(city.slimVenuesPath);
+  return loadSlimVenuesFromPath(request.path, request.options);
 }
 
 export function loadSlimVenuesForCityResult(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
 ): Promise<SlimVenueLoadResult> {
   const city = getCity(cityId);
-  return loadSlimVenuesFromPathResult(city.slimVenuesPath);
+  const request = directMonolithRequest(city.slimVenuesPath);
+  return loadSlimVenuesFromPathResult(request.path, request.options);
 }

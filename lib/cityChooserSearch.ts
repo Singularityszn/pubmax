@@ -67,8 +67,48 @@ export function cityGuideCountWord(count: number): string {
     : String(count);
 }
 
-export function cityGuidesHavePricesLine(count: number): string {
-  return `The ${cityGuideCountWord(count)} city guides have prices and crawls. Other UK places open the pub map without prices.`;
+function countedNoun(
+  count: number,
+  singular: string,
+  plural = `${singular}s`,
+): string {
+  return `${cityGuideCountWord(count)} ${count === 1 ? singular : plural}`;
+}
+
+function sentenceCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function cityGuidesCoverageLine(
+  cities: readonly CityConfig[],
+): string {
+  const capabilities = cities.map((city) => ({
+    city,
+    profile: getCityCapabilityProfile(city.id),
+  }));
+  const mapCount = capabilities.filter(
+    ({ profile }) => profile.map.availability !== "unavailable",
+  ).length;
+  const previewCount = capabilities.filter(
+    ({ profile }) => profile.releaseTier === "preview",
+  ).length;
+  const pricedCities = capabilities.filter(
+    ({ profile }) => profile.prices.availability === "available",
+  );
+  const crawlCount = capabilities.filter(
+    ({ profile }) => profile.routes.availability === "available",
+  ).length;
+
+  const mapSummary = sentenceCase(countedNoun(mapCount, "city map"));
+  const previewSummary =
+    previewCount > 0 ? `, including ${countedNoun(previewCount, "preview")}` : "";
+  const priceSummary =
+    pricedCities.length === 1
+      ? `${pricedCities[0].city.displayName} has pint prices`
+      : `${sentenceCase(countedNoun(pricedCities.length, "city", "cities"))} have pint prices`;
+  const crawlSummary = `${countedNoun(crawlCount, "city", "cities")} ${crawlCount === 1 ? "has" : "have"} crawls`;
+
+  return `${mapSummary}${previewSummary}. ${priceSummary}; ${crawlSummary}.`;
 }
 
 export function cityGuidesSearchUnavailableLine(count: number): string {

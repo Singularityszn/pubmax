@@ -101,10 +101,8 @@ describe("silent user action feedback fence", () => {
   });
 
   it("does not claim optional clipboard writes succeeded", () => {
-    const agent = source("components/plan/TonightAgentPanel.tsx");
     const safeNight = source("components/night/SafeNightStrip.tsx");
 
-    expect(agent).toContain("Could not copy invite draft. Try again.");
     expect(safeNight).toContain("clipboard unavailable");
   });
 

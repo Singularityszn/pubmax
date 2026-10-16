@@ -3,7 +3,12 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { socialPostFromRow, type SocialPostActor } from "@/lib/socialPostStore";
-import { socialPostDTO, type SocialPostDTO, type SocialPostVisibility } from "@/lib/socialPosts";
+import {
+  socialPostDTO,
+  type SocialPost,
+  type SocialPostDTO,
+  type SocialPostVisibility,
+} from "@/lib/socialPosts";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
@@ -32,6 +37,18 @@ export type SocialPostHeldItem = {
   mediaId: string | null;
   moderationClaim: string;
   createdAt: string;
+};
+export type SocialPostAdminHeldItem = SocialPostHeldItem & {
+  revision: number;
+  authorHandle: string;
+  body: string;
+  photoAltText: string | null;
+  area: string | null;
+  venueId: string | null;
+  visibility: SocialPost["visibility"];
+  commentPolicy: SocialPost["commentPolicy"];
+  moderationState: Exclude<SocialPost["moderationState"], "pending">;
+  updatedAt: string;
 };
 
 export type SocialPostConsentStoreErrorKind = "invalid" | "conflict" | "unavailable";
@@ -125,6 +142,43 @@ function heldItemFromRow(item: Record<string, unknown>): SocialPostHeldItem {
   };
 }
 
+function heldJobMatches(
+  held: SocialPostHeldItem,
+  item: Record<string, unknown>,
+  post: SocialPost,
+): boolean {
+  return (
+    item.state === "done" && item.post_id === held.postId && item.media_id === held.mediaId &&
+    item.moderation_claim === held.moderationClaim &&
+    post.id === held.postId && (post.photo?.mediaId ?? null) === held.mediaId &&
+    post.revision === item.revision && post.status === "visible"
+  );
+}
+
+function adminHeldItemFromRow(
+  held: SocialPostHeldItem,
+  item: Record<string, unknown>,
+): SocialPostAdminHeldItem | null {
+  const rawPost = Array.isArray(item.social_posts) ? item.social_posts[0] : item.social_posts;
+  if (!rawPost || typeof rawPost !== "object" || Array.isArray(rawPost)) return null;
+  const post = socialPostFromRow(rawPost);
+  if (!heldJobMatches(held, item, post) || post.moderationState === "pending") return null;
+  return {
+    ...held,
+    revision: post.revision,
+    authorHandle: post.authorHandle,
+    body: post.body,
+    photoAltText: post.photo?.altText ?? null,
+    area: post.area,
+    venueId: post.venueId,
+    visibility: post.visibility,
+    commentPolicy: post.commentPolicy,
+    moderationState: post.moderationState,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+  };
+}
+
 function rows(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) throw new SocialPostConsentStoreError("Social consent data is unavailable.");
   return value.map(row);
@@ -143,12 +197,13 @@ export type SocialPostConsentStore = {
   outbox(viewer: SocialPostActor, input: PageInput): Promise<SocialPostOutboxPage>;
   heldQueue(viewer: SocialPostActor, limit: number): Promise<SocialPostHeldItem[]>;
   moderateHeld(viewer: SocialPostActor, postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
-  heldQueueForAdmin(staffRoleId: string, limit: number): Promise<SocialPostHeldItem[]>;
+  heldQueueForAdmin(staffRoleId: string, limit: number): Promise<SocialPostAdminHeldItem[]>;
   adminMediaObjectKey(staffRoleId: string, mediaId: string): Promise<string | null>;
   moderateHeldForAdmin(
     staffRoleId: string,
     postId: string,
     mediaId: string | null,
+    expectedRevision: number,
     action: "approve" | "hide",
   ): Promise<void>;
 };
@@ -287,10 +342,47 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       }
     },
     async heldQueueForAdmin(staffRoleId, limit) {
-      return rows(await rpc("read_social_post_moderation_queue_admin", {
+      const held = rows(await rpc("read_social_post_moderation_queue_admin", {
         p_staff_role_id: staffRoleId,
         p_limit: limit,
       })).map(heldItemFromRow);
+      if (held.length === 0) return [];
+      const { data, error } = await requireSupabaseAdmin()
+        .from("social_post_moderation_jobs")
+        .select(`
+          post_id,
+          revision,
+          media_id,
+          moderation_claim,
+          state,
+          social_posts!inner(
+            id,
+            author_handle,
+            visibility,
+            status,
+            body,
+            area_slug,
+            venue_id,
+            comment_policy,
+            photo_media_id,
+            photo_alt_text,
+            moderation_state,
+            revision,
+            created_at,
+            updated_at
+          )
+        `)
+        .in("post_id", held.map((item) => item.postId))
+        .eq("state", "done");
+      if (error) throw new SocialPostConsentStoreError(error.message);
+      const candidates = rows(data);
+      return held.flatMap((item) => {
+        for (const candidate of candidates) {
+          const parsed = adminHeldItemFromRow(item, candidate);
+          if (parsed) return [parsed];
+        }
+        return [];
+      });
     },
     async adminMediaObjectKey(staffRoleId, mediaId) {
       const result = rows(await rpc("read_social_post_media_admin", {
@@ -300,11 +392,12 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       if (result.length === 0) return null;
       return typeof result[0]?.object_key === "string" ? result[0].object_key : null;
     },
-    async moderateHeldForAdmin(staffRoleId, postId, mediaId, action) {
+    async moderateHeldForAdmin(staffRoleId, postId, mediaId, expectedRevision, action) {
       const result = await rpc("moderate_social_post_admin", {
         p_staff_role_id: staffRoleId,
         p_post_id: postId,
         p_media_id: mediaId,
+        p_expected_revision: expectedRevision,
         p_action: action,
       });
       if (result !== true) {

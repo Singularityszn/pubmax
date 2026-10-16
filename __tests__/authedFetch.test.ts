@@ -8,13 +8,31 @@ import { getAccessToken } from "@/lib/authClient";
 import {
   AuthActionSessionError,
   authedActionFetch,
+  authedActionJson,
   authedFetch,
   publishAuthActionState,
+  readFallbackFollowerCountForTest,
+  readRetainedActionSignalForTest,
 } from "@/lib/authedFetch";
+import {
+  readProviderIdentitySignal,
+  setProviderIdentity,
+} from "@/lib/authProviderRevision";
+
+function deferredResponseBoundTo(signal: AbortSignal): Response {
+  return new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      signal.addEventListener("abort", () => controller.error(signal.reason), {
+        once: true,
+      });
+    },
+  }));
+}
 
 beforeEach(() => {
   vi.mocked(getAccessToken).mockReset().mockResolvedValue("test-jwt-token");
   publishAuthActionState({ status: "signed-out", identityResolved: true });
+  setProviderIdentity("supabase", null);
 });
 
 afterEach(() => {
@@ -62,6 +80,387 @@ describe("authedFetch (Wave I2)", () => {
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
+  it("does not let an account A action use account B auth after switch unmounts its owner", async () => {
+    let resolveToken!: (token: string | null) => void;
+    const token = new Promise<string | null>((resolve) => {
+      resolveToken = resolve;
+    });
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockReturnValueOnce(token);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const owner = new AbortController();
+
+    const request = authedActionFetch("/api/identity/adult-assertion", {
+      method: "POST",
+      signal: owner.signal,
+    });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+
+    setProviderIdentity("supabase", "account-b");
+    owner.abort();
+    resolveToken("account-b-token");
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("aborts token lookup when the provider changes without a caller abort", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockImplementation(() => new Promise(() => undefined));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+    const action = authedActionFetch("/api/social/posts", { method: "POST" });
+    const rejection = expect(action).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+
+    setProviderIdentity("supabase", "account-b");
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("aborts an account A action already in flight when the account changes", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) => new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) throw new Error("Account-bound fetch signal missing.");
+        signal.addEventListener(
+          "abort",
+          () => reject(new DOMException("The operation was aborted.", "AbortError")),
+          { once: true },
+        );
+      }),
+    );
+
+    const request = authedActionFetch("/api/social/tags", { method: "POST" });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer account-a-token");
+    setProviderIdentity("supabase", "account-b");
+
+    await rejection;
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+    expect(actionSignal?.aborted).toBe(true);
+  });
+
+  it("merges a Request signal into the active account-bound fetch", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) => new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) throw new Error("Account-bound fetch signal missing.");
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      }),
+    );
+    const owner = new AbortController();
+    const input = new Request("https://pubmaxx.example/api/social/posts", {
+      signal: owner.signal,
+    });
+    const reason = new Error("request owner left");
+
+    const action = authedActionFetch(input, { method: "POST" });
+    const rejection = action.then(
+      () => expect.unreachable("Request abort must reject the active fetch."),
+      (error: unknown) => expect(error).toBe(reason),
+    );
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+    owner.abort(reason);
+
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+    expect(actionSignal?.aborted).toBe(true);
+    expect(actionSignal?.reason).toBe(reason);
+    await rejection;
+  });
+
+  it("gives an explicit init signal precedence over a Request signal", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const requestOwner = new AbortController();
+    const initOwner = new AbortController();
+    const requestReason = new Error("stale Request owner left");
+    const initReason = new Error("active dialog closed");
+    const input = new Request("https://pubmaxx.example/api/social/posts", {
+      signal: requestOwner.signal,
+    });
+    requestOwner.abort(requestReason);
+
+    await authedActionFetch(input, {
+      method: "POST",
+      signal: initOwner.signal,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+    expect(actionSignal?.aborted).toBe(false);
+    initOwner.abort(initReason);
+    expect(actionSignal?.aborted).toBe(true);
+    expect(actionSignal?.reason).toBe(initReason);
+  });
+
+  it("keeps caller and provider aborts active without AbortSignal.any", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      setProviderIdentity("supabase", "account-a");
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+      const providerSignal = readProviderIdentitySignal();
+      const providerListenerSpy = vi.spyOn(providerSignal, "addEventListener");
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+        async (_input, init) => {
+          const signal = init?.signal;
+          if (!signal) throw new Error("Account-bound fetch signal missing.");
+          return deferredResponseBoundTo(signal);
+        },
+      );
+      const firstOwner = new AbortController();
+      const secondOwner = new AbortController();
+
+      const firstResponse = await authedActionFetch("/api/social/posts/first", {
+        signal: firstOwner.signal,
+      });
+      const secondResponse = await authedActionFetch("/api/social/posts/second", {
+        signal: secondOwner.signal,
+      });
+      const firstBody = firstResponse.text();
+      const secondBody = secondResponse.text();
+      const firstSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+      const secondSignal = fetchSpy.mock.calls[1]?.[1]?.signal;
+      const callerReason = new Error("first owner left");
+
+      firstOwner.abort(callerReason);
+      setProviderIdentity("supabase", "account-b");
+
+      expect(firstSignal?.aborted).toBe(true);
+      expect(firstSignal?.reason).toBe(callerReason);
+      expect(secondSignal?.aborted).toBe(true);
+      expect(secondSignal?.reason).toMatchObject({ name: "AbortError" });
+      expect(providerListenerSpy.mock.calls.filter(([type]) => type === "abort"))
+        .toHaveLength(1);
+      await expect(firstBody).rejects.toBe(callerReason);
+      await expect(secondBody).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      if (anyDescriptor) {
+        Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      } else {
+        Reflect.deleteProperty(AbortSignal, "any");
+      }
+    }
+  });
+
+  it("retains the fallback composite through the returned native Response", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      setProviderIdentity("supabase", "account-a");
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+      const owner = new AbortController();
+      const source = new Response("ok");
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(source);
+
+      const response = await authedActionFetch("/api/social/posts", {
+        signal: owner.signal,
+      });
+      const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+
+      expect(response).toBe(source);
+      expect(readRetainedActionSignalForTest(response)).toBe(actionSignal);
+    } finally {
+      if (anyDescriptor) {
+        Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      } else {
+        Reflect.deleteProperty(AbortSignal, "any");
+      }
+    }
+  });
+
+  it("removes a fallback dependent from every source after its first abort", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      setProviderIdentity("supabase", "account-a");
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+      const providerSignal = readProviderIdentitySignal();
+      const owner = new AbortController();
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+      await authedActionFetch("/api/social/posts", {
+        signal: owner.signal,
+      });
+
+      expect(readFallbackFollowerCountForTest(providerSignal)).toBe(1);
+      expect(readFallbackFollowerCountForTest(owner.signal)).toBe(1);
+
+      owner.abort(new Error("owner left"));
+
+      expect(readFallbackFollowerCountForTest(providerSignal)).toBe(0);
+      expect(readFallbackFollowerCountForTest(owner.signal)).toBe(0);
+    } finally {
+      if (anyDescriptor) {
+        Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      } else {
+        Reflect.deleteProperty(AbortSignal, "any");
+      }
+    }
+  });
+
+  it("preserves a custom init abort reason during token lookup", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockImplementation(() => new Promise(() => undefined));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const owner = new AbortController();
+    const reason = new Error("dialog closed");
+
+    const action = authedActionFetch("/api/social/posts", {
+      signal: owner.signal,
+    });
+    const rejection = action.then(
+      () => expect.unreachable("Caller abort must reject token lookup."),
+      (error: unknown) => expect(error).toBe(reason),
+    );
+    await Promise.resolve();
+    owner.abort(reason);
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps a Request abort active after response headers arrive", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    const owner = new AbortController();
+    const input = new Request("https://pubmaxx.example/api/social/posts", {
+      signal: owner.signal,
+    });
+    const reason = new Error("request owner left after headers");
+    let source!: Response;
+    let actionSignal!: AbortSignal;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      actionSignal = init?.signal as AbortSignal;
+      source = deferredResponseBoundTo(actionSignal);
+      return source;
+    });
+
+    const response = await authedActionFetch(input, { method: "POST" });
+    const body = response.text();
+    owner.abort(reason);
+
+    expect(response).toBe(source);
+    expect(actionSignal.aborted).toBe(true);
+    expect(actionSignal.reason).toBe(reason);
+    await expect(body).rejects.toBe(reason);
+  });
+
+  it("keeps an init abort active after response headers arrive", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    const owner = new AbortController();
+    const reason = new Error("dialog closed after headers");
+    let source!: Response;
+    let actionSignal!: AbortSignal;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      actionSignal = init?.signal as AbortSignal;
+      source = deferredResponseBoundTo(actionSignal);
+      return source;
+    });
+
+    const response = await authedActionFetch("/api/social/posts", {
+      method: "POST",
+      signal: owner.signal,
+    });
+    const body = response.text();
+    owner.abort(reason);
+    setProviderIdentity("supabase", "account-b");
+
+    expect(response).toBe(source);
+    expect(actionSignal.aborted).toBe(true);
+    expect(actionSignal.reason).toBe(reason);
+    await expect(body).rejects.toBe(reason);
+  });
+
+  it("aborts a deferred native response body when the provider changes", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    let source!: Response;
+    let actionSignal!: AbortSignal;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      actionSignal = init?.signal as AbortSignal;
+      source = deferredResponseBoundTo(actionSignal);
+      return source;
+    });
+
+    const response = await authedActionFetch("/api/social/posts");
+    const body = response.text();
+    setProviderIdentity("supabase", "account-b");
+
+    expect(response).toBe(source);
+    expect(actionSignal.aborted).toBe(true);
+    await expect(body).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("rejects parsed account A JSON after an identity switch without relying on source abort", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
+    let bodyController!: ReadableStreamDefaultController<Uint8Array>;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          bodyController = controller;
+        },
+      }), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const read = authedActionJson<{ owner: string }>("/api/social/posts");
+    const rejection = expect(read).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+
+    setProviderIdentity("supabase", "account-b");
+    bodyController.enqueue(new TextEncoder().encode('{"owner":"account-a"}'));
+    bodyController.close();
+
+    await rejection;
+  });
+
+  it("returns the native Response while its provider binding outlives headers", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    const source = new Response(new ReadableStream<Uint8Array>());
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(source);
+
+    const response = await authedActionFetch("/api/social/posts");
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+
+    expect(response).toBe(source);
+    setProviderIdentity("supabase", "account-b");
+    expect(actionSignal?.aborted).toBe(true);
+  });
+
   it("waits for identity resolution before reading a signed-in action token", async () => {
     publishAuthActionState({ status: "signed-in", identityResolved: false });
     vi.mocked(getAccessToken)
@@ -84,6 +483,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockResolvedValue("hydrated-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     setTimeout(() => {
+      setProviderIdentity("supabase", "hydrated-account");
       publishAuthActionState({ status: "signed-in", identityResolved: true });
     }, 10);
 

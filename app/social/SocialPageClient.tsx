@@ -399,7 +399,10 @@ export function SocialContextRail({
   );
 }
 
-export default function SocialPageClient({
+// This existing controller intentionally keeps one owner for Social state.
+// Account changes remount it through the small boundary below.
+// eslint-disable-next-line complexity
+function SocialPageAccountState({
   initialState,
   rivalry,
   heritageCrawls,
@@ -572,7 +575,11 @@ export default function SocialPageClient({
           return;
         if (feedRequestId.current === requestId) setFeedStatus("error");
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      moreController.current?.abort();
+      moreController.current = null;
+    };
   }, [access, feedAttempt, feedHref]);
 
   useEffect(() => {
@@ -860,4 +867,9 @@ export default function SocialPageClient({
       </main>
     </>
   );
+}
+
+export default function SocialPageClient(props: SocialPageClientProps) {
+  const { user } = useAuth();
+  return <SocialPageAccountState key={user?.id ?? "signed-out"} {...props} />;
 }

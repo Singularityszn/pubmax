@@ -156,6 +156,29 @@ describe("canonical invite RSVP membership store", () => {
     ]);
   });
 
+  it("preserves commitment evidence returned by the compatible fallback RPC", async () => {
+    storeHarness.rpc.mockImplementation(async (name: string, args: { p_member_id: string }) => (
+      name === "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic"
+        ? { data: null, error: { code: "PGRST202", message: "Could not find the function public.upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic" } }
+        : {
+            data: {
+              outcome: "saved",
+              is_update: false,
+              member_id: args.p_member_id,
+              crew_committed_at: "2026-08-30T12:00:01.000Z",
+              crew_committed_event_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            },
+            error: null,
+          }
+    ));
+
+    const result = await supabaseRsvpStore.upsert(PLAN_ID, SUBMITTER_HASH, "Priya", "going");
+
+    expect(result).toMatchObject({
+      crewCommittedAt: "2026-08-30T12:00:01.000Z",
+      crewCommittedEventId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    });
+  });
   it("maps an atomic crew-full result without writing a split RSVP", async () => {
     storeHarness.rpc.mockResolvedValue({
       data: { outcome: "crew_full", is_update: false, member_id: null },
@@ -226,10 +249,10 @@ describe("canonical invite RSVP membership migration", () => {
     const planStore = readFileSync(join(process.cwd(), "lib/planStore.ts"), "utf8");
     const crewIdentity = readFileSync(join(process.cwd(), "lib/planCrewIdentity.ts"), "utf8");
 
-    expect(planStore).toMatch(/from\(MEMBERS\)[\s\S]+\.is\("membership_revoked_at", null\)[\s\S]+\.order\("joined_at"\)/);
-    expect(planStore).toMatch(/select\("id,token_hash,joined_at,can_collaborate"\)[\s\S]+\.is\("membership_revoked_at", null\)/);
-    expect(crewIdentity).toMatch(/\.from\(MEMBERS\)[\s\S]+\.update\(\{ user_id: uid \}\)[\s\S]+\.is\("membership_revoked_at", null\)/);
-    expect(crewIdentity).toMatch(/\.select\("id,user_id"\)[\s\S]+\.is\("membership_revoked_at", null\)/);
+    expect(planStore).toMatch(/from\(MEMBERS\)[^;]*?\.is\("membership_revoked_at", null\)[^;]*?\.order\("joined_at"\)/);
+    expect(planStore).toMatch(/select\("id,token_hash,joined_at,can_collaborate"\)[^;]*?\.is\("membership_revoked_at", null\)/);
+    expect(crewIdentity).toMatch(/\.from\(MEMBERS\)[^;]*?\.update\(\{ user_id: uid \}\)[^;]*?\.is\("membership_revoked_at", null\)/);
+    expect(crewIdentity).toMatch(/\.select\("id,user_id"\)[^;]*?\.is\("membership_revoked_at", null\)/);
   });
 
   it("ships a rollback for the canonical membership link", () => {
@@ -242,6 +265,12 @@ describe("canonical invite RSVP membership migration", () => {
     const rollback = readFileSync(rollbackPath, "utf8");
 
     expect(rollback).not.toMatch(/delete\s+from\s+public\.plan_crew_members/i);
+    expect(rollback).not.toMatch(
+      /revoke\s+all\s+on\s+function\s+public\.(?:upsert|remove)_plan_invite_rsvp_membership_atomic/i,
+    );
+    expect(rollback).toMatch(
+      /information_schema\.columns[^;]+column_name = 'membership_revoked_at'[\s\S]+execute 'select exists \(select 1 from public\.plan_crew_members where membership_revoked_at is not null\)'/i,
+    );
     expect(rollback).toMatch(/membership_revoked_at is not null[\s\S]+raise exception/i);
     expect(rollback).toContain("create or replace function public._0075_join_plan_idempotent_atomic");
     expect(rollback).toContain("create or replace function public._0075_redeem_plan_invite_idempotent_atomic");

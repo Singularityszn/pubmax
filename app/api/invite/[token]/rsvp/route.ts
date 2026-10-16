@@ -13,7 +13,7 @@ import { PlanCrewFullError, RsvpCapExceededError, UnknownPlanError, rsvpStore } 
 import { planCrewCommitmentPreflightResponse } from "@/lib/planSigningHttp.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
 import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
@@ -25,6 +25,11 @@ assertServerEnv();
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
+
+  const limiterKey = `plan-invite-rsvp:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
 
   const { token } = await params;
   const resolved = await resolveClassicInvitePlan(token);

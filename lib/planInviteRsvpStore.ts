@@ -152,16 +152,7 @@ async function upsertRsvpMembershipAtomic(args: RsvpMembershipRpcArgs) {
     result.error,
     "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
   )) return result;
-  const fallback = await client.rpc("upsert_plan_invite_rsvp_membership_atomic", args);
-  if (fallback.error || !fallback.data || typeof fallback.data !== "object") return fallback;
-  return {
-    ...fallback,
-    data: {
-      ...fallback.data as Record<string, unknown>,
-      crew_committed_at: null,
-      crew_committed_event_id: null,
-    },
-  };
+  return client.rpc("upsert_plan_invite_rsvp_membership_atomic", args);
 }
 
 export const supabaseRsvpStore: PlanInviteRsvpStore = {

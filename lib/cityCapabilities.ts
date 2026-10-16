@@ -97,10 +97,11 @@ function editorialCoreCity(
  */
 function mapOnlyCity(
   cityId: Extract<CityId, "bath" | "llandudno">,
+  releaseTier: Extract<CityReleaseTier, "core" | "preview">,
 ): CityCapabilityProfile {
   return {
     cityId,
-    releaseTier: "core",
+    releaseTier,
     map: MAP_AVAILABLE,
     prices: PRICES_NOT_YET_COLLECTED,
     events: EVENTS_LONDON_ONLY,
@@ -140,8 +141,8 @@ export const CITY_CAPABILITY_PROFILES = {
   glasgow: editorialCoreCity("glasgow", TRANSPORT_LIMITED),
   bristol: editorialCoreCity("bristol"),
   cambridge: editorialCoreCity("cambridge"),
-  bath: mapOnlyCity("bath"),
-  llandudno: mapOnlyCity("llandudno"),
+  bath: mapOnlyCity("bath", "core"),
+  llandudno: mapOnlyCity("llandudno", "preview"),
 } as const satisfies Record<CityId, CityCapabilityProfile>;
 
 export function getCityCapabilityProfile(

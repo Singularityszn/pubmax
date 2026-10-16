@@ -351,10 +351,12 @@ describe("createSlimShardLoader (London)", () => {
       status: "ready",
     });
     expect(fetched).toContain("/data/venues_slim.core.json");
+    expect(fetched.filter((url) => url === "/data/venues_slim.core.json")).toHaveLength(1);
     expect(fetched).not.toContain("/data/venues_slim.manifest.json");
 
     await loader.inBounds(bounds);
     expect(fetched).toContain("/data/venues_slim.manifest.json");
+    expect(fetched.filter((url) => url === "/data/venues_slim.core.json")).toHaveLength(1);
   });
 
   it("does not restore a legacy manifest from the offline boundary", async () => {

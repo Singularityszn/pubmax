@@ -7,9 +7,19 @@ import {
 import type { WhatsOnListingStore } from "@/lib/whatsOnListingStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import type { OutLiveProvider } from "@/lib/out/loadOut";
+import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { loadWhatsOn } from "@/lib/whatsOnStore";
+import type { VenueRef } from "@/lib/venueIndex";
 
 const NOW = Date.parse("2026-08-24T20:00:00.000Z");
 const GENERATED = "2026-08-24T20:00:00.000Z";
+const LEXINGTON: VenueRef = {
+  id: "venue-1137z1c",
+  name: "The Lexington",
+  borough: "Islington",
+  lat: 51.5326,
+  lng: -0.1119,
+};
 
 function eventRow(id: string, sourceLabel = "Ticketmaster"): WhatsOnRow {
   return {
@@ -80,6 +90,217 @@ describe("refreshOfficialWhatsOnListings", () => {
     expect(snap.rows.map((row) => row.id)).toEqual(["tm-1"]);
   });
 
+  it("matches a canonical pub before the durable write", async () => {
+    const store = memoryStore();
+    const venueMatchIndex = buildOutVenueMatchIndex([LEXINGTON]);
+    const row = {
+      ...eventRow("tm-lexington"),
+      placeName: LEXINGTON.name,
+      lat: LEXINGTON.lat,
+      lng: LEXINGTON.lng,
+    };
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [row],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({
+      now: NOW,
+      store,
+      providers,
+      loadVenueMatchIndex: async () => venueMatchIndex,
+    });
+
+    expect(result.providers).toEqual([
+      expect.objectContaining({
+        name: "ticketmaster",
+        fetched: 1,
+        dateValid: 1,
+        matchStatus: "ready",
+        matched: 1,
+        unmatched: 0,
+      }),
+    ]);
+
+    const snap = await store.readAll();
+    expect(snap.rows).toHaveLength(1);
+    expect(snap.rows[0].venueId).toBe(LEXINGTON.id);
+
+    const pubOnly = await loadWhatsOn(
+      { pubOnly: true, venueMatchIndex },
+      {
+        now: NOW,
+        loadBaseline: () => snap.rows,
+        fetchLive: async () => [],
+      },
+    );
+    expect(pubOnly.rows.map((stored) => stored.id)).toEqual(["tm-lexington"]);
+  });
+
+  it("keeps previous matched rows when the venue index is unavailable", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [{ ...eventRow("kept"), venueId: LEXINGTON.id }], GENERATED);
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [eventRow("new")],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({
+      now: NOW,
+      store,
+      providers,
+      loadVenueMatchIndex: async () => null,
+    });
+
+    expect(result).toMatchObject({ ok: false, written: 0, observedAt: null });
+    expect(result.providers).toEqual([
+      expect.objectContaining({
+        name: "ticketmaster",
+        matchStatus: "unavailable",
+        matched: 0,
+        unmatched: 1,
+      }),
+    ]);
+    expect((await store.readAll()).rows).toEqual([
+      expect.objectContaining({ id: "kept", venueId: LEXINGTON.id }),
+    ]);
+  });
+
+  it("keeps previous matched rows when loading the venue index throws", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [{ ...eventRow("kept"), venueId: LEXINGTON.id }], GENERATED);
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [eventRow("new")],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({
+      now: NOW,
+      store,
+      providers,
+      loadVenueMatchIndex: async () => {
+        throw new Error("venue index unavailable");
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, written: 0, observedAt: null });
+    expect(result.providers).toEqual([
+      expect.objectContaining({
+        name: "ticketmaster",
+        matchStatus: "unavailable",
+        matched: 0,
+        unmatched: 1,
+      }),
+    ]);
+    expect((await store.readAll()).rows).toEqual([
+      expect.objectContaining({ id: "kept", venueId: LEXINGTON.id }),
+    ]);
+  });
+
+  it("keeps previous matched rows when the venue index is empty", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [{ ...eventRow("kept"), venueId: LEXINGTON.id }], GENERATED);
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [eventRow("new")],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({
+      now: NOW,
+      store,
+      providers,
+      loadVenueMatchIndex: async () => buildOutVenueMatchIndex([]),
+    });
+
+    expect(result).toMatchObject({ ok: false, written: 0, observedAt: null });
+    expect(result.providers).toEqual([
+      expect.objectContaining({ matchStatus: "unavailable", matched: 0, unmatched: 1 }),
+    ]);
+    expect((await store.readAll()).rows).toEqual([
+      expect.objectContaining({ id: "kept", venueId: LEXINGTON.id }),
+    ]);
+  });
+
+  it("keeps unmatched entertainment out of pub-only supply and reports the loss", async () => {
+    const store = memoryStore();
+    const venueMatchIndex = buildOutVenueMatchIndex([LEXINGTON]);
+    const arena = {
+      ...eventRow("tm-arena"),
+      placeName: "The O2 Arena",
+      lat: 51.503,
+      lng: 0.0032,
+    };
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [arena],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({
+      now: NOW,
+      store,
+      providers,
+      loadVenueMatchIndex: async () => venueMatchIndex,
+    });
+
+    expect(result.providers).toEqual([
+      expect.objectContaining({
+        fetched: 1,
+        dateValid: 1,
+        cityValid: 1,
+        matchStatus: "ready",
+        matched: 0,
+        unmatched: 1,
+      }),
+    ]);
+    const snap = await store.readAll();
+    expect(snap.rows).toEqual([expect.objectContaining({ id: "tm-arena" })]);
+    expect(snap.rows[0]).not.toHaveProperty("venueId");
+    const pubOnly = await loadWhatsOn(
+      { pubOnly: true, venueMatchIndex },
+      { now: NOW, loadBaseline: () => snap.rows, fetchLive: async () => [] },
+    );
+    expect(pubOnly.rows).toEqual([]);
+  });
+
+  it("reports and drops provider rows outside Greater London", async () => {
+    const store = memoryStore();
+    const outsideLondon = {
+      ...eventRow("tm-brighton"),
+      placeName: "Brighton Dome",
+      lat: 50.823,
+      lng: -0.138,
+    };
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [outsideLondon],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
+
+    expect(result.providers).toEqual([
+      expect.objectContaining({ fetched: 1, dateValid: 1, cityValid: 0, rows: 0 }),
+    ]);
+    expect((await store.readAll()).rows).toEqual([]);
+  });
+
   it("drops expired provider rows before they reach the store", async () => {
     const store = memoryStore();
     const expired = eventRow("old");
@@ -94,6 +315,9 @@ describe("refreshOfficialWhatsOnListings", () => {
     ];
     const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
     expect(result.written).toBe(0);
+    expect(result.providers).toEqual([
+      expect.objectContaining({ fetched: 1, dateValid: 0, cityValid: 0, rows: 0 }),
+    ]);
     expect((await store.readAll()).rows).toEqual([]);
   });
 
@@ -262,6 +486,38 @@ describe("refreshOfficialWhatsOnListings", () => {
       "music",
       "quiz",
       "sport",
+    ]);
+  });
+
+  it("forwards venue-index failure through the full refresh", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [{ ...eventRow("kept"), venueId: LEXINGTON.id }], GENERATED);
+
+    const result = await refreshWhatsOnListings({
+      now: NOW,
+      store,
+      providers: [
+        {
+          name: "ticketmaster",
+          isConfigured: () => true,
+          fetchTonight: async () => [eventRow("new")],
+        },
+      ],
+      loadVenueMatchIndex: async () => null,
+      refreshers: {
+        quiz: async () => [],
+        deal: async () => [],
+        music: async () => [],
+        sport: async () => [],
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, written: 0, observedAt: null });
+    expect(result.providers).toEqual([
+      expect.objectContaining({ matchStatus: "unavailable", unmatched: 1 }),
+    ]);
+    expect((await store.readAll()).rows).toEqual([
+      expect.objectContaining({ id: "kept", venueId: LEXINGTON.id }),
     ]);
   });
 });

@@ -271,6 +271,12 @@ describe("planAreaSelect — the search-select journey (panel closed + camera + 
     const journey = planAreaSelect(option({ slug: "shoreditch", name: "Shoreditch", center: [-0.079, 51.524], kind: "area" }));
     expect(journey.camera).toEqual({ center: [-0.079, 51.524], zoom: DEFAULT_AREA_FLY_ZOOM });
     expect(journey.target).toEqual({ kind: "area", slug: "shoreditch", name: "Shoreditch" });
+    expect(journey.rememberedArea).toEqual({
+      kind: "night-area",
+      label: "Shoreditch",
+      slug: "shoreditch",
+      center: [-0.079, 51.524],
+    });
   });
 
   it("derives a radius ring for a locality and honours its deeper fly zoom", () => {
@@ -279,12 +285,24 @@ describe("planAreaSelect — the search-select journey (panel closed + camera + 
     );
     expect(journey.camera).toEqual({ center: [-0.23, 51.55], zoom: 14.5 });
     expect(journey.target).toEqual({ kind: "place", name: "Willesden", center: [-0.23, 51.55], radiusKm: LOCALITY_RADIUS_KM });
+    expect(journey.rememberedArea).toEqual({
+      kind: "locality",
+      label: "Willesden",
+      slug: "locality:willesden",
+      center: [-0.23, 51.55],
+    });
   });
 
   it("treats a borough as a place ring too", () => {
     const journey = planAreaSelect(option({ slug: "borough:hackney", name: "Hackney", center: [-0.06, 51.545], kind: "borough" }));
     expect(journey.target.kind).toBe("place");
     expect(journey.camera.zoom).toBe(DEFAULT_AREA_FLY_ZOOM);
+    expect(journey.rememberedArea).toEqual({
+      kind: "borough",
+      label: "Hackney",
+      slug: "borough:hackney",
+      center: [-0.06, 51.545],
+    });
   });
 
   it("treats an option with no kind (the Area-button grid) as a modelled area", () => {

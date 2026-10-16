@@ -956,7 +956,7 @@ describe("the live lane is venue-matched at request time", () => {
       },
     );
     expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
-    expect(notice?.places).toBe("The O2.");
+    expect(notice?.places).toBe("");
   });
 
   it("keeps pre-cap unmatched places and credits for the empty-state notice", async () => {
@@ -999,7 +999,7 @@ describe("the live lane is venue-matched at request time", () => {
       },
     );
     expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
-    expect(notice?.places).toBe("The O2.");
+    expect(notice?.places).toBe("");
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 

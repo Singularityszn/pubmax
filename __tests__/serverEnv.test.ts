@@ -5,7 +5,151 @@ import {
   assertServerEnv,
   DEV_RATE_LIMIT_SALT,
 } from "@/lib/serverEnv";
-import { requiresSupabaseStore } from "@/lib/supabase";
+import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
+import { getSupabaseAdmin, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+
+describe("resolveSupabaseConfig", () => {
+  it("trims and accepts HTTP(S) URLs with a non-blank key", () => {
+    expect(resolveSupabaseConfig(" https://example.supabase.co/ ", " publishable-key ")).toEqual({
+      url: "https://example.supabase.co/",
+      key: "publishable-key",
+    });
+  });
+
+  it.each(["not-a-valid-url", "ftp://example.supabase.co", "https:example.supabase.co"]) (
+    "rejects %s as a Supabase URL",
+    (url) => {
+      expect(resolveSupabaseConfig(url, "service-role-key")).toBeNull();
+    },
+  );
+
+  it("allows local HTTP only when HTTPS is not required", () => {
+    expect(resolveSupabaseConfig("http://127.0.0.1:54321", "service-role-key")).toEqual({
+      url: "http://127.0.0.1:54321",
+      key: "service-role-key",
+    });
+    expect(
+      resolveSupabaseConfig("http://127.0.0.1:54321", "service-role-key", {
+        requireHttps: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps current and legacy public keys out of the server role", () => {
+    expect(
+      resolveSupabaseConfig("https://example.supabase.co", "sb_publishable_browser", {
+        expectedKeyRole: "secret",
+      }),
+    ).toBeNull();
+    expect(
+      resolveSupabaseConfig(
+        "https://example.supabase.co",
+        "e30.eyJyb2xlIjoiYW5vbiJ9.signature",
+        { expectedKeyRole: "secret" },
+      ),
+    ).toBeNull();
+  });
+
+  it("accepts current and legacy keys only in their matching role", () => {
+    expect(
+      resolveSupabaseConfig("https://example.supabase.co", "sb_publishable_browser", {
+        expectedKeyRole: "publishable",
+      }),
+    ).not.toBeNull();
+    expect(
+      resolveSupabaseConfig("https://example.supabase.co", "sb_secret_server", {
+        expectedKeyRole: "secret",
+      }),
+    ).not.toBeNull();
+    expect(
+      resolveSupabaseConfig(
+        "https://example.supabase.co",
+        "e30.eyJyb2xlIjoiYW5vbiJ9.signature",
+        { expectedKeyRole: "publishable" },
+      ),
+    ).not.toBeNull();
+    expect(
+      resolveSupabaseConfig(
+        "https://example.supabase.co",
+        "e30.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature",
+        { expectedKeyRole: "secret" },
+      ),
+    ).not.toBeNull();
+  });
+});
+
+describe("isSupabaseConfigured", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects a malformed server URL even when the service key is present", () => {
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+
+    expect(isSupabaseConfigured()).toBe(false);
+  });
+
+  it("returns no admin client for a malformed server URL", () => {
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+
+    expect(() => getSupabaseAdmin()).not.toThrow();
+    expect(getSupabaseAdmin()).toBeNull();
+  });
+
+  it("retries construction after malformed server configuration is repaired", async () => {
+    vi.resetModules();
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+    const supabase = await import("@/lib/supabase");
+
+    expect(supabase.getSupabaseAdmin()).toBeNull();
+
+    vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
+
+    expect(supabase.getSupabaseAdmin()).not.toBeNull();
+  });
+
+  it("rejects a cleartext service-role URL in deployed Production", async () => {
+    vi.resetModules();
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "http://example.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+    const supabase = await import("@/lib/supabase");
+
+    expect(supabase.isSupabaseConfigured()).toBe(false);
+    expect(supabase.getSupabaseAdmin()).toBeNull();
+  });
+
+  it("allows local Supabase HTTP during local production-style runtime", async () => {
+    vi.resetModules();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("SUPABASE_URL", "http://127.0.0.1:54321");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb_secret_local");
+    const supabase = await import("@/lib/supabase");
+
+    expect(supabase.isSupabaseConfigured()).toBe(true);
+    expect(supabase.getSupabaseAdmin()).not.toBeNull();
+  });
+
+  it.each([
+    ["current publishable key", "sb_publishable_browser"],
+    ["legacy anon key", "e30.eyJyb2xlIjoiYW5vbiJ9.signature"],
+    ["unknown key class", "opaque-production-key"],
+  ])("rejects a %s from the server role", async (_label, key) => {
+    vi.resetModules();
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", key);
+    const supabase = await import("@/lib/supabase");
+
+    expect(supabase.isSupabaseConfigured()).toBe(false);
+    expect(supabase.getSupabaseAdmin()).toBeNull();
+  });
+});
 
 describe("assertProductionSecrets", () => {
   afterEach(() => {

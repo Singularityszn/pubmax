@@ -17,7 +17,7 @@ const PUB: UkBasePub = {
 
 function loader(restore: UkBasePub | null): UkBaseLoader {
   return {
-    pubsForBounds: async () => [],
+    pubsForBounds: async () => ({ status: "ready", pubs: [] }),
     find: () => null,
     restorePub: async () => restore,
   };

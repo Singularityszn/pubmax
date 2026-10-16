@@ -29,6 +29,25 @@ const RATE_LIMIT = 120;
 const RATE_WINDOW_MS = 60_000;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 1;
+const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
+
+function cacheableImageMiss(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "cache-control": CACHE_CONTROL,
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+async function cancelUpstreamBody(response: Response | null): Promise<void> {
+  try {
+    await response?.body?.cancel();
+  } catch {
+    // The body can already be closed or aborted. Either state releases it.
+  }
+}
 
 function isForbiddenHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -85,9 +104,15 @@ export async function GET(request: Request): Promise<Response> {
       });
       if (upstream.status >= 300 && upstream.status < 400) {
         const location = upstream.headers.get("location");
-        const followed: URL | null = location
-          ? validate(new URL(location, target).toString())
-          : null;
+        await cancelUpstreamBody(upstream);
+        let followed: URL | null = null;
+        if (location) {
+          try {
+            followed = validate(new URL(location, target).toString());
+          } catch {
+            followed = null;
+          }
+        }
         if (!followed || hop === MAX_REDIRECTS) {
           return new Response("Image source redirected out of policy.", { status: 502 });
         }
@@ -96,22 +121,35 @@ export async function GET(request: Request): Promise<Response> {
       }
       break;
     }
-    if (!upstream || !upstream.ok) {
-      return new Response("Image source unavailable.", { status: 502 });
+    if (!upstream) return new Response("Image source unavailable.", { status: 502 });
+    if (!upstream.ok) {
+      await cancelUpstreamBody(upstream);
+      return upstream.status === 404 || upstream.status === 410
+        ? cacheableImageMiss()
+        : new Response("Image source unavailable.", { status: 502 });
     }
     const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
     // Raster images only. SVG is executable content — served same-origin it
     // would be a stored-XSS vector (cursor bot, PR #171) — so it is refused
     // outright rather than sandboxed.
-    if (!type.startsWith("image/") || type.includes("svg")) {
+    if (type.includes("svg")) {
+      await cancelUpstreamBody(upstream);
       return new Response("Not an image.", { status: 502 });
     }
+    if (!type.startsWith("image/")) {
+      await cancelUpstreamBody(upstream);
+      return cacheableImageMiss();
+    }
     const declared = Number(upstream.headers.get("content-length") ?? "0");
-    if (declared > MAX_BYTES) return new Response("Image too large.", { status: 502 });
+    if (declared > MAX_BYTES) {
+      controller.abort();
+      await cancelUpstreamBody(upstream);
+      return new Response("Image too large.", { status: 502 });
+    }
     // Stream with a hard byte cap (cursor bot, PR #171): a chunked/mislabelled
     // response is aborted the moment it crosses the cap, never fully buffered.
     const reader = upstream.body?.getReader();
-    if (!reader) return new Response("Image source unavailable.", { status: 502 });
+    if (!reader) return cacheableImageMiss();
     const chunks: Uint8Array[] = [];
     let received = 0;
     for (;;) {
@@ -124,12 +162,13 @@ export async function GET(request: Request): Promise<Response> {
       }
       chunks.push(value);
     }
+    if (received === 0) return cacheableImageMiss();
     const body = new Blob(chunks as BlobPart[]);
     return new Response(body, {
       status: 200,
       headers: {
         "content-type": type,
-        "cache-control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+        "cache-control": CACHE_CONTROL,
         "x-content-type-options": "nosniff",
       },
     });

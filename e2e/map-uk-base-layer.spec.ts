@@ -3,16 +3,16 @@ import { expect, test, type Page } from "@playwright/test";
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
 //
-//   1. PAYLOAD. Nothing under /data/uk_base/ is fetched at first paint. The
-//      layer only exists past UK_BASE_MIN_ZOOM, which is what keeps the
-//      curated London overview costing exactly what it cost before it landed.
+//   1. ARRIVAL. London's intentional street-level camera crosses
+//      UK_BASE_MIN_ZOOM, so the base layer loads on normal Map entry. A camera
+//      below the gate remains fetch-free until it crosses back.
 //   2. THE FLYWHEEL. Crossing the gate paints base pubs, and tapping one opens
 //      the unverified sheet with the price-submission card on it - an unpriced
 //      pub is where the first price is worth the most.
 //
-// `data-uk-base-count` on .mapCanvasWrap is how the layer is observable from
-// outside MapLibre; without it, "loaded but too quiet to see" and "never
-// loaded" are the same screenshot.
+// `data-uk-base-count` and `data-uk-base-status` on .mapCanvasWrap are how the
+// layer is observable from outside MapLibre; without both, a valid empty view,
+// a failed read and a below-gate camera are the same screenshot.
 
 const VIEWPORT = { width: 390, height: 844 };
 
@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("costs nothing until the camera crosses the zoom gate, then paints and takes a price", async ({
+test("normal London entry paints UK base pubs and takes a price", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -44,24 +44,15 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   expect(response?.status()).toBe(200);
   const wrap = page.locator(".mapCanvasWrap");
   await expect(wrap).toBeVisible({ timeout: 20_000 });
-  await page.waitForTimeout(8000);
-
-  // (1) The whole layer - manifest included - is absent from first paint.
-  expect(requests).toEqual([]);
-  expect(await wrap.getAttribute("data-uk-base-count")).toBe("0");
-  const curatedBefore = await wrap.getAttribute("data-venue-count");
-
-  // Cross the gate with the map's own keyboard zoom (no test-only hook).
-  await page.locator(".maplibregl-canvas").first().focus();
-  for (let press = 0; press < 3; press += 1) {
-    await page.keyboard.press("Equal");
-    await page.waitForTimeout(1400);
-  }
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+    timeout: 30_000,
+  });
   await expect
     .poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), { timeout: 30_000 })
     .toBeGreaterThan(0);
+  const curatedBefore = await wrap.getAttribute("data-venue-count");
 
-  // The manifest is fetched once, and only cells the viewport covers follow it.
+  // The manifest is fetched once, and only cells the arrival viewport covers follow it.
   expect(requests.filter((url) => url.endsWith("manifest.json"))).toHaveLength(1);
   expect(requests.length).toBeGreaterThan(1);
   expect(requests.length).toBeLessThanOrEqual(8);
@@ -153,4 +144,22 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   const restoredSheet = page.locator(".unverifiedPub");
   await expect(restoredSheet).toBeVisible({ timeout: 45_000 });
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
+});
+
+test("a fresh national overview stays below the UK base gate and fetches no data", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const requests = ukBaseRequests(page);
+
+  const response = await page.goto("/map?uk=1");
+  expect(response?.status()).toBe(200);
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "zoom_required", {
+    timeout: 30_000,
+  });
+  await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
+
+  await page.waitForTimeout(1800);
+  expect(requests).toEqual([]);
 });

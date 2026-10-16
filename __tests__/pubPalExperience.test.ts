@@ -14,7 +14,11 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 
 import PalExperience from "@/components/pal/PalExperience";
-import { markPalRouteActivation } from "@/lib/pubPal";
+import {
+  anonymousPalDraftOwner,
+  DEFAULT_PAL_DRAFT,
+  writePalOnboardingDraft,
+} from "@/lib/pubPal";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -38,7 +42,6 @@ beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
   window.sessionStorage.clear();
-  markPalRouteActivation();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -58,10 +61,42 @@ afterEach(async () => {
 });
 
 describe("Pub Pal first meeting and onboarding", () => {
-  it("renders circuit robin with alt Pub Pal on /pal by default", () => {
+  it("lets a fresh visitor meet Pub Pal before making a Crawl Route", () => {
     const image = container.querySelector<HTMLImageElement>('img[alt="Pub Pal"]');
     expect(image?.src).toContain("/pal/circuit-robin-");
     expect(buttonContaining("Meet your Pub Pal")).toBeTruthy();
+    expect(container.textContent).not.toContain("First, describe your night.");
+  });
+
+  it("resumes a returning guest at the saved setup step", async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    const owner = anonymousPalDraftOwner();
+    writePalOnboardingDraft(owner, {
+      step: 2,
+      draft: {
+        ...DEFAULT_PAL_DRAFT,
+        adultConfirmed: true,
+        name: "Moss",
+      },
+      privacy: {
+        proposeMemories: false,
+        visible: true,
+        muted: false,
+      },
+    });
+
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+    await settle();
+
+    expect(container.textContent).toContain("3 of 5");
+    expect(container.textContent).toContain("Tune the signal.");
+    expect(container.textContent).not.toContain("Meet your Pub Pal");
   });
 
   it("switches from the default robin to a legacy form", async () => {

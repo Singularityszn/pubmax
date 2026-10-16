@@ -10,7 +10,7 @@ import type {
   MapVenueListSortMode,
   UkBasePubListModel,
 } from "@/lib/mapVenueList";
-import type { UkBasePub } from "@/lib/ukBasePubs";
+import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -31,6 +31,7 @@ import "./mapVenueList.css";
 export default function MapVenueList({
   model,
   ukBaseModel,
+  ukBaseStatus = "ready",
   cityName,
   open,
   onOpenChange,
@@ -47,6 +48,7 @@ export default function MapVenueList({
 }: {
   model: MapVenueListModel;
   ukBaseModel: UkBasePubListModel;
+  ukBaseStatus?: UkBaseStreamStatus;
   cityName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -102,6 +104,11 @@ export default function MapVenueList({
   // reader's landmark list on both viewports.
   if (!open) return null;
 
+  const awaitingRows =
+    total === 0
+    && ukBaseStatus !== "unavailable"
+    && (ukBaseStatus === "loading" || !loaded);
+
   return (
     <section className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
         <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
@@ -109,7 +116,9 @@ export default function MapVenueList({
             <div className="mapVenueListHeadMeta">
               <h2 className="mapVenueListTitle">Venues on the map</h2>
               <span className="mapVenueListCount" role="status" aria-live="polite">
-                {!loaded && ukBaseModel.total === 0
+                {ukBaseStatus === "unavailable" && total === 0
+                  ? "Unlisted pubs unavailable"
+                  : awaitingRows
                   ? "Counting them up…"
                   : total === 0
                     ? "Nothing matches"
@@ -153,10 +162,17 @@ export default function MapVenueList({
               {model.coverageNote}
             </p>
           ) : null}
+          {ukBaseStatus === "unavailable" && total > 0 ? (
+            <p className="mapVenueListCoverage" role="status">
+              Some unlisted pubs could not load.
+            </p>
+          ) : null}
 
           {total === 0 ? (
-            <p className="mapVenueListEmpty" role="status">
-              {loaded
+            awaitingRows ? null : <p className="mapVenueListEmpty">
+              {ukBaseStatus === "unavailable"
+                ? "Unlisted pubs could not load. Try the map again."
+                : loaded
                 ? "Nothing in view fits that, which takes some doing round here. Push the price cap up or drop a filter and the pubs come back."
                 : "Counting them up…"}
             </p>

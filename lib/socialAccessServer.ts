@@ -197,7 +197,6 @@ async function readFriendsLaunchAccess(
 
   const account: SocialProductAccount = {
     id: accountRow.id,
-    clerkUserId: accountRow.clerk_user_id,
     ownershipState:
       accountRow.ownership_state === "suspended" ? "suspended" : "active",
   };

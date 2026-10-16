@@ -1,5 +1,7 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -16,11 +18,8 @@ const SCALAR_KILOMETRE_DISTANCE_CONSUMERS = [
   "scripts/lib/ukPlaceIndex.mjs",
 ] as const;
 
-const ALLOWED_KILOMETRE_FORMULA_OWNERS = new Set([
-  // This one-time network generator accepts longitude first. Keeping its local
-  // helper avoids a silent coordinate swap until the generator is hermetic.
-  "scripts/gen_london_localities.mjs",
-]);
+const REPO_ROOT = process.cwd();
+const LOCALITY_GENERATOR = join(REPO_ROOT, "scripts", "gen_london_localities.mjs");
 
 function scriptModules(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -71,6 +70,34 @@ describe("script great-circle distance", () => {
     expect(postcodeDistance(...coordinates)).toBeCloseTo(originalPostcodeValue, 12);
   });
 
+  it("keeps longitude-first generator coordinates numerically compatible", async () => {
+    const { haversineKm, haversineKmLngLat } = (await import(
+      "@/scripts/lib/geo.mjs"
+    )) as {
+      haversineKm: (aLat: number, aLng: number, bLat: number, bLng: number) => number;
+      haversineKmLngLat: (aLng: number, aLat: number, bLng: number, bLat: number) => number;
+    };
+    const longitudeFirst = [-0.1278, 51.5074, -3.1883, 55.9533] as const;
+    const { localityDistanceKm } = (await import(
+      "@/scripts/gen_london_localities.mjs"
+    )) as {
+      localityDistanceKm: (
+        aLng: number,
+        aLat: number,
+        bLng: number,
+        bLat: number,
+      ) => number;
+    };
+
+    expect(haversineKmLngLat(...longitudeFirst)).toBe(533.6522003390048);
+    expect(haversineKmLngLat(...longitudeFirst)).toBe(
+      haversineKm(51.5074, -0.1278, 55.9533, -3.1883),
+    );
+    expect(localityDistanceKm(...longitudeFirst)).toBe(
+      haversineKm(51.5074, -0.1278, 55.9533, -3.1883),
+    );
+  });
+
   it.each([5, 30])("keeps the %i kilometre decision boundary stable", async (threshold) => {
     const { haversineKm } = await import("@/scripts/lib/geo.mjs");
     const insideDelta = ((threshold - 0.0001) / 6_371) * (180 / Math.PI);
@@ -110,7 +137,6 @@ describe("script great-circle distance", () => {
       const source = readFileSync(absolutePath, "utf8");
       const normalizedNumbers = source.replaceAll("_", "").toLowerCase();
       expect(normalizedNumbers, relativePath).not.toMatch(/6371000|6\.371e\+?6/);
-      if (ALLOWED_KILOMETRE_FORMULA_OWNERS.has(relativePath)) continue;
       const ownsGreatCircleTrig = /Math\.(?:asin|atan2)\s*\(/.test(source)
         && /Math\.sin\s*\(/.test(source)
         && /Math\.cos\s*\(/.test(source);
@@ -129,4 +155,79 @@ describe("script great-circle distance", () => {
       expect(haversineMeters(0, 0, outsideDelta, 0)).toBeGreaterThan(threshold);
     },
   );
+});
+
+describe("London locality generator module ownership", () => {
+  it("can be imported without starting fetch or changing the caller exit code", () => {
+    const moduleUrl = pathToFileURL(LOCALITY_GENERATOR).href;
+    const probe = [
+      "let fetchCalls = 0;",
+      'globalThis.fetch = async () => { fetchCalls += 1; throw new Error("fetch must not run"); };',
+      "process.exitCode = 17;",
+      `const module = await import(${JSON.stringify(moduleUrl)});`,
+      "console.log(JSON.stringify({ fetchCalls, exitCode: process.exitCode, main: typeof module.main }));",
+    ].join("\n");
+
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(17);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout.trim())).toEqual({
+      fetchCalls: 0,
+      exitCode: 17,
+      main: "function",
+    });
+  });
+
+  it("enters main on documented direct CLI invocation and reports a mocked failure", () => {
+    const preload = [
+      'globalThis.fetch = async () => { throw new Error("controlled mocked Overpass failure"); };',
+      "globalThis.setTimeout = (callback) => { callback(); return 0; };",
+    ].join("\n");
+    const result = spawnSync(
+      process.execPath,
+      ["--import", `data:text/javascript,${encodeURIComponent(preload)}`, LOCALITY_GENERATOR],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Building Greater London locality gazetteer");
+    expect(result.stderr).toMatch(/FAILED: .*controlled mocked Overpass failure/u);
+  });
+
+  it("enters main when the generator is invoked through a symlink", () => {
+    const tempDirectory = mkdtempSync(join(REPO_ROOT, "scripts", ".locality-symlink-"));
+    const symlinkPath = join(tempDirectory, "gen_london_localities.mjs");
+    symlinkSync(LOCALITY_GENERATOR, symlinkPath);
+
+    try {
+      const preload = [
+        'globalThis.fetch = async () => { throw new Error("controlled symlink failure"); };',
+        "globalThis.setTimeout = (callback) => { callback(); return 0; };",
+      ].join("\n");
+      const result = spawnSync(
+        process.execPath,
+        ["--import", `data:text/javascript,${encodeURIComponent(preload)}`, symlinkPath],
+        {
+          cwd: REPO_ROOT,
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("Building Greater London locality gazetteer");
+      expect(result.stderr).toMatch(/FAILED: .*controlled symlink failure/u);
+    } finally {
+      rmSync(tempDirectory, { recursive: true, force: true });
+    }
+  });
 });
