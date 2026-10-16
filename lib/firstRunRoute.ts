@@ -10,16 +10,17 @@
 export const ONBOARDING_PATH = "/onboarding";
 
 /**
- * The web's one door into the journey: the landing hero's primary sends a
- * first-time visitor here (lib/landingHero.ts, `landingPrimaryHref`).
+ * The web's one door into the journey: the chip `/near` offers a first-time
+ * visitor (components/nearme/NearOnboardingChip.tsx). The landing primary
+ * answers first and never sends anybody here (owner decision 16 Oct 2026).
  */
 export const WEB_ONBOARDING_START_HREF = "/onboarding?start=web";
 
 /**
  * Whether a location search string carries the web start mark,
  * `/onboarding?start=web`. The native shell is let in by a one-time handoff
- * (lib/nativeFirstRun.ts). The web has no handoff to consume, so the landing
- * hero says so with this query. A typed or shared URL still meets proxy.ts's
+ * (lib/nativeFirstRun.ts). The web has no handoff to consume, so the /near
+ * chip says so with this query. A typed or shared URL still meets proxy.ts's
  * 307 before any document renders, so the mark alone never opens the route to
  * a stranger.
  */

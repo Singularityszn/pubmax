@@ -110,11 +110,11 @@ export function routeTotals(
 }
 
 /**
- * `Fri 17 Oct, 19:00 · 3 stops · £18 each · 18 min walk`, each part only when
- * it is real. The night is named by its DATE and not by "tonight": the
- * composer's default steps over tonight late in the evening
+ * `Fri 17 Oct, 19:00 · 3 stops · £18 each for pints · 18 min walk`, each part
+ * only when it is real. The night is named by its DATE and not by "tonight":
+ * the composer's default steps over tonight late in the evening
  * (`defaultLondonStartInput`), so a summary that only said "3 stops" let a
- * reader lock a plan for the wrong night (captain, 16 Oct 2026).
+ * reader lock a plan for the wrong night.
  */
 export function routeSummaryLine(
   stops: readonly RouteViewStop[],
@@ -125,14 +125,14 @@ export function routeSummaryLine(
   return [
     startInput ? routeStartLabel(startInput) : null,
     stopCountLabel(stops.length),
-    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each`,
+    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each for pints`,
     totals.walkMinutes === null ? null : walkLabel(totals.walkMinutes),
   ].filter((part): part is string => part !== null).join(" · ");
 }
 
 export function priceKindLabel(kind: RouteViewStop["priceKind"]): string | null {
-  if (kind === "listed") return "Listed price";
-  if (kind === "estimated") return "Estimated price";
+  if (kind === "listed") return "Listed pint price";
+  if (kind === "estimated") return "Estimated pint price";
   return null;
 }
 

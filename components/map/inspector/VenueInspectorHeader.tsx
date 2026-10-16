@@ -5,6 +5,7 @@ import { useTrailingEdgeFade } from "@/lib/useTrailingEdgeFade";
 import type { Venue } from "@/lib/venues";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import { venueKindLabel, venueKindNoun } from "@/lib/venueKindFilters";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
 import VenueImage from "@/components/media/VenueImage";
 
@@ -64,7 +65,7 @@ export default function VenueInspectorHeader({
       {/* The kicker is brand: where the pub is and what it is, never a label
           for the panel itself (site audit 13 Sep 2026, D21). */}
       <div className="inspectorTitle">
-        <span>{`${venue.primaryBorough} · ${venueKindLabel(venue.kind)}`}</span>
+        <span>{`${venueAreaLabel(venue)} · ${venueKindLabel(venue.kind)}`}</span>
       </div>
       <h3>{venue.name}</h3>
 

@@ -108,6 +108,23 @@ describe("groupVenuePrices", () => {
     expect(defined(venues[0]).prices).toHaveLength(2);
   });
 
+  it("keeps neighbourhood and borough identity separate and cleans display address", () => {
+    const venue = defined(
+      groupVenuePrices([
+        makeRow({
+          pub_name: "The Sir Christopher Hatton",
+          address: "4 Leather Ln, Greater, London EC1N 7RA, UK",
+          primary_borough: "Camden",
+          locality: "Hatton Garden",
+        }),
+      ])[0],
+    );
+
+    expect(venue.locality).toBe("Hatton Garden");
+    expect(venue.primaryBorough).toBe("Camden");
+    expect(venue.address).toBe("4 Leather Ln, London EC1N 7RA, UK");
+  });
+
   
   it("aggregates bookingLink from the first http(s) booking_link row", () => {
     const venues = groupVenuePrices([

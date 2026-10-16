@@ -372,7 +372,7 @@ export function securityProxy(request: NextRequest) {
     );
   }
   // /onboarding is the native shell's first-run surface, and the web
-  // reaches it only by a client navigation from the landing hero's primary
+  // reaches it only by a client navigation from the first-run chip on /near
   // (`?start=web`, lib/firstRunRoute.ts). `consumeNativeFirstRunHandoff` is
   // native-only and session-scoped, so any other web visit has always failed
   // closed and replaced the URL with "/". It did that in the browser, after

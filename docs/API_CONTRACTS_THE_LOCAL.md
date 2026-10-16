@@ -263,7 +263,7 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 `anchor-conflict` is a `200` with no Stops, so a caller must branch on
 `outcome` before it treats an empty `stops` array as no match.
 
-Merge rule (`mergeContext`): a complete `cleanNightContext` wins; else a `cleanNightContextPatch` is layered over the inferred context; else the inferred context is used. `context.nightArea` must resolve — a `null` area is a `422`.
+[`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
 
 ### Response `200`
 
@@ -296,6 +296,10 @@ The response excerpt above omits price fields. [`buildPlanGenerationStops`](../l
 
 Unanchored generation with a per-person ceiling requires usable budget evidence. Non-beer and zero-proof contexts cannot satisfy it with pint prices, so they return `422 GROUNDED_CONSTRAINTS_UNSATISFIED` with `details.rejected.budgetEvidence` rather than an estimated route within the ceiling. [`selectPlanGenerationCandidates`](../lib/planGenerationSelection.server.ts) owns the selection boundary.
 
+The route planner has no menu-item or nutrition evidence. [`preparePlanGeneration`](../lib/planGeneration.server.ts) checks the query and reconciled `foodNeeds` before route selection. Detected meal-price, dietary, or calorie constraints return `422 MEAL_CONSTRAINTS_UNSUPPORTED` with an explicit limitation. A food-serving venue preference alone remains supported.
+
+Drink-owned prices in the query and each `foodNeeds` field share one recognition boundary in [`planPriceAmounts`](../lib/planPriceLimits.ts). Pint, beer, and unspecified drink limits constrain recorded beer pint prices. Both price directions retain the strictest pint ceiling separately from route totals. The strictest recognised route budget also tightens any reconciled context ceiling. Candidates and alternatives require attributable, non-stale canonical evidence at or below the pint ceiling. When a pint ceiling applies, each returned stop and alternative retains that canonical `priceEvidence`, including its amount, source, and observation date. The response also identifies `priceCategory: "beer"` and `priceServing: "pint"`, even without a route-total budget. Explicit other servings, quantities, non-beer selections, and zero-proof selections return `422 DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` when they request these drink limits. The planner does not convert bottle, cocktail, or half-pint prices into pints.
+
 ### Errors
 
 | Status | Condition | Current body |
@@ -303,6 +307,8 @@ Unanchored generation with a per-person ceiling requires usable budget evidence.
 | `400` | malformed JSON | `MALFORMED_REQUEST` |
 | `400` | neither `query` nor `context` | `NIGHT_CONTEXT_REQUIRED` |
 | `400` | invalid `cityId` | `CITY_INVALID` |
+| `422` | detected meal-price, dietary, or calorie constraint | `MEAL_CONSTRAINTS_UNSUPPORTED` |
+| `422` | drink price limit requires an unsupported drink or serving | `DRINK_PRICE_CONSTRAINTS_UNSUPPORTED` |
 | `422` | no `nightArea` resolved | `NIGHT_AREA_REQUIRED` |
 | `422` | area not in requested city | `NIGHT_AREA_CITY_MISMATCH` |
 | `422` | fewer grounded venues than the requested stop count | `GROUNDED_VENUES_INSUFFICIENT` |

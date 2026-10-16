@@ -25,7 +25,7 @@ const C: RouteViewStop = {
 
 describe("the Plan result summary line", () => {
   it("reads stops, price each and walk, each only when it is real", () => {
-    expect(routeSummaryLine([A, B, C])).toBe("3 stops · £17.40 each · 9 min walk");
+    expect(routeSummaryLine([A, B, C])).toBe("3 stops · £17.40 each for pints · 9 min walk");
   });
 
   it("drops the price when one stop has none, rather than totalling a guess", () => {
@@ -35,7 +35,7 @@ describe("the Plan result summary line", () => {
   });
 
   it("says one stop in the singular and prints no walk for it", () => {
-    expect(routeSummaryLine([A])).toBe("1 stop · £5.60 each");
+    expect(routeSummaryLine([A])).toBe("1 stop · £5.60 each for pints");
   });
 
   // The composer's default steps over tonight late in the evening, so the
@@ -43,16 +43,16 @@ describe("the Plan result summary line", () => {
   // infer it (captain, 16 Oct 2026).
   it("leads with the night's own date and time when it is given the start", () => {
     expect(routeSummaryLine([A, B, C], undefined, "2026-10-16T19:00"))
-      .toBe("Fri 16 Oct, 19:00 · 3 stops · £17.40 each · 9 min walk");
+      .toBe("Fri 16 Oct, 19:00 · 3 stops · £17.40 each for pints · 9 min walk");
     expect(routeSummaryLine([A, B, C], undefined, "2026-10-16T00:15"))
-      .toBe("Fri 16 Oct, 00:15 · 3 stops · £17.40 each · 9 min walk");
+      .toBe("Fri 16 Oct, 00:15 · 3 stops · £17.40 each for pints · 9 min walk");
     expect(routeStartLabel("2026-10-17T19:00")).toBe("Sat 17 Oct, 19:00");
   });
 
   it("drops the date rather than print a wrong one when the start is not a London time", () => {
-    expect(routeSummaryLine([A, B, C], undefined, "")).toBe("3 stops · £17.40 each · 9 min walk");
+    expect(routeSummaryLine([A, B, C], undefined, "")).toBe("3 stops · £17.40 each for pints · 9 min walk");
     expect(routeSummaryLine([A, B, C], undefined, "2026-02-30T19:00"))
-      .toBe("3 stops · £17.40 each · 9 min walk");
+      .toBe("3 stops · £17.40 each for pints · 9 min walk");
     expect(routeStartLabel("not a time")).toBeNull();
   });
 

@@ -1,9 +1,11 @@
+import { PLAN_PRICE_AMOUNT, planPriceLimits } from "@/lib/planPriceLimits";
 import { formatGbp } from "@/lib/formatGbp";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 import { tubeIsARouteRule } from "@/lib/planGetHome";
+import { drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { cleanText } from "@/lib/textClean";
 import {
   DEFAULT_PLAN_STOP_COUNT,
@@ -78,6 +80,21 @@ function requestedDrinkCategory(query: string, zeroProof: boolean, reasons: Cont
   return category;
 }
 
+function hasZeroAlcoholStrength(query: string): boolean {
+  const text = query.replace(new RegExp(PLAN_PRICE_AMOUNT, "gi"), " ");
+  const strengths = [...text.matchAll(/(?:^|[^a-z0-9£.,])0\.0(?![a-z0-9.,])/g)];
+  if (!strengths.length) return false;
+  const drinks = drinkKeywordSpans(text);
+  return strengths.some((match) => {
+    const end = match.index + match[0].length;
+    const start = end - 3;
+    return /^\s*(?:%|abv\b)/.test(text.slice(end)) || drinks.some((drink) =>
+      (drink.start <= start && drink.end >= end && /[a-z]/.test(text.slice(drink.start, drink.end)))
+      || (drink.start >= end && /^\s*$/.test(text.slice(end, drink.start)))
+      || (drink.end <= start && /^\s*$/.test(text.slice(drink.end, start))));
+  });
+}
+
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);
   const lower = query.toLocaleLowerCase();
@@ -130,10 +147,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     : /special|splash out|treat/.test(lower)
       ? "treat"
       : "standard";
-  const budgetLimitMatch = lower.match(/(?:under|up to|max(?:imum)?|budget(?: of)?)\s*£\s*(\d{1,3})(?:[.,](\d{1,2}))?(?:\s*(?:each|per person))?/);
-  const budgetLimitPence = budgetLimitMatch
-    ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
-    : null;
+  const budgetLimitPence = planPriceLimits(query).routeBudgetPence;
   if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: formatGbp(budgetLimitPence / 100), explanation: "Matched the explicit per-person route budget." });
   const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music", "garden"].filter((value) => lower.includes(value));
   // Chill is the everyday synonym for quiet on describe-first chips; ranking
@@ -154,7 +168,8 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     ...(tubeIsARouteRule(lower) ? ["tube"] : []),
     ...(/walk/.test(lower) ? ["walking"] : []),
   ];
-  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober/.test(lower)
+    || hasZeroAlcoholStrength(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {

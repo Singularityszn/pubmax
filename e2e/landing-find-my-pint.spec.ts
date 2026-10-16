@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  LANDING_FIRST_RUN_HREF,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_NAME,
+  NEAR_FIRST_RUN_CHIP_NAME,
   LANDING_RECEIPT_HREF,
   LANDING_RECEIPT_NAME,
 } from "./helpers/landingHero";
@@ -76,6 +78,46 @@ test.describe("landing hierarchy", () => {
       .getByRole("link", { name: "Open the map", exact: true });
     await expect(mapLink).toHaveAttribute("href", "/map");
   });
+
+  // Owner decision 16 Oct 2026: the primary answers in ONE tap for everyone. A
+  // first-time visitor (no seen mark) lands on /near, not on a five-step
+  // setup; refusing location still answers from a patch with the area chips
+  // to hand, and the setup is offered there as a chip, never as a gate.
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ] as const) {
+    test(`a first-time visitor's one tap answers on /near, even with location refused, at ${viewport.width}`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.setViewportSize(viewport);
+      await page.addInitScript(() => {
+        window.localStorage.removeItem("pubmax-tour-v1-done");
+        window.localStorage.removeItem("pubmax-tour-v2-done");
+        window.localStorage.removeItem("pubmax:nightPatch:v1");
+        window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+        Object.defineProperty(navigator, "geolocation", {
+          configurable: true,
+          value: {
+            getCurrentPosition: (_ok: PositionCallback, fail: PositionErrorCallback) =>
+              fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+          },
+        });
+      });
+      await page.goto("/");
+
+      const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
+      await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+      await primary.click();
+
+      await expect(page).toHaveURL(/\/near\?locate=1/);
+      await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
+      await expect(page.getByText("Location's off, so here's central London. Not your patch?")).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator(".nmnCard").first()).toBeVisible();
+
+      const chip = page.getByRole("link", { name: NEAR_FIRST_RUN_CHIP_NAME, exact: true });
+      await expect(chip).toHaveAttribute("href", LANDING_FIRST_RUN_HREF);
+    });
+  }
 
   test("shows one real pub with its price, publisher, day and archive line, and asks Still £X? of it quietly", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });

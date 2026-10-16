@@ -1132,7 +1132,16 @@ function drawSpiritsSilhouette(
   fillStroke(ctx);
 }
 
-function makeVenuePinDraw(kind: VenuePinKind, bucket: number) {
+/**
+ * The aging glass's rim dash, in CSS px: on, off. An aging price (past its
+ * Price Standing window, lib/priceTier.ts `priceAgeFor`) keeps its band fill
+ * and wears a broken rim, because the colour carries the band alone and the
+ * shape is what may say "this figure may have changed" (owner decision 16 Oct
+ * 2026). Short enough that a 28px glass shows several breaks.
+ */
+const AGING_RIM_DASH: readonly [number, number] = [2.2, 1.8];
+
+function makeVenuePinDraw(kind: VenuePinKind, bucket: number, aging = false) {
   const silhouette = (
     ctx: CanvasRenderingContext2D,
     fill: string,
@@ -1152,6 +1161,7 @@ function makeVenuePinDraw(kind: VenuePinKind, bucket: number) {
   return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
     const fill = priceFill(t, bucket);
     drawDrinkShadow(ctx, t);
+    if (aging) ctx.setLineDash([...AGING_RIM_DASH]);
     // The rim. Light on saturated glasses, ink on the soft brass-grey unpriced
     // one — unless the theme published a rim of its own, which the dark theme
     // does because there `paper` resolves to a near-black and a "light rim"
@@ -1190,9 +1200,12 @@ export function pillIconKey(bucket: number): string {
   return `${PILL_ICON_KEY_PREFIX}${bucket}`;
 }
 
-export function venuePinIconKey(kind: VenuePinKind, bucket: number): string {
+/** The aging glass's key suffix: `pint-0-aging` beside `pint-0`. */
+export const AGING_ICON_KEY_SUFFIX = "-aging";
+
+export function venuePinIconKey(kind: VenuePinKind, bucket: number, aging = false): string {
   const b = bucket >= 0 && bucket <= 3 ? bucket : 3;
-  return `${kind}-${b}`;
+  return `${kind}-${b}${aging ? AGING_ICON_KEY_SUFFIX : ""}`;
 }
 
 export function drinkPinKindFromCategories(
@@ -1422,6 +1435,15 @@ export const MAP_ICON_SPECS: IconSpec[] = [
       ns: "drink",
       size: BOX,
       draw: makeVenuePinDraw(kind, bucket),
+    })),
+  ),
+  // The same glasses with a broken rim, for a printed price past its window.
+  ...VENUE_PIN_KINDS.flatMap((kind) =>
+    DRINK_BUCKETS.map((bucket): IconSpec => ({
+      key: venuePinIconKey(kind, bucket, true),
+      ns: "drink",
+      size: BOX,
+      draw: makeVenuePinDraw(kind, bucket, true),
     })),
   ),
   // The price pill, one per band.
