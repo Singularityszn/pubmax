@@ -224,8 +224,9 @@ for (const scale of [1.3, 1.5, 2]) {
       }, scale);
       await page.evaluate(() => document.fonts.ready);
     };
-    await page.goto("/out");
-    await expect(page.locator(".outDayChip")).toHaveCount(3);
+    // /out folded into /tonight, whose later-listings switch carries the day chips.
+    await page.goto("/tonight");
+    await expect(page.locator(".outDayChip")).toHaveCount(2);
     await applyScale();
     const chips = await page.locator(".outDayChip").evaluateAll((elements) => elements.map((element) => {
       const range = document.createRange();

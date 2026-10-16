@@ -5,7 +5,7 @@ import SiteNav from "@/components/nav/SiteNav";
 
 export const metadata: Metadata = {
   title: "Drink Wall",
-  description: "Pints, pub fronts and London views from drinkers on PubMaxxing.",
+  description: "Pints, pub fronts and London views from drinkers on PUBMAXX.",
   alternates: { canonical: "/wall" },
 };
 

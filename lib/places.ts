@@ -18,6 +18,7 @@ import {
   type CityChooserSearchResult,
 } from "@/lib/cityChooserSearch";
 import { PLACES_PATH } from "@/lib/cityPickerRoute";
+import { HELLO_MAILTO } from "@/lib/siteContact";
 import {
   getCity,
   listEnabledCities,
@@ -55,8 +56,7 @@ export const PLACES_LEDE = "Set one and the map and Near both open there.";
  */
 export const PLACES_WAITLIST_TITLE = "More cities when the prices are in.";
 export const PLACES_WAITLIST_LABEL = "Want your city next? Tell us.";
-export const PLACES_WAITLIST_HREF =
-  "mailto:hello@pubmaxxing.com?subject=City%20request";
+export const PLACES_WAITLIST_HREF = `${HELLO_MAILTO}?subject=City%20request`;
 
 /**
  * The list screen's one painted action, and its one quiet way onward.
