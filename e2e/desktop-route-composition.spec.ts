@@ -1,7 +1,16 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function widthOf(locator: Locator): Promise<number> {
   return locator.evaluate((element) => element.getBoundingClientRect().width);
+}
+
+// We're out paints a "Checking your account." door (role=status, the same
+// `.weAreOutForm` box) while the session is unanswered, then swaps it for the
+// settled door or the form. With browser auth configured, as the E2E server
+// is, measuring the waiting door raced that swap and read a null box. Measure
+// the card the page settles on.
+function settledWeAreOutCard(page: Page): Locator {
+  return page.locator('.weAreOut .weAreOutForm:not([role="status"])');
 }
 
 test.describe("desktop route composition", () => {
@@ -39,7 +48,7 @@ test.describe("desktop route composition", () => {
     await page.goto("/we-are-out");
 
     const explanation = page.locator(".weAreOut .feedHeader");
-    const card = page.locator(".weAreOut .weAreOutForm");
+    const card = settledWeAreOutCard(page);
     await expect(explanation).toBeVisible();
     await expect(card).toBeVisible();
 
@@ -156,7 +165,7 @@ test.describe("phone route composition", () => {
     await page.goto("/we-are-out");
 
     const explanation = page.locator(".weAreOut .feedHeader");
-    const card = page.locator(".weAreOut .weAreOutForm");
+    const card = settledWeAreOutCard(page);
     await expect(explanation).toBeVisible();
     await expect(card).toBeVisible();
 
