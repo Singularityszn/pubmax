@@ -561,7 +561,9 @@ a.lpPubPint:hover { color: var(--ink); }
 /* ── The answer, the Near me control and the rail ───────────────────────── */
 
 .lpAnswerCard { width: 100%; }
-@media (min-width: 960px) { .lpAnswerCard, .lpRail { width: min(100%, 32rem); } }
+/* The photograph above them takes the same measure, or its right edge ran
+   20px past the card's and the rail's on a desktop. */
+@media (min-width: 960px) { .lpAnswerCard, .lpRail, .lpHero .lpLondonFigure { width: min(100%, 32rem); } }
 
 .lpAnswerHead {
   display: flex;

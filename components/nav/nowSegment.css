@@ -12,7 +12,7 @@
   padding: 2px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill, 999px);
-  background: var(--panel-raised, var(--paper));
+  background: var(--panel);
   box-sizing: border-box;
 }
 
@@ -30,9 +30,13 @@
   text-decoration: none;
 }
 
+/* Selection is the raised fill on the recessed track, with ink over it, as
+   every segmented control reads (__tests__/deBoxSegmentedControl.test.ts).
+   It was a coral fill, a second painted coral beside the page's one primary. */
 .nowSegmentOpt[aria-current="page"] {
-  background: var(--brass);
-  color: var(--color-on-accent, var(--paper));
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
 }
 
 .nowSegmentOpt:focus-visible {

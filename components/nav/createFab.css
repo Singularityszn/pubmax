@@ -92,6 +92,19 @@
     pointer-events: none;
   }
 
+  /* Reading down a page tucks the control off the prose under it
+     (lib/createFabScrollTuck.ts). It fades in place and keeps its box, so
+     every rendered measure of its lane and berth still reads the real
+     control, and it stays in the tab order with no `visibility: hidden`, so a
+     keyboard that reaches it brings it straight back through :focus-within. */
+  .createFabRoot.isScrollTucked:not(:focus-within) {
+    opacity: 0;
+  }
+
+  .createFabRoot.isScrollTucked:not(:focus-within) .createFab {
+    pointer-events: none;
+  }
+
   .createFab {
     display: inline-flex;
     align-items: center;
@@ -195,6 +208,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* The scroll tuck and its return both jump rather than fade. */
+  .createFabRoot,
+  .createFabRoot.isScrollTucked:not(:focus-within) { transition: none; }
   .createFab svg { transition: none; }
   .createFabScrim { animation: none; }
   .createFab:active {
