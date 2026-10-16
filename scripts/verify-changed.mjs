@@ -63,8 +63,9 @@ export const FOUNDATIONS = Object.freeze([
 const SOURCE = /\.(?:[cm]?[jt]s|tsx|jsx)$/;
 const LINTED = /\.(?:[cm]?[jt]s|tsx|jsx)$/;
 const TYPESCRIPT = /\.(?:m?ts|tsx)$/;
-// The root tsconfig excludes these trees; e2e has its own Playwright config.
-const NOT_TYPECHECKED = /^(?:e2e|skills|node_modules)\/|^\.next-/;
+// The root tsconfig excludes these trees (e2e has its own Playwright config),
+// and its globs never enter a dot directory such as .agents/.
+const NOT_TYPECHECKED = /^(?:e2e|skills|node_modules)\/|(?:^|\/)\./;
 const TEST_FILE = /^__tests__\/.+\.test\.tsx?$/;
 
 const RLS_INPUTS = [/^supabase\//, /^scripts\/rls\//];
@@ -249,7 +250,9 @@ function writeScopedTsconfig(files) {
   mkdirSync(dir, { recursive: true });
   const config = {
     extends: join(REPO_ROOT, "tsconfig.json"),
-    compilerOptions: { incremental: false },
+    // The full program reaches @types/geojson through a map dependency, so a
+    // narrowed one names it, or GeoJSON.* reads as an unknown namespace.
+    compilerOptions: { incremental: false, types: ["node", "geojson"] },
     include: [],
     files: [...ambient, ...routeTypes, ...files].map((file) => join(REPO_ROOT, file)),
   };
@@ -278,8 +281,22 @@ function mergeBase(env) {
   }
 }
 
+/** The command as a log line, with the PostgreSQL excludes folded into a count. */
+function shown(step) {
+  const words = [];
+  let excludes = 0;
+  for (let i = 0; i < step.args.length; i += 1) {
+    if (step.args[i] === "--exclude") {
+      excludes += 1;
+      i += 1;
+    } else words.push(step.args[i]);
+  }
+  const folded = excludes > 0 ? [`--exclude <${excludes} PostgreSQL suites>`] : [];
+  return [step.command, ...folded, ...words].join(" ");
+}
+
 function run(step) {
-  console.log(`\n[verify:changed] ▶ ${step.label}: ${[step.command, ...step.args].join(" ")}`);
+  console.log(`\n[verify:changed] ▶ ${step.label}: ${shown(step)}`);
   const started = Date.now();
   const result = spawnSync(step.command, step.args, {
     cwd: REPO_ROOT,

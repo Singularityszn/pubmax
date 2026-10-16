@@ -104,6 +104,11 @@ describe("a change-scoped plan", () => {
     expect(scoped.tests).toEqual(["docs/VOICE.md", "lib/priceLabel.ts"]);
   });
 
+  it("typechecks only what the root tsconfig compiles", () => {
+    const outside = ["e2e/map.spec.ts", ".agents/skills/x/vite.config.ts", ".next-prod/types/a.ts"];
+    expect(plan(modified(...outside)).typecheck).toEqual([]);
+  });
+
   it("adds the tests that name a changed file by its path, which no import graph can see", () => {
     const texts: Record<string, string> = {
       "__tests__/voiceFence.test.ts": 'readFileSync(join(ROOT, "docs/VOICE.md"))',
