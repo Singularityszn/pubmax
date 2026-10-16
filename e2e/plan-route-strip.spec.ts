@@ -31,8 +31,8 @@ for (const theme of ["light", "dark"] as const) {
     );
     await page.goto("/plan");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("textbox", { name: "Describe the outing" }).fill("Quiet in Clapham for 4");
-    await page.getByRole("button", { name: "Sort it", exact: true }).click();
+    await page.getByRole("textbox", { name: "Where, how many, what budget" }).fill("Quiet in Clapham for 4");
+    await page.getByRole("button", { name: "Plan it", exact: true }).click();
 
     const strip = page.getByTestId("plan-route-strip");
     await expect(strip).toBeVisible({ timeout: 60_000 });

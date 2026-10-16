@@ -156,7 +156,7 @@ const STORE_LISTING_DESCRIPTION = [
   "",
   "Plan the night",
   "",
-  "- Describe the outing and get a crawl route back in order, with the walking kept honest.",
+  "- Say where, how many and what budget, and get a pub crawl back in order, with the walking kept honest.",
   "- What is on tonight, from named sources, with the date we read them.",
   "- The last train, so the night has an ending you chose.",
   "",

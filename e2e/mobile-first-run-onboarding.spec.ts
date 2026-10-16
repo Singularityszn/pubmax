@@ -53,7 +53,7 @@ async function expectPushAskOnNextRoute(page: Page): Promise<void> {
   const ask = page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title });
   await expect(ask).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeHidden();
   const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }).click();
   await expect(page).toHaveURL(/\/tonight$/);
@@ -211,7 +211,7 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   )).toBeNull();
 
   await page.goto("/map?plan=1");
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
   // The plan has to land before Escape: closing the planner mid-generation
   // drops the qualifying action, so no ask is armed for the next route.
