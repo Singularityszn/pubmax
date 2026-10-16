@@ -110,9 +110,9 @@
 }
 
 .routePackChip.isActive {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  color: var(--state-active-ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .routePackChipCount {

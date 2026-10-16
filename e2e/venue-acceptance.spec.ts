@@ -30,9 +30,13 @@ test.beforeEach(async ({ page }) => {
 test("390px Map acceptance persists before Plan receives Stop 1", async ({ page }) => {
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  const toolbar = portal.getByRole("toolbar", { name: "Venue actions" });
-  const accept = toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+  // With no crawl in progress the phone sheet's ONE plan door is the peek's
+  // coral `Make it Stop 1` (lib/venuePlanDoor.ts); the footer bar has none.
+  const accept = portal
+    .locator(".mobileVenuePeekSummary")
+    .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
   await expect(accept).toBeVisible({ timeout: 30_000 });
+  await expect(portal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(1);
 
   const [box, overflow] = await Promise.all([
     accept.boundingBox(),
@@ -65,29 +69,100 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
   await page.screenshot({ path: "docs/proof/venue-acceptance/accepted-plan-390-dark.png" });
 });
 
-test("Venue actions fit 320px and 390px", async ({ page }) => {
-  for (const width of [320, 390]) {
-    await page.setViewportSize({ width, height: 844 });
-    await page.goto(`/map?sel=${VENUE_ID}`);
-    const toolbar = page
-      .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
-      .getByRole("toolbar", { name: "Venue actions" });
-    await expect(toolbar).toBeVisible({ timeout: 30_000 });
-    // Since #1517 the bar carries no price action: a suggest-mode pub sheet
-    // holds the Stop 1 ghost and Share (components/map/inspector/VenueStickyBar.tsx).
-    await expect(toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toBeVisible();
-    await expect(toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` })).toBeVisible();
-    const heights = await toolbar.getByRole("button").evaluateAll((buttons) =>
-      buttons.map((button) => button.getBoundingClientRect().height),
-    );
-    expect(heights).toHaveLength(2);
-    expect(heights.every((height) => height >= 44)).toBe(true);
-    const overflow = await page.evaluate(() =>
-      document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+/**
+ * ONE PLAN DOOR, AND IT FITS (owner decision option C, 16 Oct 2026). The phone
+ * footer bar is Share alone, and a lone ghost is the size of its label rather
+ * than an edge-to-edge slab (components/map/venueSheet.css). The peek's
+ * `Make it Stop 1` is the longest label the plan door carries, so it is the one
+ * measured at 320 with large text: Android's system font scale is a root font
+ * size, the same emulation e2e/mobile-large-text.spec.ts uses.
+ */
+for (const width of [320, 390] as const) {
+  for (const textScale of [1, 1.5, 2] as const) {
+    test(`Venue actions fit ${width}px at ${textScale}x text`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/map?sel=${VENUE_ID}`);
+      const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+      const toolbar = portal.getByRole("toolbar", { name: "Venue actions" });
+      await expect(toolbar).toBeVisible({ timeout: 30_000 });
+      // Hydration rewrites the root's style attribute, so the scale is set once
+      // the sheet is up, as e2e/mobile-large-text.spec.ts does, then read back.
+      const rootFontPx = await page.evaluate(async (scale) => {
+        const root = document.documentElement;
+        root.setAttribute("data-text-scale", scale === 1 ? "default" : "large");
+        root.style.fontSize = `${scale * 100}%`;
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        return Number.parseFloat(getComputedStyle(root).fontSize);
+      }, textScale);
+      expect(rootFontPx).toBeCloseTo(16 * textScale);
+      const share = toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` });
+      await expect(share).toBeVisible();
+      await expect(toolbar.getByRole("button")).toHaveCount(1);
+
+      const door = portal
+        .locator(".mobileVenuePeekSummary")
+        .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+      await expect(door).toHaveText("Make it Stop 1");
+      await page.evaluate(() => document.fonts.ready);
+
+      const geometry = await page.evaluate(() => {
+        const box = (element: Element) => {
+          const rect = element.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
+        };
+        const portalRoot = document.querySelector('.mobileSheetPortal[data-sheet-kind="venue"]')!;
+        const row = portalRoot.querySelector(".mobileVenuePeekSummary")!;
+        const door = row.querySelector(".mobileVenuePeekPlanDoor")!;
+        const label = document.createRange();
+        label.selectNodeContents(door);
+        const bar = portalRoot.querySelector(".venueSheetStickyBar")!;
+        const share = bar.querySelector("button")!;
+        const [price, walk] = Array.from(row.querySelectorAll(":scope > span, :scope > .mobileVenuePeekDrop"));
+        return {
+          row: box(row),
+          cells: [box(price), box(walk), box(door)],
+          door: box(door),
+          label: box(label),
+          labelClipped: door.scrollWidth > door.clientWidth + 1,
+          bar: box(bar),
+          share: box(share),
+          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      });
+
+      // The door's label sits inside the door, and the door inside its row and the phone.
+      expect(geometry.labelClipped).toBe(false);
+      expect(geometry.label.left).toBeGreaterThanOrEqual(geometry.door.left - 0.5);
+      expect(geometry.label.right).toBeLessThanOrEqual(geometry.door.right + 0.5);
+      expect(geometry.label.top).toBeGreaterThanOrEqual(geometry.door.top - 0.5);
+      expect(geometry.label.bottom).toBeLessThanOrEqual(geometry.door.bottom + 0.5);
+      expect(geometry.door.right).toBeLessThanOrEqual(geometry.row.right + 0.5);
+      expect(geometry.door.right).toBeLessThanOrEqual(width);
+      expect(geometry.door.height).toBeGreaterThanOrEqual(44);
+      // No cell of the peek is drawn over another: large text moves the door to
+      // its own line rather than squeezing the price plaque under the walk.
+      const [price, walk, doorCell] = geometry.cells;
+      const apart = (a: typeof price, b: typeof price) =>
+        a.right <= b.left + 0.5 || b.right <= a.left + 0.5 || a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5;
+      expect(apart(price, walk), "price and walk").toBe(true);
+      expect(apart(walk, doorCell), "walk and door").toBe(true);
+      expect(apart(price, doorCell), "price and door").toBe(true);
+      // A lone Share is the size of its label, not the width of the bar.
+      expect(geometry.share.height).toBeGreaterThanOrEqual(44);
+      expect(geometry.share.width).toBeGreaterThanOrEqual(44);
+      expect(geometry.share.width).toBeLessThan(geometry.bar.width / 2);
+      expect(geometry.overflow).toBeLessThanOrEqual(1);
+
+      if (textScale === 1 || textScale === 2) {
+        await page.screenshot({
+          path: `docs/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
+        });
+      }
+    });
   }
-});
+}
 
 test("1440px accepted arrival keeps receipt, focus, and Near provenance", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

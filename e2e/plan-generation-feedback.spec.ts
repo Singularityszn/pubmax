@@ -13,20 +13,20 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
           localStorage.setItem("pubmax-tour-v1-done", "1");
         });
         await page.goto("/plan");
-        const query = page.getByRole("textbox", { name: "Describe the outing" }).first();
+        const query = page.getByRole("textbox", { name: "Where, how many, what budget" }).first();
         await expect(query).not.toHaveAttribute("readonly");
         await query.fill("3 pubs in Clapham");
         const initialResponse = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
-        await page.getByRole("button", { name: "Sort it", exact: true }).click();
+        await page.getByRole("button", { name: "Plan it", exact: true }).click();
         expect((await initialResponse).status()).toBe(200);
         await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
         const tune = page.getByRole("button", { name: "Tune details", exact: true }).and(page.locator('[aria-haspopup="dialog"]'));
         await expect(tune).toBeVisible();
         await tune.click();
         const sheet = page.getByRole("dialog", { name: "Tune details" });
-        await sheet.getByRole("textbox", { name: "Describe the outing" }).fill("One pizza and a pint under £10 in Soho");
+        await sheet.getByRole("textbox", { name: "Where, how many, what budget" }).fill("One pizza and a pint under £10 in Soho");
         const response = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
-        await sheet.getByRole("button", { name: "Sort it again", exact: true }).click();
+        await sheet.getByRole("button", { name: "Plan it again", exact: true }).click();
         expect((await response).status()).toBe(422);
         await expect(sheet).toBeHidden();
         const limitation = page.getByRole("alert").filter({ hasText: "This route planner cannot verify meal prices" });
@@ -50,11 +50,11 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
           localStorage.setItem("pubmax-tour-v1-done", "1");
         });
         await page.goto("/plan");
-        const query = page.getByRole("textbox", { name: "Describe the outing" }).first();
+        const query = page.getByRole("textbox", { name: "Where, how many, what budget" }).first();
         await expect(query).not.toHaveAttribute("readonly");
         await query.fill("One pizza and a pint under £10 in Soho");
         await page.getByRole("group", { name: "Number of pub stops" }).getByRole("button", { name: "1", exact: true }).click();
-        for (const action of ["Sort it", "Make a plan"]) {
+        for (const action of ["Plan it", "Make a plan"]) {
           const response = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
           await page.getByRole("button", { name: action, exact: true }).click();
           const actual = await response;

@@ -1,4 +1,4 @@
-/* PUBMAXXING feed — an image-first vertical stream. Scoped under .feedShell so
+/* PUBMAXX feed — an image-first vertical stream. Scoped under .feedShell so
    nothing leaks into the app shell. Colour/spacing lean on the design-system
    tokens declared in globals.css (--brass, --ink, --ink-soft, --panel,
    --panel-raised, --line, --paper) so the surface inherits the shared theme. */
@@ -78,10 +78,10 @@
   min-height: 28px;
   margin: 0 0 10px;
   padding: 0 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 22%, transparent);
+  border: 1px solid var(--badge-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
-  color: var(--brass);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -377,10 +377,9 @@
 }
 
 .feedFilterChip.isActive {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright, var(--brass)));
-  border-color: var(--brass);
-  color: var(--color-on-accent, #fdfaf2);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 18%, transparent);
+  background: var(--state-selected-surface);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-ink);
 }
 
 .feedFilterChip:focus-visible {
@@ -400,8 +399,8 @@
 }
 
 .feedFilterChip.isActive .feedFilterDemo {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fdfaf2;
+  background: var(--badge-surface);
+  color: var(--badge-ink);
 }
 
 /* ── The list ─────────────────────────────────────────────────────────── */
@@ -647,7 +646,7 @@
 }
 
 .feedReceiptEyebrow {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.01em;

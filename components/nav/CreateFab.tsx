@@ -17,10 +17,12 @@ import { shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import {
   CREATE_FAB_ACTIONS,
   createFabMenuVisible,
+  createFabTitle,
   createFabVisible,
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { trackEvent } from "@/lib/analytics";
+import { useCreateFabScrollTuck } from "@/lib/createFabScrollTuck";
 import {
   readPreferredCity,
   subscribePreferredCity,
@@ -38,6 +40,8 @@ import {
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./createFab.css";
+
+const CREATE_FAB_TITLE = createFabTitle(CREATE_FAB_ACTIONS);
 
 // The compose affordance. A Moment carries the route it was composed from,
 // including its query, and the router's own reading is the SSR-safe fallback
@@ -113,11 +117,19 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
   }, [open, close]);
 
   const menuOpen = createFabMenuVisible(open, keyboardOpen);
+  // Reading down a page tucks the control off the words under it; it stays a
+  // tab stop and a screen-reader node, and focus brings it back
+  // (createFab.css), so only the eye loses it while it would be in the way.
+  const scrollTucked = useCreateFabScrollTuck(!open && !chromeWithdrawn);
 
   return (
     <div
       ref={rootRef}
-      className={"createFabRoot" + (keyboardOpen ? " isKeyboardHidden" : "")}
+      className={
+        "createFabRoot" +
+        (keyboardOpen ? " isKeyboardHidden" : "") +
+        (scrollTucked ? " isScrollTucked" : "")
+      }
       // Hidden from the reader means hidden from a screen reader and from the
       // keyboard's own next-field key too. The tab bar beside it takes the same
       // pair for the same reason: a control that has slid off the bottom of the
@@ -160,7 +172,14 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
         type="button"
         className="createFab"
         data-testid="create-fab"
+        // The control stays a 56px disc: the right-edge float stack publishes
+        // its berths from that square (mobileNav.css --create-fab-lane), so a
+        // text pill would move every member below it. Its name is "Create",
+        // and the title says what the three rows behind it are. Page content
+        // never sits under it: the body clearance in mobileNav.css pads every
+        // non-map page by the top of this control.
         aria-label={menuOpen ? "Close create menu" : "Create"}
+        title={menuOpen ? undefined : CREATE_FAB_TITLE}
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
         tabIndex={chromeWithdrawn ? -1 : undefined}

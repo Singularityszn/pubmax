@@ -172,7 +172,7 @@
 }
 
 .discoverLowNoBadge {
-  font-family: var(--font-data, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 900;
   letter-spacing: 0;

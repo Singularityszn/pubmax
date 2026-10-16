@@ -559,7 +559,7 @@ export function buildLastPintShareText(input: LastPintShareInput): string {
     lines.push(shareToneTag(decision));
   }
 
-  lines.push("via PUBMAXXING");
+  lines.push("via PUBMAXX");
   return lines.join("\n");
 }
 

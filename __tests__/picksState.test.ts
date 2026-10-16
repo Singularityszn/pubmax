@@ -318,6 +318,8 @@ describe("Tonight listings notice, one render per state", () => {
       { heldRowCount: 0 },
     );
     expect(markup).toContain("listingsSkeleton");
+    // One quiet row, never a stack of grey cards.
+    expect(markup.match(/class="listingsSkeletonCard"/g)).toHaveLength(1);
     expect(markup).not.toContain(PICKS_REFRESHING_LINE);
     expect(markup).not.toContain("quiet one tonight");
   });

@@ -36,6 +36,7 @@ Full rules: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/ru
 - [THE MAP ARRIVES WITH ONE SLIGHT TURN, AND THEN HOLDS STILL.](../docs/rules/components-sheets-chrome-and-navigation.md#the-map-arrives-with-one-slight-turn-and-then-holds-still)
 - [THE PHONE MAP RESTS ON THREE LAYERS, AND THE BOTTOM CARD IS THE ANSWER.](../docs/rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
 - [Phone chrome is measured, not eyeballed, and a trust caption never ellipses.](../docs/rules/components-sheets-chrome-and-navigation.md#phone-chrome-is-measured-not-eyeballed-and-a-trust-caption-never-ellipses)
+- [THE PRIMARY ROW IS FIVE DOORS, AND THE HEADER CARRIES ONLY WHAT HAS SOMETHING BEHIND IT.](../docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh)
 
 ## Venue, plan and message surfaces
 
@@ -59,8 +60,10 @@ Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../
 - [THE FRONT DOOR SHOWS LONDON, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
 - [A launch screen is built from the launch tokens and the four primitives, and template patterns are fenced.](../docs/rules/components-design-system-and-launch-primitives.md#a-launch-screen-is-built-from-the-launch-tokens-and-the-four-primitives-and-temp)
 - [CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-a-fill-and-coral-is-a-word-and-those-are-two-tokens)
+- [CORAL IS SPENT TWICE, A SELECTION READS IN INK, AND MONOSPACE IS FOR FIGURES.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-spent-twice-a-selection-reads-in-ink-and-monospace-is-for-figures)
 - [A TEXT BUTTON IS ONE ROW OF TOKENS, and the tablet bar is measured, not assumed.](../docs/rules/components-design-system-and-launch-primitives.md#a-text-button-is-one-row-of-tokens-and-the-tablet-bar-is-measured-not-assumed)
 - [THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER, DOCKED.](../docs/rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked)
+- [THE INSTALL ASK WAITS FOR A PRICE ANSWER, AND ASKS AT MOST ONCE A FORTNIGHT.](../docs/rules/components-design-system-and-launch-primitives.md#the-install-ask-waits-for-a-price-answer-and-asks-at-most-once-a-fortnight)
 - [A CHIP READS THE SAME ROW, AND A NUMBER SQUARE IS ONE FAMILY.](../docs/rules/components-design-system-and-launch-primitives.md#a-chip-reads-the-same-row-and-a-number-square-is-one-family)
 - [NEXT/IMAGE DROPS A `srcSet` PROP, AND A PROXIED PHOTO IS RESIZED THROUGH ITS LOADER.](../docs/rules/components-design-system-and-launch-primitives.md#next-image-drops-a-srcset-prop-and-a-proxied-photo-is-resized-through-its-loader)
 - [EVERY FIRST-RUN QUESTION GIVES ITS REASON, AND ONLY THE ONES THE JOURNEY USES.](../docs/rules/components-design-system-and-launch-primitives.md#every-first-run-question-gives-its-reason-and-only-the-ones-the-journey-uses)

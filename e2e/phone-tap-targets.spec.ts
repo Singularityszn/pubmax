@@ -113,7 +113,12 @@ const ROUTES = [
     ready: (page: Page) => page.getByTestId("tonight-hyped-row").first(),
   },
   {
-    path: "/out",
+    // /out folded into /tonight (16 Oct 2026): its credits now sit under
+    // Tonight's Tomorrow switch, so the test taps it before measuring.
+    path: "/tonight",
+    name: "/tonight later listings",
+    open: (page: Page) =>
+      page.getByTestId("tonight-later").getByRole("button", { name: "Tomorrow", exact: true }).click(),
     family: ".outSourceCredit",
     ready: (page: Page) => page.getByRole("heading", { name: "A Night at the Playhouse" }),
   },
@@ -127,7 +132,13 @@ const ROUTES = [
     family: ".screenSecondary > a",
     ready: (page: Page) => page.getByRole("heading", { name: "Keep this one." }),
   },
-] as const;
+] as const satisfies readonly {
+  path: string;
+  name?: string;
+  open?: (page: Page) => Promise<void>;
+  family: string;
+  ready: (page: Page) => ReturnType<Page["locator"]>;
+}[];
 
 // A cold production server paints /historic's 342 cited pubs slowly, and axe
 // then walks every node of that page. The default 30 s ceiling timed out the
@@ -136,11 +147,12 @@ const ROUTES = [
 test.describe("phone tap targets @390", () => {
   test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES) {
-    test(`${route.path}: every anchor and button in main is at least 44 px each way`, async ({
+    test(`${"name" in route ? route.name : route.path}: every anchor and button in main is at least 44 px each way`, async ({
       page,
     }) => {
       await prepare(page);
       await page.goto(route.path);
+      if ("open" in route) await route.open(page);
       await expect(route.ready(page)).toBeVisible({ timeout: 20_000 });
       // The family the audit named has to be ON the page, or an empty page
       // would pass by measuring nothing.
@@ -158,9 +170,10 @@ test.describe("phone tap targets @390", () => {
 test.describe("coral words in light @390", () => {
   test.describe.configure({ timeout: 90_000 });
   for (const route of ROUTES.filter((candidate) => candidate.path !== "/moment")) {
-    test(`${route.path} has no text below AA contrast`, async ({ page }, testInfo) => {
+    test(`${"name" in route ? route.name : route.path} has no text below AA contrast`, async ({ page }, testInfo) => {
       await prepare(page);
       await page.goto(route.path);
+      if ("open" in route) await route.open(page);
       await expect(route.ready(page)).toBeVisible({ timeout: 20_000 });
       await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
 

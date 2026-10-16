@@ -278,9 +278,11 @@ The UI deliberately gives the same success message for every address and replace
 Vercel must attach both `pubmaxxing.com` and `www.pubmaxxing.com` to the same production project, with `www.pubmaxxing.com` permanently redirecting to the canonical apex. After an explicitly authorised deployment, verify that the apex returns the release, the `www` redirect preserves the path and query string, and both TLS certificates are valid:
 
 ```sh
-curl -sSIL https://pubmaxxing.com/map
-curl -sSIL 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
+curl -sS -o /dev/null -w '%{http_code}\n' https://pubmaxxing.com/map
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'
 ```
+
+The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`. Neither command follows the redirect, so the second reads the first response's `Location`, not the page it leads to. Both requests complete a TLS handshake, which checks each certificate.
 
 #### Google
 
@@ -357,20 +359,17 @@ account allocation before calling the release gate green.
 
 ### Manual deploy and promote
 
-This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
+There is no manual production path. Production ships through the [one release command](#one-release-command), `npm run release:prod`, and nothing else.
 
-```sh
-npm run deploy:preview
-vercel promote <deployment-url>
-```
+Never promote a Preview build. `npm run deploy:preview` followed by `vercel promote <deployment-url>` puts a Preview-built artifact in front of production, and [promotion does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment): it keeps `VERCEL_ENV=preview` and every Preview environment value. The release command stages with `scripts/deploy-vercel.mjs --prod --skip-domain` instead, so the artifact it promotes was built with Production values.
 
-`npm run deploy:preview` is `vercel deploy` plus the commit of the tree it is
+`npm run deploy:preview` is for review deployments. It is `vercel deploy` plus the commit of the tree it is
 uploading. An authenticated `GET /api/version` names that commit (see below).
 An unauthenticated request returns `ok` and `deploymentId`, and never the commit. The command forwards every argument.
 
 Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
-`docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
+`docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 owns the launch-day checks after a release.
 
 ### One release command
 

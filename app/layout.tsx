@@ -68,7 +68,7 @@ const SPECULATION_RULES = {
   ],
 };
 
-// Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
+// Type trio for the PUBMAXX identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
 //    large x-height, so capitals and lowercase sit close in size (little
 //    caps-contrast) and headlines read confident, current, and calm rather
@@ -194,7 +194,7 @@ export const metadata: Metadata = {
     template: "%s | PUBMAXX",
   },
   description:
-    "PubMaxxing is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
+    "PUBMAXX is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -202,7 +202,7 @@ export const metadata: Metadata = {
     // Home Screen icon, so it must read the same as the installed name Android
     // takes from public/manifest.webmanifest. The document TITLES below are a
     // separate question and stay as they are.
-    title: "PUBMAXXING",
+    title: "PUBMAXX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {

@@ -13,7 +13,6 @@ import {
   deskWifiCaption,
   isDeskEligible,
   laptopFromOsm,
-  parseOsmOpeningHours,
   parseNearModeParam,
   rankDeskNearMe,
   resolveNearMode,
@@ -21,6 +20,7 @@ import {
   wifiFromOsm,
   type DeskPoint,
 } from "@/lib/nearDesk";
+import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
 import { evaluateOpenState } from "@/lib/busyness";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import type { VenueKind } from "@/lib/venues";
@@ -339,7 +339,7 @@ describe("rankDeskNearMe", () => {
 
 describe("desk copy", () => {
   it("keeps empty and amenity lines in house voice", () => {
-    expect(deskEmptyLine()).toBe("No desks logged near here yet. Add a spot.");
+    expect(deskEmptyLine()).toBe("No work spots logged near here yet. Add one.");
     expect(deskWifiCaption("yes")).toBe("Wifi: yes");
     expect(deskWifiCaption("no")).toBe("Wifi: no");
     expect(deskWifiCaption("unknown")).toBe("Wifi: unknown");
@@ -349,11 +349,11 @@ describe("desk copy", () => {
     expect(deskCheckedCaption("2026-08-16T04:01:27.583Z")).toBe("Checked 16 Aug");
     expect(deskCheckedCaption(null)).toBe("No date on this yet");
     expect(deskAnswerHeadline({ scope: "walkable" })).toBe("Somewhere to sit near you");
-    expect(deskAnswerHeadline({ scope: "widened" })).toBe("Nearest desks a bit further out");
+    expect(deskAnswerHeadline({ scope: "widened" })).toBe("Nearest work spots, a bit further out");
     expect(deskAnswerHeadline({ scope: "walkable", patchLabel: "Soho" })).toBe(
       "Somewhere to sit around Soho",
     );
-    expect(deskLoadFailedLine()).toBe("Could not check desks near here.");
+    expect(deskLoadFailedLine()).toBe("Could not check work spots near here.");
     for (const line of [
       deskEmptyLine(),
       deskLoadFailedLine(),

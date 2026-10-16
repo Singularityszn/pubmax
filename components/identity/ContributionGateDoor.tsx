@@ -29,7 +29,7 @@ import {
 
 type ContributionGateDoorProps = {
   status: ContributionDoorStatus;
-  /** What the person is being asked to do, as a verb phrase: "keep a Wanted list". */
+  /** What the person is being asked to do, as a verb phrase: "keep a list of pubs to try". */
   subject: string;
   /** The tap is recorded, here or at another door on the page: read the list again. */
   onAsserted: () => void;

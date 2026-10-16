@@ -666,10 +666,10 @@
 .planDescribeFirst__chips { margin: var(--space-2) 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planDescribeFirst__chip {
   min-height: 44px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--control-radius, 14px);
   padding: 8px 14px;
-  background: var(--panel);
+  background: transparent;
   color: var(--ink);
   font: inherit;
   font-size: 0.82rem;
@@ -677,10 +677,11 @@
   cursor: pointer;
 }
 .planDescribeFirst__chip:hover,
-.planDescribeFirst__chip:focus-visible { border-color: var(--plan-accent); color: var(--plan-accent-strong); outline: none; }
-/* Culture Crawl lane. It reads as its own offer above the plain examples, so
-   the group carries a lead line and a warmer chip edge without becoming a
-   second primary action. */
+.planDescribeFirst__chip:focus-visible { border-color: var(--state-selected-border); color: var(--state-selected-ink); outline: none; }
+/* Culture Crawl lane. It reads as its own offer above the plain examples
+   through its lead line alone: its chips are the same neutral outline as the
+   examples, because a suggestion is never a second primary action and coral
+   is spent on the one primary (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
 .planDescribeFirst__culture { margin: var(--space-3) 0 0; }
 .planDescribeFirst__cultureLead {
   margin: 0 0 10px;
@@ -690,10 +691,6 @@
   line-height: 1.45;
 }
 .planDescribeFirst__cultureChips { display: flex; flex-wrap: wrap; gap: 8px; }
-.planDescribeFirst__chip--culture {
-  border-color: color-mix(in srgb, var(--plan-accent) 40%, var(--line));
-  background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
-}
 
 /* Progressive Plan intake. This is inline, resumable planning context rather
    than an interruptive prompt, so it never competes for the shared prompt
@@ -1465,15 +1462,35 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     align-items: start;
   }
 
-  .planDescribeFirst > .screenHead > .kicker,
-  .planDescribeFirst > .screenHead > .screenTitle,
-  .planDescribeFirst > .screenHead > .screenActions {
+  /* The heading holds the left column; the field, the stop count and the
+     actions that submit them stack in the right one, in that order. Auto
+     placement used to seat the field top right and "Sort it" bottom left, so
+     the submit sat a column away from the field it submits. */
+  .planDescribeFirst > .screenHead > .kicker {
     grid-column: 1;
+    grid-row: 1;
   }
 
-  .planDescribeFirst__form,
+  .planDescribeFirst > .screenHead > .screenTitle {
+    grid-column: 1;
+    grid-row: 2 / span 3;
+  }
+
+  .planDescribeFirst__form {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
   .planDescribeFirst > .planStopCount {
     grid-column: 2;
+    grid-row: 3;
+    margin-top: 0;
+  }
+
+  .planDescribeFirst > .screenHead > .screenActions {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: 0;
   }
 
   .planDescribeFirst__culture,

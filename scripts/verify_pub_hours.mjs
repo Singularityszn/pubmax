@@ -9,7 +9,7 @@ import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { parseOsmOpeningHours } from "../lib/nearDesk.ts";
+import { parseOsmOpeningHours } from "../lib/osmOpeningHours.ts";
 import { restoreQuotasUntilVerified } from "../lib/placesVerification.ts";
 import { haversineMeters } from "./lib/geo.mjs";
 import { checkHours, hasHours, planHoursCheck } from "./lib/placesHoursCheck.ts";

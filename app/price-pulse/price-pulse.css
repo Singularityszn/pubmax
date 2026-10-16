@@ -1,0 +1,233 @@
+/* /price-pulse. Rides the legal shell (app/legal.css) for the reading column,
+   headings and links, and adds only what an edition and the explainer need.
+   Tokens only, so both themes track. Phone first: one column at 390px, the
+   two explainer views sit side by side from 720px. */
+
+.pricePulsePage .emptyState {
+  margin: 0 0 28px;
+}
+
+/* ── An edition ─────────────────────────────────────────────── */
+.pulseEdition {
+  margin: 0 0 32px;
+}
+
+.pulseEdition .legalUpdated {
+  margin-bottom: 8px;
+}
+
+.pulseItems {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.pulseItem {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius, 10px);
+  background: var(--panel);
+  color: var(--ink-soft);
+}
+
+.pulseItemKind {
+  margin: 0 0 6px;
+  font: 650 12px/1.3 var(--font-data);
+  color: var(--ink-soft);
+}
+
+.pulseItemSaid {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.pulseQuote {
+  margin: 10px 0 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--line);
+}
+
+.pulseQuote blockquote {
+  margin: 0;
+}
+
+.pulseQuote blockquote p {
+  margin: 0;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.pulseQuote figcaption {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--color-text-soft);
+}
+
+.pulseItemFoot {
+  margin: 12px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 0.9rem;
+}
+
+/* The link is the row's tap target, so it gets a 44px box on a phone. */
+.pulseSourceLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+
+.pulseNotChecked {
+  font: 600 12px/1.3 var(--font-data);
+  color: var(--color-text-soft);
+}
+
+.pulseConfirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 12px/1.3 var(--font-data);
+  color: var(--ink-soft);
+}
+
+/* ── Where your £6 goes ─────────────────────────────────────── */
+.pulseSplitBar {
+  display: flex;
+  height: 14px;
+  margin: 16px 0;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.pulseSplitSegment {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.pulseSplitSegment--vat {
+  background: var(--ink);
+}
+
+.pulseSplitSegment--duty {
+  background: var(--brass);
+}
+
+.pulseSplitSegment--rest {
+  background: var(--line);
+}
+
+.pulseSplit {
+  margin: 0 0 20px;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius, 10px);
+  overflow: hidden;
+}
+
+.pulseSplitRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.pulseSplitRow:first-child {
+  border-top: 0;
+}
+
+.pulseSplitRow dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.pulseSplitKey {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  flex: none;
+}
+
+.pulseSplitFigure {
+  margin: 0;
+  font: 700 1.05rem/1.3 var(--font-data);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.pulseSplitNote {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.pulseViews {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+
+@media (min-width: 720px) {
+  .pulseViews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.pulseView .legalH3 {
+  margin-top: 0;
+}
+
+.pulseViewPoints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.pulseViewPoints p {
+  margin: 0;
+}
+
+/* ── Archive ────────────────────────────────────────────────── */
+.pulseArchiveEntry {
+  border-top: 1px solid var(--line);
+  padding: 4px 0;
+}
+
+.pulseArchiveEntry summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.pulseArchiveEntry .pulseEdition {
+  margin-top: 8px;
+}
+
+.pulseFoot {
+  margin-top: 28px;
+}
