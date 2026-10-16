@@ -25,8 +25,9 @@ vi.mock("@/lib/cityPreference", () => ({
 import LandingPage from "@/components/landing/LandingPage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
-// The hero's rhythm is the Screen primitive's order and nothing else: kicker,
-// heading, one line under it, the picture of London, the one primary, the quiet
+// The hero's rhythm is the Screen primitive's order and nothing else: the
+// heading (no brand kicker over it: the wordmark already says it), one line
+// under it, the picture of London, the one primary, the quiet
 // row, then the one real pub and the three next-cheapest rows. That order is
 // the DOM order, so it is the phone order, and the desktop grid may only seat
 // the picture and the rows beside the copy, never reorder them.
@@ -77,12 +78,12 @@ describe("landing hero rhythm", () => {
         { id: "venue-2", name: "The Liberty Bounds", area: "City of London", priceGbp: 2.99, hasThen: false },
         { id: "venue-3", name: "The Sir John Hawkshaw", area: "City of London", priceGbp: 3.49, hasThen: false },
       ],
+      averages: { averageGbp: 5.54, cheapAverageGbp: 4.17, sampleSize: 950 },
     }),
   );
 
-  it("reads kicker, heading, lede, picture, primary, quiet row, pub card, rail, in that order", () => {
+  it("reads heading, lede, picture, primary, quiet row, pub card, rail, in that order", () => {
     const order = positions(html, [
-      '<p class="kicker">PUBMAXX</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
       '<p class="screenLede">',
       'class="lpLondonFigure"',
@@ -96,14 +97,25 @@ describe("landing hero rhythm", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("shows the licensed London skyline beside the map promise", () => {
+  it("puts the measured saving under the claim, beside the licensed London skyline", () => {
     const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(hero.match(/class="screenLede"/g)).toHaveLength(1);
-    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
+    // The figures are the ones handed in (lib/pintSavings.ts measures them from
+    // the priced read), never typed into the hero.
+    expect(hero).toContain(
+      '<p class="screenLede">The average listed pint across 950 London pubs is £5.54. In the cheapest third it&#x27;s £4.17. That&#x27;s £1.37 a pint you keep.</p>',
+    );
     expect(hero).toContain('alt="Tower Bridge and the Thames in London from above"');
     expect(hero).toContain('/landing/hero-thames-1600.avif');
     expect(hero).not.toContain('class="lpMapSnapshot"');
-    expect(hero.match(/<p class="kicker">/g)).toHaveLength(1);
+    // No brand kicker over the claim; the wordmark in the bar already says it.
+    expect(hero).not.toContain('<p class="kicker">PUBMAXX</p>');
+  });
+
+  it("falls back to the map line when the dataset cannot back a saving", () => {
+    const bare = renderToStaticMarkup(createElement(LandingPage, { card }));
+    const hero = bare.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
   });
 
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {
