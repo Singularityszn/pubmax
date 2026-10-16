@@ -27,6 +27,7 @@ import {
   cliReadOnlyPgEnv,
   DEFAULT_BUCKET,
   dumpFileName,
+  lastCompleteBackupPastMaximum,
   listBucketObjects,
   MAX_RETENTION_WEEKS,
   objectNeedsDownload,
@@ -39,6 +40,9 @@ import {
 
 const dryRun = process.argv.includes("--dry-run");
 const env = process.env;
+// Set once the destination is known to be outside every checkout, so a failure
+// can say whether the last good backup is being held past the maximum.
+let backupDir = null;
 
 function requireEnv(name) {
   const value = env[name]?.trim();
@@ -84,6 +88,11 @@ async function runBackup() {
   const startedAt = new Date();
   const dumpFile = path.join(dir, dumpFileName(startedAt));
   const bucketRoot = path.join(dir, "bucket", bucket);
+  // Replacement photos land here first, beside the retained copy, and move
+  // into bucketRoot only after the whole sync succeeds. A Storage failure
+  // halfway through therefore never overwrites a photo the last complete dump
+  // still names.
+  const stagingRoot = path.join(dir, "bucket", `${bucket}.staging`);
 
   console.log(`[backup] directory ${dir}`);
   console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; prune after ${PRUNE_AFTER_WEEKS} weeks; maximum ${MAX_RETENTION_WEEKS} weeks`);
@@ -94,6 +103,9 @@ async function runBackup() {
 
   mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
+  backupDir = dir;
+  // A killed run's staged photos belong to no dump.
+  rmSync(stagingRoot, { recursive: true, force: true });
 
   // 0. Retention first. Pruning must not wait on a dump that may fail, so a
   // database outage cannot preserve an expired fallback or its photo identifiers.
@@ -145,7 +157,9 @@ async function runBackup() {
       recorded = {};
     }
     const versions = {};
-    let fetched = 0;
+    const unchanged = [];
+    const staged = [];
+    mkdirSync(stagingRoot, { recursive: true, mode: 0o700 });
     for (const object of objects) {
       const target = safeObjectPath(bucketRoot, object.path);
       const present = existsSync(target);
@@ -159,7 +173,7 @@ async function runBackup() {
         })
       ) {
         versions[object.path] = object.version;
-        utimesSync(target, startedAt, startedAt);
+        unchanged.push(target);
         continue;
       }
       const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${object.path.split("/").map(encodeURIComponent).join("/")}`, {
@@ -167,17 +181,24 @@ async function runBackup() {
         signal: AbortSignal.timeout(60_000),
       });
       if (!response.ok) throw new Error(`Downloading a bucket object answered ${response.status}.`);
-      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-      // Written beside the file and renamed, so a killed run never leaves half an image.
-      const incoming = `${target}.incoming`;
-      writeFileSync(incoming, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
-      renameSync(incoming, target);
-      utimesSync(target, startedAt, startedAt);
+      const stagedFile = safeObjectPath(stagingRoot, object.path);
+      mkdirSync(path.dirname(stagedFile), { recursive: true, mode: 0o700 });
+      writeFileSync(stagedFile, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
+      staged.push({ stagedFile, target });
       versions[object.path] = object.version;
-      fetched += 1;
     }
+
+    // Every object read. Only now does the copy change: the staged photos
+    // replace the retained ones, each by one rename, and every object still in
+    // the bucket is stamped as seen by this run.
+    for (const { stagedFile, target } of staged) {
+      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+      renameSync(stagedFile, target);
+      utimesSync(target, startedAt, startedAt);
+    }
+    for (const target of unchanged) utimesSync(target, startedAt, startedAt);
     writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
-    console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
+    console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${staged.length} downloaded.`);
 
     // Publish only after Storage completes, so its failure preserves the last
     // complete fallback on this run and the next. The archive is already verified.
@@ -186,6 +207,7 @@ async function runBackup() {
   } finally {
     // Failed renewal, dump or Storage still expires data at the current time.
     rmSync(partial, { force: true });
+    rmSync(stagingRoot, { recursive: true, force: true });
     const pruned = pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
     console.log(
       `[backup] past retention: ${pruned.dumps} dumps, ${pruned.files} bucket files, ${pruned.directories} folders removed.`,
@@ -199,9 +221,18 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[backup] FAILED: ${message}`);
+  // The last good backup is never deleted, so when newer runs keep failing it
+  // outlives the eight-week maximum. That is a promise being broken, so the
+  // alert says it.
+  const heldSince = backupDir ? lastCompleteBackupPastMaximum({ dir: backupDir, now: Date.now() }) : null;
+  if (heldSince) {
+    console.error(`[backup] The last complete backup, taken ${heldSince}, is past the ${MAX_RETENTION_WEEKS}-week maximum. It is kept because no newer backup has completed.`);
+  }
   const webhook = env.PUBMAX_ALERT_WEBHOOK_URL?.trim();
   if (webhook && !dryRun) {
-    const text = "[pubmax][backup] The off-platform backup failed. The reason is in the log on the backup machine.";
+    const text = heldSince
+      ? `[pubmax][backup] The off-platform backup failed, and the last complete backup (${heldSince}) is past the ${MAX_RETENTION_WEEKS}-week maximum. It is kept until a newer backup completes. The reason is in the log on the backup machine.`
+      : "[pubmax][backup] The off-platform backup failed. The reason is in the log on the backup machine.";
     await fetch(webhook, {
       method: "POST",
       headers: { "content-type": "application/json" },

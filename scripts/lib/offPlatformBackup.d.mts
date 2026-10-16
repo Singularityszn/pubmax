@@ -10,6 +10,7 @@ export function pruneBackupCopy(input: {
   bucketRoot: string;
   now: number;
 }): { dumps: number; files: number; directories: number };
+export function lastCompleteBackupPastMaximum(input: { dir: string; now: number }): string | null;
 export function isInsideDirectory(candidate: string, directory: string): boolean;
 export function listBucketObjects(input: {
   baseUrl: string;

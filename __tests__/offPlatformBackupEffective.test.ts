@@ -183,11 +183,20 @@ function retentionFixture(withFallback = false, now = Date.now()) {
   return { privateDir, bucketRoot, expired, versionsFile, fallbackDump, fallbackPhoto };
 }
 
-function expectExpiredArtifactsRemoved(fixture: ReturnType<typeof retentionFixture>) {
-  for (const file of fixture.expired) expect(existsSync(file)).toBe(false);
+// With no newer complete dump, the 2 January 2000 dump is the last good backup
+// and is never deleted (owner decision, 16 October 2026).
+const LAST_GOOD_2000 = "pubmax-20000102T000000Z.dump";
+
+function expectExpiredArtifactsRemoved(fixture: ReturnType<typeof retentionFixture>, { lastGoodKept = false } = {}) {
+  for (const file of fixture.expired) {
+    expect(existsSync(file)).toBe(lastGoodKept && path.basename(file) === LAST_GOOD_2000);
+  }
   expect(existsSync(path.join(fixture.bucketRoot, "expired-account"))).toBe(false);
   expect(existsSync(path.join(fixture.bucketRoot, "empty-account"))).toBe(false);
-  expect(filesAtRenewal.some((file) => file.includes("expired-account") || file.includes("200001") || file.includes("empty-account"))).toBe(false);
+  expect(filesAtRenewal.some((file) =>
+    file.includes("expired-account") || file.includes("empty-account") ||
+    (file.includes("200001") && !(lastGoodKept && file === LAST_GOOD_2000)),
+  )).toBe(false);
   expect(JSON.stringify(versionsAtRenewal)).not.toContain("expired-account");
 }
 
@@ -285,14 +294,15 @@ it("uses the returned login with the project suffix through a session pooler", a
   expect(calls[0]?.url).toBe(`/v1/projects/${REF}/cli/login-role`);
 });
 
-it("removes expired newest dumps, photos and identifiers before a refused renewal with no fallback", async () => {
+it("keeps only the last good dump, and removes older dumps, photos and identifiers before a refused renewal", async () => {
   const fixture = retentionFixture();
   loginStatus = 403;
   const result = await backup();
   expect(result.status).toBe(1);
-  expectExpiredArtifactsRemoved(fixture);
+  expectExpiredArtifactsRemoved(fixture, { lastGoodKept: true });
   expect(existsSync(fixture.versionsFile)).toBe(false);
-  expect(readdirSync(fixture.privateDir)).toEqual(["bucket"]);
+  expect(readdirSync(fixture.privateDir).sort()).toEqual(["bucket", LAST_GOOD_2000]);
+  expect(result.output).toContain("past the 8-week maximum");
   expect(readdirSync(fixture.bucketRoot)).toEqual([]);
   expect(calls).toHaveLength(1);
   expect(result.output).not.toContain(TOKEN);
@@ -318,7 +328,7 @@ it.each([
   expect(result.output).not.toContain(PASSWORD);
 });
 
-it("expires a fallback that reaches eight weeks while a failed renewal is in progress", async () => {
+it("keeps the last good fallback that reaches eight weeks while a failed renewal is in progress, and says so", async () => {
   const now = Date.now();
   const fixture = retentionFixture(true, now);
   const redirect = path.join(directory, "redirect.mjs");
@@ -337,10 +347,8 @@ globalThis.fetch = async (...args) => {
 
   expect(result.status).toBe(1);
   expect(filesAtRenewal).toContain(path.basename(fixture.fallbackDump));
-  expect(existsSync(fixture.fallbackDump)).toBe(false);
-  expect(existsSync(fixture.fallbackPhoto)).toBe(false);
-  expect(existsSync(fixture.versionsFile)).toBe(false);
-  expect(readdirSync(fixture.bucketRoot)).toEqual([]);
+  expectFallbackRetained(fixture);
+  expect(result.output).toContain("past the 8-week maximum");
 });
 
 it("keeps the unexpired fallback and removes partial output when the actual dump fails", async () => {

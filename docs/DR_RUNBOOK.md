@@ -66,8 +66,10 @@ node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs
 It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`,
 `auth`, `storage` and `supabase_migrations` schemas, and syncs the bucket into
 `bucket/pint-drops/`. A dump becomes visible only after `pg_restore --list` finds
-table data and the bucket sync completes. A failed sync removes the partial dump
-and preserves the last complete dump while it remains within retention.
+table data and the bucket sync completes. Changed photos download into
+`bucket/pint-drops.staging/` and replace the kept copies only after every object
+has downloaded, so a failed sync removes the partial dump and the staged photos
+and leaves the last complete dump and its photos exactly as they were.
 
 ### Schedule it
 
@@ -95,16 +97,19 @@ eight weeks. Installation alone proves neither a successful backup nor durabilit
 
 The copy holds personal data: account emails, password hashes, profiles, Pint
 Drops and their photos. It is not encrypted. Normal pruning starts at 7 weeks.
-The newest complete dump and its photos remain as a fallback until 8 weeks.
-Every run removes data that reaches that maximum, including the newest copy.
+The 8-week maximum applies once a newer complete backup exists. The last good
+backup, the newest complete dump and its photos, is NEVER deleted: if newer
+backups keep failing it is kept past 8 weeks, and every failed run says so in
+the log and in the alert (owner decision, 16 October 2026).
 
-- Each run deletes dumps older than 7 weeks, except the newest complete dump. That fallback expires when its age reaches 8 weeks. The one-week margin covers ordinary weekly scheduling jitter.
+- Each run deletes dumps older than 7 weeks, except the newest complete dump. That one goes only when a newer complete dump exists and it has passed 7 weeks. The one-week margin covers ordinary weekly scheduling jitter.
 - A dump's name supplies its UTC age. The eight-week comparison includes the exact deadline. A newer filesystem timestamp cannot extend that age.
-- A `.partial` dump expires at 8 weeks or when a newer complete dump makes it redundant. A failed renewal, dump or bucket sync removes the current partial dump.
-- Each photo's last-seen timestamp supplies its age. Photos and `.incoming` files expire at 8 weeks, even without a complete dump. Unexpired files without a dump remain until that deadline.
+- When the newest complete dump has reached 8 weeks, a failed run logs `past the 8-week maximum` and its alert names the dump's UTC stamp. Fix the failing backup: the held copy goes on the first run after a newer backup completes.
+- A `.partial` dump expires at 8 weeks or when a newer complete dump makes it redundant. A failed renewal, dump or bucket sync removes the current partial dump and the staged photos.
+- Each photo's last-seen timestamp supplies its age. A photo the oldest kept dump knew stays with that dump, at any age. With no complete dump at all, photos and `.incoming` files expire at 8 weeks, and unexpired files remain until that deadline.
 - The bucket copy also removes files last seen before the oldest kept dump. Empty account and conversation folders are removed. The version index retains identifiers only for files that remain. An empty index is removed.
-- Pruning runs before credential renewal and again on exit, including after a failed renewal, dump or bucket sync. An unexpired newest complete fallback remains after a failure.
-- A bucket file is fetched again when its recorded version changes, even at the same size. The new dump is published after the bucket sync completes.
+- Pruning runs before credential renewal and again on exit, including after a failed renewal, dump or bucket sync.
+- A bucket file is fetched again when its recorded version changes, even at the same size. The replacement waits in the staging folder until the whole sync succeeds. The new dump is published after that swap.
 - Pruning requires the backup process to run. A killed process, or a sleeping, powered-off or unavailable Mac, can postpone deletion beyond eight weeks. The next run applies the age limit before it requests credentials. Installation does not prove continuous deletion or backup durability.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a

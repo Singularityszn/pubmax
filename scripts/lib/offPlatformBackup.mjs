@@ -10,8 +10,10 @@ import { chmodSync, existsSync, readFileSync, readdirSync, rmdirSync, rmSync, st
 import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
-// Normal pruning leaves a week of slack for the weekly schedule. The newest
-// fallback remains only until the maximum, including after failed backups.
+// Normal pruning leaves a week of slack for the weekly schedule. The maximum
+// expires a dump only once a newer complete dump exists: the last good backup
+// is never deleted, however old, and a run that leaves it past the maximum
+// alerts instead (owner decision, 16 October 2026).
 export const PRUNE_AFTER_WEEKS = 7;
 export const MAX_RETENTION_WEEKS = 8;
 const PRUNE_AFTER_MS = PRUNE_AFTER_WEEKS * 7 * 24 * 60 * 60 * 1000;
@@ -131,16 +133,18 @@ function dumpTakenAt(file) {
 /**
  * Delete what is past retention, by age, however many runs there were.
  *
- * Dumps: every dump older than `PRUNE_AFTER_WEEKS` goes, except the newest,
- * which expires at `MAX_RETENTION_WEEKS`. Partial dumps expire at that maximum
- * too, or when a newer complete dump makes them redundant. Other files in
- * `dir` are never touched.
+ * Dumps: every dump older than `PRUNE_AFTER_WEEKS` goes, except the newest
+ * complete dump, which is never deleted here: it is the last good backup, and
+ * the next one to complete is what retires it. Partial dumps expire at
+ * `MAX_RETENTION_WEEKS`, or when a newer complete dump makes them redundant.
+ * Other files in `dir` are never touched.
  *
  * Bucket files: each run stamps a file's mtime with the run's start while its
  * object is still in the bucket, so the mtime is the last run that saw it. A
  * file last seen before the oldest kept dump belongs to no dump that remains,
- * and it goes with them. Every photo or incoming file also expires at the
- * maximum, even when no complete dump remains. Unexpired orphan files stay.
+ * and it goes with them; a file the oldest kept dump knew stays with it, at
+ * any age. With no complete dump at all, every photo or incoming file expires
+ * at the maximum, and unexpired orphan files stay until then.
  * Version metadata keeps only identifiers of files that remain.
  *
  * Directories: an emptied directory under `bucketRoot` goes too, because the
@@ -152,9 +156,7 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     .sort();
   const newest = dumps.at(-1);
   const maximumCutoff = now - MAX_RETENTION_MS;
-  const expired = dumps.filter((file) =>
-    dumpTakenAt(file) <= maximumCutoff || (file !== newest && dumpTakenAt(file) < now - PRUNE_AFTER_MS),
-  );
+  const expired = dumps.filter((file) => file !== newest && dumpTakenAt(file) < now - PRUNE_AFTER_MS);
   const newestTakenAt = newest === undefined ? null : dumpTakenAt(newest);
   const killed = readdirSync(dir).filter((file) => {
     const match = PARTIAL_DUMP_NAME.exec(file);
@@ -172,7 +174,7 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     return { entry, stat: statSync(entry) };
   });
   const files = entries.filter(({ stat }) => stat.isFile() &&
-    (stat.mtimeMs <= maximumCutoff || (oldestKept !== null && stat.mtimeMs < oldestKept)),
+    (oldestKept === null ? stat.mtimeMs <= maximumCutoff : stat.mtimeMs < oldestKept),
   );
   for (const { entry } of files) rmSync(entry, { force: true });
 
@@ -208,6 +210,19 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     directories += 1;
   }
   return { dumps: expired.length + killed.length, files: files.length, directories };
+}
+
+/**
+ * The newest complete dump's UTC stamp when it has reached the eight-week
+ * maximum, or null. pruneBackupCopy keeps it because nothing newer completed,
+ * so a run that ends with one says so out loud.
+ */
+export function lastCompleteBackupPastMaximum({ dir, now }) {
+  if (!existsSync(dir)) return null;
+  const newest = readdirSync(dir).filter((file) => dumpTakenAt(file) !== null).sort().at(-1);
+  if (newest === undefined) return null;
+  const takenAt = dumpTakenAt(newest);
+  return takenAt <= now - MAX_RETENTION_MS ? new Date(takenAt).toISOString() : null;
 }
 
 /** True when `candidate` is `directory` itself or anything under it. */
