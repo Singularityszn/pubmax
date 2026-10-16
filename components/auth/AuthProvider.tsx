@@ -975,8 +975,10 @@ export function AuthProvider({
   }, [router]);
 
   const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<{ error: string | null } | { useExistingOAuth: true }> => {
-    await cancelPendingNativeAuth();
+    const installation = cancelPendingNativeAuth();
     const ticket = nativeAuthLifetime.current.begin();
+    await installation;
+    if (!ticket.current()) return { error: null };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!ticket.current()) return { error: null };
     if (!supabase) return { error: "Sign-in is not configured." };
@@ -1082,8 +1084,10 @@ export function AuthProvider({
   }, [finishNativeSignIn]);
 
   const startNativeEmail = useCallback(async (email: string | null, next?: string): Promise<MagicLinkResult | { useExistingEmail: true }> => {
-    await cancelPendingNativeAuth();
+    const installation = cancelPendingNativeAuth();
     const ticket = nativeAuthLifetime.current.begin();
+    await installation;
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
     const activeSession = await supabase?.auth.getSession().catch(() => null);
