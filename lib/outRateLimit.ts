@@ -1,4 +1,4 @@
-// Per-IP rate limiting for the public Out listing surface (/api/out).
+// Per-IP rate limiting for the public Out listing surface (/out and /api/out).
 //
 // That route fans out to Ticketmaster / Skiddle on an uncached miss, and each
 // request also issues a Postgres RPC for open plans. An unauthenticated caller
@@ -9,5 +9,12 @@
 
 import { makeIpRateLimiter } from "@/lib/ipRateLimit";
 
-/** ~60/min-per-IP budget for the public /api/out surface. */
-export const isOutLimited = makeIpRateLimiter("out-listings");
+// Next bundles the document and API separately. Keep one limiter closure per
+// process so both bundles spend the same in-memory fallback budget.
+const outRateLimitGlobal = globalThis as typeof globalThis & {
+  __pubmaxOutRateLimiter?: ReturnType<typeof makeIpRateLimiter>;
+};
+
+/** ~60/min-per-IP budget shared by the public Out document and API. */
+export const isOutLimited = outRateLimitGlobal.__pubmaxOutRateLimiter ??=
+  makeIpRateLimiter("out-listings");
