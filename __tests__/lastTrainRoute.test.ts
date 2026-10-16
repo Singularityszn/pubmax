@@ -20,20 +20,19 @@ const OXFORD_CIRCUS_FIXTURE: MockStation = {
 function mockLastTrainResponses(
   hour: string,
   minute: string,
-  station: MockStation = OXFORD_CIRCUS_FIXTURE,
+  station: MockStation | MockStation[] = OXFORD_CIRCUS_FIXTURE,
 ): void {
+  const stations = Array.isArray(station) ? station : [station];
   global.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/StopPoint?")) {
       return new Response(
         JSON.stringify({
-          stopPoints: [
-            {
-              ...station,
-              distance: 0,
-              lines: [{ id: "victoria", name: "Victoria" }],
-            },
-          ],
+          stopPoints: stations.map((stop) => ({
+            ...stop,
+            distance: 0,
+            lines: [{ id: "victoria", name: "Victoria" }],
+          })),
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       );
@@ -551,5 +550,47 @@ describe("GET /api/last-train", () => {
     const body = await res.json();
     expect(body.walkBasis).toBe("straight");
     expect(body.decision.walkMinutesEstimate).toBe(0);
+  });
+
+  it("picks the station that is the shortest street walk, not TfL's straight-line first", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    // TfL lists Leicester Square first, the nearer station along the straight
+    // line. On foot Charing Cross is closer: 481 m against 545 m in
+    // data/station_walk_access.json for this cell.
+    mockLastTrainResponses("24", "30", [
+      { id: "940GZZLULSQ", commonName: "Leicester Square", lat: 51.5113, lon: -0.1281 },
+      { id: "940GZZLUCHX", commonName: "Charing Cross", lat: 51.5082, lon: -0.1247 },
+    ]);
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.509&lng=-0.129", {
+        headers: { "x-forwarded-for": "198.51.100.38" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.station).toMatchObject({ id: "940GZZLUCHX", name: "Charing Cross" });
+    expect(body.decision.stationName).toBe("Charing Cross");
+    expect(body.walkBasis).toBe("street");
+    // 481 m at 4.8 km/h.
+    expect(body.decision.walkMinutesEstimate).toBe(6);
+  });
+
+  it("keeps TfL's first station outside the pilot", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    mockLastTrainResponses("24", "30", [
+      OXFORD_CIRCUS_FIXTURE,
+      { id: "940GZZLUCHX", commonName: "Charing Cross", lat: 51.5082, lon: -0.1247 },
+    ]);
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.39" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.station.id).toBe("940GZZLUOXC");
+    expect(body.walkBasis).toBe("straight");
   });
 });

@@ -64,7 +64,7 @@ import { coarsenViewerPoint } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
-import { streetWalkMetres } from "@/lib/stationWalkAccess";
+import { chooseByStreetWalk, streetWalkMetres } from "@/lib/stationWalkAccess";
 import { tflGet } from "@/lib/tflClient.server";
 import { peekPricedVenues } from "@/lib/venuePriceIndex";
 import { cachedLastTrainValue } from "@/lib/lastTrainStableCache.server";
@@ -77,6 +77,11 @@ const MODES = "tube,dlr,elizabeth-line,overground";
 // Cap the timetable fan-out so a busy interchange (many lines) can't blow the
 // keyless rate limit; four lines is plenty for a "head home" glance.
 const LINE_CAP = 4;
+
+// TfL lists stations nearest first along the straight line. The route keeps
+// the first few so lib/stationWalkAccess can pick the shortest street walk
+// among them; the answer is still one station.
+const STATION_CANDIDATES = 5;
 // --- Minimal shapes for just the fields we read off the TfL responses. ---
 
 type StopPointLine = { id?: string; name?: string };
@@ -174,11 +179,12 @@ async function nearestStation(
         timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
         signal,
       });
-      return stops?.stopPoints?.[0] ?? null;
+      return (stops?.stopPoints ?? []).filter((stop) => Boolean(stop.id)).slice(0, STATION_CANDIDATES);
     }),
-    (station) => Boolean(station?.id),
+    (stations) => stations.length > 0,
   );
-  return awaitCachedValueForRequest(producer, signal, null);
+  const candidates = await awaitCachedValueForRequest(producer, signal, []);
+  return chooseByStreetWalk({ lat, lng }, candidates);
 }
 
 // TfL Arrivals: one entry per vehicle currently predicted for this stop.

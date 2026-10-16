@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
   cellKey,
+  chooseByStreetWalk,
   parseStationWalkAccess,
   streetWalkMetres,
   type StationWalkAccess,
@@ -47,6 +48,33 @@ describe("streetWalkMetres", () => {
     const station = FIXTURE.stations[0]!;
     const straight = haversineMeters(51.514, -0.132, station.lat, station.lng);
     expect(streetWalkMetres({ lat: 51.514, lng: -0.132 }, station, short)).toBeCloseTo(straight, 6);
+  });
+});
+
+describe("chooseByStreetWalk", () => {
+  const from = { lat: 51.514, lng: -0.132 };
+  const leicesterSquare = { id: "LSQ", lat: 51.5113, lon: -0.1281 };
+  const tottenhamCourtRoad = { id: "TCR", lat: 51.5167, lon: -0.1305 };
+  const holborn = { id: "HOL", lat: 51.517236, lon: -0.119841 };
+
+  it("re-ranks TfL's candidates by street walk", () => {
+    expect(chooseByStreetWalk(from, [leicesterSquare, tottenhamCourtRoad], FIXTURE)).toBe(tottenhamCourtRoad);
+  });
+
+  it("keeps TfL's first when it is already the shortest walk", () => {
+    expect(chooseByStreetWalk(from, [tottenhamCourtRoad, leicesterSquare], FIXTURE)).toBe(tottenhamCourtRoad);
+  });
+
+  it("keeps TfL's order when its first choice has no street walk to compare", () => {
+    expect(chooseByStreetWalk(from, [holborn, tottenhamCourtRoad], FIXTURE)).toBe(holborn);
+  });
+
+  it("ignores a candidate the table cannot name", () => {
+    expect(chooseByStreetWalk(from, [leicesterSquare, holborn], FIXTURE)).toBe(leicesterSquare);
+  });
+
+  it("answers null for no candidates", () => {
+    expect(chooseByStreetWalk(from, [], FIXTURE)).toBeNull();
   });
 });
 

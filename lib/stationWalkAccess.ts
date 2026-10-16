@@ -114,3 +114,38 @@ export function streetWalkMetres(
   const straight = haversineMeters(point.lat, point.lng, station.lat, station.lng);
   return Math.max(best.metres, straight);
 }
+
+type CandidateStation = { lat?: number; lon?: number };
+
+/**
+ * Pick the station a drinker reaches soonest on foot from TfL's candidates.
+ *
+ * TfL's StopPoint search lists stations nearest first along the straight
+ * line, and the first is not always the shortest walk: in the West End pilot
+ * 12 of 113 curated pubs reach a different station first on foot. Re-ranking
+ * applies only when TfL's own first choice has a street walk, so every
+ * comparison is street against street. When it has none, TfL's order stands.
+ */
+export function chooseByStreetWalk<T extends CandidateStation>(
+  from: { lat: number; lng: number },
+  candidates: readonly T[],
+  access: StationWalkAccess = bundledAccess(),
+): T | null {
+  const first = candidates[0];
+  if (!first) return null;
+  const walkTo = (candidate: T): number | null =>
+    typeof candidate.lat === "number" && typeof candidate.lon === "number"
+      ? streetWalkMetres(from, { lat: candidate.lat, lng: candidate.lon }, access)
+      : null;
+  let best = first;
+  let bestWalk = walkTo(first);
+  if (bestWalk === null) return first;
+  for (const candidate of candidates.slice(1)) {
+    const walk = walkTo(candidate);
+    if (walk !== null && walk < bestWalk) {
+      best = candidate;
+      bestWalk = walk;
+    }
+  }
+  return best;
+}
