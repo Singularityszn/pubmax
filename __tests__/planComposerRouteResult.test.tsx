@@ -276,6 +276,41 @@ describe("the First pint beside a night the default stepped over", () => {
     expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
   });
 
+  // Near the end of the night the rounding runs out of slots: the next quarter
+  // lands on the NEXT night, so there is nothing left to step back to. The tap
+  // used to fall through to the late default - 19:00 the following evening -
+  // under a label naming the small hours, with nothing on screen saying so.
+  it("writes nothing rather than a night its label does not name", async () => {
+    // 03:28 UTC is 04:28 BST: the last few minutes with a slot left.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-16T03:28:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(tonightChoice()!.textContent).toBe("Tonight, Fri 16 Oct, 04:45");
+
+    // A start the reader chose, so a wrong write is visible rather than hidden
+    // behind the default the door would otherwise have fallen back to.
+    const field = startField();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "2026-10-18T19:00");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect(startField().value).toBe("2026-10-18T19:00");
+
+    // 03:35 UTC is 04:35 BST: the next quarter is 05:00, which is the next
+    // night, so the door has nothing to offer and must write nothing.
+    vi.setSystemTime(new Date("2026-10-16T03:35:00.000Z"));
+    const tonight = tonightChoice()!;
+    await act(async () => { tonight.click(); });
+    await settle();
+
+    expect(startField().value).toBe("2026-10-18T19:00");
+    expect(summary()).toContain("Sun 18 Oct, 19:00");
+    expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
+  });
+
   it("re-reads the offer as the clock moves, so the label names the slot it writes", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));

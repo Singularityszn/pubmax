@@ -1074,11 +1074,12 @@ function nextEvening(): string {
 
 /**
  * The name of the night the late default stepped over, for the one-tap choice
- * beside the field: null before the cutoff, where the default already is
- * tonight. Read on every render, and the slot itself read again on the tap,
+ * beside the field: null whenever `tonightLondonStartInput` has no slot left
+ * to offer. Read on every render, and the slot itself read again on the tap,
  * never latched - a quarter-hour held from mount is a moment that has passed
  * by the time a reader has described a night and sorted it, and the lock
- * refuses a start in the past.
+ * refuses a start in the past. The tap writes that fresh slot or nothing: a
+ * control may not write a night its own label does not name.
  */
 function tonightChoiceLabel(): string | null {
   const value = tonightLondonStartInput();
@@ -2525,7 +2526,10 @@ function PlanComposerForm({
             type="button"
             className="planComposer__tonight"
             data-testid="plan-tonight-choice"
-            onClick={() => updatePlanStartTime(tonightLondonStartInput() ?? defaultLondonStartInput())}
+            onClick={() => {
+              const slot = tonightLondonStartInput();
+              if (slot) updatePlanStartTime(slot);
+            }}
           >
             Tonight, {tonightLabel}
           </button>
