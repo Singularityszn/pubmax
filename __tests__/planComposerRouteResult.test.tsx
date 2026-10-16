@@ -247,6 +247,32 @@ describe("the First pint beside a night the default stepped over", () => {
       .toBe("2026-10-15T22:30:00.000Z");
   });
 
+  // The page runs no timer, so a button offered before midnight is still on
+  // screen after it. The slot it was offered then is a moment that has gone,
+  // and the lock refuses a start in the past: the tap must write a start that
+  // is still ahead of now, whatever the clock has done since.
+  it("never writes a start in the past, even tapped after the night it offered", async () => {
+    // 22:50 UTC is 23:50 BST: the slot rolls past midnight.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T22:50:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    const tonight = tonightChoice()!;
+    expect(tonight.textContent).toBe("Tonight, Fri 16 Oct, 00:15");
+
+    // Back at 00:40, with no render in between.
+    vi.setSystemTime(new Date("2026-10-15T23:40:00.000Z"));
+    await act(async () => { tonight.click(); });
+    await settle();
+
+    expect(startField().value).not.toBe("2026-10-16T00:15");
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
+      .not.toBeNull();
+    // Nothing the reader had settled is re-opened by the tap.
+    expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
+  });
+
   it("re-reads the offer as the clock moves, so the label names the slot it writes", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));

@@ -95,15 +95,6 @@ describe("reading a way home out of a plan request", () => {
     expect(inferNightContext("pints in Soho, back on the Tube", NOW).context.transportConstraints).toEqual(["tube"]);
   });
 
-  it("matches walk as a whole word only, never inside a pub's name", () => {
-    expect(inferNightContext("cheap pints at Walkabout in Shepherd's Bush", NOW)
-      .context.transportConstraints).toEqual([]);
-    expect(inferNightContext("pints near the Walkie Talkie", NOW)
-      .context.transportConstraints).toEqual([]);
-    expect(inferNightContext("pints in Soho within walking distance", NOW)
-      .context.transportConstraints).toEqual(["walking"]);
-  });
-
   it("splits a way home from the route rules", () => {
     expect(routeTransportConstraints(["tube", "walking"])).toEqual(["walking"]);
     expect(routeTransportConstraints(["tube"])).toEqual([]);

@@ -530,9 +530,12 @@
 }
 
 /* NO PRIMARY IN THIS BAR. The sheet's one painted price action is the
-   Overview's price door (`.priceDoor`, app/globals.css) and the phone peek's
-   "Plan stop" is its one painted plan action, so every command here is a
-   ghost: Make it Stop 1, Crawl, Share. */
+   Overview's price door (`.priceDoor`, app/globals.css), and on a phone the
+   peek strip owns the one painted plan door, whose label follows the crawl
+   ("Make it Stop 1" with none being built, "Plan stop" / "In plan" once one
+   is). So every command here is a ghost: Crawl and Share at every width, and
+   Make it Stop 1 only on a desktop, because the rule below stands it down at
+   the breakpoint that shows the strip. */
 .venueSheetStickyGhost {
   flex: 1 1 0;
   border: 1px solid var(--control-tint-border, var(--line));

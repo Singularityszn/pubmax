@@ -1073,16 +1073,16 @@ function nextEvening(): string {
 }
 
 /**
- * The night the late default stepped over, as a one-tap choice: null before
- * the cutoff, where the default already is tonight. Read on every render and
- * again on the tap, never latched - a quarter-hour slot held from mount is a
- * moment that has passed by the time a reader has described a night and sorted
- * it, and the lock refuses a start in the past.
+ * The name of the night the late default stepped over, for the one-tap choice
+ * beside the field: null before the cutoff, where the default already is
+ * tonight. Read on every render, and the slot itself read again on the tap,
+ * never latched - a quarter-hour held from mount is a moment that has passed
+ * by the time a reader has described a night and sorted it, and the lock
+ * refuses a start in the past.
  */
-function tonightChoice(): { value: string; label: string } | null {
+function tonightChoiceLabel(): string | null {
   const value = tonightLondonStartInput();
-  const label = value === null ? null : routeStartLabel(value);
-  return value === null || label === null ? null : { value, label };
+  return value === null ? null : routeStartLabel(value);
 }
 
 function unsupportedPatchForCurrentGenerator(
@@ -2502,7 +2502,7 @@ function PlanComposerForm({
   // Whether the field is parked on a night after the one running now. The
   // Tonight choice only has something to offer while that is true.
   const startsOnALaterNight = londonNightsAhead(startTime)?.nights !== 0;
-  const lateNightTonight = tonightChoice();
+  const tonightLabel = tonightChoiceLabel();
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
@@ -2520,14 +2520,14 @@ function PlanComposerForm({
             the reader is standing in needs a door of its own. It carries the
             date because an early-hours slot reads as tomorrow on a calendar
             and as tonight on a night out. */}
-        {lateNightTonight && startsOnALaterNight ? (
+        {tonightLabel && startsOnALaterNight ? (
           <button
             type="button"
             className="planComposer__tonight"
             data-testid="plan-tonight-choice"
-            onClick={() => updatePlanStartTime(tonightLondonStartInput() ?? lateNightTonight.value)}
+            onClick={() => updatePlanStartTime(tonightLondonStartInput() ?? defaultLondonStartInput())}
           >
-            Tonight, {lateNightTonight.label}
+            Tonight, {tonightLabel}
           </button>
         ) : null}
       </div>
