@@ -45,6 +45,7 @@ const card: LandingPubCardData = {
   id: defined(anchorId),
   name: "The Black Friar",
   area: "City of London",
+  primaryBorough: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha" as Route,
@@ -159,7 +160,11 @@ describe("the landing hero stands on a photograph", () => {
   });
 
   it("follows the answer's own borough when it holds no picture of the pub", () => {
-    const camden = hero({ id: "venue-not-in-the-set", area: "Camden" });
+    const camden = hero({
+      id: "venue-not-in-the-set",
+      area: "Hatton Garden",
+      primaryBorough: "Camden",
+    });
     expect(camden).toContain("/landing/london/camden-lock-640.avif 640w");
   });
 });

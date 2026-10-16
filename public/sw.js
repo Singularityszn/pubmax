@@ -8,7 +8,11 @@
  *     components/OfflineReady.tsx and next.config.mjs). `activate` preserves
  *     trusted offline entries. See sw-plan-cache.js for Plan cache retirement.
  *  2. NEVER serve stale HTML for navigations. Navigations are network-first;
- *     the cache is only a fallback when the network is genuinely down.
+ *     the cache is only a fallback when the network is genuinely down, or
+ *     when a shelved shell's network answer stalls past
+ *     NAVIGATION_NETWORK_TIMEOUT_MS and the shelved copy is no older than
+ *     that page's own revalidate window (SHELL_FRESH_FOR_MS), so it is no
+ *     staler than the CDN itself may hand out.
  *  3. NEVER cache API responses (GET or POST). Last-train times and pint
  *     prices must be live or absent — stale data here is a lie (honesty rule).
  *     Non-GET requests are never intercepted at all.
@@ -19,7 +23,9 @@
  *   tiles.openfreemap.org + /_next/static/*
  *       → stale-while-revalidate, trimmed FIFO/LRU-ish at MAX_SWR_ENTRIES
  *   navigations
- *       → network-first → cached plan preview or fixed shell page → cached "/" → /offline.html
+ *       → navigation preload (else fetch), network-first
+ *         → shelved shell after a timeout, only while within its revalidate window
+ *         → cached plan preview or fixed shell page → cached "/" → /offline.html
  *   /api/* GETs
  *       → untouched (network-only); the app already renders honest
  *         empty/error states when these fail.
@@ -77,6 +83,22 @@ const OFFLINE_URL = "/offline.html";
 // pre-fix worker for exactly the storage pressure this one is built for.
 const SHELL_URLS = ["/", "/map", "/tonight", OFFLINE_URL];
 
+// A stalled navigation (weak or captive signal) may serve its shelved shell
+// after this long, while the live answer keeps loading and refreshes the
+// shelf. Healthy CDN-held shells answer in well under a second.
+const NAVIGATION_NETWORK_TIMEOUT_MS = 4000;
+// How old a shelved shell may be and still answer a stalled navigation. Each
+// is that page's own `revalidate` (app/page.tsx, app/map/page.tsx,
+// app/tonight/page.tsx): the CDN may already hand out a copy that old, so the
+// shelf is never staler than the network would be. /tonight carries prices
+// and the London clock, so it gets five minutes, not an hour. A shell with no
+// readable Date header never answers early; it waits for the network.
+const SHELL_FRESH_FOR_MS = {
+  "/": 60 * 60 * 1000,
+  "/map": 60 * 60 * 1000,
+  "/tonight": 5 * 60 * 1000,
+};
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) =>
@@ -100,10 +122,17 @@ self.addEventListener("activate", (event) => {
     Promise.allSettled([
       ...CACHE_FAMILIES.map(migrateCacheFamily),
       retireLegacyPlanCaches(),
+      enableNavigationPreload(),
     ])
       .then(() => self.clients.claim()),
   );
 });
+
+// Navigation preload starts the network request while the worker boots, so
+// worker start-up never sits in front of a navigation's first byte.
+async function enableNavigationPreload() {
+  await self.registration.navigationPreload?.enable();
+}
 
 function isPreFixActiveWorker() {
   const activeUrl = self.registration.active?.scriptURL;
@@ -465,24 +494,76 @@ async function cachePutBestEffort(cache, request, response) {
   }
 }
 
+async function navigationNetworkResponse(event, request) {
+  const preloaded = await event.preloadResponse;
+  if (preloaded) return preloaded;
+  return fetch(request);
+}
+
+function shelveNavigation(request, url, response) {
+  // Keep the shell copies fresh so the offline fallback is the latest deploy
+  // this browser has seen — but only for the pages we deliberately shelve.
+  if (response.ok && isEligibleShellCacheUrl(url)) {
+    const copy = response.clone();
+    return caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy));
+  }
+  if (response.ok && isEligiblePlanCacheUrl(url) && self.planCache) {
+    // Shelve the plan preview so a crew that opened the link earlier
+    // can reopen it with no signal. Cache-on-success, bounded + LRU inside
+    // the module; best-effort so it never delays the response.
+    const copy = response.clone();
+    return self.planCache.cachePlanNavigation(request, copy, url, PLAN_CACHE);
+  }
+  return undefined;
+}
+
+function shelvedShellAgeMs(response, now) {
+  const date = Date.parse(response.headers?.get?.("date") ?? "");
+  if (!Number.isFinite(date)) return Infinity;
+  const age = Number(response.headers.get("age"));
+  return Math.max(0, now - date) + (Number.isFinite(age) && age > 0 ? age * 1000 : 0);
+}
+
+// Resolves with the shelved shell if the network has not answered within
+// NAVIGATION_NETWORK_TIMEOUT_MS and the shelf is fresh enough; otherwise with
+// undefined, and the caller keeps waiting on the network.
+async function stalledShellFallback(network, url) {
+  const freshForMs = url.origin === self.location.origin
+    ? SHELL_FRESH_FOR_MS[url.pathname]
+    : undefined;
+  if (!freshForMs) return undefined;
+  let timer;
+  const timedOut = await Promise.race([
+    network.then(() => false, () => false),
+    new Promise((resolve) => {
+      timer = setTimeout(() => resolve(true), NAVIGATION_NETWORK_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(timer);
+  if (!timedOut) return undefined;
+  const shelved = await matchCacheFamily(SHELL_CACHE, url.href, {
+    ignoreSearch: true,
+  });
+  if (!shelved || shelvedShellAgeMs(shelved, Date.now()) > freshForMs) {
+    return undefined;
+  }
+  return shelved;
+}
+
 async function handleNavigation(event, request, url) {
+  const network = navigationNetworkResponse(event, request);
+  // Registered before any await so the copy is cloned before the page reads
+  // the body, and so a live answer that lands after a stalled-shell fallback
+  // still refreshes the shelf.
+  event.waitUntil(
+    network
+      .then((response) => shelveNavigation(request, url, response))
+      .catch(() => undefined),
+  );
   try {
-    const response = await fetch(request);
-    // Keep the shell copies fresh so the offline fallback is the latest deploy
-    // this browser has seen — but only for the pages we deliberately shelve.
-    if (response.ok && isEligibleShellCacheUrl(url)) {
-      const copy = response.clone();
-      event.waitUntil(
-        caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
-      );
-    } else if (response.ok && isEligiblePlanCacheUrl(url) && self.planCache) {
-      // Shelve the plan preview so a crew that opened the link earlier
-      // can reopen it with no signal. Cache-on-success, bounded + LRU inside
-      // the module; best-effort via waitUntil so it never delays the response.
-      const copy = response.clone();
-      event.waitUntil(self.planCache.cachePlanNavigation(request, copy, url, PLAN_CACHE));
-    }
-    return response;
+    const stalled = await stalledShellFallback(network, url);
+    if (stalled) return stalled;
+    return await network;
   } catch {
     // The native entry document is never shelved, and the cached root served
     // under its URL would read as a deep link. Hand it to the root ladder.

@@ -51,6 +51,67 @@ function harness(overrides: Partial<Record<string, { status: number; stdout: str
   return { deps, calls, said };
 }
 
+function environmentHarness({ deploymentId = "dpl_new", promoteStatus = 0 }: {
+  deploymentId?: string | null;
+  promoteStatus?: number;
+} = {}) {
+  const fixture = harness({ "vercel promote": { status: promoteStatus, stdout: "" } });
+  const { deps } = fixture;
+  const events: string[] = [];
+  const environments = {
+    preview: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://preview-fixture.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "fixture-preview-key",
+    },
+    production: {
+      CRON_SECRET: "fixture-production-secret",
+      NEXT_PUBLIC_SUPABASE_URL: "https://production-fixture.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "fixture-production-key",
+    },
+  };
+  let artifact: { buildEnv: Record<string, string>; runtimeEnv: Record<string, string> } | null = null;
+  let domainDeploymentId = "dpl_old";
+  let liveReads = 0;
+  const run = deps.run;
+  deps.preflight = [{ name: "migration ledger", run: async () => { events.push("preflight"); } }];
+  deps.run = async (command, args, options) => {
+    const result = await run(command, args, options);
+    if (command === "node" && args[0] === "scripts/deploy-vercel.mjs") {
+      // Model the documented deploy consumer, not the release helper's source.
+      // https://vercel.com/docs/cli/deploy#prod
+      // https://vercel.com/docs/cli/deploy#skip-domain
+      events.push("deploy");
+      const targetIndex = args.indexOf("--target");
+      const target = args.includes("--prod") ? "production"
+        : args.find((arg) => arg.startsWith("--target="))?.slice("--target=".length)
+          ?? (targetIndex >= 0 ? args[targetIndex + 1] : "preview");
+      const env = target === "production" ? environments.production : environments.preview;
+      artifact = { buildEnv: { ...env }, runtimeEnv: { ...env } };
+      if (target === "production" && !args.includes("--skip-domain")) domainDeploymentId = "dpl_new";
+    }
+    if (command === "vercel" && args[0] === "promote") {
+      events.push("promote");
+      expect(args[1]).toBe("https://pubmax-abc.vercel.app");
+      // Promotion assigns domains to the existing artifact. It does not select new values.
+      if (result.status === 0) domainDeploymentId = "dpl_new";
+    }
+    if (command === "gh" && args[0] === "workflow") events.push("dispatch");
+    if (command === "gh" && args[0] === "run" && args[1] === "watch") events.push("watch");
+    return result;
+  };
+  deps.deploymentIdAt = async (origin) => {
+    if (origin === "https://pubmax-abc.vercel.app") {
+      events.push("identity");
+      expect(domainDeploymentId).toBe("dpl_old");
+      return deploymentId;
+    }
+    expect(origin).toBe("https://pubmaxxing.com");
+    events.push("live");
+    return liveReads++ === 0 ? "dpl_old" : domainDeploymentId;
+  };
+  return { ...fixture, events, artifact: () => artifact, domainDeploymentId: () => domainDeploymentId };
+}
+
 describe("parseDeploymentUrl", () => {
   it("takes the last deployment URL the CLI printed", () => {
     expect(
@@ -74,6 +135,49 @@ describe("pickDispatchedRun", () => {
 });
 
 describe("releaseProduction", () => {
+  it("stages production values without moving domains before identity verification and promotion", async () => {
+    const fixture = environmentHarness();
+    const result = await releaseProduction(fixture.deps, { pollMs: 10 });
+    const expectedEnv = {
+      CRON_SECRET: "fixture-production-secret",
+      NEXT_PUBLIC_SUPABASE_URL: "https://production-fixture.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "fixture-production-key",
+    };
+    expect(fixture.artifact()).toEqual({ buildEnv: expectedEnv, runtimeEnv: expectedEnv });
+    expect(fixture.domainDeploymentId()).toBe("dpl_new");
+    expect(fixture.events).toEqual(["preflight", "deploy", "identity", "promote", "live", "live", "dispatch", "watch"]);
+    expect(result).toEqual({
+      sha: SHA, deploymentId: "dpl_new", deploymentUrl: "https://pubmax-abc.vercel.app", smokeRunId: 77,
+    });
+  });
+
+  it("keeps domains unchanged when the staged production deployment has no identity", async () => {
+    const fixture = environmentHarness({ deploymentId: null });
+    await expect(releaseProduction(fixture.deps)).rejects.toThrow(/named no deployment/);
+    expect(fixture.domainDeploymentId()).toBe("dpl_old");
+    expect(fixture.events).toEqual(["preflight", "deploy", "identity"]);
+  });
+
+  it("keeps domains unchanged and does not dispatch smoke when promotion fails", async () => {
+    const fixture = environmentHarness({ promoteStatus: 1 });
+    await expect(releaseProduction(fixture.deps)).rejects.toThrow(/promote failed/);
+    expect(fixture.domainDeploymentId()).toBe("dpl_old");
+    expect(fixture.events).toEqual(["preflight", "deploy", "identity", "promote"]);
+  });
+
+  it("refuses a failed migration preflight before any upload or domain movement", async () => {
+    const fixture = environmentHarness();
+    fixture.deps.preflight = [{
+      name: "migration ledger",
+      run: async () => { throw new ReleaseRefusal("Production lacks a migration."); },
+    }];
+    await expect(releaseProduction(fixture.deps)).rejects.toThrow(/lacks a migration/);
+    expect(fixture.artifact()).toBeNull();
+    expect(fixture.domainDeploymentId()).toBe("dpl_old");
+    expect(fixture.events).toEqual([]);
+    expect(fixture.calls.every((call) => call.command === "git")).toBe(true);
+  });
+
   it("deploys, promotes, waits for the live origin, then dispatches and watches the smoke run", async () => {
     const { deps, calls } = harness();
     const result = await releaseProduction(deps, { pollMs: 10 });

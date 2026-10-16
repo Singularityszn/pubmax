@@ -18,6 +18,7 @@ import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
@@ -91,7 +92,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { venue } = read;
 
   const title = `The Ledger: ${venue.name}. PUBMAXXING`;
-  const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"}. Heritage notes and the pub's logbook of visits, in large print.`;
+  const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
   const canonical = `/ledger/${encodeURIComponent(venue.id)}`;
@@ -144,12 +145,14 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
           },
         }
       : {}),
-    ...(venue.address || venue.primaryBorough
+    ...(venue.address || venue.locality || venue.primaryBorough
       ? {
           address: {
             "@type": "PostalAddress",
             ...(venue.address ? { streetAddress: venue.address } : {}),
-            ...(venue.primaryBorough ? { addressLocality: venue.primaryBorough } : {}),
+            ...(venue.locality || venue.primaryBorough
+              ? { addressLocality: venueAreaLabel(venue) }
+              : {}),
             ...(addressRegion ? { addressRegion } : {}),
             addressCountry: "GB",
           },
@@ -293,7 +296,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // newest few entries, kept short and skimmable for a screen reader / TTS
   // pass rather than reading the entire ledger aloud.
   const speechParts = [
-    `The Ledger for ${venue.name}, ${venue.primaryBorough || "London"}.`,
+    `The Ledger for ${venue.name}, ${venueAreaLabel(venue)}.`,
     curation.heritageNote ? curation.heritageNote : "",
     ...entries
       .slice(0, 5)
@@ -315,7 +318,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
         <h1 className="ledgerTitle">{venue.name}</h1>
         <p className="ledgerAddress">
           {venue.address ? `${venue.address} · ` : ""}
-          {venue.primaryBorough || "London"}
+          {venueAreaLabel(venue)}
         </p>
 
         {/* Listed-building brass plaque (Historic England NHLE). Rendered only
