@@ -383,12 +383,18 @@ export function defaultLondonStartInput(now = new Date()): string {
 /**
  * Tonight's next sensible slot, for the reader the late default stepped over:
  * the same quarter-hour rounding the default uses outside the late window.
- * Null outside it, where the default already IS tonight and there is nothing
- * to offer. An early-hours slot still belongs to the night running now
- * (`londonNightsAhead`), which is why the choice carries its date.
+ * Null whenever there is no such slot - outside the window, where the default
+ * already IS tonight; past 04:30, where the rounding has walked off the end of
+ * this night onto the next; and in the spring-forward gap, where the slot is a
+ * London time the lock would refuse. `londonNightsAhead` answers all three,
+ * because it reads the night AND the lock, so the words on the door and the
+ * start it writes can never disagree with the rest of the plan.
  */
 export function tonightLondonStartInput(now = new Date()): string | null {
-  return inLondonLateWindow(now) ? londonInput(nextLondonQuarter(now)) : null;
+  if (!inLondonLateWindow(now)) return null;
+  const value = londonInput(nextLondonQuarter(now));
+  const ahead = londonNightsAhead(value, now);
+  return ahead && ahead.nights === 0 && !ahead.past ? value : null;
 }
 
 /** Next future occurrence of a preset's London wall time, including DST rollover. */

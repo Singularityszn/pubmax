@@ -1716,6 +1716,12 @@ for (const viewport of VIEWPORTS) {
 // a box-level overlap is true even when the lane is reserved. Each line is
 // parked in the control's own band first, because the page scrolls under a
 // FIXED control and any line may be the one that comes to rest there.
+//
+// Counted PER SELECTOR, and every selector a call names must have matched. One
+// aggregate count let an absent selector ride along on its neighbours, which
+// reads as proof and is not: these lines are an either/or in one ternary
+// (`.nmnSub` against `.nmnWiden`) or conditional on an answer's own state, so
+// each page state is measured with the list it really renders.
 async function expectTextClearOfCreateAction(
   page: Page,
   selectors: readonly string[],
@@ -1723,28 +1729,34 @@ async function expectTextClearOfCreateAction(
   await expect(page.getByTestId("create-fab")).toBeVisible();
   const report = await page.evaluate((list) => {
     const fab = document.querySelector(".createFab");
-    if (!fab) return { measured: 0, overlaps: [] as string[] };
-    const nodes = list.flatMap((selector) => [...document.querySelectorAll(selector)]);
+    const counted: Array<{ selector: string; lines: number }> = [];
     const overlaps: string[] = [];
-    let measured = 0;
-    for (const node of nodes) {
-      node.scrollIntoView({ block: "end", behavior: "instant" });
-      const f = fab.getBoundingClientRect();
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      for (const line of range.getClientRects()) {
-        if (line.width === 0 || line.height === 0) continue;
-        measured += 1;
-        if (line.left < f.right && line.right > f.left
-          && line.top < f.bottom && line.bottom > f.top) {
-          overlaps.push(`${node.className}: ${(node.textContent ?? "").trim().slice(0, 48)}`);
-          break;
+    if (!fab) return { counted, overlaps };
+    for (const selector of list) {
+      let lines = 0;
+      for (const node of document.querySelectorAll(selector)) {
+        node.scrollIntoView({ block: "end", behavior: "instant" });
+        const f = fab.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const line of range.getClientRects()) {
+          if (line.width === 0 || line.height === 0) continue;
+          lines += 1;
+          if (line.left < f.right && line.right > f.left
+            && line.top < f.bottom && line.bottom > f.top) {
+            overlaps.push(`${selector}: ${(node.textContent ?? "").trim().slice(0, 48)}`);
+            break;
+          }
         }
       }
+      counted.push({ selector, lines });
     }
-    return { measured, overlaps };
+    return { counted, overlaps };
   }, [...selectors]);
-  expect(report.measured, "lines were on the page to measure").toBeGreaterThan(0);
+  expect(report.counted.map(({ selector }) => selector)).toEqual([...selectors]);
+  for (const { selector, lines } of report.counted) {
+    expect(lines, `${selector} had lines on the page to measure`).toBeGreaterThan(0);
+  }
   expect(report.overlaps, "nothing runs under the create action").toEqual([]);
 }
 
@@ -1759,7 +1771,7 @@ for (const viewport of VIEWPORTS) {
     });
 
     // The idle screen carries the location line; the answered screen carries
-    // the scope line and the footer's two links.
+    // the price column, the patch-coverage note and the footer's two links.
     const idle = await page.goto("/near");
     expect(idle?.status()).toBe(200);
     await expect(page.locator(".nmnHint")).toBeVisible();
@@ -1768,14 +1780,45 @@ for (const viewport of VIEWPORTS) {
     const answered = await page.goto("/near?patch=soho");
     expect(answered?.status()).toBe(200);
     await expect(page.locator(".nmnCard").first()).toBeVisible();
+    await expect(page.locator(".nmnPatchTier")).toBeVisible();
     await expectTextClearOfCreateAction(page, [
       ".nmnListCaption",
       ".nmnPriceCollected",
-      ".nmnSub",
-      ".nmnWiden",
       ".nmnPatchTier",
       ".nmnFoot",
     ]);
+  });
+}
+
+// A patch link the drinker chose owes no explanation, so `.nmnSub` only prints
+// once the answer is about an area RATHER than about the reader. Refusing the
+// location is the honest way to reach it.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the /near location line stays clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition: (_ok: PositionCallback, fail?: PositionErrorCallback) => {
+            fail?.({ code: 1, message: "denied", PERMISSION_DENIED: 1 } as GeolocationPositionError);
+          },
+        },
+      });
+    });
+
+    const response = await page.goto("/near");
+    expect(response?.status()).toBe(200);
+    await expect(async () => {
+      await page.getByRole("button", { name: "Find my pint" }).click();
+      await expect(page.locator(".nmnSub")).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(page.locator(".nmnSub")).toContainText("Location's off");
+    await expectTextClearOfCreateAction(page, [".nmnSub", ".nmnPatchTier"]);
   });
 }
 

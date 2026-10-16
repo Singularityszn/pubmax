@@ -366,6 +366,35 @@ describe("the composer's default First pint", () => {
     }
   });
 
+  // The slot must stay on the night the door NAMES. The quarter-hour rounding
+  // walks off the end of the night from 04:31, and the words on the door said
+  // "Tonight" over a start the heading then called tomorrow night.
+  it("offers nothing once the rounding has left the night it would name", () => {
+    process.env.TZ = "America/Los_Angeles";
+    // 03:30 UTC is 04:30 BST: the last slot still on this night.
+    const inTime = new Date("2026-10-16T03:30:00.000Z");
+    expect(tonightLondonStartInput(inTime)).toBe("2026-10-16T04:45");
+    // 03:40 UTC is 04:40 BST: the next quarter is 05:00, which is the NEXT
+    // night by the product's own rule, so there is no tonight slot left.
+    const tooLate = new Date("2026-10-16T03:40:00.000Z");
+    expect(londonNightsAhead("2026-10-16T05:00", tooLate)).toMatchObject({ nights: 1 });
+    expect(tonightLondonStartInput(tooLate)).toBeNull();
+  });
+
+  // The spring-forward gap sits inside the late window, and a start inside it
+  // is a time the lock refuses: offering it re-opened a settled intake step.
+  it("offers nothing when the slot would land in the hour the clocks skip", () => {
+    process.env.TZ = "America/Los_Angeles";
+    // 00:50 London on 29 Mar 2026; the next quarter is 01:15, which does not
+    // happen that night because the clocks go straight to 02:00.
+    const beforeTheGap = new Date("2026-03-29T00:50:00.000Z");
+    expect(londonDateTimeInputToIso("2026-03-29T01:15")).toBeNull();
+    expect(tonightLondonStartInput(beforeTheGap)).toBeNull();
+    // Once the clocks have moved, the window answers again.
+    const afterTheGap = new Date("2026-03-29T01:30:00.000Z");
+    expect(tonightLondonStartInput(afterTheGap)).toBe("2026-03-29T02:45");
+  });
+
   it("closes the late window once the night has ended", () => {
     process.env.TZ = "America/Los_Angeles";
     // 04:00 UTC is 05:00 BST: the night is over, the default is this evening
