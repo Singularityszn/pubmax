@@ -100,4 +100,24 @@ describe("the loading panel reserves the sheet", () => {
       /\.mobileSharedSheet \.venueSheetSkeleton \+ \.venueSheetSkeleton\s*{\s*display:\s*none;\s*}/,
     );
   });
+
+  // The other order. Once the panel's chunk is cached, every open after a
+  // session's first mounts the panel while the venue read is still out, so it
+  // sat UNDER the 92dvh skeleton, clipped out of view, and the read landing
+  // pulled it up into the sheet long after the tap: CLS 0.287 on the same phone
+  // rig, with the read held so the chunk wins (map-p99-vitals-tail).
+  it("holds a panel that arrived before its read out of layout until the skeleton goes", () => {
+    expect(shellCss).toMatch(
+      /\.mobileSharedSheet \.venueSheetSkeleton ~ \.venueInspector\s*{\s*display:\s*none;\s*}/,
+    );
+    // The order that makes the rule bite: the read's skeleton is a sibling
+    // BEFORE the panel in the one sheet body.
+    const panel = pubMap.slice(
+      pubMap.indexOf("function renderVenuePanel()"),
+      pubMap.indexOf("<VenueInspector", pubMap.indexOf("function renderVenuePanel()")) + 20,
+    );
+    expect(panel).toMatch(
+      /selectedDetailStatus === "loading" \? \(\s*<VenueSheetSkeleton[\s\S]*<VenueInspector/,
+    );
+  });
 });

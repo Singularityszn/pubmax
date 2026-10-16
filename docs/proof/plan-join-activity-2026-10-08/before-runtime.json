@@ -1,0 +1,46 @@
+{
+  "explicitStatus": 200,
+  "explicitInbox": {
+    "status": 200,
+    "body": {
+      "notifications": [
+        {
+          "id": "n1",
+          "actorHandle": "guest",
+          "kind": "follow",
+          "subjectRef": "guest",
+          "createdAt": "2026-10-08T10:39:39.059Z",
+          "read": false
+        }
+      ],
+      "unread": 1
+    }
+  },
+  "joinStatus": 200,
+  "friendEdgesFormed": 1,
+  "crew": [
+    "Host",
+    "Guest"
+  ],
+  "host": {
+    "status": 200,
+    "body": {
+      "notifications": [],
+      "unread": 0
+    }
+  },
+  "guest": {
+    "status": 200,
+    "body": {
+      "notifications": [],
+      "unread": 0
+    }
+  },
+  "strangerAsHost": {
+    "status": 200,
+    "body": {
+      "notifications": [],
+      "unread": 0
+    }
+  }
+}

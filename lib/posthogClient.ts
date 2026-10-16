@@ -12,6 +12,11 @@ import {
   analyticsUrlWithoutQuery,
 } from "@/lib/analyticsPath";
 import { currentAnalyticsAttributionProps } from "@/lib/analyticsAttribution.mjs";
+import {
+  MAP_LOAD_TIMING_EVENT,
+  sanitizeMapLoadTimingProps,
+  type MapLoadTimingProps,
+} from "@/lib/mapLoadTimingEvent";
 
 const SAFE_EXCEPTION_TYPES = new Set([
   "AggregateError",
@@ -52,6 +57,11 @@ const STANDARD_BROWSER_PROPERTIES = new Set([
   "$initial_referring_domain",
   "$lib",
   "$lib_version",
+  // posthog-js stamps the api_host here whenever it is not a PostHog domain,
+  // and PostHog's "reverse proxy detected" health check reads exactly this
+  // property. Dropping it made the project report no proxy although every
+  // browser event already went through /ingest. Its value is "/ingest".
+  "$lib_custom_api_host",
   "$insert_id",
   "$time",
   "$session_id",
@@ -91,6 +101,55 @@ let initialized = false;
 let consentAllowedNow = false;
 let captureEnabled = false;
 const pendingPageviews: PendingPageview[] = [];
+// One map visit sends one timing event; a visit that ends before the SDK has
+// loaded keeps only its own, so the queue cannot grow.
+type PendingMapLoadTiming = { timing: MapLoadTimingProps; at: number };
+let pendingMapLoadTiming: PendingMapLoadTiming | null = null;
+// A visit abandoned before the SDK loaded cannot leave this page, so it waits
+// here, consent-scoped, and the next consented page sends it through the SDK
+// under its own time. One row, a day at most: an old exit is not this week's.
+const MAP_LOAD_TIMING_OUTBOX_KEY = "pubmaxx:map-load-timing-outbox:v1";
+const MAP_LOAD_TIMING_OUTBOX_MAX_AGE_MS = 86_400_000;
+
+function writeMapLoadTimingOutbox(row: PendingMapLoadTiming): void {
+  try {
+    window.localStorage.setItem(MAP_LOAD_TIMING_OUTBOX_KEY, JSON.stringify(row));
+  } catch { /* storage blocked: the exit is lost, as before */ }
+}
+
+function clearMapLoadTimingOutbox(): void {
+  try {
+    if (typeof window !== "undefined") window.localStorage.removeItem(MAP_LOAD_TIMING_OUTBOX_KEY);
+  } catch { /* best effort */ }
+}
+
+/** Read and remove the stored exit, rebuilt through the closed shape. */
+function takeMapLoadTimingOutbox(now: number): PendingMapLoadTiming | null {
+  if (typeof window === "undefined") return null;
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(MAP_LOAD_TIMING_OUTBOX_KEY);
+    window.localStorage.removeItem(MAP_LOAD_TIMING_OUTBOX_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const row = JSON.parse(raw) as { timing?: unknown; at?: unknown };
+    const timing = sanitizeMapLoadTimingProps(row.timing);
+    const at = row.at;
+    if (
+      !timing
+      || typeof at !== "number"
+      || !Number.isFinite(at)
+      || at > now
+      || now - at > MAP_LOAD_TIMING_OUTBOX_MAX_AGE_MS
+    ) return null;
+    return { timing, at };
+  } catch {
+    return null;
+  }
+}
 let lastObservedPageviewPathname: string | null = null;
 
 function safeExceptionType(value: unknown): string {
@@ -238,6 +297,29 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
     };
   }
 
+  if (event.event === MAP_LOAD_TIMING_EVENT) {
+    const distinctId = event.properties.distinct_id;
+    if (!isAnonymousAnalyticsId(distinctId)) return null;
+    const timing = sanitizeMapLoadTimingProps(event.properties);
+    if (!timing) return null;
+    const known = timing.surface.startsWith("/");
+    const properties = standardBrowserProperties(
+      event.properties,
+      known ? timing.surface : undefined,
+    );
+    // An unnamed surface keeps no URL at all rather than a raw path.
+    if (!known) {
+      delete properties.$current_url;
+      delete properties.$pathname;
+    }
+    return {
+      uuid: event.uuid,
+      event: MAP_LOAD_TIMING_EVENT,
+      ...(event.timestamp ? { timestamp: event.timestamp } : {}),
+      properties: { ...properties, ...timing },
+    };
+  }
+
   if (event.event !== "$exception") return null;
 
   const distinctId = event.properties.distinct_id;
@@ -291,6 +373,8 @@ export const posthogBrowserConfig = {
   autocapture: false,
   rageclick: false,
   capture_pageview: false,
+  // $pageleave stays off: it carries time on page and scroll depth, which the
+  // privacy page does not list among the things analytics collect.
   capture_pageleave: false,
   capture_performance: true,
   // Replay, heatmaps, surveys, identify and flags stay off: the privacy page
@@ -303,7 +387,10 @@ export const posthogBrowserConfig = {
   disable_product_tours: true,
   disable_conversations: true,
   disable_external_dependency_loading: false,
-  request_batching: false,
+  // One /ingest request per flush instead of one per event: a page view, its
+  // $web_vitals and any $exception share a request, and each request is a
+  // billed function invocation through app/ingest/[...path]/route.ts.
+  request_batching: true,
   persistence: "localStorage+cookie",
   save_campaign_params: true,
   save_referrer: true,
@@ -348,6 +435,8 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
   captureEnabled = false;
   if (!consentAllowed) {
     pendingPageviews.length = 0;
+    pendingMapLoadTiming = null;
+    clearMapLoadTimingOutbox();
     lastObservedPageviewPathname = null;
     if (initialized) client?.opt_out_capturing();
     return;
@@ -390,7 +479,58 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
         $pubmaxx_anonymous_id: pageview.anonymousId,
       });
     }
+    const pending = pendingMapLoadTiming;
+    pendingMapLoadTiming = null;
+    const stored = takeMapLoadTimingOutbox(Date.now());
+    for (const row of [stored, pending]) {
+      if (!row || (row === stored && pending && stored.at === pending.at)) continue;
+      loadedClient.capture(MAP_LOAD_TIMING_EVENT, row.timing, { timestamp: new Date(row.at) });
+    }
   }).catch(() => undefined);
+}
+
+/**
+ * Send one map visit's field timing through the browser SDK. Silent without
+ * analytics consent; before_send rebuilds the closed shape again. A visit that
+ * ends as the page is hidden goes by beacon so the tail is not lost on exit,
+ * and one that ends before the SDK has loaded waits in a consent-scoped outbox
+ * for the next consented page.
+ */
+export function capturePosthogMapLoadTiming(
+  props: MapLoadTimingProps,
+  options: { beacon?: boolean } = {},
+): void {
+  if (!consentAllowedNow) return;
+  const timing = sanitizeMapLoadTimingProps(props);
+  if (!timing) return;
+  if (!initialized || !client || !captureEnabled) {
+    pendingMapLoadTiming = { timing, at: Date.now() };
+    if (options.beacon) writeMapLoadTimingOutbox(pendingMapLoadTiming);
+    return;
+  }
+  client.capture(
+    MAP_LOAD_TIMING_EVENT,
+    timing,
+    options.beacon ? { transport: "sendBeacon" } : undefined,
+  );
+}
+
+const POSTHOG_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The browser SDK's current session id, so a named product event forwarded by
+ * /api/events joins the same session as the pageviews and $web_vitals around
+ * it. Null until consent has started capture. Reading it does not extend the
+ * session.
+ */
+export function posthogSessionId(): string | null {
+  if (!consentAllowedNow || !initialized || !captureEnabled || !client) return null;
+  try {
+    const sessionId = client.get_session_id();
+    return typeof sessionId === "string" && POSTHOG_SESSION_ID.test(sessionId) ? sessionId : null;
+  } catch {
+    return null;
+  }
 }
 
 export function capturePosthogPageview(pathname: string, anonymousId: string | null): void {

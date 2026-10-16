@@ -11,7 +11,7 @@ import {
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
+import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type MapVenueListVenueSignals = ReadonlyMap<
@@ -137,6 +137,25 @@ function mapVenueListPintPrice(
     : null;
 }
 
+/**
+ * A lens figure as a row wears it. A sourced anchor's figure is the anchor's
+ * own, so it wears the anchor (whose label already names it) over the bare
+ * figure. Any other lens figure wears the drink it is for, "<category> · £X",
+ * and no anchor, because the anchor's label and source are not its evidence.
+ */
+export function mapVenueListLensPrice(
+  lensPrice: MapLensPrice,
+  anchor: CompactVenueAnchor | null,
+): { priceLabel: string; anchor: CompactVenueAnchor | null } {
+  if (lensPrice.source === "sourced-anchor" && anchor) {
+    return { priceLabel: formatGbp(lensPrice.priceGbp), anchor };
+  }
+  return {
+    priceLabel: `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`,
+    anchor: null,
+  };
+}
+
 function mapVenueListPintPriceLabel(
   venue: Venue,
   venueSignals: MapVenueListVenueSignals | null,
@@ -214,9 +233,9 @@ export function buildMapVenueListModel(
           const lensPrice = lensPrices.get(row.id);
           return {
             ...row,
-            priceLabel: lensPrice
-              ? `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`
-              : unknownLabel,
+            ...(lensPrice
+              ? mapVenueListLensPrice(lensPrice, row.anchor)
+              : { priceLabel: unknownLabel, anchor: null }),
             priceBand:
               lensPrice && lensPrice.category === "beer"
                 ? priceBand(lensPrice.priceGbp, priceBandAreaForVenue(row.id))
@@ -242,6 +261,17 @@ export function buildMapVenueListModel(
   };
 }
 
+/**
+ * The list's answer while it is CLOSED: the count the chrome prints, and no
+ * rows. A closed list renders nothing (MapVenueList), but the full model sorts
+ * every venue in view by distance and labels each one, and it was rebuilt on
+ * every camera frame and every venue tap - a long task on a phone for a panel
+ * nobody had open (map-p99-vitals-tail). Opening the list builds the real one.
+ */
+export function closedMapVenueListModel(total: number): MapVenueListModel {
+  return { rows: [], total, shown: 0, truncated: total > 0, coverageNote: null };
+}
+
 function sortMapVenueListRowsCheapest(
   rows: LogNearbyCandidate[],
   venues: Venue[],
@@ -259,11 +289,7 @@ function sortMapVenueListRowsCheapest(
       ? mapVenueListSortPrice(rightVenue, lensPrices, venueSignals)
       : null;
     if (leftPrice !== null && rightPrice !== null) {
-      return (
-        leftPrice - rightPrice ||
-        left.name.localeCompare(right.name) ||
-        left.id.localeCompare(right.id)
-      );
+      return compareCheapest(left, leftPrice, right, rightPrice);
     }
     if (leftPrice !== null) return -1;
     if (rightPrice !== null) return 1;
@@ -274,6 +300,43 @@ function sortMapVenueListRowsCheapest(
       left.id.localeCompare(right.id)
     );
   });
+}
+
+/** The cheapest order between two priced entries: price, then name, then id. */
+function compareCheapest(
+  left: { name: string; id: string },
+  leftPrice: number,
+  right: { name: string; id: string },
+  rightPrice: number,
+): number {
+  return (
+    leftPrice - rightPrice ||
+    left.name.localeCompare(right.name) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+/**
+ * The venue in view that List view's "cheapest" order puts first, with the
+ * figure it ranked on. It reads the list's own sort price and comparator, so
+ * the peek answer and the first row of the list can never disagree: a non-pub
+ * anchor with complete provenance ranks here exactly as it ranks there. Null
+ * when nothing in view carries a price.
+ */
+export function mapVenueListCheapest(
+  venues: readonly Venue[],
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  venueSignals: MapVenueListVenueSignals | null = null,
+): { venue: Venue; priceGbp: number } | null {
+  let best: { venue: Venue; priceGbp: number } | null = null;
+  for (const venue of venues) {
+    const priceGbp = mapVenueListSortPrice(venue, lensPrices, venueSignals);
+    if (priceGbp === null) continue;
+    if (best === null || compareCheapest(venue, priceGbp, best.venue, best.priceGbp) < 0) {
+      best = { venue, priceGbp };
+    }
+  }
+  return best;
 }
 
 export function buildUkBasePubListModel(

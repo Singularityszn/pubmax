@@ -22,20 +22,23 @@ const SEEDED_PUBS = [QUEENS_HEAD_ACTON_ST, QUEENS_HEAD_THEOBALDS_RD, FRIEND_AT_H
 const SEEDED_STOP_COUNT = 3;
 
 async function mockJourney(page: Page, modes: string[], minutes: number): Promise<void> {
-  await page.route("**/api/citymcp/journey**", (route) =>
-    route.fulfill({
+  // The crawl asks for every leg in one `stops=` request (F10), so the mock
+  // answers one leg per pair of consecutive stops.
+  await page.route("**/api/citymcp/journey**", (route) => {
+    const stops = (new URL(route.request().url()).searchParams.get("stops") ?? "").split(";");
+    const journey = {
+      durationMinutes: minutes,
+      legs: modes.map((mode) => ({ mode, durationMinutes: minutes })),
+    };
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        journeys: [
-          {
-            durationMinutes: minutes,
-            legs: modes.map((mode) => ({ mode, durationMinutes: minutes })),
-          },
-        ],
+        legs: stops.slice(1).map(() => ({ journeys: [journey] })),
+        asOf: null,
       }),
-    }),
-  );
+    });
+  });
 }
 
 async function openSeededCrawl(page: Page) {

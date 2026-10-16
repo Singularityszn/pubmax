@@ -118,6 +118,7 @@ describe("landing pub card", () => {
       id: "venue-eltcmh",
       name: "The Blackfriar",
       area: "City of London",
+      primaryBorough: "City of London",
       priceGbp: 6.5,
       pintName: "a pint of Pravha",
       // One pub is under the drink-brand floor, so the pint stays plain text.
@@ -151,6 +152,23 @@ describe("landing pub card", () => {
     ]);
     expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe(LANDING_PUB_PREFERENCE[0]);
     expect(buildLandingPubCard(venues.slice(0, 2), rows, { now: NOW })?.id).toBe("venue-old");
+  });
+
+  it("keeps display locality separate from canonical borough", () => {
+    const card = buildLandingPubCard(
+      [{
+        ...venue("venue-hatton", "The Sir Christopher Hatton", 6.5),
+        primaryBorough: "Camden",
+        locality: "Hatton Garden",
+      }],
+      history([{ venueId: "venue-hatton", priceGbp: 6.5, observedOn: "2026-09-01" }]),
+      { now: NOW },
+    );
+
+    expect(card).toMatchObject({
+      area: "Hatton Garden",
+      primaryBorough: "Camden",
+    });
   });
 
   it("chooses nothing rather than a pub missing a price or an archive row", () => {

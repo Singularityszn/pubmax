@@ -1,0 +1,224 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+····x·······xx·xxx·······xx·xxx·······xx··xxx·······xx··xx····x···········x·x···········x·x···········x·x···········x·····x·······xx·······xx·········x·x·········x·········································x·······xx·······xx··········xxx··········xx····x·····xx·····xx·······xx·······x···································x·········xxx·········xx··········xxx··········xx····x·······xx·······xx·········xx·········x····x·········x·x·········xx··········x·x··········x·····x··········x·x··········x·x···········x·x···········x·····x·······xx·······xx··········x·x··········x·xx········xx········xx··········xx··········xx········xx········xx··········xx··········xx········xx········xx··········xx··········xx········x·······xx········xx········xx········x·······xx········xx········xx········x·······xx········xx········x·······x·······xx········xx········xx········xx········xx··········xx··········xx········xx········xx··········xx··········x·x··x·-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 167 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, pub route budget of£20 for pint and a serving of chips"}
+AssertionError: expected { preparation: 200, post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": 200,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:236:8
+    234|     }));
+    235|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    236|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    237|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+    238|     expect(await prepared.response.json()).toMatchObject({ code: "MEAL…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/167]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint at pub and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a serving of chips and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, a serving of chips and pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint at pub plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub plus a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a serving of chips plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, a serving of chips plus pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint at pub+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a serving of chips+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, a serving of chips+pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint at pub&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a serving of chips&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, a serving of chips&pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, fish and chips and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, fish and chips plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, fish and chips+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, fish and chips&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a cheese and tomato pizza and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a cheese and tomato pizza plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a cheese and tomato pizza+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a cheese and tomato pizza&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and a bowl of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a bowl of fish and chips and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus a bowl of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a bowl of fish and chips plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+a bowl of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a bowl of fish and chips+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, a bowl of fish and chips+pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&a bowl of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a bowl of fish and chips&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, a bowl of fish and chips&pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and half a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, half a cheese and tomato pizza and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus half a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, half a cheese and tomato pizza plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+half a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, half a cheese and tomato pizza+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&half a cheese and tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, half a cheese and tomato pizza&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and 2/3 of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, 2/3 of fish and chips and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, 2/3 of fish and chips and pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus 2/3 of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, 2/3 of fish and chips plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+2/3 of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, 2/3 of fish and chips+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, 2/3 of fish and chips+pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&2/3 of fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, 2/3 of fish and chips&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 beer, 2/3 of fish and chips&pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and a large pub fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a large pub fish and chips and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus a large pub fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a large pub fish and chips plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+a large pub fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a large pub fish and chips+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&a large pub fish and chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, a large pub fish and chips&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and cheese & tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese & tomato pizza and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus cheese & tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese & tomato pizza plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+cheese & tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese & tomato pizza+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&cheese & tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese & tomato pizza&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and cheese+tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese+tomato pizza and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus cheese+tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese+tomato pizza plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+cheese+tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese+tomato pizza+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&cheese+tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese+tomato pizza&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint and cheese plus tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese plus tomato pizza and pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint plus cheese plus tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese plus tomato pizza plus pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint+cheese plus tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese plus tomato pizza+pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint&cheese plus tomato pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 beer, cheese plus tomato pizza&pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint in X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint in X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint in X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint in X plus a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint in X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint in X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint in X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint in X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint from X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint from X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from X plus a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint from X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint from X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint near X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint near X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint near X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint near X plus a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint near X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint near X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint near X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint near X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint around X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint around X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint around X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint around X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint around X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint around X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint around X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint within X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint within X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint within X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint within X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint within X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint within X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint within X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint inside X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint inside X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint inside X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint inside X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint inside X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint inside X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint inside X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint outside X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint outside X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint outside X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint outside X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint outside X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint outside X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint by X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint by X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint by X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint by X plus a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint by X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint by X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint by X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint by X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint where X and a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint where X and a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint where X plus a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint where X plus a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint where X+a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint where X+a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 pint where X&a serving of chips"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint where X&a serving of chips"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 PINT AND A SERVING OF CHIPS"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains complete coordinated food phrases at preparation and POST: {"query":"3 pubs in Clapham, £10 PINT & FISH AND CHIPS"}
+AssertionError: expected { preparation: 200, post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": 200,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:236:8
+    234|     }));
+    235|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    236|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    237|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+    238|     expect(await prepared.response.json()).toMatchObject({ code: "MEAL…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/167]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  167 failed | 781 passed | 3347 skipped (4295)
+   Start at  16:39:19
+   Duration  2.54s (tests 75%, transform 18%, import 7%)
+

@@ -5,7 +5,6 @@ import {
   drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
 } from "@/lib/mapExperienceLens";
-import { DONUT_BADGE_MIN } from "@/lib/donutClusterGeometry";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import { SPOONS_VALUE_RESPONSIBLE_LINE } from "@/lib/spoonsValue";
 
@@ -221,7 +220,7 @@ describe("mapPriceLegend", () => {
     expect(degraded.hint).toContain("could not read");
     expect(degraded.hint).not.toContain("trusted whisky prices");
     expect(degraded.cluster?.note).toBe(
-      "Clusters stay grey because whisky prices could not be read just now. The number is every venue in the cluster.",
+      "We could not read the whisky prices just now. A cluster shows every venue in it.",
     );
     expect(degraded.cluster?.note).not.toContain("none has");
     expect(degraded.hint).not.toBe(
@@ -276,7 +275,7 @@ describe("mapPriceLegend", () => {
     expect(legend.hint).not.toContain(priceBandLegendLabel("cheap", { city: "london" }));
     expect(legend.hint).not.toContain("trusted food prices");
     expect(legend.cluster?.note).toBe(
-      "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.",
+      "Food prices do not colour this map. A cluster shows every venue in it.",
     );
     expect(legend.cluster?.note).not.toContain("price band");
     expect(legend.noAlcoholNote).toBeNull();
@@ -303,7 +302,7 @@ describe("mapPriceLegend colour rows under a failed read", () => {
     expect(degraded.rows.map((row) => row.tone)).toEqual(["amber", "grey"]);
     expect(degraded.hint).toContain("already loaded");
     expect(degraded.hint).not.toContain("no pub is coloured");
-    expect(degraded.cluster?.note).toContain("most common known one");
+    expect(degraded.cluster?.note).toContain("plain disc");
     // A drink view prints no pint figure on a disc, so its note never claims one.
     expect(degraded.cluster?.note).not.toContain("cheapest");
   });
@@ -347,20 +346,15 @@ describe("map key inventory", () => {
       },
     });
 
-    // The default view's disc prints the cheapest listed price, with the venue
-    // count as the small number on its rim from DONUT_BADGE_MIN venues up.
-    expect(legend.cluster?.note).toContain("When a pub in it lists a pint price, the figure is the cheapest one");
-    expect(DONUT_BADGE_MIN).toBe(10);
-    expect(legend.cluster?.note).toContain(
-      "a cluster of ten or more venues shows how many as a small number on the rim",
+    // Owner decision 16 Oct 2026: the disc is neutral and says "from" the
+    // cheapest listed price, in that price's own band colour, with the venue
+    // count under it. The key says what the map paints and nothing else.
+    expect(legend.cluster?.note).toBe(
+      "A cluster is a plain disc. When a pub in it lists a pint price, it reads from the cheapest one, in that price's own band colour, with how many venues it holds underneath. Otherwise it shows the venue count.",
     );
-    // A coloured disc with no listed pint prints its count too, so the count is
-    // never tied to a grey ring.
-    expect(legend.cluster?.note).toContain("Otherwise the figure is the venue count.");
-    expect(legend.cluster?.note).not.toMatch(/Grey[^.]*venue count/);
-    expect(legend.cluster?.note).toContain("most common known one");
-    // A desktop past DONUT_CAP clusters draws solid GL rings too, so the solid
-    // ring is never told as a phone-only reading.
+    expect(legend.cluster?.samplePriced).toBe(true);
+    // No ring reading survives: a ring that carried a band could contradict the figure.
+    expect(legend.cluster?.note).not.toMatch(/ring|most common|Grey/);
     expect(legend.cluster?.note).not.toContain("phone");
     expect(legend.shapes?.map((row) => row.id)).toEqual([
       "pub-drink",
@@ -375,6 +369,7 @@ describe("map key inventory", () => {
       "provisional",
       "tonight-opportunity",
       "pint-drop",
+      "aging-price",
       "quiz",
       "sport",
       "deal",
@@ -384,6 +379,14 @@ describe("map key inventory", () => {
       "selected",
       "story-band",
     ]);
+    // The broken rim the pins wear on an aging price is in the key, in the
+    // windows the Price Standings own (lib/priceTier.ts).
+    expect(legend.marks?.find((row) => row.id === "aging-price")).toEqual({
+      id: "aging-price",
+      label: "Glass with a broken rim",
+      detail:
+        "Its price may have changed: a drinker logged it over 30 days ago, the pub listed it over a year ago, or it has no read date.",
+    });
     expect(legend.marks?.[0]).toEqual({
       id: "your-location",
       label: "Blue centre with a pulse",
@@ -472,7 +475,9 @@ describe("map key inventory", () => {
     ]);
     expect(legend.hint).toContain("not a pint price");
     expect(legend.hint).toContain(SPOONS_VALUE_RESPONSIBLE_LINE);
-    expect(legend.cluster?.note).toContain("value bands");
+    // The disc carries no band under the lens either; the pins do.
+    expect(legend.cluster?.note).toContain("value band");
+    expect(legend.cluster?.note).toContain("plain disc");
     expect(legend.priceCapFilter).toBe(false);
     expect(legend.noAlcoholNote).toBeNull();
     expect(
@@ -496,7 +501,7 @@ describe("map key inventory", () => {
       { label: "Not in the ranking", symbol: "?", tone: "grey" },
     ]);
     expect(legend.cluster?.note).toBe(
-      "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.",
+      "No pub in view is in the ranking. A cluster shows every venue in it.",
     );
   });
 });

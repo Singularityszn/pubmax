@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
+import VenuePriceStory from "@/components/map/VenuePriceStory";
 import {
   computeVenuePriceStory,
   cpiIndexForYear,
@@ -10,6 +13,9 @@ import {
 } from "@/lib/thenVsNow";
 import type { Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NOW = Date.parse("2026-10-15T12:00:00.000Z");
 
 // computeVenuePriceStory only reads id/name/cheapestPrice/curation, so a partial
 // cast keeps fixtures readable without spelling out every Venue field.
@@ -220,5 +226,42 @@ describe("computeVenuePriceStory", () => {
     expect(story.now).toBeNull();
     expect(story.deltaGbp).toBeNull();
     expect(story.pct).toBeNull();
+  });
+
+  it("does not render TONIGHT for stale community prices, but keeps it for fresh prices", () => {
+    const venue = v({ id: "v8", name: "The Sir Christopher Hatton", cheapestPrice: 4.5 });
+    const staleDrop = drop({
+      venueId: "v8",
+      priceGbp: 4.7,
+      provenance: "contributor",
+      createdAt: new Date(NOW - 39 * DAY_MS).toISOString(),
+    });
+    const freshDrop = drop({
+      venueId: "v8",
+      priceGbp: 4.7,
+      provenance: "contributor",
+      createdAt: new Date(NOW - 1 * DAY_MS).toISOString(),
+    });
+
+    expect(computeVenuePriceStory(venue, [staleDrop], NOW).now?.label).not.toMatch(/tonight/i);
+    expect(computeVenuePriceStory(venue, [staleDrop], NOW).now?.label).toContain(
+      "logged 39 days ago",
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const staleMarkup = renderToStaticMarkup(
+      createElement(VenuePriceStory, { venue, drops: [staleDrop] }),
+    );
+    const freshMarkup = renderToStaticMarkup(
+      createElement(VenuePriceStory, { venue, drops: [freshDrop] }),
+    );
+    vi.useRealTimers();
+
+    expect(staleMarkup).not.toContain("Community tonight");
+    expect(staleMarkup).not.toContain('class="vpsBarLabel">Now</span>');
+    expect(staleMarkup).toContain("logged 39 days ago");
+    expect(staleMarkup).toContain("Over 30 days old, needs a fresh drinker");
+    expect(freshMarkup).toContain("Community tonight");
   });
 });

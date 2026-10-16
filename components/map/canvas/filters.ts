@@ -1,5 +1,5 @@
 import type * as maplibregl from "maplibre-gl";
-import { DONUT_BADGE_MIN } from "@/lib/donutClusterGeometry";
+import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import { iconId } from "@/lib/mapIcons";
 import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -282,19 +282,102 @@ export const CLUSTER_FIGURE_EXPR: maplibregl.ExpressionSpecification = (() => {
   ];
 })();
 
-/** Fewer pubs than this and a disc wears no count on its rim. */
-export const CLUSTER_COUNT_BADGE_MIN = DONUT_BADGE_MIN;
+/**
+ * What a cluster's `minPriceKey` reads when none of its pubs says a price: past
+ * every real key, and 9 in its last digit, which is no band.
+ */
+export const CLUSTER_PRICE_KEY_NONE = 99_999_999;
 
 /**
- * The count that rides a disc's rim once the disc is wearing a price: only
- * where there is a figure to be secondary to, and only from ten pubs up,
- * because "3" beside "£5.40" says less than the disc's size already does.
+ * The cheapest sayable price inside a cluster AND the band of the pub that says
+ * it, in one number a supercluster `min` can carry: pence × 10 + band. The min
+ * of these is the cheapest figure (a tie goes to the cheaper band), and its
+ * last digit is that pub's band, so the figure can wear its OWN band's ink
+ * rather than the colour of whatever band is commonest round it (owner
+ * decision 16 Oct 2026). A pub with no figure contributes the "none" key.
+ */
+export const CLUSTER_PRICE_KEY_PROPERTY: maplibregl.ExpressionSpecification = [
+  "min",
+  [
+    "case",
+    ["has", "clusterPrice"],
+    [
+      "+",
+      ["*", ["round", ["*", ["get", "clusterPrice"], 100]], 10],
+      ["min", ["coalesce", ["get", "bucket"], 3], 3],
+    ],
+    CLUSTER_PRICE_KEY_NONE,
+  ],
+];
+
+/** The band (0..2) of the cluster's cheapest figure, or 3 and up for none. */
+export const CLUSTER_FIGURE_BAND_EXPR: maplibregl.ExpressionSpecification = [
+  "%",
+  ["coalesce", ["get", "minPriceKey"], CLUSTER_PRICE_KEY_NONE],
+  10,
+];
+
+const clusterHasFigure: maplibregl.ExpressionSpecification = [
+  "<",
+  ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE],
+  CLUSTER_PRICE_NONE,
+];
+
+/**
+ * A cluster disc's words (owner decision 16 Oct 2026): "from" over the
+ * cheapest figure, the figure in its OWN band's ink, on a neutral disc. Where
+ * no pub inside says a price the disc prints its count, in ink. The count of a
+ * priced disc rides under it on `cluster-count-badge`, so the whole reads
+ * "from £4.85 · 12 pubs" the way the desktop donut's label says it
+ * (`clusterLabelText`, lib/donutClusterGeometry.ts).
+ */
+export function clusterLabelExpr(
+  ink: string,
+  bandInk: readonly [string, string, string],
+): maplibregl.ExpressionSpecification {
+  return [
+    "case",
+    clusterHasFigure,
+    [
+      "format",
+      "from",
+      { "font-scale": DONUT_CAPTION_SCALE, "text-color": ink },
+      "\n",
+      {},
+      CLUSTER_FIGURE_EXPR,
+      {
+        "text-color": [
+          "match",
+          CLUSTER_FIGURE_BAND_EXPR,
+          0,
+          bandInk[0],
+          1,
+          bandInk[1],
+          2,
+          bandInk[2],
+          ink,
+        ],
+      },
+    ],
+    ["format", ["to-string", ["get", "point_count_abbreviated"]], { "text-color": ink }],
+  ] as unknown as maplibregl.ExpressionSpecification;
+}
+
+/** The words under a priced disc: its pub count. */
+export const CLUSTER_COUNT_CAPTION_EXPR: maplibregl.ExpressionSpecification = [
+  "concat",
+  ["to-string", ["get", "point_count_abbreviated"]],
+  " pubs",
+];
+
+/**
+ * The count that rides UNDER a disc once the disc is wearing a price, so the
+ * figure stays the claim and the count never takes its place.
  */
 export const CLUSTER_COUNT_BADGE_FILTER: maplibregl.FilterSpecification = [
   "all",
   ["has", "point_count"],
-  ["<", ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE], CLUSTER_PRICE_NONE],
-  [">=", ["get", "point_count"], CLUSTER_COUNT_BADGE_MIN],
+  clusterHasFigure,
 ];
 
 /**
@@ -306,6 +389,8 @@ export const CLUSTER_COUNT_BADGE_FILTER: maplibregl.FilterSpecification = [
  *   unpriced pub never gets a pill.
  * - The selected pub keeps its enlarged glass, its glow and its own tag on
  *   `pubs-point-selected`.
+ * - A pub whose printed price is aging is NOT a pill: its glass wears the
+ *   broken rim that says so (`pinPriceAging`, ./geojson).
  * - A pub wearing a mark is NOT a pill. The Pint Drops ring, the what's-on
  *   ring, the story-band halo and the provisional and confirmed dots are all
  *   drawn round or on a 28px glass, and a 48px pill would bury every one of
@@ -323,6 +408,9 @@ export function pricePillFilter(
     ["!", ["coalesce", ["get", "provisional"], false]],
     ["!=", ["coalesce", ["get", "standing"], ""], "confirmed"],
     ["!", ["has", "whatsOn"]],
+    // An aging figure keeps its glass, whose broken rim is what says so; a pill
+    // would print the price on a clean edge and read as fresh.
+    ["!", ["coalesce", ["get", "aging"], false]],
   ];
   if (bandMemberIds.length > 0) {
     conditions.push(["!", ["in", ["get", "id"], ["literal", [...bandMemberIds]]]]);

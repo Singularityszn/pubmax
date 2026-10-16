@@ -209,6 +209,63 @@ export function priceStandingFor(
   return fallbackReason ? { ...NOTHING, reason: fallbackReason } : NOTHING;
 }
 
+/**
+ * The two ways a printed figure can be read, as far as its AGE goes. A drinker's
+ * log ages on the confirmation clock; a price a pub or chain published ages on
+ * the listing clock. The windows are the standings' own, never a second pair.
+ */
+export type PriceAgeLane = "drinker" | "published";
+
+/** Fresh while its window holds; aging past it, or with no read day at all. */
+export type PriceAge = "fresh" | "aging";
+
+/**
+ * Whether a figure a surface prints is still inside the window its standing
+ * claims (owner decision 16 Oct 2026: "an aging price must look aging, never
+ * fresh"). A drinker's log is fresh for CONFIRMED_MAX_AGE_DAYS and a published
+ * price for LISTED_MAX_AGE_DAYS. A figure with no read day, or a read day in
+ * the future, cannot claim to be fresh, so it is aging. Colour stays the band's
+ * alone: a surface says aging with its shape and its words, never its hue.
+ */
+export function priceAgeFor(
+  lane: PriceAgeLane,
+  observedAt: string | number | null | undefined,
+  now: number = Date.now(),
+): PriceAge {
+  if (observedAt === null || observedAt === undefined || observedAt === "") return "aging";
+  if (typeof observedAt === "number" && !Number.isFinite(observedAt)) return "aging";
+  const iso = typeof observedAt === "number" ? new Date(observedAt).toISOString() : observedAt;
+  const window = lane === "drinker" ? CONFIRMED_MAX_AGE_DAYS : LISTED_MAX_AGE_DAYS;
+  return withinWindow(iso, window, now) ? "fresh" : "aging";
+}
+
+/**
+ * The words an aging figure carries beside it, so the shape is never alone.
+ * Each says only what the read day shows: a date that cannot be read, or one
+ * later than today, is not evidence of an old price, so it is not called one.
+ */
+export function priceAgeNote(
+  lane: PriceAgeLane,
+  observedAt: string | number | null | undefined,
+  now: number = Date.now(),
+): string {
+  if (observedAt === null || observedAt === undefined || observedAt === "") {
+    return "No read date on record, so this price may have changed.";
+  }
+  const age =
+    typeof observedAt === "number"
+      ? Number.isFinite(observedAt)
+        ? (now - observedAt) / DAY_MS
+        : null
+      : ageDays(observedAt, now);
+  if (age === null || age < 0) {
+    return "The read date on record cannot be checked, so this price may have changed.";
+  }
+  return lane === "drinker"
+    ? `Logged over ${CONFIRMED_MAX_AGE_DAYS} days ago, so this price may have changed.`
+    : "Read over a year ago, so this price may have changed.";
+}
+
 // A standing has NO TONE. It used to (green confirmed, amber listed, blue
 // modelled, grey none) and the captain saw a green "Confirmed" over a dear
 // pint. Captain's law 2026-09-05: colour on a price is its BAND

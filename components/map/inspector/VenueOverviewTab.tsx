@@ -12,7 +12,13 @@ import {
   trustChipStateFor,
   type OverviewPriceDoor,
 } from "@/lib/pintTrust";
-import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
+import {
+  priceAgeFor,
+  priceAgeNote,
+  priceStandingFor,
+  type ConfirmedPriceInput,
+  type PriceAgeLane,
+} from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import { derivedAmenityStatus, type AmenityStatus } from "@/lib/venueTruth";
@@ -33,9 +39,11 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  PRICE_PENDING_LINE,
   baselineTrustCaption,
   venueBundlePrices,
   venuePriceLane,
+  venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
   type DisputedPriceInput,
@@ -88,6 +96,7 @@ import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
+  type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { type DrinkCategory } from "@/lib/drinks";
@@ -162,6 +171,19 @@ export function overviewComposerOpen({
   priceLogged?: boolean;
 }): boolean {
   return focusRequest > 0 || signInRequested || missionPresent || priceLogged;
+}
+
+/** A beer absence claim needs both the community-price and Pint Drop reads. */
+function overviewDrinkPriceReadStatus(
+  pub: boolean,
+  activeLane: DrinkCategory,
+  priceReadStatus: VenuePriceReadStatus,
+  dropReadStatus: VenueDropReadStatus | undefined,
+): VenuePriceReadStatus {
+  if (!pub || activeLane !== "beer") return priceReadStatus;
+  if (venuePriceFallbackPending(null, priceReadStatus, dropReadStatus)) return "loading";
+  if (dropReadStatus === "unavailable") return "degraded";
+  return priceReadStatus;
 }
 
 /**
@@ -379,6 +401,7 @@ function VenuePriceSummary({
   anchorStamp,
   composerOpen,
   dropReadStatus,
+  priceReadStatus,
   onLogTonightPrice,
   onConfirmPrice,
   priceRevealMotionClass = "",
@@ -396,6 +419,7 @@ function VenuePriceSummary({
   /** Where this pub's own Pint Drop read got to. A failed read may not be
    *  worded as a pub with no price on it (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
+  priceReadStatus: VenuePriceReadStatus;
   onLogTonightPrice: () => void;
   /** The second drinker's door: opens the Pint Drop composer seeded with the
    *  logged-once figure (lib/pintDropSecondDrinker.ts). */
@@ -403,6 +427,9 @@ function VenuePriceSummary({
   priceRevealMotionClass?: string;
 }) {
   const chromeRevealClass = priceRevealMotionClass || undefined;
+  if (isPubVenue(venue) && venuePriceFallbackPending(lane, priceReadStatus, dropReadStatus)) {
+    return <div className="contributorPrice" role="status">{PRICE_PENDING_LINE}</div>;
+  }
   // ONE decider. This surface hands over the confirmation lane it owns and
   // reads back a standing; the listed and modelled lanes reach the same call
   // through their own owner rather than through a second judgement here.
@@ -488,13 +515,20 @@ function VenuePriceSummary({
         {priceStanding.standing === "confirmed" ? (
           <TrustPill decision={priceStanding} area={bandArea} />
         ) : (
-          <PriceBadge variant="current" band={priceBand(lane.contributorPrice, bandArea)}>
+          <PriceBadge
+            variant="current"
+            band={priceBand(lane.contributorPrice, bandArea)}
+            className={agingBadgeClass("drinker", venue.latestContributorAt)}
+          >
             {formatPrice(lane.contributorPrice)}
           </PriceBadge>
         )}
         {venue.latestContributorAt ? (
           <small className={chromeRevealClass}>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
+        {priceStanding.standing === "confirmed" ? null : (
+          <PriceAgeLine lane="drinker" observedAt={venue.latestContributorAt} />
+        )}
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {COMMUNITY_PRICE_NOTE}
         </small>
@@ -509,9 +543,14 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
-        <PriceBadge variant="current" band={priceBand(venue.cheapestPrice, bandArea)}>
+        <PriceBadge
+          variant="current"
+          band={priceBand(venue.cheapestPrice, bandArea)}
+          className={agingBadgeClass("published", lane.sourcedPrice.observedAt)}
+        >
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
+        <PriceAgeLine lane="published" observedAt={lane.sourcedPrice.observedAt} />
         <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
@@ -579,9 +618,14 @@ function VenuePriceSummary({
               SAME STRING the phone peek prints (battle test M05). */}
           {baselineTrustCaption(lane)}
         </span>
-        <PriceBadge variant="baseline" band={priceBand(venue.cheapestPrice, bandArea)}>
+        <PriceBadge
+          variant="baseline"
+          band={priceBand(venue.cheapestPrice, bandArea)}
+          className={agingBadgeClass("published", lane.observedOn)}
+        >
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
+        <PriceAgeLine lane="published" observedAt={lane.observedOn} />
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {/* The publisher is DECIDED BY THE LANE, through the same reading the
               landing answer card makes, so the peek's caption and this block's
@@ -626,6 +670,34 @@ function VenuePriceSummary({
   return isPubVenue(venue) ? (
     <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
   ) : null;
+}
+
+/**
+ * An AGING figure looks aging and never fresh (owner decision 16 Oct 2026): its
+ * plaque's edge breaks (`priceBadge--aging`, app/globals.css) and a line says
+ * why, in the windows the Price Standings own (lib/priceTier.ts). Colour stays
+ * the band's alone. A fresh figure gets neither.
+ */
+function agingBadgeClass(
+  lane: PriceAgeLane,
+  observedAt: string | number | null | undefined,
+): string | undefined {
+  return priceAgeFor(lane, observedAt) === "aging" ? "priceBadge--aging" : undefined;
+}
+
+function PriceAgeLine({
+  lane,
+  observedAt,
+}: {
+  lane: PriceAgeLane;
+  observedAt: string | number | null | undefined;
+}) {
+  if (priceAgeFor(lane, observedAt) !== "aging") return null;
+  return (
+    <small className="priceAgeNote" data-price-age="aging">
+      {priceAgeNote(lane, observedAt)}
+    </small>
+  );
 }
 
 /**
@@ -1070,7 +1142,7 @@ export default function VenueOverviewTab({
           rows={drinkPriceRows}
           activeLane={leadLane}
           laneNoun={leadLaneNoun}
-          readStatus={venueReadStatus}
+          readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
           laneLoggedPriceShown={laneLoggedPriceShown}
           priceShownFromAnotherLane={priceShownFromAnotherLane}
           inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
@@ -1082,10 +1154,9 @@ export default function VenueOverviewTab({
           revealRecordLate={revealRecordLate}
         />
       )}
-      {/* Price honesty on overview: community override wins, then sourced
-          observation, then baseline-on-record. Never imply a live feed.
-          Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
-          it renders under its own label with date and source, never as a
+      {/* The shared price lane owns precedence. Never imply a live feed.
+          Non-pub venues carry a type-specific anchor (a cocktail, a doner).
+          It renders under its own label with date and source, never as a
           pint figure. A selected-drink lens already answered above, so a beer
           baseline must not stand in for coffee (or wine, or soft drink). */}
       {showsPriceSummary ? (
@@ -1097,6 +1168,7 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           composerOpen={composerOpen}
           dropReadStatus={dropReadStatus}
+          priceReadStatus={venueReadStatus}
           onLogTonightPrice={logTonightPrice}
           onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={

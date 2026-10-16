@@ -57,14 +57,15 @@ keeps preview hosts private, so open them signed in to the Vercel team.
 
 ### 1.3 The Tonight lede test
 
-`/tonight` once led with a JD Wetherspoon Curry Club deal. The first screen of the
-night must be a pub or the honest quiet-night sentence.
+`/tonight` once led with a JD Wetherspoon Curry Club deal. Check the first screen
+against the [Tonight feature guide](../README.md#features) and the
+[lede contract](rules/app-proxy-csp-caching-and-file-tracing.md).
 
 | # | Step | Owner | Proof | Command or page |
 |---|---|---|---|---|
 | 1.3.1 | The lede contract holds | Fleet | The contract test passes. It fails on a `deal-jdw-` id, a JD Wetherspoon source host or a Ticketmaster `kind: "event"` row in the first screen. | `npx vitest run __tests__/tonightLedeContract.test.ts` |
 | 1.3.2 | The rendered night agrees | Fleet | The browser spec passes. | `npm run test:e2e -- e2e/tonight.spec.ts` |
-| 1.3.3 | Read the real night | Captain | Open the page at a London evening hour. The lede names a pub, or says the night is quiet. A deal, a gig or a ticket price is never first. | `<preview-url>/tonight` |
+| 1.3.3 | Read the real night | Captain | Open the page at a London evening hour. Check the lede and empty-event wording against the linked guides. | `<preview-url>/tonight` |
 
 ### 1.4 Price standings are honest
 
@@ -160,13 +161,14 @@ is the machine definition. Five numbers in six insights.
 | 2 | First action within 60 seconds | The release metric, plus its funnel companion |
 | 3 | Landing to Map to venue sheet | `discovery_viewed`, `$pageview` on `/map`, `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
-| 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75, by route |
+| 5 | Top routes by LCP | `$web_vitals`, p75 of `$web_vitals_LCP_value`, by `$pathname` |
 
 Three limits to state every time a figure is quoted.
 
 1. Every rate is a rate over CONSENTED visitors. It is never a rate over all traffic.
-2. A named event carries no `$session_id`. A session-scoped funnel over named events
-   answers nothing. Use a time window over `distinct_id`.
+2. A named event carries `$session_id` only when the browser SDK had one, so a
+   session-scoped funnel over named events undercounts. Use a time window over
+   `distinct_id`.
 3. Tile 3 crosses both transports. Read step 1 to step 3 as the reliable pair.
 
 ### 3.2 Who acts on which number

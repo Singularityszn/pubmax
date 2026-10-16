@@ -1,7 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { Children, createElement, type ReactElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { parseFragment } from "parse5";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+const request = vi.hoisted(() => ({ nonce: undefined as string | undefined }));
+vi.mock("next/headers", () => ({ headers: async () => ({ get: () => request.nonce }) }));
+vi.mock("next/font/google", () => ({
+  Space_Grotesk: () => ({ variable: "display", style: { fontFamily: "Display, Display Fallback" } }),
+  Inter: () => ({ variable: "body", style: { fontFamily: "Body, Body Fallback" } }),
+}));
+vi.mock("next/font/local", () => ({ default: () => ({ variable: "mono" }) }));
+
+import RootLayout from "@/app/layout";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A CEILING A RETRY CAN LAUNDER IS NOT A CEILING.
 //
@@ -33,14 +48,39 @@ describe("the performance budget sweep is measured once", () => {
     expect(config).toContain("retries: process.env.CI ? 1 : 0");
   });
 
-  it("keeps route-specific pre-paint work inside the shared head request", () => {
-    const layout = readFileSync(path.join(ROOT, "app", "layout.tsx"), "utf8");
+  it.each(["theme-test-nonce", undefined])("emits canonical pre-paint work at the existing head position with nonce %s", async (nonce) => {
+    request.nonce = nonce;
     const sharedInit = readFileSync(path.join(ROOT, "public", "theme-init.js"), "utf8");
+    const doc = await RootLayout({ children: createElement("main") });
+    const head = Children.toArray(doc.props.children).find(
+      (child) => typeof child === "object" && child !== null && "type" in child && child.type === "head",
+    ) as ReactElement<{ children: ReactNode }>;
+    const elements = Children.toArray(head.props.children) as ReactElement<{
+      src?: string;
+      rel?: string;
+      type?: string;
+      nonce?: string;
+      async?: boolean;
+      defer?: boolean;
+      dangerouslySetInnerHTML?: { __html: string };
+    }>[];
+    const scripts = elements.filter((element) => element.type === "script");
+    const boot = defined(scripts[0]);
 
-    expect(layout).toContain('<script src="/theme-init.js?v=splash-1" />');
-    expect(layout).not.toContain("/splash-init.js");
-    expect(sharedInit).toContain('window.location.pathname !== "/"');
-    expect(sharedInit).toContain('dataset.splash = "on"');
+    expect(boot.props.dangerouslySetInnerHTML?.__html).toBe(sharedInit);
+    expect(boot.props.nonce).toBe(nonce);
+    expect(boot.props.src).toBeUndefined();
+    expect(boot.props.async).toBeUndefined();
+    expect(boot.props.defer).toBeUndefined();
+    expect(defined(elements[elements.indexOf(boot) - 1]).props.rel).toBe("dns-prefetch");
+    expect(defined(scripts[1]).props.type).toBe("speculationrules");
+    const fragment = parseFragment(renderToStaticMarkup(boot));
+    const script = defined(fragment.childNodes[0]);
+    expect(script.nodeName).toBe("script");
+    if (!("childNodes" in script)) throw new Error("The boot script was not emitted.");
+    const body = defined(script.childNodes[0]);
+    expect("value" in body ? body.value : undefined).toBe(sharedInit);
+    expect(scripts.some((script) => /theme-init|splash-init|native-entry-init/.test(script.props.src ?? ""))).toBe(false);
     expect(existsSync(path.join(ROOT, "public", "splash-init.js"))).toBe(false);
   });
 });

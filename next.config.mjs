@@ -129,8 +129,9 @@ const deploymentId = process.env.DEPLOYMENT_VERSION ??
 // (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
 // `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
 // dynamic rendering (no static generation / ISR / PPR) on every route except
-// the two public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS, which
-// take `script-src 'unsafe-inline'` in exchange for a CDN copy.
+// the public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS and
+// CDN_CACHED_DOCUMENT_ROUTES, which take `script-src 'unsafe-inline'` in
+// exchange for a CDN copy.
 
 // Baseline security headers on every response.
 const securityHeaders = [
@@ -212,6 +213,8 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     ...runtimeDataPackIncludes,
+    // Every root-layout document executes the canonical pre-paint script.
+    "/*": ["./public/theme-init.js"],
     // Both freshness readers need every registered artifact (see above).
     "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
     "/api/cron/freshness-audit": withRuntimeDataPacks(
@@ -294,6 +297,8 @@ const nextConfig = {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
     return [
+      { source: "/map/uk", destination: "/map?uk=1", permanent: true },
+      { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },
       // The www -> apex host redirect lives in vercel.json, not here. `next
       // typegen` turns every source in this list into a typedRoutes route and
       // ignores `has`, so a host-conditioned "/:path*" became a root catch-all

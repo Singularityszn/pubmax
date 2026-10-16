@@ -1,0 +1,223 @@
+{
+  "version": 1,
+  "before": {
+    "generatedAt": "2026-10-09T15:14:48.817Z",
+    "totalLondonShardPubs": 3641,
+    "fields": {
+      "hasHours": {
+        "covered": 3076,
+        "gaps": 565
+      },
+      "hasAddress": {
+        "covered": 3496,
+        "gaps": 145
+      },
+      "hasPhone": {
+        "covered": 2923,
+        "gaps": 718
+      },
+      "hasWebsite": {
+        "covered": 2892,
+        "gaps": 749
+      },
+      "statusChecked": {
+        "covered": 3008,
+        "gaps": 633
+      },
+      "googlePlaceId": {
+        "covered": 3008,
+        "gaps": 633
+      },
+      "hasPhoto": {
+        "covered": 430,
+        "gaps": 3211
+      },
+      "hasListedPint": {
+        "covered": 16,
+        "gaps": 3625
+      },
+      "hasLegacyPint": {
+        "covered": 527,
+        "gaps": 3114
+      },
+      "hasPint": {
+        "covered": 531,
+        "gaps": 3110
+      }
+    },
+    "notes": [
+      "Counts match the original task definitions. Estimates are excluded.",
+      "Source image URLs do not prove rights or rendering. Business status means a Places verification record."
+    ]
+  },
+  "after": {
+    "generatedAt": "2026-10-09T17:09:27.649Z",
+    "totalLondonShardPubs": 3641,
+    "fields": {
+      "hasHours": {
+        "covered": 3109,
+        "gaps": 532
+      },
+      "hasAddress": {
+        "covered": 3496,
+        "gaps": 145
+      },
+      "hasPhone": {
+        "covered": 2923,
+        "gaps": 718
+      },
+      "hasWebsite": {
+        "covered": 2892,
+        "gaps": 749
+      },
+      "statusChecked": {
+        "covered": 3008,
+        "gaps": 633
+      },
+      "googlePlaceId": {
+        "covered": 3008,
+        "gaps": 633
+      },
+      "hasPhoto": {
+        "covered": 430,
+        "gaps": 3211
+      },
+      "hasListedPint": {
+        "covered": 16,
+        "gaps": 3625
+      },
+      "hasLegacyPint": {
+        "covered": 527,
+        "gaps": 3114
+      },
+      "hasPint": {
+        "covered": 531,
+        "gaps": 3110
+      }
+    },
+    "notes": [
+      "Counts match the original task definitions. Estimates are excluded.",
+      "Source image URLs do not prove rights or rendering. Business status means a Places verification record."
+    ]
+  },
+  "sourceFacts": {
+    "before": {
+      "rows": 178,
+      "dogsWelcome": 19,
+      "dogsNotAllowed": 0,
+      "hours": 176,
+      "withVenueId": 178
+    },
+    "after": {
+      "rows": 265,
+      "dogsWelcome": 38,
+      "dogsNotAllowed": 0,
+      "hours": 257,
+      "withVenueId": 265
+    },
+    "addedRows": 87,
+    "addedHours": 81,
+    "addedDogStatements": 20,
+    "unchangedBaselineHours": 176,
+    "canonicalAddedRows": 57,
+    "baseAddedRows": 30
+  },
+  "identityAligned": {
+    "version": 1,
+    "before": {
+      "generatedAt": "2026-10-09T17:09:29.496Z",
+      "totalLondonShardPubs": 3641,
+      "fields": {
+        "hasHours": {
+          "covered": 3076,
+          "gaps": 565
+        },
+        "hasAddress": {
+          "covered": 3496,
+          "gaps": 145
+        },
+        "hasPhone": {
+          "covered": 2923,
+          "gaps": 718
+        },
+        "hasWebsite": {
+          "covered": 2892,
+          "gaps": 749
+        },
+        "statusChecked": {
+          "covered": 3008,
+          "gaps": 633
+        },
+        "googlePlaceId": {
+          "covered": 3008,
+          "gaps": 633
+        },
+        "hasPhoto": {
+          "covered": 460,
+          "gaps": 3181
+        },
+        "hasListedPint": {
+          "covered": 44,
+          "gaps": 3597
+        },
+        "hasLegacyPint": {
+          "covered": 568,
+          "gaps": 3073
+        },
+        "hasPint": {
+          "covered": 599,
+          "gaps": 3042
+        }
+      }
+    },
+    "after": {
+      "generatedAt": "2026-10-09T17:09:30.871Z",
+      "totalLondonShardPubs": 3641,
+      "fields": {
+        "hasHours": {
+          "covered": 3109,
+          "gaps": 532
+        },
+        "hasAddress": {
+          "covered": 3496,
+          "gaps": 145
+        },
+        "hasPhone": {
+          "covered": 2923,
+          "gaps": 718
+        },
+        "hasWebsite": {
+          "covered": 2892,
+          "gaps": 749
+        },
+        "statusChecked": {
+          "covered": 3008,
+          "gaps": 633
+        },
+        "googlePlaceId": {
+          "covered": 3008,
+          "gaps": 633
+        },
+        "hasPhoto": {
+          "covered": 460,
+          "gaps": 3181
+        },
+        "hasListedPint": {
+          "covered": 45,
+          "gaps": 3596
+        },
+        "hasLegacyPint": {
+          "covered": 568,
+          "gaps": 3073
+        },
+        "hasPint": {
+          "covered": 600,
+          "gaps": 3041
+        }
+      }
+    },
+    "definition": "Exact OSM identities use the existing published UK base curated-owner tuple, the UK base id, and the London shard id. No new name or distance match is inferred.",
+    "correction": "The original preflight treated curatedRef.id as a runtime venue id and omitted venue-uk ids. Some curatedRef.id values are OSM source ids. That undercounted linked prices and source images. Original snapshots are preserved separately."
+  },
+  "definition": "Field inventory joins the original London shard OSM identities. It is not a browser or deployment coverage claim. Prices exclude estimates."
+}

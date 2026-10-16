@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, Info, TrainFront } from "lucide-react";
 
+import { isUrgentTubeStatus } from "@/lib/mapChromeTiers";
 import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityStatusSignalSource";
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
@@ -11,7 +12,7 @@ import type { CityId } from "@/lib/cities";
 type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[]; sourceUrl?: string };
 type TubeLine = { line?: string; status?: string; disruption?: string };
 type TflPayload = { asOf?: string | null; signals?: Signal[]; tubeLines?: TubeLine[]; error?: string };
-export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number };
+export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number; urgentCount: number };
 
 const GROUPS = ["Alerts", "Transport", "Events", "Other"] as const;
 const TFL_STATUS_SURFACE_KEY = "/api/citymcp/status";
@@ -65,7 +66,13 @@ export function useMobileTflStatus(cityId: CityId): MobileTflStatus {
     () => (payload?.signals?.length ?? 0) + (payload?.tubeLines?.filter((line) => line.status?.toLowerCase() !== "good service").length ?? 0),
     [payload],
   );
-  return isLondon ? { payload, failed, issueCount } : { payload: null, failed: false, issueCount: 0 };
+  const urgentCount = useMemo(
+    () => payload?.tubeLines?.filter((line) => isUrgentTubeStatus(line.status)).length ?? 0,
+    [payload],
+  );
+  return isLondon
+    ? { payload, failed, issueCount, urgentCount }
+    : { payload: null, failed: false, issueCount: 0, urgentCount: 0 };
 }
 
 function freshness(asOf?: string | null): React.ReactNode {

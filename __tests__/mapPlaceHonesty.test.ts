@@ -131,8 +131,6 @@ function shellProps(overrides: Record<string, unknown> = {}) {
     nearMeError: null,
     onDismissNearMeError: vi.fn(),
     nearbyCount: 0,
-    tonightCount: 0,
-    tonightNearReader: false,
     tflCount: 0,
     tflStatus: "clear" as const,
     priceLabel: "Any price",
@@ -171,24 +169,16 @@ function renderShell(overrides: Record<string, unknown> = {}) {
   return renderToStaticMarkup(createElement(MobileMapShell, shellProps(overrides)));
 }
 
-describe("Phone Tonight cold-start chip", () => {
-  it("stays off the map when What's On is empty", () => {
-    const html = renderShell({ tonightCount: 0 });
-    expect(html).not.toContain("mobileMapTonightChip");
-    expect(html).not.toContain("On tonight");
-  });
-
-  it("opens the Tonight sheet from one labelled chip when listings exist", () => {
-    const html = renderShell({ tonightCount: 4 });
-    expect(html).toContain("mobileMapTonightChip");
-    expect(html).toContain('aria-label="On tonight: 4 listings"');
-    expect(html).toContain("On tonight");
-    expect(html).toContain(">4<");
-  });
-
-  it("claims near you only when the count was fetched with reader location", () => {
-    const html = renderShell({ tonightCount: 4, tonightNearReader: true });
-    expect(html).toContain('aria-label="On tonight: 4 listings near you"');
+describe("Phone chip row", () => {
+  it("holds the drink lane and nothing else, whatever What's On has", () => {
+    // What's On is a lens in the Filters sheet now, so the map rests on three
+    // layers. The row never grows a second chip back (e2e/mobile-map-chrome-fit.spec.ts).
+    for (const overrides of [{}, { tonightCount: 4 }, { tonightCount: 4, tonightNearReader: true }]) {
+      const html = renderShell(overrides);
+      expect(html).not.toContain("mobileMapTonightChip");
+      expect(html).not.toContain("On tonight");
+      expect(html.match(/class="mobileMapDrinkChip[" ]/g)).toHaveLength(1);
+    }
   });
 });
 

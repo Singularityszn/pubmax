@@ -282,12 +282,12 @@ function modGet(status: string, token?: string): Promise<Response> {
   );
 }
 
-function modAction(action: string, id: string, token?: string): Promise<Response> {
+function modAction(action: string, id: string, token?: string, note?: string): Promise<Response> {
   return POST(
     new Request(URL_BASE, {
       method: "POST",
       headers: token ? { "x-admin-token": token } : undefined,
-      body: JSON.stringify({ action, id }),
+      body: JSON.stringify({ action, id, ...(note ? { note } : {}) }),
     }),
   );
 }
@@ -1354,6 +1354,63 @@ describe("durable per-actor report uniqueness", () => {
       }),
     ).toBe(true);
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+});
+
+// docs/ops/HIDE_PINT_DROP_RUNBOOK.md: an operator hides one live drop that
+// nobody has reported. That is the moderator `keep_hidden` action on a VISIBLE
+// row, which the queue tests above only reach after reports.
+describe("operator hide of an unreported Pint Drop (runbook)", () => {
+  async function publicIds(venueId?: string): Promise<string[]> {
+    const res = await get(venueId);
+    expect(res.status).toBe(200);
+    return ((await res.json()).drops as Array<{ id: string }>).map((drop) => drop.id);
+  }
+
+  it("takes a visible drop off every public read and keeps it for review", async () => {
+    const created = await post({ venueId: VENUE, handle: "tester", drink: "Hatton Lager", priceGbp: 4.5 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+    expect(await publicIds(VENUE)).toContain(drop.id);
+    expect(await publicIds()).toContain(drop.id);
+
+    // The runbook's curl: the admin token rides in the header, and the gate
+    // checks it once ADMIN_TOKEN is set.
+    process.env.ADMIN_TOKEN = "runbook-token";
+    expect((await modAction("keep_hidden", drop.id, "wrong-token", "owner request: test drop")).status).toBe(403);
+    expect(await publicIds(VENUE)).toContain(drop.id);
+    expect((await modAction("keep_hidden", drop.id, "runbook-token", "owner request: test drop")).status).toBe(200);
+
+    expect(await publicIds(VENUE)).not.toContain(drop.id);
+    expect(await publicIds()).not.toContain(drop.id);
+    const queue = (await (await modGet("hidden", "runbook-token")).json()).drops as Array<{
+      id: string;
+      moderatorNote?: string;
+    }>;
+    expect(queue.find((row) => row.id === drop.id)?.moderatorNote).toBe("owner request: test drop");
+
+    // Reversible: restore puts the same row back.
+    expect((await modAction("restore", drop.id, "runbook-token")).status).toBe(200);
+    expect(await publicIds(VENUE)).toContain(drop.id);
+  });
+
+  // The API write has no status guard; the runbook's SQL adds one, which is
+  // why the runbook checks the status in step 1 before using either.
+  it("writes status, moderated_at and the note for one id on the durable store", async () => {
+    const select = vi.fn().mockResolvedValue({ data: [{ id: "drop-1" }], error: null });
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ update }));
+    adminRef.client = { from };
+
+    expect(await supabasePintDropStore.moderate("drop-1", "hidden", "owner request")).toBe(true);
+    expect(from).toHaveBeenCalledWith("pint_drops");
+    expect(update).toHaveBeenCalledWith({
+      status: "hidden",
+      moderated_at: expect.any(String),
+      moderator_note: "owner request",
+    });
+    expect(eq).toHaveBeenCalledWith("id", "drop-1");
   });
 });
 

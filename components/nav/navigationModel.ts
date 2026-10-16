@@ -21,8 +21,8 @@ export type PrimaryNavItem = {
  * below.
  *
  * The `now` key reads "Tonight" and opens /tonight at every hour, so the word
- * and the page always agree. It still lights on /today as well, and the page's
- * own Day | Tonight segment is the daytime door. Map stays canonical /map.
+ * and the page always agree. The daytime door is the page's own Day | Tonight
+ * segment. Map stays canonical /map.
  *
  * Places sits beside Map because the two answer the same question in opposite
  * order: Map opens ONE city, and Places is where a reader chooses WHICH. It is a
@@ -30,7 +30,7 @@ export type PrimaryNavItem = {
  * by Out and Near as well, so it was never the map's own setting to own.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
-  { key: "now", href: "/tonight", label: "Tonight", match: ["/today", "/tonight"] },
+  { key: "now", href: "/tonight", label: "Tonight", match: ["/tonight"] },
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
   // The picker's retired address, /choose-city, is NOT in the match set: it has
   // no page any more and 308s at the edge (proxy.ts), so no client is ever on

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -44,8 +45,8 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
+  await expectMobileMapShellReady(page);
   const topbar = page.locator(".mobileMapTopbar");
-  await expect(topbar).toBeVisible();
   // The place name is the city switcher's own full label, the text a phone
   // reader sees in the one top bar (components/map/CitySwitcher.tsx).
   const area = topbar.getByRole("button", { name: "Map area: London. Change city" });
@@ -147,7 +148,9 @@ test("critical city status badges TfL without adding a third chrome row", async 
             severity: "notable",
           },
         ],
-        tubeLines: [],
+        // The map-edge badge counts only urgent tube lines (lib/mapChromeTiers.ts
+        // isUrgentTubeStatus); routine updates stay in the sheet.
+        tubeLines: [{ line: "Weaver", status: "Part Suspended" }],
         weather: null,
       }),
     }),

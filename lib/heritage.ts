@@ -401,8 +401,14 @@ export async function answerHeritage(input: {
     ...input,
     overlayVenueResolution: venueResolution ?? undefined,
   });
-  const facts = heritageRead.facts;
-  const citations = dedupeCitations(facts);
+  const citations = dedupeCitations(heritageRead.facts);
+  const seenFacts = new Set<string>();
+  const facts = heritageRead.facts.filter(({ fact }) => {
+    const key = fact.normalize("NFC").trim().replace(/\s+/g, " ").replace(/[.!?]+$/, "").toLowerCase();
+    if (seenFacts.has(key)) return false;
+    seenFacts.add(key);
+    return true;
+  });
 
   if (useLlm && key) {
     const modelAnswer = await answerWithModel(input.question, facts, venueNoun);

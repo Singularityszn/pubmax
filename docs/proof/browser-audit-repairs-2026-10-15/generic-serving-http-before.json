@@ -1,0 +1,110 @@
+[
+  {
+    "query": "One serving under£10 in Soho",
+    "status": 422,
+    "code": "GROUNDED_CONSTRAINTS_UNSATISFIED",
+    "context": null
+  },
+  {
+    "query": "£10 for one serving in Soho",
+    "status": 200,
+    "code": null,
+    "context": {
+      "nightArea": "piccadilly-soho",
+      "daypart": "after_work",
+      "partyType": "friends",
+      "groupSize": 1,
+      "stopCount": 3,
+      "budget": "standard",
+      "budgetLimitPence": null,
+      "zeroProof": false,
+      "drinkCategory": null,
+      "wetherspoonsPreferred": false,
+      "atmosphere": [],
+      "foodNeeds": [],
+      "accessibility": [],
+      "transportConstraints": []
+    },
+    "stops": [
+      {
+        "estimatedPintPricePence": 620
+      },
+      {
+        "estimatedPintPricePence": 520
+      },
+      {
+        "estimatedPintPricePence": 690
+      }
+    ]
+  },
+  {
+    "query": "Two servings under£10 in Soho",
+    "status": 422,
+    "code": "GROUNDED_CONSTRAINTS_UNSATISFIED",
+    "context": null
+  },
+  {
+    "query": "£10 for two servings in Soho",
+    "status": 200,
+    "code": null,
+    "context": {
+      "nightArea": "piccadilly-soho",
+      "daypart": "after_work",
+      "partyType": "friends",
+      "groupSize": 2,
+      "stopCount": 3,
+      "budget": "standard",
+      "budgetLimitPence": null,
+      "zeroProof": false,
+      "drinkCategory": null,
+      "wetherspoonsPreferred": false,
+      "atmosphere": [],
+      "foodNeeds": [],
+      "accessibility": [],
+      "transportConstraints": []
+    },
+    "stops": [
+      {
+        "estimatedPintPricePence": 620
+      },
+      {
+        "estimatedPintPricePence": 520
+      },
+      {
+        "estimatedPintPricePence": 690
+      }
+    ]
+  },
+  {
+    "query": "3 pubs in Clapham, £10 pint and a serving",
+    "status": 200,
+    "code": null,
+    "context": {
+      "nightArea": "clapham",
+      "daypart": "after_work",
+      "partyType": "friends",
+      "groupSize": null,
+      "stopCount": 3,
+      "budget": "standard",
+      "budgetLimitPence": null,
+      "zeroProof": false,
+      "drinkCategory": "beer",
+      "wetherspoonsPreferred": false,
+      "atmosphere": [],
+      "foodNeeds": [],
+      "accessibility": [],
+      "transportConstraints": []
+    },
+    "stops": [
+      {
+        "estimatedPintPricePence": 600
+      },
+      {
+        "estimatedPintPricePence": 640
+      },
+      {
+        "estimatedPintPricePence": 580
+      }
+    ]
+  }
+]

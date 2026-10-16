@@ -50,7 +50,7 @@ import {
   parseBadgeEventOptIns,
 } from "@/lib/badgeEventOptIn";
 import type { FollowCounts } from "@/lib/followStore";
-import { buildPassport } from "@/lib/passport";
+import { buildPassport, hasPassportAreas } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import { discardBody } from "@/lib/responseBody";
 import { revealWhenMounted } from "@/lib/revealWhenMounted";
@@ -128,6 +128,20 @@ type PublicDrop = ProfileDrop & {
 };
 
 type LoadState = "loading" | "ready" | "error" | "gone";
+
+type ProfileGeographyRead = {
+  key: string;
+  drops: PublicDrop[];
+  areas: string[];
+};
+
+function profileGeographyForRead(
+  read: ProfileGeographyRead | null,
+  key: string,
+): Pick<ProfileGeographyRead, "drops" | "areas"> {
+  if (read?.key === key) return read;
+  return { drops: [], areas: [] };
+}
 
 const BADGE_EVENT_IDS = BADGE_EVENTS.map((event) => event.id);
 const BADGE_EVENT_OPT_IN_CHANGED = "pubmax-badge-event-opt-ins-changed";
@@ -425,7 +439,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     BADGE_EVENT_IDS,
   );
 
-  const [drops, setDrops] = useState<PublicDrop[]>([]);
+  const geographyIdentityReady = identityResolved && !viewerSession.unresolved;
+  const geographyUserId = user?.id ?? "";
+  const geographyReadKey = `${accountRevision}:${geographyUserId}:${routeHandle}:${geographyIdentityReady}`;
+  const [geographyRead, setGeographyRead] = useState<ProfileGeographyRead | null>(null);
+  const { drops, areas: passportAreas } = profileGeographyForRead(geographyRead, geographyReadKey);
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
@@ -581,36 +599,58 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }, [isYouRoute, routeHandle, router]);
 
   useEffect(() => {
+    if (!geographyIdentityReady) return;
     const controller = new AbortController();
+    const requestRevision = accountRevision;
 
-    // Stale-while-revalidate: a return to this profile paints the drops it last
-    // held in the mount frame, then quietly takes the fresh ones. The passport
-    // is derived from these rows, so without it every hop back to You flashed a
-    // zeroed passport for the length of a round trip.
+    // Public snapshots retain complete geography beside the bounded timeline.
+    // Authenticated reads bypass those snapshots because visibility depends on the viewer.
     async function load() {
-      const outcome = await loadSurfaceJson<unknown>(
-        `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`,
-        { signal: controller.signal },
-        (body) => {
-          const all: PublicDrop[] =
-            body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)
-              ? ((body as { drops: PublicDrop[] }).drops ?? [])
-              : [];
-          const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
-          setDrops(mine);
-          // Tombstone wins over a later drops load: never paint a live profile.
-          setState((prev) => (prev === "gone" ? prev : "ready"));
-        },
-      );
-      // An aborted fetch (unmount / handle change) is not an error state, and a
-      // failed revalidate over drops already on screen is not one either.
-      if (outcome !== "failed" || controller.signal.aborted) return;
+      const url = `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`;
+      const apply = (body: unknown) => {
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision || !hasPassportAreas(body)) return false;
+        const all = body.drops as PublicDrop[];
+        const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
+        setGeographyRead({ key: geographyReadKey, drops: mine, areas: body.passportAreas });
+        // Tombstone wins over a later drops load: never paint a live profile.
+        setState((prev) => (prev === "gone" ? prev : "ready"));
+        return true;
+      };
+      let outcome: "snapshot" | "network" | "failed" = "failed";
+      if (geographyUserId) {
+        // Viewer-permitted history must never enter the shared public cache.
+        try {
+          const bearer = await getAccessToken();
+          if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+          if (!bearer) throw new Error("Profile viewer credentials are unavailable");
+          const response = await fetch(url, {
+            signal: controller.signal,
+            headers: { authorization: `Bearer ${bearer}` },
+          });
+          if (response.ok) {
+            const body: unknown = await response.json();
+            if (apply(body)) outcome = "network";
+          } else {
+            await discardBody(response);
+          }
+        } catch {
+          // The existing read-error surface handles failed authenticated reads.
+        }
+      } else {
+        outcome = await loadSurfaceJson<unknown>(
+          url,
+          { signal: controller.signal, validate: hasPassportAreas },
+          apply,
+        );
+      }
+      // Aborted requests and responses for an earlier account must not set an error state.
+      if (outcome !== "failed" || controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       setState((prev) => (prev === "gone" ? prev : "error"));
     }
 
     void load();
     return () => controller.abort();
-  }, [routeHandle]);
+  }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle]);
 
   // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
@@ -936,13 +976,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         )
       : [];
 
-  // Pint Passport data (story 29): aggregated from the same drops the page
-  // already loaded, plus this handle's published crawl-story count from
+  // Pint Passport geography covers the complete visible author history. The
+  // other drop statistics use the bounded timeline and the crawl-story count from
   // /api/crawls?author= (storyCount above). A durable crawl story IS the posted
   // crawl AND the story post — both passport inputs draw from the one authored-
   // story number per buildPassport's semantics. On the anonymous /u/you
   // first-run route, the passport reads as own and shows the "start yours" CTA.
   const passport = buildPassport(drops as ProfileDrop[], {
+    areas: passportAreas,
     crawls: storyCount,
     // Story posts are what this author PUBLISHED, so the owner's own number
     // counts their unlisted crawls too. Everybody else sees the public one.

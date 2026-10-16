@@ -273,4 +273,33 @@ describe("withForcedVenue", () => {
     const out = withForcedVenue([venue], byId, venue.id);
     expect(out).toHaveLength(1);
   });
+
+  // The canvas rebuilds every pin and re-sends the whole source in a layout
+  // effect keyed on this array, so a copy per selection put that rebuild inside
+  // the tap's frame: 1040 ms INP on a lab phone (map-p99-vitals-tail).
+  it("hands back the SAME array when a selection adds nothing to the canvas", () => {
+    const venue = slimPin();
+    const other = slimPin({ id: "venue-other" });
+    const byId = new Map([
+      [venue.id, venue],
+      [other.id, other],
+    ]);
+    const filtered = [venue, other];
+    expect(withForcedVenue(filtered, byId, venue.id)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, other.id)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, null)).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, "  ")).toBe(filtered);
+    expect(withForcedVenue(filtered, byId, "venue-unknown")).toBe(filtered);
+  });
+
+  it("copies rather than mutates when it does append a forced venue", () => {
+    const visible = slimPin();
+    const forced = slimPin({ id: "venue-force" });
+    const byId = new Map([[forced.id, forced]]);
+    const filtered = [visible];
+    const out = withForcedVenue(filtered, byId, forced.id);
+    expect(out).not.toBe(filtered);
+    expect(filtered).toHaveLength(1);
+    expect(out.map((v) => v.id)).toEqual([visible.id, forced.id]);
+  });
 });

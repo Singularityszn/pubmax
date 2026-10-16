@@ -72,7 +72,7 @@ describe("gardenWeatherHeadline", () => {
         feelsLikeC: 23.6,
         precipProbabilityPct: 10,
       }),
-    ).toBe("24°C feels like, 10% chance of rain. Beer-garden weather.");
+    ).toBe("Feels like 24°C, 10% chance of rain. Beer-garden weather.");
   });
 
   it("returns null when it is not garden weather", () => {
