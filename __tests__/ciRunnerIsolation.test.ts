@@ -195,6 +195,10 @@ describe("workflow credentials and pins", () => {
 // The free plan runs 5 macOS jobs at once and about 20 Linux jobs, so a job
 // stays on macOS only with a reason. Each one here runs Playwright.
 const MACOS_JOBS: Record<string, string> = {
+  // Proved on macOS glyph widths. On ubuntu-latest (16 Oct 2026) four layout
+  // specs failed on a measured edge and the full suite failed 19 more tests.
+  "e2e.yml / layout-pins": "layout measured on macOS glyph widths",
+  "e2e.yml / full-suite": "layout measured on macOS glyph widths",
   // Its route budgets are figures measured on macOS. A Linux figure is a
   // different measurement, not the same ceiling.
   "performance.yml / performance-budget": "budgets measured on macOS",
