@@ -4,6 +4,18 @@ import "./venuePlacesDetails.css";
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /**
+ * A clock time as a reader reads it. OSM writes a close past midnight as an
+ * hour beyond 24 (`28:00` is 04:00 the next morning), which is no wall-clock
+ * time, so it prints the next day's clock and says so.
+ */
+function clockLabel(time: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  const hour = Number(match?.[1]);
+  if (!match || hour <= 24) return time;
+  return `${String(hour - 24).padStart(2, "0")}:${match[2]} next day`;
+}
+
+/**
  * What OpenStreetMap states about the pub: hours, access, sport, seating, ale,
  * dogs, the menu and social links, and who runs it. Each group carries its
  * source and day, and the block carries the ODbL credit. It sits beside the
@@ -25,7 +37,7 @@ export default function VenueOsmDetails({ facts }: { facts: OsmPubFacts | null |
           const windows = hours[day];
           return <div key={day}>
             <dt>{DAYS[day]}</dt>
-            <dd>{windows === undefined ? "Not stated" : windows.length ? windows.map((window) => `${window.opens} to ${window.closes}`).join(", ") : "Closed"}</dd>
+            <dd>{windows === undefined ? "Not stated" : windows.length ? windows.map((window) => `${clockLabel(window.opens)} to ${clockLabel(window.closes)}`).join(", ") : "Closed"}</dd>
           </div>;
         })}</dl> : <p>{hoursRaw}</p>}
         <small className="venuePlacesDetailsCredit">{view.hoursCredit}</small>

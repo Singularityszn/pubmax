@@ -60,6 +60,16 @@ it("prints each OSM fact with its source and day, and the ODbL credit", () => {
   unmount();
 });
 
+it("prints a close past midnight as the next day's clock, never an hour past 24", () => {
+  // `Fr-Sa 18:00-28:00` is in the committed pack: 28:00 is 04:00 on Saturday.
+  const { container, unmount } = render({ osmId: "node/224146236", readOn: "2026-10-05", openingHours: "Th 18:00-24:00; Fr-Sa 18:00-28:00" });
+  const days = [...container.querySelectorAll("details dl > div")].map((row) => `${row.querySelector("dt")?.textContent}: ${row.querySelector("dd")?.textContent}`);
+  expect(days).toContain("Thursday: 18:00 to 24:00");
+  expect(days).toContain("Friday: 18:00 to 04:00 next day");
+  expect(days).toContain("Saturday: 18:00 to 04:00 next day");
+  unmount();
+});
+
 it("prints hours that do not read cleanly as OSM writes them", () => {
   const { container, unmount } = render({ osmId: "node/2", readOn: "2026-10-05", openingHours: "Mo-Su 12:00-23:00; PH off" });
   expect(container.querySelector("details p")?.textContent).toBe("Mo-Su 12:00-23:00; PH off");
