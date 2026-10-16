@@ -38,9 +38,9 @@ The following identities were checked during this handoff preparation.
 | --- | --- |
 | Original launch run | `01M4TQ7SJGTFSG7YARX0NT0BGJ` |
 | Launch branch | `codex/desktop-search-usability` |
-| Original caller checkout | `/Users/karanmanoharan/.codex/worktrees/desktop-search-usability/pubmaxx` |
+| Original caller checkout | `restricted-caller-checkout` |
 | Caller head | `be3925ba786ae83d640ec611da0fcafea987f552`, clean, `pipeline_owned` |
-| Native pipeline checkout | `/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4TQ7SJGTFSG7YARX0NT0BGJ` |
+| Native pipeline checkout | `restricted-native-pipeline-checkout` |
 | Preserved pipeline head | `1ac572c3478d5feca8c2ac798446850ae6c9cda9` |
 | Actual gate | `Test/fix_review`, no-go, two auto-fix findings |
 | Night fixture disposition | The original actor retained the one-line fixture. The original executor committed it in `1ac572c347`. Native is clean |
@@ -307,8 +307,8 @@ The user also approved sending a non-secret technical support request. The reque
 A sent request does not prove provider resolution.
 Credentials remain outside Git and chat. This document contains no key, shared secret, auth header, or customer conversation.
 
-The private agent is `agent_2201m4v6qkbgffwb1fg2pjrgn1p6`.
-The recorded branch is `agtbrch_5601m4v6qn85fqwbfkng9j72nm9g`.
+The private agent is `restricted-private-agent`.
+The recorded branch is `restricted-agent-branch`.
 These identifiers establish intended ownership, not deployed runtime binding.
 
 The existing 14 October 06:18:32 UTC readback returned HTTP 200 for that exact target.
@@ -327,7 +327,7 @@ Only Main applies those settings. Publishing another branch discards that privac
 A branch ID therefore does not isolate privacy or traffic.
 
 Live hold 191 remains mandatory. The missing capabilities are authorised immutable executing-selector access and scoped remote exclusive-writer proof.
-The existing immutable production deployment read matched deployment `dpl_72wRDnp979oNf4kGotREGiKFHZkk` to Git `85512d7bf5c266d6401e7758f1054200429a3f28`.
+The existing immutable production deployment read matched deployment `restricted-production-deployment` to Git `85512d7bf5c266d6401e7758f1054200429a3f28`.
 It exposed no executing environment, agent, branch, or default-selector fields.
 Unavailable selector fields do not prove absent binding. Mutable environment or source absence cannot replace immutable runtime proof.
 The later availability GET returned HTTP 200 and `available=true`, without selectors or Main semantics.
@@ -407,7 +407,7 @@ This family is run `01M4X6B10GAAMA7CK391F6WS6P`, submitted at `7c93fec053dc1a06e
 The historical decision 202 allocation was read from the filesystem and its SHA-256 matched:
 
 ```text
-/Users/karanmanoharan/karan-agent-workspace/data/profile-auth-readback-20261014/source174-decision202-document-first-allocation.json
+restricted-decision202-allocation-receipt
 SHA256 882ed164b88df8dcdeb5f185ff8dee27117530301afa7a9460da1cfde5aad437
 ```
 
@@ -416,7 +416,7 @@ After complete Source family release at 13:45:57 UTC, decision 205 allocated the
 The current decision 205 allocation was read from the filesystem and its SHA-256 matched:
 
 ```text
-/Users/karanmanoharan/karan-agent-workspace/data/profile-auth-readback-20261014/opus55-decision205-allocation.json
+restricted-decision205-allocation-receipt
 SHA256 16b6a01e3e7a893f1ebc37f35565a8f7f6f44f29dd2d60be8138452fec40b1e7
 ```
 
@@ -438,14 +438,14 @@ Remote CI alone does not reserve local heavy capacity. Remote CI remains a publi
 The preserved decision 201 execution packet records the consumed once-only response. It is not a future start command:
 
 ```text
-/Users/karanmanoharan/karan-agent-workspace/data/profile-auth-readback-20261014/source174-decision201-execution.json
+restricted-consumed-source201-execution-packet
 SHA256 88b8c07e19107e9304b2bb61495fc2d8ffcdacd9d2c49d6e8dbdc3d03a3c81a8
 ```
 
 The preserved decision 201 production grant records the validator's completed readback and private build authority. It grants no new execution:
 
 ```text
-/Users/karanmanoharan/.no-mistakes/evidence/01M4TQ7SJGTFSG7YARX0NT0BGJ/source174-decision201-production-grant.json
+restricted-consumed-source201-production-grant
 SHA256 8a9a060dacecce4a4382c4bc1001849439d94cfd7e67aba840acef982f7e8646
 ```
 
@@ -483,7 +483,7 @@ Another machine needs the actual authorised evidence transfer. Missing local fil
 The review directory is:
 
 ```text
-/Users/karanmanoharan/.codex/visualizations/2026/10/13/01a133fc-9721-78d2-a149-ea209fa47228/
+restricted-review-evidence-root
 ```
 
 | File in that directory | Purpose |
@@ -526,7 +526,7 @@ Selected integrity pins are recorded below.
 The historical decision 199 local product evidence directory is:
 
 ```text
-/Users/karanmanoharan/.no-mistakes/evidence/01M4TQ7SJGTFSG7YARX0NT0BGJ/live-r7/
+restricted-source201-live-evidence-root
 ```
 
 Its `receipt.json`, `constraint-observations.json`, and `api-responses.json` retain the actual public request results.
