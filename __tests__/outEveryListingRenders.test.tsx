@@ -398,30 +398,46 @@ describe("the public server answer belongs to one city and service day", () => {
   });
 
   it.each([
-    { name: "a fresh London answer", city: "london" as const, age: 1_000, reads: 0 },
-    { name: "an expired answer", city: "london" as const, age: 300_001, reads: 1 },
-    { name: "another city's answer", city: "manchester" as const, age: 1_000, reads: 1 },
-  ])("handles $name", async ({ city, age, reads }) => {
+    { name: "a fresh London answer", city: "london" as const },
+    { name: "another city's answer", city: "manchester" as const },
+  ])("reads the API once for $name", async ({ city }) => {
     const rows = [unmatchedRow(0)];
     await renderOut(rows, "tonight", "ready", {
-      city, day: "today", body: body(rows), failed: false, servedAt: NOW - age,
+      city, day: "today", body: body(rows), failed: false, servedAt: NOW - 1_000,
     });
     const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
-    expect(calls).toHaveLength(reads);
+    expect(calls.map(([url]) => String(url))).toEqual(["/api/out?city=london&day=today"]);
     expect(container.textContent).toContain("Sourced listing 0");
   });
 
-  it.each([
-    ["2026-03-29T02:59:59Z", "2026-03-29T03:00:01Z"],
-    ["2026-10-25T03:59:59Z", "2026-10-25T04:00:01Z"],
-  ])("re-reads across the London service rollover from %s", async (before, after) => {
-    vi.setSystemTime(new Date(after));
+  it("reads the API once more when a refresh brings a new listings-only seed", async () => {
     const rows = [unmatchedRow(0)];
+    const seed = body(rows);
+    delete seed.openPlansStatus;
     await renderOut(rows, "tonight", "ready", {
-      city: "london", day: "today", body: body(rows), failed: false, servedAt: Date.parse(before),
+      city: "london", day: "today", body: seed, failed: false, servedAt: NOW - 1_000,
     });
-    const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
-    expect(calls).toHaveLength(1);
+    const outReads = () => vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
+    expect(outReads()).toHaveLength(1);
+
+    const refreshedRows = [unmatchedRow(0), unmatchedRow(1)];
+    const refreshedSeed = body(refreshedRows);
+    delete refreshedSeed.openPlansStatus;
+    vi.mocked(fetch).mockImplementationOnce(async () => Response.json(body(refreshedRows)));
+    await act(async () => {
+      root?.render(createElement(OutClient, {
+        day: "tonight",
+        initialAnswer: { city: "london", day: "today", body: refreshedSeed, failed: false, servedAt: NOW },
+      }));
+    });
+    await act(async () => {});
+
+    expect(outReads().map(([url]) => String(url))).toEqual([
+      "/api/out?city=london&day=today",
+      "/api/out?city=london&day=today",
+    ]);
+    expect(container.querySelectorAll('[data-testid="out-listing-row"]')).toHaveLength(2);
+    expect(container.textContent).toContain("Sourced listing 1");
   });
 });
 
