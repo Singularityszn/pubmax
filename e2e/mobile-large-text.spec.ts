@@ -4,6 +4,7 @@ import { NATIVE_FIRST_RUN_HANDOFF_KEY } from "@/lib/nativeFirstRun";
 
 import { installNativeShell } from "./helpers/nativeShell";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const CORE_ROUTES = [
   "/tonight", "/places", "/out", "/plan", "/u/qa_android",
@@ -87,7 +88,7 @@ for (const scale of [1.3, 1.5, 2]) {
       await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
       await expect(page.locator(".mobileTabBar")).toBeVisible();
       if (route === "/map") {
-        await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+        await expectMobileMapShellReady(page, 60_000);
       }
       await page.evaluate((fontScale) => {
         document.documentElement.style.fontSize = `${fontScale * 100}%`;
@@ -400,7 +401,7 @@ for (const route of ["/map", "/pubs", "/discover", "/pint-index", "/onboarding"]
       await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible();
     }
     if (route === "/map") {
-      await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+      await expectMobileMapShellReady(page, 60_000);
     }
     await page.evaluate(() => document.fonts.ready);
     const unreadable = await page.evaluate(() => [...document.querySelectorAll("body *")]
