@@ -76,8 +76,8 @@ Two A figures, one per run, because each B form ran against its own A arm.
 
 Raw per-sample lines: `ab-mobile.txt`, `ab-mobile-js-only.txt`,
 `ab-desktop.txt`, `ab-desktop-js-only.txt`. On mobile the spread inside each
-arm is about 100-300 ms on every milestone, so the deltas above sit well
-outside it. "canvas chunk requested/landed" in the raw files is the largest
+arm differs by metric. The JS-only FCP (+26 ms) and LCP (-12 ms) changes are
+within it; the map-engine changes (about a second) are well outside it. "canvas chunk requested/landed" in the raw files is the largest
 JS file in the sample, not always the canvas chunk itself.
 
 ## What the numbers say
