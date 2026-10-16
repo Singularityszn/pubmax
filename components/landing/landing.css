@@ -376,7 +376,6 @@ a.lpPubPint:hover { color: var(--ink); }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
    container a keyboard could never reach: it shows four placeholder cards and
    nothing past them. */
-.dropStripRailStatic { overflow-x: hidden; }
 /* The rail is a tab stop (PintDropStrip.tsx), so it wears the same ring every
    other focusable thing on this page does. */
 .dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
@@ -389,10 +388,6 @@ a.lpPubPint:hover { color: var(--ink); }
 .dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
 .provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
 .dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
-.dropStripCardSkeleton { gap: 15px; }
-.skelLine { height: 10px; border-radius: var(--radius-pill); background: var(--line-soft); animation: lpSkeleton var(--duration-ambient) ease-in-out infinite alternate; }
-.skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
-@keyframes lpSkeleton { to { opacity: .42; } }
 
 /* ── Footer: directory, disclosure, small print ─────────────────────────── */
 
