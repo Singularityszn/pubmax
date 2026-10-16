@@ -27,7 +27,7 @@ vi.mock("@/lib/planInviteRsvpStore", () => ({
 vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
 vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 
-import PlanInvitePage from "@/app/invite/[token]/page";
+import PlanInvitePage, { generateMetadata } from "@/app/invite/[token]/page";
 
 const HARE_AND_HOUNDS = "venue-bhm-qvyo46";
 const THE_KINGS_ARMS = "venue-bhm-14zsnx7";
@@ -54,5 +54,17 @@ describe("an invite naming a pub that left the map", () => {
       { venueId: THE_KINGS_ARMS, venueName: "The Kings Arms", position: 1 },
     ];
     expect(await renderInvite()).toContain("invite__thumbFrame");
+  });
+});
+
+describe("invite metadata", () => {
+  it("keeps a crew's invite out of search results", async () => {
+    plan.stops = [{ venueId: HARE_AND_HOUNDS, venueName: "Hare & Hounds", position: 0 }];
+    const metadata = await generateMetadata({ params: Promise.resolve({ token: "token-1" }) });
+    expect(metadata.robots).toEqual({
+      index: false,
+      follow: true,
+      googleBot: { index: false, follow: true },
+    });
   });
 });

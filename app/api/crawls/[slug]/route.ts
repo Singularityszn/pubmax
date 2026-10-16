@@ -25,7 +25,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   deleteCrawlStory,
-  getStoryAuthor,
+  getCrawlStoryBySlug,
   isAuthor,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
@@ -146,12 +146,16 @@ export async function DELETE(
 }
 
 // GET-author convenience (used by the story page's owner-aware controls if it ever
-// needs a client check). Public info — author_handle is already rendered on the
-// page — so no gate. Never 500s: an unknown slug yields { author: null }.
+// needs a client check). It answers only what the story page itself shows, so it
+// reads through getCrawlStoryBySlug: a draft, or a crawl whose author has been
+// withdrawn, answers { author: null } exactly like an unknown slug, never the
+// handle behind it. getStoryAuthor stays the unfiltered read the edit and delete
+// gates need. Never 500s.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
   const { slug } = await params;
-  return jsonNoStore({ author: await getStoryAuthor(slug) }, { status: 200 });
+  const story = await getCrawlStoryBySlug(slug);
+  return jsonNoStore({ author: story?.authorHandle ?? null }, { status: 200 });
 }

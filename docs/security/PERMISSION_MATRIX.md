@@ -38,7 +38,9 @@ proof, not a second policy. The closed list is:
 and `night_signal_claims` (SELECT re-opened with an explicit approved-claim
 predicate). `pub_presence` is service-mediated for writes; browser SELECT, when
 granted, is the single non-expired read rule from 0159. Catalogue tables
-`drinks`, `pub_heritage`, and `crawl_stories` are not on this list.
+`drinks` and `pub_heritage` are not on this list. `crawl_stories` is not on it
+either: since 0178 browser roles hold no grant on it, and its read policy
+admits `public` rows only, so an unlisted crawl's slug never lists.
 
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized
