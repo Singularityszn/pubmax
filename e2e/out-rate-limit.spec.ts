@@ -1,10 +1,8 @@
 import { randomInt } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
-// Run against a private compiled keyless server with the production ceiling:
-// PUBMAX_E2E_RATE_LIMIT_MAX=60 playwright test e2e/out-rate-limit.spec.ts --project=chromium --workers=1 --retries=0
-// The usual browser allowance intentionally prevents exhaustion in other suites.
-test.skip(process.env.PUBMAX_E2E_RATE_LIMIT_MAX !== "60", "Requires the production Out request ceiling");
+// npm run test:e2e:out-rate-limit owns the compiled keyless server and its
+// production ceiling. The usual browser allowance prevents exhaustion.
 
 for (const entry of ["api", "document"] as const) {
   test(`Out ${entry} requests exhaust the shared document and API budget`, async ({ request }) => {
