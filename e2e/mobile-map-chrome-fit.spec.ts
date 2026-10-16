@@ -1704,6 +1704,119 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+// The control's HORIZONTAL lane, for the prose and the controls that run to the
+// gutter (UX sprint, 15 Oct 2026, 390x844). Three routes were reported: the
+// landing lost the ends of its FAQ answers and its saving line, Tonight lost
+// the end of "The map still knows where the cheap pints ar...", and /near ran
+// its location line, its scope line and its two footer links under the control.
+//
+// The measurement is the TEXT, not the box: these elements are full-width, so
+// a box-level overlap is true even when the lane is reserved. Each line is
+// parked in the control's own band first, because the page scrolls under a
+// FIXED control and any line may be the one that comes to rest there.
+async function expectTextClearOfCreateAction(
+  page: Page,
+  selectors: readonly string[],
+): Promise<void> {
+  await expect(page.getByTestId("create-fab")).toBeVisible();
+  const report = await page.evaluate((list) => {
+    const fab = document.querySelector(".createFab");
+    if (!fab) return { measured: 0, overlaps: [] as string[] };
+    const nodes = list.flatMap((selector) => [...document.querySelectorAll(selector)]);
+    const overlaps: string[] = [];
+    let measured = 0;
+    for (const node of nodes) {
+      node.scrollIntoView({ block: "end", behavior: "instant" });
+      const f = fab.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const line of range.getClientRects()) {
+        if (line.width === 0 || line.height === 0) continue;
+        measured += 1;
+        if (line.left < f.right && line.right > f.left
+          && line.top < f.bottom && line.bottom > f.top) {
+          overlaps.push(`${node.className}: ${(node.textContent ?? "").trim().slice(0, 48)}`);
+          break;
+        }
+      }
+    }
+    return { measured, overlaps };
+  }, [...selectors]);
+  expect(report.measured, "lines were on the page to measure").toBeGreaterThan(0);
+  expect(report.overlaps, "nothing runs under the create action").toEqual([]);
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px /near prose and footer actions stay clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    // The idle screen carries the location line; the answered screen carries
+    // the scope line and the footer's two links.
+    const idle = await page.goto("/near");
+    expect(idle?.status()).toBe(200);
+    await expect(page.locator(".nmnHint")).toBeVisible();
+    await expectTextClearOfCreateAction(page, [".nmnHint"]);
+
+    const answered = await page.goto("/near?patch=soho");
+    expect(answered?.status()).toBe(200);
+    await expect(page.locator(".nmnCard").first()).toBeVisible();
+    await expectTextClearOfCreateAction(page, [
+      ".nmnListCaption",
+      ".nmnPriceCollected",
+      ".nmnSub",
+      ".nmnWiden",
+      ".nmnFoot",
+    ]);
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the Tonight status line stays clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    // A quiet night is the reported case: it prints the sentence whose way back
+    // to the map ran under the control.
+    await page.route("**/api/whats-on**", (route) => route.fulfill({
+      json: { rows: [], asOf: null, servedAt: new Date().toISOString() },
+    }));
+
+    const response = await page.goto("/tonight");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".tonightStatus").first()).toBeVisible({ timeout: 30_000 });
+    await expectTextClearOfCreateAction(page, [".tonightStatus"]);
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the landing prose stays clear of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    const response = await page.goto("/");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".lpWorth").first()).toBeVisible({ timeout: 30_000 });
+    await expectTextClearOfCreateAction(page, [".lpWorth p", ".lpFaqList"]);
+  });
+}
+
 // The phone dock leads with the loop, not Social (13 Sep 2026 audit, lane 2).
 // Tonight is the dock's first door and Social is never a dock tab: it answers a
 // stranger with "Sign in to use Social.", so its doors are the desktop More

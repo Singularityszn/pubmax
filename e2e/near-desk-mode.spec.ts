@@ -53,6 +53,11 @@ test.describe("near desk mode", () => {
     await expect(
       page.getByRole("link", { name: "OpenStreetMap contributors" }),
     ).toBeVisible();
+    // The mode answers in the switch's own words: "Desk" was the code's name
+    // for it, not a word a reader could act on (UX sprint, 16 Oct 2026).
+    await expect(page.locator(".ndnSource")).toContainText("Work spot data from");
+    await expect(page.getByRole("list", { name: "More work spots nearby" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Find a work spot nearby" })).toBeVisible();
     expect(errors).toEqual([]);
   });
 
@@ -74,7 +79,7 @@ test.describe("near desk mode", () => {
     const response = await page.goto("/near?mode=desk&patch=soho");
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("radio", { name: "Work spot" })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByText("No desks logged near here yet. Add a spot.")).toBeVisible();
+    await expect(page.getByText("No work spots logged near here yet. Add one.")).toBeVisible();
     expect(errors).toEqual([]);
   });
 

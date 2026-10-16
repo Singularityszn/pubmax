@@ -299,7 +299,7 @@
   line-height: 1.4;
 }
 
-/* The price column keeps out from under the create action.
+/* The answer keeps out from under the create action.
    The control is fixed to the bottom-right of the phone viewport, so every row
    of this list passes under it while the list scrolls, and the cell it lands on
    is the price — the one figure the page exists to state. The reserve is the
@@ -310,11 +310,23 @@
    It is reserved whenever the control is in the document rather than only while
    it is painted: a lane that appeared and vanished with the soft keyboard would
    reflow the list under the reader's thumb. Rendered proof at 320, 390 and 430
-   is e2e/mobile-map-chrome-fit.spec.ts. */
+   is e2e/mobile-map-chrome-fit.spec.ts.
+   The prose and the footer actions take the same lane (UX sprint, 15 Oct 2026,
+   390x844): the location line, the scope line and the two footer links also run
+   to the gutter, and each came to rest under the control with no way to scroll
+   clear. One lane, read from the control's own published berth. */
 @media (max-width: 640px) {
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
     .nmnPage
-    :is(.nmnListCaption, .nmnCard, .nmnPriceCollected) {
+    :is(
+      .nmnListCaption,
+      .nmnCard,
+      .nmnPriceCollected,
+      .nmnHint,
+      .nmnSub,
+      .nmnWiden,
+      .nmnFoot
+    ) {
     padding-right: max(
       var(--space-2),
       calc(var(--create-fab-lane) - var(--page-gutter))

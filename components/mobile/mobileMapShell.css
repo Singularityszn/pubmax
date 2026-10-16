@@ -1291,7 +1291,20 @@
      rather than running the length of the row: unmeasured, the standing line
      was what sized the figure column past the phrase beside it. */
   .mobileVenuePeekSummary small { max-inline-size: 22ch; color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
-  .mobileVenuePeekSummary button { min-height: var(--control-height, 44px); padding: 0 var(--control-pad-x, 16px); border: 0; border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size, var(--text-sm)); font-weight: var(--control-font-weight, 700); }
+  /* THE ONE PLAN BUTTON PRINTS ON ONE LINE. "Make it Stop 1" is five
+     characters longer than the "Plan stop" this row was measured with (UX
+     sprint, 16 Oct 2026), and at 320px the three tracks could no longer all
+     have their width: the label broke inside its own control, and in Legacy
+     Mode the figure beside it lost its cell. The label never breaks; at the
+     narrowest phone the control trades side padding and the row trades gap
+     for the characters instead. Measured at 320 and 390, in Legacy Mode too,
+     by e2e/mobile-venue-sheet-tabs.spec.ts. */
+  .mobileVenuePeekSummary button { min-height: var(--control-height, 44px); padding: 0 var(--control-pad-x, 16px); border: 0; border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size, var(--text-sm)); font-weight: var(--control-font-weight, 700); white-space: nowrap; }
+
+  @media (max-width: 360px) {
+    .mobileVenuePeekSummary { gap: 6px; }
+    .mobileVenuePeekSummary button { padding-inline: 10px; }
+  }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */
   /* Three cells, ONE idiom. "No price yet." used to sit in a bordered, tinted

@@ -18,13 +18,12 @@ vi.mock("@/lib/planRouteEvidence.server", () => ({
 }));
 
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
-import { buildPlanEndingRecommendations } from "@/lib/planEndings";
 import { planGenerationEvidenceGaps } from "@/lib/planGenerationRanking";
 import {
   selectPlanGenerationCandidates,
   type ScoredPlanCandidate,
 } from "@/lib/planGenerationSelection.server";
-import { getHomeTransport, routeTransportConstraints } from "@/lib/planGetHome";
+import { routeTransportConstraints } from "@/lib/planGetHome";
 import {
   selectAnchoredGroundedPlanRoute,
   selectGroundedPlanRoute,
@@ -96,9 +95,18 @@ describe("reading a way home out of a plan request", () => {
     expect(inferNightContext("pints in Soho, back on the Tube", NOW).context.transportConstraints).toEqual(["tube"]);
   });
 
+  it("matches walk as a whole word only, never inside a pub's name", () => {
+    expect(inferNightContext("cheap pints at Walkabout in Shepherd's Bush", NOW)
+      .context.transportConstraints).toEqual([]);
+    expect(inferNightContext("pints near the Walkie Talkie", NOW)
+      .context.transportConstraints).toEqual([]);
+    expect(inferNightContext("pints in Soho within walking distance", NOW)
+      .context.transportConstraints).toEqual(["walking"]);
+  });
+
   it("splits a way home from the route rules", () => {
-    expect(getHomeTransport(["tube", "walking"])).toEqual(["tube"]);
     expect(routeTransportConstraints(["tube", "walking"])).toEqual(["walking"]);
+    expect(routeTransportConstraints(["tube"])).toEqual([]);
   });
 });
 
@@ -133,12 +141,12 @@ describe("a tube way home never removes a pub from the route", () => {
   });
 });
 
-describe("a tube way home shapes the ending and names what is unchecked", () => {
+describe("a tube way home names no missed need of its own", () => {
   const { context } = inferNightContext(SPRINT_REQUEST, NOW);
 
-  it("names the last service as unchecked, not per-venue transport", () => {
-    const { contextEvidenceGaps } = planGenerationEvidenceGaps({
-      context,
+  it("names a need only when a route rule really is unevidenced", () => {
+    const gaps = (transportConstraints: string[]) => planGenerationEvidenceGaps({
+      context: { ...context, transportConstraints } as NightContext,
       accessibilityEnforced: false,
       hasDatedWindow: false,
       allOpeningListed: false,
@@ -146,22 +154,11 @@ describe("a tube way home shapes the ending and names what is unchecked", () => 
       allZeroProofConfirmed: true,
       hasTonightEvidence: false,
       hasWeatherEvidence: false,
-    });
-    expect(contextEvidenceGaps).toContain("last_service");
-    expect(contextEvidenceGaps).not.toContain("per_venue_transport");
-  });
-
-  it("asks for the live last-service check on the Get home ending", () => {
-    const endings = buildPlanEndingRecommendations({
-      daypart: "evening",
-      foodRequested: false,
-      getHomeRequested: true,
-      transportAnchor: "Tottenham Court Road",
-      lateFood: [],
-      extensions: [],
-    });
-    const getHome = endings.find((ending) => ending.kind === "get_home");
-    expect(getHome?.preselected).toBe(true);
-    expect(getHome?.reason).toContain("check the live last-service signal");
+    }).contextEvidenceGaps;
+    // A way home costs the plan no confidence: it is checked against the live
+    // last service during the night, which the Get home ending already says.
+    expect(gaps(["tube"])).toEqual([]);
+    // A route rule between stops still has no evidence behind it.
+    expect(gaps(["walking"])).toContain("per_venue_transport");
   });
 });
