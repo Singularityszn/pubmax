@@ -49,6 +49,8 @@
     "fetch:city-places": "node scripts/fetch_city_place_nodes.mjs",
     "build:city-night-areas": "node scripts/build_city_night_areas.mjs",
     "fetch:uk-pubs": "node scripts/fetch_uk_osm_pubs.mjs",
+    "build:osm-fhrs-links": "node scripts/build_osm_fhrs_links.mjs",
+    "build:fsa-hygiene": "node scripts/build_fsa_hygiene_pack.mjs",
     "build:osm-wikidata-links": "node scripts/build_osm_wikidata_links.mjs",
     "build:wikidata-history": "node scripts/build_wikidata_history_pack.mjs",
     "fetch:uk-venues": "node scripts/fetch_uk_osm_venues.mjs",

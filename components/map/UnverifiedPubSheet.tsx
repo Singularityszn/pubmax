@@ -9,6 +9,7 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueWikidataHistory from "@/components/map/VenueWikidataHistory";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
@@ -312,6 +313,9 @@ export default function UnverifiedPubSheet({
           base pins like this one, so the row lives on this sheet as well as on
           the curated Overview, and renders nothing for every other pub. */}
       <VenueSpoonsValueRow venueId={pub.id} visible={!drinkLensCategory} />
+      {/* The FSA's rating for this OSM pub, through its own fhrs:id tag when it
+          carries one (lib/fsaHygienePack.ts). Renders nothing otherwise. */}
+      <VenueHygiene venueId={pub.id} venueName={pub.name} address={pub.address} />
       {/* What Wikidata records about this pub, through its own OSM wikidata
           tag (lib/wikidataHistory.ts). Renders nothing otherwise. */}
       <VenueWikidataHistory venueId={pub.id} venueName={pub.name} />
