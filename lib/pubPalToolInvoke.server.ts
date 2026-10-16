@@ -138,7 +138,7 @@ export async function invokePubPalAskTool(input: {
   }
 
   const unsupported = unsupportedPriceComparison(query);
-  if (unsupported && !isIndependentAskTool(input.toolName)) {
+  if (unsupported && !isIndependentAskTool(input.toolName, query)) {
     if (input.conversationId) {
       await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
     }

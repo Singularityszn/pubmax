@@ -163,6 +163,75 @@ it("returns the genuine event failure through stored dispatch", async () => {
   expect(result).toMatchObject({ tool: "whats_on", ok: false, degraded: true, cards: [], sources: [] });
 });
 
+const mealRefusal = "I can't compare meal prices or check dietary options yet. I can help you find pubs with food.";
+const mealClause = "how much is a burger in Camden?";
+const unsupportedMixed = [
+  `${eventClauses[0][1]} and ${mealClause}`,
+  `How much is a burger in Camden and any live music tonight in Camden?`,
+];
+
+it.each(unsupportedMixed)("schedules and dispatches the independent event beside an unsupported meal price: %s", async (query) => {
+  expect(routeAskDeterministically(query)).toEqual([{ name: "whats_on", args: { query: expect.stringMatching(/^any live music tonight in Camden/i) } }]);
+  const events = await runAskTool("whats_on", { query: "Any live music in Soho" }, { query, cityId: "london", skipModel: true });
+  expect(events).toMatchObject({ tool: "whats_on", ok: true, data: expect.objectContaining({ kind: "music", area: "Camden", window: "tonight" }) });
+  expect(events.cards.map((card) => card.key)).toEqual(["fixture-music"]);
+  for (const toolName of ["venue_prices", "search_venues", "find_desk"]) {
+    const refused = await runAskTool(toolName, { query: "Pint at The Lamb", venueName: "The Lamb" }, { query, cityId: "london", skipModel: true });
+    expect(refused).toMatchObject({ ok: false, tool: toolName, answerHint: mealRefusal, cards: [] });
+  }
+});
+
+it.each(unsupportedMixed.flatMap((query) => ["keyless", "configured"].map((boundary) => ({ query, boundary }))))(
+  "answers the event and refuses the meal price through $boundary: $query", async ({ query, boundary }) => {
+    vi.stubGlobal("WebSocket", class { constructor() { throw new Error("Provider socket must stay closed"); } });
+    let result: { answer: string; cards: Array<{ key: string; price?: number | null; menuEvidence?: unknown }>; toolsUsed: string[] };
+    if (boundary === "keyless") {
+      result = await runAsk({ query, cityId: "london", skipModel: true });
+    } else {
+      vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+      vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+      const outcome = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner" });
+      if (!outcome.ok) throw new Error(outcome.code);
+      result = { ...outcome, answer: outcome.message };
+    }
+    expect(result.toolsUsed).toEqual(["whats_on"]);
+    expect(result.cards.map((card) => card.key)).toEqual(["fixture-music"]);
+    expect(result.cards.every((card) => card.price === null && card.menuEvidence === undefined)).toBe(true);
+    expect(result.answer).toContain(mealRefusal);
+    expect(result.answer).toContain("Found 1 sourced live-music night in Camden tonight.");
+  },
+);
+
+it.each(unsupportedMixed)("keeps the stored event outcome and the stored meal refusal: %s", async (query) => {
+  await registerPubPalToolTurn(conversationId, { query, cityId: "london", ownerId: "menu-owner" });
+  const events = await invokePubPalAskTool({ toolName: "whats_on", args: { query: "Any live music in Soho" }, conversationId });
+  expect(events.result).toMatchObject({ tool: "whats_on", ok: true });
+  const price = await invokePubPalAskTool({ toolName: "venue_prices", args: { venueName: "The Lamb", query: "Pint at The Lamb" }, conversationId });
+  expect(price.result).toMatchObject({ ok: false, code: "UNSUPPORTED_FOOD_PRICE_COMPARISON", answerHint: mealRefusal, cards: [] });
+  const replay = await readOwnedPubPalToolTurn(conversationId, "menu-owner");
+  expect(replay?.query).toBe(query);
+  expect(replay?.cards.map((card) => card.key)).toEqual(["fixture-music"]);
+  expect(replay?.hints).toEqual(["Found 1 sourced live-music night in Camden tonight.", mealRefusal]);
+  const provider = await invokePubPalAskTool({ toolName: "whats_on", args: { query }, conversationId: null });
+  expect(provider.result).toMatchObject({ tool: "whats_on", ok: true });
+});
+
+it.each([
+  "How much is a burger with live music in Camden?",
+  "How much is a burger in Camden?",
+  "How much are live music tickets in Camden and how much is a burger in Camden?",
+])("refuses an event tool when no independent event clause exists: %s", async (query) => {
+  expect(routeAskDeterministically(query)).toEqual([]);
+  const refused = await runAskTool("whats_on", { query: "Any live music tonight in Camden" }, { query, cityId: "london", skipModel: true });
+  expect(refused).toMatchObject({ ok: false, tool: "whats_on", cards: [] });
+  await registerPubPalToolTurn(conversationId, { query, cityId: "london", ownerId: "menu-owner" });
+  const stored = await invokePubPalAskTool({ toolName: "whats_on", args: { query: "Any live music tonight in Camden" }, conversationId });
+  expect(stored.result).toMatchObject({ ok: false, cards: [] });
+  const result = await runAsk({ query, cityId: "london", skipModel: true });
+  expect(result.toolsUsed).toEqual([]);
+  expect(result.cards).toEqual([]);
+});
+
 it("keeps a pure event request outside menu routing", async () => {
   expect(routeAskDeterministically(eventClauses[0][1]).map((call) => call.name)).toEqual(["whats_on"]);
   const result = await runAsk({ query: eventClauses[0][1], skipModel: true });

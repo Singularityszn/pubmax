@@ -38,7 +38,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    `lib/ask/publishedMenu.server.ts`, preserving each field's source and date.
    Its cards carry optional `menuEvidence`, including recorded servings,
    calories and dietary labels. Current availability stays unknown.
-   Independent transit and city-status clauses can still answer.
+   Independent transit, city-status and event clauses can still answer.
    The [Pub Pal feature guide](../../README.md#features) owns supported user
    requests and coverage limits.
 3. **Propose, never apply** - Ask mutates nothing. `propose_map_action` returns

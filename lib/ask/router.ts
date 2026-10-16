@@ -105,8 +105,16 @@ function askRequestClauses(query: string): string[] {
   return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|${WHATS_ON_REQUEST_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
 
+function independentAskWhatsOnQuery(query: string): string | null {
+  const clauses = askRequestClauses(query);
+  if (clauses.length < 2) return null;
+  return clauses.find((clause) => detectWhatsOnIntent(clause)
+    && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)) ?? null;
+}
+
 export function resolveAskWhatsOnQuery(query: string): string | null {
-  return askRequestClauses(query).find((clause) => detectWhatsOnIntent(clause)) ?? null;
+  return independentAskWhatsOnQuery(query)
+    ?? askRequestClauses(query).find((clause) => detectWhatsOnIntent(clause)) ?? null;
 }
 
 function isCityStatusRequest(query: string): boolean {
@@ -270,8 +278,9 @@ export function isVenueDiscoveryAsk(query: string): boolean {
       && (extractArea(priceQuery) !== null || !/^(?:pints?|beer|pubs?)$/i.test(priceComparisonSubject(priceQuery) ?? ""))));
 }
 
-export function isIndependentAskTool(name: string): boolean {
-  return name === "city_status" || name === "journey";
+export function isIndependentAskTool(name: string, query: string): boolean {
+  return name === "city_status" || name === "journey"
+    || (name === "whats_on" && independentAskWhatsOnQuery(query) !== null);
 }
 
 export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
@@ -531,8 +540,8 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const journey = resolveAskJourney(text);
   if (journey) push("journey", { from: "London Bridge", ...journey });
 
-  const whatsOnQuery = resolveAskWhatsOnQuery(text);
-  if ((priceIntent.kind === "menu" || priceIntent.kind === "recorded-drinks") && clauses.length > 1 && whatsOnQuery) {
+  const whatsOnQuery = independentAskWhatsOnQuery(text);
+  if ((priceIntent.kind === "menu" || priceIntent.kind === "recorded-drinks" || priceIntent.kind === "unsupported") && whatsOnQuery) {
     push("whats_on", { query: whatsOnQuery });
   }
 

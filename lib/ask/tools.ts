@@ -1013,7 +1013,7 @@ export async function runAskTool(
     };
   }
   const intent = resolveAskPriceIntent(ctx.query);
-  if (intent.kind === "unsupported" && !isIndependentAskTool(name)) {
+  if (intent.kind === "unsupported" && !isIndependentAskTool(name, ctx.query)) {
     return {
       ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
       provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,
