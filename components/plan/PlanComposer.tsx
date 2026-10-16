@@ -99,6 +99,7 @@ import {
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
@@ -806,24 +807,25 @@ export function planRouteRevealBehavior(reducedMotion: boolean): ScrollBehavior 
 }
 
 /**
- * Take the reader to the route they asked for. On a phone a generated route
- * lands below the fold (the context editor sits between the ask and the
- * preview), so a chip tap looked like nothing happened. Scrolls the route
- * status to the top of the viewport and moves focus onto it, so the preview
- * is seen and announced without a manual scroll.
+ * Feedback can land below the fold after generation or Tune dismissal.
+ * Reveal and focus the error first so a failed request cannot appear silent.
+ * Errors move immediately, even when ordinary route feedback uses smooth scrolling.
  */
 export function revealPlanRouteStatus(
   root: ParentNode | Document = document,
   reducedMotion?: boolean,
 ): void {
-  const status = root.querySelector("#plan-route-status");
-  if (!(status instanceof HTMLElement)) return;
+  const status = root.querySelector("#plan-composer-error") ?? root.querySelector("#plan-route-status");
+  if (!(status instanceof HTMLElement) || !status.textContent?.trim()) return;
   const reduce =
     reducedMotion ??
     (typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  status.scrollIntoView?.({ behavior: planRouteRevealBehavior(reduce), block: "start" });
+  status.scrollIntoView?.({
+    behavior: status.id === "plan-composer-error" ? "instant" : planRouteRevealBehavior(reduce),
+    block: "start",
+  });
   status.tabIndex = -1;
   status.focus({ preventScroll: true });
 }
@@ -1172,7 +1174,7 @@ export function AcceptedContextPanel({
  * `message`; this is the exact element the form renders it in.
  */
 export function PlanComposerErrorNotice({ message }: { message: string }) {
-  return <p className="planComposer__error" role="alert">{message}</p>;
+  return <p id="plan-composer-error" className="planComposer__error" role="alert" tabIndex={-1}>{message}</p>;
 }
 
 type ComposerDraftFields = {
@@ -2116,6 +2118,9 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
+      if (new URLSearchParams(window.location.search).get("from") === "onboarding") {
+        recordPlanHighIntentAction();
+      }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
@@ -2136,7 +2141,7 @@ function PlanComposerForm({
       setError(failureStatus);
       if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
-      setTuneOpen(false);
+      setRouteRevealTick((tick) => tick + 1);
     } finally {
       setSorting(false);
     }
@@ -2287,7 +2292,7 @@ function PlanComposerForm({
   ) : null;
   const routeStatusLine = (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
-      {error && !routeSorted && routeStatus === error
+      {error && routeStatus === error
         ? null
         : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>
@@ -2572,6 +2577,9 @@ function PlanComposerForm({
       </div>
       <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
       {routeStatusLine}
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <p className="planResult__provenance">One pint per person at each stop. Meal prices are not verified.</p>
+      )}
       <PlanResultProvenance />
       {routeStaleNotice}
     </section>

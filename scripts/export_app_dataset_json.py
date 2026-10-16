@@ -106,6 +106,7 @@ FIELDS = [
     "price_gbp",
     "price_text",
     "address",
+    "locality",
     "latitude",
     "longitude",
     "boroughs_visible",

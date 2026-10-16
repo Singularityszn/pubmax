@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getHistoricPubBySlug, loadHistoricPubs } from "@/lib/historic";
 import { listedBadge } from "@/lib/historicFilter";
-import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_DEPLOY_STABLE_CACHE_HEADERS } from "@/lib/ogBrand";
 import { clampOgText } from "@/lib/ogCardText";
 
 // Per-pub Historic Pubs OG share card (Next `opengraph-image` convention).
@@ -122,7 +122,6 @@ export default async function Image({
             flexDirection: "column",
             justifyContent: "space-between",
             width: "100%",
-            zIndex: 1,
           }}
         >
           {/* Header: wordmark lockup + "Historic Pub" edition line */}
@@ -255,6 +254,6 @@ export default async function Image({
         </div>
       </div>
     ),
-    { ...size, headers: OG_CACHE_HEADERS },
+    { ...size, headers: OG_DEPLOY_STABLE_CACHE_HEADERS },
   );
 }
