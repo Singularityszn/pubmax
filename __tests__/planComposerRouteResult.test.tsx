@@ -276,6 +276,46 @@ describe("the First pint beside a night the default stepped over", () => {
     expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
   });
 
+  // A start the lock has already refused is the state that needs the door
+  // most, and reading the field's NIGHT alone withheld it there: a start
+  // earlier tonight is on the night running now, so the door stayed shut over
+  // a field the reader could only fix by hand.
+  it("comes back once the start in the field has passed", async () => {
+    // 21:45 UTC is 22:45 BST.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    await act(async () => { tonightChoice()!.click(); });
+    await settle();
+    expect(startField().value).toBe("2026-10-15T23:00");
+    expect(tonightChoice()).toBeNull();
+
+    // Twenty-five minutes of tuning later, that start has gone by: the lock
+    // refuses it, so the way back into tonight has to be on screen.
+    vi.setSystemTime(new Date("2026-10-15T22:20:00.000Z"));
+    const title = document.querySelector<HTMLInputElement>("#plan-title")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(title, "Late one");
+      title.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+
+    // The lock's own verdict on the field: the start it holds has gone.
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date())).toBeNull();
+    const again = tonightChoice();
+    expect(again).not.toBeNull();
+    expect(again!.textContent).toBe("Tonight, Thu 15 Oct, 23:45");
+
+    await act(async () => { again!.click(); });
+    await settle();
+    expect(startField().value).toBe("2026-10-15T23:45");
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
+      .toBe("2026-10-15T22:45:00.000Z");
+  });
+
   // Near the end of the night the rounding runs out of slots: the next quarter
   // lands on the NEXT night, so there is nothing left to step back to. The tap
   // used to fall through to the late default - 19:00 the following evening -

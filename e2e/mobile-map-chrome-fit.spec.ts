@@ -1711,6 +1711,8 @@ for (const viewport of VIEWPORTS) {
 // its location line, its scope line and its two footer links under the control.
 // Its patch-coverage note and the Work spot answer's ODbL credit sit in the
 // same lane, and the credit carries a link, so the control took the tap too.
+// The landing's lane is measured on the FAQ's question and answer rather than
+// on the list that holds them: on the list it would size the row divider too.
 //
 // The measurement is the TEXT, not the box: these elements are full-width, so
 // a box-level overlap is true even when the lane is reserved. Each line is
@@ -1896,7 +1898,11 @@ for (const viewport of VIEWPORTS) {
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
     await expect(page.locator(".lpWorth").first()).toBeVisible({ timeout: 30_000 });
-    await expectTextClearOfCreateAction(page, [".lpWorth p", ".lpFaqList"]);
+    await expectTextClearOfCreateAction(page, [
+      ".lpWorth p",
+      ".lpFaqQuestion",
+      ".lpFaqAnswer",
+    ]);
   });
 }
 

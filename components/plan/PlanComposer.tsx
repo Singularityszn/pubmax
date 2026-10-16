@@ -2500,9 +2500,13 @@ function PlanComposerForm({
       </details>
     </section>
   );
-  // Whether the field is parked on a night after the one running now. The
-  // Tonight choice only has something to offer while that is true.
-  const startsOnALaterNight = londonNightsAhead(startTime)?.nights !== 0;
+  // Whether the field is anything OTHER than a start still to come on the
+  // night running now: a later night, a start that has already passed, or a
+  // time that is not a London one. A passed start is the state that needs the
+  // door most - the lock has already refused it - and reading the night alone
+  // withheld it there.
+  const fieldNight = londonNightsAhead(startTime);
+  const fieldWantsTonight = !fieldNight || fieldNight.nights !== 0 || fieldNight.past;
   const tonightLabel = tonightChoiceLabel();
   const fieldsBlock = (
     <>
@@ -2521,7 +2525,7 @@ function PlanComposerForm({
             the reader is standing in needs a door of its own. It carries the
             date because an early-hours slot reads as tomorrow on a calendar
             and as tonight on a night out. */}
-        {tonightLabel && startsOnALaterNight ? (
+        {tonightLabel && fieldWantsTonight ? (
           <button
             type="button"
             className="planComposer__tonight"

@@ -4,8 +4,7 @@
 // offered two plan doors, "Plan stop" in the peek strip and "Make it Stop 1"
 // in the bar below it. Captain's call (16 Oct 2026): one button that follows
 // the night. With no crawl being built it is "Make it Stop 1" (hands the pub
-// to Plan); with a crawl being built it is "Plan stop" / "In plan", and it
-// keeps that meaning until the sheet closes.
+// to Plan); with a crawl being built it is "Plan stop" / "In plan".
 //
 // What is proved here is the marker the bar emits for the phone rule. The
 // rendered result - which button a phone shows, in which state, and where the

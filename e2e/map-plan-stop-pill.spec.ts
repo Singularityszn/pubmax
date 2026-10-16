@@ -105,12 +105,11 @@ test("phone 390: with no crawl being built, the one plan button is Make it Stop 
   }).toPass({ timeout: 30_000 });
 });
 
-// THE DOOR KEEPS ITS MEANING UNDER THE THUMB. The one button follows the crawl,
-// so removing the LAST stop emptied the crawl while the sheet was still open
-// and the same button node became "Make it Stop 1" with a navigation behind it:
-// a second tap in the same spot left the map for /plan and abandoned the build
-// session. While a pub's sheet is open the door stays the crawl's.
-test("phone 390: emptying the crawl from the open sheet keeps the crawl's door, not a way off the map", async ({ page }) => {
+// THE DOOR FOLLOWS THE CRAWL, AND NOTHING ELSE (captain, 16 Oct 2026): no
+// crawl in progress reads "Make it Stop 1", a crawl in progress reads
+// "Plan stop" / "In plan". Emptying the crawl from the open sheet is the one
+// state where the two meet, so it is driven here rather than reasoned about.
+test("phone 390: emptying the crawl from the open sheet hands the pub back to Plan", async ({ page }) => {
   test.slow();
   await preparePage(page);
   await page.goto(`/map?mode=build&pubs=${VENUE_ID}&sel=${VENUE_ID}`);
@@ -121,17 +120,13 @@ test("phone 390: emptying the crawl from the open sheet keeps the crawl's door, 
   await expect(door).toHaveCount(1, { timeout: 30_000 });
   await expect(door).toHaveText("In plan", { timeout: 30_000 });
 
-  // One tap removes the only stop. The crawl is now empty, and the door the
-  // reader's thumb is still on is the crawl's, not a door to /plan.
+  // One tap removes the only stop, so no crawl is in progress and the door is
+  // the one the captain's mapping assigns to that state.
   await expect(async () => {
     await door.click();
-    await expect(door).toHaveText("Plan stop", { timeout: 1_000 });
+    await expect(door).toHaveText("Make it Stop 1", { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
-  await expect(venuePortal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(0);
-
-  // A second tap in the same spot puts the stop back. It never leaves the map.
-  await door.click();
-  await expect(door).toHaveText("In plan", { timeout: 10_000 });
-  await expect(page).toHaveURL(/\/map/);
-  await expect(venuePortal).toBeVisible();
+  await expect(venuePortal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(1);
+  await expect(venuePortal.getByRole("button", { name: /^(?:Plan stop|In plan)$/ })).toHaveCount(0);
+  await expect(door).toHaveCount(1);
 });

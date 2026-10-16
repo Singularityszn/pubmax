@@ -348,7 +348,6 @@ import {
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
-import { usePeekPlanDoorBuildsCrawl } from "@/components/map/pubmap/usePeekPlanDoor";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
@@ -4507,13 +4506,6 @@ export default function PubMap({
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
   }, [builtIds, setBuiltIds, setMode, setRouteMapped, venueById]);
 
-  // Which plan door the phone peek shows, and keeps, while a sheet is open —
-  // verbatim in components/map/pubmap/usePeekPlanDoor.ts.
-  const peekPlanDoorBuildsCrawl = usePeekPlanDoorBuildsCrawl({
-    builtStopCount: builtIds.length,
-    selectedVenueId,
-  });
-
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
   const reverseRoute = useCallback(() => {
@@ -5866,9 +5858,8 @@ export default function PubMap({
      ("Plan stop" here, "Make it Stop 1" in the bar below) cost the reader a
      choice they could not read (UX sprint, 15 Oct 2026). The one button follows
      the night: with no crawl being built it is "Make it Stop 1", which hands the
-     pub to Plan; once a crawl is being built it adds to that crawl, and it
-     keeps that meaning for as long as the sheet is open
-     (`peekPlanDoorBuildsCrawl`). */
+     pub to Plan; once a crawl is being built it adds to that crawl. The crawl
+     being built is the whole rule, read fresh on every render. */
   function renderVenuePeekSummary(selectedVenue: Venue) {
     const selectedLensPrice = activeLensPrices?.get(selectedVenue.id) ?? null;
     // THE PEEK ASKS THE ONE PRECEDENCE. It used to test `cheapestPrice` itself
@@ -5946,7 +5937,7 @@ export default function PubMap({
           <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
         </span>
         {selectedVenueIsPub ? (
-          peekPlanDoorBuildsCrawl ? (
+          builtIds.length > 0 ? (
             <button
               type="button"
               aria-pressed={builtIds.includes(selectedVenue.id)}

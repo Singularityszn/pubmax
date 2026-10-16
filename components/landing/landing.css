@@ -505,8 +505,12 @@ a.lpPubPint:hover { color: var(--ink); }
   /* The prose runs to the gutter, so a paragraph that came to rest in the
      control's band lost the end of its lines under it (UX sprint, 15 Oct
      2026, 390x844: the FAQ answers and the saving line). The copy column
-     keeps the same published lane. */
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) :is(.lpWorth p, .lpFaqList) {
+     keeps the same published lane.
+     The lane goes on the TEXT, never on the list that holds it: on the list
+     it sized the row divider's content box too, and every FAQ hairline
+     stopped a control's width short of the gutter. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
+    :is(.lpWorth p, .lpFaqQuestion, .lpFaqAnswer) {
     padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
   }
 }
