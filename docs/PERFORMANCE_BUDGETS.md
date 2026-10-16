@@ -98,10 +98,11 @@ sweep has actually produced, plus a quarter. Every route has at least 25% headro
 against its own worst observation, except `/pal`, which simply keeps its existing
 1500 ms - tighter than the rule would give it, and not raised to suit it.
 
-Production RUM corroborates the lab figure independently: `onLCP` already
-reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
-(`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
-identifier.
+Production RUM corroborates the lab figure independently: the consent-gated
+PostHog browser SDK sends one `$web_vitals` event per page (CLS, FCP, INP, LCP)
+on the coarse `$pathname` surface, through `/ingest` and `before_send`
+(`lib/posthogClient.ts`). It is the one field-vitals pipeline; the separate
+`web_vital` product event was removed because it double-counted every load.
 
 ## The regression the rig caught on its first sweep
 

@@ -1,0 +1,8 @@
+
+/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M50QJV2C23R7RDAC2ZS6AY6T/e2e/web-first-run-journey.spec.ts
+  48:13  error  React Hook "use" cannot be called in a try/catch block                                                                                                                                                                                         react-hooks/rules-of-hooks
+  48:13  error  React Hook "use" is called in function "baseURL" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use"       react-hooks/rules-of-hooks
+  57:11  error  React Hook "use" is called in function "storageState" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use"  react-hooks/rules-of-hooks
+
+✖ 3 problems (3 errors, 0 warnings)
+

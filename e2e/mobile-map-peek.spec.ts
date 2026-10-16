@@ -1,4 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // The phone map's bottom card: "Cheapest in this view", the plan door inside it,
 // a pull up that opens List view. Rules: docs/rules/components-sheets-chrome-and-navigation.md,
@@ -44,7 +45,7 @@ async function openMap(
   options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null; url?: string } = {},
 ): Promise<void> {
   await loadMap(page, options);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
 }
 
 /** A real touch drag through CDP, so the card sees pointer events with `pointerType: touch`. */
@@ -629,7 +630,7 @@ test("the first-visit ask offers both answers side by side, and an answer holds 
   await expect(page.locator(".mapPeek")).toBeVisible({ timeout: 20_000 });
 
   await page.reload();
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:map-first-visit-arrival:v1")))
     .toBe(stored);
   await expect(ask).toHaveCount(0);

@@ -1,7 +1,6 @@
 import type { Route } from "next";
 import type { Metadata } from "next";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -53,6 +52,18 @@ import "@/components/seo/factLayer.css";
 // Next 16 dynamic route params are async — `params` is a Promise we await.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The price data changes only on a deploy and area news is dated by the day,
+// so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
 
 // A curated/themed crawl "touches" a borough when at least one of its stops'
 // primary/visible borough slugs matches the page's borough slug. Pure, reads
@@ -263,13 +274,9 @@ export default async function BoroughPage({ params }: PageProps) {
     ...(faqLd ? [faqLd] : []),
   ];
 
-
-  // Per-request CSP nonce (proxy.ts) for the JSON-LD block below.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   return (
     <main id="main" className="boroughPage">
-      <JsonLd data={jsonLdGraph} nonce={nonce} />
+      <JsonLd data={jsonLdGraph} />
       <SiteNav active="borough" />
 
       <BoroughScreen

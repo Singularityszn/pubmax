@@ -18,6 +18,7 @@ import {
   type ResolvedPlanCrawlRoute,
 } from "@/lib/planCrawlRouteMap";
 import { discardBody } from "@/lib/responseBody";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 
 const PlanCrawlRouteMapCanvas = dynamic(
@@ -44,7 +45,7 @@ async function fetchStopCoords(
         if (!res.ok) return null;
         const body = (await res.json()) as { venue?: unknown };
         const venue = body.venue as
-          | { latitude?: unknown; longitude?: unknown; primaryBorough?: unknown }
+          | { latitude?: unknown; longitude?: unknown; locality?: unknown; primaryBorough?: unknown }
           | undefined;
         const lat = venue?.latitude;
         const lng = venue?.longitude;
@@ -54,7 +55,12 @@ async function fetchStopCoords(
           coord: [lng, lat] as LngLat,
           name: stop.venueName,
           venueId: stop.venueId,
-          area: typeof venue?.primaryBorough === "string" ? venue.primaryBorough : "",
+          area: typeof venue?.locality === "string" || typeof venue?.primaryBorough === "string"
+            ? venueAreaLabel({
+                locality: typeof venue.locality === "string" ? venue.locality : undefined,
+                primaryBorough: typeof venue.primaryBorough === "string" ? venue.primaryBorough : undefined,
+              })
+            : "",
         };
       } catch {
         return null;

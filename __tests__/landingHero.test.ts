@@ -284,7 +284,7 @@ describe("landing anchor rail", () => {
       venue("venue-unpriced", "No price", null),
       venue("venue-bar", "A bar", 2, { kind: "bar" } as Partial<Venue>),
     ];
-    const rail = buildLandingAnchorRail(venues, { id: "venue-anchor", area: "City of London" }, { "venue-3": {} as never });
+    const rail = buildLandingAnchorRail(venues, { id: "venue-anchor", primaryBorough: "City of London" }, { "venue-3": {} as never });
     expect(rail).toHaveLength(HERO_RAIL_SIZE);
     expect(rail.map((row) => [row.name, row.priceGbp, row.hasThen])).toEqual([
       ["The Crosse Keys", 2.99, false],
@@ -292,9 +292,28 @@ describe("landing anchor rail", () => {
       ["The Sir John Hawkshaw", 3.49, true],
     ]);
     expect(rail.every((row) => row.area === "City of London" && row.walkMinutes === undefined)).toBe(true);
+    expect(rail.every((row) => row.primaryBorough === "City of London")).toBe(true);
+  });
+
+  it("matches an anchor rail by borough when its display area is local", () => {
+    const venues = [
+      venue("venue-anchor", "The Sir Christopher Hatton", 6.5, {
+        primaryBorough: "Camden",
+        locality: "Hatton Garden",
+      }),
+      venue("venue-sibling", "A Camden Pub", 4.5, { primaryBorough: "Camden" }),
+    ];
+
+    const rail = buildLandingAnchorRail(
+      venues,
+      { id: "venue-anchor", primaryBorough: "Camden" },
+      {},
+    );
+
+    expect(rail.map((row) => row.id)).toEqual(["venue-sibling"]);
   });
 
   it("answers an empty rail rather than padding it", () => {
-    expect(buildLandingAnchorRail([venue("venue-anchor", "Only", 5)], { id: "venue-anchor", area: "City of London" }, {})).toEqual([]);
+    expect(buildLandingAnchorRail([venue("venue-anchor", "Only", 5)], { id: "venue-anchor", primaryBorough: "City of London" }, {})).toEqual([]);
   });
 });

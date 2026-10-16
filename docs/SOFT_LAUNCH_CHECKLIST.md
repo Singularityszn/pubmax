@@ -119,9 +119,9 @@ Nothing in section 2 starts until the captain says so. The order is the point.
 | 2.1 | Confirm section 1 is complete and dated | Captain | Every row in section 5 carries a date. | This file, section 5 |
 | 2.2 | Apply any outstanding migration | Captain | `supabase migration list` shows the release set. Agents ship SQL only. Runbook 1.3. | `supabase db push --include-all` |
 | 2.3 | Confirm the production environment | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off`, `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, every secret set. Runbook 1.4. | Vercel, Project, Settings, Environment Variables |
-| 2.4 | Release | Captain | The [release procedure](DEPLOYMENT.md#one-release-command) completes with its deployment identity and smoke verdict. | `npm run release:prod` |
-| 2.5 | Record promotion | Captain | The promoted deployment id from step 2.4, recorded. | Release receipt from step 2.4 |
-| 2.6 | Both hosts resolve to the release | Fleet | The apex returns 200. The `www` host redirects to the apex and preserves the path and query. | `curl -sSIL https://pubmaxxing.com/map` and `curl -sSIL https://www.pubmaxxing.com/map` |
+| 2.4 | Deploy | Captain | A build id from Vercel. Never pass `--prebuilt` from a Mac. | `vercel deploy` |
+| 2.5 | Promote | Captain | The promoted deployment id, recorded. Promotion repoints traffic and does not rebuild. | `vercel promote <deployment-url>` |
+| 2.6 | Both hosts serve the release | Fleet | Two 200 answers carrying the release build. | `curl -sSIL https://pubmaxxing.com/map` and `curl -sSIL https://www.pubmaxxing.com/map` |
 | 2.7 | Production smoke | Fleet | Every row of the runbook smoke grid passes on the production host. | Runbook section 2 |
 | 2.8 | The title markers answer | Fleet | Both greps match. | `curl --fail --silent --location https://pubmaxxing.com/map \| grep -F '<title>Map · PUBMAXXING</title>'` |
 | 2.9 | Freshness on production | Fleet | `summary` carries no `stale` and no `unknown`; `communityPrices.degraded` is `false`. | `curl -sS https://pubmaxxing.com/api/freshness` |
@@ -161,13 +161,14 @@ is the machine definition. Five numbers in six insights.
 | 2 | First action within 60 seconds | The release metric, plus its funnel companion |
 | 3 | Landing to Map to venue sheet | `discovery_viewed`, `$pageview` on `/map`, `venue_sheet_opened` |
 | 4 | Pint Drop submissions and corroboration | `price_submitted`, `price_submit_outcome`, `price_submit_failed` |
-| 5 | Top routes by LCP | `web_vital` where `metric = LCP`, p75, by route |
+| 5 | Top routes by LCP | `$web_vitals`, p75 of `$web_vitals_LCP_value`, by `$pathname` |
 
 Three limits to state every time a figure is quoted.
 
 1. Every rate is a rate over CONSENTED visitors. It is never a rate over all traffic.
-2. A named event carries no `$session_id`. A session-scoped funnel over named events
-   answers nothing. Use a time window over `distinct_id`.
+2. A named event carries `$session_id` only when the browser SDK had one, so a
+   session-scoped funnel over named events undercounts. Use a time window over
+   `distinct_id`.
 3. Tile 3 crosses both transports. Read step 1 to step 3 as the reliable pair.
 
 ### 3.2 Who acts on which number

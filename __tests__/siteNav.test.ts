@@ -2,13 +2,15 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const navigationState = vi.hoisted(() => ({ pathname: "/tonight" }));
+
 // SiteNav pulls in several context-bound children (auth, command palette,
 // theme) and the app-router `usePathname` hook. This test isolates SiteNav's
 // own markup — specifically the desktop Moment compose affordance (audit
 // finding D2) — by stubbing those dependencies. `momentHref` stays REAL so the
 // href shape under test is the same one the mobile FAB produces.
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/tonight",
+  usePathname: () => navigationState.pathname,
   useRouter: () => ({ prefetch: () => {} }),
 }));
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
@@ -21,9 +23,9 @@ vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
 // SiteNavMore keeps real markup so the overflow link contract is tested.
 
-async function renderSiteNav(): Promise<string> {
+async function renderSiteNav(active?: "today" | "tonight"): Promise<string> {
   const { default: SiteNav } = await import("@/components/nav/SiteNav");
-  return renderToStaticMarkup(createElement(SiteNav));
+  return renderToStaticMarkup(createElement(SiteNav, active ? { active } : undefined));
 }
 
 describe("SiteNav desktop Moment affordance (audit D2)", () => {
@@ -116,5 +118,25 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
   it("keeps More markup free of em dashes", async () => {
     const markup = await renderSiteNav();
     expect(markup).not.toContain("—");
+  });
+});
+
+describe("SiteNav current page state", () => {
+  afterEach(() => {
+    navigationState.pathname = "/tonight";
+  });
+
+  it("does not mark Tonight current when the host page is Today", async () => {
+    navigationState.pathname = "/today";
+    const markup = await renderSiteNav("today");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(0);
+  });
+
+  it("marks Tonight current when the host page is Tonight", async () => {
+    navigationState.pathname = "/tonight";
+    const markup = await renderSiteNav("tonight");
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(1);
   });
 });

@@ -161,7 +161,9 @@ export default function CommandPalette({
 
   const onBackdropMouseDown = useCallback(
     (event: React.MouseEvent) => {
-      if (event.target === event.currentTarget) onClose();
+      if (event.target !== event.currentTarget) return;
+      event.preventDefault();
+      onClose();
     },
     [onClose],
   );

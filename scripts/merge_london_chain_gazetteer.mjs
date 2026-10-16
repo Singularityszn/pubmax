@@ -61,6 +61,7 @@ function main() {
 
   let seq = nextAppPriceId(app);
   let added = 0;
+  let updated = 0;
   let skipped = 0;
   const byChain = {};
 
@@ -79,6 +80,14 @@ function main() {
     }
     const key = venueKey(name, lat, lng);
     if (existingKeys.has(key)) {
+      const existing = app.find(
+        (row) => venueKey(row.pub_name, row.latitude, row.longitude) === key,
+      );
+      const locality = String(pub.locality ?? "").trim();
+      if (existing && locality && String(existing.locality ?? "").trim() !== locality) {
+        existing.locality = locality;
+        updated += 1;
+      }
       skipped += 1;
       continue;
     }
@@ -136,7 +145,7 @@ function main() {
       happy_hour: "",
       karaoke: "",
       cool: "",
-      locality: borough,
+      locality: String(pub.locality ?? borough).trim(),
       source_datasets: "london_chain_gazetteer_seed",
       data_quality_notes: "london_chain_gazetteer_seed|price_unknown",
       source_row_count: 1,
@@ -152,7 +161,7 @@ function main() {
 
   writeFileSync(APP_PATH, JSON.stringify(app) + "\n");
   console.log(
-    `Merged ${added} chain gazetteer pubs (skipped ${skipped}). By chain:`,
+    `Merged ${added} chain gazetteer pubs (updated ${updated}, skipped ${skipped}). By chain:`,
     byChain,
   );
   console.log(`Wrote ${APP_PATH} (${app.length} rows)`);

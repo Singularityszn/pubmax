@@ -42,6 +42,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | `$pageview` | Coarse route templates only |
 | `$web_vitals` | CLS, FCP, INP, LCP |
 | `$exception` | Redacted messages, no stacks |
+| `map_load_timing` | One per map visit: time-to-pins milestones, outcome (`painted`, `timeout`, `abandoned`), cold/warm and device class. Shape and saved p99 query: `docs/analytics/MAP_LOAD_TIMING.md` |
 
 ## Server capture (no reader behind it)
 

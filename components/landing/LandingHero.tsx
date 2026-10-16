@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { LocateFixed } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
@@ -13,23 +13,18 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import type { LegacyPintPrice } from "@/lib/drinks";
 import {
-  getTourSeenServerSnapshot,
-  getTourSeenSnapshot,
-  subscribeTour,
-} from "@/lib/firstRunTour";
-import {
   answerEvidenceFor,
   answerKicker,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
   LANDING_FALLBACK_RECEIPT_LABEL,
+  LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   NEAR_ME_CONTROL_BUSY_LABEL,
   NEAR_ME_CONTROL_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
-  landingPrimaryHref,
   pintDropDoorHref,
   railHeading,
   stillPriceLabel,
@@ -118,6 +113,7 @@ type Answer = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   priceGbp: number;
   /** "a pint of Pravha" for the anchor; the slim index names no pint. */
   pintName: string | null;
@@ -145,6 +141,7 @@ function anchorAnswer(
     id: card.id,
     name: card.name,
     area: card.area,
+    primaryBorough: card.primaryBorough,
     priceGbp: card.priceGbp,
     pintName: card.pintName,
     drinkHref: card.drinkHref,
@@ -166,6 +163,7 @@ function nearAnswer(
     id: first.id,
     name: first.name,
     area: first.borough,
+    primaryBorough: first.borough,
     priceGbp: first.cheapestPrice,
     pintName: null,
     drinkHref: null,
@@ -177,6 +175,7 @@ function nearAnswer(
       id: card.id,
       name: card.name,
       area: card.borough,
+      primaryBorough: card.borough,
       priceGbp: card.cheapestPrice,
       walkMinutes: card.walkMinutes,
       hasThen: card.id in archive,
@@ -225,13 +224,6 @@ export default function LandingHero({
   const [near, setNear] = useState<NearState>({ kind: "idle" });
   const generation = useRef(0);
   const hasCard = card !== null;
-  // The document ships the returning visitor's door (the server snapshot says
-  // seen), and the browser points a first-time visitor at the journey.
-  const seenOnboarding = useSyncExternalStore(
-    subscribeTour,
-    getTourSeenSnapshot,
-    getTourSeenServerSnapshot,
-  );
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
@@ -301,16 +293,16 @@ export default function LandingHero({
   // swap moves to that pub's own borough rather than keeping the anchor's.
   const photo = landingPhotoFor(
     answer
-      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.area) }
+      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.primaryBorough) }
       : {},
   );
   // The one filled action, and it is the same door whether or not a pub card
-  // stands behind the document: /near answers in one tap, with the first-run
-  // journey in front of it for a first-time visitor.
+  // stands behind the document, and the same door for every visitor: /near
+  // answers in one tap, and offers the first-run journey there as a chip.
   const primary = (
     <Link
       prefetch={false}
-      href={landingPrimaryHref(seenOnboarding)}
+      href={LANDING_PRIMARY_HREF}
       onClick={() => trackLandingCta("near")}
     >
       {LANDING_PRIMARY_LABEL}
@@ -536,7 +528,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (
                   <span className="lpRailMeta">{row.walkMinutes} min walk</span>
-                ) : row.area !== answer.area ? (
+                ) : row.primaryBorough !== answer.primaryBorough ? (
                   <span className="lpRailMeta">{row.area}</span>
                 ) : null}
               </span>

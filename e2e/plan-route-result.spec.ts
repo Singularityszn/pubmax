@@ -56,7 +56,8 @@ test.describe("the Plan result is a route", () => {
     await sortARoute(page);
 
     await expect(page.getByRole("heading", { level: 2, name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
-    await expect(page.getByTestId("plan-route-summary")).toHaveText("3 stops · £17.40 each · 9 min walk");
+    await expect(page.getByTestId("plan-route-summary")).toHaveText("3 stops · £17.40 each for pints · 9 min walk");
+    await expect(page.getByText("One pint per person at each stop. Meal prices are not verified.", { exact: true })).toBeVisible();
     await expect(page.locator(".planStops input")).toHaveCount(0);
 
     const cards = page.locator(".planComposer__stop");

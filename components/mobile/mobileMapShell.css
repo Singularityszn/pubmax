@@ -1116,6 +1116,16 @@
   .mobileSharedSheet .venueSheetSkeleton + .venueSheetSkeleton {
     display: none;
   }
+  /* The same reservation holds the panel itself. Once its chunk is cached (every
+     open after a session's first) the panel mounts while the venue read is
+     still out, BELOW a 92dvh skeleton and so clipped out of view; the read
+     landing pulled it up into the sheet more than 500 ms after the tap, and
+     Chrome scored that jump at 0.29 on a lab phone (map-p99-vitals-tail). Held
+     out of layout until the skeleton goes, it appears in the skeleton's place
+     instead of moving there. */
+  .mobileSharedSheet .venueSheetSkeleton ~ .venueInspector {
+    display: none;
+  }
   /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
      bar (VenueStickyBar) portals into this via SheetFooterContext, so it rides
      1:1 with the sheet on drag/snap (in flow, no fixed positioning) and is

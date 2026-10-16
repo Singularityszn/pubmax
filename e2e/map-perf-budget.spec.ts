@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // Mobile map performance budget (perf/mobile-map-budget).
 //
@@ -41,9 +42,7 @@ test("mobile /map stays within the eager-JS budget and boots", async ({ page }) 
   await page.goto("/map");
 
   // Boot proxy: mobile map chrome visible + loading skeleton retired.
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({
-    timeout: MAP_BOOT_TIMEOUT_MS,
-  });
+  await expectMobileMapShellReady(page, MAP_BOOT_TIMEOUT_MS);
   await expect(page.locator(".mapLoading")).toBeHidden({
     timeout: MAP_BOOT_TIMEOUT_MS,
   });

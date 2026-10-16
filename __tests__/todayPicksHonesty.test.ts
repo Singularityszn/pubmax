@@ -79,12 +79,19 @@ const PUB_SUGGESTION: HypedPub = {
 describe("Today picks card honesty", () => {
   it("offers the sourced pub suggestions from Tonight when no events are listed", () => {
     const ready = renderToday("ready", [PUB_SUGGESTION]);
+    expect(ready).toContain("Top picks for tonight.");
     expect(ready).toContain("Pubs people are talking about");
     expect(ready).toContain("The Devonshire");
     expect(ready).toContain('href="https://example.com/pub"');
     expect(ready).toContain("Fixture publisher");
     expect(ready).toContain('href="/map?sel=venue-s2ppfm"');
+    expect(ready).toContain('data-picks-state="genuinely_empty"');
+    expect(ready).not.toContain("data-picks-status=");
     expect(ready).not.toContain(PICKS_EMPTY_LINE.night);
+    // The suggestion rows are bordered cards, so the section that holds them
+    // carries no card box of its own.
+    const section = ready.match(/<section[^>]*data-testid="today-picks"[^>]*>/)?.[0] ?? "";
+    expect(section).toContain('class="todayPicksFallback"');
   });
 
   it("says nothing left only when the read answered with nothing", () => {

@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("slim venue cache recovery", () => {
-  it("rejects stale old-worker bytes from the revisioned London monolith without mirroring them", async () => {
+  it("paints stale old-worker bytes from the revisioned London monolith without mirroring them", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
     vi.resetModules();
@@ -61,7 +61,9 @@ describe("slim venue cache recovery", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const { loadSlimVenues } = await import("@/lib/venuesSlim");
 
-    await expect(loadSlimVenues()).resolves.toEqual([]);
+    // One file cannot be mixed with itself, so a skew that survives the
+    // cache-bypassed read paints the previous deploy's pins, never none.
+    await expect(loadSlimVenues()).resolves.toEqual([ROW]);
 
     const path = "/data/venues_slim.json?v=target";
     expect(fetchSpy).toHaveBeenNthCalledWith(1, path);

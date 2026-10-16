@@ -1,0 +1,157 @@
+/* The opening prices, drawn by the document (components/map/MapOpeningPreview.tsx,
+   lib/mapOpeningPreview.ts). Hidden unless public/theme-init.js marked this
+   visit `html[data-map-preview="on"]` before paint.
+
+   THE CAMERA IS MAPLIBRE'S. The engine looks at the map centre from 1.5 map
+   heights away (0.5 / tan(fov / 2), fov 36.87 degrees), tilted by the pitch,
+   with the centre in the middle of the map. A CSS perspective of 150cqh,
+   centred, over a plane tilted by the same pitch is that same projection, so a
+   disc laid at its world-pixel offset lands where the engine will draw it at
+   any viewport size. The map fills the viewport on every layout /map has, so
+   the preview does too. */
+
+.mapOpeningPreview {
+  display: none;
+  position: fixed;
+  inset: 0;
+  /* Over the skeleton (.mapSkeleton is 20) and the canvas's own held frame. */
+  z-index: 21;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+
+html[data-map-preview="on"] .mapOpeningPreview,
+html[data-map-preview="done"] .mapOpeningPreview {
+  display: block;
+}
+
+/* The handoff. The engine's pins fade in over their own entrance, so this
+   fades out over the same beat; a reader who asked for less motion gets a cut. */
+html[data-map-preview="done"] .mapOpeningPreview {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 160ms ease-out,
+    visibility 0s linear 160ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-map-preview="done"] .mapOpeningPreview {
+    transition: none;
+  }
+}
+
+/* A browser without container units cannot place the camera, so it draws
+   nothing rather than a disc in the wrong street. */
+@supports not (container-type: size) {
+  .mapOpeningPreview {
+    display: none !important;
+  }
+}
+
+.mapOpeningPreviewCamera {
+  position: absolute;
+  inset: 0;
+  perspective: 150cqh;
+  perspective-origin: 50% 50%;
+}
+
+.mapOpeningPreviewPlane {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  transform: rotateX(var(--map-preview-pitch));
+  transform-style: preserve-3d;
+}
+
+/* One disc: the canvas's (lib/donutClusterGeometry.ts) - a 44px outer
+   circle, a 1.25px ink casing, a plain 3px ring in --line that carries no band,
+   neutral paper inside - stood upright to face the camera at its own point on
+   the plane. "from" sits over the figure at DONUT_CAPTION_SCALE of its size,
+   and the figure wears its own band's ink, as clusterLabelExpr writes it. */
+.mapOpeningPreviewDisc {
+  position: absolute;
+  top: -22px;
+  left: -22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  /* casing, then the ring, then the paper: three layers on one box */
+  background:
+    radial-gradient(
+      circle,
+      var(--panel-raised) 0 17.75px,
+      var(--line) 17.75px 20.75px,
+      var(--ink-deep) 20.75px
+    );
+  color: var(--ink-deep);
+  transform: translate3d(var(--x), var(--y), 0) rotateX(calc(-1 * var(--map-preview-pitch)));
+}
+
+html[data-theme="dark"] .mapOpeningPreviewDisc {
+  background:
+    radial-gradient(
+      circle,
+      var(--panel-raised) 0 17.75px,
+      var(--line) 17.75px 20.75px,
+      var(--ink) 20.75px
+    );
+  color: var(--ink);
+}
+
+.mapOpeningPreviewFrom,
+.mapOpeningPreviewFigure {
+  font-family: "Noto Sans", var(--font-body, sans-serif);
+  line-height: 1;
+}
+
+.mapOpeningPreviewFrom {
+  font-size: calc(var(--figure-size) * 0.62);
+  font-weight: 600;
+}
+
+.mapOpeningPreviewFigure {
+  color: var(--figure-ink);
+  font-size: var(--figure-size);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* The desktop draws its discs in the DOM, the same disc with its figure in
+   the data face (components/map/canvas/donutClusters.ts); the same media query
+   decides it there. */
+@media not ((max-width: 640px) or (pointer: coarse)) {
+  .mapOpeningPreviewFigure {
+    font-family: var(--font-data, ui-monospace, monospace);
+  }
+}
+
+/* While the preview stands in for the first frame, the loading scene's
+   illustrative dots step aside (they are a drawing of pins; these are the
+   pins), and the status line moves to the foot of the screen so it never sits
+   on a price. */
+html[data-map-preview="on"] .mapSkeletonMap,
+html[data-map-preview="on"] .mapLoadingScene {
+  display: none;
+}
+
+html[data-map-preview="on"] .mapSkeleton {
+  place-items: end center;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+}
+
+html[data-map-preview="on"] .mapLoading {
+  align-content: end;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+}

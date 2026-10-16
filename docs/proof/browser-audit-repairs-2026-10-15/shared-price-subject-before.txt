@@ -1,0 +1,231 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+xxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxx··xxxxxxxxxx··xx··xxx------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------··xx····xx··xxxx··xxxx··xxxx··xxxx··xxxx··xxxx··xxxx··xxxx·····················································································································································································································································································································--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 109 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint at pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint at pub&pizza"}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:231:8
+    229|     }));
+    230|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    231|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    232|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    233|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/109]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint at pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 at pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 at pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint at pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint in pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint in pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 in pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 in pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint in pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint in pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint from pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 from pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 from pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint from pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint from pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint near pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint near pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 near pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 near pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint near pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint near pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint around pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint around pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 around pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 around pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint around pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint around pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint within pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint within pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 within pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 within pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint within pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint within pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint inside pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint inside pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 inside pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 inside pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint inside pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint inside pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint outside pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint outside pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 outside pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 outside pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint outside pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint outside pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint by pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint by pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 by pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 by pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint by pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint by pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint where pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint where pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 where pub and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 where pub and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 pint where pub&pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 pint where pub&pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 for a pint from the pub and a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for a pint from the pub and a pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pints under£10 from pubs and pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£10 from pubs and pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 pint from the pub and a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 pint from the pub and a pizza"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 for a pint from the pub and half a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 for a pint from the pub and a pub lunch"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, route total£20 for a pint from the pub and a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, pub route budget of£20 for drinks from the pub and a pizza"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 for beer from the pub, a pizza and a pint"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham, £10 FOR A PINT FROM THE PUB & A PIZZA"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses coordinated meals across venue modifiers: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 FOR A PINT FROM THE PUB & A PIZZA"]}}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:231:8
+    229|     }));
+    230|     expect({ preparation: "response" in prepared ? prepared.response.s…
+    231|       .toEqual({ preparation: 422, post: 422 });
+       |        ^
+    232|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    233|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/109]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer at pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer in pubs under£5","total":null,"ceiling":500}
+AssertionError: {"error":"No 3-stop route in Clapham meets every must-have need with the information available.","code":"GROUNDED_CONSTRAINTS_UNSATISFIED","retryable":false,"details":{"nightArea":"clapham","availableVenueCount":69,"ok":false,"eligibleCandidateCount":10,"rejected":{"safety":0,"exclusions":0,"accessibility":0,"budgetEvidence":21,"budgetCeiling":38}}}: expected { preparation: 200, post: 422 } to deeply equal { preparation: 200, post: 200 }
+
+- Expected
++ Received
+
+  {
+-   "post": 200,
++   "post": 422,
+    "preparation": 200,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:393:10
+    391|       const body = await response.json();
+    392|       expect({ preparation: "prepared" in prepared ? 200 : prepared.re…
+    393|         .toEqual({ preparation: 200, post: 200 });
+       |          ^
+    394|       if (!("prepared" in prepared)) throw new Error(JSON.stringify(aw…
+    395|       expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/109]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer at pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer in pubs under£5"]},"total":null,"ceiling":500}
+AssertionError: {"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}: expected { preparation: 422, post: 422 } to deeply equal { preparation: 200, post: 200 }
+
+- Expected
++ Received
+
+  {
+-   "post": 200,
+-   "preparation": 200,
++   "post": 422,
++   "preparation": 422,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:393:10
+    391|       const body = await response.json();
+    392|       expect({ preparation: "prepared" in prepared ? 200 : prepared.re…
+    393|         .toEqual({ preparation: 200, post: 200 });
+       |          ^
+    394|       if (!("prepared" in prepared)) throw new Error(JSON.stringify(aw…
+    395|       expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/109]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer from pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer from pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer from pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer from pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer near pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer near pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer near pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer near pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer around pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer around pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer around pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer around pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer within pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer within pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer within pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer within pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer inside pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer inside pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer inside pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer inside pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer outside pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer outside pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer outside pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer outside pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer by pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer by pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer by pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer by pubs under£5"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint of beer where pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 pint of beer where pubs with food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pint of beer where pubs under£5","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pint of beer where pubs under£5"]},"total":null,"ceiling":500}
+AssertionError: {"error":"This route planner can check these drink limits only against recorded beer pint prices. Choose pints or remove the unsupported drink or serving limit.","code":"DRINK_PRICE_CONSTRAINTS_UNSUPPORTED","retryable":false}: expected { preparation: 422, post: 422 } to deeply equal { preparation: 200, post: 200 }
+
+- Expected
++ Received
+
+  {
+-   "post": 200,
+-   "preparation": 200,
++   "post": 422,
++   "preparation": 422,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:393:10
+    391|       const body = await response.json();
+    392|       expect({ preparation: "prepared" in prepared ? 200 : prepared.re…
+    393|         .toEqual({ preparation: 200, post: 200 });
+       |          ^
+    394|       if (!("prepared" in prepared)) throw new Error(JSON.stringify(aw…
+    395|       expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/109]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  109 failed | 355 passed | 1940 skipped (2404)
+   Start at  15:58:30
+   Duration  4.54s (tests 87%, transform 10%, import 3%)
+

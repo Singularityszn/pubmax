@@ -179,6 +179,93 @@ describe("createSlimShardLoader (London)", () => {
     vi.restoreAllMocks();
   });
 
+  it("bounds overlapping viewport and all reads without losing or duplicating shards", async () => {
+    const shards = Array.from({ length: 9 }, (_, index) => ({
+      id: `bounded-${index}`, core: index === 0,
+      url: `/data/bounded-${index}.json`, count: 1,
+      bbox: [-0.2, 51.45, 0.1, 51.55] as [number, number, number, number],
+    }));
+    const manifest = { ...MANIFEST, shards };
+    const held = new Map<string, (response: Response) => void>();
+    const requests: string[] = [];
+    let active = 0;
+    let peak = 0;
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: true, json: async () => manifest } as Response);
+      }
+      requests.push(url);
+      active += 1;
+      peak = Math.max(peak, active);
+      return new Promise<Response>((resolve) => held.set(url, (response) => {
+        active -= 1;
+        resolve(response);
+      }));
+    }) as typeof fetch;
+    const loader = createSlimShardLoader("london");
+    const bounds = { west: -0.2, south: 51.45, east: 0.1, north: 51.55 };
+    const initial = loader.initialResult(bounds);
+    const all = loader.all();
+    await vi.waitFor(() => expect(held.size).toBeGreaterThanOrEqual(4));
+    const initiallyDispatched = requests.length;
+    expect(loader.coverageComplete(bounds)).toBe(false);
+    for (const shard of shards) {
+      await vi.waitFor(() => expect(held.has(shard.url)).toBe(true));
+      held.get(shard.url)!({ ok: true, json: async () => [slimRow(shard.id, 51.5, -0.1)] } as Response);
+    }
+    const [first, complete] = await Promise.all([initial, all]);
+    expect(first.status).toBe("ready");
+    expect(first.rows.map((row) => row.id)).toEqual(shards.map((shard) => shard.id));
+    expect(complete.map((row) => row.id)).toEqual(shards.map((shard) => shard.id));
+    expect(new Set(requests).size).toBe(9);
+    expect(requests).toHaveLength(9);
+    expect(initiallyDispatched).toBe(4);
+    expect(peak).toBe(4);
+    expect(active).toBe(0);
+    expect(loader.coverageComplete(bounds)).toBe(true);
+  });
+
+  it("releases a failed shard slot and retries that shard without losing queued rows", async () => {
+    const shards = Array.from({ length: 5 }, (_, index) => ({
+      id: `retry-${index}`, core: index === 0,
+      url: `/data/bounded-retry-${index}.json`, count: 1,
+      bbox: [-0.2, 51.45, 0.1, 51.55] as [number, number, number, number],
+    }));
+    vi.spyOn(offlineCache, "get").mockResolvedValue(null);
+    const held = new Map<string, { resolve: (response: Response) => void; reject: (error: Error) => void }>();
+    const counts = new Map<string, number>();
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: true, json: async () => ({ ...MANIFEST, shards }) } as Response);
+      }
+      counts.set(url, (counts.get(url) ?? 0) + 1);
+      return new Promise<Response>((resolve, reject) => held.set(url, { resolve, reject }));
+    }) as typeof fetch;
+    const loader = createSlimShardLoader("london");
+    const bounds = { west: -0.2, south: 51.45, east: 0.1, north: 51.55 };
+    const initial = loader.initialResult(bounds);
+    await vi.waitFor(() => expect(held.size).toBeGreaterThanOrEqual(4));
+    const initiallyDispatched = held.size;
+    held.get(shards[0]!.url)!.reject(new Error("cellar signal"));
+    await vi.waitFor(() => expect(held.has(shards[4]!.url)).toBe(true));
+    for (const shard of shards.slice(1)) {
+      held.get(shard.url)!.resolve({ ok: true, json: async () => [slimRow(shard.id, 51.5, -0.1)] } as Response);
+    }
+    const first = await initial;
+    expect(first.status).toBe("unavailable");
+    expect(first.rows.map((row) => row.id)).toEqual(shards.slice(1).map((shard) => shard.id));
+    expect(loader.coverageComplete(bounds)).toBe(false);
+    const retry = loader.initialResult(bounds);
+    await vi.waitFor(() => expect(counts.get(shards[0]!.url)).toBe(2));
+    held.get(shards[0]!.url)!.resolve({ ok: true, json: async () => [slimRow(shards[0]!.id, 51.5, -0.1)] } as Response);
+    await expect(retry).resolves.toEqual({ rows: [slimRow(shards[0]!.id, 51.5, -0.1)], status: "ready" });
+    expect(loader.coverageComplete(bounds)).toBe(true);
+    for (const shard of shards.slice(1)) expect(counts.get(shard.url)).toBe(1);
+    expect(initiallyDispatched).toBe(4);
+  });
+
   it("core() loads only the manifest + core shard (first-paint stays lean)", async () => {
     const loader = createSlimShardLoader("london");
     const core = await loader.core();

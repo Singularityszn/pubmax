@@ -109,7 +109,7 @@ export function routeTotals(
   return { pricePence, walkMinutes: stops.length > 1 ? walkMinutes : null };
 }
 
-/** `3 stops · £18 each · 18 min walk`, each part only when it is real. */
+/** `3 stops · £18 each for pints · 18 min walk`, each part only when it is real. */
 export function routeSummaryLine(
   stops: readonly RouteViewStop[],
   measured?: MeasuredLegMinutes,
@@ -117,14 +117,14 @@ export function routeSummaryLine(
   const totals = routeTotals(stops, measured);
   return [
     stopCountLabel(stops.length),
-    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each`,
+    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each for pints`,
     totals.walkMinutes === null ? null : walkLabel(totals.walkMinutes),
   ].filter((part): part is string => part !== null).join(" · ");
 }
 
 export function priceKindLabel(kind: RouteViewStop["priceKind"]): string | null {
-  if (kind === "listed") return "Listed price";
-  if (kind === "estimated") return "Estimated price";
+  if (kind === "listed") return "Listed pint price";
+  if (kind === "estimated") return "Estimated pint price";
   return null;
 }
 

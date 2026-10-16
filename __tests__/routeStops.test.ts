@@ -78,8 +78,10 @@ describe("routeStopPlaceLabels", () => {
 });
 
 describe("routeStopAreaLabel", () => {
-  it("reads the curated tag, then the borough, then the visible list", () => {
+  it("reads the curated tag, then locality, borough, then visible list", () => {
     expect(routeStopAreaLabel(stop({ name: "A", storyTag: "Soho" }))).toBe("Soho");
+    expect(routeStopAreaLabel(stop({ name: "A", locality: "Hatton Garden", primaryBorough: "Camden" }))).toBe("Hatton Garden");
+    expect(routeStopAreaLabel(stop({ name: "A", locality: "London", primaryBorough: "Southwark" }))).toBe("Southwark");
     expect(routeStopAreaLabel(stop({ name: "A", primaryBorough: "Camden" }))).toBe("Camden");
     expect(routeStopAreaLabel(stop({ name: "A", visibleBoroughs: ["Hackney"] }))).toBe("Hackney");
     expect(routeStopAreaLabel(stop({ name: "A" }))).toBe("London");
