@@ -13,17 +13,17 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   statSync,
-  utimesSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import {
+  bucketCommitPaths,
   cliLoginConfig,
+  commitBucketSync,
   cliReadOnlyPgEnv,
   DEFAULT_BUCKET,
   dumpFileName,
@@ -36,9 +36,11 @@ import {
   pruneBackupCopy,
   PRUNE_AFTER_WEEKS,
   safeObjectPath,
+  settleInterruptedCommit,
 } from "./lib/offPlatformBackup.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
+const POOLER_CONNECT_RETRY_MS = [1_000, 2_000, 4_000, 8_000];
 const env = process.env;
 // Set once the destination is known to be outside every checkout, so a failure
 // can say whether the last good backup is being held past the maximum.
@@ -93,6 +95,9 @@ async function runBackup() {
   // halfway through therefore never overwrites a photo the last complete dump
   // still names.
   const stagingRoot = path.join(dir, "bucket", `${bucket}.staging`);
+  const versionsFile = path.join(dir, "bucket", `${bucket}.versions.json`);
+  const { previousRoot, journalFile } = bucketCommitPaths(dir, bucket);
+  const commitPaths = { dir, bucketRoot, versionsFile, previousRoot, journalFile };
 
   console.log(`[backup] directory ${dir}`);
   console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; prune after ${PRUNE_AFTER_WEEKS} weeks; maximum ${MAX_RETENTION_WEEKS} weeks`);
@@ -104,8 +109,10 @@ async function runBackup() {
   mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
   backupDir = dir;
-  // A killed run's staged photos belong to no dump.
+  // A killed run's staged photos belong to no dump, and a commit it left
+  // half done is finished or undone before anything is pruned or read.
   rmSync(stagingRoot, { recursive: true, force: true });
+  settleInterruptedCommit(commitPaths);
 
   // 0. Retention first. Pruning must not wait on a dump that may fail, so a
   // database outage cannot preserve an expired fallback or its photo identifiers.
@@ -126,11 +133,21 @@ async function runBackup() {
     // Supabase's managed read-only role grants full reads and bypasses RLS.
     // The temporary login need not inherit it. Never step down to postgres here.
     if (loginConfig) dumpArgs.push("--role=supabase_read_only_user", "--no-password");
-    const dump = spawnSync("pg_dump", dumpArgs, {
+    const runDump = () => spawnSync("pg_dump", dumpArgs, {
       env: { ...childEnv, ...pgEnv },
       // A client error can contain connection credentials or database identifiers.
       stdio: loginConfig ? ["ignore", "pipe", "pipe"] : ["ignore", "inherit", "inherit"],
     });
+    let dump = runDump();
+    // The session pooler can take a moment to learn a just-issued password,
+    // so a refused CONNECTION is retried with backoff there, as the Supabase
+    // CLI does. A query error (a missing grant) is never retried.
+    for (const waitMs of loginConfig?.pooler ? POOLER_CONNECT_RETRY_MS : []) {
+      if (dump.error || dump.status === 0 || !/connection to server/i.test(String(dump.stderr ?? ""))) break;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      rmSync(partial, { force: true });
+      dump = runDump();
+    }
     if (dump.error) {
       throw new Error("Could not run pg_dump.");
     }
@@ -149,7 +166,6 @@ async function runBackup() {
     const objects = await listBucketObjects({ baseUrl, key, bucket });
     // What each local file was when it was fetched, so a replacement under the
     // same key and the same size is still noticed.
-    const versionsFile = path.join(dir, "bucket", `${bucket}.versions.json`);
     let recorded = {};
     try {
       recorded = JSON.parse(readFileSync(versionsFile, "utf8"));
@@ -189,20 +205,20 @@ async function runBackup() {
     }
 
     // Every object read. Only now does the copy change: the staged photos
-    // replace the retained ones, each by one rename, and every object still in
-    // the bucket is stamped as seen by this run.
-    for (const { stagedFile, target } of staged) {
-      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-      renameSync(stagedFile, target);
-      utimesSync(target, startedAt, startedAt);
-    }
-    for (const target of unchanged) utimesSync(target, startedAt, startedAt);
-    writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
+    // replace the retained ones, every object still in the bucket is stamped as
+    // seen by this run, and the verified dump is published, as one journalled
+    // step whose failure, or a killed process, leaves the last complete dump
+    // and its photos as they were.
+    commitBucketSync({
+      ...commitPaths,
+      staged,
+      unchanged,
+      versions,
+      partialDump: partial,
+      dumpFile,
+      stamp: startedAt,
+    });
     console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${staged.length} downloaded.`);
-
-    // Publish only after Storage completes, so its failure preserves the last
-    // complete fallback on this run and the next. The archive is already verified.
-    renameSync(partial, dumpFile);
     console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
   } finally {
     // Failed renewal, dump or Storage still expires data at the current time.

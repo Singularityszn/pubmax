@@ -109,7 +109,9 @@ the log and in the alert (owner decision, 16 October 2026).
 - Each photo's last-seen timestamp supplies its age. A photo the oldest kept dump knew stays with that dump, at any age. With no complete dump at all, photos and `.incoming` files expire at 8 weeks, and unexpired files remain until that deadline.
 - The bucket copy also removes files last seen before the oldest kept dump. Empty account and conversation folders are removed. The version index retains identifiers only for files that remain. An empty index is removed.
 - Pruning runs before credential renewal and again on exit, including after a failed renewal, dump or bucket sync.
-- A bucket file is fetched again when its recorded version changes, even at the same size. The replacement waits in the staging folder until the whole sync succeeds. The new dump is published after that swap.
+- A bucket file is fetched again when its recorded version changes, even at the same size. The replacement waits in the staging folder until the whole sync succeeds.
+- The swap and the new dump are one journalled step. `bucket/pint-drops.commit.json` is written first, each retained photo is moved into `bucket/pint-drops.previous/` rather than overwritten, and publishing the dump is the commit point. A failure before that point puts the retained photos and the version index back. A killed run is finished or undone by the next run before it prunes or reads anything: kept if its dump was published, undone if not.
+- With the session pooler, a refused connection right after the temporary login is issued is retried with backoff (1, 2, 4 and 8 seconds), because the pooler can take a moment to learn the new password. A query error, such as a missing grant, is never retried.
 - Pruning requires the backup process to run. A killed process, or a sleeping, powered-off or unavailable Mac, can postpone deletion beyond eight weeks. The next run applies the age limit before it requests credentials. Installation does not prove continuous deletion or backup durability.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a

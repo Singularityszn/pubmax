@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   utimesSync,
@@ -18,6 +19,8 @@ import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  bucketCommitPaths,
+  commitBucketSync,
   DUMP_SCHEMAS,
   dumpFileName,
   isInsideDirectory,
@@ -30,6 +33,7 @@ import {
   pruneBackupCopy,
   PRUNE_AFTER_WEEKS,
   safeObjectPath,
+  settleInterruptedCommit,
 } from "@/scripts/lib/offPlatformBackup.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -338,9 +342,17 @@ describe("the backup executable keeps the last complete copy whole when Storage 
     // cases prove the Storage half without a cluster.
     const bin = path.join(scratch, "bin");
     mkdirSync(bin);
+    // PUBMAX_FAKE_DUMP_FAILURES lists the stderr of each failing call in turn,
+    // so a case can stage a refused connection before a good dump.
     writeFileSync(path.join(bin, "pg_dump"), `#!/usr/bin/env node
+const fs = require("node:fs");
 const args = process.argv.slice(2);
-require("node:fs").writeFileSync(args[args.indexOf("--file") + 1], "fixture-dump");
+const log = process.env.PUBMAX_FAKE_DUMP_LOG;
+const calls = log && fs.existsSync(log) ? fs.readFileSync(log, "utf8").split("\\n").filter(Boolean).length : 0;
+if (log) fs.appendFileSync(log, process.env.PGUSER + "\\n");
+const failures = JSON.parse(process.env.PUBMAX_FAKE_DUMP_FAILURES || "[]");
+if (calls < failures.length) { process.stderr.write(failures[calls]); process.exit(1); }
+fs.writeFileSync(args[args.indexOf("--file") + 1], "fixture-dump");
 `, { mode: 0o700 });
     writeFileSync(path.join(bin, "pg_restore"), "#!/usr/bin/env node\nconsole.log('TABLE DATA public profiles');\n", { mode: 0o700 });
     server = createServer(async (request, response) => {
@@ -349,6 +361,11 @@ require("node:fs").writeFileSync(args[args.indexOf("--file") + 1], "fixture-dump
       if (request.url === "/alert") {
         alerts.push(body);
         response.writeHead(204).end();
+        return;
+      }
+      if (request.url?.endsWith("/cli/login-role")) {
+        response.writeHead(201, { "content-type": "application/json" })
+          .end(JSON.stringify({ role: "cli_login_fixture", password: "fixture-login-secret", ttl_seconds: 300 }));
         return;
       }
       response.setHeader("content-type", "application/json");
@@ -382,9 +399,12 @@ require("node:fs").writeFileSync(args[args.indexOf("--file") + 1], "fixture-dump
   const versions = () => JSON.parse(readFileSync(path.join(privateDir(), "bucket/pint-drops.versions.json"), "utf8"));
   const dumps = () => readdirSync(privateDir()).filter((file) => file.endsWith(".dump"));
 
-  async function backup(): Promise<{ status: number; output: string }> {
+  async function backup(
+    overrides: Record<string, string> = {},
+    nodeArgs: string[] = [],
+  ): Promise<{ status: number; output: string }> {
     try {
-      const result = await runFile(process.execPath, ["scripts/backup-offplatform.mjs"], {
+      const result = await runFile(process.execPath, [...nodeArgs, "scripts/backup-offplatform.mjs"], {
         cwd: ROOT,
         env: {
           NODE_ENV: "test",
@@ -395,8 +415,9 @@ require("node:fs").writeFileSync(args[args.indexOf("--file") + 1], "fixture-dump
           SUPABASE_URL: storageUrl,
           SUPABASE_SERVICE_ROLE_KEY: "fixture-storage-secret",
           PUBMAX_ALERT_WEBHOOK_URL: `${storageUrl}/alert`,
+          ...overrides,
         },
-        timeout: 20_000,
+        timeout: 40_000,
       });
       return { status: 0, output: result.stdout + result.stderr };
     } catch (error) {
@@ -463,6 +484,175 @@ require("node:fs").writeFileSync(args[args.indexOf("--file") + 1], "fixture-dump
       expect(alert).not.toContain("fixture-password");
     }
   }, 60_000);
+
+  it("undoes a swap that a killed run left half done, before anything else reads the copy", async () => {
+    objects = { "a.jpg": { version: "a1", body: "a-v1!", status: 200 } };
+    expect((await backup()).status).toBe(0);
+    const fallback = dumps();
+
+    // What a run killed mid-commit leaves: the journal, the retained photo
+    // moved aside, the new photo in its place, an added photo, and no dump.
+    const bucketDir = path.join(privateDir(), "bucket");
+    const { previousRoot, journalFile } = bucketCommitPaths(privateDir(), "pint-drops");
+    mkdirSync(previousRoot, { recursive: true });
+    writeFileSync(path.join(previousRoot, "a.jpg"), "a-v1!");
+    writeFileSync(path.join(bucketDir, "pint-drops", "a.jpg"), "a-v2!");
+    writeFileSync(path.join(bucketDir, "pint-drops", "new.jpg"), "new-1");
+    writeFileSync(path.join(bucketDir, "pint-drops.versions.json"), JSON.stringify({ "a.jpg": "a2", "new.jpg": "n1" }));
+    writeFileSync(journalFile, JSON.stringify({
+      dump: "pubmax-20990101T000000Z.dump",
+      added: ["new.jpg"],
+      versionsBefore: JSON.stringify({ "a.jpg": "a1" }),
+    }));
+
+    objects = { "a.jpg": { version: "a2", body: "a-v2!", status: 503 } };
+    const next = await backup();
+
+    expect(next.status).toBe(1);
+    expect(photo("a.jpg")).toBe("a-v1!");
+    expect(existsSync(path.join(bucketDir, "pint-drops", "new.jpg"))).toBe(false);
+    expect(versions()).toEqual({ "a.jpg": "a1" });
+    expect(existsSync(previousRoot)).toBe(false);
+    expect(existsSync(journalFile)).toBe(false);
+    expect(dumps()).toEqual(fallback);
+  }, 60_000);
+
+  it("retries a refused pooler connection with a fresh login, and never a query error", async () => {
+    const redirect = path.join(scratch, "redirect.mjs");
+    writeFileSync(redirect, `
+const realFetch = globalThis.fetch;
+globalThis.fetch = (input, options) => {
+  const url = new URL(input);
+  if (!["api.supabase.com", "abcdefghijklmnopqrst.supabase.co"].includes(url.hostname)) throw new Error("Unexpected fixture request");
+  return realFetch(${JSON.stringify("__BASE__")} + url.pathname, options);
+};
+`.replace("__BASE__", storageUrl));
+    const pooler = {
+      PUBMAX_BACKUP_DB_AUTH: "cli-read-only",
+      PUBMAX_BACKUP_DB_URL: "postgres://postgres.abcdefghijklmnopqrst@aws-0-eu-west-2.pooler.supabase.com:5432/postgres",
+      SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
+      SUPABASE_ACCESS_TOKEN: "fixture-management-secret",
+      PUBMAX_ALERT_WEBHOOK_URL: "",
+    };
+    const refused = 'pg_dump: error: connection to server at "pooler" failed: FATAL:  password authentication failed for user "cli_login_fixture.abcdefghijklmnopqrst"';
+    objects = { "a.jpg": { version: "a1", body: "a-v1!", status: 200 } };
+
+    const log = path.join(scratch, "dump-calls.log");
+    const retried = await backup(
+      { ...pooler, PUBMAX_FAKE_DUMP_LOG: log, PUBMAX_FAKE_DUMP_FAILURES: JSON.stringify([refused]) },
+      ["--import", redirect],
+    );
+    expect(retried.status, retried.output).toBe(0);
+    expect(readFileSync(log, "utf8").trim().split("\n")).toEqual([
+      "cli_login_fixture.abcdefghijklmnopqrst",
+      "cli_login_fixture.abcdefghijklmnopqrst",
+    ]);
+    expect(dumps()).toHaveLength(1);
+    expect(retried.output).not.toContain("fixture-login-secret");
+
+    const queryLog = path.join(scratch, "query-calls.log");
+    const denied = await backup(
+      {
+        ...pooler,
+        PUBMAX_FAKE_DUMP_LOG: queryLog,
+        PUBMAX_FAKE_DUMP_FAILURES: JSON.stringify(["pg_dump: error: query failed: ERROR:  permission denied for table profiles"]),
+      },
+      ["--import", redirect],
+    );
+    expect(denied.status).toBe(1);
+    expect(denied.output).toContain("pg_dump exited 1");
+    expect(readFileSync(queryLog, "utf8").trim().split("\n")).toHaveLength(1);
+  }, 60_000);
+});
+
+describe("commitBucketSync publishes the dump and its photos as one recoverable step", () => {
+  let dir = "";
+  let bucketRoot = "";
+  let stagingRoot = "";
+  let paths: ReturnType<typeof bucketCommitPaths> & { dir: string; bucketRoot: string; versionsFile: string };
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "backup-commit-"));
+    bucketRoot = path.join(dir, "bucket", "pint-drops");
+    stagingRoot = path.join(dir, "bucket", "pint-drops.staging");
+    mkdirSync(bucketRoot, { recursive: true });
+    mkdirSync(stagingRoot, { recursive: true });
+    paths = { dir, bucketRoot, versionsFile: path.join(dir, "bucket", "pint-drops.versions.json"), ...bucketCommitPaths(dir, "pint-drops") };
+    writeFileSync(path.join(dir, "pubmax-20261001T000000Z.dump"), "last-good");
+    writeFileSync(path.join(bucketRoot, "a.jpg"), "a-old");
+    writeFileSync(path.join(bucketRoot, "b.jpg"), "b-old");
+    writeFileSync(paths.versionsFile, JSON.stringify({ "a.jpg": "a1", "b.jpg": "b1" }));
+    for (const [name, body] of [["a.jpg", "a-new"], ["b.jpg", "b-new"], ["c.jpg", "c-new"]] as const) {
+      writeFileSync(path.join(stagingRoot, name), body);
+    }
+    writeFileSync(path.join(dir, "pubmax-20261008T000000Z.dump.partial"), "next");
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const commit = (rename?: (from: string, to: string) => void) => commitBucketSync({
+    ...paths,
+    staged: ["a.jpg", "b.jpg", "c.jpg"].map((name) => ({ stagedFile: path.join(stagingRoot, name), target: path.join(bucketRoot, name) })),
+    unchanged: [],
+    versions: { "a.jpg": "a2", "b.jpg": "b2", "c.jpg": "c1" },
+    partialDump: path.join(dir, "pubmax-20261008T000000Z.dump.partial"),
+    dumpFile: path.join(dir, "pubmax-20261008T000000Z.dump"),
+    stamp: new Date("2026-10-08T00:00:00Z"),
+    rename,
+  });
+  const read = (name: string) => readFileSync(path.join(bucketRoot, name), "utf8");
+
+  it("swaps every photo, records the versions and publishes the dump", () => {
+    commit();
+    expect([read("a.jpg"), read("b.jpg"), read("c.jpg")]).toEqual(["a-new", "b-new", "c-new"]);
+    expect(JSON.parse(readFileSync(paths.versionsFile, "utf8"))).toEqual({ "a.jpg": "a2", "b.jpg": "b2", "c.jpg": "c1" });
+    expect(existsSync(path.join(dir, "pubmax-20261008T000000Z.dump"))).toBe(true);
+    expect(existsSync(paths.previousRoot)).toBe(false);
+    expect(existsSync(paths.journalFile)).toBe(false);
+  });
+
+  it("puts every retained photo and identifier back when a rename fails partway", () => {
+    let calls = 0;
+    const failing = (from: string, to: string) => {
+      calls += 1;
+      // a.jpg moves aside and its replacement lands; b.jpg's move aside fails.
+      if (calls === 3) throw new Error("EIO");
+      renameSync(from, to);
+    };
+    expect(() => commit(failing)).toThrow("EIO");
+    expect([read("a.jpg"), read("b.jpg")]).toEqual(["a-old", "b-old"]);
+    expect(existsSync(path.join(bucketRoot, "c.jpg"))).toBe(false);
+    expect(JSON.parse(readFileSync(paths.versionsFile, "utf8"))).toEqual({ "a.jpg": "a1", "b.jpg": "b1" });
+    expect(readdirSync(dir).filter((file) => file.endsWith(".dump"))).toEqual(["pubmax-20261001T000000Z.dump"]);
+    expect(existsSync(paths.previousRoot)).toBe(false);
+    expect(existsSync(paths.journalFile)).toBe(false);
+  });
+
+  it("keeps the new photos when the run died after the dump was published", () => {
+    // A kill between the dump's rename and the clean-up.
+    mkdirSync(paths.previousRoot, { recursive: true });
+    writeFileSync(path.join(paths.previousRoot, "a.jpg"), "a-old");
+    writeFileSync(path.join(bucketRoot, "a.jpg"), "a-new");
+    writeFileSync(path.join(dir, "pubmax-20261008T000000Z.dump"), "next");
+    writeFileSync(paths.journalFile, JSON.stringify({ dump: "pubmax-20261008T000000Z.dump", added: [], versionsBefore: "{}" }));
+
+    expect(settleInterruptedCommit(paths)).toBe("committed");
+    expect(read("a.jpg")).toBe("a-new");
+    expect(existsSync(paths.previousRoot)).toBe(false);
+  });
+
+  it("drops the version index when the journal cannot be read, so nothing old is trusted", () => {
+    mkdirSync(paths.previousRoot, { recursive: true });
+    writeFileSync(path.join(paths.previousRoot, "a.jpg"), "a-old");
+    writeFileSync(path.join(bucketRoot, "a.jpg"), "a-new");
+    writeFileSync(paths.journalFile, "{truncated");
+
+    expect(settleInterruptedCommit(paths)).toBe("rolled-back");
+    expect(read("a.jpg")).toBe("a-old");
+    expect(existsSync(paths.versionsFile)).toBe(false);
+  });
 });
 
 describe("npm run backup:offplatform", () => {

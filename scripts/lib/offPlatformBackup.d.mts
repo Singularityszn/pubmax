@@ -11,6 +11,28 @@ export function pruneBackupCopy(input: {
   now: number;
 }): { dumps: number; files: number; directories: number };
 export function lastCompleteBackupPastMaximum(input: { dir: string; now: number }): string | null;
+export function bucketCommitPaths(dir: string, bucket: string): { previousRoot: string; journalFile: string };
+export function settleInterruptedCommit(input: {
+  dir: string;
+  bucketRoot: string;
+  versionsFile: string;
+  previousRoot: string;
+  journalFile: string;
+}): "none" | "committed" | "rolled-back";
+export function commitBucketSync(input: {
+  dir: string;
+  bucketRoot: string;
+  versionsFile: string;
+  previousRoot: string;
+  journalFile: string;
+  staged: Array<{ stagedFile: string; target: string }>;
+  unchanged: string[];
+  versions: Record<string, string | null>;
+  partialDump: string;
+  dumpFile: string;
+  stamp: Date;
+  rename?: (from: string, to: string) => void;
+}): void;
 export function isInsideDirectory(candidate: string, directory: string): boolean;
 export function listBucketObjects(input: {
   baseUrl: string;

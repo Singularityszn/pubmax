@@ -6,7 +6,19 @@
 // public, so a dump may never be a workflow artifact or a committed file. The
 // copy lives on the captain's Mac, outside every git checkout, written 0600.
 
-import { chmodSync, existsSync, readFileSync, readdirSync, rmdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
@@ -279,6 +291,120 @@ export function objectNeedsDownload({ exists, localSize, size, version, recorded
   if (size !== null && localSize !== size) return true;
   if (version === null || version === undefined) return true;
   return recordedVersion !== version;
+}
+
+/**
+ * Where a sync keeps what it is about to replace. `previousRoot` holds every
+ * retained photo a commit displaces, and `journalFile` names the dump the
+ * commit publishes, the identifiers it added and the version index before it.
+ * Both sit beside `bucketRoot`, outside what pruneBackupCopy walks.
+ */
+export function bucketCommitPaths(dir, bucket) {
+  return {
+    previousRoot: path.join(dir, "bucket", `${bucket}.previous`),
+    journalFile: path.join(dir, "bucket", `${bucket}.commit.json`),
+  };
+}
+
+function filesUnder(root) {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { recursive: true })
+    .map((relative) => String(relative))
+    .filter((relative) => statSync(path.join(root, relative)).isFile());
+}
+
+/**
+ * Finish or undo a commit that did not reach its end. Publishing the dump is
+ * the commit point: once the journal's dump exists, the swapped photos belong
+ * to it and the displaced copies go. Before that, the swap is undone, so the
+ * last complete dump is paired with exactly the photos and identifiers it was
+ * taken with. An unreadable journal still undoes the swap, and drops the
+ * version index so every photo is fetched again rather than trusted.
+ */
+export function settleInterruptedCommit({ dir, bucketRoot, versionsFile, previousRoot, journalFile }) {
+  if (!existsSync(journalFile)) {
+    rmSync(previousRoot, { recursive: true, force: true });
+    return "none";
+  }
+  let journal = null;
+  try {
+    const parsed = JSON.parse(readFileSync(journalFile, "utf8"));
+    if (parsed && typeof parsed.dump === "string" && Array.isArray(parsed.added)) journal = parsed;
+  } catch {
+    journal = null;
+  }
+  if (journal && existsSync(path.join(dir, path.basename(journal.dump)))) {
+    rmSync(previousRoot, { recursive: true, force: true });
+    rmSync(journalFile, { force: true });
+    return "committed";
+  }
+  for (const relative of filesUnder(previousRoot)) {
+    const target = safeObjectPath(bucketRoot, relative);
+    mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    renameSync(path.join(previousRoot, relative), target);
+  }
+  for (const relative of journal?.added ?? []) {
+    if (typeof relative === "string") rmSync(safeObjectPath(bucketRoot, relative), { force: true });
+  }
+  if (journal && typeof journal.versionsBefore === "string") {
+    writeFileSync(versionsFile, journal.versionsBefore, { mode: 0o600 });
+  } else {
+    rmSync(versionsFile, { force: true });
+  }
+  rmSync(previousRoot, { recursive: true, force: true });
+  rmSync(journalFile, { force: true });
+  return "rolled-back";
+}
+
+/**
+ * Swap a fully downloaded sync into the kept copy and publish its dump, as one
+ * recoverable step: the journal is written first, each retained photo is moved
+ * aside rather than overwritten, and the dump's rename is the commit point.
+ * Any failure before that point is undone here; a killed process is undone by
+ * the next run's settleInterruptedCommit.
+ */
+export function commitBucketSync({
+  dir,
+  bucketRoot,
+  versionsFile,
+  previousRoot,
+  journalFile,
+  staged,
+  unchanged,
+  versions,
+  partialDump,
+  dumpFile,
+  stamp,
+  rename = renameSync,
+}) {
+  const paths = { dir, bucketRoot, versionsFile, previousRoot, journalFile };
+  try {
+    const added = staged
+      .filter(({ target }) => !existsSync(target))
+      .map(({ target }) => path.relative(bucketRoot, target));
+    writeFileSync(journalFile, JSON.stringify({
+      dump: path.basename(dumpFile),
+      added,
+      versionsBefore: existsSync(versionsFile) ? readFileSync(versionsFile, "utf8") : null,
+    }), { mode: 0o600 });
+    for (const { stagedFile, target } of staged) {
+      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+      if (existsSync(target)) {
+        const aside = safeObjectPath(previousRoot, path.relative(bucketRoot, target));
+        mkdirSync(path.dirname(aside), { recursive: true, mode: 0o700 });
+        rename(target, aside);
+      }
+      rename(stagedFile, target);
+      utimesSync(target, stamp, stamp);
+    }
+    for (const target of unchanged) utimesSync(target, stamp, stamp);
+    writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
+    rename(partialDump, dumpFile);
+  } catch (error) {
+    settleInterruptedCommit(paths);
+    throw error;
+  }
+  settleInterruptedCommit(paths);
 }
 
 /** A bucket path that would escape its directory is refused rather than written. */
