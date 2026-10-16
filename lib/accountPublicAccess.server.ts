@@ -45,7 +45,7 @@ const IN_CHUNK_SIZE = 100;
  * withdrawn list is read in pages no larger than that. Unpaged, every handle
  * past the thousandth came back missing and its profile stopped being hidden.
  */
-export const WITHDRAWN_RPC_PAGE_ROWS = 1_000;
+const WITHDRAWN_RPC_PAGE_ROWS = 1_000;
 /** GoTrue admin reads in flight at once for one fallback read. */
 const AUTH_READ_CONCURRENCY = 8;
 

@@ -7,12 +7,12 @@
 
 const CHUNK_BYTES = 64 * 1024;
 
-export type CountingBody = {
+type CountingBody = {
   stream: ReadableStream<Uint8Array>;
   pulled: () => number;
 };
 
-export function countingBody(totalBytes: number, fill = 0x61): CountingBody {
+function countingBody(totalBytes: number, fill = 0x61): CountingBody {
   let sent = 0;
   const stream = new ReadableStream<Uint8Array>({
     pull(controller) {
