@@ -239,13 +239,27 @@ export function priceAgeFor(
   return withinWindow(iso, window, now) ? "fresh" : "aging";
 }
 
-/** The words an aging figure carries beside it, so the shape is never alone. */
+/**
+ * The words an aging figure carries beside it, so the shape is never alone.
+ * Each says only what the read day shows: a date that cannot be read, or one
+ * later than today, is not evidence of an old price, so it is not called one.
+ */
 export function priceAgeNote(
   lane: PriceAgeLane,
   observedAt: string | number | null | undefined,
+  now: number = Date.now(),
 ): string {
   if (observedAt === null || observedAt === undefined || observedAt === "") {
     return "No read date on record, so this price may have changed.";
+  }
+  const age =
+    typeof observedAt === "number"
+      ? Number.isFinite(observedAt)
+        ? (now - observedAt) / DAY_MS
+        : null
+      : ageDays(observedAt, now);
+  if (age === null || age < 0) {
+    return "The read date on record cannot be checked, so this price may have changed.";
   }
   return lane === "drinker"
     ? `Logged over ${CONFIRMED_MAX_AGE_DAYS} days ago, so this price may have changed.`

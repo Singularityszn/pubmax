@@ -55,4 +55,12 @@ describe("priceAgeNote", () => {
     expect(priceAgeNote("published", daysAgo(400))).toBe("Read over a year ago, so this price may have changed.");
     expect(priceAgeNote("drinker", daysAgo(40))).toBe("Logged over 30 days ago, so this price may have changed.");
   });
+
+  it("never calls an unreadable or future read day an old one", () => {
+    const unchecked = "The read date on record cannot be checked, so this price may have changed.";
+    expect(priceAgeNote("published", "not a date", NOW)).toBe(unchecked);
+    expect(priceAgeNote("published", daysAgo(-3), NOW)).toBe(unchecked);
+    expect(priceAgeNote("drinker", NOW + 86_400_000, NOW)).toBe(unchecked);
+    expect(priceAgeNote("drinker", Number.NaN, NOW)).toBe(unchecked);
+  });
 });
