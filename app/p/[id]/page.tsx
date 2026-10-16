@@ -71,7 +71,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (!drop) {
     return {
       title: "This pint isn't on the wall",
-      description: "This Pint Drop couldn't be found on PUBMAXXING.",
+      description: "This Pint Drop couldn't be found on PUBMAXX.",
     };
   }
 
@@ -82,7 +82,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     drop.note ||
     (drop.drink
       ? `${drop.drink} at ${drop.venueName}${price ? ` for ${price}` : ""}.`
-      : `A Pint Drop at ${drop.venueName} on PUBMAXXING.`);
+      : `A Pint Drop at ${drop.venueName} on PUBMAXX.`);
 
   // opengraph-image.tsx sits beside this route, so Next auto-attaches it; we
   // still name the canonical url + card type here for a complete lockup.
@@ -109,7 +109,7 @@ function NotOnTheWall() {
     <main id="main" className="permalink permalink--empty">
       <div className="permalink__emptyCard">
         <Link className="permalink__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="permalink__eyebrow">Pint Drop</p>
         <h1 className="permalink__emptyTitle">This pint isn&rsquo;t on the wall</h1>
@@ -153,7 +153,7 @@ function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
         {/* Kicker: brand + edition line */}
         <div className="permalink__kicker">
           <Link className="permalink__brand" href="/">
-            PUBMAXXING
+            PUBMAXX
           </Link>
           <span className="permalink__edition">A Pint Drop</span>
         </div>

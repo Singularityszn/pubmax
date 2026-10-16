@@ -13,8 +13,6 @@ import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { firstHttp, firstHttps } from "@/lib/httpUrl";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import {
-  drinkAccentForVenue,
-  drinkShelfForVenue,
   normaliseScrapedSource,
   SCRAPED_SOURCE_LABELS,
   type ScrapedPub,
@@ -66,7 +64,6 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
   for (const [id, record] of index.entries()) {
     const venue = byId.get(id);
     const source = normaliseScrapedSource(record.source);
-    const drinkAccent = drinkAccentForVenue(id);
     const tilePhoto = record.categoryTiles?.find((tile) => tile.imageUrl)?.imageUrl;
     const venuePhoto = venue ? proxiedVenueImageUrl(venue.imageUrl) : "";
     const photoUrl = proxiedVenueImageUrl(tilePhoto ?? "") || venuePhoto || undefined;
@@ -80,8 +77,6 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
       menuUrl: firstHttps(record.menuUrl) || undefined,
       bookingUrl: firstHttp(record.bookingUrl) || undefined,
       photoUrl,
-      drinkAccent,
-      drinkShelf: drinkShelfForVenue(id, drinkAccent),
       cheapestPrice: venue?.cheapestPrice ?? null,
       zone: zonesById.get(id) ?? null,
     });

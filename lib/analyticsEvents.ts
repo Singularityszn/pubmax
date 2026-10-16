@@ -100,7 +100,6 @@ export const ANALYTICS_EVENTS = {
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
-  out_screen_view: [],
   out_filter_select: ["kind"],
   create_fab_action: ["action"],
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was

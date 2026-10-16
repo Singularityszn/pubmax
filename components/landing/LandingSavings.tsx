@@ -7,22 +7,20 @@ import { discardBody } from "@/lib/responseBody";
 import {
   readerSavingLine,
   readerSavings,
-  strangerSavingLine,
   type PintPriceAverages,
 } from "@/lib/pintSavings";
 
-// The one line that says what this is worth in pounds.
+// The signed-in reader's own saving, in pounds.
 //
-// A STRANGER reads the dataset's own arithmetic: the mean listed pint across
-// every priced London pub against the mean across the cheapest third of them.
-// __tests__/pintSavings.test.ts measures both from the shipped dataset, so the
-// figure is checked rather than claimed, and a dataset too small to mean
-// anything prints no line at all.
+// A STRANGER's line, the dataset's own arithmetic (the mean listed pint across
+// every priced London pub against the mean across the cheapest third), is the
+// hero's supporting line now (components/landing/LandingHero.tsx), so this band
+// prints nothing for a stranger rather than saying it twice.
 //
-// A SIGNED IN READER reads their own total instead: every price they logged
-// that came in under that average, counted for the gap it actually beat it by.
-// The read only runs when there is a handle to read, so a stranger's landing
-// makes no request and the route's own request ceiling never moves.
+// A SIGNED IN READER reads their own total: every price they logged that came
+// in under that average, counted for the gap it actually beat it by. The read
+// only runs when there is a handle to read, so a stranger's landing makes no
+// request and the route's own request ceiling never moves.
 
 type Logged = { priceGbp: number | null };
 
@@ -55,11 +53,10 @@ export default function LandingSavings({ averages }: { averages: PintPriceAverag
     return () => controller.abort();
   }, [handle, averages]);
 
-  const line = mine ?? strangerSavingLine(averages);
-  if (!line) return null;
+  if (!mine) return null;
   return (
-    <p className="lpSaved" data-mine={mine ? "" : undefined}>
-      {line}
+    <p className="lpSaved" data-mine="">
+      {mine}
     </p>
   );
 }

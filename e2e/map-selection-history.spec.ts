@@ -152,7 +152,7 @@ test.describe("§4.7 explicit Map arrival suppresses the first-run tour", () => 
     page,
   }) => {
     test.setTimeout(90_000);
-    const tour = page.getByRole("dialog", { name: "PUBMAXXING" });
+    const tour = page.getByRole("dialog", { name: "PUBMAXX" });
 
     // Deep-linked Venue: the sheet mounts and the tour is suppressed for it.
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);

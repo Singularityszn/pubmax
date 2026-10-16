@@ -111,7 +111,7 @@ function toState(
 }
 
 // Pub-voice copy for each decision state (user story 21) — this is the whole
-// point: it should read like PUBMAXXING, not a transit dashboard.
+// point: it should read like PUBMAXX, not a transit dashboard.
 export function lastRideLabelForVenue(
   rideLabel: string,
   venueKind: VenueKind | undefined,

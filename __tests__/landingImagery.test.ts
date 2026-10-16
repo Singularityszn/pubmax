@@ -22,7 +22,7 @@ import {
   LONDON_PHOTO_ID,
   PUB_PHOTOS,
 } from "@/lib/landingImagery";
-import { LANDING_PUB_PREFERENCE } from "@/lib/landingPubCard";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 import { defined } from "@/__tests__/helpers/defined";
@@ -173,9 +173,12 @@ describe("a slot always answers", () => {
 });
 
 describe("every key in the routing tables names a real place", () => {
-  it("keys the pub table on a pub the landing can actually anchor on", () => {
+  it("keys the pub table on a priced pub the card can actually show", async () => {
+    // The card follows the answer (the cheapest anchor, or a near-you swap),
+    // so a pub photograph is keyed on any pub the priced index holds.
+    const priced = new Set((await getPricedVenues()).map((venue) => venue.id));
     for (const venueId of Object.keys(PUB_PHOTOS)) {
-      expect(LANDING_PUB_PREFERENCE, `${venueId} is a landing anchor`).toContain(venueId);
+      expect(priced.has(venueId), `${venueId} is a priced pub`).toBe(true);
     }
   });
 

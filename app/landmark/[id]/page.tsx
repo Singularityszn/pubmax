@@ -59,9 +59,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const landmark = landmarkById(id);
   if (!landmark) {
-    return { title: "Landmark chapter · PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Landmark chapter", robots: { index: false, follow: false } };
   }
-  const title = `${landmark.name}: London story chapter · PUBMAXXING`;
+  const title = `${landmark.name}: London story chapter · PUBMAXX`;
   const description = landmark.history.slice(0, 155);
   const canonical = `/landmark/${landmark.id}`;
   return {
@@ -102,7 +102,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
             shareable-URL param PubMap seeds from) — a bare /map dead-ends with
             nothing selected. */}
         <Link prefetch={false} className="landmarkChapterEyebrow" href={mapHref}>
-          PUBMAXXING · London stories
+          PUBMAXX · London stories
         </Link>
         <h1 className="landmarkChapterTitle">{landmark.name}</h1>
       </header>

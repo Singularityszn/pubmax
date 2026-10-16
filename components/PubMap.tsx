@@ -698,6 +698,8 @@ import {
   type AcceptedArrivalInput,
 } from "@/lib/mapAcceptance";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
+import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
+import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
@@ -5862,9 +5864,7 @@ export default function PubMap({
   ) : null;
 
   /* The peek row: the price this lens can vouch for, the walk from the reader's
-     own point, and the crawl toggle. Adding a pub to the crawl you are building
-     is a different capability from "Make it Stop 1", which starts one plan around
-     one accepted pub, so the peek carries three columns. */
+     own point, and the phone sheet's ONE plan door (lib/venuePlanDoor.ts). */
   function renderVenuePeekSummary(selectedVenue: Venue) {
     const selectedLensPrice = activeLensPrices?.get(selectedVenue.id) ?? null;
     // THE PEEK ASKS THE ONE PRECEDENCE. It used to test `cheapestPrice` itself
@@ -5886,73 +5886,81 @@ export default function PubMap({
       dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
+    // The frame is the peek's size container: the row measures itself in em, so
+    // large text moves the plan door onto its own line (mobileMapShell.css).
     return (
-      <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-        {activeLensPrices !== null ? (
+      <div className="mobileVenuePeekFrame">
+        <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
+          {activeLensPrices !== null ? (
+            <span>
+              {selectedLensPrice ? (
+                <PriceBadge
+                  band={
+                    selectedLensPrice.category === "beer"
+                      ? priceBand(selectedLensPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))
+                      : null
+                  }
+                >
+                  {formatPrice(selectedLensPrice.priceGbp)}
+                </PriceBadge>
+              ) : (
+                <strong>Unknown</strong>
+              )}
+              <small>
+                {selectedLensPrice?.categoryLabel ??
+                  drinkLensUnknownRowLabel(
+                    activeLensNoun?.toLowerCase() ?? "this view",
+                    drinkIndexStatus,
+                  )}
+              </small>
+            </span>
+          ) : (
+            <VenuePeekPintPrice
+              venueId={selectedVenue.id}
+              isPub={selectedVenueIsPub}
+              lane={peekLane}
+              bundle={peekBundle}
+              pintTrust={peekDropSignal?.pintTrust ?? null}
+              detailLoading={selectedDetailStatus === "loading"}
+              priceReadStatus={communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle"}
+              dropReadStatus={pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle"}
+              onLog={openComposerForLog}
+            />
+          )}
           <span>
-            {selectedLensPrice ? (
-              <PriceBadge
-                band={
-                  selectedLensPrice.category === "beer"
-                    ? priceBand(selectedLensPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))
-                    : null
-                }
-              >
-                {formatPrice(selectedLensPrice.priceGbp)}
-              </PriceBadge>
-            ) : (
-              <strong>Unknown</strong>
-            )}
-            <small>
-              {selectedLensPrice?.categoryLabel ??
-                drinkLensUnknownRowLabel(
-                  activeLensNoun?.toLowerCase() ?? "this view",
-                  drinkIndexStatus,
-                )}
-            </small>
+            <strong
+              className={
+                userLocation
+                  ? "mobileVenuePeekNearMe"
+                  : "mobileVenuePeekNearMe isPhrase"
+              }
+            >
+              {userLocation
+                ? `${Math.max(1, Math.ceil(haversineKm(
+                    [userLocation.lng, userLocation.lat],
+                    [selectedVenue.longitude, selectedVenue.latitude],
+                  ) * 12.5))} min`
+                : "Near me"}
+            </strong>
+            <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
           </span>
-        ) : (
-          <VenuePeekPintPrice
+          {/* ONE plan door, and it follows the crawl (lib/venuePlanDoor.ts): no
+              crawl in progress hands the pub to Plan as Stop 1, a crawl in
+              progress adds it to or takes it off the crawl on the map. */}
+          <VenuePeekPlanDoor
+            door={phoneVenuePlanDoor({
+              isPub: selectedVenueIsPub,
+              mode,
+              builtIds,
+              venueId: selectedVenue.id,
+              canAcceptStop1: selectedVenueIsPub,
+            })}
             venueId={selectedVenue.id}
-            isPub={selectedVenueIsPub}
-            lane={peekLane}
-            bundle={peekBundle}
-            pintTrust={peekDropSignal?.pintTrust ?? null}
-            detailLoading={selectedDetailStatus === "loading"}
-            priceReadStatus={communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle"}
-            dropReadStatus={pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle"}
-            onLog={openComposerForLog}
+            venueName={selectedVenue.name}
+            onAcceptStop1={acceptStop1}
+            onToggleStop={toggleBuiltStop}
           />
-        )}
-        <span>
-          <strong
-            className={
-              userLocation
-                ? "mobileVenuePeekNearMe"
-                : "mobileVenuePeekNearMe isPhrase"
-            }
-          >
-            {userLocation
-              ? `${Math.max(1, Math.ceil(haversineKm(
-                  [userLocation.lng, userLocation.lat],
-                  [selectedVenue.longitude, selectedVenue.latitude],
-                ) * 12.5))} min`
-              : "Near me"}
-          </strong>
-          <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
-        </span>
-        {/* Adding a pub to the crawl you are building is a different capability
-            from "Make it Stop 1", which starts one plan around one accepted
-            pub. Keeping both is why the peek has three columns. */}
-        {selectedVenueIsPub ? (
-          <button
-            type="button"
-            aria-pressed={builtIds.includes(selectedVenue.id)}
-            onClick={() => toggleBuiltStop(selectedVenue.id)}
-          >
-            {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
-          </button>
-        ) : null}
+        </div>
       </div>
     );
   }

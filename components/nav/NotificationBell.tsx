@@ -19,7 +19,7 @@ function readHandle(): string {
   return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
-export default function NotificationBell(): React.JSX.Element {
+export default function NotificationBell(): React.JSX.Element | null {
   const router = useRouter();
   const { user, handle: authHandle } = useAuth();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
@@ -84,6 +84,11 @@ export default function NotificationBell(): React.JSX.Element {
       abortRef.current?.abort();
     };
   }, [handle, refresh, authHandle, socialFriendsLaunchEnabled, user]);
+
+  // A signed-out visitor has no activity to read, so the bell is not drawn for
+  // them at all (Oct 2026 UX audit): an icon with nothing behind it is noise in
+  // the header. It appears once a session exists.
+  if (!user) return null;
 
   const label = !socialFriendsLaunchEnabled
     ? "Social preview"

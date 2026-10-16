@@ -9,9 +9,11 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
-// and so previews THIS head: the description is the landing hero's lede, the
-// same line lib/homeOgCard.tsx prints on the share card.
-const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
+// and so previews THIS head: the description is the landing hero's map line,
+// the same line lib/homeOgCard.tsx prints on the share card. The hero's lede is
+// the measured saving when the dataset backs one, but a static head and card
+// may hold no figure of their own, so they keep the map line.
+const HOME_TITLE = "PUBMAXX: what a pint costs, pub by pub";
 const HOME_DESCRIPTION =
   "London on one map, with 298 historic pubs marked and a listed price wherever we hold one. Who listed it, and the day they did.";
 
@@ -41,7 +43,7 @@ export const metadata: Metadata = {
         height: 630,
         // No count here: this string is static metadata, so a figure typed in
         // would rot while the card's own figures are derived per render.
-        alt: "PUBMAXXING. Listed pint prices on one map, across London and more UK cities",
+        alt: "PUBMAXX. Listed pint prices on one map, across London and more UK cities",
       },
     ],
   },

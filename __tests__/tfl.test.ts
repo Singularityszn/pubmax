@@ -493,7 +493,7 @@ describe("buildLastPintShareText", () => {
     expect(text).toContain("Last train home: 23:42 from Angel.");
     expect(text).toContain("Leave by 23:28 for Walthamstow.");
     expect(text).toContain("Time to settle up.");
-    expect(text).toContain("via PUBMAXXING");
+    expect(text).toContain("via PUBMAXX");
   });
 
   it("omits the destination clause when none is set", () => {
@@ -545,10 +545,10 @@ describe("buildLastPintShareText", () => {
 
 describe("lastPintShareHref", () => {
   it("builds a wa.me deep link with the encoded message", () => {
-    const href = lastPintShareHref("Leave by 23:28.\n— via PUBMAXXING");
+    const href = lastPintShareHref("Leave by 23:28.\n— via PUBMAXX");
     expect(href.startsWith("https://wa.me/?text=")).toBe(true);
     expect(decodeURIComponent(href.replace("https://wa.me/?text=", ""))).toBe(
-      "Leave by 23:28.\n— via PUBMAXXING",
+      "Leave by 23:28.\n— via PUBMAXX",
     );
   });
 });

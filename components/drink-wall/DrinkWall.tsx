@@ -198,7 +198,7 @@ export default function DrinkWall() {
       <div className="drinkWallHead">
         <h1 className="drinkWallTitle">Drink Wall</h1>
         <p className="drinkWallIntro">
-          Pints, pub fronts and London views from drinkers on PubMaxxing.
+          Pints, pub fronts and London views from drinkers on PUBMAXX.
         </p>
         <div className="drinkWallFilters">
           <div className="drinkWallScope" role="group" aria-label="Browse scope">
