@@ -1465,15 +1465,35 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     align-items: start;
   }
 
-  .planDescribeFirst > .screenHead > .kicker,
-  .planDescribeFirst > .screenHead > .screenTitle,
-  .planDescribeFirst > .screenHead > .screenActions {
+  /* The heading holds the left column; the field, the stop count and the
+     actions that submit them stack in the right one, in that order. Auto
+     placement used to seat the field top right and "Sort it" bottom left, so
+     the submit sat a column away from the field it submits. */
+  .planDescribeFirst > .screenHead > .kicker {
     grid-column: 1;
+    grid-row: 1;
   }
 
-  .planDescribeFirst__form,
+  .planDescribeFirst > .screenHead > .screenTitle {
+    grid-column: 1;
+    grid-row: 2 / span 3;
+  }
+
+  .planDescribeFirst__form {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
   .planDescribeFirst > .planStopCount {
     grid-column: 2;
+    grid-row: 3;
+    margin-top: 0;
+  }
+
+  .planDescribeFirst > .screenHead > .screenActions {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: 0;
   }
 
   .planDescribeFirst__culture,
