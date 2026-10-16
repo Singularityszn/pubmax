@@ -36,6 +36,7 @@ describe("which /map requests need their own document", () => {
     ["a cult story band", "?band=subcrawl"],
     ["a curated crawl share", "?crawl=soho-classics"],
     ["a stop list", "?pubs=venue-a,venue-b,venue-c"],
+    ["a pint share", "?sel=venue-xjf3n0&card=pint"],
   ])("%s does", (_label, query) => {
     expect(mapRequestNeedsDocumentTwin(query)).toBe(true);
   });
@@ -60,6 +61,8 @@ describe("which /map requests need their own document", () => {
       "band",
       "crawl",
       "pubs",
+      // "Share this pint" (lib/pintShare.ts): one pub's listed pint card.
+      "card",
     ]);
   });
 });
@@ -144,12 +147,13 @@ describe("the two halves stay one page", () => {
       join(process.cwd(), "app/map/arrival/page.tsx"),
       "utf8",
     );
-    // Three metadata branches (national browse, place arrival, share card) and
-    // each one is /map's document, rendered somewhere else.
+    // Four metadata branches (national browse, place arrival, pint share card,
+    // curated share card) and each one is /map's document, rendered somewhere
+    // else.
     const canonical = twin.match(/alternates: \{ canonical: "\/map" \}/g) ?? [];
-    expect(canonical).toHaveLength(3);
+    expect(canonical).toHaveLength(4);
     const noindex = twin.match(/robots: \{ index: false, follow: true \}/g) ?? [];
-    expect(noindex).toHaveLength(3);
+    expect(noindex).toHaveLength(4);
     expect(MAP_DOCUMENT_PATH).toBe("/map");
   });
 });
