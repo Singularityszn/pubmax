@@ -171,6 +171,25 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(defined(result.pubs[0]).boroughLabel).toBe("Hatton Garden");
   });
 
+  it("uses borough when locality is only the city name", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "doggett",
+      venues: [
+        venue({
+          id: "doggett",
+          name: "Doggett's Coat and Badge",
+          locality: "London",
+          primaryBorough: "Southwark",
+        }),
+      ],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+
+    expect(defined(result.pubs[0]).boroughLabel).toBe("Southwark");
+  });
+
   it("matches many Venues by name and caps the group", () => {
     const venues = Array.from({ length: 10 }, (_, i) =>
       venue({ id: `crown-${i}`, name: `The Crown ${i}`, latitude: 51.51 + i * 0.001, longitude: -0.13 }),

@@ -694,7 +694,6 @@ function buildFilterHints(rows, venueId, scrapedIds) {
     [
       first.pub_name,
       first.address,
-      ...rows.map((row) => row.locality),
       first.primary_borough,
       first.boroughs_visible,
       ...prices.map((price) => price.pint_name),

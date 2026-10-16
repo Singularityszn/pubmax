@@ -13,6 +13,8 @@
  * candidate is read off the venue's own record.
  */
 
+import { venueAreaLabel } from "@/lib/venueDisplay";
+
 export type RouteStopPlace = {
   name: string;
   address: string;
@@ -22,9 +24,6 @@ export type RouteStopPlace = {
   primaryBorough?: string;
   visibleBoroughs?: readonly string[];
 };
-
-/** Fallback when a venue records no area at all. */
-const UNKNOWN_AREA = "London";
 
 function normalise(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -68,10 +67,10 @@ export function venueStreetLabel(address: string): string | null {
 export function routeStopAreaLabel(stop: RouteStopPlace): string {
   return (
     stop.storyTag?.trim() ||
-    stop.locality?.trim() ||
-    stop.primaryBorough?.trim() ||
-    stop.visibleBoroughs?.[0]?.trim() ||
-    UNKNOWN_AREA
+    venueAreaLabel({
+      locality: stop.locality,
+      primaryBorough: stop.primaryBorough?.trim() || stop.visibleBoroughs?.[0]?.trim(),
+    })
   );
 }
 

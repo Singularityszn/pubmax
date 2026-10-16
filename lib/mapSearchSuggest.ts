@@ -33,6 +33,7 @@ import {
   isPubVenue,
   venueKindLabel,
 } from "@/lib/venueKindFilters";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import {
   searchUkBasePubsByName,
   SUGGEST_UK_BASE_PUB_LIMIT,
@@ -396,7 +397,7 @@ function buildPubSuggestion(
     name: venue.name,
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
     typeLabel: venueKindLabel(venue.kind),
-    boroughLabel: venue.locality?.trim() || venue.primaryBorough?.trim() || "",
+    boroughLabel: venueAreaLabel(venue),
     priceLabel:
       price !== null && canShowPrice ? formatGbp(price) : null,
     anchor,

@@ -312,6 +312,12 @@ describe("venues_slim.json", () => {
     ).toBe(true);
   });
 
+  it("keeps locality separate from the slim address search contract", () => {
+    const hatton = slim.find((row) => row.name === "The Sir Christopher Hatton");
+    expect(hatton?.locality).toBe("Hatton Garden");
+    expect(hatton?.filterHints?.searchText).not.toContain("hatton garden");
+  });
+
   it("drink-lens filters use slim drinkCategories / drinkBrands hints", () => {
     const ginIds = matchingIdsFromSlim(makeFilters({ drinkCategory: "gin" }));
     const guinnessIds = matchingIdsFromSlim(

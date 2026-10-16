@@ -49,6 +49,22 @@ describe("slimVenueToPin", () => {
     expect(pin.locality).toBe("Wapping");
   });
 
+  it("recovers slim addresses from the compact search contract", () => {
+    const pin = slimVenueToPin({
+      ...slim,
+      name: "The Sir Christopher Hatton",
+      borough: "Camden",
+      locality: "Hatton Garden",
+      filterHints: {
+        ...slim.filterHints!,
+        searchText:
+          "the sir christopher hatton 4 leather lane, holborn, ec1n 7ra, london camden",
+      },
+    });
+
+    expect(pin.address).toBe("4 leather lane, holborn, ec1n 7ra, london");
+  });
+
   it("preserves a null cheapestPrice (bucketed as no-price by the canvas)", () => {
     const pin = slimVenueToPin({ ...slim, cheapestPrice: null });
     expect(pin.cheapestPrice).toBeNull();
