@@ -1900,8 +1900,10 @@ for (const viewport of VIEWPORTS) {
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
     await expect(page.locator(".lpWorth").first()).toBeVisible({ timeout: 30_000 });
+    // Signed out, the savings band is its map link alone (LandingSavings
+    // prints only a signed-in reader's own total), so the link is the line.
     await expectTextClearOfCreateAction(page, [
-      ".lpWorth p",
+      ".lpWorth .lpTextLink",
       ".lpFaqQuestion",
       ".lpFaqAnswer",
     ]);
