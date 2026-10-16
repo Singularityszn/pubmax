@@ -219,9 +219,9 @@ test("the phone map card takes the outing pill's slot until the choice is made",
 
   await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
   await expect(prompt).toHaveCount(0);
-  const planControl = page.getByRole("button", { name: "Describe the outing" });
+  const planControl = page.getByRole("button", { name: "Plan a pub crawl" });
   await expect(planControl).toBeVisible();
 
   await planControl.click();
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
 });

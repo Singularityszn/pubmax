@@ -8,6 +8,12 @@ import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
+import {
+  PLAN_FIELD_LABEL,
+  PLAN_HEADING,
+  PLAN_STEP_BY_STEP_LABEL,
+  PLAN_SUBMIT_LABEL,
+} from "@/lib/planCopy";
 import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
@@ -46,7 +52,7 @@ export default function PlanDescribeFirst({
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
   const queryInput = useRef<HTMLInputElement>(null);
-  // Set when Sort it is tapped on an empty field, so the field says what it
+  // Set when Plan it is tapped on an empty field, so the field says what it
   // needs instead of only taking the caret.
   const [emptyAsk, setEmptyAsk] = useState(false);
   const onQueryChangeRef = useRef(onQueryChange);
@@ -123,8 +129,8 @@ export default function PlanDescribeFirst({
     <Screen
       as="section"
       className="planDescribeFirst planPage__intro"
-      kicker="Sort the outing"
-      title={<>Describe the outing. We&rsquo;ll put it in order.</>}
+      kicker="Plan"
+      title={PLAN_HEADING}
       titleId="plan-describe-first-title"
       primary={
         // Never disabled: with nothing typed, the tap says what to type and
@@ -142,7 +148,7 @@ export default function PlanDescribeFirst({
             queryInput.current?.focus();
           }}
         >
-          Sort it
+          {PLAN_SUBMIT_LABEL}
         </button>
       }
       secondary={
@@ -151,7 +157,7 @@ export default function PlanDescribeFirst({
           aria-disabled={ready ? undefined : true}
           onClick={() => { if (ready) onGuideMeInstead(); }}
         >
-          Guide me instead
+          {PLAN_STEP_BY_STEP_LABEL}
         </button>
       }
     >
@@ -159,7 +165,7 @@ export default function PlanDescribeFirst({
           PlanComposerForm's own <form>, and a nested <form> is invalid HTML
           that browsers silently reparent, breaking native submission. */}
       <div className="planDescribeFirst__form">
-        <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">Describe the outing</label>
+        <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">{PLAN_FIELD_LABEL}</label>
         <input
           ref={queryInput}
           id="plan-describe-first-query"
@@ -184,7 +190,7 @@ export default function PlanDescribeFirst({
         />
         {emptyAsk && !query.trim() ? (
           <p id="plan-describe-first-empty" className="planDescribeFirst__empty" role="alert">
-            Say where and who with, for example quiet in Clapham for 4.
+            Say where, how many and what budget, for example quiet in Clapham for 4.
           </p>
         ) : null}
       </div>

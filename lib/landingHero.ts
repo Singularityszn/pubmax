@@ -23,7 +23,6 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
-import { formatGbp } from "@/lib/formatGbp";
 import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -74,11 +73,6 @@ export type LandingAnswerScope =
   /** Too few priced pubs in the walk, so the nearest priced ones. */
   | "widened";
 
-/** The one filled action on the hero when the card is present. */
-export function stillPriceLabel(priceGbp: number): string {
-  return `Still ${formatGbp(priceGbp)}?`;
-}
-
 /**
  * THE ONE PRIMARY ON THE FRONT DOOR (captain 7 Sep 2026).
  *
@@ -97,18 +91,25 @@ export function stillPriceLabel(priceGbp: number): string {
 export const LANDING_PRIMARY_HREF = "/near?locate=1";
 export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
 
+/**
+ * The receipt door's one label, with or without a card behind it (UX audit
+ * 16 Oct 2026). It used to read "Still £6.50?", which asked a stranger a
+ * riddle about a pub they had never seen; the label now says what the tap
+ * does. With a card the door opens that pub's composer holding the printed
+ * figure; without one it is the plain price door below.
+ */
+export const LANDING_RECEIPT_LABEL = "Log what you paid";
 /** The receipt door when no card can back one: the plain price door. */
 export const LANDING_FALLBACK_RECEIPT_HREF = "/near";
-export const LANDING_FALLBACK_RECEIPT_LABEL = "Log what you paid";
 
 /**
  * The Pint Drop door for one pub: the map opens on that pub with the composer
  * open (`log=1` is the owned log intent `components/PubMap.tsx` honours).
  *
- * #1462 — the figure rides with the intent. A tap that says "Still £6.50?" and
- * lands on an empty field is asking the reader to type back the number it just
- * showed them, so the door carries the price the card printed and the composer
- * opens holding it. It is a SEED and not a submission: `lib/mapLogIntent.ts`
+ * #1462 — the figure rides with the intent. A tap from a card that printed
+ * £6.50 landing on an empty field asks the reader to type back the number it
+ * just showed them, so the door carries the price the card printed and the
+ * composer opens holding it. It is a SEED and not a submission: `lib/mapLogIntent.ts`
  * ignores anything that is not a positive GBP figure, the field stays editable,
  * and nothing is written until the drinker presses Log it.
  */
@@ -152,7 +153,8 @@ export function railHeading(scope: LandingAnswerScope, area: string): string {
  * holds the rest of the row.
  */
 const TONIGHT_DOOR_HREF = "/tonight";
-const TONIGHT_DOOR_LABEL = "Tonight";
+// "Tonight" alone read as a heading, not a door (UX audit 16 Oct 2026).
+const TONIGHT_DOOR_LABEL = "What's on tonight";
 
 export type LandingQuietDoor = {
   href: Route;
@@ -179,9 +181,6 @@ export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
   },
 ];
 
-/** The one quiet control that asks for a location. */
-export const NEAR_ME_CONTROL_LABEL = "Near me";
-export const NEAR_ME_CONTROL_BUSY_LABEL = "Finding you…";
 /** The one line said after a location the browser would not give. */
 export const NEAR_ME_FAILED_LINE = "Location is off, so this is our pick.";
 /** Said when the fix landed nowhere the index prices. */

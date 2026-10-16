@@ -62,6 +62,8 @@ refuses, and add your assertion there rather than minting a second gate.
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
+| Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts` |
+| Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
@@ -108,6 +110,23 @@ coral, because `--brass` already reads 5.3:1 to 6.5:1 there. A coral FILL is
 unchanged and still carries `--color-on-accent`. `__tests__/accentInkContrast.test.ts`
 holds the ratios and sweeps for a coral put back on a light word.
 
+**Coral is spent twice.** A coral FILL (`--accent-action`, `--brass`) is the
+ONE primary action per screen (the filled button) and the floating create
+disc, and nothing else. A selection is not an action: an active tab, a
+pressed chip, a chosen segment and the page you are on read in ink through
+`--state-selected-surface`, `--state-selected-border` and
+`--state-selected-ink`, never a coral fill or a coral tint. A suggestion chip
+(the `/plan` describe chips, the tonight vibe chips) is a neutral outline on
+`--hairline-strong`. A kicker or eyebrow is a label and takes
+`--color-text-muted`, never coral. A coral WORD (a text link) still takes
+`--brass-ink`, below. `--state-active-*` stays the "you are here" place
+marker, which is not a selection.
+
+**Monospace is for figures.** `--font-data` sets prices, dates and times,
+counts and codes, and nothing else. A label, a kicker, a footer heading or
+link, the legal line, a nav row, a loader caption and a word chip such as
+"Prices listed" are set in `--font-body`.
+
 **Status and price.** `--pint` (`--color-positive`), `--amber`
 (`--color-caution`), `--brick` (`--color-negative`), `--river` (`--color-info`).
 A PRICE wears its band and nothing else (captain's law 2026-09-05,
@@ -126,6 +145,8 @@ colour a standing. `--accent-price` and `--accent-price-ink` remain the brass
 plaque for non-price metal (the zone strip's frame, a history row) and are not
 a price colour. Counts and metadata take the neutral badge trio. "You are here"
 is `--state-active-surface`, `--state-active-border`, `--state-active-ink`.
+"This one is chosen" is `--state-selected-surface`, `--state-selected-border`,
+`--state-selected-ink`.
 
 **Type.** Three faces: `--font-display`, `--font-body`, `--font-data`. Nine
 sizes: `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-md`,
@@ -323,7 +344,7 @@ token, and `__tests__/loginPage.test.ts` holds both states to 4.5:1.
 |---|---|---|---|
 | Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
 | Body | **Inter** | `--font-body` | Already the app's body face — kept deliberately. Inter is neutral and extremely legible at small UI sizes (panel copy, chip labels), which is exactly what a body face should be: carry the display face's personality without competing for it. |
-| Data | **JetBrains Mono** | `--font-data` | Prices, stats, route metrics. A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
+| Data | **JetBrains Mono** | `--font-data` | Figures only: prices, dates and times, counts, codes. Never a label, nav or prose (Launch tokens > Monospace is for figures). A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
 
 All three are loaded once in `app/layout.tsx` and exposed as CSS variables
 on `<html>`: Space Grotesk and Inter via `next/font/google`, and JetBrains Mono
@@ -353,7 +374,7 @@ a deliberate ink-stamp idiom:
 - provenance / era chips (`.provChip`, `.claimEra`, `.ledgerProvenance`)
 - honesty + demo badges (`.exampleTag`, `.demoDataNote span`, `.feedFilterDemo`)
 - pill kicker/badge chips (`.curatedBadge`, `.goldenKicker`, feed status chips)
-- the passport-stamp kicker (`.passportKicker`, set in the mono data face)
+- the passport-stamp kicker (`.passportKicker`, set in the UI sans: monospace is for figures)
 
 If a label is plain text with letter-spacing (an eyebrow, a section title, a
 stat `dt`), it is sentence case. If it's a chip with a border/fill that reads
@@ -456,8 +477,8 @@ way, and the choice is made in this order:
 4. **Nothing.** Most containers are in this row.
 
 Coral (`--brass`) is not a selection colour. It belongs to the primary CTA,
-the selected pin ring, and at most a 2px underline on an active tab. See
-DESIGN.md, The One Accent Rule.
+the floating create disc and the selected pin ring; an active tab reads in
+`--state-selected-*` ink. See Launch tokens > Coral is spent twice.
 
 Two traps this repo has hit:
 

@@ -356,7 +356,7 @@ test.describe("screenshot baseline", () => {
         // Deterministic: the plan builder's h1 guards against shooting a
         // loading/error shell.
         await page
-          .getByRole("heading", { level: 1, name: "Describe the outing. We’ll put it in order." })
+          .getByRole("heading", { level: 1, name: "Plan a pub crawl" })
           .waitFor({ state: "visible", timeout: 15000 });
         await page.waitForLoadState("networkidle").catch(() => {});
         await shot(page, `plan-${theme}-${viewportName}`);
@@ -369,8 +369,8 @@ test.describe("screenshot baseline", () => {
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
         // /plan opens on the describe-first question; these screenshots
-        // exercise the wizard, reached behind its "Guide me instead" link.
-        await page.getByRole("button", { name: "Guide me instead" }).click();
+        // exercise the wizard, reached behind its "Step by step" link.
+        await page.getByRole("button", { name: "Step by step" }).click();
         await waitForStableAreaStep(page);
         const locate = page.locator(".planIntake__locate");
         await locate.click();
@@ -389,8 +389,8 @@ test.describe("screenshot baseline", () => {
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
         // /plan opens on the describe-first question; these screenshots
-        // exercise the wizard, reached behind its "Guide me instead" link.
-        await page.getByRole("button", { name: "Guide me instead" }).click();
+        // exercise the wizard, reached behind its "Step by step" link.
+        await page.getByRole("button", { name: "Step by step" }).click();
         await waitForStableAreaStep(page);
         await page.getByRole("button", { name: "Clapham" }).click();
         const locate = page.locator(".planIntake__locate");

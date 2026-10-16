@@ -6,7 +6,7 @@
 // Owner amendment (2026-07-21, amends #439): the old absolute "the shell never
 // sees the landing page" is relaxed to "the shell never COLD-STARTS on the
 // landing page". A cold start is unchanged — the shell still lands on /tonight.
-// But a deliberate in-app navigation to "/" (e.g. tapping the PUBMAXXING
+// But a deliberate in-app navigation to "/" (e.g. tapping the PUBMAXX
 // wordmark, SiteNav.tsx href="/") must now REACH the landing page — the Home
 // Screen that shows how the app works. So the entry decision only fires on the
 // session's FIRST arrival at "/" (the cold start); every later arrival stays.

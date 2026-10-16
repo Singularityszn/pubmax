@@ -46,21 +46,20 @@ Rules the table obeys:
 
 | Route | Kicker | Heading | Primary action | Secondary |
 |---|---|---|---|---|
-| `/` | London (the city name; the wordmark in the bar above already says PUBMAXX) | What a pint costs, pub by pub. | [Front-door action contract](../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap) | See the same contract |
+| `/` | PUBMAXX | What a pint costs, pub by pub. | [Front-door action contract](../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap) | See the same contract |
 | `/map` and `/map/[city]` | London (the city name) | (no heading: the map is the surface) | Use my location | Choose an area |
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
 | `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | See them on the map | Find my pint |
-| `/out` | Out in London | What's on (tonight, tomorrow or the weekend). | Open the map | Plan a night |
 | `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
-| `/plan` | Sort the outing | Describe the outing. We'll put it in order. | Sort it (submit the ask) | Guide me instead |
+| `/plan` | Plan | Plan a pub crawl | Plan it (submit the ask) | Step by step |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
 | `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
 | `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/places` | Places | Pick a city. | Open London | Browse pubs across the UK |
-| `/pubs` | Pubs | Every pub on record. | Open the map | Find my pint |
+| `/pubs` | Pubs | Pub chains in London (the count rides in the lede) | Open the map | Find my pint |
 | `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |
 | `/borough/[slug]` | (the borough) | Pubs in (the borough). | Open the map here | Find my pint |
 | `/crawls` | Crawls | Pub stories mapped into walks. | Start a crawl | Open the map |
@@ -85,7 +84,7 @@ kicker, the action hierarchy and the decoration, not the sentence.
 
 ## Retired addresses
 
-Three addresses the table used to hold rows for. The router answers each with a
+Four addresses the table used to hold rows for. The router answers each with a
 permanent redirect, so they are here rather than in the table: a reader who
 follows an old link still lands somewhere sensible, and nothing in this file
 claims a screen behind them.
@@ -95,3 +94,4 @@ claims a screen behind them.
 | `/discover` | `/social?tab=discover` | the public Pubs and pints tab of `/social` |
 | `/drinks` | `/social?tab=discover` | the same tab |
 | `/feed` | `/social` | the posts tab of `/social` |
+| `/out` | `/tonight` (the proxy's 308, 16 Oct 2026) | `/tonight`, which carries tomorrow and the weekend, open plans and the Drink Wall |

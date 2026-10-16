@@ -16,17 +16,23 @@ import { venueMatchesZone, ZONE_IDS } from "@/lib/zones";
 import "@/components/pubs/pubsGallery.css";
 
 const CHAINS_DESCRIPTION =
-  "Chain pub menus we have checked: Young's, Nicholson's, and Greene King. Each card links to the map pin.";
+  "London pubs from Young's, Nicholson's and Greene King whose menus we have checked. Each card opens the pub on the map.";
 
-function chainsHeading(count: number | null): string {
-  if (count === null) return "Chains";
-  return `Chains (${count} pubs)`;
+// The heading names what the page is for a reader, and the count rides under
+// it in the lede, where a figure reads as a fact rather than an admin tally.
+// A count is printed only when the chain read was complete: a partial read has
+// no honest total.
+const PUBS_HEADING = "Pub chains in London";
+
+function pubsSubtitle(count: number | null): string {
+  const chains = "Young's, Nicholson's and Greene King";
+  return count === null
+    ? `${chains} pubs whose menus we've checked.`
+    : `${count} ${chains} pubs whose menus we've checked.`;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { pubs, complete } = await readScrapedPubsForPage();
-  const count = complete ? pubs.length : null;
-  const pageTitle = chainsHeading(count);
+  const pageTitle = PUBS_HEADING;
   return {
     title: pageTitle,
     description: CHAINS_DESCRIPTION,
@@ -72,9 +78,9 @@ export default async function PubsPage({
       <SiteNav active="pubs" />
       <div className="pubsPage">
         {/* The route's head is the launch Screen (docs/design/LAUNCH_SCREENS.md).
-            The heading stays the Chains count the page title prints, because
-            this page lists the chain pubs we have checked, not every pub. The
-            lede names the three chains so "Chains" cannot be misread.
+            The heading says what the page is, the pub chains whose menus we
+            have checked rather than every pub, and the lede carries the count
+            and names the three chains.
 
             Both way-onward destinations PREFETCH NOTHING. Next prefetches a
             Link on sight, and on a production build this page asked for /map,
@@ -85,9 +91,9 @@ export default async function PubsPage({
         <Screen
           as="section"
           kicker="Pubs"
-          title={chainsHeading(count)}
+          title={PUBS_HEADING}
           titleId="pubs-title"
-          lede="Young's gardens, Nicholson's historic rooms, and Greene King menus we have pulled onto the London map."
+          lede={pubsSubtitle(count)}
           primary={<Link href="/map" prefetch={false}>Open the map</Link>}
           secondary={<Link href="/near" prefetch={false}>Find my pint</Link>}
         >

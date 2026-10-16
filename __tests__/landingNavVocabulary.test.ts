@@ -66,14 +66,13 @@ describe("one navigation vocabulary", () => {
     );
   });
 
-  it("leads the first-run bar with the loop, never Social or Moment", () => {
+  it("leads the first-run bar with the loop, Social in it and Moment never", () => {
     const nav = landingNav();
     const labels = nav.map((link) => link.textContent ?? "");
     const hrefs = nav.map((link) => link.getAttribute("href") ?? "");
     expect(labels).toContain("Plan");
-    expect(labels.some((label) => /social|moment/i.test(label))).toBe(false);
-    expect(
-      hrefs.some((href) => href.startsWith("/social") || href.startsWith(MOMENT_NAV_ACTION.href)),
-    ).toBe(false);
+    expect(labels.filter((label) => label === "Social")).toHaveLength(1);
+    expect(labels.some((label) => /moment/i.test(label))).toBe(false);
+    expect(hrefs.some((href) => href.startsWith(MOMENT_NAV_ACTION.href))).toBe(false);
   });
 });

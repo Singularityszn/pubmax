@@ -129,9 +129,9 @@ describe("Wanted saves crossing auth settlement", () => {
       candidate?.click();
       await Promise.resolve();
     });
-    const anonymousList = container.querySelector<HTMLElement>("[aria-label='Anonymous open Wanted places']");
+    const anonymousList = container.querySelector<HTMLElement>("[aria-label='Pubs to try on this device']");
     expect(anonymousList?.textContent).toContain("The Dove");
-    expect(container.querySelector("[aria-label='Open Wanted places']")).toBeNull();
+    expect(container.querySelector("[aria-label='Pubs to try']")).toBeNull();
     expect(state.action.mock.calls.some(([input]) => String(input) === "/api/wanted")).toBe(false);
     expect(state.action.mock.calls.find(([input]) => String(input) === "/api/wanted/resolve")?.[2]).toEqual({
       requiresIdentity: false,
@@ -149,8 +149,8 @@ describe("Wanted saves crossing auth settlement", () => {
       await Promise.resolve();
     });
 
-    expect(container.querySelector("[aria-label='Anonymous open Wanted places']")?.textContent)
+    expect(container.querySelector("[aria-label='Pubs to try on this device']")?.textContent)
       .toContain("The Dove");
-    expect(container.querySelector("[aria-label='Open Wanted places']")).toBeNull();
+    expect(container.querySelector("[aria-label='Pubs to try']")).toBeNull();
   });
 });

@@ -289,7 +289,7 @@ describe("a lone public Pint Drop on the venue Overview", () => {
       }),
     ];
     const html = renderSelectedVenue(drops);
-    expect(html).toContain("Latest Pint Drop price");
+    expect(html).toContain("Latest price from a drinker");
     expect(html).toContain("£4.50");
     expect(html).not.toContain(PROVISIONAL_PRICE_LINE);
   });

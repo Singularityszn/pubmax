@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import type { WeeklyOpeningHours } from "@/lib/busyness";
 import { haversineMeters } from "@/lib/greatCircle.mjs";
-import { parseOsmOpeningHours } from "@/lib/nearDesk";
+import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
 import { omitClosedCuratedVenues, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 import {
   PLACES_CAFE_DETAILS_FIELD_MASK,

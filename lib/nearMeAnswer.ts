@@ -1,6 +1,6 @@
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
@@ -143,7 +143,7 @@ export type RankNearMeOptions = {
 
 function qualifies(point: PricedPoint): boolean {
   return (
-    isPubVenueKind(point.kind) &&
+    isPublicRankablePub(point) &&
     typeof point.cheapestPrice === "number" &&
     Number.isFinite(point.cheapestPrice) &&
     point.cheapestPrice > 0 &&

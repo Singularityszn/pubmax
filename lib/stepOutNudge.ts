@@ -56,14 +56,14 @@ export function composeWantedNearbyNudge(input: {
   const minutes = Math.round(input.walkMinutes);
   if (!name || !Number.isFinite(minutes) || minutes < 1) return null;
   if (minutes > STEP_OUT_NUDGE_MAX_WALK_MINUTES) return null;
-  const body = `Your Wanted ${name} is a ${minutes}-min walk from you-ish.`;
+  const body = `${name}, on your list to try, is about a ${minutes}-min walk away.`;
   if (!isAllowedStepOutNudgeCopy(body)) return null;
   const url = input.venueId
     ? `/map?sel=${encodeURIComponent(input.venueId)}`
     : "/u/you#wanted";
   return {
     kind: "wanted_nearby",
-    title: "Step out",
+    title: "Weekly nudge",
     body,
     url,
   };
@@ -72,10 +72,10 @@ export function composeWantedNearbyNudge(input: {
 export function composeSoftPlanOpenNudge(input?: {
   planId?: string;
 }): StepOutNudgePayload {
-  const body = "Your Soft Plan for tonight is still open.";
+  const body = "Your plan for tonight is still open.";
   return {
     kind: "soft_plan_open",
-    title: "Step out",
+    title: "Weekly nudge",
     body,
     url: input?.planId
       ? `/plan/${encodeURIComponent(input.planId)}`
@@ -121,7 +121,7 @@ export function composeDealEndingNudge(input: {
     : "/tonight";
   return {
     kind: "deal_ending",
-    title: "Step out",
+    title: "Weekly nudge",
     body,
     url,
     sourceLabel: source,

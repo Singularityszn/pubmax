@@ -22,6 +22,7 @@ import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { haptic } from "@/lib/nativeHaptics";
+import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
 import { measuredLegMinutes, routeHeading, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
 import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
@@ -2306,7 +2307,7 @@ function PlanComposerForm({
         </div>
       )}
       <div className="planComposer__conciergeInput">
-        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
+        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">{PLAN_FIELD_LABEL}</label>
         <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
         {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
             `Lock it in` is the thing to do next, and two coral fills on one
@@ -2324,7 +2325,7 @@ function PlanComposerForm({
           aria-disabled={sorting || undefined}
           aria-busy={sorting}
         >
-          {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
+          {sorting ? "Planning…" : routeSorted ? PLAN_RESUBMIT_LABEL : "Make a plan"}
         </button>
       </div>
       <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
