@@ -1,25 +1,5 @@
-// A DISPOSABLE TRIAL HARNESS FOR A LOCAL VOICE LOOP, AND NOTHING THE APP SHIPS.
-//
-// It sits between an adapter (today a scripted fixture, later a local model
-// someone runs by hand) and a playback sink, and it owns three things:
-//
-// 1. TURN OWNERSHIP. Every turn gets its own emit closure, so an event belongs
-//    to the turn that was handed the closure, never to a turn id the adapter
-//    claims. Once a turn is cancelled, superseded by a newer turn, or done,
-//    whatever its closure still emits is DROPPED and logged with the reason.
-//    The harness does not trust the adapter to honour the abort signal.
-// 2. FOUR MARKS THAT ARE NOT ONE NUMBER. first_text (the first chunk with a
-//    non-blank character), first_audio (the first non-empty chunk), completed
-//    and cancelled are recorded separately off the clock the caller injects.
-//    The harness never invents a reading: an absent mark summarises as null.
-// 3. GROUNDED TOOL OUTPUT. A tool event names a fixture id, and an id outside
-//    the fixture set the session was given is dropped as ungrounded.
-//
-// Nothing here imports a module, opens a socket, reads a microphone or calls a
-// provider. A later adapter that talks to a local model server declares its
-// endpoint, and assertLoopbackEndpoint refuses anything but an explicit port
-// on 127.0.0.1 or ::1. See docs/PUB_PAL_LOCAL_VOICE_TRIAL.md for what a pass
-// here does and does not prove.
+// Disposable synthetic voice trial harness.
+// See docs/PUB_PAL_LOCAL_VOICE_TRIAL.md for the contract and fixture proof limits.
 
 /** The closed set of timing marks. */
 export const TRIAL_MARKS = Object.freeze(["turn_started", "first_text", "first_audio", "completed", "cancelled"]);
