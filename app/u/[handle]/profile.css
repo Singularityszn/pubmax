@@ -1712,12 +1712,12 @@
 
 .profilePage .passportKicker {
   margin: 0 0 2px;
-  font-family: var(--font-data, monospace);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .profilePage .passportHolder {
@@ -1878,12 +1878,12 @@
 
 .profilePage .passportQuestOptInKicker {
   margin: 0 0 4px;
-  font-family: var(--font-data, monospace);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .profilePage .passportQuestOptInTitle {
@@ -1928,12 +1928,12 @@
 
 .profilePage .passportQuestKicker {
   margin: 0 0 4px;
-  font-family: var(--font-data, monospace);
+  font-family: var(--font-body);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .profilePage .passportQuestTitle {

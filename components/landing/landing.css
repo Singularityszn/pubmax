@@ -371,7 +371,7 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpDrops:empty { display: none; }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
-.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
+.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-body); }
 .dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
    container a keyboard could never reach: it shows four placeholder cards and
@@ -382,11 +382,11 @@ a.lpPubPint:hover { color: var(--ink); }
 .dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
 .dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
 .dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-data); }
+.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
 .dropStripPrice { flex: 0 0 auto; }
 .dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }
 .dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-data); }
+.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
 .provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
 .dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
 .dropStripCardSkeleton { gap: 15px; }
@@ -403,15 +403,15 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFooterProvenance { margin: 20px 0 0; max-width: 640px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
 .lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-data); letter-spacing: .04em; }
+.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-body); letter-spacing: .01em; }
 .lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
 .lpFooterCol a:hover { color: var(--ink); }
 .lpFooterBase { width: min(var(--lp-max), 100%); margin: clamp(32px, 5vw, 56px) auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
-.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
+.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-body); letter-spacing: .01em; text-decoration: none; }
 .lpFooterSmallPrint a:hover { color: var(--ink); }
-.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-data); letter-spacing: .02em; }
-.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
+.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-body); }
+.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-body); }
 /* The drinkaware link takes the footer's own ink, never the browser's blue. */
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 .lpFooterLegal a:hover { color: var(--ink); }
