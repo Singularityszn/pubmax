@@ -13,8 +13,10 @@ import { useState } from "react";
  *
  * So the door keeps the meaning its sheet opened with. It only ever latches
  * ON: a crawl started while the sheet is open still turns the door into the
- * crawl's, which is the direction the reader asked for. Closing the sheet
- * drops the latch, so the next pub reads the night again.
+ * crawl's, which is the direction the reader asked for. ANY change of
+ * selection drops the latch, closing the sheet and a pin-to-pin switch alike
+ * (selectVenue moves one pub to the next with no empty step), so the next
+ * sheet reads the night again.
  */
 export function usePeekPlanDoorBuildsCrawl({
   builtStopCount,
@@ -28,7 +30,7 @@ export function usePeekPlanDoorBuildsCrawl({
   const [latchedVenueId, setLatchedVenueId] = useState("");
   const building = builtStopCount > 0;
   if (building && latchedVenueId !== selectedVenueId) setLatchedVenueId(selectedVenueId);
-  else if (!selectedVenueId && latchedVenueId) setLatchedVenueId("");
+  else if (latchedVenueId && latchedVenueId !== selectedVenueId) setLatchedVenueId("");
   if (building) return true;
   return selectedVenueId !== "" && latchedVenueId === selectedVenueId;
 }

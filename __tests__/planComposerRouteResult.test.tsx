@@ -181,6 +181,61 @@ async function sortAgainFromTune(): Promise<void> {
   await settle();
 }
 
+// NOBODY SILENTLY LOSES TONIGHT (captain, 16 Oct 2026). From 22:30 London the
+// default First pint is tomorrow at 19:00, because a first pint near midnight
+// is not a night out. That left a reader standing in the night with no default
+// for it, and a summary that never said which night it was.
+describe("the First pint beside a night the default stepped over", () => {
+  function startField(): HTMLInputElement {
+    return document.querySelector<HTMLInputElement>("#plan-time")!;
+  }
+
+  function tonightChoice(): HTMLButtonElement | null {
+    return document.querySelector<HTMLButtonElement>('[data-testid="plan-tonight-choice"]');
+  }
+
+  function summary(): string {
+    return document.querySelector('[data-testid="plan-route-summary"]')?.textContent ?? "";
+  }
+
+  it("defaults to tomorrow at 19:00 and offers tonight in one tap, with its date", async () => {
+    // 21:45 UTC is 22:45 BST: past the cutoff.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    expect(startField().value).toBe("2026-10-16T19:00");
+    expect(summary()).toContain("Fri 16 Oct, 19:00");
+
+    const tonight = tonightChoice();
+    expect(tonight).not.toBeNull();
+    expect(tonight!.textContent).toBe("Tonight, Thu 15 Oct, 23:00");
+
+    await act(async () => { tonight!.click(); });
+    await settle();
+
+    expect(startField().value).toBe("2026-10-15T23:00");
+    expect(summary()).toContain("Thu 15 Oct, 23:00");
+    // The choice is made, so the door closes.
+    expect(tonightChoice()).toBeNull();
+  });
+
+  it("leaves an ordinary evening alone: the default is tonight and there is no second choice", async () => {
+    // 19:05 UTC is 20:05 BST: before the cutoff.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T19:05:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    expect(startField().value).toBe("2026-10-15T20:30");
+    expect(summary()).toContain("Thu 15 Oct, 20:30");
+    expect(tonightChoice()).toBeNull();
+  });
+});
+
 describe("sorting again from Tune details", () => {
   it("closes the sheet and lands focus on the new route's status", async () => {
     await mountComposer();

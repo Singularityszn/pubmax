@@ -56,7 +56,11 @@ test.describe("the Plan result is a route", () => {
     await sortARoute(page);
 
     await expect(page.getByRole("heading", { level: 2, name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
-    await expect(page.getByTestId("plan-route-summary")).toHaveText("3 stops · £17.40 each · 9 min walk");
+    // The summary leads with the night's own date and time, because the
+    // composer's default steps over tonight late in the evening.
+    await expect(page.getByTestId("plan-route-summary")).toHaveText(
+      /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d{1,2} [A-Z][a-z]{2}, \d{2}:\d{2} · 3 stops · £17\.40 each · 9 min walk$/,
+    );
     await expect(page.locator(".planStops input")).toHaveCount(0);
 
     const cards = page.locator(".planComposer__stop");

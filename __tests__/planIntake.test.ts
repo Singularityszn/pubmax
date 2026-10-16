@@ -14,6 +14,7 @@ import {
   defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  londonNightsAhead,
   nextLondonOccurrenceIso,
   parsePlanIntakeDraft,
   planIntakeHandoff,
@@ -25,6 +26,7 @@ import {
   resolvePlanIntakeAreaSeed,
   settlePlanIntakeStep,
   skipRemainingPlanIntake,
+  tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
   type PlanIntakeStep,
@@ -319,6 +321,34 @@ describe("the composer's default First pint", () => {
     expect(resolveFutureLondonStartIso(value, null, late)).toBe("2026-10-16T18:00:00.000Z");
     // Across the month and the year, in GMT.
     expect(defaultLondonStartInput(new Date("2026-12-31T23:10:00.000Z"))).toBe("2027-01-01T19:00");
+  });
+
+  // Stepping over tonight may never be silent: the composer shows this slot
+  // beside the field, with its date, so nobody loses the night they are
+  // standing in (captain, 16 Oct 2026).
+  it("offers tonight's next slot only once the default has stepped over tonight", () => {
+    process.env.TZ = "America/Los_Angeles";
+    // 21:29 UTC is 22:29 BST: the default IS tonight, so there is nothing to offer.
+    expect(tonightLondonStartInput(new Date("2026-10-15T21:29:00.000Z"))).toBeNull();
+    // 21:30 UTC is 22:30 BST: the default stepped over tonight.
+    const cutoff = new Date("2026-10-15T21:30:00.000Z");
+    expect(defaultLondonStartInput(cutoff)).toBe("2026-10-16T19:00");
+    const tonight = tonightLondonStartInput(cutoff);
+    expect(tonight).toBe("2026-10-15T22:45");
+    expect(resolveFutureLondonStartIso(tonight!, null, cutoff)).toBe("2026-10-15T21:45:00.000Z");
+  });
+
+  it("keeps an early-hours slot on the night that is running, and locks it", () => {
+    process.env.TZ = "America/Los_Angeles";
+    // 22:50 UTC is 23:50 BST: the next quarter is past midnight by the clock
+    // and still the same night out, which is why the choice carries its date.
+    const late = new Date("2026-10-15T22:50:00.000Z");
+    const tonight = tonightLondonStartInput(late);
+    expect(tonight).toBe("2026-10-16T00:15");
+    expect(londonNightsAhead(tonight!, late)).toMatchObject({ nights: 0, past: false });
+    expect(resolveFutureLondonStartIso(tonight!, null, late)).toBe("2026-10-15T23:15:00.000Z");
+    // And the default it stands beside is a night ahead of it.
+    expect(londonNightsAhead(defaultLondonStartInput(late), late)).toMatchObject({ nights: 1 });
   });
 
   it("starts an afternoon plan at 18:00 London, in summer and in winter", () => {

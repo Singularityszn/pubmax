@@ -23,7 +23,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { haptic } from "@/lib/nativeHaptics";
 import { moveItem } from "@/lib/planStopReorder";
-import { measuredLegMinutes, routeHeading, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import { measuredLegMinutes, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
 import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
@@ -111,6 +111,7 @@ import {
   defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  londonNightsAhead,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
@@ -120,6 +121,7 @@ import {
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
   skipRemainingPlanIntake,
+  tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -1070,6 +1072,17 @@ function nextEvening(): string {
   return defaultLondonStartInput();
 }
 
+/**
+ * The night the late default stepped over, as a one-tap choice. Read once at
+ * mount from the same London clock the default read, so the choice and the
+ * field agree; null before the cutoff, where the default already is tonight.
+ */
+function tonightChoice(): { value: string; label: string } | null {
+  const value = tonightLondonStartInput();
+  const label = value === null ? null : routeStartLabel(value);
+  return value === null || label === null ? null : { value, label };
+}
+
 function unsupportedPatchForCurrentGenerator(
   draft: PlanIntakeDraft,
   contextPatch: Partial<NightContext>,
@@ -1321,6 +1334,7 @@ function PlanComposerForm({
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const [startTime, setStartTime] = useState(draftFields.startTime);
+  const [lateNightTonight] = useState(tonightChoice);
   const [stops, setStops] = useState<DraftStop[]>(
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
@@ -2484,6 +2498,9 @@ function PlanComposerForm({
       </details>
     </section>
   );
+  // Whether the field is parked on a night after the one running now. The
+  // Tonight choice only has something to offer while that is true.
+  const startsOnALaterNight = londonNightsAhead(startTime)?.nights !== 0;
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
@@ -2497,6 +2514,20 @@ function PlanComposerForm({
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
         <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        {/* Late in the evening the default is tomorrow at 19:00, so the night
+            the reader is standing in needs a door of its own. It carries the
+            date because an early-hours slot reads as tomorrow on a calendar
+            and as tonight on a night out. */}
+        {lateNightTonight && startsOnALaterNight ? (
+          <button
+            type="button"
+            className="planComposer__tonight"
+            data-testid="plan-tonight-choice"
+            onClick={() => updatePlanStartTime(lateNightTonight.value)}
+          >
+            Tonight, {lateNightTonight.label}
+          </button>
+        ) : null}
       </div>
 
     </>
@@ -2504,7 +2535,7 @@ function PlanComposerForm({
 
   const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
   const viewStops = completeStops;
-  const summaryLine = routeSummaryLine(viewStops, measured);
+  const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
   const stopsBlock = (
     <fieldset className="planComposer__stops">

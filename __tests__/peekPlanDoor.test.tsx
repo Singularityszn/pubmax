@@ -71,6 +71,24 @@ describe("the phone peek's one plan door", () => {
     expect(show(0, "venue-b")).toBe("Make it Stop 1");
   });
 
+  // A pin-to-pin switch never passes through an empty selection, so a latch
+  // that only dropped on close survived the hop and came back stale: the pub
+  // whose stop had been removed printed "Plan stop" with no crawl in progress,
+  // and the phone bar's ghost is hidden, so it had no door to Plan at all.
+  it("reads the night again when the reader comes back to the pub it latched on", () => {
+    expect(show(1, "venue-a")).toBe("Plan stop");
+    expect(show(0, "venue-a")).toBe("Plan stop");
+    expect(show(0, "venue-b")).toBe("Make it Stop 1");
+    expect(show(0, "venue-a")).toBe("Make it Stop 1");
+  });
+
+  it("keeps the crawl's door across a pin-to-pin hop while the crawl stands", () => {
+    expect(show(1, "venue-a")).toBe("Plan stop");
+    expect(show(1, "venue-b")).toBe("Plan stop");
+    expect(show(0, "venue-b")).toBe("Plan stop");
+    expect(show(0, "venue-a")).toBe("Make it Stop 1");
+  });
+
   it("drops the latch when the sheet closes, so reopening the same pub reads the night", () => {
     expect(show(1, "venue-a")).toBe("Plan stop");
     expect(show(0, "venue-a")).toBe("Plan stop");
