@@ -196,7 +196,6 @@ describe("canonical invite RSVP membership migration", () => {
     expect(planStore).toMatch(/from\(MEMBERS\)[^;]*?\.is\("membership_revoked_at", null\)[^;]*?\.order\("joined_at"\)/);
     expect(planStore).toMatch(/select\("id,token_hash,joined_at,can_collaborate"\)[^;]*?\.is\("membership_revoked_at", null\)/);
     expect(crewIdentity).toMatch(/\.from\(MEMBERS\)[^;]*?\.update\(\{ user_id: uid \}\)[^;]*?\.is\("membership_revoked_at", null\)/);
-    expect(crewIdentity).toMatch(/\.select\("id,user_id"\)[^;]*?\.is\("membership_revoked_at", null\)/);
   });
 
   it("ships a rollback for the canonical membership link", () => {

@@ -54,7 +54,10 @@ const HELD: Array<{
   },
   {
     name: "baseline", lane: {
-      lane: "baseline", cheapestPrice: 4.7, standing: "none", publisher: null, observedOn: null,
+      // Read on the test day: a price with no read day is aging (lib/priceTier.ts
+      // priceAgeFor) and its chip says so, which __tests__/pinPriceAging.test.ts pins.
+      lane: "baseline", cheapestPrice: 4.7, standing: "none", publisher: null,
+      observedOn: NOW.slice(0, 10),
     },
     figure: "£4.70", caption: "Price on record, publisher not recorded",
   },

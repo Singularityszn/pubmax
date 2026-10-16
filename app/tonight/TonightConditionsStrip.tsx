@@ -2,7 +2,7 @@
 
 // Tonight Conditions strip: one calm line with today's date, the
 // cached weather's facts, the drink it calls for, and (once location is shared) a
-// nearby venue claim. "Saturday 19 Jul. 18°C feels like, light cloud, 10% chance
+// nearby venue claim. "Saturday 19 Jul. Feels like 18°C, light cloud, 10% chance
 // of rain, sunset 21:08, daylight. Beer garden weather. Lager or cider. 4 gardens
 // near you with a pint under 6 quid." A stale reading prints its age instead of
 // the drink and venue sentences.

@@ -61,8 +61,49 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
   "/near",
 ]);
 
+// THE SAME TRADE FOR THE PUBLIC SEO DETAIL PAGES (task vercel-f2-seo-cdn,
+// 2026-10-15). 445 sitemap URLs sit on these five route shapes, and with
+// roughly a dozen human page views a day the crawlers that robots.txt invites
+// were paying a full server render on every fetch, uncached (`private,
+// no-store`, `x-vercel-cache: MISS`). Each page renders only bundled datasets
+// (cited heritage, the price dataset, curated landmarks, the governed drink
+// landings): no cookie, no header, no search param, no session and nothing
+// personal, so one copy may be handed to every visitor. Same terms as the
+// list above: `force-static`, an ISR window, and the inline slot is the ONLY
+// thing that differs. A `[segment]` matches exactly one non-empty path
+// segment, so `/historic` (it reads search params) and `/borough` stay on the
+// nonce, and so does every deeper path such as an `opengraph-image` route.
+//
+// `/ledger/[id]` is NOT here and may not join on these terms: its document
+// resolves a viewer from the `Authorization` header to gate Family Table
+// content. That route needs its own decision first.
+//
+// `__tests__/cdnCachedDocuments.test.ts` holds each pattern to the page file
+// at the same path under app/, which must declare `force-static`.
+export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
+  "/historic/[slug]",
+  "/borough/[slug]",
+  "/landmark/[id]",
+  "/drink/[slug]",
+  "/area/[slug]/drink/[brand]",
+]);
+
+/** True when `pathname` fills `pattern` segment for segment. */
+export function matchesDocumentRoute(pattern: string, pathname: string): boolean {
+  const want = pattern.split("/");
+  const got = pathname.split("/");
+  if (want.length !== got.length) return false;
+  return want.every((segment, index) =>
+    /^\[[a-z]+\]$/.test(segment) ? got[index] !== "" : segment === got[index],
+  );
+}
+
 function servesCdnCachedDocument(pathname: string): boolean {
-  return CDN_CACHED_DOCUMENT_PATHS.has(pathname);
+  if (CDN_CACHED_DOCUMENT_PATHS.has(pathname)) return true;
+  for (const pattern of CDN_CACHED_DOCUMENT_ROUTES) {
+    if (matchesDocumentRoute(pattern, pathname)) return true;
+  }
+  return false;
 }
 
 // Preview and development deploys must never be indexed. VERCEL_ENV is the
@@ -134,6 +175,11 @@ function startedOnThisOrigin(request: NextRequest): boolean {
 
 function servesApiCaller(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
+}
+
+/** The PostHog relay (`app/ingest/[...path]`): a caller, never a Clerk consumer. */
+function servesIngestRelay(pathname: string): boolean {
+  return pathname === "/ingest" || pathname.startsWith("/ingest/");
 }
 
 // AN API REQUEST IS A CALLER, NOT A READER, SO IT IS NEVER SENT ELSEWHERE.
@@ -272,7 +318,7 @@ export function securityProxy(request: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex");
     return applyNonProductionRobotsTag(response);
   }
-  if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {
+  if (servesIngestRelay(pathname)) {
     return applyNonProductionRobotsTag(NextResponse.next());
   }
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -326,7 +372,7 @@ export function securityProxy(request: NextRequest) {
     );
   }
   // /onboarding is the native shell's first-run surface, and the web
-  // reaches it only by a client navigation from the landing hero's primary
+  // reaches it only by a client navigation from the first-run chip on /near
   // (`?start=web`, lib/firstRunRoute.ts). `consumeNativeFirstRunHandoff` is
   // native-only and session-scoped, so any other web visit has always failed
   // closed and replaced the URL with "/". It did that in the browser, after
@@ -461,7 +507,7 @@ export function securityProxy(request: NextRequest) {
     : `'nonce-${nonce}'`;
   // Voice AudioWorklets are same-origin files under /vendor/elevenlabs, copied
   // by `npm run dev` and `npm run build` and passed as workletPaths when a session starts.
-  // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the five
+  // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the
   // prerendered documents). data: and blob: are not script sources: a data:
   // URL would run without a nonce.
   const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
@@ -554,9 +600,12 @@ export function securityProxy(request: NextRequest) {
 // `servesApiCaller` is the predicate. It sends every `/api` path, including a
 // document-shaped GET, straight to securityProxy, so a Clerk handshake cannot
 // answer before the trailing-slash redirect, the store refusal, or the route.
-// Documents, `/__clerk` and every other matched path (including `/ingest`,
-// which is not an API route and is not a Clerk consumer) still enter
-// clerkMiddleware. Revisit the predicate when a route first calls `auth()`.
+// `/ingest`, the PostHog relay, is not a Clerk consumer either, so
+// `servesIngestRelay` sends it to securityProxy the same way. The matcher keeps
+// it off the function entirely on the canonical host; this covers the
+// `*.vercel.app` rule, which still claims it. Documents, `/__clerk` and every
+// other matched path still enter clerkMiddleware. Revisit both predicates when
+// a route first calls `auth()`.
 //
 // WHY A NAMED `proxy` EXPORT AND NOT `export default`:
 // Next.js resolves the userland handler as `mod.proxy || mod.default`
@@ -578,7 +627,8 @@ const clerkSecurityProxy = isClerkMiddlewareConfigured()
 
 export const proxy = clerkSecurityProxy
   ? (request: NextRequest, event: NextFetchEvent) =>
-      servesApiCaller(request.nextUrl.pathname)
+      servesApiCaller(request.nextUrl.pathname) ||
+      servesIngestRelay(request.nextUrl.pathname)
         ? securityProxy(request)
         : clerkSecurityProxy(request, event)
   : securityProxy;
@@ -591,7 +641,11 @@ export const config = {
       source: "/:path*",
       has: [{ type: "host", value: ".+\\.vercel\\.app" }],
     },
-    { source: "/:path+/" },
+    // The trailing-slash 308. `/ingest` is left out: PostHog's browser client
+    // posts to `/ingest/e/` and `/ingest/flags/`, securityProxy hands every
+    // `/ingest` path on untouched, and claiming them put a second function
+    // invocation in front of every analytics event.
+    { source: "/((?!ingest/).+)/" },
     // Clerk's own frontend API routes. Clerk requires the matcher to cover this
     // prefix so its handshake and session requests reach the middleware; it is
     // listed ahead of the general rule below because that rule's `missing`
@@ -603,14 +657,18 @@ export const config = {
     // plus brand, fonts, landing, night-signals, store-assets and vendor. Those
     // are pure bytes the CDN already holds, and running a Node function in
     // front of them bought nothing while putting a function failure in front of
-    // a healthy file. Next only reads a matcher it can analyse STATICALLY, so
+    // a healthy file. The last branch does the same for the files at the root
+    // of public/ and the /pal art, by extension, and ONLY there (a dynamic page
+    // such as /u/foo.png must keep its nonce): theme-init.js and
+    // map-first-paint-init.js load in <head>, so a cold start here delayed
+    // first paint. Next only reads a matcher it can analyse STATICALLY, so
     // the alternation is written out here as a literal;
     // `__tests__/staticAssetPrefixes.test.ts` derives it from
     // lib/staticAssetPrefixes.mjs and fails when the two drift, and the same
     // fence refuses a prefix that collides with an app route.
     {
       source:
-        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/).*)",
+        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

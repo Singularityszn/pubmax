@@ -7,7 +7,8 @@ import { defined } from "@/__tests__/helpers/defined";
 // Six-tab contract for the mobile bar, in the order of the loop: find (Tonight,
 // Map, Places, Out), plan (Plan), and You. Moment is a floating + action, never
 // a destination, and Social lives under More, so neither is in this row. Today
-// and Tonight share the Tonight tab; the URL is the truth.
+// The URL is the truth. Today owns its Day | Tonight segment rather than a
+// primary tab.
 
 function activeLabel(pathname: string): string | undefined {
   const tabs = buildTabs();
@@ -54,7 +55,7 @@ describe("mobile tab bar contract", () => {
     const tabs = buildTabs();
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
     expect(defined(byLabel.Tonight).href).toBe("/tonight");
-    expect(defined(byLabel.Tonight).match).toEqual(["/today", "/tonight"]);
+    expect(defined(byLabel.Tonight).match).toEqual(["/tonight"]);
     expect(defined(byLabel.Map).href).toBe("/map");
     expect(defined(byLabel.Places).href).toBe("/places");
     expect(defined(byLabel.Out).href).toBe("/out");
@@ -76,8 +77,9 @@ describe("mobile tab bar contract", () => {
     expect(you?.match).toEqual(["/u"]);
   });
 
-  it("marks Tonight active on both /today and /tonight", () => {
-    expect(activeLabel("/today")).toBe("Tonight");
+  it("marks Tonight active on /tonight only", () => {
+    expect(activeLabel("/today")).toBeUndefined();
+    expect(activeLabel("/today/highlights")).toBeUndefined();
     expect(activeLabel("/tonight")).toBe("Tonight");
     expect(activeLabel("/out")).toBe("Out");
     expect(activeLabel("/places")).toBe("Places");

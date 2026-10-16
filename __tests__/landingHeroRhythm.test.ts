@@ -35,6 +35,7 @@ const card: LandingPubCardData = {
   id: "venue-test",
   name: "The Blackfriar",
   area: "City of London",
+  primaryBorough: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha" as Route,
@@ -73,9 +74,9 @@ describe("landing hero rhythm", () => {
         },
       },
       rail: [
-        { id: "venue-1", name: "The Crosse Keys", area: "City of London", priceGbp: 2.99, hasThen: false },
-        { id: "venue-2", name: "The Liberty Bounds", area: "City of London", priceGbp: 2.99, hasThen: false },
-        { id: "venue-3", name: "The Sir John Hawkshaw", area: "City of London", priceGbp: 3.49, hasThen: false },
+        { id: "venue-1", name: "The Crosse Keys", area: "City of London", primaryBorough: "City of London", priceGbp: 2.99, hasThen: false },
+        { id: "venue-2", name: "The Liberty Bounds", area: "City of London", primaryBorough: "City of London", priceGbp: 2.99, hasThen: false },
+        { id: "venue-3", name: "The Sir John Hawkshaw", area: "City of London", primaryBorough: "City of London", priceGbp: 3.49, hasThen: false },
       ],
     }),
   );

@@ -12,7 +12,7 @@ import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 // same answer. A 09:30 reading in October says "morning".
 const MORNING_SUMMARY: TonightConditionsSummary = {
   dateLabel: "Saturday 3 Oct",
-  factsLine: "11°C feels like, cloudy, 0% chance of rain, 5 km/h wind.",
+  factsLine: "Feels like 11°C, cloudy, 0% chance of rain, 5 km/h wind.",
   stale: false,
   checkedLabel: "Checked 30 minutes ago",
   drinkLine: "Crisp autumn morning. Amber ale weather.",

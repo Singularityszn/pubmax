@@ -608,16 +608,20 @@ for (const width of [320, 390] as const) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setTheme(page, "light");
     await page.goto("/moment");
-    const heading = page.locator(".momentPage h1");
+    // While React reveals the streamed Suspense boundary it briefly holds a
+    // second, hidden copy of the composer, so a bare `.momentPage h1` can match
+    // two headings (seen on PR #2103, shard 2/3). Measure the one on screen.
+    const heading = page.locator(".momentPage h1:visible");
+    await expect(heading).toHaveCount(1);
     await expect(heading).toBeVisible();
-    const geometry = await page.evaluate(() => {
+    const geometry = await heading.evaluate((h1) => {
       const probe = document.createElement("div");
       probe.style.cssText = "position:absolute;visibility:hidden;width:var(--page-gutter)";
       document.body.append(probe);
       const gutter = probe.getBoundingClientRect().width;
       probe.remove();
-      const h1 = document.querySelector(".momentPage h1")!.getBoundingClientRect();
-      return { gutter, left: h1.left, right: window.innerWidth - h1.right };
+      const rect = h1.getBoundingClientRect();
+      return { gutter, left: rect.left, right: window.innerWidth - rect.right };
     });
     expect(Math.abs(geometry.left - geometry.gutter)).toBeLessThanOrEqual(1);
     expect(geometry.right).toBeGreaterThanOrEqual(geometry.gutter - 1);

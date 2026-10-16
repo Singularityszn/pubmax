@@ -91,6 +91,7 @@ import {
 } from "@/lib/nearMeLocation";
 import {
   buildMapVenueListModel,
+  closedMapVenueListModel,
   buildLondonRestaurantListModel,
   buildUkBasePubListModel,
   type MapVenueListSortMode,
@@ -324,6 +325,7 @@ import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { usePintDrops } from "@/components/map/usePintDrops";
+import { useMapLoadTiming } from "@/components/map/useMapLoadTiming";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import {
@@ -514,6 +516,7 @@ import {
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
+import { MAP_OPENING_PREVIEW_RETRACT_EVENT } from "@/lib/mapOpeningPreview";
 import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
 import {
   spoonsValueLensRequested,
@@ -1535,6 +1538,13 @@ export default function PubMap({
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
   const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
+  // A map that cannot draw (no WebGL, or no pub list) never reveals pins, so
+  // the document's opening prices (components/map/MapOpeningPreview.tsx) would
+  // stand over the fallback for ever. Tell them to stand down instead.
+  useEffect(() => {
+    if (!mapCanvasErrored && !venueIndexFailed) return;
+    window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
+  }, [mapCanvasErrored, venueIndexFailed]);
   // The two failures the canvas cannot report, because neither leaves a canvas
   // to report them: its module never loaded, and it never answered at all.
   // lib/mapCanvasAvailability.ts owns what either one means and what it says.
@@ -3017,6 +3027,8 @@ export default function PubMap({
     [pubVenues, savedIds],
   );
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
+  // Field time-to-pins for this visit (map_load_timing, consent-gated).
+  useMapLoadTiming(venues.length);
   // A shared planner link can name stops outside the opening viewport. The slim
   // shard loader quite correctly reads only the map the reader is looking at,
   // but the planner still owes the URL's ordered stops immediately. Warm those
@@ -3315,22 +3327,27 @@ export default function PubMap({
     },
     [cityId, kindVisibleMapVenues, visibleVenueState],
   );
+  // Built only while the list is open: closed, it renders nothing and the
+  // chrome reads the count alone (closedMapVenueListModel).
   const mapVenueListModel = useMemo(
     () =>
-      buildMapVenueListModel(
-        mapVenueListVenues,
-        mapViewport.center,
-        undefined,
-        activeLensPrices,
-        activeLensNoun ?? undefined,
-        drinkIndexStatus,
-        mapListSortMode,
-        venueSignals,
-      ),
+      !mapListOpen
+        ? closedMapVenueListModel(mapVenueListVenues.length)
+        : buildMapVenueListModel(
+            mapVenueListVenues,
+            mapViewport.center,
+            undefined,
+            activeLensPrices,
+            activeLensNoun ?? undefined,
+            drinkIndexStatus,
+            mapListSortMode,
+            venueSignals,
+          ),
     [
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
+      mapListOpen,
       mapListSortMode,
       mapVenueListVenues,
       mapViewport.center,

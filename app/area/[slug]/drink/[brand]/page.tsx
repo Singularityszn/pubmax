@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import DrinkBrandAreaLandingContent from "@/components/drinks/DrinkBrandAreaLandingContent";
@@ -21,8 +20,11 @@ type PageProps = {
   params: Promise<{ slug: string; brand: string }>;
 };
 
-// See app/drink/[slug]/page.tsx: the nonce makes the document dynamic, so
-// `dynamicParams` is the gate, not a revalidate window.
+// THIS DOCUMENT IS PRERENDERED on the same terms as app/drink/[slug]/page.tsx
+// (task vercel-f2-seo-cdn, proxy.ts CDN_CACHED_DOCUMENT_ROUTES): no nonce, no
+// per-request read, an hour's ISR window. Only a published pair renders.
+export const dynamic = "force-static";
+export const revalidate = 3600;
 export const dynamicParams = false;
 
 export async function generateStaticParams(): Promise<
@@ -75,14 +77,11 @@ export default async function DrinkBrandAreaLandingPage({
   const landing = await loadDrinkBrandAreaLanding(slug, brand);
   if (!landing) notFound();
 
-  const [nonce, mapSelectableVenueIds] = await Promise.all([
-    headers().then((store) => store.get("x-nonce") ?? undefined),
-    loadMapSelectableVenueIds(),
-  ]);
+  const mapSelectableVenueIds = await loadMapSelectableVenueIds();
 
   return (
     <main id="main" className="drinkBrandAreaLanding">
-      <JsonLd data={drinkBrandAreaLandingJsonLd(landing)} nonce={nonce} />
+      <JsonLd data={drinkBrandAreaLandingJsonLd(landing)} />
       <SiteNav />
       <DrinkBrandAreaLandingContent
         landing={landing}

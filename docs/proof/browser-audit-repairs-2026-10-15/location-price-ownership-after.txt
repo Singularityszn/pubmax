@@ -1,0 +1,37 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One vegan meal in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497656}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One meal under 500 calories in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497659}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One pizza under £10 in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497661}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497662}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":""}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497664}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"not-a-city"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497666}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"manchester"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497668}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"intake":{"version":1,"area":{"kind":"night-patch","id":"hackney"},"timeWindow":null,"groupSize":4,"budget":{"tier":"standard","limitPence":null},"accessibilityNeeds":[],"skipped":["time-window"]}}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792077497669}
+
+···················································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses with the deployment ceiling's own sentence once it is spent
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1000,"windowMs":86400000,"ts":1792077497986}
+
+··············································
+
+ Test Files  1 passed (1)
+      Tests  2593 passed (2593)
+   Start at  16:18:07
+   Duration  10.57s (tests 94%, transform 5%, import 2%)
+

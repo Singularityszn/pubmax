@@ -1,0 +1,83 @@
+[
+  {
+    "input": {
+      "query": "One pizza and a pint under £10 in Soho",
+      "context": {
+        "stopCount": 1
+      }
+    },
+    "status": 200,
+    "code": null,
+    "error": null,
+    "stopCount": 1
+  },
+  {
+    "input": {
+      "query": "One pizza in Soho, priced under £10",
+      "context": {
+        "stopCount": 1
+      }
+    },
+    "status": 200,
+    "code": null,
+    "error": null,
+    "stopCount": 1
+  },
+  {
+    "input": {
+      "query": "3 pubs in Clapham under £20 per person with pizza afterwards",
+      "context": {
+        "stopCount": 3
+      }
+    },
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+    "stopCount": 0
+  },
+  {
+    "input": {
+      "query": "One pub in Soho",
+      "context": {
+        "stopCount": 1,
+        "foodNeeds": [
+          "One pizza and a pint under £10"
+        ]
+      }
+    },
+    "status": 200,
+    "code": null,
+    "error": null,
+    "stopCount": 1
+  },
+  {
+    "input": {
+      "query": "One pub in Soho",
+      "context": {
+        "stopCount": 1,
+        "foodNeeds": [
+          "pizza in Soho, priced under £10"
+        ]
+      }
+    },
+    "status": 200,
+    "code": null,
+    "error": null,
+    "stopCount": 1
+  },
+  {
+    "input": {
+      "query": "3 pubs in Clapham under £20 per person",
+      "context": {
+        "stopCount": 3,
+        "foodNeeds": [
+          "£20 per person with pizza afterwards"
+        ]
+      }
+    },
+    "status": 422,
+    "code": "MEAL_CONSTRAINTS_UNSUPPORTED",
+    "error": "This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.",
+    "stopCount": 0
+  }
+]

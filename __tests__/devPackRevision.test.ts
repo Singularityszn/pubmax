@@ -114,15 +114,20 @@ describe("which packs the map accepts", () => {
     await expect(loadedIds(create)).resolves.toEqual(["b1", "c1", "g1"]);
   });
 
-  it("a production build still rejects every pack stamped with another revision", async () => {
+  it("a production build paints a consistent pack stamped with another revision", async () => {
+    // A build that skipped the restamp, or a deploy caught mid-flight: every
+    // pack agrees with itself and not with the baked revision. The manifest's
+    // own revision is adopted, so the pins paint rather than nothing at all.
     const create = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["committed local packs"]));
-    await expect(loadedIds(create)).resolves.toEqual([]);
-
-    const mixed = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["mixed within one pack"]));
-    await expect(loadedIds(mixed)).resolves.toEqual([]);
+    await expect(loadedIds(create)).resolves.toEqual(["b1", "c1", "g1"]);
 
     await expect(
       cityMonolithIds({ NODE_ENV: "production" }, packs(STAMPS["committed local packs"])),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual(["b1"]);
+  });
+
+  it("a production build still refuses a shard that disagrees with its own manifest", async () => {
+    const mixed = await loaderFor({ NODE_ENV: "production" }, packs(STAMPS["mixed within one pack"]));
+    await expect(loadedIds(mixed)).resolves.toEqual([]);
   });
 });

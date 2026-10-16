@@ -1,0 +1,92 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+·····························x································x································x································x································x································x································x································x······································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One vegan meal in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154817}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One meal under 500 calories in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154820}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One pizza under £10 in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154822}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154824}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":""}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154825}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"not-a-city"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154827}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"manchester"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154829}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"intake":{"version":1,"area":{"kind":"night-patch","id":"hackney"},"timeWindow":null,"groupSize":4,"budget":{"tier":"standard","limitPence":null},"accessibilityNeeds":[],"skipped":["time-window"]}}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792075154830}
+
+···························································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses with the deployment ceiling's own sentence once it is spent
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1000,"windowMs":86400000,"ts":1792075155133}
+
+··············································
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a pub lunch and a pint"]}}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:228:8
+    226|       preparation: "response" in prepared ? prepared.response.status :…
+    227|       post: response.status,
+    228|     }).toEqual({ preparation: 422, post: 422 });
+       |        ^
+    229|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    230|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a pub meal and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a pub food and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a pub burger and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a bar lunch and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a bar meal and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a bar food and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£10 for beer, a bar burger and a pint"]}}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:228:8
+    226|       preparation: "response" in prepared ? prepared.response.status :…
+    227|       post: response.status,
+    228|     }).toEqual({ preparation: 422, post: 422 });
+       |        ^
+    229|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    230|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 2028 passed (2036)
+   Start at  15:39:07
+   Duration  7.55s (tests 92%, transform 6%, import 2%)
+

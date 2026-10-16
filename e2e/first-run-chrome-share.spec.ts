@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // THE FIRST SCREEN IS THE PRODUCT, NOT ITS CHROME.
 //
@@ -71,7 +72,7 @@ async function firstRouteRecorded(page: Page) {
 }
 
 async function openedPhoneMap(page: Page) {
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  await expectMobileMapShellReady(page, 45_000);
   await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
     timeout: 45_000,
   });

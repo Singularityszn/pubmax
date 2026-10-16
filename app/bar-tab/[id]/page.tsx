@@ -15,6 +15,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { formatGbp } from "@/lib/venues";
 
 import "./barTab.css";
@@ -49,7 +50,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { venue } = read;
   const title = `The Bar Tab: ${venue.name}. PUBMAXXING`;
   const description = `Recent pints dropped at ${venue.name} in ${
-    venue.primaryBorough || "London"
+    venueAreaLabel(venue)
   }. Photos, prices, and the stories behind them.`;
   return {
     title,
@@ -137,7 +138,7 @@ export default async function BarTabPage({ params }: PageProps) {
         <h1 className="barTabTitle">{venue.name}</h1>
         <p className="barTabAddress">
           {venue.address ? `${venue.address} · ` : ""}
-          {venue.primaryBorough || "London"}
+          {venueAreaLabel(venue)}
         </p>
 
         <div className="barTabHeadRow">

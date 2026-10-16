@@ -227,7 +227,10 @@ describe("derived key lists", () => {
   });
 
   it("VENUE_PIN_ICON_KEYS covers every kind × price bucket", () => {
-    expect(VENUE_PIN_ICON_KEYS).toHaveLength(28);
+    // Seven kinds × four bands, each drawn twice: a clean rim and the broken
+    // rim of an aging price (owner decision 16 Oct 2026).
+    expect(VENUE_PIN_ICON_KEYS).toHaveLength(56);
+    expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("pint", 0, true));
     expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("pint", 0));
     expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("cocktail", 2));
     expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("coupe", 1));

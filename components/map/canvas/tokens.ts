@@ -160,6 +160,13 @@ export type Tokens = {
   pricePlaqueInk: string;
   pricePlaqueSurface: string;
   /**
+   * The three price-band INKS (`--price-band-cheap-ink`, `-average-ink`,
+   * `-expensive-ink`), in band order: the band's hue deepened to read as text.
+   * A cluster's figure wears the ink of its own cheapest pub's band, so the
+   * colour on a printed price is that price's band and nothing else.
+   */
+  bandInk: readonly [string, string, string];
+  /**
    * The reader's own position. Named rather than borrowed from a price band,
    * because "where you are" is not a price and must never be read as one.
    * Resolves the same `--color-info-strong` the DOM marker used, so the dot
@@ -222,6 +229,7 @@ type MapThemeToken = Exclude<
   | "cat"
   | "pricePlaqueInk"
   | "pricePlaqueSurface"
+  | "bandInk"
   | "priceStampTiltDeg"
   | "userLocation"
 >;
@@ -268,6 +276,11 @@ export function readTokens(): Tokens {
   const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
   const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
   const userLocation = resolvedColour("--color-info-strong", "#29b6f6");
+  const bandInk = [
+    resolvedColour("--price-band-cheap-ink", "#2c6b47"),
+    resolvedColour("--price-band-average-ink", "#7a5a21"),
+    resolvedColour("--price-band-expensive-ink", "#a8463a"),
+  ] as const;
   colourProbe.remove();
   // Additive `--cat-*` read: one entry per drink family, resolved from the live
   // computed vars (with the canonical light hex as a fallback) so map consumers
@@ -293,6 +306,7 @@ export function readTokens(): Tokens {
     brassBright: mapToken("brassBright", "#d3a44a"),
     pricePlaqueInk,
     pricePlaqueSurface,
+    bandInk,
     userLocation,
     priceStampTiltDeg:
       Number.parseFloat(token("--ink-stamp-tilt", "-1.5deg")) || -1.5,

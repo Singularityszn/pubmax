@@ -161,6 +161,14 @@ describe("inferNightContext", () => {
     expect(inferNightContext("Clapham tonight, standard budget").context.budgetLimitPence).toBeNull();
   });
 
+  it.each(["£0.01", "£10.00", "£20.00", "10.00 pounds", "20.00 quid", "version 0.0", "0.01", "10.00", "20.00"])("does not infer alcohol-free intent from %s", (value) => {
+    expect(inferNightContext(`3 pubs in Clapham, ${value}, maximum £5 per pint`, EVENING).context.zeroProof).toBe(false);
+  });
+
+  it.each(["0.0 beer", "beer 0.0", "0.0 lager", "lager 0.0", "0.0 Guinness", "Guinness 0.0", "Heineken 0.0", "0.0 wine", "0.0% ABV beer", "alcohol-free beer", "no alcohol"])("preserves explicit alcohol-free intent from %s", (value) => {
+    expect(inferNightContext(`3 pubs in Clapham, ${value}`, EVENING).context.zeroProof).toBe(true);
+  });
+
   it("maps soft-drink language onto the zero-proof preference generate already ranks on", () => {
     expect(inferNightContext("soft drinks in Camden for 3", EVENING).context.zeroProof).toBe(true);
     expect(inferNightContext("a soft drink in Shoreditch", EVENING).context.zeroProof).toBe(true);

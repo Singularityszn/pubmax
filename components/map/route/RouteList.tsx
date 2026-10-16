@@ -48,6 +48,7 @@ export default function RouteList({
       name: venue.name,
       address: venue.address,
       storyTag: venue.curation.storyTag,
+      locality: venue.locality,
       primaryBorough: venue.primaryBorough,
       visibleBoroughs: venue.visibleBoroughs,
     })),

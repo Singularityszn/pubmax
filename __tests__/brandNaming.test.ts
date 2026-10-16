@@ -23,9 +23,15 @@ vi.mock("@/lib/scrapedPubs.server", () => ({
 }));
 
 // next/font is a build-time loader, so the root layout needs its faces stubbed
-// to be importable here. Nothing about the metadata under test reads them.
+// to be importable here. Nothing about the metadata under test reads them, but
+// the layout reads each Google face's generated fallback from style.fontFamily,
+// so the stub keeps next/font's "primary, fallback" shape.
 vi.mock("next/font/google", () => {
-  const face = () => ({ variable: "--font-x", className: "font-x", style: {} });
+  const face = () => ({
+    variable: "--font-x",
+    className: "font-x",
+    style: { fontFamily: "'X', 'X Fallback'" },
+  });
   return { Space_Grotesk: face, Inter: face };
 });
 vi.mock("next/font/local", () => {

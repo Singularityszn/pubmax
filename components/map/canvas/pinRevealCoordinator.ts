@@ -172,6 +172,50 @@ export function pinRetryPendingNotice(kind: PinRevealNoticeKind) {
     : PIN_PAINT_RETRY_PENDING_NOTICE;
 }
 
+/**
+ * Whether a basemap tile the CURRENT style has already painted counts toward
+ * the pin reveal that style's scene build arms. Owner decision 15 Oct 2026: the
+ * price pins arrive DURING the opening arrival flight, not after it. Measured
+ * on a location-granted /map open: the scene armed the reveal after the first
+ * basemap tiles had painted, the arm forgot them, and the flight that followed
+ * zoomed 12 to 16, where MapLibre cancels pending tile requests until the zoom
+ * stops. No fresh tile could load mid-flight, so the pins waited for the
+ * flight to land and for its tiles to arrive.
+ *
+ * Only a paint from the style generation being armed carries: a tile from the
+ * style a theme swap replaced, or from before a context loss, proves nothing
+ * about this one, and a silent tile retry has already cleared the live latch.
+ * Reduced motion keeps the gate it had, because its camera jumps rather than
+ * flies and there is no flight to overlap.
+ */
+export function basemapPaintCarriesIntoReveal(input: {
+  basemapPainted: boolean;
+  paintedStyleGeneration: number | null;
+  armedStyleGeneration: number;
+  reducedMotion: boolean;
+}): boolean {
+  return (
+    input.basemapPainted &&
+    input.paintedStyleGeneration === input.armedStyleGeneration &&
+    !input.reducedMotion
+  );
+}
+
+/**
+ * MapLibre's `cancelPendingTileRequestsWhileZooming` for a newly built map,
+ * held until that map first goes idle. The default (true) drops every basemap
+ * tile still in flight the moment a camera zooms past it, and the opening
+ * arrival flight starts zooming as soon as the scene is built, which on a cold
+ * open is before the hold view's tiles have answered. With them cancelled the
+ * basemap has no frame until the flight lands, and the pins rightly wait for
+ * the basemap. Keeping them lets the hold view paint (scaled) mid-flight, so
+ * the pins can arrive with it. Reduced motion keeps the default: its camera
+ * jumps, there is no flight to overlap, and its reveal stays as it was.
+ */
+export function openingCancelsPendingTiles(reducedMotion: boolean): boolean {
+  return reducedMotion;
+}
+
 type PinRevealCoordinatorOptions = {
   /**
    * Un-gates the local GeoJSON pins if the basemap never reports painted tiles,

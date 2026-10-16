@@ -591,6 +591,15 @@ html:not([data-theme="dark"]) body {
   box-shadow: none;
 }
 
+/* AN AGING PRICE LOOKS AGING, NEVER FRESH (owner decision 16 Oct 2026): the
+   plaque keeps its band, and its edge breaks, the same broken rim an aging pin
+   wears on the map. The line beside it says why (`priceAgeNote`,
+   lib/priceTier.ts), so the shape is never the only thing saying it. */
+.priceBadge.priceBadge--aging {
+  border-style: dashed;
+  border-width: 1.5px;
+}
+
 /* THE ONE CLASS FAMILY a band paints with (`priceBandClass` in
    lib/priceBand.ts). Each class sets the element's own hue and ink, and the
    plaque tint under it, so PriceBadge, a bare figure and the trust pill all

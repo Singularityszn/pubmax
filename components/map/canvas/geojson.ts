@@ -18,6 +18,7 @@ import { truncateStopName } from "@/lib/routeStopLabel";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import { pintTrustPinStanding } from "@/lib/pintTrust";
 import {
+  priceAgeFor,
   priceStandingFigure,
   type PriceStanding,
   type PriceStandingDecision,
@@ -200,6 +201,34 @@ function clusterPriceFor(
   return formatPinPriceLabel(sourcedPrice) === null ? null : sourcedPrice;
 }
 
+/**
+ * Whether the figure this pin PRINTS is past the window its standing claims
+ * (owner decision 16 Oct 2026: an aging price must look aging, never fresh).
+ *
+ * Only the pin's own base figure is judged: a lens figure, a Spoons round and
+ * a favourite-pint figure each carry their own contract and are not this
+ * pub's printed pint. The figure's lane is the stack's own: a drinker's log
+ * (`latestContributorPrice`) ages on the confirmation clock, the index's
+ * published price on the listing clock, with its read day from the slim index
+ * (`priceObservedAt`). Null when the pin prints no base figure, so the property
+ * is absent rather than "fresh" on a silent pin.
+ */
+export function pinPriceAging(args: {
+  venue: Pick<Venue, "priceObservedAt">;
+  signals: Pick<VenueSignal, "latestContributorPrice" | "latestContributorAt"> | undefined;
+  sourcedPrice: number | null;
+  ownsFigure: boolean;
+  now?: number;
+}): boolean | null {
+  if (!args.ownsFigure || formatPinPriceLabel(args.sourcedPrice) === null) return null;
+  const now = args.now ?? Date.now();
+  const age =
+    typeof args.signals?.latestContributorPrice === "number"
+      ? priceAgeFor("drinker", args.signals.latestContributorAt, now)
+      : priceAgeFor("published", args.venue.priceObservedAt, now);
+  return age === "aging";
+}
+
 function pinBucketAndTag(args: {
   venue: Venue;
   signals: VenueSignal | undefined;
@@ -290,6 +319,8 @@ export function pubsToGeoJSON(
   // things, and stamps no standing: a pub's round is not a claim about its
   // pint. Absent lane = today's behaviour, unchanged.
   spoonsValue: SpoonsValuePinLane | null = null,
+  // The clock price ages are read against. Injected so a test can hold a day.
+  now: number = Date.now(),
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -320,6 +351,13 @@ export function pubsToGeoJSON(
       });
       const drinkKind = pinDrinkKind(venue, drinkCategory, lensPrice);
       const clusterPrice = clusterPriceFor(sourcedPrice, lensActive, spoonsValue);
+      const aging = pinPriceAging({
+        venue,
+        signals,
+        sourcedPrice,
+        ownsFigure: !lensActive && !spoonsValue && !favoritePint,
+        now,
+      });
       const scraped = Boolean(
         venue.filterHints?.scraped ||
         venue.sourceDatasets?.some((source) =>
@@ -350,7 +388,7 @@ export function pubsToGeoJSON(
           // this is still the price bucket and never moves.
           icon: iconId(
             "drink",
-            venuePinIconKey(drinkKind, spoonsBucket ?? bucket),
+            venuePinIconKey(drinkKind, spoonsBucket ?? bucket, aging === true),
           ),
           // M7 pin entrance — a stable per-pub stagger bucket (hash of id, not
           // insertion order/coordinates) so the entrance cascade reads as a
@@ -388,6 +426,10 @@ export function pubsToGeoJSON(
           // cluster donut and the rendered state read to know the map is under
           // the lens, and it is never a price.
           ...(spoonsBucket === null ? {} : { spoonsBucket }),
+          // The printed figure is past its standing's window (`pinPriceAging`).
+          // ABSENT on a fresh or silent pin, so ["get","aging"] reads cleanly.
+          // It changes the pin's SHAPE (a dashed ring) and never its colour.
+          ...(aging ? { aging: true } : {}),
         },
         geometry: {
           type: "Point" as const,

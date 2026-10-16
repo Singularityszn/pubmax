@@ -9,18 +9,17 @@ import "server-only";
 //
 // It reports whether the edge was NEW, which the single-target route does not
 // need but a pack does: a follow-all owes the drinker an honest per-member line
-// and "already following them" is not a failure. The read before the write is a
-// label, never a gate - `FollowStore.follow` is idempotent on its own, so a
-// race can only mislabel a line, never double-write an edge.
+// and "already following them" is not a failure. The store's insert result
+// identifies the new edge, so concurrent retries cannot notify twice.
 //
-// Authorisation is NOT here. Who may act as the follower is decided by the
-// route through `resolveMessageHandle` + `gateHandleAction`, and this module is
-// reached only after that answered.
+// Authorisation belongs to each caller. Direct and starter-pack follow routes
+// use `resolveMessageHandle` + `gateHandleAction`. The plan-join route verifies
+// the account, then `crewFriendEdges.ts` applies the pair eligibility checks.
 
-import { followStore, isSelfFollow } from "@/lib/followStore";
+import { followStore, isSelfFollow, type FollowStore } from "@/lib/followStore";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore, type ProfileStore } from "@/lib/profileStore";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 export type FollowWriteResult = "followed" | "already" | "self" | "unavailable";
@@ -40,16 +39,16 @@ export type FollowWriteResult = "followed" | "already" | "self" | "unavailable";
 export async function followOnce(
   follower: string,
   target: string,
+  dependencies: { follows?: FollowStore; profiles?: ProfileStore } = {},
 ): Promise<FollowWriteResult> {
-  const targetProfile = await profileStore().getByHandle(target);
+  const targetProfile = await (dependencies.profiles ?? profileStore()).getByHandle(target);
   if (isProfileTombstoned(targetProfile) || (await isProfileWithdrawnFromPublic(targetProfile))) return "unavailable";
   if (!targetProfile && isSupabaseConfigured()) return "unavailable";
   if (isSelfFollow(follower, target)) return "self";
-  const store = followStore();
-  const already = await store.isFollowing(follower, target);
-  await store.follow(follower, target);
-  if (already) return "already";
-  void emitNotification({
+  const store = dependencies.follows ?? followStore();
+  const outcome = await store.followIfNew(follower, target);
+  if (outcome !== "created") return outcome;
+  await emitNotification({
     recipientHandle: target,
     actorHandle: follower,
     kind: "follow",

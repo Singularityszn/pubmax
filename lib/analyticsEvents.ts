@@ -15,8 +15,6 @@ import { NIGHT_AREA_SLUGS } from "@/lib/nightAreas";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
-import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
-import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
 import type { DrinkCategory } from "@/lib/drinks";
 
 /**
@@ -99,7 +97,6 @@ export const ANALYTICS_EVENTS = {
   recap_share_gate_opened: ["planId"],
   next_night_committed: ["windowDays", "source"],
   draft_recovered: ["kind", "surface"],
-  web_vital: ["metric", "value", "rating", "route", "target"],
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
@@ -631,9 +628,6 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   // in a funnel whose whole value is the ratio between its steps.
   pint_index_viewed: ["surface", "visit"],
   pint_index_area_opened: ["surface", "area"],
-  // Field RUM: a vital is meaningless without which metric, its value, rating,
-  // and the route it happened on. `target` (attribution selector) is optional.
-  web_vital: ["metric", "value", "rating", "route"],
   // Invite loop: a page view with no RSVP context, an RSVP with no status, or
   // a reaction toggle with no reaction/direction is an uncountable step in a
   // funnel whose whole value is the ratio between its steps - fail closed.
@@ -767,36 +761,13 @@ function isUuidLike(value: unknown): value is string {
   return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
-// A vital's `route` may only be one of the app's known route templates (or the
-// "/other" fallback) — never a raw path, so a venue id/slug/handle can never
-// ride in. `target` must survive the same selector sanitiser the beacon applied.
-const KNOWN_ROUTE_PATTERNS = new Set<string>([...ROUTE_PATTERNS, ROUTE_PATTERN_OTHER]);
-
-function isKnownRoutePattern(value: unknown): value is string {
-  return typeof value === "string" && KNOWN_ROUTE_PATTERNS.has(value);
-}
-
-function isSafeVitalTarget(value: unknown): value is string {
-  return typeof value === "string" && sanitizeVitalTarget(value) === value;
-}
 
 /** Per-prop-key validators that replace the generic enum check for that key. */
 const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value is string | number | boolean>> = {
   inviteId: isUuidLike,
-  route: isKnownRoutePattern,
-  // `target` is shared by web_vital (selector) and landing_cta_clicked (CTA enum).
-  // Those checks live in isAllowedVitalProp / isAllowedLandingCtaProp below.
+  // `target` is landing_cta_clicked's closed CTA enum; isAllowedLandingCtaProp
+  // below owns that check.
 };
-
-/** web_vital metric/rating/value/target strictness (route uses CUSTOM_PROP_VALIDATORS). */
-function isAllowedVitalProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
-  if (name !== "web_vital") return true;
-  if (key === "metric") return includesValue(VITAL_METRICS, value);
-  if (key === "rating") return includesValue(VITAL_RATINGS, value);
-  if (key === "value") return typeof value === "number" && Number.isFinite(value) && value >= 0;
-  if (key === "target") return isSafeVitalTarget(value);
-  return true;
-}
 
 function isAllowedLandingCtaProp(
   name: AnalyticsEventName,
@@ -1025,25 +996,18 @@ export function sanitizeEvent(
       const value = (props as Record<string, unknown>)[key];
       if (value === undefined) continue;
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
-      // `target` is shared by web_vital (a sanitized selector, never a fixed
-      // enum member) and landing_cta_clicked (a closed enum). Its real
-      // strictness is fully delegated to isAllowedVitalProp /
-      // isAllowedLandingCtaProp below, so it must bypass the generic
-      // isSafeValue enum gate the same way a CUSTOM_PROP_VALIDATORS entry
-      // would - otherwise a legitimate selector like "main>img.hero" never
-      // reaches those checks at all.
+      // landing_cta_clicked's `target` is a closed enum whose strictness is
+      // delegated to isAllowedLandingCtaProp below.
       const valid = (name === "sign_in_initiated" || name === "user_signed_up") && key === "provider"
         ? isSignInProvider(value)
-        : key === "target" && (name === "web_vital" || name === "landing_cta_clicked")
+        : key === "target" && name === "landing_cta_clicked"
           ? typeof value === "string"
-            && isAllowedVitalProp(name, key, value)
             && isAllowedLandingCtaProp(name, key, value)
           : customValidator
             ? customValidator(value)
             : isSafeValue(value)
               && isAllowedLoopEventProp(name, key, value)
               && isAllowedTrustedHandoffEventProp(name, key, value)
-              && isAllowedVitalProp(name, key, value)
               && isAllowedPriceFunnelProp(name, key, value)
               && isAllowedSoftDrinksWaterProp(name, key, value)
               && isAllowedMissionProp(name, key, value)

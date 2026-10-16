@@ -79,6 +79,13 @@ function safeReferrer(value: unknown, currentUrl: string): string | undefined {
   return analyticsReferrerFromUrl(value, currentUrl) ?? undefined;
 }
 
+// posthog-js session ids are UUIDv7; anything else is not one of ours.
+const POSTHOG_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function safeSessionId(value: unknown): string | undefined {
+  return typeof value === "string" && POSTHOG_SESSION_ID.test(value) ? value : undefined;
+}
+
 function safeClientIp(request: Request): string | undefined {
   const value = clientIp(request);
   return isIP(value) ? value : undefined;
@@ -184,6 +191,8 @@ export async function POST(req: Request): Promise<Response> {
       path: safePath,
       anonymousId,
       analyticsConsent,
+      origin: new URL(req.url).origin,
+      sessionId: safeSessionId(browserContext.sessionId),
       clientIp: safeClientIp(req),
       userAgent: safeUserAgent(req.headers.get("user-agent")),
       referrer: safeReferrer(browserContext.referrer, req.url),

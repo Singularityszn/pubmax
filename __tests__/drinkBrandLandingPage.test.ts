@@ -20,10 +20,6 @@ vi.mock("@/lib/siteUrlConfig.mjs", () => ({
   PRODUCTION_SITE_ORIGIN: "https://example.test",
 }));
 
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ "x-nonce": "test-nonce" }),
-}));
-
 vi.mock("next/navigation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/navigation")>();
   return {
@@ -78,11 +74,12 @@ describe("governed drink brand landing page", () => {
     );
   });
 
-  it("gates on published slugs and declares no revalidate window it cannot keep", () => {
+  it("gates on published slugs and is a prerendered CDN document", () => {
     expect(dynamicParams).toBe(false);
-    // The page reads the per-request nonce, so the document is dynamic and a
-    // `revalidate` export would bound nothing.
-    expect("revalidate" in drinkBrandLandingPageModule).toBe(false);
+    // task vercel-f2-seo-cdn: the page reads no nonce, so it prerenders and the
+    // CDN holds it for the ISR window.
+    expect(drinkBrandLandingPageModule.dynamic).toBe("force-static");
+    expect(drinkBrandLandingPageModule.revalidate).toBe(3600);
   });
 
   it("renders the immediate answer, both destinations, date, and twenty ranked rows", async () => {
