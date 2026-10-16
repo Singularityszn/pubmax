@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const MOBILE_VIEWPORTS = [
   { width: 390, height: 844 },
@@ -18,7 +18,7 @@ async function prepareReturningVisitor(page: Page): Promise<void> {
 }
 
 async function openVenueList(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   const layersSheet = page.locator(
     '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
   );

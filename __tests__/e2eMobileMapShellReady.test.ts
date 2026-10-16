@@ -56,6 +56,39 @@ function waitsOnTopbar(text: string): boolean {
   return false;
 }
 
+// The controls only the phone shell owns, found by the class the shell gives
+// them. Search, Filters, TfL and Near me share their names with the desktop
+// toolbar and with sheets, so a bare `page.getByRole` by those names is not
+// flagged; More map controls exists only in the shell, so its name is.
+const SHELL_CONTROL_CLASS = /locator\(\s*["'`][^"'`]*\.(?:mobileMapFiltersButton|mobileMapTflButton|mobileMapLocateFab)\b/;
+const MORE_BY_NAME = /name:\s*["'`]More map controls["'`]/;
+const TOPBAR_NAMED_BUTTON =
+  /\.getByRole\(\s*["'`]button["'`]\s*,\s*\{\s*name:\s*(?:["'`]Search the map["'`]|\/\^Filters)/;
+
+/**
+ * Whether a source reaches one of the phone shell's own controls itself
+ * rather than through `mobileMapShellControl`: More map controls by name
+ * anywhere, a control by the class the shell gives it, or Search or Filters
+ * read off the top bar, inline or from a stored top-bar locator.
+ */
+function reachesShellControl(text: string): boolean {
+  if (MORE_BY_NAME.test(text) || SHELL_CONTROL_CLASS.test(text)) return true;
+  const inline = new RegExp(`["'\`]\\.mobileMapTopbar["'\`]\\s*\\)\\s*${TOPBAR_NAMED_BUTTON.source}`);
+  if (inline.test(text)) return true;
+  for (const match of text.matchAll(
+    /(?:const|let)\s+(\w+)\s*=\s*page\s*\.locator\(\s*["'`]\.mobileMapTopbar["'`]\s*\)\s*;/g,
+  )) {
+    const name = match[1];
+    const from = (match.index ?? 0) + match[0].length;
+    const redeclared = text
+      .slice(from)
+      .search(new RegExp(`(?:const|let)\\s+${name}\\s*=`));
+    const scope = text.slice(from, redeclared === -1 ? undefined : from + redeclared);
+    if (new RegExp(`\\b${name}\\s*${TOPBAR_NAMED_BUTTON.source}`).test(scope)) return true;
+  }
+  return false;
+}
+
 describe("e2e phone map shell readiness", () => {
   it("floors the wait at the shell's own readiness ceiling", () => {
     const helper = readFileSync(path.join(E2E, HELPER), "utf8");
@@ -94,6 +127,38 @@ describe("e2e phone map shell readiness", () => {
     const offenders = e2eSources()
       .filter(({ file }) => file !== HELPER)
       .filter(({ text }) => waitsOnTopbar(text))
+      .map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("recognises every way of reaching a shell control, and nothing else", () => {
+    const reaches = [
+      'await page.getByRole("button", { name: "More map controls" }).click();',
+      'await openSheet(page, { name: "More map controls" });',
+      'const tfl = page.locator(".mobileMapTflButton .mobileMapCornerBadge");',
+      'await page.locator(".mobileMapUtilityCorner .mobileMapLocateFab").click();',
+      'const f = page.locator(".mobileMapFiltersButton");',
+      'await page\n  .locator(".mobileMapTopbar")\n  .getByRole("button", { name: /^Filters/ })\n  .click();',
+      'const topbar = page.locator(".mobileMapTopbar");\nawait topbar.getByRole("button", { name: "Search the map" }).click();',
+    ];
+    const notReaches = [
+      'await page.getByRole("button", { name: /^Filters/ }).click();',
+      'await page.getByRole("button", { name: "Search the map" }).click();',
+      'await page.getByRole("button", { name: "Near me" }).click();',
+      'const rect = document.querySelector(".mobileMapLocateFab");',
+      'await expectTouchTargets(page.locator(".mobileMapTopbar button, .mobileMapUtilityCorner button"));',
+      'const topbar = page.locator(".mobileMapTopbar");\nawait topbar.getByRole("button", { name: /Choose city/ }).click();',
+      'const topbar = page.locator(".mobileMapTopbar");\nawait topbar.click();\n' +
+        'const topbar = page.locator(".mapToolbar");\nawait topbar.getByRole("button", { name: /^Filters/ }).click();',
+    ];
+    for (const sample of reaches) expect(reachesShellControl(sample), sample).toBe(true);
+    for (const sample of notReaches) expect(reachesShellControl(sample), sample).toBe(false);
+  });
+
+  it("reaches the phone shell's own controls only through mobileMapShellControl", () => {
+    const offenders = e2eSources()
+      .filter(({ file }) => file !== HELPER)
+      .filter(({ text }) => reachesShellControl(text))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
   });
