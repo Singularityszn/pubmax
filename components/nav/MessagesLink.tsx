@@ -20,7 +20,7 @@ function readHandle(): string {
   return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
-export default function MessagesLink(): React.JSX.Element {
+export default function MessagesLink(): React.JSX.Element | null {
   const router = useRouter();
   const { user, handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
@@ -84,6 +84,10 @@ export default function MessagesLink(): React.JSX.Element {
       abortRef.current?.abort();
     };
   }, [handle, refresh, user]);
+
+  // A signed-out visitor has no inbox, so the link is not drawn for them at all
+  // (Oct 2026 UX audit). It appears once a session exists.
+  if (!user) return null;
 
   const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 

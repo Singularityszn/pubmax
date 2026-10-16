@@ -37,7 +37,7 @@ vi.mock("@/lib/cityPreference", () => ({
 // out, with the live session answered, and the chrome another track owns
 // stubbed to nothing. Every hook that reads over the network answers a settled
 // state, so the surface under test is the one a reader sees, not a skeleton.
-vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null, SiteNavActions: () => null }));
 vi.mock("@/components/nav/NowSegment", () => ({ default: () => null }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/components/auth/AuthProvider", () => ({

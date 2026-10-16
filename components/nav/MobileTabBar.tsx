@@ -3,7 +3,7 @@
 import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, UserRound, Route, CalendarClock, Signpost, DoorOpen } from "lucide-react";
+import { Map, UserRound, Route, CalendarClock } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { profilePath } from "@/lib/appLink";
@@ -36,7 +36,9 @@ import "./mobileNav.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// Six durable destinations in the order of the loop (navigationModel). None of
+// Four durable destinations in the order of the loop (navigationModel): Map,
+// Tonight, Plan, You. Out folded into Tonight and Places is a setting reached
+// from the map's city chip, so neither is a tab any more. None of
 // them asks a stranger to sign in, which is why Social is not one. Compose lives
 // on the floating + action, never in this row.
 //
@@ -66,8 +68,6 @@ export function buildTabs(
   const icons = {
     now: CalendarClock,
     map: Map,
-    places: Signpost,
-    out: DoorOpen,
     plan: Route,
     you: UserRound,
   };
@@ -196,7 +196,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
               <Link
                 href={tab.href}
                 // The bar sits in the viewport on every page, so Next's
-                // automatic prefetch fires for all five tab destinations while the
+                // automatic prefetch fires for all four tab destinations while the
                 // current page is still painting. This component already owns a
                 // intent warm below replaces it. Leaving the automatic one on
                 // top downloads unrelated route code before the current page is

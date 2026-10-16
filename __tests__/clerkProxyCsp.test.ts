@@ -299,7 +299,6 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/admin",
     "/admin/community-prices",
     "/plan",
-    "/out",
     "/places",
     "/pal",
     "/map/london",

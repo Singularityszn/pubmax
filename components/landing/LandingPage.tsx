@@ -5,16 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-import MessagesLink from "@/components/nav/MessagesLink";
-import NotificationBell from "@/components/nav/NotificationBell";
-import ThemeToggle from "@/components/ThemeToggle";
-// Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
-
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
-// and action cluster, so it pulls in those shared styles directly.
-import "@/components/nav/siteNav.css";
+// and renders SiteNav's OWN action cluster (SiteNavActions), so the front door
+// and every app page offer one set of controls. SiteNav's module brings the
+// shared styles with it.
+import { SiteNavActions } from "@/components/nav/SiteNav";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
@@ -119,15 +115,9 @@ export default function LandingPage({
           )}
         </nav>
 
-        <div className="lpNavActions">
-          {/* Canonical action island, same order and shape as SiteNav so the
-              front door and the app read as one product. Bell and Messages are
-              anon-safe (plain icon links, badge only when signed-in + unread). */}
-          <NotificationBell />
-          <MessagesLink />
-          <ThemeToggle />
-          <SignInButton compact />
-        </div>
+        {/* The canonical action island itself, not a copy of it: More, compose,
+            the palette hint, the signed-in bell and messages, and sign-in. */}
+        <SiteNavActions className="siteNavActions lpNavActions" />
       </header>
 
       <main id="main">
