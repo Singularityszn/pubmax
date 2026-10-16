@@ -65,7 +65,17 @@ export type BuildOutResponseOpts = {
    * turns a listings answer into a platform error.
    */
   loadVenueMatchIndex?: (city: OutCity) => Promise<OutVenueMatchIndex | null>;
+  /**
+   * Answer from the bundled and served listings alone, and leave every
+   * configured live lane to the browser read of /api/out. The /out document
+   * sets this: a provider that does not answer held its first byte for the
+   * whole eight-second abort.
+   */
+  deferLiveProviders?: boolean;
 };
+
+/** What a listings answer says while its configured live lanes are unasked. */
+export const OUT_LIVE_LISTINGS_DEFERRED_REASON = "Live listings have not been checked yet.";
 
 // A city is COVERED when a bundled events file for it ships. The param is open
 // to every refresh city so turning one on is data (run the refresh, commit the
@@ -358,6 +368,12 @@ export async function buildOutResponse(
             rows: [],
           };
         }
+        if (opts.deferLiveProviders) {
+          return {
+            report: { name: provider.name, configured: true, rows: 0, status: "deferred" },
+            rows: [],
+          };
+        }
         try {
           // The provider is asked for the window this answer will KEEP, so a
           // tomorrow or weekend request never spends an upstream call on rows
@@ -390,6 +406,11 @@ export async function buildOutResponse(
   if (reports.some((report) => report.status === "degraded")) {
     status = "degraded";
     reason = "Some listings could not be checked.";
+  } else if (status === "ready" && reports.some((report) => report.status === "deferred")) {
+    // An unasked lane is not a quiet city and not a lane without a key. The
+    // answer is incomplete, so it is never ready, and it says why.
+    status = "degraded";
+    reason = OUT_LIVE_LISTINGS_DEFERRED_REASON;
   }
 
   const liveRowKeys = new Set(liveRows.map(dedupeKey));
