@@ -38,6 +38,7 @@ type PlanGenerationDtoVenue = {
 type PlanGenerationDtoCandidate = {
   venue: PlanGenerationDtoVenue;
   selectedDrinkPrice?: MapLensPrice | null;
+  pintPriceEvidence?: PlanPriceEvidence | null;
   distance: number;
   reasons: readonly string[];
   tonightEvents: readonly {
@@ -98,12 +99,13 @@ function planAlternativeDto(
     venueId: alternative.id,
     venueName: alternative.name,
     distanceKm: Number(venueDistanceKm(origin, alternative).toFixed(2)),
-    estimatedPintPricePence: !usesPintPrices ? null : grounded
+    estimatedPintPricePence: !usesPintPrices ? null : candidate.pintPriceEvidence ? candidate.pintPriceEvidence.pence : grounded
       ? grounded.price.pence
       : alternative.cheapestPrice === null
         ? null
         : Math.round(alternative.cheapestPrice * 100),
-    priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
+    priceEvidence: usesPintPrices ? candidate.pintPriceEvidence ?? grounded?.price ?? null : null,
+    ...(usesPintPrices && candidate.pintPriceEvidence ? { priceCategory: "beer", priceServing: "pint" } : {}),
     selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(candidate.selectedDrinkPrice, priceContext),
     accessEvidence: grounded?.access ?? null,
     constraintFlags: grounded?.constraintFlags ?? [],
@@ -146,7 +148,7 @@ export function buildPlanGenerationStops(params: {
   const usesPintPrices = planUsesPintPrices(priceContext);
   const chosenVenueIds = new Set(chosen.map(({ venue }) => venue.id));
 
-  return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
+  return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims, pintPriceEvidence }, index) => {
     const grounded = groundedStops?.[index] ?? null;
     const groundedAlternativeCandidates = groundedAlternatives?.[index] ?? null;
     const alternatives = groundedAlternativeCandidates
@@ -165,10 +167,11 @@ export function buildPlanGenerationStops(params: {
       position: index,
       walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
       distanceKm: Number(distance.toFixed(2)),
-      estimatedPintPricePence: !usesPintPrices ? null : grounded
+      estimatedPintPricePence: !usesPintPrices ? null : pintPriceEvidence ? pintPriceEvidence.pence : grounded
         ? grounded.price.pence
         : venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
-      priceEvidence: usesPintPrices ? grounded?.price ?? null : null,
+      priceEvidence: usesPintPrices ? pintPriceEvidence ?? grounded?.price ?? null : null,
+      ...(usesPintPrices && pintPriceEvidence ? { priceCategory: "beer", priceServing: "pint" } : {}),
       selectedDrinkPriceEvidence: selectedDrinkPriceEvidenceForPrice(chosen[index]?.selectedDrinkPrice, priceContext),
       accessEvidence: grounded?.access ?? null,
       evidence: reasons,
