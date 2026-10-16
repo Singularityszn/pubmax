@@ -32,6 +32,11 @@
   color: var(--ink);
 }
 
+/* The first-run setup chip sits under the answer: an offer, never a gate. */
+.nmnFirstRunChip {
+  margin: var(--space-4, 16px) 0 0;
+}
+
 /* ── Desktop composition ──────────────────────────────────────────────────
    The answer column was a flat 560px at every width, while the SiteNav pill
    above it escapes its host to 1100px on desktop (siteNav.css) — so at 1440 a
@@ -58,6 +63,7 @@
 
   /* The answer and its arrival note lead the primary column. */
   .nmnPosterNote,
+  .nmnFirstRunChip,
   .nmnPageBody > .nmn {
     grid-column: 1;
   }

@@ -6,13 +6,14 @@ import {
   LANDING_FIRST_RUN_HREF,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_NAME,
+  NEAR_FIRST_RUN_CHIP_NAME,
 } from "./helpers/landingHero";
 
 // The first-run journey on the web (lib/onboardingFlow.ts). A browser reaches
-// it only from the landing hero's primary, which a first-time visitor's tap
-// points at the journey; a returning visitor's tap and every deep link go
-// straight to their target, and a typed or shared URL is still turned away at
-// the edge (__tests__/onboardingWebDocument.test.ts). The native shell's own
+// it only from the chip /near offers a first-time visitor, under the answer the
+// landing primary already gave (owner decision 16 Oct 2026); every deep link
+// goes straight to its target, and a typed or shared URL is still turned away
+// at the edge (__tests__/onboardingWebDocument.test.ts). The native shell's own
 // arrival is covered in e2e/mobile-first-run-onboarding.spec.ts.
 
 const SIZES = [
@@ -45,12 +46,19 @@ function heroPrimary(page: Page): Locator {
   return page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
 }
 
-/** Arrive the way a first-time visitor does: a fresh browser taps the landing hero's primary. */
+/**
+ * Arrive the way a first-time visitor does: a fresh browser taps the landing
+ * hero's primary, is answered on /near, and takes the chip offered there.
+ */
 async function openJourneyFromTheApp(page: Page): Promise<void> {
   await page.goto("/");
   const primary = heroPrimary(page);
-  await expect(primary).toHaveAttribute("href", LANDING_FIRST_RUN_HREF, { timeout: 30_000 });
+  await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF, { timeout: 30_000 });
   await primary.click();
+  await expect(page).toHaveURL(/\/near\?locate=1/);
+  const chip = page.getByRole("link", { name: NEAR_FIRST_RUN_CHIP_NAME, exact: true });
+  await expect(chip).toHaveAttribute("href", LANDING_FIRST_RUN_HREF, { timeout: 30_000 });
+  await chip.click();
   await expect(page).toHaveURL(/\/onboarding\?start=web$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible({ timeout: 30_000 });
 }
@@ -200,6 +208,8 @@ test("Skip records the mark and lands where the hero was going, which a returnin
 
   await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax-tour-v2-done"))).toBe("1");
+  // The offer was taken, so /near stops making it.
+  await expect(page.getByRole("link", { name: NEAR_FIRST_RUN_CHIP_NAME, exact: true })).toHaveCount(0);
 
   // Back on the landing, the mark sends the same tap straight to /near. The
   // hydrated door is pinned in __tests__/landingPrimaryDoor.test.tsx.
