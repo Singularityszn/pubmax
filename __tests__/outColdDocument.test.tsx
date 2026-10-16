@@ -197,7 +197,7 @@ describe("a cold /out document with a configured live provider", () => {
     expect(seeded).not.toContain(OUT_READ_FAILED_LINE);
 
     const api = fullApiAnswer("2026-10-16T20:30:00Z");
-    const browserRead = vi.fn(async () => Response.json(api));
+    const browserRead = vi.fn<typeof fetch>(async () => Response.json(api));
     vi.stubGlobal("fetch", browserRead);
     await act(async () => {
       root = hydrateRoot(container as HTMLDivElement, element);
