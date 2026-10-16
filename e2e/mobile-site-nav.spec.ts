@@ -35,10 +35,13 @@ test.describe("site navigation touch targets", () => {
     await expectTappable(nav.getByRole("link", { name: "Map", exact: true }), "tablet Map link");
     await expectTappable(nav.getByRole("link", { name: "Plan", exact: true }), "tablet Plan link");
     await expectTappable(nav.getByRole("link", { name: "Tonight", exact: true }), "tablet Tonight link");
-    await expectTappable(nav.getByRole("link", { name: "Out", exact: true }), "tablet Out link");
-    await expectTappable(nav.getByLabel(/^Activity/), "tablet Activity bell");
-    await expectTappable(nav.getByLabel(/^Messages/), "tablet Messages bell");
-    await expectTappable(nav.getByRole("button", { name: /switch to/i }), "tablet theme toggle");
+    await expectTappable(nav.getByRole("link", { name: "You", exact: true }), "tablet You link");
+    // Signed out, the bell and messages are not drawn (nothing is behind them),
+    // and the theme moved from the bar into More.
+    await expect(nav.getByLabel(/^Activity/)).toHaveCount(0);
+    await expect(nav.getByLabel(/^Messages/)).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /switch to/i })).toHaveCount(0);
+    await expectTappable(nav.getByRole("button", { name: "More pages" }), "tablet More menu");
     const signIn = nav.getByRole("button", { name: "Sign in" });
     if ((await signIn.count()) > 0) {
       await expectTappable(signIn, "tablet sign-in trigger");

@@ -196,11 +196,11 @@ describe("real command registry", () => {
     }
   });
 
-  it("finds Tonight, Places, Out, Near, Pal, Drink Wall and the Pint Index", () => {
+  it("finds Tonight (Out folded into it), Places, Near, Pal, Drink Wall and the Pint Index", () => {
     const expected: Record<string, string> = {
       tonight: "/tonight",
       places: "/places",
-      out: "/out",
+      out: "/tonight",
       near: "/near",
       pal: "/pal",
       "drink wall": "/wall",

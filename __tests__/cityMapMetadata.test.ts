@@ -123,7 +123,7 @@ describe("city map generateMetadata", () => {
 
     expect(metadata.title).toBe("Victorian Soho · London");
     expect(metadata.description).toBe(
-      "5-stop crawl: Victorian Soho in London. Open it on PUBMAXXING.",
+      "5-stop crawl: Victorian Soho in London. Open it on PUBMAXX.",
     );
     expect(metadata.openGraph).toMatchObject({
       title: "Victorian Soho · London",

@@ -26,6 +26,7 @@ import VenueOverviewTab, {
 } from "@/components/map/inspector/VenueOverviewTab";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenueStickyBar from "@/components/map/inspector/VenueStickyBar";
+import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import { useCommunityPrices, type CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -198,16 +199,15 @@ function communityPrices(venueId: string, readStatus: VenuePriceReadStatus = "re
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus; communityState?: CommunityPricesState } = {},
+  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus; communityState?: CommunityPricesState; mode?: "suggest" | "build"; phoneSheet?: boolean } = {},
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
-  return renderToStaticMarkup(
-    createElement(VenueOverviewTab, {
+  const overview = createElement(VenueOverviewTab, {
       venue: defined(merged),
       tab: "overview",
       cityId: "london",
-      mode: "suggest",
+      mode: options.mode ?? "suggest",
       inCrawl: false,
       latestContributorPrice: signal.latestContributorPrice,
       latestPintDropAt: signal.latestContributorAt,
@@ -234,7 +234,13 @@ function renderOverview(
       priceSignInRequested: options.priceSignInRequested ?? false,
       priceAuthLoading: false,
       priceFocusRequest: options.priceFocusRequest ?? 0,
-    }),
+    });
+  // Inside the phone's portal sheet the footer slot is a real node; on desktop
+  // there is none (components/mobile/sheetFooterContext.ts).
+  return renderToStaticMarkup(
+    options.phoneSheet
+      ? createElement(SheetFooterContext.Provider, { value: document.createElement("div") }, overview)
+      : overview,
   );
 }
 
@@ -769,6 +775,24 @@ describe("price precedence in the rendered Overview", () => {
       expect(view.querySelector(".firstDropNudge")).toBeNull();
       expect(view.querySelectorAll("[data-price-door]")).toHaveLength(0);
     }
+  });
+});
+
+describe("the Overview's crawl toggle", () => {
+  // ONE PLAN DOOR ON A PHONE (lib/venuePlanDoor.ts): the peek's door owns the
+  // crawl toggle there, so the Overview's own "Add to crawl" is desktop's alone.
+  const crawlButtons = (html: string) => {
+    const view = document.createElement("div");
+    view.innerHTML = html;
+    return [...view.querySelectorAll("button")].filter((button) => /crawl/i.test(button.textContent ?? ""));
+  };
+
+  it("shows in build mode on desktop", () => {
+    expect(crawlButtons(renderOverview([], venue(), { mode: "build" })).map((b) => b.textContent)).toEqual(["Add to crawl"]);
+  });
+
+  it("is not a second plan door inside the phone sheet", () => {
+    expect(crawlButtons(renderOverview([], venue(), { mode: "build", phoneSheet: true }))).toEqual([]);
   });
 });
 

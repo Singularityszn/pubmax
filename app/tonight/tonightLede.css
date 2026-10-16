@@ -1,5 +1,5 @@
-/* The three blocks the 7 September lede rebuild added: the pubs people are
-   talking about, the chain blocks under them, and the cheap pints a quiet
+/* The three blocks the 7 September lede rebuild added: the pubs Londoners
+   keep recommending, the chain blocks under them, and the cheap pints a quiet
    night answers with.
 
    All three take the row chrome the rest of this page already uses (one edge,
@@ -33,7 +33,7 @@
   gap: 10px;
 }
 
-/* Pubs people are talking about
+/* Pubs Londoners keep recommending
    ------------------------------------------------------------------ */
 
 .tonightHypedRow {
@@ -130,29 +130,85 @@
   margin-top: 0;
 }
 
-/* Two auto columns packed to the start: equal 1fr halves seated "Open on map"
-   at the card's midline on a wide card, out of line with every card that has
-   no toggle, where the link sits at the left edge. */
+/* Every card reads the same way: "Why this pub" and the way onto the map share
+   one row under the place, packed to the start so the map action sits at the
+   same place on every card, and the reason folds behind the toggle on every
+   card alike, which keeps the first card whole above a short phone's docked
+   consent card. The gap is 12px because at 320px the two 44px boxes share 202px
+   beside the create disc's lane. An opened reason takes the full width under
+   the map action. */
 .tonightHypedActions {
-  display: grid;
-  grid-template-columns: auto auto;
-  justify-content: start;
-  align-items: start;
-  gap: 0 var(--space-5);
-  margin-top: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0 var(--space-3);
+  margin-top: 2px;
 }
 
 .tonightHypedActions .tonightHypedMap,
-.tonightHypedDetails > .tonightHypedMoreToggle {
+.tonightHypedActions .tonightHypedUnmatched {
   margin: 0;
 }
 
-.tonightHypedDetails[open] {
-  grid-column: 1 / -1;
+.tonightHypedReason[open] {
+  order: 2;
+  flex-basis: 100%;
 }
 
-.tonightHypedDetails[open] .tonightHypedMoreChevron {
+.tonightHypedActions .tonightHypedUnmatched {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* The listed pint rides the area line, so a card is three short rows: the
+   name, the place and its pint, and the actions. */
+.tonightHypedArea {
+  flex-wrap: wrap;
+}
+
+.tonightHypedPrice {
+  white-space: nowrap;
+}
+
+.tonightHypedSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tonightHypedReasonToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.tonightHypedReasonToggle::-webkit-details-marker {
+  display: none;
+}
+
+.tonightHypedReason[open] > .tonightHypedReasonToggle .tonightHypedMoreChevron {
   transform: rotate(180deg);
+}
+
+.tonightHypedReason .tonightHypedWhy {
+  margin-top: 0;
+}
+
+.tonightHypedPriceFigure {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 /* Chain blocks

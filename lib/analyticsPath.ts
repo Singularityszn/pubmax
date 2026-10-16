@@ -11,7 +11,6 @@ const PAGEVIEW_STATIC_SURFACES = new Set([
   "/moment",
   "/near",
   "/onboarding",
-  "/out",
   "/pal",
   "/pal/chat",
   "/pint-index",

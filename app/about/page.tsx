@@ -9,7 +9,7 @@ import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
-import { CONTACT_EMAIL } from "@/lib/siteContact";
+import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 
 import "./about.css";
 
@@ -27,7 +27,7 @@ import "./about.css";
 
 const PAGE_TITLE = "About PUBMAXX";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid. PubMaxxing puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "PUBMAXXING: every pint has a story",
+        alt: "PUBMAXX: every pint has a story",
       },
     ],
   },
@@ -124,7 +124,7 @@ export default async function AboutPage() {
     url: "https://pubmaxxing.com/about",
     isPartOf: {
       "@type": "WebSite",
-      name: "PUBMAXXING",
+      name: "PUBMAXX",
       url: "https://pubmaxxing.com",
     },
     about: {
@@ -135,7 +135,7 @@ export default async function AboutPage() {
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
         "Listed prices with explicit source status for UK pubs, mapped for nights out, daytime hangs, food, coffee, and alcohol-free rounds. A free outing planner that never lets anyone pay to rank.",
-      email: CONTACT_EMAIL,
+      email: HELLO_EMAIL,
       founder: {
         "@type": "Person",
         name: "Karan Manoharan",
@@ -179,7 +179,7 @@ export default async function AboutPage() {
           </>
         }
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
-        secondary={<a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>}
+        secondary={<a href={HELLO_MAILTO}>Contact</a>}
       >
 
       <section className="aboutSection" aria-labelledby="map">
@@ -313,7 +313,7 @@ export default async function AboutPage() {
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
-            <dd>PUBMAXX. The app is PUBMAXXING.</dd>
+            <dd>PUBMAXX, always with two Xs. It lives at pubmaxxing.com.</dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
@@ -334,8 +334,8 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>Contact</dt>
             <dd>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
-                {CONTACT_EMAIL}
+              <a href={HELLO_MAILTO} className="aboutLink">
+                {HELLO_EMAIL}
               </a>
             </dd>
           </div>
@@ -435,7 +435,7 @@ export default async function AboutPage() {
             Open the map
           </Link>
           {" · "}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="aboutLink">
+          <a href={HELLO_MAILTO} className="aboutLink">
             Get in touch
           </a>
         </p>

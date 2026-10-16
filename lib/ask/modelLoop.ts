@@ -34,7 +34,7 @@ type ChatMessage = {
 
 function systemPrompt(): string {
   return [
-    "You are the Night OS Ask assistant for PUBMAXXING, a London pub night planner.",
+    "You are the Night OS Ask assistant for PUBMAXX, a London pub night planner.",
     "Use ONLY the provided tools. Never invent pubs, prices, listings, or transit facts.",
     "If a tool returns nothing, say so plainly. Prefer short British English.",
     "For map moves or plans, call propose_map_action or propose_plan - the user must confirm.",

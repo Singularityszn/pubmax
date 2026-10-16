@@ -7,7 +7,7 @@ import {
   type PricedLandingCandidate,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
 export const DRINK_BRAND_LANDING_PUBLICATION_FLOOR =
@@ -74,7 +74,7 @@ export function drinkBrandCandidateForVenue(
   venue: Venue,
   brand: DrinkBrand,
 ): PricedLandingCandidate | null {
-  if (!isPubVenueKind(venue.kind)) return null;
+  if (!isPublicRankablePub(venue)) return null;
   const selected = selectDrinkBrandPriceForVenue(venue, brand);
   if (!selected || typeof selected.price_gbp !== "number") return null;
   return {
