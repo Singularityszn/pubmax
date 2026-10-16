@@ -479,6 +479,11 @@ a.lpPubPint:hover { color: var(--ink); }
   .lpNav { width: min(1100px, 100vw - 48px); }
 }
 
+/* SiteNav's lower-tablet band (siteNav.css) widens its capsule to a 24px
+   inset from 641px to 767px. Mirror it, after the phone frame below so it
+   wins on 641 to 700 too, or the bar narrowed by 24px (and by 4px under 701)
+   on the way from the front door into the app. */
+
 @media (max-width: 960px) {
   .lpNav { gap: 10px; padding-left: 12px; }
   .lpPrimaryNav { gap: 0; }
@@ -797,3 +802,9 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 .lpFaqAnswer { margin: var(--space-2) 0 0; }
+
+/* Lower-tablet bar width, mirrored from siteNav.css; see the frame note above.
+   Last in the file so it outranks the phone frame's calc(100vw - 20px). */
+@media (min-width: 641px) and (max-width: 767px) {
+  .lpNav { width: min(1100px, 100vw - 24px); }
+}
