@@ -3,9 +3,10 @@
 // Source: https://api.ratings.food.gov.uk (keyless; every request sends
 // `x-api-version: 2`, the header lib/foodHygiene.ts already sends). Licence:
 // Open Government Licence v3.0, attribution in the pack and on /credits. Every
-// read goes through `fsaGetJson` (scripts/lib/fsaHygienePack.mjs): the host is
-// pinned, a redirect is refused, pages are the FSA's own 200-row ceiling, and a
-// 429 or 5xx is retried a bounded number of times.
+// read goes through `fsaGetJson` (scripts/lib/fsaHygienePack.mjs): the host
+// comes from the `fsa-fhrs-api` row in lib/harvest/sourcePolicy.ts, a redirect
+// is refused, pages are the FSA's own 200-row ceiling, and a 429 or 5xx is
+// retried a bounded number of times.
 //
 // What it does:
 //   1. Reads the FHRSIDs public/data/osm_fhrs/london.json names.

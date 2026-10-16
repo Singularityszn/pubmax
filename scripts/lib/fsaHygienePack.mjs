@@ -10,7 +10,12 @@
 // and a rating outside the closed set below is dropped and counted, so a
 // missing row is "not read" and never "not rated".
 
+import { openDataSourceUrl } from "../../lib/harvest/sourcePolicy.ts";
+
 export const FSA_HYGIENE_PACK_VERSION = 1;
+
+/** The FSA API's row in lib/harvest/sourcePolicy.ts. */
+const FSA_SOURCE_POLICY_ID = "fsa-fhrs-api";
 
 export const FSA_SOURCE = Object.freeze({
   source: "Food Standards Agency, Food Hygiene Rating Scheme",
@@ -96,15 +101,15 @@ export function buildFsaHygienePack({ wanted, establishments, retrievedAt }) {
  */
 export const FSA_PAGE_SIZE = 200;
 
-const FSA_API_HOST = new URL(FSA_SOURCE.apiUrl).host;
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 
 /**
  * GET one FSA API path as JSON, or null when the FSA answers 404.
  *
- * THE HOST IS PINNED. The path is joined to `FSA_SOURCE.apiUrl` here, a URL
- * that lands anywhere else is refused before it is asked, and a redirect is an
- * error, so no response from another host is ever read. A 429 or a 5xx is
+ * THE SOURCE POLICY OWNS THE HOST. The URL comes from `openDataSourceUrl`
+ * (lib/harvest/sourcePolicy.ts, row `fsa-fhrs-api`), which refuses a path that
+ * resolves to any other host or scheme, and a redirect is an error, so no
+ * response from another host is ever read. A 429 or a 5xx is
  * asked again after the server's `Retry-After` (or a doubling wait from
  * `baseDelayMs`), at most `maxAttempts` times in all; any other failure stops
  * the run, so a partial read never ships.
@@ -113,10 +118,7 @@ export async function fsaGetJson(
   pathAndQuery,
   { fetchImpl = fetch, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), maxAttempts = 5, baseDelayMs = 2000 } = {},
 ) {
-  const url = new URL(pathAndQuery, FSA_SOURCE.apiUrl);
-  if (url.protocol !== "https:" || url.host !== FSA_API_HOST) {
-    throw new Error(`FSA read refused: ${url.href} is not ${FSA_SOURCE.apiUrl}`);
-  }
+  const url = openDataSourceUrl(FSA_SOURCE_POLICY_ID, pathAndQuery);
   for (let attempt = 1; ; attempt += 1) {
     const response = await fetchImpl(url.href, {
       headers: { "x-api-version": "2", accept: "application/json" },

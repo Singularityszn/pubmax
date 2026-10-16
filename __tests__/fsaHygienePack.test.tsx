@@ -295,7 +295,7 @@ describe("the builder's FSA reads", () => {
   const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
   const noSleep = vi.fn(async () => {});
 
-  it("asks only the FSA API host, refuses a redirect, and pages at the FSA's ceiling", async () => {
+  it("asks only the host the source policy registers, refuses a redirect, and pages at the FSA's ceiling", async () => {
     const fetchImpl = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => ok({ establishments: [] }));
     await fsaGetJson(`/Establishments?localAuthorityId=1&pageSize=${FSA_PAGE_SIZE}&pageNumber=1`, {
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -306,10 +306,10 @@ describe("the builder's FSA reads", () => {
     expect(init?.redirect).toBe("error");
     expect(FSA_PAGE_SIZE).toBeLessThanOrEqual(200);
     await expect(fsaGetJson("//example.com/Establishments", { fetchImpl: fetchImpl as unknown as typeof fetch })).rejects.toThrow(
-      /refused/,
+      /is not fsa-fhrs-api/,
     );
     await expect(fsaGetJson("http://api.ratings.food.gov.uk/Authorities", { fetchImpl: fetchImpl as unknown as typeof fetch })).rejects.toThrow(
-      /refused/,
+      /is not fsa-fhrs-api/,
     );
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
