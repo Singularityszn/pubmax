@@ -235,10 +235,11 @@ export function OutListingsRead({ day }: { day: OutDayWindow }) {
           listingGroups(lead.unmatched, `out-${day}-group-`, "h3")
         )}
       </div>
-      {/* Two footnotes under the list, in this order, and never above it.
+      {/* Footnotes under the list, in this order, and never above it.
           The FIRST is the one finding a row cannot state for itself: the venue
           match never ran. The SECOND is the credit owed to whoever published
-          these listings. */}
+          these listings. The LAST is the door to /credits, where every source
+          is listed with its licence. */}
       {venueMatchNotice ? (
         <p
           className="outStatus outListingUnmatchedLine"
