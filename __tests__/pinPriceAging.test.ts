@@ -1,5 +1,10 @@
 import { featureFilter } from "@maplibre/maplibre-gl-style-spec";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
+import VenuePeekPintPrice, { PEEK_AGING_SUFFIX, peekPriceAging } from "@/components/map/VenuePeekPintPrice";
+import type { VenuePriceLane } from "@/lib/venuePriceLane";
 
 import { pricePillFilter } from "@/components/map/canvas/filters";
 import { pinPriceAging, pubsToGeoJSON } from "@/components/map/canvas/geojson";
@@ -131,5 +136,44 @@ describe("a pin's printed price ages on its standing's window", () => {
   it("registers a broken-rim glass for every glass the map can draw", () => {
     const plain = VENUE_PIN_ICON_KEYS.filter((key) => !key.endsWith(AGING_ICON_KEY_SUFFIX));
     for (const key of plain) expect(VENUE_PIN_ICON_KEYS).toContain(`${key}${AGING_ICON_KEY_SUFFIX}`);
+  });
+});
+
+describe("the phone peek's price chip", () => {
+  const baseline = (observedOn: string | null): VenuePriceLane => ({
+    lane: "baseline",
+    cheapestPrice: 4.55,
+    standing: "none",
+    publisher: null,
+    observedOn,
+  });
+  const render = (lane: VenuePriceLane) =>
+    renderToStaticMarkup(
+      createElement(VenuePeekPintPrice, {
+        venueId: "venue-x",
+        isPub: true,
+        lane,
+        bundle: {},
+        pintTrust: null,
+        detailLoading: false,
+        priceReadStatus: "ready",
+        dropReadStatus: "ready",
+        onLog: () => {},
+      }),
+    );
+
+  it("breaks the chip's edge and says so when the price on record has no read date", () => {
+    expect(peekPriceAging(baseline(null))).toBe(true);
+    const html = render(baseline(null));
+    expect(html).toContain("priceBadge--aging");
+    expect(html).toContain(PEEK_AGING_SUFFIX.trim());
+  });
+
+  it("leaves a price read this year clean", () => {
+    const fresh = new Date(Date.now() - 20 * DAY).toISOString().slice(0, 10);
+    expect(peekPriceAging(baseline(fresh))).toBe(false);
+    const html = render(baseline(fresh));
+    expect(html).not.toContain("priceBadge--aging");
+    expect(html).not.toContain(PEEK_AGING_SUFFIX.trim());
   });
 });

@@ -1173,3 +1173,11 @@ describe("landmark pictogram size", () => {
     expect(size(17)).toBeCloseTo(LANDMARK_INSPECTOR_ICON_SIZE_PX, 5);
   });
 });
+
+describe("the cluster count caption gives way", () => {
+  it("drops rather than draw over a neighbouring disc", () => {
+    const badge = (buildScenePieces().layers.get("cluster-count-badge")?.layout ?? {}) as Record<string, unknown>;
+    expect(badge["text-allow-overlap"]).toBe(false);
+    expect(badge["text-ignore-placement"]).toBe(false);
+  });
+});

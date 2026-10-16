@@ -5,6 +5,7 @@ import {
   donutOuterRadius,
   clusterLabelText,
   donutTotal,
+  placeClusterCaptions,
   readMinPrice,
   readMinPriceBand,
   type DonutCounts,
@@ -189,7 +190,29 @@ export function createDonutClusterSync(
     const textColor = dark ? tokens.ink : tokens.inkDeep;
     const casingColor = dark ? tokens.ink : tokens.inkDeep;
     const outerRadius = donutOuterRadius(map.getZoom());
-    const markup = (counts: DonutCounts, figure: string | null, figureColor: string) =>
+    // Where each disc stands on screen, cheapest first, so the captions are
+    // placed by hand the way the GL caption layer places them by collision.
+    const onScreen = [...byId].map(([id, feature]) => {
+      const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+      const point = map.project([lng, lat]);
+      const minPrice = readMinPrice(feature.properties, CLUSTER_PRICE_NONE);
+      return {
+        id,
+        x: point.x,
+        y: point.y,
+        total: donutTotal(readCounts(feature.properties)),
+        priced: minPrice !== null,
+        order: minPrice ?? Number.POSITIVE_INFINITY,
+      };
+    });
+    onScreen.sort((a, b) => a.order - b.order);
+    const captions = placeClusterCaptions(onScreen, outerRadius);
+    const markup = (
+      counts: DonutCounts,
+      figure: string | null,
+      figureColor: string,
+      countCaption: boolean,
+    ) =>
       buildDonutMarkerSvg({
         counts,
         discColor: tokens.panelRaised,
@@ -201,6 +224,7 @@ export function createDonutClusterSync(
         figureColor,
         outerRadius,
         figure,
+        countCaption,
       });
     const seen = new Set<number>();
     for (const [clusterId, feature] of byId) {
@@ -214,7 +238,8 @@ export function createDonutClusterSync(
       // The figure wears its OWN pub's band ink, never the crowd's colour.
       const band = figure === null ? null : readMinPriceBand(feature.properties);
       const figureColor = band === null ? textColor : tokens.bandInk[band];
-      const look = `${outerRadius}|${figure ?? ""}|${figureColor}|${textColor}|${casingColor}|${tokens.panelRaised}`;
+      const countCaption = captions.has(clusterId);
+      const look = `${outerRadius}|${figure ?? ""}|${figureColor}|${countCaption}|${textColor}|${casingColor}|${tokens.panelRaised}`;
       const label = `${clusterLabelText(figure, donutTotal(counts))}, tap to zoom in`;
       const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       const existing = markers.get(clusterId);
@@ -227,7 +252,7 @@ export function createDonutClusterSync(
           existing.counts = counts;
           existing.look = look;
           existing.el.setAttribute("aria-label", label);
-          existing.el.innerHTML = markup(counts, figure, figureColor);
+          existing.el.innerHTML = markup(counts, figure, figureColor, countCaption);
         }
         continue;
       }
@@ -236,7 +261,7 @@ export function createDonutClusterSync(
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
       el.setAttribute("aria-label", label);
-      el.innerHTML = markup(counts, figure, figureColor);
+      el.innerHTML = markup(counts, figure, figureColor, countCaption);
       el.addEventListener("click", (event) => {
         event.stopPropagation();
         handleClusterClick(clusterId, [lng, lat]);

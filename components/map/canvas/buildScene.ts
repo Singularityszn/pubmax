@@ -1785,9 +1785,11 @@ export function buildPubs(ctx: SceneCtx) {
   // price: the figure stays the claim and the count reads after it, the way
   // the desktop disc's label says "from £4.85 · 12 pubs". A disc with no price
   // prints its count in the middle instead and wears nothing here.
+  // Just clear of the disc's own reserved box (the figure pads out to the
+  // rim), so the caption collides with its NEIGHBOURS and never its own disc.
   const captionOffset = (outer: number): [number, number] => [
     0,
-    Number(((outer + 1) / CLUSTER_COUNT_BADGE_SIZE_PX).toFixed(3)),
+    Number(((outer + 2) / CLUSTER_COUNT_BADGE_SIZE_PX).toFixed(3)),
   ];
   addLayerOnce({
     id: "cluster-count-badge",
@@ -1806,7 +1808,10 @@ export function buildPubs(ctx: SceneCtx) {
         CLUSTER_DISC_SMALL_FROM_ZOOM,
         ["literal", captionOffset(CLUSTER_MIN_RADIUS_PX)],
       ] as unknown as maplibregl.ExpressionSpecification,
-      "text-allow-overlap": true,
+      // Where a neighbouring disc stands in the way the caption drops: the
+      // figure is the claim and the count may give way to it, never cover it.
+      "text-allow-overlap": false,
+      "text-padding": 0,
       "text-ignore-placement": false,
     },
     paint: {

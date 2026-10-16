@@ -106,6 +106,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getSource: () => undefined,
       getLayer: () => undefined,
       getZoom: () => 10,
+      project: () => ({ x: 0, y: 0 }),
       querySourceFeatures: (): unknown[] => [],
       setFilter: vi.fn(),
       setLayoutProperty: vi.fn(),

@@ -7,7 +7,12 @@ import {
   CLUSTER_PRICE_NONE,
   clusterLabelExpr,
 } from "@/components/map/canvas/filters";
-import { buildDonutMarkerSvg, clusterLabelText, readMinPriceBand } from "@/lib/donutClusterGeometry";
+import {
+  buildDonutMarkerSvg,
+  clusterLabelText,
+  placeClusterCaptions,
+  readMinPriceBand,
+} from "@/lib/donutClusterGeometry";
 
 // Owner decision 16 Oct 2026: a cluster must stop contradicting its figure.
 // It printed its cheapest price but wore the ring of its commonest band, so
@@ -159,5 +164,57 @@ describe("the desktop disc says the same thing", () => {
   it("words the label the one way", () => {
     expect(clusterLabelText("£4.85", 12)).toBe("from £4.85 · 12 pubs");
     expect(clusterLabelText(null, 1500)).toBe("1.5k pubs");
+  });
+});
+
+describe("a desktop disc's count gives way, as the GL caption does", () => {
+  const R = 22;
+  it("hangs n pubs under a disc with room below it", () => {
+    const shown = placeClusterCaptions([{ id: 1, x: 100, y: 100, total: 12, priced: true }], R);
+    expect([...shown]).toEqual([1]);
+  });
+
+  it("drops a caption that would cover the disc below it, and keeps the one with room", () => {
+    const shown = placeClusterCaptions(
+      [
+        { id: 1, x: 100, y: 100, total: 12, priced: true },
+        { id: 2, x: 104, y: 140, total: 3, priced: true },
+      ],
+      R,
+    );
+    expect(shown.has(1)).toBe(false);
+    expect(shown.has(2)).toBe(true);
+  });
+
+  it("never captions a disc with no price, whose figure is already its count", () => {
+    expect(placeClusterCaptions([{ id: 1, x: 0, y: 0, total: 9, priced: false }], R).size).toBe(0);
+  });
+
+  it("drops the later of two captions that would collide", () => {
+    const shown = placeClusterCaptions(
+      [
+        { id: 1, x: 100, y: 100, total: 12, priced: true },
+        { id: 2, x: 146, y: 100, total: 30, priced: true },
+      ],
+      R,
+    );
+    expect([...shown]).toEqual([1]);
+  });
+
+  it("leaves the count off the marker when told it has no room", () => {
+    const markup = buildDonutMarkerSvg({
+      counts: [3, 0, 0, 0],
+      discColor: "#ffffff",
+      casingColor: INK,
+      trackColor: "#dddddd",
+      textColor: INK,
+      figureColor: BAND_INK[0],
+      outerRadius: R,
+      figure: "£4.10",
+      countCaption: false,
+    });
+    expect(markup).not.toContain('data-role="count"');
+    // The spoken label still says the count.
+    expect(markup).toContain('aria-label="from £4.10 · 3 pubs"');
   });
 });

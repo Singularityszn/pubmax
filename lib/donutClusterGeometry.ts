@@ -66,7 +66,55 @@ export type DonutMarkerSvgParams = {
   /** The price the disc prints, already written the pin's way ("£5.40"), or
    *  null to print the count instead. */
   figure: string | null;
+  /** Whether "n pubs" fits under this disc. A caller that knows where the
+   *  neighbours stand passes false where it would cover one
+   *  ({@link placeClusterCaptions}); absent means it fits. */
+  countCaption?: boolean;
 };
+
+/** The "n pubs" caption's box under a disc centred at `x, y`, in screen px. */
+export function clusterCaptionBox(
+  x: number,
+  y: number,
+  outerRadius: number,
+  total: number,
+): [number, number, number, number] {
+  const text = `${formatDonutCount(total)} pubs`;
+  const width = text.length * 6.2 + 4;
+  const top = y + outerRadius + 1;
+  return [x - width / 2, top, x + width / 2, top + 14];
+}
+
+function overlaps(a: readonly number[], b: readonly number[]): boolean {
+  return a[0]! < b[2]! && b[0]! < a[2]! && a[1]! < b[3]! && b[1]! < a[3]!;
+}
+
+/**
+ * Which discs may hang "n pubs" under them. A DOM disc joins no collision
+ * index, so this is the GL caption's `text-allow-overlap: false` done by hand:
+ * a caption that would cover another disc, or a caption already placed, is
+ * dropped. The figure is the claim and the count gives way to it. Discs are
+ * taken in the order given, so a caller passes the cheaper first.
+ */
+export function placeClusterCaptions(
+  discs: readonly { id: number; x: number; y: number; total: number; priced: boolean }[],
+  outerRadius: number,
+): Set<number> {
+  const discBoxes = discs.map(
+    (disc) => [disc.x - outerRadius, disc.y - outerRadius, disc.x + outerRadius, disc.y + outerRadius] as const,
+  );
+  const placed: (readonly number[])[] = [];
+  const shown = new Set<number>();
+  discs.forEach((disc, index) => {
+    if (!disc.priced) return;
+    const box = clusterCaptionBox(disc.x, disc.y, outerRadius, disc.total);
+    const hitsDisc = discBoxes.some((other, otherIndex) => otherIndex !== index && overlaps(box, other));
+    if (hitsDisc || placed.some((other) => overlaps(box, other))) return;
+    placed.push(box);
+    shown.add(disc.id);
+  });
+  return shown;
+}
 
 /** Total across all buckets — the number rendered in the donut's hole. */
 export function donutTotal(counts: DonutCounts): number {
@@ -152,7 +200,7 @@ export function buildDonutMarkerSvg(params: DonutMarkerSvgParams): string {
         `font-weight="600" font-family="sans-serif" data-role="from">from</text>`;
   // The count, under the disc in a paper halo so it reads over the map.
   const countMarkup =
-    params.figure === null
+    params.figure === null || params.countCaption === false
       ? ""
       : `<text x="${outerRadius}" y="${(size + captionSize * 0.9).toFixed(2)}" text-anchor="middle" ` +
         `dominant-baseline="central" fill="${params.textColor}" font-size="${captionSize + 1}" ` +
