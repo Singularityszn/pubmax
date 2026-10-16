@@ -355,10 +355,9 @@ export async function buildOutResponse(
 
   const window = outDayWindow(query.day, now);
 
-  // Every lane is asked AT ONCE. Each carries its own request timeout, so a
-  // sequential walk spends them one after another: two slow upstreams cost more
-  // than the function's whole budget and the reader gets a platform error
-  // instead of the honest degraded body this status design exists to produce.
+  // Live lanes that are not deferred run concurrently. Each has its own timeout.
+  // Sequential reads could exceed the function budget before a degraded answer
+  // reaches the reader.
   const settled = await Promise.all(
     liveProviders.map(
       async (provider): Promise<{ report: OutProviderReport; rows: WhatsOnRow[] }> => {
