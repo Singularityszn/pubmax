@@ -262,8 +262,19 @@ export type MapOpeningFrame = {
   camera: { center: readonly [number, number]; zoom: number; pitch: number; bearing: number };
 };
 
-/** What a priced disc claims, reduced to the facts a frame can contradict. */
-export type OpeningDiscClaim = { id: number; count: number; priceGbp: number };
+/**
+ * What a priced disc claims, reduced to the facts a frame can contradict: its
+ * cluster, its count, its cheapest price, and how many of its pubs sit in each
+ * price band (b0..b3), which is what its ring is drawn from.
+ */
+export type OpeningDiscClaim = {
+  id: number;
+  count: number;
+  priceGbp: number;
+  bands: readonly [number, number, number, number];
+};
+
+type ClaimProps = { minPrice: number; bands: [number, number, number, number] };
 
 /**
  * The priced clusters a set of pub features makes at the opening camera's
@@ -271,7 +282,7 @@ export type OpeningDiscClaim = { id: number; count: number; priceGbp: number };
  * reduced by `min`.
  */
 export function openingDiscClaims(features: readonly GeoJSON.Feature[]): OpeningDiscClaim[] {
-  const clusters = clusterAtZoom<GeoJSON.GeoJsonProperties, { minPrice: number }>(
+  const clusters = clusterAtZoom<GeoJSON.GeoJsonProperties, ClaimProps>(
     features.map((feature) => {
       const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       return { lng, lat, properties: feature.properties };
@@ -282,16 +293,30 @@ export function openingDiscClaims(features: readonly GeoJSON.Feature[]): Opening
       zoom: Math.floor(MAP_OPENING_PREVIEW_CAMERA.zoom),
       map: (properties) => {
         const price = properties?.clusterPrice;
-        return { minPrice: typeof price === "number" ? price : OPENING_CLUSTER_PRICE_NONE };
+        const bucket = typeof properties?.bucket === "number" ? properties.bucket : 3;
+        const bands: ClaimProps["bands"] = [0, 0, 0, 0];
+        if (bucket >= 0 && bucket <= 3) bands[bucket] = 1;
+        return { minPrice: typeof price === "number" ? price : OPENING_CLUSTER_PRICE_NONE, bands };
       },
       reduce: (into, next) => {
         into.minPrice = Math.min(into.minPrice, next.minPrice);
+        into.bands = [
+          into.bands[0] + next.bands[0],
+          into.bands[1] + next.bands[1],
+          into.bands[2] + next.bands[2],
+          into.bands[3] + next.bands[3],
+        ];
       },
     },
   );
   return clusters
     .filter((cluster) => cluster.props.minPrice < OPENING_CLUSTER_PRICE_NONE)
-    .map((cluster) => ({ id: cluster.id, count: cluster.count, priceGbp: cluster.props.minPrice }));
+    .map((cluster) => ({
+      id: cluster.id,
+      count: cluster.count,
+      priceGbp: cluster.props.minPrice,
+      bands: cluster.props.bands,
+    }));
 }
 
 function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
@@ -310,7 +335,9 @@ function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
 /**
  * Whether the frame the map is about to draw is the frame the preview drew:
  * the opening camera, and every priced disc the same cluster with the same
- * count and the same cheapest price, no more and no fewer. A frame with no
+ * count, the same cheapest price and the same band counts (a live Pint Drop can
+ * move a pub between bands and so redraw a ring without changing the rest), no
+ * more and no fewer. A frame with no
  * pubs yet (the source before its data lands) contradicts nothing.
  */
 export function frameMatchesPreview(
@@ -327,7 +354,8 @@ export function frameMatchesPreview(
     return (
       twin !== undefined &&
       twin.count === claim.count &&
-      Math.round(twin.priceGbp * 100) === Math.round(claim.priceGbp * 100)
+      Math.round(twin.priceGbp * 100) === Math.round(claim.priceGbp * 100) &&
+      twin.bands.every((n, band) => n === claim.bands[band])
     );
   });
 }

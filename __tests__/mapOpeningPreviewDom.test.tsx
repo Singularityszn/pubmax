@@ -41,6 +41,7 @@ const DISC: OpeningPreviewDisc = {
   badge: "93",
   ringBand: 2,
   shares: [0.1, 0.25, 0.3, 0.35],
+  bands: [9, 23, 28, 33],
 };
 
 beforeEach(() => {

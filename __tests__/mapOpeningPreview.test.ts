@@ -18,6 +18,7 @@ import {
   projectAtCamera,
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
+import { MAP_EAGER_VENUE_INDEX_FILE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { openingPreviewDiscs } from "@/lib/mapOpeningPreviewDiscs";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -124,6 +125,16 @@ describe("projectAtCamera", () => {
   });
 });
 
+describe("the build-time read", () => {
+  it("opens the eager cell by a literal path Next can trace", () => {
+    const source = readFileSync(join(process.cwd(), "lib/mapOpeningPreview.server.ts"), "utf8");
+    const literal = MAP_EAGER_VENUE_INDEX_FILE.split("/")
+      .map((segment) => `"${segment}"`)
+      .join(", ");
+    expect(source).toContain(`join(process.cwd(), ${literal})`);
+  });
+});
+
 describe("openingPreviewDiscs over the shipped eager cell", () => {
   const discs = openingPreviewDiscs(coreRows);
 
@@ -189,6 +200,22 @@ describe("frameMatchesPreview", () => {
     );
     expect(member).toBeDefined();
     member!.properties = { ...member!.properties, clusterPrice: 1.5 };
+    expect(frameMatchesPreview(frame({ features }), discs)).toBe(false);
+  });
+
+  it("refuses a frame where a live price moved a pub to another band, which redraws a ring", () => {
+    const features = coreFeatures();
+    const disc = discs[0]!;
+    // The cheapest disc's cheapest pub keeps its figure but changes band, so
+    // the disc's id, count and price all hold and only its ring differs.
+    const member = features.find(
+      (feature) =>
+        typeof feature.properties?.clusterPrice === "number" &&
+        Math.round(feature.properties.clusterPrice * 100) === Math.round(disc.priceGbp * 100),
+    );
+    expect(member).toBeDefined();
+    const bucket = member!.properties!.bucket as number;
+    member!.properties = { ...member!.properties, bucket: bucket === 2 ? 1 : 2 };
     expect(frameMatchesPreview(frame({ features }), discs)).toBe(false);
   });
 

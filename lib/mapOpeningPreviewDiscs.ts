@@ -47,6 +47,8 @@ export type OpeningPreviewDisc = {
   ringBand: 0 | 1 | 2 | 3;
   /** The desktop disc's ring: each band's share of the pubs, b0..b3. */
   shares: [number, number, number, number];
+  /** Pubs in each band, b0..b3: what the shares and the ring are read from. */
+  bands: [number, number, number, number];
 };
 
 /** The most common known band, by the GL ring's own tie rules. */
@@ -111,6 +113,7 @@ export function openingPreviewDiscs(rows: readonly SlimVenue[]): OpeningPreviewD
       badge: cluster.count >= DONUT_BADGE_MIN ? formatDonutCount(cluster.count) : null,
       ringBand: ringBandFor(cluster.props.b),
       shares: cluster.props.b.map((n) => Math.round((n / total) * 1000) / 1000) as OpeningPreviewDisc["shares"],
+      bands: cluster.props.b,
     });
   }
   // Cheapest first: the first disc in the document is the one a reader's eye
