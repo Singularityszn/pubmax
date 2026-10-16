@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Mobile bottom-tab navigation coverage. The assertions deliberately target
 // route DOM and accessible controls, never MapLibre's canvas or WebGL state.
@@ -77,7 +78,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await primaryNav(page).getByRole("link", { name: "Map", exact: true }).click();
 
     await expect(page).toHaveURL(/\/map$/);
-    await page.getByRole("button", { name: "Search the map" }).click();
+    await (await mobileMapShellControl(page, "search")).click();
     await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   });
 

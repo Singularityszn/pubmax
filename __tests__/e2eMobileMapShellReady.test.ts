@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { MOBILE_MAX_WIDTH } from "@/lib/breakpoints";
+
 // The phone map shell is held until the map's loading frame lets go, so a spec
 // that touches its chrome before then races the product's own timers. Two specs
 // flaked on exactly that in PR #2104, each with its own wait. The browser suite
@@ -89,6 +91,29 @@ function reachesShellControl(text: string): boolean {
   return false;
 }
 
+// Search, Filters, Near me and TfL by bare name: the desktop toolbar has
+// namesakes, so the lookup is the shell's only in a spec that opens the map
+// and sets no viewport wider than a phone.
+const BARE_SHARED_NAME =
+  /page\s*\.getByRole\(\s*["'`]button["'`]\s*,\s*\{\s*name:\s*(?:["'`]Search the map["'`]|\/\^?Filters|["'`]Near me["'`]|\/TfL)/;
+
+function phoneOnlyMapSpec(text: string): boolean {
+  const widths = [...text.matchAll(/width:\s*(\d{3,4})\b/g)].map((m) => Number(m[1]));
+  return (
+    /["'`]\/map\b/.test(text) &&
+    /setViewportSize|viewport:/.test(text) &&
+    widths.length > 0 &&
+    widths.every((width) => width <= MOBILE_MAX_WIDTH)
+  );
+}
+
+/**
+ * Open PRs that own a phone spec still finding a shell control by bare name.
+ * Each entry names its PR and leaves when that PR lands: #2094 owns the food
+ * view in map-experience-lens and rewrites the spec around it.
+ */
+const BARE_NAME_PENDING = new Set(["map-experience-lens.spec.ts"]);
+
 describe("e2e phone map shell readiness", () => {
   it("floors the wait at the shell's own readiness ceiling", () => {
     const helper = readFileSync(path.join(E2E, HELPER), "utf8");
@@ -153,6 +178,34 @@ describe("e2e phone map shell readiness", () => {
     ];
     for (const sample of reaches) expect(reachesShellControl(sample), sample).toBe(true);
     for (const sample of notReaches) expect(reachesShellControl(sample), sample).toBe(false);
+  });
+
+  it("tells a phone map spec's bare shared-name lookup from a desktop or non-map one", () => {
+    const lookup = 'await page.getByRole("button", { name: "Search the map" }).click();';
+    const phone = `await page.setViewportSize({ width: 390, height: 844 });\nawait page.goto("/map");\n${lookup}`;
+    expect(phoneOnlyMapSpec(phone) && BARE_SHARED_NAME.test(phone)).toBe(true);
+    const mixed = `${phone}\nawait page.setViewportSize({ width: 1440, height: 900 });`;
+    expect(phoneOnlyMapSpec(mixed)).toBe(false);
+    const notMap = 'await page.setViewportSize({ width: 390, height: 844 });\nawait page.goto("/drink-wall");\n' +
+      'await expect(page.getByRole("button", { name: "Near me" })).toBeVisible();';
+    expect(phoneOnlyMapSpec(notMap)).toBe(false);
+    expect(BARE_SHARED_NAME.test('page.getByRole("button", { name: "Near me?" })')).toBe(false);
+    expect(BARE_SHARED_NAME.test('sheet.getByRole("button", { name: "Near me" })')).toBe(false);
+  });
+
+  it("finds no phone map spec reaching a shell control by bare name", () => {
+    const offenders = e2eSources()
+      .filter(({ file }) => file !== HELPER && !BARE_NAME_PENDING.has(file))
+      .filter(({ text }) => phoneOnlyMapSpec(text) && BARE_SHARED_NAME.test(text))
+      .map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps its pending list honest: each entry still offends", () => {
+    for (const file of BARE_NAME_PENDING) {
+      const text = readFileSync(path.join(E2E, file), "utf8");
+      expect(phoneOnlyMapSpec(text) && BARE_SHARED_NAME.test(text), file).toBe(true);
+    }
   });
 
   it("reaches the phone shell's own controls only through mobileMapShellControl", () => {
