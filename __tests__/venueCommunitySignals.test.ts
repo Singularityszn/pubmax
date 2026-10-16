@@ -320,7 +320,10 @@ describe("VenueOverviewTab community signals", () => {
     );
   }
 
-  it("mounts a read-first signals block above the price story", () => {
+  // THE PRICE COMES FIRST AFTER THE NAME (product owner, UX audit, 16 Oct
+  // 2026): the price story leads the Overview and the read-first signals block
+  // follows it, still read-only.
+  it("mounts a read-only signals block after the price story", () => {
     const html = renderOverview("ready");
     const signalsAt = html.indexOf("What drinkers noticed");
     const priceStoryAt = html.indexOf("contributorPrice");
@@ -330,13 +333,14 @@ describe("VenueOverviewTab community signals", () => {
     expect(priceStoryAt, "Overview must still render a price story").toBeGreaterThan(
       -1,
     );
-    expect(signalsAt).toBeLessThan(priceStoryAt);
+    expect(priceStoryAt).toBeLessThan(signalsAt);
+    expect(priceStoryAt).toBeLessThan(html.indexOf('class="venueAddress"'));
     expect(html).toContain("One drinker saw people eating.");
     // Price-entry path keeps the authoring surface; Overview's own mount is
-    // read-only, so the first block never offers the composer.
-    const firstBlock = html.slice(signalsAt, priceStoryAt);
-    expect(firstBlock).not.toContain("Add what you noticed");
-    expect(firstBlock).not.toContain("Sign in to add what you noticed.");
+    // read-only, so the signals block never offers the composer.
+    const signalsBlock = html.slice(signalsAt);
+    expect(signalsBlock).not.toContain("Add what you noticed");
+    expect(signalsBlock).not.toContain("Sign in to add what you noticed.");
     expect(
       html.match(/class=\"venueCommunitySignals\"/g) ?? [],
       "Overview must not double-mount VenueCommunitySignals",

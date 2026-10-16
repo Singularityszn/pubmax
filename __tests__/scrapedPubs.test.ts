@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  drinkAccentForVenue,
-  drinkShelfForVenue,
-  normaliseScrapedSource,
-  SCRAPED_SOURCE_LABELS,
-} from "@/lib/scrapedPubs";
-import { DRINK_CATEGORIES } from "@/lib/drinks";
+import { normaliseScrapedSource, SCRAPED_SOURCE_LABELS } from "@/lib/scrapedPubs";
 
 describe("scrapedPubs helpers", () => {
   it("maps scrape hosts to display sources", () => {
@@ -14,37 +8,6 @@ describe("scrapedPubs helpers", () => {
     expect(normaliseScrapedSource("nicholsonspubs.co.uk")).toBe("nicholsonspubs.co.uk");
     expect(normaliseScrapedSource("youngs.co.uk")).toBe("youngs.co.uk");
     expect(SCRAPED_SOURCE_LABELS["youngs.co.uk"]).toBe("Young's");
-  });
-
-  it("assigns a stable drink accent per venue id", () => {
-    const a = drinkAccentForVenue("venue-eltcmh");
-    const b = drinkAccentForVenue("venue-eltcmh");
-    expect(a).toBe(b);
-    expect(DRINK_CATEGORIES).toContain(a);
-  });
-
-  it("builds a shelf of companion drinks that excludes the primary", () => {
-    const primary = drinkAccentForVenue("venue-1lf3cw");
-    const shelf = drinkShelfForVenue("venue-1lf3cw", primary);
-    expect(shelf).toHaveLength(2);
-    expect(shelf.includes(primary)).toBe(false);
-    expect(new Set(shelf).size).toBe(2);
-  });
-
-  it("spreads accents across different venue ids", () => {
-    const accents = new Set(
-      [
-        "venue-eltcmh",
-        "venue-1lf3cw",
-        "venue-xiesdn",
-        "venue-1ha28jc",
-        "venue-ru7vbr",
-        "venue-dbukrn",
-        "venue-1c2pk99",
-        "venue-fejqqd",
-      ].map(drinkAccentForVenue),
-    );
-    expect(accents.size).toBeGreaterThanOrEqual(4);
   });
 });
 
@@ -55,13 +18,16 @@ describe("readScrapedPubsForPage", () => {
     vi.resetModules();
   });
 
-  it("loads enrichment pubs with drink accents and source labels", async () => {
+  // A card used to print a drink word ("Shots", "Whisky") picked by hashing the
+  // venue id: decoration that read as a fact about the pub. The row carries no
+  // such field now, so no card can print one.
+  it("loads enrichment pubs with source labels and no made-up drink category", async () => {
     const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
     const { pubs, complete } = await readScrapedPubsForPage();
     expect(complete).toBe(true);
     expect(pubs.length).toBeGreaterThanOrEqual(90);
     expect(pubs.every((pub) => pub.name.trim().length > 0)).toBe(true);
-    expect(pubs.every((pub) => pub.drinkAccent)).toBe(true);
+    expect(pubs.every((pub) => !("drinkAccent" in pub) && !("drinkShelf" in pub))).toBe(true);
     expect(pubs.some((pub) => pub.source === "nicholsonspubs.co.uk")).toBe(true);
     expect(pubs.some((pub) => pub.source === "youngs.co.uk")).toBe(true);
   });
