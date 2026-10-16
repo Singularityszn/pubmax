@@ -112,7 +112,13 @@ test.describe("mobile Pubs gallery", () => {
     };
     expect(await owner(".pubsCardName")).toContain("pubsMapLink");
     expect(await owner(".pubsBookLink")).toContain("pubsBookLink");
-    await firstCard.locator(".pubsCardName").click();
+    // Tap the name's own point, as a thumb would. A locator click refuses on
+    // purpose: the stretched map link covers the name, so Playwright reports
+    // it as intercepted and retries until the test times out.
+    await firstCard.locator(".pubsCardName").scrollIntoViewIfNeeded();
+    const nameBox = await firstCard.locator(".pubsCardName").boundingBox();
+    expect(nameBox, "the pub name has a box to tap").not.toBeNull();
+    await page.mouse.click(nameBox!.x + Math.min(10, nameBox!.width / 2), nameBox!.y + nameBox!.height / 2);
     await expect(page).toHaveURL(/\/map\?sel=venue-/, { timeout: 30_000 });
     await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 

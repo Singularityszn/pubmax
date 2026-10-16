@@ -16,9 +16,13 @@
 //      (outListingLead). That is the law /out was fenced to, kept here.
 //   3. A READ THAT IS RUNNING, EMPTY OR FAILED IS ONE LINE, never a skeleton
 //      left standing and never a block of reserved space.
+//   4. AN OLD LINK KEEPS ITS DAY. proxy.ts sends /out?day=weekend to
+//      /tonight?day=weekend with the query kept, so a day named in the URL is a
+//      day already chosen. It is read after mount because the page is
+//      prerendered; ?day=tonight is the page itself and picks nothing.
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 import { OutCardBody } from "@/components/out/OutCard";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
@@ -28,7 +32,7 @@ import { outCardSource } from "@/lib/out/attribution";
 import { OUT_NOT_ON_MAP_HEADING, outListingLead } from "@/lib/out/listingRoute";
 import { OUT_RETRY_LABEL, outEmptyLane, outStatusLines } from "@/lib/out/outStatus";
 import { groupOutListings, outVenueMatchNotice } from "@/lib/outDesktopGrouping";
-import type { OutDayWindow } from "@/lib/outListings";
+import { parseOutDayWindow, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 import "./tonightLater.css";
@@ -36,6 +40,26 @@ import "./tonightLater.css";
 /** The windows this section offers. Tonight is the page itself. */
 const TONIGHT_LATER_WINDOWS = ["tomorrow", "weekend"] as const;
 type TonightLaterWindow = (typeof TONIGHT_LATER_WINDOWS)[number];
+
+function isTonightLaterWindow(value: OutDayWindow): value is TonightLaterWindow {
+  return (TONIGHT_LATER_WINDOWS as readonly string[]).includes(value);
+}
+
+/** The later window an old /out link named, read from the URL once in the browser. */
+function linkedDay(): TonightLaterWindow | null {
+  const named = parseOutDayWindow(new URLSearchParams(window.location.search).get("day"));
+  return isTonightLaterWindow(named) ? named : null;
+}
+
+/** The prerendered page names no day. */
+function noLinkedDay(): null {
+  return null;
+}
+
+/** The URL's day is read once; a tap, not a navigation, moves it after that. */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
 
 const DAY_LABEL: Record<TonightLaterWindow, string> = {
   tomorrow: "Tomorrow",
@@ -49,7 +73,9 @@ const TONIGHT_LATER_TITLE = "Tomorrow and the weekend";
 export const TONIGHT_LATER_PENDING_LINE = "Checking the listings…";
 
 export default function TonightLaterListings() {
-  const [day, setDay] = useState<TonightLaterWindow | null>(null);
+  const [chosen, setDay] = useState<TonightLaterWindow | null>(null);
+  const linked = useSyncExternalStore(subscribeToNothing, linkedDay, noLinkedDay);
+  const day = chosen ?? linked;
   return (
     <section
       className="tonightLater"
