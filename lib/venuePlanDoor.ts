@@ -25,7 +25,7 @@ import type { CrawlMode } from "@/lib/venues";
 
 export const MAKE_IT_STOP_1_LABEL = "Make it Stop 1";
 export const PLAN_STOP_LABEL = "Plan stop";
-export const IN_PLAN_LABEL = "In plan";
+const IN_PLAN_LABEL = "In plan";
 
 export type VenuePlanDoor =
   | { kind: "stop-1"; label: typeof MAKE_IT_STOP_1_LABEL }
