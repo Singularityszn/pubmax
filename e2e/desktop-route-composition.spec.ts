@@ -126,7 +126,12 @@ test.describe("phone route composition", () => {
     await page.goto("/today");
     await expect(page.getByTestId("today-tube")).toBeVisible();
 
-    const cards = page.locator(".todayStack .todayCard");
+    // Top picks is a boxed `.todayCard` when events are listed, and the
+    // unboxed `.todayPicksFallback` section when only sourced pub suggestions
+    // remain (its rows are already cards, so it carries no box of its own:
+    // __tests__/todayPicksHonesty.test.ts). Either way it holds its place in
+    // the column, so the order check reads both.
+    const cards = page.locator(".todayStack :is(.todayCard, .todayPicksFallback)");
     const cardIds = await cards.evaluateAll((elements) =>
       elements.map((element) => element.getAttribute("data-testid")),
     );
