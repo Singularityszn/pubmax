@@ -179,6 +179,20 @@ export function provenanceCopyForResult(
   return provenanceCopyForDepartures(ride.departures);
 }
 
+// What the station line says about getting there. A street-walk answer
+// (lib/stationWalkAccess) prints the minutes the leave-by clock was built
+// from, because that is what the reader is budgeting. Anything else keeps the
+// distance TfL reported, which is a straight line, so it stays approximate.
+export function stationWalkCopy(
+  result: Pick<LastTrainResult, "station" | "decision" | "walkBasis">,
+): string | null {
+  const minutes = result.decision?.walkMinutesEstimate;
+  if (result.walkBasis === "street" && typeof minutes === "number" && minutes > 0) {
+    return `${minutes} min walk`;
+  }
+  return result.station.distanceM > 0 ? `~${result.station.distanceM} m away` : null;
+}
+
 function modeWord(data: Partial<LastRideResult> | undefined, cityId: CityId): string {
   if (data?.modeLabel) return data.modeLabel;
   if (cityId === "manchester") return "tram";
@@ -455,6 +469,7 @@ export default function LastTrainCard({
   // Provenance honesty (H5): prefer provider-supplied copy (Metrolink static);
   // London still scopes the live claim to departures only.
   const provenance = readyData ? provenanceCopyForResult(readyData) : null;
+  const walkCopy = readyData ? stationWalkCopy(readyData) : null;
 
   return (
     <section aria-label={rideLabel} style={styles.card}>
@@ -463,9 +478,7 @@ export default function LastTrainCard({
         {readyData ? (
           <span style={styles.station}>
             {readyData.station.name}
-            {readyData.station.distanceM > 0 ? (
-              <span style={styles.distance}> · ~{readyData.station.distanceM} m away</span>
-            ) : null}
+            {walkCopy ? <span style={styles.distance}> · {walkCopy}</span> : null}
           </span>
         ) : null}
       </div>
