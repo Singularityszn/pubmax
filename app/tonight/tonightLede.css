@@ -125,16 +125,24 @@
   text-decoration: none;
 }
 
+/* Two 44 px boxes in a row already carry the space between their words. */
+.tonightHypedCredit + .tonightHypedMap {
+  margin-top: 0;
+}
+
 /* Every card reads the same way: "Why this pub" and the way onto the map share
-   one row under the place, and the reason folds behind it on every card alike,
-   which keeps the first card whole above a short phone's docked consent card.
-   An opened reason takes the full width under the map action. */
+   one row under the place, packed to the start so the map action sits at the
+   same place on every card, and the reason folds behind the toggle on every
+   card alike, which keeps the first card whole above a short phone's docked
+   consent card. The gap is 12px because at 320px the two 44px boxes share 202px
+   beside the create disc's lane. An opened reason takes the full width under
+   the map action. */
 .tonightHypedActions {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 0 var(--space-2);
+  justify-content: flex-start;
+  gap: 0 var(--space-3);
   margin-top: 2px;
 }
 

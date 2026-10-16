@@ -100,10 +100,17 @@ describe("coral is spent twice", () => {
     ["components/map/venueSheet.css", ".venueTab.active"],
   ];
 
+  // The Day | Tonight segment and the desktop nav pill took the same step on
+  // main (#2127) with their own neutral recipes: the raised segment fill that
+  // every segmented control shares (__tests__/deBoxSegmentedControl.test.ts),
+  // and the phone tab bar's ink tint. Those two are held to "no coral" alone.
+  const OWN_NEUTRAL = new Set(['.nowSegmentOpt[aria-current="page"]', ".siteNavLink.isActive"]);
+
   for (const [file, selector] of SELECTIONS) {
     it(`${selector} is a selection in ink, not a coral fill`, () => {
       const { body } = rule(file, selector);
       expect(paint(body), `${selector} in ${file} paints no coral`).not.toMatch(CORAL);
+      if (OWN_NEUTRAL.has(selector)) return;
       expect(body, `${selector} in ${file} reads the --state-selected-* row`).toMatch(
         /var\(--state-selected-(?:surface|border|ink)\)/,
       );

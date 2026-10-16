@@ -218,7 +218,7 @@
 @media (hover: hover) and (pointer: fine) {
   .siteNavLink:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -240,11 +240,14 @@
   }
 }
 
-/* The page you are on is a selection, so it reads in ink, never a coral fill
-   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+/* Selection is a fill, and coral is not a selection colour
+   (docs/DESIGN_SYSTEM.md, the de-box rule): the active link takes the same
+   ink tint and ink label as the phone tab bar's active tab, so the page's one
+   painted coral control is never outshouted by "you are here". */
 .siteNavLink.isActive {
-  color: var(--state-selected-ink);
-  background: var(--state-selected-surface);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  box-shadow: none;
 }
 
 /* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
@@ -373,7 +376,7 @@ button.siteNavMoreItem {
 
 @media (hover: hover) and (pointer: fine) {
   .siteNavMoreItem:hover {
-    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -383,8 +386,8 @@ button.siteNavMoreItem {
 }
 
 .siteNavMoreItem.isActive {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -860,12 +863,6 @@ button.siteNavMoreItem {
 .siteNavLink.isActive[data-cat] {
   background: var(--nav-cat, var(--brass));
   color: var(--cat-on-fill, var(--ink-deep));
-}
-
-/* The active pill's edge: one ink hairline, so the neutral selection reads as
-   chosen rather than hovered. Constant across themes. */
-.siteNavLink.isActive {
-  box-shadow: inset 0 0 0 1px var(--state-selected-border);
 }
 
 /* Motion respect: drop the link hover/active transitions for reduced-motion. */
