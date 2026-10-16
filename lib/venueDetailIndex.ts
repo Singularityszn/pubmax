@@ -19,6 +19,7 @@ import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
 import { applyVenueSiteFacts } from "@/lib/venueSiteFacts";
 import { siteFactsForVenue } from "@/lib/venueSiteFacts.server";
+import { osmFactsForOsmIds } from "@/lib/osmPubFacts.server";
 import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { enrichVenueWithRecordCopy } from "@/lib/venueRecordCopy.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
@@ -364,8 +365,14 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   const result = await lookupVenueDetailBase(requestedId);
   if (result.status !== "found") return result;
   const osmIds = cachedDetails.get(result.venue.id)?.overlayVenueIds ?? [];
-  const [record, siteFacts] = await Promise.all([placesRecordForVenue(result.venue.id, osmIds), siteFactsForVenue(result.venue.id)]);
-  return { ...result, venue: applyPlacesEnrichment(applyVenueSiteFacts(result.venue, siteFacts), record) };
+  const [record, siteFacts, osmFacts] = await Promise.all([
+    placesRecordForVenue(result.venue.id, osmIds),
+    siteFactsForVenue(result.venue.id),
+    osmFactsForOsmIds(osmIds),
+  ]);
+  const venue = applyPlacesEnrichment(applyVenueSiteFacts(result.venue, siteFacts), record);
+  // OSM facts ride beside the other sources and decide no open state.
+  return { ...result, venue: osmFacts ? { ...venue, osmFacts } : venue };
 }
 
 export async function getVenueDetail(requestedId: string): Promise<Venue | null> {

@@ -66,6 +66,10 @@ _Avoid_: Price Band, confidence score, an Estimate presented as a published pric
 The selected source for a venue's displayed price. `lib/venuePriceLane.ts` owns precedence. The [price-read contract](docs/rules/lib-prices-trust-and-drinks.md) governs when the display may claim an absence.
 _Avoid_: Cheapest price, Price Standing, an empty list read as an absent price
 
+**Price Pulse**:
+A weekly PUBMAXX editorial at `/price-pulse` on what people say about pint and night-out prices, in our own words, with a link out and a date on every line. An edition is a file under `data/price-pulse/` and shows only after the owner approves it. Each line reads "Not checked by PUBMAXX" unless the pub holds a Confirmed price. A Price Pulse figure is a claim with no price authority: it never paints a pin, enters a Price Lane or counts as a Pint Drop. `lib/pricePulse.ts` owns the rule.
+_Avoid_: Price feed, community price, a quoted figure read as a PUBMAXX price
+
 **Drink Lane**:
 The drink the map is under. Beer is the lane the map rests in, so it is never a selected lens and the pint bands, the pint label and the cheapest-pint buckets are untouched by it. Choosing another lane relabels the figures and reorders the venues; it merges no two drinks into one number. `lib/drinkLanes.ts` owns the table and the one filter write.
 _Avoid_: Filter, Drink Measure, a drink category read as a Price Lane
