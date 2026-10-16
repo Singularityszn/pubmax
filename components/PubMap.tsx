@@ -50,7 +50,6 @@ import {
   type Filters,
   type Venue,
 } from "@/lib/venues";
-import { venueAreaLabel } from "@/lib/venueDisplay";
 import {
   venueBundlePrices,
   venuePriceLane,
@@ -6521,7 +6520,7 @@ export default function PubMap({
                 lat: venue.latitude,
                 lng: venue.longitude,
                 cheapestPrice: venue.cheapestPrice,
-                borough: venueAreaLabel(venue),
+                borough: venue.primaryBorough,
               }))}
             />
           ) : null

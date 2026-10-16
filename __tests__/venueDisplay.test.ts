@@ -16,6 +16,12 @@ describe("venue display identity", () => {
     expect(venueAreaLabel({ locality: "Hatton Garden", primaryBorough: "Camden" })).toBe(
       "Hatton Garden",
     );
+    expect(venueAreaLabel({ locality: "London", primaryBorough: "Westminster" })).toBe(
+      "Westminster",
+    );
+    expect(venueAreaLabel({ locality: " greater london ", primaryBorough: "Southwark" })).toBe(
+      "Southwark",
+    );
     expect(venueAreaLabel({ primaryBorough: "Camden" })).toBe("Camden");
   });
 });
