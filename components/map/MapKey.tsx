@@ -6,6 +6,7 @@ import {
   Martini,
   Utensils,
 } from "lucide-react";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import type {
@@ -96,6 +97,12 @@ export default function MapKey({
             ))}
           </ul>
         </details>
+        {/* What people are SAYING about prices lives on its own page, one tap
+            away. It is a door, never a layer: a Price Pulse figure has no
+            price authority and never paints a pin (lib/pricePulse.ts). */}
+        <Link href="/price-pulse" className="mapKeyPulseLink">
+          What people are saying about prices
+        </Link>
       </section>
 
       {legend.cluster ? (
