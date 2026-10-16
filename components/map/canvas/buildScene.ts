@@ -1743,44 +1743,9 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-stroke-opacity-transition": { duration: 0, delay: 0 },
     },
   });
-  addLayerOnce({
-    id: "cluster-count",
-    type: "symbol",
-    source: "pubs",
-    filter: CLUSTER_FILTER,
-    layout: {
-      // "from" over the cheapest price in the disc, that price in its own
-      // band's ink, or the count where no pub in it says a price. See
-      // CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
-      "text-field": clusterLabelExpr(dark ? tokens.ink : tokens.inkDeep, tokens.bandInk),
-      "text-font": textFont,
-      "text-size": [
-        "step",
-        ["zoom"],
-        clusterFigureSizeExpr(CLUSTER_MAX_RADIUS_PX),
-        CLUSTER_DISC_SMALL_FROM_ZOOM,
-        clusterFigureSizeExpr(CLUSTER_MIN_RADIUS_PX),
-      ],
-      "text-letter-spacing": 0.01,
-      // A disc without its number is worse than a tight fit, so the figure
-      // always draws - but it is NOT invisible to placement: its padded box
-      // (CLUSTER_COLLISION_PADDING reaches the disc edge) is what makes every
-      // other label on the map, ours and the basemap's, keep off the disc.
-      "text-allow-overlap": true,
-      "text-ignore-placement": false,
-      "text-padding": CLUSTER_COLLISION_PADDING,
-      // The cheaper disc wins a contested spot. A disc with no price sorts
-      // last, because a count is the weaker answer to this map's question.
-      "symbol-sort-key": ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE],
-    },
-    paint: {
-      "text-color": dark ? tokens.ink : tokens.inkDeep,
-      "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
-      "text-halo-width": 1,
-      "text-opacity": 1,
-      "text-opacity-transition": { duration: 0, delay: 0 },
-    },
-  });
+  // Added BEFORE the figure layer on purpose: MapLibre places the higher
+  // layer first, so with this one under it every figure is already in the
+  // collision index when a caption asks for room, and the caption gives way.
   // The count, as "n pubs" just under the disc, once the disc is wearing a
   // price: the figure stays the claim and the count reads after it, the way
   // the desktop disc's label says "from £4.85 · 12 pubs". A disc with no price
@@ -1818,6 +1783,44 @@ export function buildPubs(ctx: SceneCtx) {
       "text-color": dark ? tokens.ink : tokens.inkDeep,
       "text-halo-color": tokens.panelRaised,
       "text-halo-width": 2,
+      "text-opacity": 1,
+      "text-opacity-transition": { duration: 0, delay: 0 },
+    },
+  });
+  addLayerOnce({
+    id: "cluster-count",
+    type: "symbol",
+    source: "pubs",
+    filter: CLUSTER_FILTER,
+    layout: {
+      // "from" over the cheapest price in the disc, that price in its own
+      // band's ink, or the count where no pub in it says a price. See
+      // CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
+      "text-field": clusterLabelExpr(dark ? tokens.ink : tokens.inkDeep, tokens.bandInk),
+      "text-font": textFont,
+      "text-size": [
+        "step",
+        ["zoom"],
+        clusterFigureSizeExpr(CLUSTER_MAX_RADIUS_PX),
+        CLUSTER_DISC_SMALL_FROM_ZOOM,
+        clusterFigureSizeExpr(CLUSTER_MIN_RADIUS_PX),
+      ],
+      "text-letter-spacing": 0.01,
+      // A disc without its number is worse than a tight fit, so the figure
+      // always draws - but it is NOT invisible to placement: its padded box
+      // (CLUSTER_COLLISION_PADDING reaches the disc edge) is what makes every
+      // other label on the map, ours and the basemap's, keep off the disc.
+      "text-allow-overlap": true,
+      "text-ignore-placement": false,
+      "text-padding": CLUSTER_COLLISION_PADDING,
+      // The cheaper disc wins a contested spot. A disc with no price sorts
+      // last, because a count is the weaker answer to this map's question.
+      "symbol-sort-key": ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE],
+    },
+    paint: {
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
+      "text-halo-width": 1,
       "text-opacity": 1,
       "text-opacity-transition": { duration: 0, delay: 0 },
     },

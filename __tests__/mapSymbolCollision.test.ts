@@ -947,13 +947,13 @@ describe("cluster disc (neutral, from the cheapest price, n pubs)", () => {
   const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
   const paint = (id: string) => (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
 
-  it("stacks casing, disc, figure and count caption in that order, each over the last", () => {
+  it("stacks casing, disc, count caption and figure, so the figure places first and the caption gives way", () => {
     const ids = [...layers.keys()];
     const at = (id: string) => ids.indexOf(id);
     expect(at("clusters-casing")).toBeGreaterThan(-1);
     expect(at("clusters-casing")).toBeLessThan(at("clusters"));
-    expect(at("clusters")).toBeLessThan(at("cluster-count"));
-    expect(at("cluster-count")).toBeLessThan(at("cluster-count-badge"));
+    expect(at("clusters")).toBeLessThan(at("cluster-count-badge"));
+    expect(at("cluster-count-badge")).toBeLessThan(at("cluster-count"));
   });
 
   it("fills the disc with paper and rings it in the neutral hairline, never a band", () => {
