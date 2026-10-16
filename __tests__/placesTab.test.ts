@@ -353,18 +353,20 @@ describe("Places sets the one city Map and Near follow", () => {
 
 describe("Places is a setting, not a tab", () => {
   it("is in neither the phone tab row nor the desktop nav model", () => {
-    // Product owner, Oct 2026: the row is Map, Tonight, Plan, You. The picker
-    // is reached from the map's city chip and the footer's "Pick your city".
+    // Product owner, Oct 2026: the row is Map, Tonight, Plan, Social, You. The
+    // picker is reached from the map's city chip and the footer's "Pick your city".
     expect(PRIMARY_NAV_ITEMS.map((item) => item.key)).toEqual([
       "map",
       "now",
       "plan",
+      "social",
       "you",
     ]);
     expect(buildTabs().map((tab) => tab.label)).toEqual([
       "Map",
       "Tonight",
       "Plan",
+      "Social",
       "You",
     ]);
     expect(primaryNavKeyForPath("/places")).toBeUndefined();

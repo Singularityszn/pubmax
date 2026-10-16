@@ -20,7 +20,7 @@ import {
   readPreferredCity,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
+import { PRIMARY_NAV_ITEMS, primaryNavLabel } from "@/components/nav/navigationModel";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { HELLO_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
@@ -100,8 +100,9 @@ export default function LandingPage({
         </Link>
 
         {/* The app's own primary destinations (PRIMARY_NAV_ITEMS), so the
-            front door and every app page name the product the same way. Social
-            and Moment are not front doors and are not in that list. */}
+            front door and every app page name the product the same way, Social
+            by its launch state. Moment is not a front door and is not in that
+            list. */}
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
           {PRIMARY_NAV_ITEMS.map((item) =>
             item.key === "map" ? (
@@ -110,7 +111,7 @@ export default function LandingPage({
               </Link>
             ) : (
               <Link key={item.key} prefetch={false} href={item.href}>
-                {item.label}
+                {primaryNavLabel(item, socialLabel)}
               </Link>
             ),
           )}

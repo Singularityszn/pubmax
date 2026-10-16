@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Lock-In / Ledger was intentionally retired from the global product chrome.
 // A stale preference may still exist on returning devices, but it must not
-// replace the stable four-destination mobile navigation or turn Moment into a
+// replace the stable five-destination mobile navigation or turn Moment into a
 // destination. The public Ledger route remains available from venue context.
 test("legacy view-mode state cannot replace the current mobile navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -15,16 +15,16 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
   await page.goto("/feed");
 
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Map", "Tonight", "Plan", "You"]) {
+  for (const label of ["Map", "Tonight", "Plan", "Social", "You"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  await expect(nav.locator('a[href="/social"]')).toHaveCount(0);
   // The create action is a sibling of the bar, never inside it: compose is an
   // action, and the bar holds destinations only.
   await expect(page.getByRole("button", { name: "Create" })).toBeVisible();
   await expect(nav.getByRole("button", { name: "Create" })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /ledger|lock-in/i })).toHaveCount(0);
 
+  // /feed is a Social alias, so the Social tab is the one lit destination.
   const destinations = await nav.locator("a[aria-current='page']").allTextContents();
-  expect(destinations).toEqual([]);
+  expect(destinations).toEqual(["Social"]);
 });

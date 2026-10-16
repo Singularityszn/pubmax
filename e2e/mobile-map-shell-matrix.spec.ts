@@ -131,8 +131,8 @@ for (const viewport of VIEWPORTS) {
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
       const navLinks = page.getByRole("navigation", { name: "Primary" }).getByRole("link");
-      await expect(navLinks).toHaveCount(4);
-      await expect(navLinks).toHaveText(["Map", "Tonight", "Plan", "You"]);
+      await expect(navLinks).toHaveCount(5);
+      await expect(navLinks).toHaveText(["Map", "Tonight", "Plan", "Social", "You"]);
       await expect(navLinks.filter({ hasText: "Map" })).toHaveAttribute("aria-current", "page");
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");

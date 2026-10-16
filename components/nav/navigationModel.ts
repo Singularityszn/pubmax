@@ -1,6 +1,6 @@
 import type { Route } from "next";
 
-export type PrimaryNavKey = "map" | "now" | "plan" | "you";
+export type PrimaryNavKey = "map" | "now" | "plan" | "social" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
@@ -10,19 +10,35 @@ export type PrimaryNavItem = {
 };
 
 /**
- * The FOUR durable destinations in the PUBMAXX shell, and the ONE vocabulary
+ * The routes Social owns: its canonical shell plus the retired aliases that
+ * still render or 308 there, so a reader on /feed or /crawls/soho sees the
+ * Social tab lit.
+ */
+export const SOCIAL_NAV_MATCH: readonly string[] = [
+  "/social",
+  "/discover",
+  "/drinks",
+  "/feed",
+  "/stories",
+  "/crawls",
+];
+
+/**
+ * The FIVE durable destinations in the PUBMAXX shell, and the ONE vocabulary
  * for every bar that names them: the phone dock, the desktop SiteNav and the
  * landing bar all render this list, so their labels cannot drift apart again.
  *
- * Product owner, Oct 2026 UX audit: six tabs were two doors too many, so the
- * row is a four-door loop, in this order. Map finds the pint (the answer the
- * product exists to give), Tonight says what is worth going out for, Plan turns
- * that into a route, and You keeps what the night left behind. Social and
- * Moment are not front doors. Social answers a stranger with "Sign in to use
- * Social.", so it lives in the desktop More menu and on the You hub; Moment is
- * a compose action, never a location, and is modelled separately below.
+ * Product owner, Oct 2026 UX audit: six tabs were too many, so the row is a
+ * five-door loop, in this order. Map finds the pint (the answer the product
+ * exists to give), Tonight says what is worth going out for, Plan turns that
+ * into a route, Social is the night shared with friends, and You keeps what
+ * the night left behind. Social is a main tab by the captain's call
+ * (16 Oct 2026), so it is not repeated in the desktop More menu; every bar
+ * names it for its launch state (`primaryNavLabel`, `useSocialSurfaceName`).
+ * Moment is a compose action, never a location, and is modelled separately
+ * below.
  *
- * Two former tabs folded into the four. Out IS Tonight now: /out 308s to
+ * Two former tabs folded into the five. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
  * listings. Places is no longer a destination: the city picker still lives at
  * /places, reached from the map's own city chip and the footer's "Pick your
@@ -38,6 +54,9 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "now", href: "/tonight", label: "Tonight", match: ["/tonight"] },
   // Plan owns the composer and a shared plan at /plan/[id].
   { key: "plan", href: "/plan", label: "Plan", match: ["/plan"] },
+  // Social owns its shell and its retired aliases (SOCIAL_NAV_MATCH). The label
+  // here is the launched name; a bar names it through primaryNavLabel.
+  { key: "social", href: "/social", label: "Social", match: [...SOCIAL_NAV_MATCH] },
   // You owns the profile surfaces under /u only. /pal (Pub Pal, the AI
   // concierge) is its OWN destination with no primary tab — it used to sit in
   // this match set and wrongly lit "You" on both the mobile tab bar and the
@@ -46,18 +65,13 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
 ] as const;
 
 /**
- * The routes Social owns: its canonical shell plus the retired aliases that
- * still render or 308 there. Social is not a primary destination, so this set
- * lights the desktop More entry rather than a tab.
+ * The name a bar prints for a primary destination. Social is named for its
+ * launch state ("Social preview" while the friends launch is rolled back), so
+ * no bar names it more plainly than the page it opens.
  */
-export const SOCIAL_NAV_MATCH: readonly string[] = [
-  "/social",
-  "/discover",
-  "/drinks",
-  "/feed",
-  "/stories",
-  "/crawls",
-];
+export function primaryNavLabel(item: { key: string; label: string }, socialLabel: string): string {
+  return item.key === "social" ? socialLabel : item.label;
+}
 
 export const MOMENT_NAV_ACTION = {
   key: "moment",

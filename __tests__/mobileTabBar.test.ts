@@ -2,14 +2,15 @@ import type { Route } from "next";
 import { describe, expect, it } from "vitest";
 import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import { navPathMatches } from "@/components/nav/navigationModel";
+import { socialSurfaceName } from "@/lib/socialLaunch";
 import { defined } from "@/__tests__/helpers/defined";
 
-// Four-tab contract for the mobile bar, in the order of the loop: Map, Tonight,
-// Plan, You. Out folded into Tonight (/out 308s there at the edge) and Places
-// is the city setting reached from the map's chip, so neither is a tab. Moment
-// is a floating + action, never a destination, and Social lives under More, so
-// neither is in this row. The URL is the truth: Today owns its Day | Tonight
-// segment rather than a primary tab.
+// Five-tab contract for the mobile bar, in the order of the loop: Map, Tonight,
+// Plan, Social, You (Social by the captain's call, 16 Oct 2026). Out folded
+// into Tonight (/out 308s there at the edge) and Places is the city setting
+// reached from the map's chip, so neither is a tab. Moment is a floating +
+// action, never a destination. The URL is the truth: Today owns its
+// Day | Tonight segment rather than a primary tab.
 
 function activeLabel(pathname: string): string | undefined {
   const tabs = buildTabs();
@@ -27,19 +28,27 @@ describe("mobile tab bar contract", () => {
     expect(shouldShowMobileTabBar("/area/clapham/drink/guinness")).toBe(true);
   });
 
-  it("renders exactly four tabs in the loop order", () => {
+  it("renders exactly five tabs in the loop order", () => {
     const tabs = buildTabs();
-    expect(tabs.map((tab) => tab.label)).toEqual(["Map", "Tonight", "Plan", "You"]);
+    expect(tabs.map((tab) => tab.label)).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
   });
 
   it("names every tab on the link itself, so hiding the word at large text costs nothing", () => {
     for (const tab of buildTabs()) expect(tab.ariaLabel).toBe(tab.label);
+    for (const tab of buildTabs()) expect(tab.preview).toBe(false);
   });
 
-  it("keeps Social, Moment, Places and Out out of the dock", () => {
+  it("names Social for its launch state without cutting the word short", () => {
+    // "Social preview" does not fit a fifth of a 320px bar, so the dock shows
+    // "Social" with the preview dot and the link carries the full name.
+    const social = buildTabs("/u/you" as Route, "/map", socialSurfaceName(false)).find(
+      (tab) => tab.key === "social",
+    );
+    expect(social).toMatchObject({ label: "Social", ariaLabel: "Social preview", preview: true, href: "/social" });
+  });
+
+  it("keeps Moment, Places and Out out of the dock", () => {
     const tabs = buildTabs();
-    expect(tabs.some((tab) => tab.label === "Social")).toBe(false);
-    expect(tabs.some((tab) => tab.href.startsWith("/social"))).toBe(false);
     expect(tabs.some((tab) => tab.label === "Moment")).toBe(false);
     expect(tabs.some((tab) => tab.href.startsWith("/moment"))).toBe(false);
     expect(tabs.map((tab) => tab.key as string)).not.toContain("moment");
@@ -54,6 +63,7 @@ describe("mobile tab bar contract", () => {
     expect(defined(byLabel.Tonight).match).toEqual(["/tonight"]);
     expect(defined(byLabel.Map).href).toBe("/map");
     expect(defined(byLabel.Plan).href).toBe("/plan");
+    expect(defined(byLabel.Social).href).toBe("/social");
     expect(defined(byLabel.You).href).toBe("/u/you");
   });
 
@@ -69,7 +79,7 @@ describe("mobile tab bar contract", () => {
     expect(you?.match).toEqual(["/u"]);
   });
 
-  it("marks Tonight active on /tonight only, and the folded doors light nothing", () => {
+  it("marks each door on its own routes, and the folded doors light nothing", () => {
     expect(activeLabel("/today")).toBeUndefined();
     expect(activeLabel("/today/highlights")).toBeUndefined();
     expect(activeLabel("/tonight")).toBe("Tonight");
@@ -79,8 +89,9 @@ describe("mobile tab bar contract", () => {
     expect(activeLabel("/out")).toBeUndefined();
     expect(activeLabel("/places")).toBeUndefined();
     expect(activeLabel("/choose-city")).toBeUndefined();
-    expect(activeLabel("/social")).toBeUndefined();
-    expect(activeLabel("/feed")).toBeUndefined();
+    expect(activeLabel("/social")).toBe("Social");
+    expect(activeLabel("/feed")).toBe("Social");
+    expect(activeLabel("/crawls/soho")).toBe("Social");
     expect(activeLabel("/moment")).toBeUndefined();
   });
 });

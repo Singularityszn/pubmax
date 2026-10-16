@@ -64,23 +64,21 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(markup).toContain(">More</span>");
   });
 
-  it("exposes only live secondary destinations in More, Social last", async () => {
+  it("exposes only live secondary destinations in More", async () => {
     const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
-    // Plan is a primary destination now, so it is not repeated here; Social
-    // left the primary row and lives here instead.
+    // Plan and Social are primary destinations (Social by the captain's call,
+    // 16 Oct 2026), so neither is repeated here.
     expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
       "/wall",
       "/near",
       "/historic",
       "/pal",
-      "/social",
     ]);
     expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
       "Drink Wall",
       "Near",
       "Historic",
       "Pal",
-      "Social",
     ]);
   });
 
@@ -91,27 +89,18 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
       "Find priced pubs close to you",
       "Read the stories behind old pubs",
       "Ask for a pub that fits tonight",
-      "Pub-night posts and crews",
     ]);
   });
 
-  it("names Social in More the way the launch state names it", async () => {
+  it("never lists Social in More, so the menu cannot repeat the tab", async () => {
     const { siteNavMoreItems } = await import("@/components/nav/SiteNavMore");
-    const { socialSurfaceName } = await import("@/lib/socialLaunch");
-    expect(siteNavMoreItems(socialSurfaceName(true)).at(-1)).toMatchObject({
-      href: "/social",
-      label: "Social",
-    });
-    expect(siteNavMoreItems(socialSurfaceName(false)).at(-1)).toMatchObject({
-      href: "/social",
-      label: "Social preview",
-    });
+    expect(siteNavMoreItems().map((item) => item.href)).not.toContain("/social");
   });
 
-  it("renders no Social link and exactly one Plan link in the primary row", async () => {
+  it("renders exactly one Social link and one Plan link in the primary row", async () => {
     const markup = await renderSiteNav();
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
-    expect(row).not.toContain('href="/social"');
+    expect(row.match(/href="\/social"/g)).toHaveLength(1);
     expect(row.match(/href="\/plan"/g)).toHaveLength(1);
   });
 
@@ -131,6 +120,13 @@ describe("SiteNav current page state", () => {
     const markup = await renderSiteNav("today");
     const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
     expect(row.match(/aria-current="page"/g) ?? []).toHaveLength(0);
+  });
+
+  it.each(["/social", "/feed", "/crawls/soho"])("marks Social current on %s", async (pathname) => {
+    navigationState.pathname = pathname;
+    const markup = await renderSiteNav();
+    const row = markup.match(/<ul class="siteNavLinks">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    expect(row.match(/aria-current="page"[^>]*>Social</g) ?? []).toHaveLength(1);
   });
 
   it("marks Tonight current when the host page is Tonight", async () => {

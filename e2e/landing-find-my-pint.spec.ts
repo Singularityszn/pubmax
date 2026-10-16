@@ -34,13 +34,15 @@ async function openLanding(page: Page, viewport: { width: number; height: number
 
 // The landing bar is the first navigation most strangers read, so it speaks the
 // app's own vocabulary (PRIMARY_NAV_ITEMS) and leads with the loop. Social is
-// not a front door: the bar carries none, and the footer keeps one link.
+// a main tab (captain, 16 Oct 2026), so the bar carries it once, and the footer
+// keeps its own link.
 test("landing nav speaks the app's vocabulary and the footer keeps Social", async ({ page }) => {
   await openLanding(page, { width: 1440, height: 900 });
 
   const nav = page.getByRole("navigation", { name: "Landing navigation" });
-  await expect(nav.getByRole("link")).toHaveText(["Map", "Tonight", "Plan", "You"]);
-  await expect(nav.locator('a[href^="/social"], a[href^="/moment"]')).toHaveCount(0);
+  await expect(nav.getByRole("link")).toHaveText(["Map", "Tonight", "Plan", "Social", "You"]);
+  await expect(nav.locator('a[href^="/social"]')).toHaveCount(1);
+  await expect(nav.locator('a[href^="/moment"]')).toHaveCount(0);
 
   const footerSocial = page
     .locator(".lpFooterCol")

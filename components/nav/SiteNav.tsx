@@ -20,6 +20,7 @@ import {
   PRIMARY_NAV_ITEMS,
   momentHref,
   navPathMatches,
+  primaryNavLabel,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import {
@@ -43,7 +44,7 @@ import "./siteNavMoment.css";
 // controls.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Map/Tonight/Plan/You). Repeating the full link list up top
+// (MobileTabBar: Map/Tonight/Plan/Social/You). Repeating the full link list up top
 // there caused the old `.appNav` pill to overflow the viewport on /map. So on
 // mobile this renders a COMPACT bar — just the wordmark + the signed-in
 // bell/messages + sign-in — and hides the full link list (see siteNav.css
@@ -94,10 +95,9 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
-  // Social and its aliases are not in the primary row (they live under More),
-  // so a Social page lights no primary link.
+  // Social is a primary tab, and its aliases light it too.
   if (active === "social" || active === "feed" || active === "discover" || active === "crawls") {
-    return undefined;
+    return "social";
   }
   // Out folded into Tonight, so the retired Out page lights Tonight.
   if (active === "tonight" || active === "out") return "now";
@@ -136,17 +136,16 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
-  const socialSurfaceLabel = useSocialSurfaceName();
   const theme = useThemeChoice();
   const moreItems = useMemo(
-    () => [...siteNavMoreItems(socialSurfaceLabel), siteNavThemeItem(theme)],
-    [socialSurfaceLabel, theme],
+    () => [...siteNavMoreItems(), siteNavThemeItem(theme)],
+    [theme],
   );
 
   return (
     <div className={className}>
-      {/* D2.2: secondary destinations (Drink Wall/Near/Historic/Pal/Social),
-          with Social named for the launch state, and the theme row. Desktop
+      {/* D2.2: secondary destinations (Drink Wall/Near/Historic/Pal) and the
+          theme row. Social is a primary tab, so it is not repeated here. Desktop
           only — siteNav.css hides .siteNavMore at ≤640 so mobile is
           unchanged. */}
       <SiteNavMore items={moreItems} />
@@ -198,6 +197,7 @@ export default function SiteNav({
 }): React.JSX.Element {
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
+  const socialSurfaceLabel = useSocialSurfaceName();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -234,16 +234,17 @@ export default function SiteNav({
       <ul className="siteNavLinks">
         {links.map((link) => {
           const isActive = link.key === activeKey;
+          const label = primaryNavLabel(link, socialSurfaceLabel);
           return (
             <li key={link.key} className="siteNavItem">
               <IntentLink
                 href={link.key === "map" ? mapHref : link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
-                aria-label={link.label}
-                title={link.label}
+                aria-label={label}
+                title={label}
               >
-                {link.label}
+                {label}
               </IntentLink>
             </li>
           );

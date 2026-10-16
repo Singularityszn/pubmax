@@ -292,11 +292,12 @@ test("a failed listings request can be retried", async ({ page }) => {
   expect(requests).toBe(2);
 });
 
-// First-run chrome leads with the loop (find, plan, go), never with Social or
-// Moment. A stranger on the phone home screen meets this dock first, and every
-// tab in it must answer without asking them to sign in: Social did not
-// ("Sign in to use Social."), which is why it left the dock for More.
-test("the first-run dock leads with the loop and no tab asks a stranger to sign in", async ({
+// First-run chrome leads with the loop (find, plan, go), never with Moment. A
+// stranger on the phone home screen meets this dock first. Social is a main tab
+// by the captain's call (16 Oct 2026) and is the one tab that may ask a
+// stranger to sign in ("Sign in to use Social."); every other tab answers
+// without asking.
+test("the first-run dock leads with the loop and only Social may ask a stranger to sign in", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -304,14 +305,14 @@ test("the first-run dock leads with the loop and no tab asks a stranger to sign 
 
   const dock = page.getByRole("navigation", { name: "Primary" });
   const tabs = dock.getByRole("link");
-  await expect(tabs).toHaveText(["Map", "Tonight", "Plan", "You"]);
-  await expect(dock.locator('a[href^="/social"], a[href^="/moment"]')).toHaveCount(0);
+  await expect(tabs).toHaveText(["Map", "Tonight", "Plan", "Social", "You"]);
+  await expect(dock.locator('a[href^="/moment"]')).toHaveCount(0);
 
   const hrefs = await tabs.evaluateAll((links) =>
     links.map((link) => link.getAttribute("href") ?? ""),
   );
-  expect(hrefs).toHaveLength(4);
-  for (const href of hrefs) {
+  expect(hrefs).toHaveLength(5);
+  for (const href of hrefs.filter((candidate) => !candidate.startsWith("/social"))) {
     const response = await page.goto(href, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${href} answers`).toBeLessThan(400);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();

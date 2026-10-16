@@ -340,6 +340,38 @@ for (const platform of ["android", "ios"] as const) {
   }
 }
 
+// Five dock doors at the narrowest phone we support, at a large OS text size
+// (captain, 16 Oct 2026: Social is a main tab). The bar keeps its shape and
+// drops its words at that size (mobileNav.css), so no word can be cut short,
+// every door keeps a 44px square and the accessible name stays on the link.
+test("320px large text: five dock doors keep 44px targets and lose no name", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.addInitScript(() => {
+    document.documentElement.setAttribute("data-text-scale", "large");
+  });
+  await page.goto("/tonight");
+  await page.evaluate(() => document.documentElement.setAttribute("data-text-scale", "large"));
+  const dock = page.getByRole("navigation", { name: "Primary" });
+  const tabs = dock.locator(".mobileTab");
+  await expect(tabs).toHaveCount(5);
+  expect(
+    await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
+  ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+  await expect(dock.locator(".mobileTabLabel:visible")).toHaveCount(0);
+  for (const box of await tabs.evaluateAll((links) => links.map((link) => {
+    const rect = link.getBoundingClientRect();
+    return { width: rect.width, height: rect.height, right: rect.right };
+  }))) {
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.right).toBeLessThanOrEqual(320);
+  }
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("Android chrome and checkbox labels have 48px touch targets", async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 840 });
   await installNativeShell(page, "android");
@@ -348,9 +380,9 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await page.goto("/places");
   await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
   const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .themeToggle:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
-  // Signed in: bell, messages and the account control up top, and the four
+  // Signed in: bell, messages and the account control up top, and the five
   // dock doors. The theme left the header for More and the You page.
-  await expect(controls).toHaveCount(7);
+  await expect(controls).toHaveCount(8);
   for (const box of await controls.evaluateAll((elements) => elements.map((element) => {
     const box = element.getBoundingClientRect();
     return { width: box.width, height: box.height };

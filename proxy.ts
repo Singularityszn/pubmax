@@ -353,7 +353,7 @@ export function securityProxy(request: NextRequest) {
     return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
   }
   // Out is Tonight now (product owner, Oct 2026 UX audit): the primary row is
-  // Map, Tonight, Plan, You, and Tonight carries what Out listed. /out keeps
+  // Map, Tonight, Plan, Social, You, and Tonight carries what Out listed. /out keeps
   // its address for every old link and bookmark by answering a permanent 308
   // here, with the reader's own query riding along as on the 308s above.
   if (pathname === OUT_PATH) {

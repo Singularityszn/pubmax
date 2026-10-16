@@ -1,5 +1,5 @@
 // Out folded into Tonight (product owner, Oct 2026 UX audit). The primary row
-// is Map, Tonight, Plan, You, and /out keeps its address for old links and
+// is Map, Tonight, Plan, Social, You, and /out keeps its address for old links and
 // bookmarks by answering a permanent redirect at the edge, the same shape as
 // the /choose-city 308 (__tests__/cityPickerRedirect.test.ts).
 

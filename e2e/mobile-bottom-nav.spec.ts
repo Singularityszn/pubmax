@@ -121,14 +121,14 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
-  test("the dock is four doors in loop order, and Out is Tonight", async ({ page }) => {
+  test("the dock is five doors in loop order, and Out is Tonight", async ({ page }) => {
     await page.goto("/map");
 
     const tabs = primaryNav(page).locator(".mobileTab");
-    await expect(tabs).toHaveCount(4);
+    await expect(tabs).toHaveCount(5);
     expect(
       await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
-    ).toEqual(["Map", "Tonight", "Plan", "You"]);
+    ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
     await expect(primaryNav(page).getByRole("link", { name: "Out", exact: true })).toHaveCount(0);
     await expect(primaryNav(page).getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
 
@@ -153,10 +153,13 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("link", { name: "Back", exact: true })).toHaveAttribute("href", "/map");
   });
 
-  test("gated Social stays out of the primary tab row", async ({ page }) => {
+  // Captain, 16 Oct 2026: Social is a main tab, and it lights for its aliases.
+  test("Social is one tab in the primary row and lights on its aliases", async ({ page }) => {
     await page.goto("/map");
 
-    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveCount(0);
+    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveCount(1);
+    await page.goto("/feed");
+    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveAttribute("aria-current", "page");
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {

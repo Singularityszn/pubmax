@@ -3,24 +3,28 @@ import { describe, expect, it } from "vitest";
 import {
   MOMENT_NAV_ACTION,
   PRIMARY_NAV_ITEMS,
+  SOCIAL_NAV_MATCH,
   momentHref,
   navPathMatches,
   primaryNavKeyForPath,
+  primaryNavLabel,
   safeMomentReturnTo,
 } from "@/components/nav/navigationModel";
+import { socialSurfaceName } from "@/lib/socialLaunch";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps four destinations on the loop and models Moment separately", () => {
+  it("keeps five destinations on the loop and models Moment separately", () => {
+    // Captain, 16 Oct 2026: Social is a main tab, between Plan and You.
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
       "Map",
       "Tonight",
       "Plan",
+      "Social",
       "You",
     ]);
     expect(MOMENT_NAV_ACTION).toMatchObject({ label: "Moment", href: "/moment" });
-    // Social and Moment are not front doors: neither is a primary destination.
+    // Moment is a compose action, never a primary destination.
     const keys: string[] = PRIMARY_NAV_ITEMS.map(({ key }) => key);
-    expect(keys).not.toContain("social");
     expect(keys).not.toContain("moment");
     // Out folded into Tonight, and Places is a setting, not a door.
     expect(keys).not.toContain("out");
@@ -32,6 +36,7 @@ describe("PUBMAXX primary navigation", () => {
       "/map",
       "/tonight",
       "/plan",
+      "/social",
       "/u/you",
     ]);
     expect(PRIMARY_NAV_ITEMS.find((item) => item.key === "now")?.match).toEqual([
@@ -41,16 +46,18 @@ describe("PUBMAXX primary navigation", () => {
     expect(primaryNavKeyForPath("/tonight")).toBe("now");
   });
 
-  it("lights Plan for the composer and a shared plan, and no tab for Social", () => {
+  it("lights Plan for the composer and a shared plan, and Social for its aliases", () => {
     const plan = PRIMARY_NAV_ITEMS.find((item) => item.key === "plan");
     expect(plan?.match).toEqual(["/plan"]);
     expect(primaryNavKeyForPath("/plan")).toBe("plan");
     expect(primaryNavKeyForPath("/plan/abc123")).toBe("plan");
     expect(navPathMatches("/plan", plan!.match)).toBe(true);
-    // Social lives under More now, so its routes and aliases light no tab.
+    // Social owns its shell and every retired alias that still lands there.
     for (const path of ["/social", "/discover", "/drinks", "/feed", "/stories", "/crawls/soho"]) {
-      expect(primaryNavKeyForPath(path)).toBeUndefined();
+      expect(primaryNavKeyForPath(path)).toBe("social");
     }
+    expect(PRIMARY_NAV_ITEMS.find((item) => item.key === "social")?.match).toEqual([...SOCIAL_NAV_MATCH]);
+    expect(primaryNavKeyForPath("/socialite")).toBeUndefined();
     expect(primaryNavKeyForPath("/borough")).toBeUndefined();
     expect(primaryNavKeyForPath("/borough/soho")).toBeUndefined();
     expect(primaryNavKeyForPath("/moment")).toBeUndefined();
@@ -65,6 +72,14 @@ describe("PUBMAXX primary navigation", () => {
     expect(primaryNavKeyForPath("/choose-city")).toBeUndefined();
     expect(primaryNavKeyForPath("/map")).toBe("map");
     expect(primaryNavKeyForPath("/map/manchester")).toBe("map");
+  });
+
+  it("names Social for its launch state and every other door as written", () => {
+    const social = PRIMARY_NAV_ITEMS.find((item) => item.key === "social")!;
+    const plan = PRIMARY_NAV_ITEMS.find((item) => item.key === "plan")!;
+    expect(primaryNavLabel(social, socialSurfaceName(true))).toBe("Social");
+    expect(primaryNavLabel(social, socialSurfaceName(false))).toBe("Social preview");
+    expect(primaryNavLabel(plan, socialSurfaceName(false))).toBe("Plan");
   });
 
   it("accepts only safe Moment return destinations", () => {

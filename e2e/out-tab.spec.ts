@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // Out is Tonight now. Product owner, Oct 2026 UX audit: the primary row went
-// from six doors to four (Map, Tonight, Plan, You), and Tonight carries what
+// from six doors to five (Map, Tonight, Plan, Social, You), and Tonight carries what
 // the Out tab listed. /out keeps its address for old links, bookmarks and
 // shared `?day=` links by answering a permanent 308 to /tonight at the edge
 // (proxy.ts, lib/outRoute.ts), with the query kept.
@@ -56,7 +56,7 @@ for (const width of WIDTHS) {
         await nav
           .locator(".mobileTab")
           .evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
-      ).toEqual(["Map", "Tonight", "Plan", "You"]);
+      ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
     });
   });
 }

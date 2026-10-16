@@ -162,12 +162,12 @@ test.describe("places tab @390", () => {
 test.describe("places tab @320", () => {
   test.use({ viewport: { width: 320, height: 844 } });
 
-  test("four tabs fit, each keeps its tap floor, and nothing scrolls sideways", async ({
+  test("five tabs fit, each keeps its tap floor, and nothing scrolls sideways", async ({
     page,
   }) => {
     await page.goto("/places");
     const tabs = primaryNav(page).getByRole("link");
-    await expect(tabs).toHaveCount(4);
+    await expect(tabs).toHaveCount(5);
     await expect(page.locator(".authCompactTrigger")).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     for (const tab of await tabs.all()) {
