@@ -87,7 +87,8 @@ export const recordShadowComparison = internalMutation({
 
 async function removeBatchPage(
   ctx: GenericMutationCtx<DataModel>,
-  table: "pubPals" | "palMemories" | "masteryEvents" | "palUnlocks" | "planCompletions",
+  // pubPals is deliberately absent: a pal has children, see rollbackPubPalsBatch.
+  table: "palMemories" | "masteryEvents" | "palUnlocks" | "planCompletions",
   batchId: GenericId<"migrationBatches">,
   limit: number,
 ) {
@@ -99,10 +100,44 @@ async function removeBatchPage(
   return records.length;
 }
 
+async function palHasChildren(
+  ctx: GenericMutationCtx<DataModel>,
+  palId: GenericId<"pubPals">,
+): Promise<boolean> {
+  const [memory, event, unlock] = await Promise.all([
+    ctx.db.query("palMemories").withIndex("by_pal_proposed_at", (q) => q.eq("palId", palId)).first(),
+    ctx.db.query("masteryEvents").withIndex("by_pal_occurred_at", (q) => q.eq("palId", palId)).first(),
+    ctx.db.query("palUnlocks").withIndex("by_pal_unlocked_at", (q) => q.eq("palId", palId)).first(),
+  ]);
+  return memory !== null || event !== null || unlock !== null;
+}
+
+// A pal is the parent of palMemories, masteryEvents and palUnlocks. Deleting
+// it by batch tag would orphan those rows, including ones written after the
+// import that carry no batch tag at all. So this REFUSES the whole page,
+// deleting nothing, while any pal in it still has a child. Roll the child
+// batches back first (or decide by hand about untagged children), then retry.
 export const rollbackPubPalsBatch = internalMutation({
   args: { batchId: v.id("migrationBatches"), limit: v.number() },
   returns: v.number(),
-  handler: (ctx, args) => removeBatchPage(ctx, "pubPals", args.batchId, args.limit),
+  handler: async (ctx, args) => {
+    const pals = await ctx.db
+      .query("pubPals")
+      .withIndex("by_migration_batch", (q) => q.eq("migrationBatchId", args.batchId))
+      .take(Math.max(1, Math.min(100, Math.floor(args.limit))));
+    const withChildren: string[] = [];
+    for (const pal of pals) {
+      if (await palHasChildren(ctx, pal._id)) withChildren.push(pal._id);
+    }
+    if (withChildren.length > 0) {
+      throw new Error(
+        `Refusing to roll back ${withChildren.length} Pub Pal(s) that still have memories, ` +
+          `mastery events or unlocks: ${withChildren.join(", ")}`,
+      );
+    }
+    await Promise.all(pals.map((pal) => ctx.db.delete(pal._id)));
+    return pals.length;
+  },
 });
 
 export const rollbackMemoriesBatch = internalMutation({

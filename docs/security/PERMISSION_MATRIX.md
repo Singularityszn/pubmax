@@ -149,6 +149,9 @@ no side effect, as above.
    the check into the helper the policies read and drops the stray copy, which
    was also an exposed RPC in the public schema (the live isolated project
    answered `POST /rest/v1/rpc/rls_is_plan_participant` to the anon key).
+   The `0124` rollback used to recreate that public copy as SECURITY DEFINER,
+   although no copy existed before `0124`; it now drops it and leaves the
+   `pubmax_private` helper (0075's body, with its legacy-only guard) untouched.
 2. **Refusals for a foreign Plan write read as 400** rather than 403 on the
    `PATCH` and presence routes, because validation and the capability lookup
    share one store result. Denied is denied; the matrix asserts 400 or 403.
