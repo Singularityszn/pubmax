@@ -116,7 +116,7 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
  * header (Oct 2026 UX audit) because it is a setting, not a destination; on a
  * phone it lives on the You page's Appearance block.
  */
-export function siteNavThemeItem(theme: "light" | "dark"): SiteNavMoreItem {
+function siteNavThemeItem(theme: "light" | "dark"): SiteNavMoreItem {
   return {
     id: "theme",
     label: theme === "dark" ? "Light theme" : "Dark theme",
