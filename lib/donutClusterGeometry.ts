@@ -73,7 +73,7 @@ export type DonutMarkerSvgParams = {
 };
 
 /** The "n pubs" caption's box under a disc centred at `x, y`, in screen px. */
-export function clusterCaptionBox(
+function clusterCaptionBox(
   x: number,
   y: number,
   outerRadius: number,
