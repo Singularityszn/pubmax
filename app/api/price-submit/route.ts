@@ -57,18 +57,13 @@ import {
   readCommunityVenueSignalsWithStatus,
   readProvisionalCommunityPriceVenueIds,
   reportCommunityPrice,
-  submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
-import {
-  revertOneTapCommunityPricePairing,
-  writeOneTapPintDrop,
-} from "@/lib/oneTapPintDrop.server";
+import { writeOneTapPricePair } from "@/lib/oneTapPintDrop.server";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
-import { log } from "@/lib/log";
 import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -222,49 +217,25 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many price logs, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  // submitCommunityPrice never throws; a hard durable-write failure comes back
-  // flagged so we answer 503 (degraded dependency) rather than a fake success.
-  const { price, failed } = await submitCommunityPrice({
-    ...submission,
-    actor: contributor.actor,
-    contributorHandle: contributor.handle,
-  });
-  if (failed || !price) {
-    return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
-  }
-
-  const pintDrop = await writeOneTapPintDrop(
+  const pair = await writeOneTapPricePair(
     {
       venueId: submission.venueId,
       handle: contributor.handle,
       drinkCategory: submission.drinkCategory,
       priceGbp: submission.priceGbp,
+      actor: contributor.actor,
       verifiedAccountId: contributor.accountId,
     },
     pintDropPhotos,
   );
-  if (!pintDrop.ok) {
-    const reverted = await revertOneTapCommunityPricePairing(price.id);
-    if (reverted) {
-      if (pintDrop.kind === "invalid_photo") {
-        return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
-      }
-      return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
+  if (!pair.ok) {
+    if (pair.kind === "invalid_photo") {
+      return publicApiError(pair.message, "INVALID_REQUEST", 400);
     }
-    log("error", "one_tap_pint_drop.pairing_repair_required", {
-      priceId: price.id,
-      venueId: submission.venueId,
-      drinkCategory: submission.drinkCategory,
-    });
-    return publicApiError(
-      "Could not finish that price log. Try again later.",
-      "PAIRING_REPAIR_REQUIRED",
-      503,
-      { retryable: true },
-    );
-  } else {
-    void qualifyCheapPintForOwnerActor(contributor.actor);
+    return publicApiError(pair.message, "UNAVAILABLE", 503, { retryable: true });
   }
+  const { price } = pair;
+  void qualifyCheapPintForOwnerActor(contributor.actor);
 
   const trust = await syncTrustAfterPriceWrite(
     submission.venueId,

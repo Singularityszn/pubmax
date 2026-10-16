@@ -81,9 +81,8 @@ const readBackState = vi.hoisted(() => ({
 }));
 const oneTapState = vi.hoisted(() => ({
   forcedOutcome: undefined as
-    | import("@/lib/oneTapPintDrop.server").OneTapPintDropOutcome
+    | import("@/lib/oneTapPintDrop.server").OneTapPricePairOutcome
     | undefined,
-  beforeOutcome: null as (() => Promise<void>) | null,
 }));
 const trustSyncState = vi.hoisted(() => ({
   override: null as { status: "synced" | "unavailable" } | null,
@@ -93,15 +92,14 @@ vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/oneTapPintDrop.server")>();
   return {
     ...actual,
-    writeOneTapPintDrop: async (
-      input: Parameters<typeof actual.writeOneTapPintDrop>[0],
-      photos?: Parameters<typeof actual.writeOneTapPintDrop>[1],
+    writeOneTapPricePair: async (
+      input: Parameters<typeof actual.writeOneTapPricePair>[0],
+      photos?: Parameters<typeof actual.writeOneTapPricePair>[1],
     ) => {
       if (oneTapState.forcedOutcome !== undefined) {
-        await oneTapState.beforeOutcome?.();
         return oneTapState.forcedOutcome;
       }
-      return actual.writeOneTapPintDrop(input, photos);
+      return actual.writeOneTapPricePair(input, photos);
     },
   };
 });
@@ -121,7 +119,6 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
-    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
     readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
@@ -135,18 +132,13 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 import { GET, POST } from "@/app/api/price-submit/route";
 import {
   __resetCommunityPrices,
+  listCommunityPricesForReview,
   memoryCommunityPriceStore,
-  moderateCommunityPrice,
+  readCommunityPriceCategoryIndex,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
-import {
-  __resetMemoryPriceTrustEvents,
-  priceTrustEventStore,
-} from "@/lib/priceTrustEventStore";
-import {
-  readPriceTrustImpact,
-  syncTrustAfterPriceWrite,
-} from "@/lib/priceTrustImpact.server";
+import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
+import { readPriceTrustImpact } from "@/lib/priceTrustImpact.server";
 import { COMMUNITY_PRICE_MAX_GBP, submitCategoryLabel } from "@/lib/communityPrice";
 import {
   __resetMemoryIdentityHandles,
@@ -243,7 +235,6 @@ beforeEach(async () => {
   readBackState.override = null;
   readBackState.statusOverride = null;
   oneTapState.forcedOutcome = undefined;
-  oneTapState.beforeOutcome = null;
   trustSyncState.override = null;
   trustSyncState.calls = 0;
   authState.userId = null;
@@ -254,14 +245,6 @@ beforeEach(async () => {
   __resetMemoryPrivateIdentities();
   __resetPintDrops();
   await authorizeContributor("user-default", "default_contributor");
-  const actualCommunityPriceStore =
-    await vi.importActual<typeof import("@/lib/communityPriceStore")>(
-      "@/lib/communityPriceStore",
-    );
-  vi.mocked(moderateCommunityPrice).mockReset();
-  vi.mocked(moderateCommunityPrice).mockImplementation(
-    actualCommunityPriceStore.moderateCommunityPrice,
-  );
 });
 
 afterEach(async () => {
@@ -308,6 +291,23 @@ describe("POST /api/price-submit", () => {
       drink: submitCategoryLabel("beer"),
       authorityKey: pintDropAuthorityKey("venue-xjf3n0", authState.userId),
     });
+  });
+
+  it("drops a held category index after the paired write lands", async () => {
+    const now = Date.now();
+    const before = readCommunityPriceCategoryIndex(["beer"], now);
+    expect((await before).prices).toEqual([]);
+
+    const response = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    expect(response.status).toBe(201);
+    const after = readCommunityPriceCategoryIndex(["beer"], now + 1);
+    expect(after).not.toBe(before);
+    expect((await after).prices).toMatchObject([
+      { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 },
+    ]);
   });
 
   it("keeps an accepted price at 201 while trust reconciliation is pending", async () => {
@@ -357,18 +357,7 @@ describe("POST /api/price-submit", () => {
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
-  it("reverses trust that lands before a failed Pint Drop pairing rolls its price back", async () => {
-    const venueId = "venue-xjf3n0";
-    expect(
-      (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
-    ).toBe(201);
-    await authorizeContributor("user-second", "second_contributor");
-    oneTapState.beforeOutcome = async () => {
-      expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
-        status: "synced",
-      });
-      expect((await priceTrustEventStore().liveEventsFor(venueId, "beer")).events).toHaveLength(1);
-    };
+  it("leaves no hidden Community Price when its paired Pint Drop fails", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
@@ -376,38 +365,27 @@ describe("POST /api/price-submit", () => {
     };
 
     const response = await POST(
-      post({ venueId, drinkCategory: "beer", priceGbp: 4.3 }),
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
-    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
-    expect((await priceTrustEventStore().liveEventsFor(venueId, "beer")).events).toEqual([]);
-    expect((await priceTrustEventStore().listPendingReconciliations(20)).tasks).toEqual([]);
-    expect(await readPriceTrustImpact("user-default")).toMatchObject({
-      lifetimeTrustUnlocks: 0,
-    });
-    expect(await readPriceTrustImpact("user-second")).toMatchObject({
-      lifetimeTrustUnlocks: 0,
-    });
+    expect(await listCommunityPricesForReview()).toEqual([]);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toEqual([]);
   });
 
-  it("keeps failed hidden-state trust cleanup queued and reports pairing repair required", async () => {
-    const venueId = "venue-xjf3n0";
-    expect(
-      (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
-    ).toBe(201);
-    await authorizeContributor("user-second", "second_contributor");
-    const store = priceTrustEventStore();
-    oneTapState.beforeOutcome = async () => {
-      expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
-        status: "synced",
-      });
-      vi.spyOn(store, "ackReconciliation").mockResolvedValue({
-        acknowledged: false,
-        failed: true,
-      });
-    };
+  it("does not evict another Venue when a full memory-store pair fails", async () => {
+    for (let index = 0; index < 5_000; index += 1) {
+      await memoryCommunityPriceStore.submit(
+        {
+          venueId: `capacity-${index}`,
+          drinkCategory: "beer",
+          priceGbp: 4.2,
+          actor: `profile:${index}`,
+          contributorHandle: `contributor_${index}`,
+        },
+        index + 1,
+      );
+    }
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
@@ -415,23 +393,13 @@ describe("POST /api/price-submit", () => {
     };
 
     const response = await POST(
-      post({ venueId, drinkCategory: "beer", priceGbp: 4.3 }),
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      code: "PAIRING_REPAIR_REQUIRED",
-      retryable: true,
-    });
-    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
-    expect((await store.liveEventsFor(venueId, "beer")).events).toEqual([]);
-    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
-    expect(await readPriceTrustImpact("user-default")).toMatchObject({
-      lifetimeTrustUnlocks: 0,
-    });
-    expect(await readPriceTrustImpact("user-second")).toMatchObject({
-      lifetimeTrustUnlocks: 0,
-    });
+    expect(await readCommunityPrices("capacity-0", 10_000)).toMatchObject([
+      { venueId: "capacity-0", priceGbp: 4.2 },
+    ]);
   });
 
   it("never reports success when the price and Pint Drop split", async () => {
@@ -440,15 +408,14 @@ describe("POST /api/price-submit", () => {
       kind: "storage",
       message: "Could not save your pint drop right now.",
     };
-    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
     const venueId = "venue-xjf3n0";
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({
-      code: "PAIRING_REPAIR_REQUIRED",
+      code: "UNAVAILABLE",
       retryable: true,
     });
-    expect(await readCommunityPrices(venueId)).toHaveLength(1);
+    expect(await readCommunityPrices(venueId)).toHaveLength(0);
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
