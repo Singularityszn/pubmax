@@ -30,11 +30,9 @@ test.beforeEach(async ({ page }) => {
 test("390px Map acceptance persists before Plan receives Stop 1", async ({ page }) => {
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  // On a phone the peek strip's one plan button owns Stop 1 (UX sprint, 15 Oct
-  // 2026): no crawl is being built, so it reads "Make it Stop 1".
-  const accept = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+  const toolbar = portal.getByRole("toolbar", { name: "Venue actions" });
+  const accept = toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
   await expect(accept).toBeVisible({ timeout: 30_000 });
-  await expect(portal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(1);
 
   const [box, overflow] = await Promise.all([
     accept.boundingBox(),
@@ -75,22 +73,14 @@ test("Venue actions fit 320px and 390px", async ({ page }) => {
       .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
       .getByRole("toolbar", { name: "Venue actions" });
     await expect(toolbar).toBeVisible({ timeout: 30_000 });
-    // Since #1517 the bar carries no price action, and on a phone the peek
-    // strip owns the one plan button, so a suggest-mode pub sheet's bar holds
-    // Share alone (components/map/inspector/VenueStickyBar.tsx).
-    await expect(toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(0);
+    // Since #1517 the bar carries no price action: a suggest-mode pub sheet
+    // holds the Stop 1 ghost and Share (components/map/inspector/VenueStickyBar.tsx).
+    await expect(toolbar.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toBeVisible();
     await expect(toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` })).toBeVisible();
-    const accept = page
-      .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
-      .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
-    await expect(accept).toBeVisible();
-    expect((await accept.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     const heights = await toolbar.getByRole("button").evaluateAll((buttons) =>
-      buttons
-        .filter((button) => button.getClientRects().length > 0)
-        .map((button) => button.getBoundingClientRect().height),
+      buttons.map((button) => button.getBoundingClientRect().height),
     );
-    expect(heights).toHaveLength(1);
+    expect(heights).toHaveLength(2);
     expect(heights.every((height) => height >= 44)).toBe(true);
     const overflow = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth,

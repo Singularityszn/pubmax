@@ -530,12 +530,9 @@
 }
 
 /* NO PRIMARY IN THIS BAR. The sheet's one painted price action is the
-   Overview's price door (`.priceDoor`, app/globals.css), and on a phone the
-   peek strip owns the one painted plan door, whose label follows the crawl
-   ("Make it Stop 1" with none being built, "Plan stop" / "In plan" once one
-   is). So every command here is a ghost: Crawl and Share at every width, and
-   Make it Stop 1 only on a desktop, because the rule below stands it down at
-   the breakpoint that shows the strip. */
+   Overview's price door (`.priceDoor`, app/globals.css) and the phone peek's
+   "Plan stop" is its one painted plan action, so every command here is a
+   ghost: Make it Stop 1, Crawl, Share. */
 .venueSheetStickyGhost {
   flex: 1 1 0;
   border: 1px solid var(--control-tint-border, var(--line));
@@ -669,13 +666,6 @@
    the sheet's visible bottom edge. The legacy 641–768 inline drawer keeps the sticky bar rules above
    (`:not(.mobileSharedSheet)`); this only touches the ≤640 portal footer. */
 @media (max-width: 640px) {
-  /* The peek strip's one plan button owns "Make it Stop 1" on a phone, at the
-     same breakpoint that shows the strip (mobileMapShell.css), so the bar's
-     ghost stands down here rather than offer the same plan door twice. */
-  .venueSheetStickyBar .venueSheetStickyStop1 {
-    display: none;
-  }
-
   .mobileSharedSheetFooter .venueSheetStickyBar {
     position: static;
     margin: 0;

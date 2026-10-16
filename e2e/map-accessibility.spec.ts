@@ -97,11 +97,11 @@ function cssColourChannels(cssColour: string): { rgb: [number, number, number]; 
 }
 
 /**
- * The sticky bar carries NO primary: on a phone the peek's one plan button is
- * the painted plan action and the Overview's price door the one painted price
- * action (lib/pintTrust.ts, `overviewPriceDoor`). On a desktop, which has no
- * peek, "Make it Stop 1" reads as a ghost over the sheet's own panel. What it
- * still owes is ordinary readable contrast against the surface it renders on.
+ * The sticky bar carries NO primary: the phone peek's "Plan stop" is the one
+ * painted plan action and the Overview's price door the one painted price
+ * action (lib/pintTrust.ts, `overviewPriceDoor`), so "Make it Stop 1" reads as
+ * a ghost over the sheet's own panel. What it still owes is ordinary readable
+ * contrast against the surface it actually renders on.
  */
 async function expectReadableGhostContrast(control: Locator): Promise<void> {
   const computed = await control.evaluate((node) => {
@@ -598,34 +598,24 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await page.setViewportSize(MOBILE);
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
-    // One painted primary per screen: the peek's one plan button keeps the
-    // locked coral. With no crawl being built it reads "Make it Stop 1", and
-    // the sticky bar no longer repeats it on a phone. The sheet's one painted
-    // PRICE action is the Overview's price door, and it wears the same locked
-    // pair. The guarantee follows the primary; it never followed the name.
-    const planAction = page.getByRole("button", {
-      name: "Make Arnos Arms Stop 1",
-    });
-    const priceDoor = page.locator("[data-price-door]");
-    await expect(planAction).toHaveCount(1);
-    await expect(planAction).toBeVisible();
-    await expect(priceDoor).toHaveCount(1);
-
-    for (const theme of ["light", "dark"] as const) {
-      await applyTheme(page, theme, [planAction, priceDoor]);
-      await expectLockedCoralContrast(planAction);
-      await expectLockedCoralContrast(priceDoor);
-    }
-
-    // A desktop has no peek strip, so its bar keeps the Stop 1 ghost.
-    await page.setViewportSize(DESKTOP);
-    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    const planStop = page.getByRole("button", { name: "Plan stop" });
+    // One painted primary per screen: the peek's "Plan stop" keeps the locked
+    // coral, and the sticky bar's "Make it Stop 1" is its ghost neighbour. The
+    // sheet's one painted PRICE action is the Overview's price door, and it
+    // wears the same locked pair. The guarantee follows the primary; it never
+    // followed the button's name.
     const acceptStop1 = page.getByRole("button", {
       name: "Make Arnos Arms Stop 1",
     });
-    await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
+    const priceDoor = page.locator("[data-price-door]");
+    await expect(planStop).toBeVisible();
+    await expect(acceptStop1).toBeVisible();
+    await expect(priceDoor).toHaveCount(1);
+
     for (const theme of ["light", "dark"] as const) {
-      await applyTheme(page, theme, [acceptStop1]);
+      await applyTheme(page, theme, [planStop, priceDoor, acceptStop1]);
+      await expectLockedCoralContrast(planStop);
+      await expectLockedCoralContrast(priceDoor);
       await expectReadableGhostContrast(acceptStop1);
     }
   });

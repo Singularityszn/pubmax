@@ -14,17 +14,9 @@ import {
 // (components/PubMap.tsx, toggleBuiltStop), the pill names the built crawl
 // (lib/planActivationPill.ts), and the built crawl leads the phone planner
 // with its stops first (lib/pubMap.ts, phonePlannerOrder).
-//
-// ONE PLAN BUTTON (UX sprint, 15 Oct 2026; captain, 16 Oct 2026). The phone
-// sheet used to carry "Plan stop" in the peek strip AND "Make it Stop 1" in
-// the bar below it. The peek now carries one button that follows the night:
-// with no crawl being built it is "Make it Stop 1", which hands the pub to
-// Plan; with a crawl being built it is "Plan stop" / "In plan".
 
 const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const VENUE_NAME = COMMUNITY_SHEET_FIXTURE_VENUE_NAME;
-// A crawl already being built, seeded through the map's own share URL.
-const BUILT_STOP_ID = "venue-149rmv7";
 
 async function preparePage(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -36,32 +28,29 @@ async function preparePage(page: Page): Promise<void> {
   });
 }
 
-test("phone 390: with a crawl being built, Plan stop adds to it, the pill names it, and the planner opens on it", async ({ page }) => {
+test("phone 390: Plan stop builds a crawl, the pill names it, and the planner opens on it", async ({ page }) => {
   test.slow();
   await preparePage(page);
-  await page.goto(`/map?mode=build&pubs=${BUILT_STOP_ID}&sel=${VENUE_ID}`);
+  await page.goto(`/map?sel=${VENUE_ID}`);
 
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const planStop = venuePortal.locator(".mobileVenuePeekSummary button");
-  await expect(planStop).toHaveCount(1, { timeout: 30_000 });
   await expect(planStop).toHaveText("Plan stop", { timeout: 30_000 });
-  // One plan door on the sheet: the bar's ghost stands down on a phone.
-  await expect(venuePortal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(0);
   await expect(async () => {
     await planStop.click();
     await expect(planStop).toHaveText("In plan", { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   await expect.poll(() => new URL(page.url()).searchParams.get("mode")).toBe("build");
-  await expect.poll(() => new URL(page.url()).searchParams.get("pubs")).toBe(`${BUILT_STOP_ID},${VENUE_ID}`);
+  await expect.poll(() => new URL(page.url()).searchParams.get("pubs")).toBe(VENUE_ID);
 
-  // Close the sheet: the pill names the picked stops, never the suggested six.
+  // Close the sheet: the pill names ONE picked stop, never the suggested six.
   await venuePortal.locator(".surfaceNavHome").click();
   await expect(venuePortal).toHaveCount(0);
   const pill = page.locator(".mobilePlanActivation");
   await expect(pill).toBeVisible();
-  await expect(pill).toContainText("2 stops picked");
-  await expect(pill).toHaveAttribute("aria-label", "Edit your crawl, 2 stops picked");
+  await expect(pill).toContainText("1 stop picked");
+  await expect(pill).toHaveAttribute("aria-label", "Edit your crawl, 1 stop picked");
 
   // The planner sheet opens on the crawl being built: the picked pub is
   // named inside the sheet body's own visible box, before any form.
@@ -87,46 +76,16 @@ test("phone 390: with a crawl being built, Plan stop adds to it, the pill names 
   expect(order, "the built crawl comes before the describe form").toBe(true);
 });
 
-test("phone 390: with no crawl being built, the one plan button is Make it Stop 1 and hands the pub to Plan", async ({ page }) => {
+test("phone 390: Make it Stop 1 hands the pub to Plan", async ({ page }) => {
   test.slow();
   await preparePage(page);
   await page.goto(`/map?sel=${VENUE_ID}`);
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const makeStop1 = venuePortal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
-  await expect(makeStop1).toHaveCount(1, { timeout: 30_000 });
   await expect(makeStop1).toBeVisible({ timeout: 30_000 });
-  await expect(makeStop1).toHaveText("Make it Stop 1");
-  await expect(venuePortal.locator(".mobileVenuePeekSummary button")).toHaveText("Make it Stop 1");
-  await expect(venuePortal.getByRole("button", { name: /^(?:Plan stop|In plan)$/ })).toHaveCount(0);
   await expect(async () => {
     await makeStop1.click();
     await expect(page).toHaveURL(/\/plan(?:\?|$)/, { timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
-});
-
-// THE DOOR FOLLOWS THE CRAWL, AND NOTHING ELSE (captain, 16 Oct 2026): no
-// crawl in progress reads "Make it Stop 1", a crawl in progress reads
-// "Plan stop" / "In plan". Emptying the crawl from the open sheet is the one
-// state where the two meet, so it is driven here rather than reasoned about.
-test("phone 390: emptying the crawl from the open sheet hands the pub back to Plan", async ({ page }) => {
-  test.slow();
-  await preparePage(page);
-  await page.goto(`/map?mode=build&pubs=${VENUE_ID}&sel=${VENUE_ID}`);
-
-  const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await expect(venuePortal).toBeVisible({ timeout: 30_000 });
-  const door = venuePortal.locator(".mobileVenuePeekSummary button");
-  await expect(door).toHaveCount(1, { timeout: 30_000 });
-  await expect(door).toHaveText("In plan", { timeout: 30_000 });
-
-  // One tap removes the only stop, so no crawl is in progress and the door is
-  // the one the captain's mapping assigns to that state.
-  await expect(async () => {
-    await door.click();
-    await expect(door).toHaveText("Make it Stop 1", { timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
-  await expect(venuePortal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(1);
-  await expect(venuePortal.getByRole("button", { name: /^(?:Plan stop|In plan)$/ })).toHaveCount(0);
-  await expect(door).toHaveCount(1);
 });
