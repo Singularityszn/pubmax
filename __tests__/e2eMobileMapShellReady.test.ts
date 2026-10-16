@@ -35,14 +35,39 @@ function e2eSources(): Array<{ file: string; text: string }> {
   return out;
 }
 
-const DIRECT_TOPBAR_WAIT =
-  /locator\(\s*["'`]\.mobileMapTopbar["'`]\s*\)\s*\)\s*\.toBeVisible/;
+const TOPBAR = /["'`]\.mobileMapTopbar["'`]/;
+
+/**
+ * Whether a source waits for the phone top bar to be visible by itself, in
+ * any of the shapes the suite has used: the locator inline, picked by a
+ * ternary, or stored in a variable first. Reading the bar for layout or
+ * tapping a control on it after the wait is not a wait, and is not flagged.
+ */
+function waitsOnTopbar(text: string): boolean {
+  for (const match of text.matchAll(/expect\(([^;]*?)\)\s*\.toBeVisible/g)) {
+    if (TOPBAR.test(match[1] ?? "")) return true;
+  }
+  for (const match of text.matchAll(
+    /(?:const|let)\s+(\w+)\s*=\s*page\s*\.locator\(\s*["'`]\.mobileMapTopbar["'`]\s*\)\s*;/g,
+  )) {
+    const name = match[1];
+    // A variable's reach ends where the same name is declared again: another
+    // test reusing `topbar` for a different locator is a different bar.
+    const from = (match.index ?? 0) + match[0].length;
+    const redeclared = text
+      .slice(from)
+      .search(new RegExp(`(?:const|let)\\s+${name}\\s*=`));
+    const scope = text.slice(from, redeclared === -1 ? undefined : from + redeclared);
+    if (new RegExp(`expect\\(\\s*${name}\\s*\\)\\s*\\.toBeVisible`).test(scope)) return true;
+  }
+  return false;
+}
 
 describe("e2e phone map shell readiness", () => {
   it("floors the wait at the shell's own readiness ceiling", () => {
     const helper = readFileSync(path.join(E2E, HELPER), "utf8");
     expect(helper).toMatch(
-      /export const MOBILE_MAP_SHELL_READY_MS = MAP_CANVAS_READINESS_CEILING_MS;/,
+      /export const MOBILE_MAP_SHELL_READY_MS =\s*MAP_CANVAS_READINESS_CEILING_MS \+ MOBILE_MAP_SHELL_SLACK_MS;/,
     );
     expect(helper).toMatch(/Math\.max\(timeout, MOBILE_MAP_SHELL_READY_MS\)/);
   });
@@ -54,10 +79,28 @@ describe("e2e phone map shell readiness", () => {
     expect(readers).toEqual([]);
   });
 
+  it("recognises every shape of a top-bar wait, and nothing else", () => {
+    const waits = [
+      'await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 30_000 });',
+      'await expect(\n  page.locator(phone ? ".mobileMapTopbar" : ".mapToolbar"),\n).toBeVisible();',
+      'const topbar = page.locator(".mobileMapTopbar");\nawait expect(topbar).toBeVisible();',
+    ];
+    const notWaits = [
+      'await page.locator(".mobileMapTopbar").getByRole("button", { name: /^Filters/ }).click();',
+      'const bar = page.locator(".mobileMapTopbar");\nconst box = await bar.boundingBox();',
+      'await expect(page.locator(".mobileMapTopbarLimited")).toBeVisible();',
+      'await expect(page.locator(".mapToolbar")).toBeVisible();',
+      'const topbar = page.locator(".mobileMapTopbar");\nawait topbar.click();\n' +
+        'const topbar = page.locator(".mobileMapTopbarLimited");\nawait expect(topbar).toBeVisible();',
+    ];
+    for (const sample of waits) expect(waitsOnTopbar(sample), sample).toBe(true);
+    for (const sample of notWaits) expect(waitsOnTopbar(sample), sample).toBe(false);
+  });
+
   it("waits for the phone top bar only through expectMobileMapShellReady", () => {
     const offenders = e2eSources()
       .filter(({ file }) => file !== HELPER && !DIRECT_WAIT_ALLOWED.has(file))
-      .filter(({ text }) => DIRECT_TOPBAR_WAIT.test(text))
+      .filter(({ text }) => waitsOnTopbar(text))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
   });
@@ -67,7 +110,7 @@ describe("e2e phone map shell readiness", () => {
     for (const file of DIRECT_WAIT_ALLOWED) {
       expect(sources.has(file), `${file} no longer exists`).toBe(true);
       expect(
-        DIRECT_TOPBAR_WAIT.test(sources.get(file) ?? ""),
+        waitsOnTopbar(sources.get(file) ?? ""),
         `${file} no longer waits on the top bar directly; drop it from the allowlist`,
       ).toBe(true);
     }
