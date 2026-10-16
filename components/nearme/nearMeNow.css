@@ -314,7 +314,11 @@
    The prose and the footer actions take the same lane (UX sprint, 15 Oct 2026,
    390x844): the location line, the scope line and the two footer links also run
    to the gutter, and each came to rest under the control with no way to scroll
-   clear. One lane, read from the control's own published berth. */
+   clear. One lane, read from the control's own published berth.
+   `.nmnPage` wraps both modes, so this list is the whole page's lane: the Work
+   spot answer's ODbL credit (`.ndnSource`) takes it too, because the control
+   was not just covering that line, it was taking the tap on the OpenStreetMap
+   link the credit owes. */
 @media (max-width: 640px) {
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab))
     .nmnPage
@@ -325,7 +329,9 @@
       .nmnHint,
       .nmnSub,
       .nmnWiden,
-      .nmnFoot
+      .nmnPatchTier,
+      .nmnFoot,
+      .ndnSource
     ) {
     padding-right: max(
       var(--space-2),

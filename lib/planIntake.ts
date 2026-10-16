@@ -345,29 +345,36 @@ function nextLondonQuarter(now: Date): LondonDateTimeParts {
   return londonWallParts(wall);
 }
 
-function londonMinutesOfDay(now: Date): number {
+/**
+ * Late in the night out, which is not the same as late in the calendar day: a
+ * night runs to `LONDON_NIGHT_ENDS_HOUR`, so 01:00 is the back end of the
+ * night before and not the start of a new one. The default start and the
+ * one-tap Tonight choice read this one window, so they always agree about
+ * which night the reader is standing in.
+ */
+function inLondonLateWindow(now: Date): boolean {
   const london = londonParts(now);
-  return london.hour * 60 + london.minute;
+  return london.hour * 60 + london.minute >= LATE_DEFAULT_START_CUTOFF_MINUTES
+    || london.hour < LONDON_NIGHT_ENDS_HOUR;
 }
 
 /**
  * The composer's default First pint, as a London datetime-local value: at
  * least a quarter of an hour out, on a quarter, and 18:00 when that lands
- * before 17:00. From 22:30 London it is tomorrow at 19:00, because a first
- * pint near midnight is not a night out. It is built from London wall time,
- * not the device clock, because the lock check (`resolveFutureLondonStartIso`)
- * reads the field as London time.
+ * before 17:00. Inside the late window it is 19:00 on the evening that follows
+ * the night running now, because a first pint near midnight is not a night
+ * out - and at 01:00 that evening is the same calendar day, not the next one.
+ * It is built from London wall time, not the device clock, because the lock
+ * check (`resolveFutureLondonStartIso`) reads the field as London time.
  *
  * Stepping over tonight is never silent: `tonightLondonStartInput` is the
  * one-tap way back into the night the reader is standing in, and the composer
  * shows it beside the field with its date (captain, 16 Oct 2026).
  */
 export function defaultLondonStartInput(now = new Date()): string {
-  if (londonMinutesOfDay(now) >= LATE_DEFAULT_START_CUTOFF_MINUTES) {
-    const london = londonParts(now);
-    const wall = new Date(Date.UTC(london.year, london.month - 1, london.day));
-    wall.setUTCDate(wall.getUTCDate() + 1);
-    return londonInput({ ...londonWallParts(wall), hour: 19, minute: 0 });
+  if (inLondonLateWindow(now)) {
+    const nextNight = new Date(londonNightOf(londonParts(now)) + DAY_MS);
+    return londonInput({ ...londonWallParts(nextNight), hour: 19, minute: 0 });
   }
   const quarter = nextLondonQuarter(now);
   return londonInput(quarter.hour < 17 ? { ...quarter, hour: 18, minute: 0 } : quarter);
@@ -375,14 +382,13 @@ export function defaultLondonStartInput(now = new Date()): string {
 
 /**
  * Tonight's next sensible slot, for the reader the late default stepped over:
- * the same quarter-hour rounding the default uses before the cutoff. Null
- * before the cutoff, where the default already IS tonight and there is nothing
+ * the same quarter-hour rounding the default uses outside the late window.
+ * Null outside it, where the default already IS tonight and there is nothing
  * to offer. An early-hours slot still belongs to the night running now
  * (`londonNightsAhead`), which is why the choice carries its date.
  */
 export function tonightLondonStartInput(now = new Date()): string | null {
-  if (londonMinutesOfDay(now) < LATE_DEFAULT_START_CUTOFF_MINUTES) return null;
-  return londonInput(nextLondonQuarter(now));
+  return inLondonLateWindow(now) ? londonInput(nextLondonQuarter(now)) : null;
 }
 
 /** Next future occurrence of a preset's London wall time, including DST rollover. */

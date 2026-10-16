@@ -143,8 +143,15 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   // not a cuisine filter (lateFood drops this non-specific tag).
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
-  // A whole word: "YouTube" is not a way home.
-  const transportConstraints = /\btube\b/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
+  // Each word the reader names, not the first one that matches. A tube way
+  // home used to win a ternary and take the walk rule out of the record with
+  // it, so "walk between stops, then home by tube" routed while the same
+  // sentence without the tube failed closed. A whole word on the tube arm:
+  // "YouTube" is not a way home.
+  const transportConstraints = [
+    ...(/\btube\b/.test(lower) ? ["tube"] : []),
+    ...(/walk/.test(lower) ? ["walking"] : []),
+  ];
   const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
   const wetherspoonsPreferred = spoonsMentioned;

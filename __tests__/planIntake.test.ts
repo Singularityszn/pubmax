@@ -338,6 +338,45 @@ describe("the composer's default First pint", () => {
     expect(resolveFutureLondonStartIso(tonight!, null, cutoff)).toBe("2026-10-15T21:45:00.000Z");
   });
 
+  // The night runs to 05:00 (`londonNightsAhead`), so the late window does too:
+  // at 01:00 the default used to drop to 18:00 that evening while the composer
+  // read the field as a LATER night, and the one-tap way back was absent for
+  // the whole window.
+  it("holds the late window from 22:30 right through the early hours", () => {
+    process.env.TZ = "America/Los_Angeles";
+    const cases = [
+      // 22:00 UTC is 23:00 BST on the 15th.
+      { now: "2026-10-15T22:00:00.000Z", tonight: "2026-10-15T23:15" },
+      // 23:30 UTC is 00:30 BST on the 16th: still the 15th's night out.
+      { now: "2026-10-15T23:30:00.000Z", tonight: "2026-10-16T00:45" },
+      // 03:30 UTC is 04:30 BST on the 16th: the last of it.
+      { now: "2026-10-16T03:30:00.000Z", tonight: "2026-10-16T04:45" },
+    ];
+    for (const { now, tonight } of cases) {
+      const at = new Date(now);
+      // The default is the evening AFTER the night running now, which at 00:30
+      // and 04:30 is the same calendar day rather than the next one.
+      expect(defaultLondonStartInput(at), now).toBe("2026-10-16T19:00");
+      expect(londonNightsAhead(defaultLondonStartInput(at), at), now)
+        .toMatchObject({ nights: 1 });
+      // And the one-tap way back is on the night the reader is standing in.
+      expect(tonightLondonStartInput(at), now).toBe(tonight);
+      expect(londonNightsAhead(tonight, at), now).toMatchObject({ nights: 0, past: false });
+      expect(resolveFutureLondonStartIso(tonight, null, at), now).not.toBeNull();
+    }
+  });
+
+  it("closes the late window once the night has ended", () => {
+    process.env.TZ = "America/Los_Angeles";
+    // 04:00 UTC is 05:00 BST: the night is over, the default is this evening
+    // and there is nothing to step back to.
+    const morning = new Date("2026-10-16T04:00:00.000Z");
+    expect(tonightLondonStartInput(morning)).toBeNull();
+    expect(defaultLondonStartInput(morning)).toBe("2026-10-16T18:00");
+    expect(londonNightsAhead(defaultLondonStartInput(morning), morning))
+      .toMatchObject({ nights: 0 });
+  });
+
   it("keeps an early-hours slot on the night that is running, and locks it", () => {
     process.env.TZ = "America/Los_Angeles";
     // 22:50 UTC is 23:50 BST: the next quarter is past midnight by the clock

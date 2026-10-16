@@ -1709,6 +1709,8 @@ for (const viewport of VIEWPORTS) {
 // landing lost the ends of its FAQ answers and its saving line, Tonight lost
 // the end of "The map still knows where the cheap pints ar...", and /near ran
 // its location line, its scope line and its two footer links under the control.
+// Its patch-coverage note and the Work spot answer's ODbL credit sit in the
+// same lane, and the credit carries a link, so the control took the tap too.
 //
 // The measurement is the TEXT, not the box: these elements are full-width, so
 // a box-level overlap is true even when the lane is reserved. Each line is
@@ -1771,8 +1773,46 @@ for (const viewport of VIEWPORTS) {
       ".nmnPriceCollected",
       ".nmnSub",
       ".nmnWiden",
+      ".nmnPatchTier",
       ".nmnFoot",
     ]);
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the Work spot credit keeps its link out of the create action`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    });
+
+    const response = await page.goto("/near?mode=desk&patch=soho");
+    expect(response?.status()).toBe(200);
+    const credit = page.locator(".ndnSource");
+    await expect(credit).toBeVisible({ timeout: 30_000 });
+    await expectTextClearOfCreateAction(page, [".ndnSource", ".nmnFoot"]);
+
+    // The credit owes a tap, not just the words: with the line parked in the
+    // control's band, the link still receives its own press.
+    const link = credit.getByRole("link", { name: "OpenStreetMap contributors" });
+    await expect(link).toBeVisible();
+    const owner = await link.evaluate((node) => {
+      node.scrollIntoView({ block: "end", behavior: "instant" });
+      const box = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        (box.left + box.right) / 2,
+        (box.top + box.bottom) / 2,
+      );
+      if (!hit) return "nothing";
+      if (hit.closest(".ndnSource")) return "credit";
+      if (hit.closest(".createFabRoot")) return "create action";
+      return hit.className || hit.tagName;
+    });
+    expect(owner, "the licence link receives its own tap").toBe("credit");
   });
 }
 

@@ -248,10 +248,10 @@ describe("the First pint beside a night the default stepped over", () => {
   });
 
   // The page runs no timer, so a button offered before midnight is still on
-  // screen after it. The slot it was offered then is a moment that has gone,
-  // and the lock refuses a start in the past: the tap must write a start that
-  // is still ahead of now, whatever the clock has done since.
-  it("never writes a start in the past, even tapped after the night it offered", async () => {
+  // screen after it. The slot it was offered then is a moment that has gone:
+  // the tap must write the night the control NAMES, read fresh, rather than a
+  // start in the past or a different night seventeen hours out.
+  it("writes tonight's own slot when tapped after the night it offered", async () => {
     // 22:50 UTC is 23:50 BST: the slot rolls past midnight.
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-15T22:50:00.000Z"));
@@ -266,9 +266,12 @@ describe("the First pint beside a night the default stepped over", () => {
     await act(async () => { tonight.click(); });
     await settle();
 
-    expect(startField().value).not.toBe("2026-10-16T00:15");
+    // 00:40 is still the 15th's night out, so the fresh slot is the next
+    // quarter a clear fifteen minutes out - not the offered 00:15, and not the
+    // next evening.
+    expect(startField().value).toBe("2026-10-16T01:00");
     expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
-      .not.toBeNull();
+      .toBe("2026-10-16T00:00:00.000Z");
     // Nothing the reader had settled is re-opened by the tap.
     expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
   });

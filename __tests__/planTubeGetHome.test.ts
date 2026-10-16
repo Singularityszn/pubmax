@@ -95,6 +95,18 @@ describe("reading a way home out of a plan request", () => {
     expect(inferNightContext("pints in Soho, back on the Tube", NOW).context.transportConstraints).toEqual(["tube"]);
   });
 
+  // A tube way home must never take a stated walk rule out of the record: the
+  // ternary used to let "tube" win, so naming the tube UNLOCKED a route for a
+  // request that still carried a walk rule the optimizer has no evidence for.
+  it("keeps a walk rule beside a tube way home", () => {
+    const { context } = inferNightContext(
+      "cheap pints in Soho for 4, we want to walk between them and get the tube home",
+      NOW,
+    );
+    expect(context.transportConstraints).toEqual(["tube", "walking"]);
+    expect(routeTransportConstraints(context.transportConstraints)).toEqual(["walking"]);
+  });
+
   it("splits a way home from the route rules", () => {
     expect(routeTransportConstraints(["tube", "walking"])).toEqual(["walking"]);
     expect(routeTransportConstraints(["tube"])).toEqual([]);
@@ -117,6 +129,20 @@ describe("a tube way home never removes a pub from the route", () => {
 
   it("keeps every other transport word a route rule that fails closed", () => {
     expect(selectGroundedPlanRoute(candidates, constraints(["tube", "walking"])).ok).toBe(false);
+  });
+
+  it("still fails the route closed on the walk rule the same sentence states", async () => {
+    const { context } = inferNightContext(
+      "cheap pints in Soho for 4, we want to walk between them and get the tube home",
+      NOW,
+    );
+    const result = await selectPlanGenerationCandidates(
+      [0, 1, 2, 3].map((ordinal) => scoredCandidate(`soho-${ordinal}`, ordinal)),
+      context as NightContext,
+      null,
+      NOW.getTime(),
+    );
+    expect(result.ok).toBe(false);
   });
 
   it("returns a route for the exact sprint request", async () => {
