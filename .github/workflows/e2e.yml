@@ -12,18 +12,19 @@ permissions:
   contents: read
 
 concurrency:
-  # A newer pull request head supersedes older runs of this workflow.
-  # Main, nightly and dispatch runs finish.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
   law-pins:
     name: Browser law pins
-    # Law pins were proved on macOS font metrics. Ubuntu wraps the landing
-    # hero one line further, so this job stays on macos-latest.
-    runs-on: macos-latest
+    # ubuntu-latest: the free plan runs about 20 Linux jobs at once but only
+    # 5 macOS jobs, and the macOS queue held every pull request's browser run.
+    runs-on: ubuntu-latest
     timeout-minutes: 46
     # Each hosted runner is its own machine, so browser jobs are not queued
     # behind one another. One worker stays: four killed the single production
@@ -100,7 +101,7 @@ jobs:
     # that measure them run on every pull request. They are cut into three
     # shards on separate runners, one worker each, so the law pins above keep
     # their own clock.
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -214,11 +215,11 @@ jobs:
   full-suite:
     name: Full browser suite (${{ matrix.shard }}/4)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 45
-    # A hosted macOS runner gives Playwright one worker. Two shards of about
-    # 645 tests each did not finish inside the 45-minute ceiling (4 Oct 2026
-    # nightly and dispatch), so the suite is cut into four instead.
+    # Two shards of about 645 tests each did not finish inside the 45-minute
+    # ceiling on one macOS worker (4 Oct 2026 nightly and dispatch), so the
+    # suite is cut into four.
     strategy:
       fail-fast: false
       matrix:

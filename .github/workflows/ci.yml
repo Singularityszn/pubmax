@@ -1,8 +1,8 @@
 name: CI
 
 # GitHub-hosted ubuntu-latest. The repository is public, so CI does not run
-# on a personal Mac. Playwright jobs live in e2e.yml and performance.yml
-# and use macos-latest. Effective RLS stays in
+# on a personal Mac. Playwright jobs live in e2e.yml (ubuntu-latest),
+# performance.yml and prod-smoke.yml (macos-latest). Effective RLS stays in
 # rls-session.yml so this workflow stays lean. Job timeout-minutes are the
 # ceilings already measured for these jobs; see docs/CI_RUNBOOK.md.
 
@@ -16,9 +16,10 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per workflow, event and ref. A newer pull request head
-  # supersedes older runs of this workflow. Main and dispatch runs finish.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 

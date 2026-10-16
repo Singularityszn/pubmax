@@ -6,20 +6,23 @@ check layer.
 
 ## GitHub-hosted runners
 
-Every job that runs Playwright uses `macos-latest`. Every other job uses
-`ubuntu-latest`. The repository is public, so both are GitHub's free hosted
-runners. Ubuntu font metrics wrap the landing hero differently from the
-macOS metrics the law pins were proved on, so the browser jobs stay on
-macOS. PostgreSQL, Semgrep and the rest stay on Linux. The performance
+Every job uses `ubuntu-latest`, including the browser jobs in `e2e.yml`.
+Three Playwright jobs stay on `macos-latest`: the two `performance.yml` jobs,
+because their route budgets were measured on macOS, and `prod-smoke.yml`,
+which runs once per production deploy. The repository is public, so both are
+GitHub's free hosted runners. The free plan runs about 20 Linux jobs at once
+but only 5 macOS jobs, and on 16 Oct 2026 the macOS queue held every pull
+request's browser run. Each macOS job needs a reason in `MACOS_JOBS` in
+`__tests__/ciRunnerIsolation.test.ts`. The performance
 sweep once failed to measure itself on a private repository's 2 vCPU
 runner; that is why it is not on the pull-request path. It is not a reason
 to run a public repository's CI on a personal machine.
 
 ```yaml
-# a job that runs Playwright
-runs-on: macos-latest
-# every other job
+# every job, including e2e.yml
 runs-on: ubuntu-latest
+# performance.yml and prod-smoke.yml only
+runs-on: macos-latest
 ```
 
 `__tests__/ciRunnerIsolation.test.ts` holds those labels, and it holds the
@@ -95,9 +98,9 @@ repository secret.
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
-Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. The layout pins run on every pull request as three shards, because they alone hold the layout that source-text unit tests once pinned. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker.
+Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. The layout pins run on every pull request as three shards, because they alone hold the layout that source-text unit tests once pinned. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set. Playwright then uses half the cores: two on a 4 vCPU `ubuntu-latest` runner.
 
-Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. Main pushes, the nightly browser suite and manual dispatches never cancel. There is no repo-wide group and no shared browser queue.
+Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. Main pushes, the nightly browser suite and manual dispatches never cancel: each one gets a group of its own (`run-<run_id>`). GitHub keeps only one waiting run per group, so the old per-ref group dropped waiting main pushes. There is no repo-wide group and no shared browser queue.
 
 `ci.yml` starts lint and the two unit shards at once. `production-build` runs
 after lint. The unit shards wait on nothing, because they build their own slim
