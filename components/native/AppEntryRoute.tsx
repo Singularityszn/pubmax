@@ -11,7 +11,7 @@
 // Owner amendment (2026-07-21, amends #439): the decision fires only on the
 // session's FIRST arrival at "/". We stamp the per-session flag
 // (markSessionEntryConsumed) right after deciding, so a later in-app arrival at
-// "/" (e.g. tapping the PUBMAXXING wordmark) reads the flag and stays on the
+// "/" (e.g. tapping the PUBMAXX wordmark) reads the flag and stays on the
 // landing page instead of bouncing back to /tonight. This component remounts on
 // every client navigation to "/", so the second arrival re-runs decideEntry
 // with sessionEntryConsumed already true and resolves to a "stay".

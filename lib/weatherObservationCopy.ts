@@ -63,7 +63,7 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
     (part): part is string => typeof part === "string" && part.length > 0,
   );
   const body = core.join(", ");
-  return `${input.stale ? "Last read of the sky: " : ""}${body}.`;
+  return `${input.stale ? "Last reading: " : ""}${body}.`;
 }
 
 // Human "x ago" from an observation timestamp. Floor-based so the label only

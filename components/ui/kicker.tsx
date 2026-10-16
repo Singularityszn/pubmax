@@ -8,7 +8,9 @@ import "./kicker.css";
  * PUBMAXX keeps its kickers: they name the surface or the city before the
  * heading makes its claim ("Tonight in London", then "What's on."). One
  * primitive means one size, one weight and one colour for all of them, where
- * today twenty files each restate an eyebrow of their own.
+ * today twenty files each restate an eyebrow of their own. That colour is the
+ * muted ink and never coral: a kicker is a label, and coral is spent on the
+ * screen's one primary action (docs/DESIGN_SYSTEM.md "Coral is spent twice").
  *
  * Sentence case, never uppercase: docs/DESIGN_SYSTEM.md "Caps policy" reserves
  * capitals for stamps, and a kicker is prose. A brand word such as PUBMAXX
@@ -18,23 +20,18 @@ import "./kicker.css";
  * No "//" prefix, no dot, no rule beside it. The decoration read as a code
  * comment and is on the template-pattern ban list (docs/VOICE.md).
  */
-export type KickerTone = "accent" | "muted";
-
 export default function Kicker({
   children,
-  tone = "accent",
   as: Tag = "p",
   id,
   className,
 }: {
   children: ReactNode;
-  /** Accent (coral) by default; muted for a dense list where coral would shout. */
-  tone?: KickerTone;
   as?: "p" | "span" | "div";
   id?: string;
   className?: string;
 }) {
-  const classes = ["kicker", tone === "muted" ? "kickerMuted" : null, className]
+  const classes = ["kicker", className]
     .filter(Boolean)
     .join(" ");
   return (

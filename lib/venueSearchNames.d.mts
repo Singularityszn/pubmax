@@ -1,1 +1,1 @@
-export function venueSearchNames(venue: { id: string; name: string }): string[];
+export function venueSearchNames(venue: { id: string; name: string; sourceName?: string }): string[];

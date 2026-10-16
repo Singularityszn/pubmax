@@ -175,10 +175,15 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // Exercise the normal theme path in both directions. Page errors are
   // recorded above, so the historical MapLibre `sources` exception fails this
   // test even when the canvas remains superficially usable.
+  // The theme left the header for the desktop More menu (Oct 2026 UX audit).
   for (let index = 0; index < 2; index += 1) {
-    const themeToggle = page.locator(".themeToggle:visible").first();
-    await expect(themeToggle).toBeVisible();
-    await themeToggle.click();
+    await page
+      .getByRole("navigation", { name: "Site navigation" })
+      .getByRole("button", { name: "More pages" })
+      .click();
+    const themeItem = page.getByRole("menuitem", { name: /^(Dark|Light) theme/ });
+    await expect(themeItem).toBeVisible();
+    await themeItem.click();
     await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
     await page.waitForTimeout(2_000);
   }

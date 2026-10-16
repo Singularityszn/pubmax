@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Publish the pubs people are talking about.
+// Publish the pubs Londoners keep recommending.
 //
 //   node scripts/hyped-pubs-ingest.mjs [--in <file>] [--out <file>] [--check]
 //

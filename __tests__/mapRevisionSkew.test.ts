@@ -201,6 +201,33 @@ describe("a map whose packs disagree with the baked revision", () => {
     ]);
   });
 
+  it("reports a manifest read that fails online with no stored copy", async () => {
+    // A worker from before this fix answers a skewed manifest with a network
+    // error, so the page never sees the served revision. It still says so.
+    const { createSlimShardLoader, drain } = await productionLoader();
+    offline();
+
+    // With no manifest the loader falls back to the whole index, which has no
+    // stored copy either, so the read still fails as it always did.
+    await expect(createSlimShardLoader("london").initialResult(OPENING)).rejects.toThrow(
+      "Failed to fetch",
+    );
+    expect(drain()).toEqual([
+      `map manifest revision skew: expected ${BAKED}, served none, unread`,
+    ]);
+  });
+
+  it("stays quiet about a failed manifest read while the phone is offline", async () => {
+    const { createSlimShardLoader, drain } = await productionLoader();
+    offline();
+    vi.stubGlobal("navigator", { onLine: false });
+
+    await expect(createSlimShardLoader("london").initialResult(OPENING)).rejects.toThrow(
+      "Failed to fetch",
+    );
+    expect(drain()).toEqual([]);
+  });
+
   it("re-reads the core under the adopted revision after a baked-revision guess painted", async () => {
     // Old HTML whose baked core still answers from a copy cached under its own
     // `?v=` key, while the server holds the next deploy's whole pack.

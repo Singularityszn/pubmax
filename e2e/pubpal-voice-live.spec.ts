@@ -333,7 +333,7 @@ test.describe("Pub Pal live voice", () => {
   test("a person types to the Pal in the browser and gets a reply", async ({ page }) => {
     await prepareReturningVisitor(page);
     await page.goto(`${baseUrl}/pal/chat`);
-    await page.getByRole("textbox", { name: /Describe the outing/i }).fill(
+    await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill(
       "Cheapest pint in Camden tonight",
     );
     await page.getByRole("button", { name: "Ask" }).click();

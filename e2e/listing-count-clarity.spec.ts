@@ -170,7 +170,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
   }
 });
 
-test("Out distinguishes listings shown from their accepted venue links", async ({ page }) => {
+test("Tonight's later listings distinguish listings shown from their accepted venue links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/out?**", (route) => route.fulfill({
     json: {
@@ -179,15 +179,18 @@ test("Out distinguishes listings shown from their accepted venue links", async (
       observedAt: {}, providers: [],
     },
   }));
-  await page.goto("/out");
-  await expect(page.getByTestId("out-listing-count")).toHaveText(
+  // /out folded into /tonight: the listings live behind its Tomorrow switch.
+  await page.goto("/tonight");
+  const later = page.getByTestId("tonight-later");
+  await later.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await expect(later.getByTestId("out-listing-count")).toHaveText(
     "2 listings shown. 1 linked to a venue on our map.",
   );
-  await expect(page.getByTestId("out-listing-row")).toHaveCount(2);
-  await expect(page.getByRole("link", { name: "Open on map", exact: true })).toHaveCount(1);
+  await expect(later.getByTestId("out-listing-row")).toHaveCount(2);
+  await expect(later.getByRole("link", { name: "Open on map", exact: true })).toHaveCount(1);
 });
 
-test("Out makes no match-count claim when venue matching is unavailable", async ({ page }) => {
+test("Tonight's later listings make no match-count claim when venue matching is unavailable", async ({ page }) => {
   await page.route("**/api/out?**", (route) => route.fulfill({
     json: {
       status: "degraded", listingsStatus: "ready", events: [listing(1)],
@@ -195,8 +198,10 @@ test("Out makes no match-count claim when venue matching is unavailable", async 
       observedAt: {}, providers: [],
     },
   }));
-  await page.goto("/out");
-  await expect(page.getByTestId("out-listing-count")).toHaveText("1 listing shown.");
-  await expect(page.getByTestId("out-venue-match-notice")).toBeVisible();
-  await expect(page.getByTestId("out-listing-row")).toHaveCount(1);
+  await page.goto("/tonight");
+  const later = page.getByTestId("tonight-later");
+  await later.getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await expect(later.getByTestId("out-listing-count")).toHaveText("1 listing shown.");
+  await expect(later.getByTestId("out-venue-match-notice")).toBeVisible();
+  await expect(later.getByTestId("out-listing-row")).toHaveCount(1);
 });

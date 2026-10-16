@@ -38,8 +38,10 @@ import {
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const REPO_ROOT = join(__dirname, "..");
-const outClient = readFileSync(join(REPO_ROOT, "app/out/OutClient.tsx"), "utf8");
-const outCss = readFileSync(join(REPO_ROOT, "app/out/out.css"), "utf8");
+// /out folded into /tonight on 16 Oct 2026. Its listing surface lives on as
+// Tonight's Tomorrow and Weekend section, and the law below rides with it.
+const outClient = readFileSync(join(REPO_ROOT, "app/tonight/TonightLaterListings.tsx"), "utf8");
+const outCss = readFileSync(join(REPO_ROOT, "app/tonight/tonightLater.css"), "utf8");
 
 const matchedRow: WhatsOnRow = {
   id: "mark-render",
@@ -78,10 +80,7 @@ describe("the listings come before the lines about them", () => {
   });
 
   it("keeps the footnotes inside the listings section they are about", () => {
-    const section = outClient.slice(
-      outClient.indexOf('className="outListings"'),
-      outClient.indexOf("<EditorialRail />"),
-    );
+    const section = outClient.slice(outClient.indexOf('className="outListings"'));
     expect(section).toContain('data-testid="out-venue-match-notice"');
     expect(section).toContain('data-testid="out-listing-credit"');
   });

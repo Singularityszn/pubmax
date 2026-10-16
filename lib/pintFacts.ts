@@ -154,7 +154,7 @@ export function factBlockSentences(
     );
   }
   sentences.push(
-    `Prices last collected ${opts.observedDate} for PUBMAXXING's tracked pint dataset, refreshed by community Pint Drops. Never a live feed.`,
+    `Prices last collected ${opts.observedDate} for PUBMAXX's tracked pint dataset, refreshed by community Pint Drops. Never a live feed.`,
   );
   return sentences;
 }
@@ -197,8 +197,8 @@ export function faqItems(
 
   if (stats.pubCount > 0) {
     items.push({
-      question: `How many pubs does ${name} have on PUBMAXXING?`,
-      answer: `PUBMAXXING tracks a cheapest pint at ${stats.pubCount} ${plural(
+      question: `How many pubs does ${name} have on PUBMAXX?`,
+      answer: `PUBMAXX tracks a cheapest pint at ${stats.pubCount} ${plural(
         stats.pubCount,
         "pub",
       )} in ${name}${

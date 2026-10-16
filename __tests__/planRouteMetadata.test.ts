@@ -66,12 +66,12 @@ describe("/plan, the blank composer", () => {
   it("says what the planner is, and never borrows the homepage card", async () => {
     const { metadata } = await import("@/app/plan/page");
     expect(metadata.openGraph?.url).toBe("/plan");
-    expect(String(metadata.openGraph?.title)).toContain("Sort the outing");
+    expect(String(metadata.openGraph?.title)).toContain("Plan a pub crawl");
     expect(String(metadata.openGraph?.title)).not.toContain("listed pint prices");
     expect(String(metadata.openGraph?.description)).toContain(
       "send one link to the crew",
     );
-    expect(String(metadata.twitter?.title)).toContain("Sort the outing");
+    expect(String(metadata.twitter?.title)).toContain("Plan a pub crawl");
     // A route that declares its own openGraph inherits no image from the root
     // layout, so a shared planner link would unfurl bare without this.
     expect(JSON.stringify(metadata.openGraph?.images)).toContain("/og.png");

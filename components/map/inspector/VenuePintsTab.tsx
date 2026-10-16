@@ -60,7 +60,7 @@ export default function VenuePintsTab({
         <section className="pintDrops">
           <div className="inspectorTitle">
             <Quote size={16} />
-            <span>Pint Drops</span>
+            <span>Recent prices</span>
           </div>
           {hasDemoDrops ? (
             <div className="demoDataNote">

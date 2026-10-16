@@ -13,6 +13,8 @@ error or a run with no valid facts fails loudly and does not replace the file.
 Set `KEENABLE_API_KEY` for the keyed API. Without it, the job uses Keenable's
 public endpoint. Run `node scripts/build_area_news_matches.mjs` after the
 refresh only when venue-match badges need rebuilding.
+The step-by-step refresh and review is
+[`AREA_NEWS_REFRESH_RUNBOOK.md`](./AREA_NEWS_REFRESH_RUNBOOK.md).
 
 ### Area-news investigation handoff
 

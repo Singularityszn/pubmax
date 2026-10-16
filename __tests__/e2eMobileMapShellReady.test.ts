@@ -118,7 +118,7 @@ describe("e2e phone map shell readiness", () => {
   it("floors the wait at the shell's own readiness ceiling", () => {
     const helper = readFileSync(path.join(E2E, HELPER), "utf8");
     expect(helper).toMatch(
-      /export const MOBILE_MAP_SHELL_READY_MS =\s*MAP_CANVAS_READINESS_CEILING_MS \+ MOBILE_MAP_SHELL_SLACK_MS;/,
+      /const MOBILE_MAP_SHELL_READY_MS =\s*MAP_CANVAS_READINESS_CEILING_MS \+ MOBILE_MAP_SHELL_SLACK_MS;/,
     );
     expect(helper).toMatch(/Math\.max\(timeout, MOBILE_MAP_SHELL_READY_MS\)/);
   });

@@ -30,8 +30,38 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Two commits: the merge and its base, for the change scope below.
+          fetch-depth: 2
+
+      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
+      # request is checked out as its merge commit, whose first parent is the
+      # base, so one diff names every file the merge would change. Only every
+      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
+      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
+      # and every event other than a pull request is "code" and runs in full.
+      # The job always runs and reports, so a required check never waits on a
+      # job that was skipped. Every copy of this step is identical
+      # (__tests__/ciChangeScope.test.ts).
+      - name: Classify the change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=code
+          if [ "$EVENT_NAME" = pull_request ]; then
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
+              NF == 0 { next }
+              /^docs\// || /\.md$/ { docs++; next }
+              /^data\/.*\.json$/ || /^public\/data\// { data++; next }
+              { code++ }
+              END { if (code || !(docs + data)) print "code"; else if (data) print "data"; else print "docs" }')"
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Change scope: $scope"
 
       - name: Setup Node
+        if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -39,6 +69,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        if: steps.scope.outputs.scope == 'code'
         run: |
           npm ci
           npm run deps:install-scripts
@@ -47,6 +78,7 @@ jobs:
       # PostgreSQL 16 binaries, not a service container. PostgREST 14 is the
       # HTTP boundary. Both land on PATH for the test step.
       - name: Install PostgreSQL 16 and PostgREST 14
+        if: steps.scope.outputs.scope == 'code'
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -68,6 +100,7 @@ jobs:
           "$RUNNER_TEMP/postgrest" --version
 
       - name: Run effective RLS session tests
+        if: steps.scope.outputs.scope == 'code'
         run: npm run test:rls
         env:
           # Fail the job if any test is unexpectedly skipped (binaries present).

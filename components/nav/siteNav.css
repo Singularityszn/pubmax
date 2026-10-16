@@ -434,7 +434,7 @@ button.siteNavMoreItem {
 }
 
 .siteNavCmdkKbd {
-  font-family: var(--font-data, monospace);
+  font-family: var(--font-body);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;

@@ -50,7 +50,7 @@ describe("cityMapOgTitle / cityMapOgDescription", () => {
   it("uses city display name + tagline when no band", () => {
     expect(cityMapOgTitle("oxford")).toBe("Oxford pub map");
     expect(cityMapOgDescription("oxford")).toContain("College-town");
-    expect(cityMapOgDescription("oxford")).toContain("PUBMAXXING");
+    expect(cityMapOgDescription("oxford")).toContain("PUBMAXX");
   });
 
   it("leads with cult band title/blurb when the band resolves", () => {
@@ -83,7 +83,7 @@ describe("cityMapOgTitle / cityMapOgDescription", () => {
         stopCount: 5,
       }),
     ).toBe(
-      "5-stop crawl: Victorian Soho in London. Open it on PUBMAXXING.",
+      "5-stop crawl: Victorian Soho in London. Open it on PUBMAXX.",
     );
 
     expect(cityMapOgTitle("london", { crawl: "Victorian-Soho" })).toBe(
@@ -133,12 +133,12 @@ describe("cityMapOgImageUrl", () => {
 });
 
 describe("cityMapOgAlt / firstSearchParam / cult ids", () => {
-  it("builds an alt string with PUBMAXXING", () => {
+  it("builds an alt string with PUBMAXX", () => {
     expect(cityMapOgAlt("oxford", { band: "freshers-first-night" })).toBe(
-      "Freshers first night · Oxford · PUBMAXXING",
+      "Freshers first night · Oxford · PUBMAXX",
     );
     expect(cityMapOgAlt("london", { crawl: "victorian-soho" })).toBe(
-      "Victorian Soho · London · PUBMAXXING",
+      "Victorian Soho · London · PUBMAXX",
     );
   });
 
