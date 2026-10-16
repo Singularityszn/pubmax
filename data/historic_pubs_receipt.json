@@ -1,0 +1,122 @@
+{
+  "$comment": "Written by scripts/build_historic_index.mjs on a successful publication only, together with the index and the historic_pubs stamp in data/freshness_registry.json. generatedAt is when the index was generated and published; it dates no heritage fact. Never edit by hand.",
+  "version": 1,
+  "artifact": "public/data/historic_pubs.json",
+  "generatedAt": "2026-10-16T06:25:29Z",
+  "inputs": {
+    "public/data/heritage_cache.json": "d953f51a3cc358ea2d8855e6d496709bfed0f8d11011c4b4b81d516a12753325",
+    "public/data/pint_prices_app_dataset.json": "a33051082249589f151f235b14149a3fc177a58f4000a299b5200f2ee6aa7bdf",
+    "public/data/venue_id_aliases.json": "7d0458900e6bc6684a3e8293ea85c0572d8690181be9abf496618cfc66a23c35"
+  },
+  "output": {
+    "sha256": "ba4ce6c59d2660910b505d49680fc064fa4f5f4df1e11e53aff9f8c6ffc5da0b",
+    "records": 342
+  },
+  "quarantined": [
+    {
+      "cacheKey": "kings arms",
+      "name": "Kings Arms",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Greenwich, and the venue it was joined to is in Ealing",
+      "fact": "pub in Woolwich, Greenwich, London, UK"
+    },
+    {
+      "cacheKey": "red lion",
+      "name": "Red Lion",
+      "reason": "borough-named-in-source-reference",
+      "detail": "the source is the article for the Westminster pub of this name, and the venue it was joined to is in Hillingdon",
+      "fact": "pub in Whitehall, London"
+    },
+    {
+      "cacheKey": "the angel",
+      "name": "The Angel",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Islington, and the venue it was joined to is in Hillingdon",
+      "fact": "historic landmark in Islington, London, England"
+    },
+    {
+      "cacheKey": "the bell",
+      "name": "The Bell",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in City of London, and the venue it was joined to is in Tower Hamlets",
+      "fact": "pub in City of London, England, UK"
+    },
+    {
+      "cacheKey": "the bell",
+      "name": "The Bell",
+      "reason": "no-publishable-facts",
+      "detail": "every cited fact for this pub was withheld",
+      "fact": null
+    },
+    {
+      "cacheKey": "the castle",
+      "name": "The Castle",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Harrow, and the venue it was joined to is in Islington",
+      "fact": "pub in Harrow, London"
+    },
+    {
+      "cacheKey": "the castle",
+      "name": "The Castle",
+      "reason": "no-publishable-facts",
+      "detail": "every cited fact for this pub was withheld",
+      "fact": null
+    },
+    {
+      "cacheKey": "the crown",
+      "name": "The Crown",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Islington, and the venue it was joined to is in Tower Hamlets",
+      "fact": "pub in Islington, London"
+    },
+    {
+      "cacheKey": "the dolphin",
+      "name": "The Dolphin",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Hackney, and the venue it was joined to is in Lewisham",
+      "fact": "pub in the London Borough of Hackney"
+    },
+    {
+      "cacheKey": "the dolphin",
+      "name": "The Dolphin",
+      "reason": "no-publishable-facts",
+      "detail": "every cited fact for this pub was withheld",
+      "fact": null
+    },
+    {
+      "cacheKey": "the grapes",
+      "name": "The Grapes",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Wandsworth, and the venue it was joined to is in Tower Hamlets",
+      "fact": "pub in Wandsworth, London"
+    },
+    {
+      "cacheKey": "the mitre",
+      "name": "The Mitre",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Greenwich, and the venue it was joined to is in Richmond upon Thames",
+      "fact": "pub in Greenwich, London"
+    },
+    {
+      "cacheKey": "the red lion",
+      "name": "The Red Lion",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Barnet, and the venue it was joined to is in Bromley",
+      "fact": "public house in the High Street, Chipping Barnet, London"
+    },
+    {
+      "cacheKey": "the red lion",
+      "name": "The Red Lion",
+      "reason": "no-publishable-facts",
+      "detail": "every cited fact for this pub was withheld",
+      "fact": null
+    },
+    {
+      "cacheKey": "wheatsheaf",
+      "name": "Wheatsheaf",
+      "reason": "borough-stated-in-fact",
+      "detail": "the fact places this pub in Southwark, and the venue it was joined to is in Camden",
+      "fact": "pub in Southwark, London"
+    }
+  ]
+}

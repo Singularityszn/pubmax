@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -209,26 +209,39 @@ describe("slug — deterministic + unique with -2 collision suffix", () => {
 
 describe("generate — deterministic + idempotent over a /tmp fixture", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "historic-idx-"));
-  const cachePath = path.join(dir, "heritage_cache.json");
-  const datasetPath = path.join(dir, "dataset.json");
-  const outA = path.join(dir, "out-a.json");
-  const outB = path.join(dir, "out-b.json");
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it("produces byte-identical output on two runs", async () => {
-    writeFileSync(cachePath, JSON.stringify(FIXTURE_CACHE));
-    writeFileSync(datasetPath, JSON.stringify(FIXTURE_DATASET));
+  // A tree root holding only what generate reads and writes, so the run can
+  // never reach the committed index, receipt or registry.
+  function fixtureRoot(name: string): string {
+    const root = path.join(dir, name);
+    mkdirSync(path.join(root, "public", "data"), { recursive: true });
+    mkdirSync(path.join(root, "data"), { recursive: true });
+    writeFileSync(path.join(root, "public/data/heritage_cache.json"), JSON.stringify(FIXTURE_CACHE));
+    writeFileSync(path.join(root, "public/data/pint_prices_app_dataset.json"), JSON.stringify(FIXTURE_DATASET));
+    const registry = {
+      datasets: [{ id: "historic_pubs", stamp: { kind: "literal", value: "2026-01-01T00:00:00Z" } }],
+    };
+    writeFileSync(path.join(root, "data/freshness_registry.json"), `${JSON.stringify(registry, null, 2)}\n`);
+    return root;
+  }
 
-    const a = await generate({ cachePath, datasetPath, outPath: outA });
-    await generate({ cachePath, datasetPath, outPath: outB });
+  it("produces byte-identical output on two runs", async () => {
+    const rootA = fixtureRoot("a");
+    const rootB = fixtureRoot("b");
+    const outA = path.join(rootA, "public/data/historic_pubs.json");
+    const outB = path.join(rootB, "public/data/historic_pubs.json");
+
+    const a = await generate({ root: rootA });
+    await generate({ root: rootB });
 
     expect(a.total).toBe(Object.keys(FIXTURE_CACHE).length);
     expect(readFileSync(outA, "utf8")).toBe(readFileSync(outB, "utf8"));
 
     // Re-running over the SAME out path is also byte-stable.
     const firstBytes = readFileSync(outA, "utf8");
-    await generate({ cachePath, datasetPath, outPath: outA });
+    await generate({ root: rootA });
     expect(readFileSync(outA, "utf8")).toBe(firstBytes);
 
     // Summary stats reflect the fixture: 2 matched (old bell, new inn),
@@ -332,15 +345,31 @@ describe("venue joins survive a renamed or merged dataset row", () => {
 
 describe("the shipped historic index (generated artifact)", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "historic-shipped-"));
-  const outPath = path.join(dir, "historic_pubs.json");
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  // Regenerates from copies of the committed inputs inside a scratch root, so
+  // the comparison never publishes over the committed index, receipt or stamp.
+  async function regenerateFromCommittedSources(name: string): Promise<string> {
+    const root = path.join(dir, name);
+    mkdirSync(path.join(root, "public", "data"), { recursive: true });
+    mkdirSync(path.join(root, "data"), { recursive: true });
+    for (const file of ["heritage_cache.json", "pint_prices_app_dataset.json", "venue_id_aliases.json"]) {
+      copyFileSync(path.join("public/data", file), path.join(root, "public/data", file));
+    }
+    const registry = {
+      datasets: [{ id: "historic_pubs", stamp: { kind: "literal", value: "2026-01-01T00:00:00Z" } }],
+    };
+    writeFileSync(path.join(root, "data/freshness_registry.json"), `${JSON.stringify(registry, null, 2)}\n`);
+    const summary = await generate({ root });
+    return summary.outPath;
+  }
 
   // public/data/historic_pubs.json is generated output, so the file that ships
   // must be exactly what the generator produces from today's inputs. A stale
   // artifact is what carried three venue links to pubs the dataset had already
   // renamed or dropped.
   it("is exactly what the generator writes from the current sources", async () => {
-    await generate({ outPath });
+    const outPath = await regenerateFromCommittedSources("current");
     expect(readFileSync(outPath, "utf8")).toBe(
       readFileSync("public/data/historic_pubs.json", "utf8"),
     );
@@ -390,8 +419,7 @@ describe("the shipped historic index (generated artifact)", () => {
   });
 
   it("drops no join the shipped index already holds", async () => {
-    const regeneratedPath = path.join(dir, "historic_pubs_rejoin.json");
-    await generate({ outPath: regeneratedPath });
+    const regeneratedPath = await regenerateFromCommittedSources("rejoin");
     const regenerated = JSON.parse(
       readFileSync(regeneratedPath, "utf8"),
     ) as HistoricPub[];

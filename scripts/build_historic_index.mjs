@@ -38,9 +38,23 @@
 // Determinism: output is sorted (era ascending, nulls last, then name) and
 // pretty-printed with a trailing newline, so running twice is byte-identical.
 //
+// Receipt contract: this generator is the only writer of its own clock. A
+// successful run publishes THREE files together: the index, a receipt
+// (data/historic_pubs_receipt.json: the generation time, the hash of each
+// input, the output hash and row count, and the quarantine report) and the
+// historic_pubs literal stamp in data/freshness_registry.json, set to the same
+// generation time. That time dates the published INDEX and never an
+// observation: the cache records no collection date for any fact, so those
+// ages stay unknown. A run that fails, publishes no row, drops a row whose
+// facts the cache still holds, or publishes a fact or citation the cache does
+// not hold changes none of the three. A failure part-way through publication
+// restores all three to their prior bytes.
+//
 // Run once at build/refresh:  node scripts/build_historic_index.mjs
 
-import { readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
+import { mkdtemp, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -53,10 +67,27 @@ import { classifyHeritageDate } from "../lib/heritageDate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const CACHE_PATH = path.join(ROOT, "public", "data", "heritage_cache.json");
-const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
-const ALIAS_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
-const OUT_PATH = path.join(ROOT, "public", "data", "historic_pubs.json");
+// Every path is relative to the tree root, so one root names the whole world a
+// run reads and writes.
+const CACHE_FILE = "public/data/heritage_cache.json";
+const DATASET_FILE = "public/data/pint_prices_app_dataset.json";
+const ALIAS_FILE = "public/data/venue_id_aliases.json";
+const OUT_FILE = "public/data/historic_pubs.json";
+const RECEIPT_FILE = "data/historic_pubs_receipt.json";
+const REGISTRY_FILE = "data/freshness_registry.json";
+const REGISTRY_ID = "historic_pubs";
+
+// What the historic_pubs stamp means, written with the stamp so the wording
+// can never describe a different clock from the one it sits beside.
+export const HISTORIC_STAMP_MEANING =
+  "When scripts/build_historic_index.mjs last generated and published this index. " +
+  "That generator writes it on a successful run only, together with the index and " +
+  "data/historic_pubs_receipt.json, which records the same time, the input hashes, " +
+  "the output hash and row count, and the quarantine report. It dates the published " +
+  "index, never an observation of the heritage facts inside it: the cache records no " +
+  "collection date for any fact, so those ages stay unknown. `pack: true` opens the " +
+  "file in both freshness readers, so a missing, unreadable or empty index is its own " +
+  "audit finding rather than a literal stamp reading as fresh.";
 
 // --- venue id + name matching (mirror of scripts/lib/venueMatch.mjs) ---------
 // Kept as a plain mirror so this generator has no TS import gymnastics; the
@@ -445,16 +476,99 @@ export function buildHistoricIndex(options) {
   return buildHistoricPublication(options).records;
 }
 
+// --- publication review --------------------------------------------------------
+
+// A fact's identity is its text AND its citation, so a rewritten source or
+// sourceRef is a different fact even when the sentence is unchanged.
+function factIdentity(fact) {
+  return JSON.stringify([fact.source ?? null, String(fact.fact).trim(), fact.sourceRef ?? null]);
+}
+
+function cachedFactIdentities(heritageCache) {
+  const identities = new Set();
+  for (const rawFacts of Object.values(heritageCache)) {
+    if (!Array.isArray(rawFacts)) continue;
+    for (const fact of rawFacts) {
+      if (fact && typeof fact.fact === "string" && fact.fact.trim()) {
+        identities.add(factIdentity(normaliseFact(fact)));
+      }
+    }
+  }
+  return identities;
+}
+
+// The cache is the source of truth, so a publication must follow it. Returns
+// one sentence per reason to refuse; an empty list means the rows may publish.
+//   • No rows is never a publication: it would replace the directory with
+//     nothing.
+//   • Every published fact, with its citation, is one the cache holds.
+//   • A previously published row whose facts the cache still holds is either
+//     published again or named in the quarantine report. A row only leaves
+//     when a person removes its facts from the cache or a gate withholds them.
+export function reviewHistoricPublication({ heritageCache, prior, records, quarantined }) {
+  const problems = [];
+  if (records.length === 0) {
+    problems.push("the generation published no rows, so it would replace the index with an empty one");
+  }
+
+  const cached = cachedFactIdentities(heritageCache);
+  for (const record of records) {
+    for (const fact of record.facts ?? []) {
+      if (!cached.has(factIdentity(fact))) {
+        problems.push(`${record.name}: publishes a fact or citation the heritage cache does not hold`);
+        break;
+      }
+    }
+  }
+
+  const published = new Set(records.flatMap((record) => (record.facts ?? []).map(factIdentity)));
+  const withheld = new Set(quarantined.map((item) => item.fact).filter((fact) => typeof fact === "string"));
+  for (const row of prior) {
+    const stillCached = (row?.facts ?? []).filter((fact) => cached.has(factIdentity(fact)));
+    if (stillCached.length === 0) continue;
+    const accounted = stillCached.some(
+      (fact) => published.has(factIdentity(fact)) || withheld.has(String(fact.fact).trim()),
+    );
+    if (!accounted) {
+      problems.push(`${row.name}: a published row whose facts the cache still holds would be lost`);
+    }
+  }
+  return problems;
+}
+
 // --- io ----------------------------------------------------------------------
 
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
+function sha256(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function toJson(value) {
+  // Pretty-printed + trailing newline for a clean, diff-friendly, stable file.
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+async function readBytesOrNull(filePath) {
+  try {
+    return await readFile(filePath);
+  } catch (err) {
+    if (err && err.code === "ENOENT") return null;
+    throw err;
+  }
+}
+
+function parseJson(bytes, label) {
+  try {
+    return JSON.parse(bytes.toString("utf8"));
+  } catch (err) {
+    throw new Error(`${label} could not be parsed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // The alias file is a courtesy input: a run without it still joins by name.
-async function readVenueAliases(aliasPath) {
+function parseVenueAliases(bytes) {
+  if (bytes === null) return {};
   try {
-    const parsed = await readJson(aliasPath);
+    const parsed = JSON.parse(bytes.toString("utf8"));
     const aliases = parsed && typeof parsed === "object" ? parsed.aliases : null;
     return aliases && typeof aliases === "object" ? aliases : {};
   } catch {
@@ -462,22 +576,143 @@ async function readVenueAliases(aliasPath) {
   }
 }
 
-export async function generate({
-  cachePath = CACHE_PATH,
-  datasetPath = DATASET_PATH,
-  aliasPath = ALIAS_PATH,
-  outPath = OUT_PATH,
-} = {}) {
-  const heritageCache = await readJson(cachePath);
-  const dataset = await readJson(datasetPath);
-  const venueAliases = await readVenueAliases(aliasPath);
+// The prior index is what a lost row is measured against. One that is absent
+// or unreadable has no rows to lose, and a run may repair it.
+function parsePriorIndex(bytes) {
+  if (bytes === null) return [];
+  try {
+    const parsed = JSON.parse(bytes.toString("utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// Sets the historic_pubs stamp and nothing else. The registry is hand-kept
+// for every other row, so it is rewritten only when its bytes are exactly the
+// canonical serialisation, which proves every other row survives unchanged.
+function stampRegistry(registryBytes, generatedAt) {
+  const text = registryBytes.toString("utf8");
+  const registry = parseJson(registryBytes, REGISTRY_FILE);
+  if (toJson(registry) !== text) {
+    throw new Error(`${REGISTRY_FILE} is not in canonical two-space JSON, so its other rows cannot be kept byte-for-byte`);
+  }
+  const rows = Array.isArray(registry.datasets)
+    ? registry.datasets.filter((row) => row && row.id === REGISTRY_ID)
+    : [];
+  if (rows.length !== 1) {
+    throw new Error(`${REGISTRY_FILE} must hold exactly one ${REGISTRY_ID} row, found ${rows.length}`);
+  }
+  const row = rows[0];
+  if (!row.stamp || row.stamp.kind !== "literal") {
+    throw new Error(`${REGISTRY_FILE} ${REGISTRY_ID} must carry a literal stamp for this generator to own`);
+  }
+  row.stamp = { kind: "literal", value: generatedAt, consumedBy: HISTORIC_STAMP_MEANING };
+  return toJson(registry);
+}
+
+// Publishes every file or none. Each file is staged and read back first, then
+// moved into place in order; if any step fails, every file already moved gets
+// its prior bytes back (or is removed when it did not exist before).
+async function publishAll(root, files) {
+  const priors = [];
+  for (const file of files) priors.push(await readBytesOrNull(file.target));
+
+  const stage = await mkdtemp(path.join(root, ".historic-publication-"));
+  const moved = [];
+  try {
+    const staged = [];
+    for (const [i, file] of files.entries()) {
+      const stagedPath = path.join(stage, String(i));
+      await writeFile(stagedPath, file.bytes);
+      if (sha256(await readFile(stagedPath)) !== sha256(file.bytes)) {
+        throw new Error(`staged ${path.relative(root, file.target)} does not read back as written`);
+      }
+      staged.push(stagedPath);
+    }
+    for (const [i, file] of files.entries()) {
+      await rename(staged[i], file.target);
+      moved.push(i);
+    }
+    for (const file of files) {
+      if (sha256(await readFile(file.target)) !== sha256(file.bytes)) {
+        throw new Error(`published ${path.relative(root, file.target)} does not match what was generated`);
+      }
+    }
+  } catch (err) {
+    for (const i of moved.reverse()) {
+      if (priors[i] === null) await unlink(files[i].target).catch(() => {});
+      else await writeFile(files[i].target, priors[i]);
+    }
+    throw err;
+  } finally {
+    await rm(stage, { recursive: true, force: true });
+  }
+}
+
+function relativeName(root, filePath) {
+  return path.relative(root, filePath).split(path.sep).join("/");
+}
+
+export async function generate({ root = ROOT, ...unknown } = {}) {
+  // A run publishes the index, receipt and stamp of ONE root. An option this
+  // function does not read (an old per-file path) would otherwise fall
+  // through to the committed tree and publish over it.
+  const unread = Object.keys(unknown);
+  if (unread.length > 0) {
+    throw new Error(`generate() reads only { root }; refusing unknown option(s): ${unread.join(", ")}`);
+  }
+  const at = (file) => path.join(root, file);
+  const cacheBytes = await readFile(at(CACHE_FILE));
+  const datasetBytes = await readFile(at(DATASET_FILE));
+  const aliasBytes = await readBytesOrNull(at(ALIAS_FILE));
+  const registryBytes = await readFile(at(REGISTRY_FILE));
+
+  const heritageCache = parseJson(cacheBytes, CACHE_FILE);
+  if (!heritageCache || typeof heritageCache !== "object" || Array.isArray(heritageCache)) {
+    throw new Error(`${CACHE_FILE} must be an object keyed by venue name`);
+  }
+  const dataset = parseJson(datasetBytes, DATASET_FILE);
+  if (!Array.isArray(dataset)) throw new Error(`${DATASET_FILE} must be a row array`);
+  const venueAliases = parseVenueAliases(aliasBytes);
+  const prior = parsePriorIndex(await readBytesOrNull(at(OUT_FILE)));
+
   const { records, quarantined } = buildHistoricPublication({
     heritageCache,
     dataset,
     venueAliases,
   });
-  // Pretty-printed + trailing newline for a clean, diff-friendly, stable file.
-  await writeFile(outPath, `${JSON.stringify(records, null, 2)}\n`);
+  const problems = reviewHistoricPublication({ heritageCache, prior, records, quarantined });
+  if (problems.length > 0) {
+    throw new Error(`historic index refused, nothing published:\n  ${problems.join("\n  ")}`);
+  }
+
+  const indexBytes = toJson(records);
+  // One clock for the receipt and the stamp, at whole-second precision.
+  const generatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const receipt = {
+    $comment:
+      "Written by scripts/build_historic_index.mjs on a successful publication only, together " +
+      "with the index and the historic_pubs stamp in data/freshness_registry.json. generatedAt " +
+      "is when the index was generated and published; it dates no heritage fact. Never edit by hand.",
+    version: 1,
+    artifact: OUT_FILE,
+    generatedAt,
+    inputs: {
+      [CACHE_FILE]: sha256(cacheBytes),
+      [DATASET_FILE]: sha256(datasetBytes),
+      [ALIAS_FILE]: aliasBytes === null ? null : sha256(aliasBytes),
+    },
+    output: { sha256: sha256(indexBytes), records: records.length },
+    quarantined,
+  };
+  const registryText = stampRegistry(registryBytes, generatedAt);
+
+  await publishAll(root, [
+    { target: at(OUT_FILE), bytes: indexBytes },
+    { target: at(RECEIPT_FILE), bytes: toJson(receipt) },
+    { target: at(REGISTRY_FILE), bytes: registryText },
+  ]);
 
   const matched = records.filter((r) => r.venueId != null).length;
   const withEra = records.filter((r) => r.era != null).length;
@@ -491,7 +726,10 @@ export async function generate({
     withEra,
     withDate,
     withListed,
-    outPath,
+    generatedAt,
+    outPath: at(OUT_FILE),
+    receiptPath: at(RECEIPT_FILE),
+    registryPath: at(REGISTRY_FILE),
   };
 }
 
@@ -510,11 +748,25 @@ async function main() {
       console.log(`  [${item.reason}] ${item.name}: ${item.detail}`);
     }
   }
-  console.log(`wrote: ${path.relative(ROOT, summary.outPath)}`);
+  console.log(`wrote: ${relativeName(ROOT, summary.outPath)}`);
+  console.log(`receipt: ${relativeName(ROOT, summary.receiptPath)} (generated ${summary.generatedAt})`);
+  console.log(`stamped: ${relativeName(ROOT, summary.registryPath)} ${REGISTRY_ID} = ${summary.generatedAt}`);
 }
 
-// Run only when invoked directly (not when imported by the test).
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Run only when invoked directly (not when imported by the test). Both sides
+// are compared as real paths: through a symlinked directory the two spellings
+// differ, and a run that silently skipped main() would exit 0 having written
+// nothing.
+function invokedDirectly() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (invokedDirectly()) {
   main().catch((err) => {
     console.error(err);
     process.exit(1);
