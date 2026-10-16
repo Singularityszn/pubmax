@@ -23,6 +23,7 @@
 // is shown and labelled, never allowed to fill the list.
 
 import type { TonightChainLaneKey } from "@/lib/tonightChainLanes";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 
 export type TonightCheapPint = {
   venueId: string;
@@ -140,6 +141,7 @@ export function tonightCheapPintChain(
  * Cheapest first, then by name so two pubs at one price keep one order on every
  * machine. A pub with no listed figure is not a row: "no price logged here yet"
  * is the honest line elsewhere, and this list is only about the ones we hold.
+ * A bar the public cannot walk into is not a row either (`isPublicRankablePub`).
  * A chain answers with its first branch in that order and no other.
  */
 export function tonightCheapPints(
@@ -153,6 +155,9 @@ export function tonightCheapPints(
     }
     if (venue.cheapestPrice <= 0) continue;
     if (!venue.id || !venue.name) continue;
+    // A students' union or members' bar holds a real price nobody off the
+    // street can pay (lib/venueKindFilters.ts).
+    if (!isPublicRankablePub({ name: venue.name })) continue;
     rows.push({
       venueId: venue.id,
       name: venue.name,

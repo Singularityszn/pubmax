@@ -184,7 +184,7 @@ export async function GET(request: Request) {
                 textTransform: "uppercase",
               }}
             >
-              PUBMAXXING
+              PUBMAXX
             </div>
           </div>
           <div

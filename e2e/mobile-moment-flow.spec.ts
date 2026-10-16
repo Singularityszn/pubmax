@@ -41,10 +41,13 @@ test.describe("mobile Moment journey", () => {
     await expect(page.getByText("Your unfinished Moment is back.")).toBeVisible();
   });
 
-  test("Moment keeps the loop dock, with no Social tab", async ({ page }) => {
+  test("Moment keeps the loop dock, and lights no tab of its own", async ({ page }) => {
     await page.goto("/moment");
     const primary = page.getByRole("navigation", { name: "Primary" });
-    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
+    // Social is a main tab (captain, 16 Oct 2026); Moment is a compose action.
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
+    await expect(primary.locator('a[href^="/moment"]')).toHaveCount(0);
+    await expect(primary.locator('a[aria-current="page"]')).toHaveCount(0);
     await expect(primary.getByRole("link", { name: "Plan", exact: true })).toHaveAttribute("href", "/plan");
   });
 });

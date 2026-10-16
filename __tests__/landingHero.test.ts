@@ -5,12 +5,11 @@ import {
   answerKicker,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
-  LANDING_FALLBACK_RECEIPT_LABEL,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_LABEL,
+  LANDING_RECEIPT_LABEL,
   pintDropDoorHref,
   railHeading,
-  stillPriceLabel,
 } from "@/lib/landingHero";
 import { mapLogIntentPrice } from "@/lib/mapLogIntent";
 import { buildLandingAnchorRail, buildLandingArchiveIndex } from "@/lib/landingPubCard";
@@ -48,9 +47,9 @@ function history(rows: Array<{ venueId: string; priceGbp: number; observedOn: st
 }
 
 describe("landing hero policy", () => {
-  it("names the one filled action after the price on the card", () => {
-    expect(stillPriceLabel(6.5)).toBe("Still £6.50?");
-    expect(stillPriceLabel(2.99)).toBe("Still £2.99?");
+  it("says what the receipt door does, rather than asking a riddle about a price", () => {
+    // UX audit 16 Oct 2026: "Still £6.50?" did not say it opened a composer.
+    expect(LANDING_RECEIPT_LABEL).toBe("Log what you paid");
   });
 
   it("opens the Pint Drop door of that pub: the map, that pub selected, the composer open", () => {
@@ -58,8 +57,8 @@ describe("landing hero policy", () => {
   });
 
   it("carries the figure the tap printed, so the composer opens holding it", () => {
-    // #1462 — "Still £6.50?" landing on an empty field asks the reader to type
-    // back the number it just showed them.
+    // #1462 — a door from a card that printed £6.50 landing on an empty field
+    // asks the reader to type back the number it just showed them.
     expect(pintDropDoorHref("venue-eltcmh", 6.5)).toBe(
       "/map?sel=venue-eltcmh&log=1&price=6.50",
     );
@@ -69,10 +68,10 @@ describe("landing hero policy", () => {
     expect(mapLogIntentPrice(defined(pintDropDoorHref("venue-eltcmh", 6.5).split("?")[1]))).toBe("6.50");
   });
 
-  it("says the same figure in the label and in the door", () => {
+  it("seeds the composer with the figure the card printed", () => {
     for (const priceGbp of [2.99, 4.2, 6.5, 12]) {
       const seeded = mapLogIntentPrice(defined(pintDropDoorHref("venue-x", priceGbp).split("?")[1]));
-      expect(stillPriceLabel(priceGbp)).toBe(`Still £${seeded}?`);
+      expect(seeded).toBe(priceGbp.toFixed(2));
     }
   });
 
@@ -92,7 +91,7 @@ describe("landing hero policy", () => {
   it("keeps the plain receipt door for a document with no card behind it", () => {
     // Quiet, and it asks for no location: only the primary carries locate=1.
     expect(LANDING_FALLBACK_RECEIPT_HREF).toBe("/near");
-    expect(LANDING_FALLBACK_RECEIPT_LABEL).toBe("Log what you paid");
+    expect(LANDING_FALLBACK_RECEIPT_HREF).not.toContain("locate=1");
   });
 
   it("words the kicker and the rail heading from where the answer came", () => {

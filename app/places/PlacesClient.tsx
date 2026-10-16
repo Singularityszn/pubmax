@@ -45,6 +45,9 @@ import {
   PLACES_SET_CITY_LABEL,
   PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
+  PLACES_WAITLIST_HREF,
+  PLACES_WAITLIST_LABEL,
+  PLACES_WAITLIST_TITLE,
   filterPlacesCityRows,
   placesAreasEmptyLine,
   placesAreasForCity,
@@ -52,6 +55,7 @@ import {
   placesCityHref,
   placesCityRows,
   placesCityActions,
+  placesLiveCityRows,
   placesCurrentCityLine,
   placesPricesLine,
   placesPricesPill,
@@ -66,8 +70,11 @@ import { useUkPlaceIndex } from "@/lib/useUkPlaceIndex";
 import "./places.css";
 
 /**
- * The Places tab: pick a city, see what is inside it, and set the one city the
- * map, Out and Near all open on.
+ * The city picker: pick a city, see what is inside it, and set the one city the
+ * map and Near open on. It is not a tab (Oct 2026 UX audit): the map's city
+ * chip and the footer's "Pick your city" reach it. The list names only the
+ * cities with listed prices (London today) plus one waitlist line; every other
+ * city still answers by search, by `?city=` and on its own map.
  *
  * Two views in one route, keyed off `?city=`, so Back is the browser's own and a
  * chosen city is a link somebody can send. Each view is ONE `Screen`, which is
@@ -104,7 +111,7 @@ export default function PlacesClient({ cityId }: { cityId: CityId | null }) {
 function CityList({ preferredCity }: { preferredCity: CityId | null }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
-  const rows = useMemo(() => placesCityRows(), []);
+  const rows = useMemo(() => placesLiveCityRows(), []);
   const shown = useMemo(() => filterPlacesCityRows(rows, query), [rows, query]);
   // A query no city row answers is not automatically a query with no answer:
   // the retired /choose-city address read the UK place index and offered the
@@ -262,6 +269,21 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {/* The cities without listed prices are not rows any more; this names
+          the gap once and hands over the one thing a reader can do about it. */}
+      {query.trim() === "" ? (
+        <section className="placesSection" aria-labelledby="places-waitlist-title">
+          <h2 id="places-waitlist-title" className="placesSectionTitle">
+            {PLACES_WAITLIST_TITLE}
+          </h2>
+          <p className="placesSectionLine">
+            <a href={PLACES_WAITLIST_HREF} data-testid="places-waitlist">
+              {PLACES_WAITLIST_LABEL}
+            </a>
+          </p>
+        </section>
       ) : null}
     </Screen>
   );

@@ -58,7 +58,7 @@ export default function OfflineReady() {
         .then((registration) => {
           registration.addEventListener("updatefound", () => {
             console.info(
-              "PUBMAXXING: a new offline version is installing.",
+              "PUBMAXX: a new offline version is installing.",
             );
           });
         })

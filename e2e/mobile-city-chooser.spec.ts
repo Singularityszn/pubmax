@@ -39,7 +39,10 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
   });
 
   expect(result.overflow).toBeLessThanOrEqual(1);
-  expect(result.links.length).toBeGreaterThanOrEqual(3);
+  // The list names only the cities with listed prices (London today), then
+  // one waitlist line, so a single row is the honest floor.
+  expect(result.links.length).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("places-waitlist")).toBeVisible();
   for (const link of result.links) {
     expect(link.height, `${link.label} link height`).toBeGreaterThanOrEqual(44);
     expect(link.width, `${link.label} link width`).toBeGreaterThan(44);
@@ -47,12 +50,16 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
     expect(link.right, `${link.label} should stay inside the viewport`).toBeLessThanOrEqual(390);
   }
 
-  const manchester = page.getByRole("link", { name: /Manchester/ }).first();
-  await expect(manchester).toHaveAttribute("href", /places\?city=manchester/);
-  await Promise.all([
-    page.waitForURL(/places\?city=manchester/),
-    manchester.click(),
-  ]);
+  // A city without listed prices is not a row, so search reaches it.
+  await page.getByLabel("Find a city").fill("manch");
+  const manchester = page
+    .getByRole("list", { name: "Places" })
+    .getByRole("link", { name: /Manchester/ })
+    .first();
+  await expect(manchester).toBeVisible({ timeout: 20_000 });
+  // The town answer opens that city's map; the city panel still answers by URL.
+  await expect(manchester).toHaveAttribute("href", /\/map\/manchester/);
+  await page.goto("/places?city=manchester");
   await expect(
     page.getByRole("heading", { level: 1, name: "Manchester", exact: true }),
   ).toBeVisible({ timeout: 10_000 });

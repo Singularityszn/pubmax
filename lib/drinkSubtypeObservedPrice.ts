@@ -16,7 +16,7 @@ import {
 } from "@/lib/drinkSubtypes";
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/drinks";
 import type { PricedLandingPublisher } from "@/lib/pricedLanding";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
 const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
@@ -217,7 +217,7 @@ export function buildSubtypePricedVenueRows(
 
   const rows: SubtypePricedVenueRow[] = [];
   for (const venue of venues) {
-    if (!isPubVenueKind(venue.kind)) continue;
+    if (!isPublicRankablePub(venue)) continue;
     const observed = selectObservedSubtypePriceForVenue(venue, subtypeId, drinkUpdates);
     rows.push({
       venueId: venue.id,
@@ -239,7 +239,7 @@ export function countObservedSubtypePrices(
 ): number {
   let count = 0;
   for (const venue of venues) {
-    if (!isPubVenueKind(venue.kind)) continue;
+    if (!isPublicRankablePub(venue)) continue;
     if (selectObservedSubtypePriceForVenue(venue, subtypeId, drinkUpdates)) count += 1;
   }
   return count;

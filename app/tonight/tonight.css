@@ -829,10 +829,16 @@
 /* While the listings read runs, nothing after the lede may paint: the lede
    answer lands above it and would push it down the page (a layout shift). The
    rail holds the soft plans and the area news, which do not wait on that
-   read, so it waits with the rest. */
+   read, so it waits with the rest.
+
+   It waits OUT OF THE LAYOUT, not invisibly inside it. `visibility: hidden`
+   kept every box below the lede, so a phone on a slow read scrolled past the
+   skeleton into about 2,000px of blank page (product owner, 16 Oct 2026). A
+   box that is not there yet cannot shift when it arrives below the fold, and
+   the primary column's own min-height still holds the room the lede needs. */
 .tonightPage[data-listings-status="idle"] .tonightContext,
 .tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
-  visibility: hidden;
+  display: none;
 }
 
 /* WIDE TONIGHT IS A COLUMN AND A RAIL (site audit D8, 13 Sep 2026). The rail
