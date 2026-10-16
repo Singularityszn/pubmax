@@ -42,7 +42,7 @@ Full rules: [`docs/rules/app-api-contract-and-rate-limits.md`](../docs/rules/app
 Full rules: [`docs/rules/app-proxy-csp-caching-and-file-tracing.md`](../docs/rules/app-proxy-csp-caching-and-file-tracing.md).
 
 - [A file a route opens at runtime is not in the deployed function unless you say so.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-file-a-route-opens-at-runtime-is-not-in-the-deployed-function-unless-you-say-s)
-- [THE ANSWER IS A PUB PEOPLE ARE TALKING ABOUT, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-answer-is-a-pub-people-are-talking-about-then-our-own-listings-then-an-hones)
+- [THE ANSWER IS A PUB LONDONERS KEEP RECOMMENDING, THEN OUR OWN LISTINGS, THEN AN HONEST QUIET NIGHT.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#the-answer-is-a-pub-londoners-keep-recommending-then-our-own-listings-then-an-ho)
 - [A tab you have already opened is not a page you have to fetch again.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-tab-you-have-already-opened-is-not-a-page-you-have-to-fetch-again)
 - [Exactly five documents are exempt from the nonce, and the list is the fence.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#exactly-five-documents-are-exempt-from-the-nonce-and-the-list-is-the-fence)
 - [A STATIC ASSET NEVER RUNS THE PROXY, AND A FAILING PACK IS NOT A FAILING BASEMAP.](../docs/rules/app-proxy-csp-caching-and-file-tracing.md#a-static-asset-never-runs-the-proxy-and-a-failing-pack-is-not-a-failing-basemap)

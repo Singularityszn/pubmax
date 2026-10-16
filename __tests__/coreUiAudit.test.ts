@@ -119,7 +119,6 @@ import LandingPage from "@/components/landing/LandingPage";
 import NearPageClient from "@/components/nearme/NearPageClient";
 import TodayClient from "@/app/today/TodayClient";
 import TonightClient from "@/app/tonight/TonightClient";
-import OutClient from "@/app/out/OutClient";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import SocialPageClient from "@/app/social/SocialPageClient";
@@ -265,7 +264,6 @@ const LAUNCH_SURFACES: ReadonlyArray<[string, () => string]> = [
         }),
       ),
   ],
-  ["/out", () => renderToStaticMarkup(createElement(OutClient, { day: "tonight" }))],
   [
     "/plan",
     () =>
@@ -373,7 +371,7 @@ describe("every launch route is rendered by an audit", () => {
     const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
     const retired = table.slice(table.indexOf("## Retired addresses"));
     expect(retired, "the table has a retired-addresses section").not.toBe("");
-    for (const route of ["/discover", "/drinks", "/feed"]) {
+    for (const route of ["/discover", "/drinks", "/feed", "/out"]) {
       expect(retired, `${route} is recorded as retired`).toContain(`\`${route}\``);
     }
   });

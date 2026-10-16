@@ -765,11 +765,11 @@ describe("invite loop events", () => {
     expect(ANALYTICS_EVENTS.invite_map_opened).toEqual([]);
   });
 
-  it("registers the Out tab and create-FAB events", () => {
-    expect(ANALYTICS_EVENTS.out_screen_view).toEqual([]);
+  it("registers the Out listing and create-FAB events", () => {
+    // /out folded into /tonight (16 Oct 2026): its page view went with it.
+    expect(ANALYTICS_EVENTS).not.toHaveProperty("out_screen_view");
     expect(ANALYTICS_EVENTS.out_filter_select).toEqual(["kind"]);
     expect(ANALYTICS_EVENTS.create_fab_action).toEqual(["action"]);
-    expect(sanitizeEvent("out_screen_view")).toEqual({ name: "out_screen_view", props: {} });
     expect(sanitizeEvent("out_filter_select", { kind: "tonight" })?.props).toEqual({
       kind: "tonight",
     });

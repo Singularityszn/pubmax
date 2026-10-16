@@ -348,9 +348,8 @@ vocabularies. The column here is the question the event exists to answer.
 | `tonight_filter_select` | A tonight filter was used. |
 | `tonight_vibe_select` | A mood chip was pressed. |
 | `tonight_result_opened` | A tonight row was opened, and on what locality basis. |
-| `out_screen_view` | Out was opened. |
-| `out_filter_select` | An Out filter was used. |
-| `out_card_opened` | An Out listing was opened, and from which source. |
+| `out_filter_select` | A Tomorrow or Weekend window was chosen on Tonight. |
+| `out_card_opened` | A Tomorrow or Weekend listing on Tonight was opened, and from which source. |
 | `create_fab_action` | The compose action was used. |
 | `night_moment_saved` | A moment was kept, and how visible. |
 | `night_memory_created` | A memory was created. |

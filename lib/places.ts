@@ -273,7 +273,7 @@ export function placesCityActions(
   isYours: boolean,
 ): { primary: PlacesWay | null; secondary: PlacesWay } {
   const map: PlacesWay = { href: mapHref, label: "Open the map" };
-  const whatsOn: PlacesWay = { href: "/out", label: "What's on" };
+  const whatsOn: PlacesWay = { href: "/tonight", label: "What's on" };
   return isYours
     ? { primary: map, secondary: whatsOn }
     : { primary: null, secondary: map };

@@ -313,10 +313,11 @@ describe("Places sets the one city Map, Out and Near follow", () => {
       primary: null,
       secondary: { href: "/map/manchester", label: "Open the map" },
     });
-    // Yours: the map is the painted way in, and Out follows the same city.
+    // Yours: the map is the painted way in, and What's on opens Tonight,
+    // which /out folded into on 16 Oct 2026.
     expect(placesCityActions(map, true)).toEqual({
       primary: { href: "/map/manchester", label: "Open the map" },
-      secondary: { href: "/out", label: "What's on" },
+      secondary: { href: "/tonight", label: "What's on" },
     });
     // Neither shape offers the same door twice.
     for (const isYours of [true, false]) {

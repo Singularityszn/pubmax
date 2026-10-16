@@ -42,6 +42,8 @@ import TonightHypedPubs from "./TonightHypedPubs";
 import TonightListingsNotice from "./TonightListingsNotice";
 import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
+import TonightLaterListings from "./TonightLaterListings";
+import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
@@ -223,7 +225,7 @@ export default function TonightClient({
   softPlansWindow?: boolean;
   /** Eager-shard venue ids the map can open via `?sel=`, or null when unreadable. */
   mapSelectableVenueIds?: readonly string[] | null;
-  /** The pubs people are talking about, read at build from the committed pack. */
+  /** Pubs Londoners keep recommending, read at build from the committed pack. */
   hypedPubs?: readonly HypedPub[];
   /** Cheapest listed pints, for the nights nothing is on. */
   cheapPints?: readonly TonightCheapPint[];
@@ -961,6 +963,12 @@ export default function TonightClient({
         <div className="tonightRail">
           <AreaNewsRail area={areaNewsSlug(tonightNear)} />
         </div>
+
+        {/* What /out carried before it became a redirect here: the open plans
+            and the Drink Wall off the Out read this page already holds, then
+            tomorrow and the weekend, read only when a day is chosen. */}
+        <TonightOpenPlans body={outBody} />
+        <TonightLaterListings />
       </aside>
 
       <div className="tonightAfterPrimary">
