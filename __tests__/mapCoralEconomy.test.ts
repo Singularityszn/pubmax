@@ -6,7 +6,9 @@ import { defined } from "@/__tests__/helpers/defined";
 
 // The coral economy (design judgement 2026-08-01, findings 2.1 / 2.2 / 2.9).
 // On the map, coral (--brass) may survive in exactly three places: the primary
-// CTA, the selected pin ring, and the active tab glyph. Every other former
+// CTA, the floating create disc and the selected pin ring. The active tab
+// glyph was the fourth until P2-A moved every selection to ink
+// (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Every other former
 // coral surface is pinned neutral here, and every changed text pair must
 // measure at least 4.5:1 in both themes. The values are read from the shipped
 // stylesheets, never restated, so a token retune re-runs the arithmetic.
@@ -123,21 +125,23 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
     }
   });
 
-  it("the active tab keeps a coral glyph but an ink label", () => {
+  it("the active tab is an ink glyph and an ink label", () => {
     const tab = /\.mobileTab\.isActive\s*\{([^}]*)\}/.exec(navCss)?.[1] ?? "";
     expect(tab).toMatch(/color:\s*var\(--ink\)/);
     expect(tab).not.toMatch(/--brass/);
-    // The glyph is the one surviving coral mark in the tab bar.
+    // The glyph was the last coral mark in the tab bar. An active tab is a
+    // selection, and coral is spent on the one primary and the create disc
+    // (docs/DESIGN_SYSTEM.md "Coral is spent twice").
     expect(navCss).toMatch(
-      /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--brass\)/,
+      /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--state-selected-ink\)/,
     );
   });
 
-  it("the active glyph is the tab bar's ONLY coral mark", () => {
-    // The Moment circle and its glow used to be the second one. Compose left
-    // the row entirely for the floating create action, so the budget is now a
-    // count rather than a per-selector exemption: any new coral in this
-    // stylesheet is a second mark in the same eight-degree band.
+  it("the tab bar holds NO resting coral mark", () => {
+    // The Moment circle and its glow used to be one, the active glyph the
+    // last. Compose left the row for the floating create action and the glyph
+    // went to ink, so the budget is a count of zero: any coral in this
+    // stylesheet is a mark the bar may not wear.
     const coralRules: string[] = [];
     for (const match of navCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = match[1]!.trim();
@@ -146,7 +150,7 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
       if (selector.includes(":focus-visible")) continue;
       if (accentPattern.test(match[2]!)) coralRules.push(selector);
     }
-    expect(coralRules).toEqual([".mobileTab.isActive .mobileTabIcon"]);
+    expect(coralRules).toEqual([]);
   });
 });
 

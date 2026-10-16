@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Honesty for a bogus `?sel=`: show a quiet note, keep the map open, do not
 // open a venue sheet. A real `?sel=` still opens the sheet.
@@ -156,8 +157,9 @@ test.describe("unknown ?sel= honesty", () => {
 
     // Back from another sheet lands on the held pub's entry, still shut.
     const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    const filtersButton = await mobileMapShellControl(page, "filters");
     await expect(async () => {
-      await page.getByRole("button", { name: /Filters/i }).click();
+      await filtersButton.click();
       await expect(filters).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await page.goBack();

@@ -161,6 +161,10 @@ export function applyInviteRsvpCapability(
   return true;
 }
 
+// The remembered name is read once React owns the page. This tab writes it
+// only on submit, after the guest has typed, so nothing needs to re-read it.
+const subscribeNever = () => () => {};
+
 function readStoredGuestName(): string {
   if (typeof window === "undefined") return "";
   try {
@@ -241,7 +245,14 @@ export default function PlanInviteRsvp({
 }) {
   const [rsvp, setRsvp] = useState(initialRsvp);
   const [reactions, setReactions] = useState(initialReactions);
-  const [name, setName] = useState(() => readStoredGuestName());
+  // The server renders this page with no device storage, so the remembered
+  // name arrives through a store whose server snapshot is "" (the same shape
+  // as `rsvpRemembered` below). Reading localStorage in a state initialiser
+  // put the name into the hydration render and the input's `value` disagreed
+  // with the server HTML. The name the guest types overrides it.
+  const storedName = useSyncExternalStore(subscribeNever, readStoredGuestName, () => "");
+  const [typedName, setName] = useState<string | null>(null);
+  const name = typedName ?? storedName;
   const [status, setStatus] = useState<RsvpStatus | null>(null);
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
   const [rsvpError, setRsvpError] = useState<string | null>(null);

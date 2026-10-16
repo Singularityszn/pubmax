@@ -29,6 +29,7 @@ import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
 import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
+import { boundedText } from "@/lib/boundedRequest.server";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
 import { clientIp } from "@/lib/supabase";
@@ -106,8 +107,14 @@ export async function POST(req: Request): Promise<Response> {
     // to read a status code.
     if (await isEventsRateLimited(req)) return noContent();
 
-    const raw = await req.text();
-    if (raw.length > MAX_BODY_BYTES) return noContent();
+    // A bounded read: the cap is checked while the body streams in, so an
+    // oversized POST is dropped after 6 KB rather than buffered whole.
+    let raw: string;
+    try {
+      raw = await boundedText(req, MAX_BODY_BYTES);
+    } catch {
+      return noContent();
+    }
 
     let body: unknown;
     try {

@@ -165,10 +165,10 @@ describe("home card copy", () => {
 describe("home card brand", () => {
   it("draws the site header's wordmark, not a boxed mark", () => {
     const markup = renderToStaticMarkup(Wordmark({}));
-    // PUBMA + the doubled hero + ING, exactly as components/brand/
-    // PubmaxxWordmark splits it.
+    // PUBMA + the doubled hero: the card reads PUBMAXX, the one product
+    // name, and never PUBMAXXING.
     expect(markup).toContain("PUBMA");
-    expect(markup).toContain("ING");
+    expect(markup).not.toContain("ING");
     // Two glyphs, the second tinted coral, and no ember: these are letterforms.
     expect(markup.match(/<svg/g)).toHaveLength(2);
     expect(markup).toContain("#ff5a5f");

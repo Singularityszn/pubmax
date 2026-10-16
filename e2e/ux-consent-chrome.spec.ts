@@ -224,14 +224,14 @@ test("mobile consent never covers Plan primary action while visible", async ({ p
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
 
-  // /plan opens on describe-first, whose ONE painted action is "Sort it".
+  // /plan opens on describe-first, whose ONE painted action is "Plan it".
   // The rule this test owns is about the ROUTE's primary action, so it is read
   // off the Screen's own [data-primary-action] marker rather than named copy
   // alone: the marker is what makes exactly one control the primary, and a
   // later rename of the label cannot quietly leave the rule untested.
   const planPrimary = page
     .locator("[data-primary-action]")
-    .getByRole("button", { name: "Sort it", exact: true });
+    .getByRole("button", { name: "Plan it", exact: true });
   await expect(planPrimary).toBeVisible();
   await planPrimary.scrollIntoViewIfNeeded();
 

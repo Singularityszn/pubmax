@@ -85,7 +85,7 @@ test("venue and planner sheets preserve primary navigation and Enter submits", a
   await page.locator(".mobileSheetPortal .surfaceNavHome").click();
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
   await expect(async () => {
-    await page.getByRole("button", { name: "Describe the outing" }).click();
+    await page.getByRole("button", { name: "Plan a pub crawl" }).click();
     await expect(planner).toBeVisible({ timeout: 1_000 });
   }).toPass();
   await expectDockOwnsBottom(page);

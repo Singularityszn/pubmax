@@ -385,7 +385,7 @@ export async function preparePlanGeneration(
 	}
 	if (!query && !contextPatch && !intake?.exactNightArea) {
 		return { response: publicApiError(
-			"Describe the outing or add its time, group and area.",
+			"Say where, how many and what budget, or add a time, group and area.",
 			"NIGHT_CONTEXT_REQUIRED",
 			400,
 		) };

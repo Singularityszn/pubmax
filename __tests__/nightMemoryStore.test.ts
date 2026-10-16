@@ -106,6 +106,27 @@ describe("collaborative Night Story storage", () => {
     expect(sql).toContain("revoke all on function");
   });
 
+  it("lets no editor demote the host or another accepted member", async () => {
+    await profileStore().createOwned("hosthandle", "host");
+    await profileStore().createOwned("editorhandle", "editor-user");
+    await profileStore().createOwned("friend", "friend-user");
+    const memory = await createNightMemory("host", { title: "Crew night" });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Crew night" });
+    await upsertStoryContributor("host", story!.id, { handle: "editorhandle", role: "editor" });
+    await acceptStoryContribution("editor-user", story!.id);
+    await upsertStoryContributor("host", story!.id, { handle: "friend", role: "editor" });
+    await acceptStoryContribution("friend-user", story!.id);
+
+    // The editor aims an invitation at the host and at a fellow editor.
+    expect(await upsertStoryContributor("editor-user", story!.id, { handle: "hosthandle", role: "contributor" })).toBeNull();
+    expect(await upsertStoryContributor("editor-user", story!.id, { handle: "friend", role: "contributor" })).toBeNull();
+    expect((await getNightStoryWorkspace("host", story!.id))?.caller).toMatchObject({ role: "host", canEdit: true });
+    expect((await getNightStoryWorkspace("friend-user", story!.id))?.caller).toEqual({ role: "editor", canEdit: true });
+
+    // The host may still change an accepted member's role.
+    expect(await upsertStoryContributor("host", story!.id, { handle: "friend", role: "contributor" })).toMatchObject({ role: "contributor", status: "invited" });
+  });
+
   it("gives contributors consent-only workspace data without other private Moments", async () => {
     await profileStore().createOwned("friend", "friend-user");
     const memory = await createNightMemory("host", { title: "Crew night" });

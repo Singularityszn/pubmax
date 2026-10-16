@@ -889,7 +889,7 @@
   text-align: center;
 }
 
-.authMenu > .clerkAccount {
+.authMenu > .clerkAccountSlot > .clerkAccount {
   padding-top: 0.4rem;
   border-top: 1px solid var(--line);
 }
@@ -1249,6 +1249,13 @@
    The rule DESIGN.md §6 makes explicit and this block obeys: no new card, no
    second accent. Coral already owns the primary action, so the lead button is
    a weight and border change, not another colour. */
+/* The slot ClerkAccountSlot renders adds no box of its own, so the portalled
+   controls lay out as a direct child of the menu or the account row, and an
+   empty slot (Clerk not loaded yet) takes no gap. */
+.clerkAccountSlot {
+  display: contents;
+}
+
 .clerkAccount {
   display: flex;
   flex-direction: column;

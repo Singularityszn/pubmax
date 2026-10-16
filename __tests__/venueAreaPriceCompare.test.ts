@@ -114,6 +114,25 @@ describe("venueAreaPriceCompare helper", () => {
     expect(line).toBe("About average for Camden.");
   });
 
+  it("reads an exact 30p gap above the patch as about average despite float drift", () => {
+    // 6.4 - 6.1 is 0.3000000000000007 in floating point.
+    const line = venueAreaPriceCompareLine({
+      priceGbp: 6.4,
+      primaryBorough: "Camden",
+      leagueRows: leagueForCamden(),
+    });
+    expect(line).toBe("About average for Camden.");
+  });
+
+  it("still names the figure once the gap passes 30p", () => {
+    const line = venueAreaPriceCompareLine({
+      priceGbp: 6.41,
+      primaryBorough: "Camden",
+      leagueRows: leagueForCamden(),
+    });
+    expect(line).toBe("£6.41 here. Camden average £6.10.");
+  });
+
   it("builds the league from a snapshot when rows are not precomputed", () => {
     const line = venueAreaPriceCompareLine({
       priceGbp: 5.4,

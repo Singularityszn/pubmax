@@ -9,13 +9,18 @@ vi.mock("@/lib/crawlCompletion", () => ({ completedCrawlCount: () => 1 }));
 vi.mock("@/lib/promptBudget", () => ({
   hasPromptBudgetFor: () => true,
   claimPromptBudget: () => true,
+  routeOwnsScreenFoot: () => false,
 }));
 vi.mock("@/lib/a2hsPrompt", async (original) => ({
   ...(await original<typeof import("@/lib/a2hsPrompt")>()),
   detectA2hsPlatform: () => "android",
+  // The dwell after a price answer is real time; this test is about the
+  // failed install, so the answer is given no wait here.
+  A2HS_ANSWER_DWELL_MS: 0,
 }));
 
 import A2HSInstallPrompt from "@/components/pwa/A2HSInstallPrompt";
+import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
 import {
   clearA2hsInstallPrompt,
   storeA2hsInstallPrompt,
@@ -36,6 +41,7 @@ async function settle(): Promise<void> {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -49,6 +55,22 @@ afterEach(async () => {
 });
 
 describe("A2HS install prompt", () => {
+  it("waits for this session's price answer before it asks", async () => {
+    storeA2hsInstallPrompt(Object.assign(new Event("beforeinstallprompt"), {
+      platforms: ["web"],
+      prompt: () => Promise.resolve(),
+      userChoice: new Promise<never>(() => undefined),
+    }) as BeforeInstallPromptEvent);
+
+    await act(async () => root?.render(createElement(A2HSInstallPrompt)));
+    await settle();
+    expect(container.textContent).not.toContain("Install PUBMAXX");
+
+    await act(async () => markPriceAnswerMoment("near-answer"));
+    await settle();
+    expect(container.textContent).toContain("Install PUBMAXX");
+  });
+
   it("tells the reader when the browser install prompt fails to start", async () => {
     const failingPrompt = Object.assign(new Event("beforeinstallprompt"), {
       platforms: ["web"],
@@ -56,6 +78,7 @@ describe("A2HS install prompt", () => {
       userChoice: new Promise<never>(() => undefined),
     }) as BeforeInstallPromptEvent;
     storeA2hsInstallPrompt(failingPrompt);
+    markPriceAnswerMoment("venue-price");
 
     await act(async () => root?.render(createElement(A2HSInstallPrompt)));
     await settle();

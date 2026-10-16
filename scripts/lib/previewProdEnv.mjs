@@ -41,6 +41,18 @@ export const REFUSED_DEPLOY_FLAGS = Object.freeze({
   "--prod": "this command only ever makes a PREVIEW; promote separately.",
   "--production":
     "this command only ever makes a PREVIEW; promote separately.",
+  // `vercel deploy --target production` is a production deploy by another
+  // name, and it would skip every check `npm run release:prod` runs. Refused in
+  // every spelling: `--target X`, `--target=X`, and the short `-t`. Even
+  // `--target preview` is refused, because preview is already the default and a
+  // flag that can only ever be right by restating the default is not needed.
+  "--target":
+    "this command only ever makes a PREVIEW; `--target production` is a " +
+    "production deploy that skips the release checks. Use npm run release:prod.",
+  "-t":
+    "a short flag this command will not guess at: it may name a target, and " +
+    "this command only ever makes a PREVIEW. Pass a credential through the " +
+    "environment or `vercel login`, never on the command line.",
   "--prebuilt":
     "a macOS build ships darwin-only sharp binaries and a whole-project trace " +
     "the upload cannot satisfy; the build belongs in the cloud.",
@@ -107,7 +119,10 @@ export function deployEnvFlags(forwarded) {
 /** The refusal for a forbidden flag, or null when the arguments are allowed. */
 export function refusedFlagReason(args) {
   for (const arg of args) {
-    const flag = arg.split("=")[0];
+    // `--target=production` and `--target production` are the same request,
+    // so the name is read up to any `=` and the value never decides it.
+    const flag = String(arg).split("=")[0];
+    if (!Object.hasOwn(REFUSED_DEPLOY_FLAGS, flag)) continue;
     const reason = REFUSED_DEPLOY_FLAGS[flag];
     if (reason) return { flag, reason };
   }

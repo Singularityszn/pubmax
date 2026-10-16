@@ -74,11 +74,11 @@ async function handlePromotion(
 ): Promise<Response> {
   const id = readString(body.id);
   const listType = cleanListType(body.listType);
-  if (!id) return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+  if (!id) return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
   if (!listType) return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
 
   const wanted = await wantedStore().getById(owner.actor, id);
-  if (!wanted) return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+  if (!wanted) return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
   if (wanted.status !== "open" || wanted.venueKind !== "curated" || !wanted.venueId) {
     return publicApiError(
       "Only an open matched pub can join a public list.",
@@ -88,7 +88,7 @@ async function handlePromotion(
   }
   if (wanted.promotedListType && wanted.promotedListType !== listType) {
     return publicApiError(
-      "This Wanted place is already on a public list.",
+      "This pub is already on a public list.",
       "WANTED_ALREADY_PROMOTED",
       409,
     );
@@ -97,7 +97,7 @@ async function handlePromotion(
   const venue = await resolveVenue(wanted.venueId);
   if (!venue || !isPubVenueKind(venue.kind)) {
     return publicApiError(
-      "Match this Wanted place to a current pub first.",
+      "Match this to a current pub first.",
       "WANTED_NOT_PROMOTABLE",
       409,
     );
@@ -124,7 +124,7 @@ async function handlePromotion(
     listType,
   });
   if (result.status === "not_found") {
-    return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
   }
   if (result.status === "not_promotable") {
     return publicApiError(
@@ -135,7 +135,7 @@ async function handlePromotion(
   }
   if (result.status === "already_promoted") {
     return publicApiError(
-      "This Wanted place is already on a public list.",
+      "This pub is already on a public list.",
       "WANTED_ALREADY_PROMOTED",
       409,
     );
@@ -222,13 +222,13 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "delete") {
     const id = readString(body.id);
     if (!id) {
-      return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+      return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
     }
     try {
       const done = await wantedStore().delete(owner.contributor.actor, id);
       return done
         ? jsonNoStore({ ok: true }, { status: 200 })
-        : publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+        : publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
     } catch (err) {
       log("error", "wanteds.delete_failed", {
         route: "POST /api/wanted",
@@ -243,13 +243,13 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "note") {
     const id = readString(body.id);
     if (!id) {
-      return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+      return publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
     }
     try {
       const wanted = await wantedStore().updateNote(owner.contributor.actor, id, readString(body.note) ?? "");
       return wanted
         ? jsonNoStore({ wanted }, { status: 200 })
-        : publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+        : publicApiError("That pub isn't on your list.", "NOT_FOUND", 404);
     } catch (err) {
       log("error", "wanteds.note_failed", {
         route: "POST /api/wanted",

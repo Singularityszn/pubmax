@@ -111,30 +111,15 @@ drop index if exists public.plan_invite_rsvps_member_id_idx;
 alter table public.plan_invite_rsvps
   drop column if exists member_id;
 
-create or replace function public.rls_is_plan_participant(p_plan_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select p_plan_id is not null
-    and (select auth.uid()) is not null
-    and (
-      exists (
-        select 1
-        from public.plans pl
-        where pl.id = p_plan_id
-          and pl.owner_user_id = (select auth.uid())
-      )
-      or exists (
-        select 1
-        from public.plan_crew_members m
-        where m.plan_id = p_plan_id
-          and m.user_id = (select auth.uid())
-      )
-    );
-$$;
+-- 0124 created `public.rls_is_plan_participant`, a copy no policy reads: 0070
+-- had already moved the helper into `pubmax_private`. Before 0124 there was no
+-- public copy, so the way back is to DROP it, not to redefine it. Recreating it
+-- here as SECURITY DEFINER used to leave a stray executable helper behind.
+-- `pubmax_private.rls_is_plan_participant` is deliberately untouched: 0124
+-- never changed it, and rewriting it here would overwrite 0075's body and its
+-- `pl.social_owner_account_id is null` guard, widening Plan SELECT to Social
+-- plans.
+drop function if exists public.rls_is_plan_participant(uuid);
 
 drop index if exists public.plan_crew_members_active_joined_idx;
 alter table public.plan_crew_members

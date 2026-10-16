@@ -12,9 +12,9 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 // the file failed for its own SETUP, never for the route. Nothing here needs
 // the durable store: `isLimited` is replaced outright, so the reset it was
 // resetting could not affect a single assertion.
-const limitState = vi.hoisted(() => ({ limited: false }));
+const limitState = vi.hoisted(() => ({ limited: false, limitedKey: null as string | null }));
 vi.mock("@/lib/pintDrops", () => ({
-  isLimited: async () => limitState.limited,
+  isLimited: async (key: string) => limitState.limited || key === limitState.limitedKey,
 }));
 
 const resolveEmail = vi.hoisted(() => vi.fn());
@@ -59,6 +59,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
   limitState.limited = false;
+  limitState.limitedKey = null;
   resolveEmail.mockReset();
   passwordGrant.mockReset();
 });
@@ -183,6 +184,21 @@ describe("POST /api/auth/handle-password", () => {
     const res = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(res.status).toBe(429);
     expect(resolveEmail).not.toHaveBeenCalled();
+  });
+
+  it("caps attempts at one handle across IPs without saying whether it exists", async () => {
+    limitState.limitedKey = "auth-handle-password:handle:karan";
+    // Any case the handle is typed in is the same budget.
+    const sprayed = await POST(post({ handle: "Karan", password: "secretpass" }));
+    expect(sprayed.status).toBe(429);
+    expect(await sprayed.json()).toMatchObject({ code: "RATE_LIMITED" });
+    expect(resolveEmail).not.toHaveBeenCalled();
+    expect(passwordGrant).not.toHaveBeenCalled();
+
+    // Another handle keeps its own budget.
+    resolveEmail.mockResolvedValueOnce(null);
+    const other = await POST(post({ handle: "ghost", password: "secretpass" }));
+    expect(other.status).toBe(401);
   });
 
   it("rejects cross-site posts", async () => {

@@ -41,7 +41,7 @@
    --shared-press-scale. Same rule as button.css. */
 
 .uiChip:hover {
-  border-color: var(--color-accent);
+  border-color: var(--state-selected-border);
 }
 
 .uiChip:focus-visible {
@@ -54,12 +54,13 @@
   opacity: 0.45;
 }
 
-/* Chosen: the quiet active tint, never the painted primary. A chip row is a
-   refinement, so the loud fill stays with the screen's one primary action. */
+/* Chosen: the NEUTRAL selected row, never coral. A chip row is a refinement,
+   so coral stays with the screen's one primary action and the create disc
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"); the choice reads in ink. */
 .uiChip[aria-pressed="true"] {
-  border-color: var(--control-tint-border, var(--color-accent));
-  background: var(--control-tint-surface, var(--color-surface-raised));
-  color: var(--color-accent-ink, var(--color-accent));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 /* THE NUMBER SQUARE. One family for every square a reader taps a figure on:

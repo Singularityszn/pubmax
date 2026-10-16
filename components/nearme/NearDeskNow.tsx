@@ -285,12 +285,12 @@ export default function NearDeskNow({
   return (
     <section
       className="nmn"
-      aria-label="Find a desk nearby"
+      aria-label="Find a work spot nearby"
       {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
     >
       {state === "idle" ? (
         /* The /near head in Desk mode: the same Screen primitive as Pint
-           (docs/design/LAUNCH_SCREENS.md), with Find a desk as its one primary. */
+           (docs/design/LAUNCH_SCREENS.md), with Find a work spot as its one primary. */
         <Screen
           as="div"
           className="nmnScreen"
@@ -299,11 +299,11 @@ export default function NearDeskNow({
           titleId="near-title"
           primary={
             <button type="button" onClick={locate}>
-              <LocateFixed size={18} aria-hidden="true" /> Find a desk
+              <LocateFixed size={18} aria-hidden="true" /> Find a work spot
             </button>
           }
         >
-          <p className="nmnHint">We only use your location to rank desks nearby. Nothing is stored.</p>
+          <p className="nmnHint">We only use your location to rank work spots nearby. Nothing is stored.</p>
           <div className="nmnQuickPatches">
             <p className="nmnQuickPatchesLabel">Or pick a patch</p>
             <ul className="nmnAreaChips" aria-label="Pick an area">
@@ -327,8 +327,8 @@ export default function NearDeskNow({
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
           {patch
-            ? `Checking desks around ${patch.label}…`
-            : "Checking desks near you…"}
+            ? `Checking work spots around ${patch.label}…`
+            : "Checking work spots near you…"}
         </div>
       ) : null}
 

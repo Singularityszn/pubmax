@@ -325,6 +325,13 @@ const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Next's response writer retains configured headers before route headers.
+      // Override the baseline only for the two fixed native callback modes.
+      {
+        source: "/auth/callback",
+        has: [{ type: "query", key: "native", value: "ios-(email-)?pkce" }],
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
       // Preview and development deploys must never be indexed, and the static
       // asset prefixes no longer pass through proxy.ts, which is where
       // applyNonProductionRobotsTag used to stamp them. Keep the header by a

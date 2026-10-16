@@ -27,7 +27,7 @@
 
 import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { publicApiError } from "@/lib/apiError";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -36,6 +36,7 @@ import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { normalizeHandle, validateVisitReport } from "@/lib/visitReports";
 import { visitReportsStore } from "@/lib/visitReportsStore";
+import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 // A genuine reporter files a handful of reports; more from one origin in the
 // window is abuse. Durable per-profile + hashed-IP, like the app's other writes.
@@ -137,8 +138,15 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
+  // A report is stored under the venue's canonical id through the shared
+  // resolver, or it is stored under a key no venue sheet ever asks about.
+  const target = await resolveWritableVenueId(result.value.venueId);
+  if (!target.ok) {
+    return publicApiErrorFromStatus(target.error, target.status);
+  }
+
   try {
-    const report = await visitReportsStore().create(result.value);
+    const report = await visitReportsStore().create({ ...result.value, venueId: target.venueId });
     return jsonNoStore({ report }, { status: 201 });
   } catch (err) {
     log("error", "visit_reports.create_failed", {
