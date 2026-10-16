@@ -4,10 +4,21 @@ import { act, createElement } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import TonightClient from "@/app/tonight/TonightClient";
-import type { LoadWhatsOnResult } from "@/lib/whatsOnStore";
+import { fetchThingsToDo } from "@/lib/citymcp/client";
+import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
+import { loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
+import { __resetWhatsOnLiveTopUp, type LoadWhatsOnResult } from "@/lib/whatsOnStore";
+
+const listingStore = vi.hoisted(() => ({ readAll: vi.fn() }));
+vi.mock("@/lib/whatsOnListingStore", () => ({
+  whatsOnListingStore: () => listingStore,
+}));
+vi.mock("@/lib/citymcp/client", () => ({ fetchThingsToDo: vi.fn() }));
+vi.mock("@/lib/out/venueMatch.server", () => ({ loadOutVenueMatchIndex: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
@@ -50,6 +61,96 @@ function documentFor(answer: LoadWhatsOnResult | null) {
     mapSelectableVenueIds: ["venue-quiz"],
   }));
 }
+
+describe("Tonight's server listing composition", () => {
+  const nonPub = {
+    ...independent,
+    id: "theatre-quiz",
+    venueId: "venue-theatre",
+    placeName: "Fixture Theatre",
+    title: "Theatre quiz",
+  };
+
+  beforeEach(() => {
+    __resetWhatsOnLiveTopUp();
+    vi.mocked(loadOutVenueMatchIndex).mockReset().mockResolvedValue(buildOutVenueMatchIndex([
+      { id: "venue-quiz", name: independent.placeName, borough: "Camden", lat: 51.5, lng: -0.1 },
+    ]));
+    listingStore.readAll.mockReset().mockResolvedValue({
+      rows: [nonPub, independent], generatedAt: OBSERVED,
+    });
+    vi.mocked(fetchThingsToDo).mockReset().mockResolvedValue({
+      window: "tonight", asOf: OBSERVED, opportunities: [],
+    });
+  });
+
+  afterEach(() => {
+    __resetWhatsOnLiveTopUp();
+    vi.restoreAllMocks();
+  });
+
+  it("server-renders an eligible pub quiz and excludes a non-pub before the limit", async () => {
+    const answer = await loadTodayWhatsOnAnswer(NOW, { pubOnly: true, limit: 1 });
+
+    expect(answer?.rows.map((row) => row.id)).toEqual(["independent-quiz"]);
+    expect(answer?.readStatus).toBe("ready");
+    expect(answer?.kindObservedAt.quiz).toBe("2026-10-16T09:00:00.000Z");
+    expect(loadOutVenueMatchIndex).toHaveBeenCalledWith("london");
+    const html = documentFor(answer);
+    expect(html).toContain("Friday pub quiz");
+    expect(html).toContain("via The Fixture Arms");
+    expect(html).not.toContain("Theatre quiz");
+  });
+
+  it("matches live pub rows through the same index and excludes live non-pub rows", async () => {
+    listingStore.readAll.mockResolvedValue({ rows: [], generatedAt: OBSERVED });
+    vi.mocked(fetchThingsToDo).mockResolvedValue({
+      window: "tonight", asOf: OBSERVED,
+      opportunities: [independent.placeName, "Fixture Theatre"].map((name) => ({
+        title: `${name} live music`, kind: "gig", startsAt: independent.startsAt,
+        place: { name, location: { lat: 51.5, lng: -0.1 } }, source: independent.source,
+      })),
+    });
+
+    const answer = await loadTodayWhatsOnAnswer(NOW, { pubOnly: true, limit: 60 });
+
+    expect(answer?.rows).toEqual([expect.objectContaining({
+      title: "The Fixture Arms live music", venueId: "venue-quiz",
+    })]);
+  });
+
+  it.each(["missing", "failed"])("reports a %s index as unavailable rather than empty", async (state) => {
+    if (state === "missing") vi.mocked(loadOutVenueMatchIndex).mockResolvedValue(null);
+    else vi.mocked(loadOutVenueMatchIndex).mockRejectedValue(new Error("Index read failed"));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const answer = await loadTodayWhatsOnAnswer(NOW, { pubOnly: true, limit: 60 });
+
+    expect(answer).toBeNull();
+    expect(listingStore.readAll).not.toHaveBeenCalled();
+    expect(fetchThingsToDo).not.toHaveBeenCalled();
+    expect(documentFor(answer)).toContain('data-picks-state="temporarily_unavailable"');
+  });
+
+  it("treats an available empty index as a healthy empty answer", async () => {
+    vi.mocked(loadOutVenueMatchIndex).mockResolvedValue(buildOutVenueMatchIndex([]));
+
+    const answer = await loadTodayWhatsOnAnswer(NOW, { pubOnly: true, limit: 60 });
+
+    expect(answer?.rows).toEqual([]);
+    expect(answer?.readStatus).toBe("ready");
+  });
+
+  it("preserves Today and landing defaults without a venue-index dependency", async () => {
+    vi.mocked(loadOutVenueMatchIndex).mockRejectedValue(new Error("Index read failed"));
+
+    const answer = await loadTodayWhatsOnAnswer(NOW);
+
+    expect(answer?.rows).toEqual(expect.arrayContaining([independent, nonPub]));
+    expect(answer?.readStatus).toBe("ready");
+    expect(loadOutVenueMatchIndex).not.toHaveBeenCalled();
+  });
+});
 
 describe("Tonight's completed server document", () => {
   it("contains approved listings and their real source before browser reads run", () => {
