@@ -75,6 +75,7 @@ import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenuePlacesDetails from "@/components/map/VenuePlacesDetails";
 import VenueSiteDetails from "@/components/map/VenueSiteDetails";
+import VenueOsmDetails from "@/components/map/VenueOsmDetails";
 import VenueBuzz from "@/components/map/VenueBuzz";
 import VenueAwardBadge from "@/components/areanews/VenueAwardBadge";
 import VenueHygiene from "@/components/map/VenueHygiene";
@@ -1079,6 +1080,7 @@ export default function VenueOverviewTab({
       />
       <VenuePlacesDetails venue={venue} links />
       <VenueSiteDetails venue={venue} />
+      <VenueOsmDetails facts={venue.osmFacts} />
       <CityPlaceStrip
         venueId={venue.id}
         venueName={venue.name}

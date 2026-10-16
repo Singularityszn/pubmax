@@ -670,6 +670,21 @@ export function createSlimShardLoader(
           expected: EXPECTED_MAP_DATA_REVISION,
           served: servedRevision(stored),
         });
+      } else if (
+        (stored === null || stored === undefined) &&
+        expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION &&
+        EXPECTED_MAP_DATA_REVISION !== undefined &&
+        (typeof navigator === "undefined" || navigator.onLine !== false)
+      ) {
+        // Online, with no stored copy, the read itself failed. A service
+        // worker from before skewed packs reached the page answers a skewed
+        // manifest with a network error, so this is the only trace it leaves.
+        reportMapDataRevisionSkew({
+          asset: "manifest",
+          outcome: "unread",
+          expected: EXPECTED_MAP_DATA_REVISION,
+          served: undefined,
+        });
       }
       return null;
     }

@@ -9,6 +9,9 @@ import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
+import { pricePulseLastModified, publishedEditions } from "@/lib/pricePulse";
+import { PRICE_PULSE_EDITION_FILES } from "@/lib/pricePulseEditions";
+import { EXPLAINER_REVIEWED_ON } from "@/lib/pricePulseExplainer";
 import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
@@ -166,6 +169,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
       changeFrequency: "yearly",
       lastModified: spoonsValueModified,
+    },
+    // Price Pulse changes when the owner approves an edition, so its own
+    // approvals date it, and the explainer's review day before the first.
+    {
+      path: "/price-pulse",
+      priority: 0.6,
+      changeFrequency: "weekly",
+      lastModified: pricePulseLastModified(
+        publishedEditions(PRICE_PULSE_EDITION_FILES),
+        EXPLAINER_REVIEWED_ON,
+      ),
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
