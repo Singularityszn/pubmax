@@ -38,19 +38,8 @@ export default function LandlordPanel(props: {
   const [answer, setAnswer] = useState<HeritageResponse | null>(null);
   const [error, setError] = useState(false);
 
-  // ponytail: React's "adjust state on prop change during render" pattern —
-  // clears the previous venue's answer when venueId changes. Not an effect
-  // (react-hooks/set-state-in-effect) and not a ref (react-hooks/refs); both
-  // are errors here. https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  const [prevVenue, setPrevVenue] = useState(venueId);
-  if (prevVenue !== venueId) {
-    setPrevVenue(venueId);
-    setAnswer(null);
-    setError(false);
-    setLoading(false);
-    setQuestion("");
-  }
-
+  // VenueAskSection keys this panel by venue, so a new pub mounts a fresh
+  // panel and the old pub's in-flight answer lands on an unmounted one.
   const ask = useCallback(
     async (q: string) => {
       const trimmed = q.trim();

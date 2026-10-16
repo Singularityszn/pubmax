@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   GROUP_PREF_ATMOSPHERE_CHIPS,
@@ -55,12 +55,20 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   const [status, setStatus] = useState("");
   const [pending, setPending] = useState(false);
   const [shared, setShared] = useState(false);
+  // Only the newest read may paint: a poll that left before a save and lands
+  // after it carries the old picks, and the next save would build on them.
+  const refreshRequestRef = useRef<{ generation: number; controller: AbortController } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!memberToken) return;
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    refreshRequestRef.current = { generation, controller };
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         cache: "no-store",
+        signal: controller.signal,
         headers: { authorization: `Bearer ${memberToken}` },
       });
       if (!response.ok) {
@@ -68,6 +76,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       const body = await response.json() as { prefs?: MatePreference[]; overlap?: GroupPrefsOverlap };
+      if (controller.signal.aborted || refreshRequestRef.current?.generation !== generation) return;
       setPrefs(Array.isArray(body.prefs) ? body.prefs : []);
       setOverlap(body.overlap && typeof body.overlap === "object" ? body.overlap : EMPTY_OVERLAP);
       const mine = Array.isArray(body.prefs) ? body.prefs.find((pref) => pref.mateId === memberId) : null;
@@ -85,6 +94,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
+      refreshRequestRef.current?.controller.abort();
     };
   }, [refresh]);
 
