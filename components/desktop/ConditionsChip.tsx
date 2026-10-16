@@ -4,7 +4,7 @@
 // the weather verdict ALWAYS visible; the map page cannot host the full right
 // rail (the venue drawer owns the right edge), so the map carries this chip in
 // the toolbar row instead: the facts line, then the verdict's first sentence
-// ("18°C feels like, light cloud, 10% chance of rain, 12 km/h wind, sunset
+// ("Feels like 18°C, light cloud, 10% chance of rain, 12 km/h wind, sunset
 // 21:08, daylight. Warm and dry."), or the reading's age in place of a verdict
 // when it is stale.
 //

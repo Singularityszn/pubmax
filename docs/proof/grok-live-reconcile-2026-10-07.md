@@ -35,7 +35,7 @@ The publication review found repeated pin filtering during typing and duplicated
 |---|---|---|
 | Signed-in confirmation write | Existing confirmation rules and composer tests remain intact. No authenticated hosted-preview write ran in this batch. | Untested on hosted preview. |
 | Provider-backed Today and Tonight listings | Shared event helpers and sourced suggestions are covered locally. | Provider-backed rendered parity remains a preview check. |
-| Day navigation | Today renders `NowSegment current="day"`. The primary Tonight destination deliberately owns both Today and Tonight in `navigationModel.ts`. | Current design retained. |
+| Day navigation | At this 7 October 2026 review, Today rendered `NowSegment current="day"` while the primary Tonight destination owned both Today and Tonight in `navigationModel.ts`. The later navigation contract keeps `/today` outside primary matching; see the [authoritative landing and listing rule](../rules/app-landing-city-and-listing-pages.md#the-root-landing-lands-on-the-answer-and-the-first-tap-is-a-receipt). | Historical baseline superseded. |
 | Area-updates toast | Main already moved map search failures into the search panel. Remaining area-news unavailable text belongs to its own rail or section. | The phone area-pick regression passed with `/api/area-news` returning 503. No unavailable message was visible. |
 | Search result and close button | The current selection path opens a sheet. | Existing behavior retained. A further live verification is not claimed. |
 | Hatton price records | The live read returned two records, £4.70 and £4.50. | Read-only check passed. No records or trust labels changed. |

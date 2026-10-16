@@ -165,7 +165,7 @@ describe("summariseTonightConditions", () => {
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
-      factsLine: expect.stringMatching(/^22°C feels like, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
+      factsLine: expect.stringMatching(/^Feels like 22°C, clear, 10% chance of rain, sunset \d{2}:\d{2}, daylight\.$/),
       stale: false,
       checkedLabel: "Checked 15 minutes ago",
       drinkLine: "Beer garden weather. Lager or cider.",
@@ -197,7 +197,7 @@ describe("summariseTonightConditions", () => {
       drinkSuggestion: "",
       venueClaim: null,
     });
-    expect(summary.factsLine).toMatch(/^15°C feels like, drizzle, 45% chance of rain, /);
+    expect(summary.factsLine).toMatch(/^Feels like 15°C, drizzle, 45% chance of rain, /);
   });
 
   it("names the clock's part of the day, for every surface that reads it", () => {
