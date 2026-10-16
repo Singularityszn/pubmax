@@ -12,7 +12,13 @@ import {
   trustChipStateFor,
   type OverviewPriceDoor,
 } from "@/lib/pintTrust";
-import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
+import {
+  priceAgeFor,
+  priceAgeNote,
+  priceStandingFor,
+  type ConfirmedPriceInput,
+  type PriceAgeLane,
+} from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import { derivedAmenityStatus, type AmenityStatus } from "@/lib/venueTruth";
@@ -509,13 +515,20 @@ function VenuePriceSummary({
         {priceStanding.standing === "confirmed" ? (
           <TrustPill decision={priceStanding} area={bandArea} />
         ) : (
-          <PriceBadge variant="current" band={priceBand(lane.contributorPrice, bandArea)}>
+          <PriceBadge
+            variant="current"
+            band={priceBand(lane.contributorPrice, bandArea)}
+            className={agingBadgeClass("drinker", venue.latestContributorAt)}
+          >
             {formatPrice(lane.contributorPrice)}
           </PriceBadge>
         )}
         {venue.latestContributorAt ? (
           <small className={chromeRevealClass}>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
+        {priceStanding.standing === "confirmed" ? null : (
+          <PriceAgeLine lane="drinker" observedAt={venue.latestContributorAt} />
+        )}
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {COMMUNITY_PRICE_NOTE}
         </small>
@@ -530,9 +543,14 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
-        <PriceBadge variant="current" band={priceBand(venue.cheapestPrice, bandArea)}>
+        <PriceBadge
+          variant="current"
+          band={priceBand(venue.cheapestPrice, bandArea)}
+          className={agingBadgeClass("published", lane.sourcedPrice.observedAt)}
+        >
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
+        <PriceAgeLine lane="published" observedAt={lane.sourcedPrice.observedAt} />
         <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
@@ -600,9 +618,14 @@ function VenuePriceSummary({
               SAME STRING the phone peek prints (battle test M05). */}
           {baselineTrustCaption(lane)}
         </span>
-        <PriceBadge variant="baseline" band={priceBand(venue.cheapestPrice, bandArea)}>
+        <PriceBadge
+          variant="baseline"
+          band={priceBand(venue.cheapestPrice, bandArea)}
+          className={agingBadgeClass("published", lane.observedOn)}
+        >
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
+        <PriceAgeLine lane="published" observedAt={lane.observedOn} />
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {/* The publisher is DECIDED BY THE LANE, through the same reading the
               landing answer card makes, so the peek's caption and this block's
@@ -647,6 +670,34 @@ function VenuePriceSummary({
   return isPubVenue(venue) ? (
     <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
   ) : null;
+}
+
+/**
+ * An AGING figure looks aging and never fresh (owner decision 16 Oct 2026): its
+ * plaque's edge breaks (`priceBadge--aging`, app/globals.css) and a line says
+ * why, in the windows the Price Standings own (lib/priceTier.ts). Colour stays
+ * the band's alone. A fresh figure gets neither.
+ */
+function agingBadgeClass(
+  lane: PriceAgeLane,
+  observedAt: string | number | null | undefined,
+): string | undefined {
+  return priceAgeFor(lane, observedAt) === "aging" ? "priceBadge--aging" : undefined;
+}
+
+function PriceAgeLine({
+  lane,
+  observedAt,
+}: {
+  lane: PriceAgeLane;
+  observedAt: string | number | null | undefined;
+}) {
+  if (priceAgeFor(lane, observedAt) !== "aging") return null;
+  return (
+    <small className="priceAgeNote" data-price-age="aging">
+      {priceAgeNote(lane, observedAt)}
+    </small>
+  );
 }
 
 /**

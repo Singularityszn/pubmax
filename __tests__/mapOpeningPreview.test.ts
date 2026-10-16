@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } from "@/components/map/canvas/buildScene";
-import { CLUSTER_PRICE_NONE } from "@/components/map/canvas/filters";
+import { CLUSTER_PRICE_KEY_NONE, CLUSTER_PRICE_NONE } from "@/components/map/canvas/filters";
 import { formatPinPriceLabel, pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import { getCity } from "@/lib/cities";
 import {
@@ -12,6 +12,7 @@ import {
   frameMatchesPreview,
   MAP_OPENING_PREVIEW_CAMERA,
   OPENING_CLUSTER_MAX_ZOOM,
+  OPENING_CLUSTER_PRICE_KEY_NONE,
   OPENING_CLUSTER_PRICE_NONE,
   OPENING_CLUSTER_RADIUS_PX,
   openingDiscClaims,
@@ -44,6 +45,7 @@ describe("the restated clustering", () => {
     expect(OPENING_CLUSTER_RADIUS_PX).toBe(CLUSTER_RADIUS_PX);
     expect(OPENING_CLUSTER_MAX_ZOOM).toBe(CLUSTER_MAX_ZOOM);
     expect(OPENING_CLUSTER_PRICE_NONE).toBe(CLUSTER_PRICE_NONE);
+    expect(OPENING_CLUSTER_PRICE_KEY_NONE).toBe(CLUSTER_PRICE_KEY_NONE);
   });
 
   it("opens on London's view with its bearing cleared, as a cold first visit does", () => {
@@ -203,11 +205,11 @@ describe("frameMatchesPreview", () => {
     expect(frameMatchesPreview(frame({ features }), discs)).toBe(false);
   });
 
-  it("refuses a frame where a live price moved a pub to another band, which redraws a ring", () => {
+  it("refuses a frame where a live price moved the cheapest pub to another band, which recolours its figure", () => {
     const features = coreFeatures();
     const disc = discs[0]!;
     // The cheapest disc's cheapest pub keeps its figure but changes band, so
-    // the disc's id, count and price all hold and only its ring differs.
+    // the disc's id, count and price all hold and only its figure's ink differs.
     const member = features.find(
       (feature) =>
         typeof feature.properties?.clusterPrice === "number" &&

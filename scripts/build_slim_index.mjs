@@ -35,6 +35,7 @@ import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -882,6 +883,10 @@ async function main() {
     const cheapestPrice = numericPrices.length
       ? Math.min(...numericPrices)
       : null;
+    // The day that figure was last read at its source, so the pin can show an
+    // aging price as aging (lib/priceTier.ts `priceAgeFor`). Absent when no row
+    // carrying the figure records a read: such a price cannot claim to be fresh.
+    const priceObservedAt = cheapestPriceReadDay(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
@@ -900,6 +905,7 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
+      ...(priceObservedAt ? { priceObservedAt } : {}),
       borough: String(first.primary_borough || ""),
       locality: locality ?? "",
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).

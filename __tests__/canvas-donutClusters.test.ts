@@ -106,6 +106,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getSource: () => undefined,
       getLayer: () => undefined,
       getZoom: () => 10,
+      project: () => ({ x: 0, y: 0 }),
       querySourceFeatures: (): unknown[] => [],
       setFilter: vi.fn(),
       setLayoutProperty: vi.fn(),
@@ -444,7 +445,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [idle] = [...(handlers.get("idle") ?? [])];
 
     defined(idle)();
-    expect(attributes.get("aria-label")).toBe("94 pubs, cheapest £4.20, tap to zoom in");
+    expect(attributes.get("aria-label")).toBe("from £4.20 · 94 pubs, tap to zoom in");
 
     // A lens takes the price off every disc, and supercluster keeps the id.
     defined(idle)();
@@ -452,7 +453,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(attributes.get("aria-label")).toBe("94 pubs, tap to zoom in");
 
     defined(idle)();
-    expect(attributes.get("aria-label")).toBe("94 pubs, cheapest £4.20, tap to zoom in");
+    expect(attributes.get("aria-label")).toBe("from £4.20 · 94 pubs, tap to zoom in");
 
     sync.destroy();
     vi.unstubAllGlobals();

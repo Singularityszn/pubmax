@@ -94,6 +94,9 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     sourceDatasets: [],
     curation: {},
     ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
+    ...(slim.priceObservedAt !== undefined
+      ? { priceObservedAt: slim.priceObservedAt }
+      : {}),
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
     ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
     ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),
@@ -128,6 +131,7 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
     ...(pin.filterHints ? { filterHints: pin.filterHints } : {}),
     ...(pin.kind !== undefined ? { kind: pin.kind } : {}),
     ...(pin.priceBand !== undefined ? { priceBand: pin.priceBand } : {}),
+    ...(pin.priceObservedAt !== undefined ? { priceObservedAt: pin.priceObservedAt } : {}),
     ...(pin.anchorLabel !== undefined ? { anchorLabel: pin.anchorLabel } : {}),
     ...(pin.anchorCourse !== undefined ? { anchorCourse: pin.anchorCourse } : {}),
     ...(pin.anchorObservedAt !== undefined
