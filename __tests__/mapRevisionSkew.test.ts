@@ -207,9 +207,11 @@ describe("a map whose packs disagree with the baked revision", () => {
     const { createSlimShardLoader, drain } = await productionLoader();
     offline();
 
-    const opening = await createSlimShardLoader("london").initialResult(OPENING);
-
-    expect(opening.status).toBe("unavailable");
+    // With no manifest the loader falls back to the whole index, which has no
+    // stored copy either, so the read still fails as it always did.
+    await expect(createSlimShardLoader("london").initialResult(OPENING)).rejects.toThrow(
+      "Failed to fetch",
+    );
     expect(drain()).toEqual([
       `map manifest revision skew: expected ${BAKED}, served none, unread`,
     ]);
@@ -220,9 +222,9 @@ describe("a map whose packs disagree with the baked revision", () => {
     offline();
     vi.stubGlobal("navigator", { onLine: false });
 
-    const opening = await createSlimShardLoader("london").initialResult(OPENING);
-
-    expect(opening.status).toBe("unavailable");
+    await expect(createSlimShardLoader("london").initialResult(OPENING)).rejects.toThrow(
+      "Failed to fetch",
+    );
     expect(drain()).toEqual([]);
   });
 
