@@ -79,7 +79,7 @@ const REGISTRY_ID = "historic_pubs";
 
 // What the historic_pubs stamp means, written with the stamp so the wording
 // can never describe a different clock from the one it sits beside.
-export const HISTORIC_STAMP_MEANING =
+const HISTORIC_STAMP_MEANING =
   "When scripts/build_historic_index.mjs last generated and published this index. " +
   "That generator writes it on a successful run only, together with the index and " +
   "data/historic_pubs_receipt.json, which records the same time, the input hashes, " +
