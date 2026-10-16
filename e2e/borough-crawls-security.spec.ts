@@ -133,7 +133,12 @@ test.describe("security headers", () => {
       const html = (await response?.text()) ?? "";
       expect(html, path).not.toMatch(/pubmax_handle/);
       expect(html, path).not.toMatch(/"handle":\s*"[^"]+"/);
-      expect(html, path).not.toMatch(/access_token|refresh_token/);
+      // A token VALUE is the leak. The names alone ride in the inline auth
+      // callback check (callbackHash.get("access_token")), which reads the
+      // reader's own URL in the browser and carries nothing.
+      expect(html, path).not.toMatch(/\\?"(?:access|refresh)_token\\?"\s*:\s*\\?"[^"\\]+/);
+      expect(html, path).not.toMatch(/(?:access|refresh)_token=[A-Za-z0-9._-]{8,}/);
+      expect(html, path).not.toMatch(/eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\./);
     }
   });
 
