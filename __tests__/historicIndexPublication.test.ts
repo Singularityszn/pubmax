@@ -16,7 +16,6 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import { evaluateFreshness } from "../scripts/check_freshness.mjs";
 import {
   reviewHistoricPublication,
@@ -126,8 +125,8 @@ function makeSandbox(): string {
   return root;
 }
 
-function runGenerator(root: string) {
-  return spawnSync(process.execPath, [path.join(root, "scripts/build_historic_index.mjs")], {
+function runGenerator(root: string, args: string[] = []) {
+  return spawnSync(process.execPath, [path.join(root, "scripts/build_historic_index.mjs"), ...args], {
     cwd: root,
     encoding: "utf8",
   });
@@ -212,6 +211,10 @@ describe("a successful historic-index generation", () => {
     expect(registry.datasets[1]).toEqual({ ...HISTORIC_ROW, stamp });
 
     const freshness = await historicFreshness(root);
+    expect(freshness).toBeDefined();
+    if (freshness === undefined) {
+      throw new Error("historic_pubs freshness row is missing");
+    }
     expect(freshness.status).toBe("fresh");
     expect(freshness.observedAt).toBe(receipt.generatedAt);
   });
@@ -263,6 +266,31 @@ describe("a refused historic-index generation", () => {
     expect(read(root, RECEIPT)).toBe(acceptedReceipt);
     const freshnessAfter = await historicFreshness(root);
     expect(freshnessAfter?.observedAt).toBe(freshnessBefore?.observedAt);
+  });
+
+  // The command takes no arguments. One it does not read would otherwise run a
+  // full publication and move the clock, so a mistyped flag, or a time the
+  // generator never honours, must refuse before anything is written.
+  it.each([
+    ["an unknown option", "--unknown-option"],
+    ["a time-looking option", "--now=2099-01-01T00:00:00Z"],
+    ["a positional output path", "public/data/elsewhere.json"],
+  ])("refuses %s on the command line and keeps the accepted index, receipt and stamp", (_label, arg) => {
+    const root = acceptedSandbox();
+    const before = snapshot(root);
+
+    const result = runGenerator(root, [arg]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(arg);
+    expect(result.stdout).not.toMatch(/wrote:|receipt:|stamped:/);
+    expect(snapshot(root)).toEqual(before);
+    expect(readdirSync(root).sort()).toEqual(["data", "lib", "public", "scripts"]);
+
+    // The same copy still publishes when it is run as documented.
+    const supported = runGenerator(root);
+    expect(supported.status, supported.stderr).toBe(0);
+    expect(read(root, INDEX)).toBe(before.index);
   });
 
   it("rolls the index back when a later publication step fails", async () => {

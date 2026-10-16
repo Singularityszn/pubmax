@@ -733,7 +733,16 @@ export async function generate({ root = ROOT, ...unknown } = {}) {
   };
 }
 
-async function main() {
+// The command takes no arguments. One it does not read (a mistyped flag, a
+// time it never honours, an output path) would otherwise run a full
+// publication and move the clock, so it refuses before anything is read or
+// written.
+async function main(args) {
+  if (args.length > 0) {
+    throw new Error(
+      `build_historic_index.mjs takes no arguments; refusing, nothing published: ${args.join(" ")}`,
+    );
+  }
   const summary = await generate();
   console.log(`historic pubs: ${summary.total} records`);
   console.log(`  matched to a venue id: ${summary.matched}`);
@@ -767,7 +776,7 @@ function invokedDirectly() {
 }
 
 if (invokedDirectly()) {
-  main().catch((err) => {
+  main(process.argv.slice(2)).catch((err) => {
     console.error(err);
     process.exit(1);
   });
