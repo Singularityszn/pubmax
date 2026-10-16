@@ -35,6 +35,7 @@ import AccountLegalRow from "@/components/profile/AccountLegalRow";
 import DeleteAccountCard from "@/components/profile/DeleteAccountCard";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import StepOutNudgePref from "@/components/profile/StepOutNudgePref";
+import AppearancePref from "@/components/profile/AppearancePref";
 import FindYourLot from "@/components/social/FindYourLot";
 import ReferralFollowBack from "@/components/social/ReferralFollowBack";
 import StarterPacks from "@/components/social/StarterPacks";
@@ -786,6 +787,7 @@ export default function PubmaxxAccountHub() {
           a decision can be REVERSED, which needs an account. */}
       <div className="accountHubGrid">
         <StepOutNudgePref />
+        <AppearancePref />
       </div>
       <AccountLegalRow />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
@@ -917,6 +919,7 @@ export default function PubmaxxAccountHub() {
           <PrivateIdentityEditor />
           <SetAccountPassword />
           <StepOutNudgePref />
+          <AppearancePref />
           {analyticsControls}
         </div>
         {/* The account's own data doors, last in the settings block because

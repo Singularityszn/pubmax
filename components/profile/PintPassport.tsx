@@ -65,7 +65,7 @@ export default function PintPassport({
   const shareUrl = `/u/${encodeURIComponent(handle)}`;
   const cityVisited = boroughs.includes("City of London");
   const areaLabel = cityVisited ? "Boroughs + City" : "Boroughs";
-  const shareTitle = `${displayName}'s Pint Passport. PUBMAXXING`;
+  const shareTitle = `${displayName}'s Pint Passport. PUBMAXX`;
   const shareText = buildPassportShareText({
     displayName,
     pubs,

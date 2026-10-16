@@ -306,11 +306,11 @@ test("Tonight reserves loading space without holding settled content", async ({
   expect(await page.locator(".tonightPrimary").evaluate((element) =>
     Number.parseFloat(getComputedStyle(element).minHeight),
   )).toBeGreaterThan(0);
-  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "hidden");
+  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("display", "none");
 
   const result = await navigation;
   await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
-  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
+  await expect(page.locator(".tonightAfterPrimary")).not.toHaveCSS("display", "none");
   expect(result.cls).not.toBeNull();
   expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
 });
@@ -349,7 +349,7 @@ test("Tonight error settles without holding loading space", async ({ baseURL, pa
   await waitForAuditedRouteSettlement(page, route, 500);
   await expect(page.locator(".tonightStatusError")).toBeVisible();
   await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
-  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
+  await expect(page.locator(".tonightAfterPrimary")).not.toHaveCSS("display", "none");
   expect(result.cls).not.toBeNull();
   expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
 });

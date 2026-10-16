@@ -12,9 +12,11 @@ import { formatGbp } from "@/lib/formatGbp";
 // and renders a horizontal scrollable rail of cards.
 //
 // Failure is silent by design: if the fetch throws, aborts, times out, or
-// returns a non-OK / malformed body, we render NOTHING. The static "Demo"
-// drops already on the landing stand in as the fallback, so a broken feed can
-// never leave a blank or broken band on the page.
+// returns a non-OK / malformed body, we render NOTHING, and so does an empty
+// feed. The skeleton paints only while this component's own fetch is in
+// flight (capped at eight seconds); the dynamic import in LandingPage paints
+// nothing while the chunk loads, so the prerendered document never ships a
+// grey band that only JavaScript could clear.
 
 // Local shape — only the public fields we read. Kept in this file so the
 // component stays inside its ownership boundary (it consumes the API by fetch;

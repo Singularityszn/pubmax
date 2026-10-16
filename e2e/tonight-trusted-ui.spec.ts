@@ -201,7 +201,7 @@ test.describe("Tonight trusted UI", () => {
     });
     expect(order).toBeTruthy(); // list FOLLOWS deals → list above
 
-    // The lede region is the answer (#1627): the pubs people are talking about
+    // The lede region is the answer (#1627): the pubs Londoners keep recommending
     // lead it and the listings follow them. What must clear the tab bar is the
     // answer's first entry, and the listings stay inside that region.
     const lede = page.getByTestId("tonight-lede");

@@ -88,7 +88,7 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="who">
         <h2 id="who" className="legalH2">Who&rsquo;s responsible</h2>
         <p className="legalBody">
-          PUBMAXXING is run by Karan Manoharan, an individual based in London,
+          PUBMAXX is run by Karan Manoharan, an individual based in London,
           UK. There is no company behind it yet, so for UK GDPR purposes the
           data controller is that individual, reachable at{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>. We
@@ -457,8 +457,9 @@ export default function PrivacyPage() {
             system, device type, screen and viewport size, the referring page,
             recognised campaign parameters and coarse app paths. The browser
             SDK also sends Web Vitals, and how long the map took to show its
-            pubs, so we can measure loading and interaction performance. No account, handle, email, message content, free text
-            or precise location is attached.
+            pubs, so we can measure loading and interaction performance. No
+            account, handle, email, message content, free text or precise
+            location is attached.
           </li>
           <li>
             Product actions still come from a closed, named list, such as a plan

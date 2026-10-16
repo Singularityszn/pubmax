@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
+import { CONTACT_EMAIL, CONTACT_MAILTO, HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 
 // The public-contact fence. Captain 5 Sep 2026 ("Role address"): the support
 // and privacy contact on /privacy, /terms, /about, /account/delete and in every
@@ -113,6 +113,14 @@ describe("the one public contact address", () => {
     expect(CONTACT_EMAIL).toMatch(/^[a-z0-9._%+-]+@pubmaxxing\.com$/);
     expect(CONTACT_EMAIL).not.toMatch(FREE_MAIL_PATTERN);
     expect(CONTACT_MAILTO).toBe(`mailto:${CONTACT_EMAIL}`);
+  });
+
+  it("has a brand general inbox for plain Contact links, on our own domain", () => {
+    expect(HELLO_EMAIL).toBe("hello@pubmaxxing.com");
+    expect(HELLO_MAILTO).toBe(`mailto:${HELLO_EMAIL}`);
+    const footer = readFileSync(join(ROOT, "components/landing/LandingPage.tsx"), "utf8");
+    expect(footer).toContain("href={HELLO_MAILTO}>Contact</a>");
+    expect(footer).not.toContain("CONTACT_MAILTO");
   });
 
   it("is written down in exactly one place, which the app re-exports", () => {

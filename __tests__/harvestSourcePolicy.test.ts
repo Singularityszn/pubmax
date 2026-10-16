@@ -13,6 +13,7 @@ import {
   harvestSourcesOfKind,
   isHarvestableChainMenuUrl,
   isHarvestableOperatorUrl,
+  openDataSourceUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { createHarvestReporter, countDrops, harvestShortfallLines, summariseHarvestRun } from "@/lib/harvest/runReport";
 import {
@@ -103,6 +104,32 @@ describe("every source is a decision with evidence", () => {
     expect(harvestSourcesOfKind("chain-deals").length).toBeGreaterThan(0);
     expect(harvestSourcesOfKind("venue-events").length).toBeGreaterThan(0);
     expect(harvestSource("nope")).toBeUndefined();
+  });
+
+  it("registers the open-data APIs, and hands their builders only their own host", () => {
+    expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
+      "fsa-fhrs-api",
+      "wikidata-query-service",
+    ]);
+    for (const source of harvestSourcesOfKind("open-data")) {
+      // An open-data API states facts about businesses it does not own.
+      expect(source.firstParty, source.id).toBe(false);
+      expect(new URL(source.url).protocol, source.id).toBe("https:");
+      // Each row says what was not read live, so the first networked run knows to.
+      expect(source.access.evidence, source.id).toMatch(/NOT read live/);
+    }
+    expect(openDataSourceUrl("fsa-fhrs-api", "/Establishments/1").href).toBe(
+      "https://api.ratings.food.gov.uk/Establishments/1",
+    );
+    expect(openDataSourceUrl("wikidata-query-service", "?format=json&query=ASK%7B%7D").href).toBe(
+      "https://query.wikidata.org/sparql?format=json&query=ASK%7B%7D",
+    );
+    expect(() => openDataSourceUrl("fsa-fhrs-api", "//example.com/x")).toThrow(/is not fsa-fhrs-api/);
+    expect(() => openDataSourceUrl("fsa-fhrs-api", "http://api.ratings.food.gov.uk/x")).toThrow(/is not/);
+    expect(() => openDataSourceUrl("wikidata-query-service", "https://evil.example/sparql")).toThrow(/is not/);
+    expect(() => openDataSourceUrl("nope", "/")).toThrow(/no open-data source/);
+    // Only an open-data row hands out a URL, however permitted another row is.
+    expect(() => openDataSourceUrl("wetherspoon-food-drink", "/")).toThrow(/no open-data source/);
   });
 
   it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {

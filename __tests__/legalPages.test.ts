@@ -39,7 +39,8 @@ describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
     expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
     expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
-    expect(landing).toMatch(/CONTACT_MAILTO/);
+    // A plain Contact link names the brand inbox (lib/siteContact.mjs).
+    expect(landing).toMatch(/HELLO_MAILTO/);
   });
 
   it("is discoverable in the sitemap", () => {

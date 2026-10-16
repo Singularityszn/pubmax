@@ -455,7 +455,7 @@ async function isCompatibleVenueManifest(request, response, options = {}) {
     return (
       manifest?.version === expectedVersion &&
       Array.isArray(manifest.shards) &&
-      (expectedRevision === null || manifest.revision === expectedRevision)
+      (options.anyRevision || expectedRevision === null || manifest.revision === expectedRevision)
     );
   } catch {
     return false;
@@ -472,12 +472,28 @@ async function isCompatibleVenueShard(request, response, options = {}) {
     const payload = await response.clone().json();
     const expectedRevision = requestedVenueRevision(request);
     return (
-      (expectedRevision === null || payload?.revision === expectedRevision) &&
+      (options.anyRevision || expectedRevision === null || payload?.revision === expectedRevision) &&
       Array.isArray(payload.rows)
     );
   } catch {
     return false;
   }
+}
+
+// A network venue pack that is well formed but names another revision is the
+// pack the server holds around a deploy (old worker, new packs, or the
+// reverse). It is never cached, but with no compatible cached copy the page
+// gets it rather than an error, so the page can adopt it and report the skew
+// (lib/slimShards.ts) instead of painting no pins.
+async function isRevisionSkewedVenuePack(request, response) {
+  const { pathname } = new URL(request.url);
+  if (expectedVenueManifestVersion(pathname) === null && !isVenueShardPath(pathname)) return false;
+  if (!response?.ok) return false;
+  const options = { network: true, anyRevision: true };
+  return (
+    (await isCompatibleVenueManifest(request, response, options)) &&
+    (await isCompatibleVenueShard(request, response, options))
+  );
 }
 
 // Cache Storage is progressive enhancement. Safari may reject writes under
@@ -633,13 +649,18 @@ async function staleWhileRevalidate(
   const cachedManifest = await isCompatibleVenueManifest(request, cachedCandidate);
   const cachedShard = await isCompatibleVenueShard(request, cachedCandidate);
   const cached = cachedManifest && cachedShard ? cachedCandidate : undefined;
+  let skewed;
   const network = fetch(request)
-    .then(async (response) =>
-      (await isCompatibleVenueManifest(request, response, { network: true })) &&
-      (await isCompatibleVenueShard(request, response, { network: true }))
-        ? response
-        : undefined,
-    )
+    .then(async (response) => {
+      if (
+        (await isCompatibleVenueManifest(request, response, { network: true })) &&
+        (await isCompatibleVenueShard(request, response, { network: true }))
+      ) {
+        return response;
+      }
+      if (await isRevisionSkewedVenuePack(request, response)) skewed = response;
+      return undefined;
+    })
     .catch(() => undefined);
   const update = network.then(async (response) => {
     if (!isCacheable(response)) return;
@@ -661,6 +682,7 @@ async function staleWhileRevalidate(
   event.waitUntil(update);
   if (fresh) return fresh;
   if (cached) return cached;
+  if (skewed) return skewed;
   return Response.error();
 }
 

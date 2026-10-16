@@ -121,7 +121,7 @@ async function renderCard(id: string): Promise<string> {
 }
 
 function titleVenueName(title: unknown): string {
-  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXXING$/)?.[1];
+  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXX$/)?.[1];
   if (!named) throw new Error(`Bar Tab title did not name a pub: ${String(title)}`);
   return named;
 }
@@ -290,7 +290,7 @@ describe("the Bar Tab share card", () => {
       params: Promise.resolve({ id: "venue-does-not-exist" }),
     });
     const card = await renderCard("venue-does-not-exist");
-    expect(meta.title).toBe("Bar Tab: PUBMAXXING");
+    expect(meta.title).toBe("Bar Tab");
     expect(card).toContain("A London pub");
     expect(card).not.toContain("the cheapest pint on the tab");
   });

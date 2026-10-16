@@ -141,6 +141,36 @@ that TypeScript 6 compiler API at build time; see
 [`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
 to TypeScript 7, so call the TypeScript 6 compiler by its path.
 
+### What a pull request runs
+
+A pull request that changes only docs or only data skips the heavy jobs (owner decision, 16 Oct 2026). Each heavy job's second step, `Classify the change`, diffs the pull request's merge commit against its first parent and names the scope:
+
+- **docs**: every changed file is under `docs/` or ends in `.md`.
+- **data**: every changed file is docs or data, and at least one is data (`data/**/*.json` or anything under `public/data/`).
+- **code**: anything else. That includes an empty diff, any other file under `data/`, every `.github/` file that is not Markdown, and every event that is not a pull request. A push to `main` always runs in full.
+
+The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
+
+The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/2)`, and a required `Unit tests (1/2)` would then wait for ever. That is why no job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+
+| Check | docs only | data only | code |
+| --- | --- | --- | --- |
+| CI / Review scope | runs | runs | runs |
+| CI / Lint and typecheck | green, steps skipped (ESLint reads no `.md`) | runs (a JSON pack can be imported by TypeScript) | runs |
+| CI / Production build | green, steps skipped | green, steps skipped | runs |
+| CI / Unit tests (1/2) | unit tests whose source names a changed file, PostgreSQL suites aside | same | whole half, with coverage |
+| CI / Unit tests (2/2) | green, steps skipped | green, steps skipped | whole half, with coverage |
+| CI / Coverage | green, steps skipped | green, steps skipped | merges and enforces thresholds |
+| CI / Freshness release gate | runs | runs | runs |
+| CI / Data validation | runs | runs | runs |
+| Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
+| Browser tests / layout pins (1-3/3) | green, steps skipped | green, steps skipped | runs |
+| Browser tests / full suite (1-4/4) | not run on pull requests (nightly and dispatch only) | same | same |
+| RLS session tests | green, steps skipped | green, steps skipped | runs |
+| Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
+
+The named-test step covers fences that read the very file a pull request changed, such as an `AGENTS.md`, a pack or `data/freshness_registry.json`. It selects every `__tests__/*.test.ts(x)` file that names a changed file by path or by file name. A browser pin or a unit test that reads data without naming the file is not run until the merge reaches `main`, which runs everything. The local merge bar, `npm run verify`, is unchanged.
+
 ### Prove the runner
 
 `self-hosted-probe.yml` is `workflow_dispatch` only. It checks out, installs

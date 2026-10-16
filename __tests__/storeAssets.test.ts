@@ -200,7 +200,7 @@ describe("store listing copy", () => {
   });
 
   it("names the app on the install surface and the brand in the prose", () => {
-    // AGENTS.md: PUBMAXX is the brand, PUBMAXXING is the app. The listing name
+    // lib/brandNaming.ts: the store record keeps APP_NAME until the captain renames it. The listing name
     // is what appears under the icon, so it is the app.
     expect(STORE_LISTING_FIELDS.name).toBe(APP_NAME);
     expect(STORE_LISTING_FIELDS.description).toContain(BRAND_NAME);
