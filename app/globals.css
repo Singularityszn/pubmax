@@ -4818,6 +4818,14 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
     );
   }
 
+  /* The tab bar is fixed over the page's foot, so a link scrolled into view or
+     reached by the keyboard must stop above it rather than under it (WCAG
+     2.4.11, focus not obscured). The consent card's rule below adds its own
+     lane on top while the card is up. */
+  html:has(.mobileTabBar, .mobileTabBarClearance) {
+    scroll-padding-bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+  }
+
   html:has(.analyticsConsentPrompt) {
     scroll-padding-bottom: calc(
       var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
