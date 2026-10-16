@@ -58,9 +58,19 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   // Only the newest read may paint: a poll that left before a save and lands
   // after it carries the old picks, and the next save would build on them.
   const refreshRequestRef = useRef<{ generation: number; controller: AbortController } | null>(null);
+  // A write in flight owns the picks: a poll that starts or lands while it is
+  // out would paint the picks from before it.
+  const writingRef = useRef(false);
+
+  // Abort the read in flight and retire its generation, so it can never paint.
+  const supersedeRefresh = useCallback(() => {
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    refreshRequestRef.current = { generation, controller: new AbortController() };
+  }, []);
 
   const refresh = useCallback(async () => {
-    if (!memberToken) return;
+    if (!memberToken || writingRef.current) return;
     const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
     refreshRequestRef.current?.controller.abort();
     const controller = new AbortController();
@@ -124,6 +134,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     }
     setPending(true);
     setStatus("");
+    writingRef.current = true;
+    supersedeRefresh();
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         method: "POST",
@@ -150,13 +162,17 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
+      const saved = body.pref;
+      if (saved) setPrefs((current) => [...current.filter((pref) => pref.mateId !== saved.mateId), saved]);
       setShared(true);
       setDraft({});
       setStatus("Saved and shared with this plan.");
+      writingRef.current = false;
       await refresh();
     } catch {
       setStatus("Could not share these picks yet.");
     } finally {
+      writingRef.current = false;
       setPending(false);
     }
   }
@@ -164,6 +180,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   async function clearPrefs() {
     setPending(true);
     setStatus("");
+    writingRef.current = true;
+    supersedeRefresh();
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         method: "DELETE",
@@ -175,13 +193,16 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
+      setPrefs((current) => current.filter((pref) => pref.mateId !== memberId));
       setShared(false);
       setDraft({});
       setStatus("Shared picks cleared.");
+      writingRef.current = false;
       await refresh();
     } catch {
       setStatus("Could not clear shared picks.");
     } finally {
+      writingRef.current = false;
       setPending(false);
     }
   }
