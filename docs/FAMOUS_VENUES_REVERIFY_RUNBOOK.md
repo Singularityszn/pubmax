@@ -36,7 +36,10 @@ Anyone with a Google Places API key who can reach `places.googleapis.com`. The n
    - `UNVERIFIED`: no confident match, an ambiguous one, a temporary closure, or a price anchor that has moved. The row is left as it was and keeps its old `expiresAt`.
 
    The run writes `data/famous_venues/verification_<today>.json`. It exits nonzero when any row is unverified, after writing. A failed Places call stops the run before anything is written. A second `--write` on the same day refuses to overwrite that day's file.
-3. For each `UNVERIFIED` row, open its `sourceUrl` and decide. If the venue still trades and the match was the problem, fix the row (name, address, `lat`/`lng` or `anchor`) and re-run with `-- --write --limit 5`. A `--limit` run merges into today's file. If the venue is gone, delete the row and add its id to `removed.json`. If you leave it, it ships until its old `expiresAt` and then drops out on the next refresh.
+3. For each `UNVERIFIED` row, open its `sourceUrl` and decide:
+   - **The venue still trades and the match was the problem.** Fix the row (name, address, `lat`/`lng` or `anchor`) and re-check it on a later day with `npm run verify:famous-venues -- --write --limit N`, where N is the number of rows you fixed. It cannot be re-checked the same day: the full run's checks count against `--limit`, so a same-day `--limit` run calls Places for nothing. On a later day the run takes rows oldest `observedAt` first, and an unverified row kept its old date while every confirmed row moved to the full run's day, so the rows it picks are the ones you fixed. Then repeat steps 4 to 6.
+   - **The venue is gone.** Delete the row and add its id to `removed.json`.
+   - **You leave it.** It ships until its old `expiresAt` and then drops out on the next refresh.
 4. Run `npm run refresh:slim`. It rebuilds `public/data/venues_slim.json` at the latest seed `observedAt` or `expiresAt` on or before today, and fails rather than silently drop a shipped venue. Commit the slim it writes.
 5. Update the `famous_venues` entry in `data/freshness_registry.json`:
    - `stamp.value`: the new slim `generatedAt`.
