@@ -10,7 +10,8 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: fetchMock,
 }));
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ handle: "ken" }),
+  // Signed in: a signed-out visitor gets no bell at all (Oct 2026 UX audit).
+  useAuth: () => ({ handle: "ken", user: { id: "user-ken" } }),
 }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => false,

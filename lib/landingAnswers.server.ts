@@ -77,7 +77,7 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
       ).length;
   // Same page-limited pack /tonight renders, so the card cannot under-count
   // pubs the route will show with "Open on map".
-  const hypedCount = unread ? 0 : hypedPubsForPage(hyped.rows).length;
+  const hypedCount = unread ? 0 : hypedPubsForPage(hyped.rows, { now }).length;
 
   return {
     today: todayAnswer(weather, stamp),

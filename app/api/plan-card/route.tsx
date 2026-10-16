@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 // when the plan link lands, so it carries the same field-guide brand lockup as
 // its sibling "A Crawl Story" card (app/api/crawl-card): the Crossing mark in a
 // brass chip, the wordmark, the printed-guidebook palette. Before this it drew a
-// bare "PUBMAXXING" wordmark on an off-brand cream field with no mark at all,
+// bare "PUBMAXX" wordmark on an off-brand cream field with no mark at all,
 // the one share surface #382 left without the Crossing mark. Kept in lockstep
 // with the crawl card so the two "your night" artifacts read as siblings.
 
@@ -138,7 +138,7 @@ export async function GET(request: Request): Promise<Response> {
                 letterSpacing: 0.5,
               }}
             >
-              PUBMAXXING
+              PUBMAXX
             </div>
           </div>
           <div

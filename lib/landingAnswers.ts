@@ -11,7 +11,10 @@
 // Tonight's empty line is the SAME sentence /tonight prints over an empty
 // listings night (`TONIGHT_QUIET_NIGHT_SENTENCE`). The card also counts the
 // hyped-pubs pack /tonight leads with, so a home door that says nothing is on
-// cannot sit above a /tonight page full of pubs people are talking about.
+// cannot sit above a /tonight page full of pubs Londoners keep recommending.
+// Those pubs are recommendations dated on their own cards, never tonight's
+// listings, so the sentence says nothing is confirmed and names them for what
+// they are rather than counting them as things on tonight.
 
 import { TONIGHT_QUIET_NIGHT_SENTENCE } from "@/lib/tonightOutListings";
 
@@ -83,9 +86,13 @@ export function tonightAnswer(listings: TonightListingFacts, stamp: string): Lan
   if (hyped >= 1) {
     const pubs =
       hyped === 1
-        ? "1 pub people are talking about"
-        : `${hyped} pubs people are talking about`;
-    return { line: `${pubs} tonight.`, stamp, measured: true };
+        ? "Here’s a pub Londoners keep recommending"
+        : `Here are ${hyped} pubs Londoners keep recommending`;
+    return {
+      line: `Nothing’s confirmed on tonight yet. ${pubs}.`,
+      stamp,
+      measured: true,
+    };
   }
   return { line: TONIGHT_QUIET_NIGHT_SENTENCE, stamp, measured: true };
 }

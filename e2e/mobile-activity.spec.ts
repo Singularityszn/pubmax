@@ -105,12 +105,13 @@ test.describe("mobile Activity", () => {
     await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
     await expectTappable(siteNav.getByLabel(/^Activity/), "Activity bell");
     await expectTappable(siteNav.getByLabel(/^Messages/), "Messages bell");
-    await expectTappable(siteNav.getByRole("button", { name: /switch to/i }), "theme toggle");
+    // The theme left the header for More (desktop) and the You page.
+    await expect(siteNav.getByRole("button", { name: /switch to/i })).toHaveCount(0);
 
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     await expect(primaryNav).toBeVisible();
     await expectTappable(primaryNav.getByRole("link", { name: "Map", exact: true }), "bottom Map tab");
-    await expectTappable(primaryNav.getByRole("link", { name: "Out", exact: true }), "bottom Out tab");
+    await expectTappable(primaryNav.getByRole("link", { name: "Tonight", exact: true }), "bottom Tonight tab");
     await expectTappable(page.getByRole("button", { name: "Create" }), "create action");
     await expectTappable(primaryNav.getByRole("link", { name: "You", exact: true }), "bottom You tab");
 

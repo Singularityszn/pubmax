@@ -144,7 +144,7 @@ describe("faqItems", () => {
     const questions = items.map((i) => i.question);
     expect(questions).toContain("What is the cheapest pint in Hackney?");
     expect(questions).toContain("How much is a pint in Hackney in 2026?");
-    expect(questions).toContain("How many pubs does Hackney have on PUBMAXXING?");
+    expect(questions).toContain("How many pubs does Hackney have on PUBMAXX?");
     // Cheapest answer cites the pub + price.
     const cheapest = items.find((i) => i.question.startsWith("What is the cheapest"));
     expect(cheapest?.answer).toContain("£5.00 at The Cheap One");

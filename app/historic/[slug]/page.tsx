@@ -8,6 +8,8 @@ import {
   loadHistoricPubs,
   type HistoricPub,
 } from "@/lib/historic";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import HistoricPubDetail from "./HistoricPubDetail";
 
 import "./historic-detail.css";
@@ -61,12 +63,12 @@ export async function generateMetadata({
 
   if (!pub) {
     return {
-      title: "Historic pub. PUBMAXXING",
+      title: "Historic pub. PUBMAXX",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${pub.name}. Historic London pub | PUBMAXXING`;
+  const title = `${pub.name}. Historic London pub | PUBMAXX`;
   const description = metaDescription(pub);
   const canonical = `/historic/${pub.slug}`;
 
@@ -123,6 +125,16 @@ function historicPubJsonLd(pub: HistoricPub) {
   };
 }
 
+// The pint the app lists for this pub, read from the same priced index the map
+// pin and Tonight read, so the figure here is the figure everywhere. Null when
+// the pub resolves to no venue or the venue holds no listed price: the page
+// then says so and offers the way to log one.
+async function historicListedPint(pub: HistoricPub): Promise<VenueListedPint | null> {
+  if (!pub.venueId) return null;
+  const venue = (await getPricedVenues()).find((row) => row.id === pub.venueId);
+  return venue ? venueListedPint(venue) : null;
+}
+
 export default async function HistoricDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
@@ -133,7 +145,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
       <JsonLd data={historicPubJsonLd(pub)} />
       <SiteNav active="historic" />
 
-      <HistoricPubDetail pub={pub} />
+      <HistoricPubDetail pub={pub} listedPint={await historicListedPint(pub)} />
     </main>
   );
 }

@@ -4,7 +4,6 @@ const PRODUCT_EVENT_STATIC_SURFACES = new Set([
   "/",
   "/map",
   "/moment",
-  "/out",
   "/pal",
   "/plan",
   "/social",
