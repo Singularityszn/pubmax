@@ -3,7 +3,7 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
-import { displayVenueAddress } from "@/lib/venueDisplay";
+import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
@@ -165,7 +165,14 @@ export type Venue = {
   siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
+  /** The reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /**
+   * The name as the dataset files it, present only when it differs from `name`
+   * ("The George - JD Wetherspoon"). Identity joins and search read it; it is
+   * never rendered.
+   */
+  sourceName?: string;
   address: string;
   latitude: number;
   longitude: number;
@@ -649,7 +656,8 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
 
     return {
       id: stableVenueIdFromKey(key),
-      name: first.pub_name,
+      name: displayVenueName(first.pub_name),
+      ...venueSourceNameField(first.pub_name),
       address: displayVenueAddress(first.address),
       latitude: first.latitude,
       longitude: first.longitude,
