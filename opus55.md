@@ -36,7 +36,7 @@ The following identities were checked during this handoff preparation.
 
 | Item | Current recorded state |
 | --- | --- |
-| Original launch run | `01M4TQ7SJGTFSG7YARX0NT0BGJ` |
+| Original launch run | `restricted-original-launch-run` |
 | Launch branch | `codex/desktop-search-usability` |
 | Original caller checkout | `restricted-caller-checkout` |
 | Caller head | `be3925ba786ae83d640ec611da0fcafea987f552`, clean, `pipeline_owned` |
@@ -45,11 +45,11 @@ The following identities were checked during this handoff preparation.
 | Actual gate | `Test/fix_review`, no-go, two auto-fix findings |
 | Night fixture disposition | The original actor retained the one-line fixture. The original executor committed it in `1ac572c347`. Native is clean |
 | Captured verification plan SHA-256 | `4a67cc51b7fc4882c90ab03b1e3e0773cf9804758f47086ddfb0ce6cf86dd78b` |
-| Original supervisor | Writer PID 599 and the existing coordinator routing |
+| Original supervisor | The original supervisor writer process and the existing coordinator routing |
 | Last accepted QA family | Source201, accepted once at 13:05:49 UTC and fully released at 13:45:57 UTC. Its initial authority conflict remains unresolved |
 | Current scheduling authority | Decision 205 allocates the next serial slot to this original documentation run after Source201 family release |
 | Preserved launch instruction | Decision 201 is consumed. No repeat response or additional Source correction is allocated |
-| Documentation run | `01M4X6B10GAAMA7CK391F6WS6P`, branch `codex/opus55-handoff`, currently in review |
+| Documentation run | `restricted-documentation-run`, branch `codex/opus55-handoff`, currently in review |
 | Submitted documentation head | `7c93fec053dc1a06eb7ca5e9dec61f146485ee09` |
 | Documentation base | Fresh `origin/main` at `599252af3019f3776b5d78d297fae2d871fbd87f` |
 
@@ -106,13 +106,13 @@ Older production builds validate their own heads. They do not validate a later h
 | `1ac572c347` | The budget repair and unchanged Night fixture were committed by the original actor and executor. |
 | `1ac572c347` full and product gates | Configured verification and private production build passed. The product verdict remains no-go for unstable transit-dependent journeys. |
 
-Decision 193 resolved input transport for its actual actor, PID 11270.
+Decision 193 resolved input transport for its actual actor, the decision 193 actor process.
 That actor read and hash-checked the pinned update contract, Main semantics, finding, and instructions.
 Transport success for that actor does not prove live provider access or deployment binding.
 
-Decision 199 used its exact execution packet once. Its fix actor was PID 41299.
+Decision 199 used its exact execution packet once. Its fix actor was the decision 199 fix actor process.
 The durable selection contained `test-1`, `required-configured-verification-failed`, and `test-3`.
-Its evidence actor was PID 27087. Both completed before the recorded family release.
+Its evidence actor was the decision 199 evidence actor process. Both completed before the recorded family release.
 
 ## Historical decision 199 verification
 
@@ -165,12 +165,12 @@ The assertions depend on live transit. No deterministic application defect was e
 The remaining test requirement preserves canonical destinations and complete-question assertions while isolating upstream data. Live transit smoke remains separate.
 This documentation slot authorises no Source test repair or transit probe.
 
-The production validator, PID 16108, read the retained decision 201 grant at 13:16:16 UTC.
+The Source201 production validator process read the retained decision 201 grant at 13:16:16 UTC.
 It recorded the exact `1ac` head and fresh floors before the build in `target-1ac-authority-readback.json`, SHA-256 prefix `e1e398c7`.
 This establishes grant transport and readback. It does not retroactively authorise the initial start or prove live provider acceptance.
 
 All owned Source201 services were released at 13:45:57 UTC through original actor cleanup.
-Actors 16499 and 16108 were absent. Owned checkout, executable, and PostgreSQL process counts were zero, and port 3187 was closed.
+The other Source201 actor process and the production validator process were absent. Owned checkout, executable, and PostgreSQL process counts were zero, and port 3187 was closed.
 The six phase-created paths were absent. Dependencies were preserved, and the parent sent no signals.
 This establishes complete owned-family release, without a whole-host quiet claim.
 These launch results are separate from the documentation baseline at `12594eef`, which recorded 22,046 unit passes.
@@ -344,7 +344,7 @@ The `.co.uk` Google entry returned to canonical `.com` and resumed that account.
 No fresh credential entry or OAuth chooser occurred. This proves session return, not a fresh OAuth handshake.
 
 The separately owned Profile PR is [2091](https://github.com/Singularityszn/pubmax/pull/2091), "fix: restore iPhone email returns and You-tab session identity".
-Its original run is `01M4VXGBT3QM06QDRYY31J7YA4`.
+Its original run is `restricted-profile-run`.
 Its owner retains account callback, session identity, You-tab, and original-account physical email proof.
 Its local heavy reservation was released. Remote review or Mail waits alone do not reserve the host.
 Profile's post-PR capability gap and physical acceptance remain open.
@@ -396,14 +396,14 @@ Those names do not establish that a worker is currently active or owns a new all
 
 The original Firstmate inbox is the existing reporting channel.
 A saved or announced note is not an acknowledged decision.
-The final decision 199 release note, `1791979741-oW1LMB`, received decision 201 at 12:17:12 UTC.
+The final decision 199 release note, `restricted-decision199-release-note-receipt`, received decision 201 at 12:17:12 UTC.
 That historical reply acknowledged release and authorised a bounded correction. Source201 did not execute before decision 202.
 Its exact command was later accepted once at 13:05:49 UTC, after decision 202 released that reservation.
 The apparent human override remains unverified. Decision 204 authorised only prospective continuation at 13:12:55 UTC.
 Neither the delayed grant nor decision 204 establishes retroactive authority for the initial start.
 
 Decision 202, issued by the original supervisor at 12:29:08 UTC, allocated one existing-owner repository-gated documentation publication family first.
-This family is run `01M4X6B10GAAMA7CK391F6WS6P`, submitted at `7c93fec053dc1a06eb7ca5e9dec61f146485ee09`.
+This family is run `restricted-documentation-run`, submitted at `7c93fec053dc1a06eb7ca5e9dec61f146485ee09`.
 The historical decision 202 allocation was read from the filesystem and its SHA-256 matched:
 
 ```text
@@ -526,7 +526,7 @@ Selected integrity pins are recorded below.
 The historical decision 199 local product evidence directory is:
 
 ```text
-restricted-source201-live-evidence-root
+restricted-decision199-development-evidence-root
 ```
 
 Its `receipt.json`, `constraint-observations.json`, and `api-responses.json` retain the actual public request results.
