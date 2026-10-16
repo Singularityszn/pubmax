@@ -131,7 +131,7 @@ export default function LandingPage({
       </header>
 
       <main id="main">
-        {/* The whole first screen, at every width: brand kicker, the claim, one
+        {/* The whole first screen, at every width: the city kicker, the claim, one
             line under it, the drawing of London, one primary action (Cheapest
             pints near me), the quiet row of the receipt door and Tonight, then
             the one real pub and three next-cheapest rows. The DOM order is the

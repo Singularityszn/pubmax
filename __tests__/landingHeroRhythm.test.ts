@@ -83,7 +83,7 @@ describe("landing hero rhythm", () => {
 
   it("reads kicker, heading, lede, picture, primary, quiet row, pub card, rail, in that order", () => {
     const order = positions(html, [
-      '<p class="kicker">PUBMAXX</p>',
+      '<p class="kicker">London</p>',
       '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
       '<p class="screenLede">',
       'class="lpLondonFigure"',

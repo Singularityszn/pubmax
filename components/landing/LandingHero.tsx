@@ -335,7 +335,7 @@ export default function LandingHero({
   return (
     <Screen
       className="lpHero"
-      kicker="PUBMAXX"
+      kicker="London"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
       lede={`London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`}

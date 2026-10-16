@@ -46,7 +46,7 @@ Rules the table obeys:
 
 | Route | Kicker | Heading | Primary action | Secondary |
 |---|---|---|---|---|
-| `/` | PUBMAXX | What a pint costs, pub by pub. | [Front-door action contract](../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap) | See the same contract |
+| `/` | London (the city name; the wordmark in the bar above already says PUBMAXX) | What a pint costs, pub by pub. | [Front-door action contract](../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap) | See the same contract |
 | `/map` and `/map/[city]` | London (the city name) | (no heading: the map is the surface) | Use my location | Choose an area |
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |

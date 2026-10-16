@@ -61,23 +61,23 @@ body:has(.lp) {
   align-items: center;
   gap: 9px;
   color: var(--ink);
-  font: 750 15px/1 var(--font-display);
-  letter-spacing: -.02em;
+  font: 750 1.02rem/1 var(--font-display);
+  letter-spacing: -.025em;
   text-decoration: none;
 }
 
 .lpWordmark .pubmaxxWordmark { max-width: 100%; }
 
-.lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
+.lpPrimaryNav { display: flex; justify-content: flex-start; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
   min-height: 44px;
-  padding: 0 13px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 0.84rem;
+  font-weight: 600;
   text-decoration: none;
 }
 .lpPrimaryNav a:hover { color: var(--ink); background: var(--panel); }
@@ -471,12 +471,21 @@ a.lpPubPint:hover { color: var(--ink); }
    NO primary navigation at all: six links rendered at 0x0 and no dock under
    them. The links now stay to 641px in the same compact cut the in-app bar
    takes on that band (siteNav.css, "the tablet band"): tighter gaps, the
-   0.78rem label, 6px side padding. Measured at 641px: brand, six links and
+   0.74rem label, 6px side padding. Measured at 641px: brand, six links and
    the four-control action island fit the bar with room to spare. */
+/* One bar from the front door to every app page (siteNav.css, "Shared top-bar
+   FRAME tokens"). Its contents differ by design, since Social and the compose
+   action are not front doors, but the frame does not: the same 1100px capsule,
+   the wordmark at the same size, and the link row starting beside it in the
+   same label type, rather than a wider pill whose links sat in its centre. */
+@media (min-width: 641px) {
+  .lpNav { width: min(1100px, 100vw - 48px); }
+}
+
 @media (max-width: 960px) {
   .lpNav { gap: 10px; padding-left: 12px; }
   .lpPrimaryNav { gap: 0; }
-  .lpPrimaryNav a { padding: 0 6px; font-size: 0.78rem; }
+  .lpPrimaryNav a { padding: 0 6px; font-size: 0.74rem; }
 }
 
 /* Under 641px the six-tab dock owns primary navigation, so the link row goes. */
