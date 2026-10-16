@@ -1500,6 +1500,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   color: var(--tint-ink-info);
 }
 
+/* The day the source was read: muted ink, never a chip, because it dates the
+   claim beside it rather than making one. */
+.venueTabPanel .heritageFactRead {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
 .venueTabPanel .heritageFactCite {
   display: inline-flex;
   align-items: center;
