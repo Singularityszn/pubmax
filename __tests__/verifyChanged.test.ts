@@ -71,8 +71,9 @@ describe("the full-suite escalation", () => {
     expect(fullSuiteReason([{ path: "lib/oldThing.ts", status: "D" }], new Map())).toContain(
       "lib/oldThing.ts",
     );
-    // A deleted doc imports into nothing.
+    // A deleted doc or test file is imported by nothing.
     expect(fullSuiteReason([{ path: "docs/old.md", status: "D" }], new Map())).toBeNull();
+    expect(fullSuiteReason([{ path: "__tests__/old.test.ts", status: "D" }], new Map())).toBeNull();
   });
 
   it("can be forced with PUBMAX_VERIFY_FULL=1", () => {

@@ -134,7 +134,7 @@ export function fullSuiteReason(changed, importers, env = {}) {
   if (env.PUBMAX_VERIFY_FULL === "1") return "PUBMAX_VERIFY_FULL=1 is set";
   for (const { path, status } of changed) {
     if (matchesAny(FOUNDATIONS, path)) return `${path} is a shared foundation`;
-    if (status === "D" && SOURCE.test(path)) return `${path} was deleted, so its importers cannot be scoped`;
+    if (status === "D" && SOURCE.test(path) && !TEST_FILE.test(path)) return `${path} was deleted, so its importers cannot be scoped`;
     const fan = importers.get(path)?.size ?? 0;
     if (fan > FULL_SUITE_FAN_IN) {
       return `${path} is imported directly by ${fan} modules (more than ${FULL_SUITE_FAN_IN})`;
