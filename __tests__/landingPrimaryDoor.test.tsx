@@ -27,13 +27,15 @@ vi.mock("@/lib/nativeFirstRun", async (importOriginal) => ({
 }));
 
 import LandingHero from "@/components/landing/LandingHero";
+import NearOnboardingChip, { NEAR_ONBOARDING_CHIP_LABEL } from "@/components/nearme/NearOnboardingChip";
 import FirstRunOnboardingGate from "@/components/onboarding/FirstRunOnboardingGate";
 import { hasSeenTour, markTourSeen } from "@/lib/firstRunTour";
 
-// The landing hero is the web's one door into the first-run journey (THE FRONT
-// DOOR, docs/rules/components-design-system-and-launch-primitives.md). A
-// first-time visitor's tap opens the journey, a returning visitor's goes
-// straight to /near, and the journey's Skip lands where the tap was going.
+// THE FRONT DOOR (docs/rules/components-design-system-and-launch-primitives.md):
+// the landing's primary answers in one tap for EVERY visitor (owner decision
+// 16 Oct 2026). A first-time visitor is no longer sent through the first-run
+// setup first; /near offers it as a chip under the answer, and the setup's
+// Skip still lands on the near-me answer.
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -73,10 +75,10 @@ afterEach(async () => {
 });
 
 describe("the landing hero's primary", () => {
-  it("opens the first-run journey for a first-time visitor", async () => {
+  it("answers a first-time visitor in one tap, with no first-run gate in front", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 
-    expect(primaryHref()).toBe("/onboarding?start=web");
+    expect(primaryHref()).toBe("/near?locate=1");
   });
 
   it("keeps /near for a returning visitor with the seen mark", async () => {
@@ -86,15 +88,57 @@ describe("the landing hero's primary", () => {
     expect(primaryHref()).toBe("/near?locate=1");
   });
 
-  it("moves to /near as soon as the mark is recorded", async () => {
+  it("does not move when the seen mark is recorded", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
-    expect(primaryHref()).toBe("/onboarding?start=web");
+    expect(primaryHref()).toBe("/near?locate=1");
 
     await act(async () => {
       markTourSeen();
     });
 
     expect(primaryHref()).toBe("/near?locate=1");
+  });
+});
+
+describe("the first-run chip on /near", () => {
+  function chipHref(): string | null {
+    const link = [...container.querySelectorAll("a")].find(
+      (anchor) => anchor.textContent === NEAR_ONBOARDING_CHIP_LABEL,
+    );
+    return link?.getAttribute("href") ?? null;
+  }
+
+  it("offers the first-run setup to a first-time visitor", async () => {
+    await render(createElement(NearOnboardingChip));
+
+    expect(chipHref()).toBe("/onboarding?start=web");
+  });
+
+  it("is not offered inside the native shell, where the web setup cannot start", async () => {
+    shell.native = true;
+    await render(createElement(NearOnboardingChip));
+
+    expect(chipHref()).toBeNull();
+    expect(container.textContent).toBe("");
+  });
+
+  it("is absent for a visitor who already has the seen mark", async () => {
+    markTourSeen();
+    await render(createElement(NearOnboardingChip));
+
+    expect(chipHref()).toBeNull();
+    expect(container.textContent).toBe("");
+  });
+
+  it("goes away as soon as the mark is recorded", async () => {
+    await render(createElement(NearOnboardingChip));
+    expect(chipHref()).toBe("/onboarding?start=web");
+
+    await act(async () => {
+      markTourSeen();
+    });
+
+    expect(chipHref()).toBeNull();
   });
 });
 

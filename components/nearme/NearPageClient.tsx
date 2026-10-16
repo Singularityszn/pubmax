@@ -29,6 +29,7 @@ import { resolveNightPatch } from "@/lib/nightPatches";
 import NearDeskNow from "./NearDeskNow";
 import NearMeNow from "./NearMeNow";
 import NearModeSwitch from "./NearModeSwitch";
+import NearOnboardingChip from "./NearOnboardingChip";
 import PosterLandingNote from "./PosterLandingNote";
 import "./nearPage.css";
 
@@ -153,6 +154,9 @@ function NearPageBody() {
             showPriceTrust
           />
         )}
+        {/* The first-run setup is offered here, under the answer, and never
+            stands in front of it (owner decision 16 Oct 2026). */}
+        <NearOnboardingChip />
       </main>
     </div>
   );
