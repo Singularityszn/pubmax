@@ -13,7 +13,7 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   // Social is a primary tab (captain, 16 Oct 2026), so it is not repeated
   // here; the theme row the header gave up closes the menu.
   await expect(menu.getByRole("menuitem")).toHaveText([
-    "Drink WallPints, pubs and London in photos",
+    "PhotosPints, pubs and London in photos",
     "NearFind priced pubs close to you",
     "HistoricRead the stories behind old pubs",
     "PalAsk for a pub that fits tonight",
@@ -24,7 +24,7 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   expect(menuBox).not.toBeNull();
   expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(312);
 
-  const firstItem = page.getByRole("menuitem", { name: /Drink Wall/ });
+  const firstItem = page.getByRole("menuitem", { name: /Photos/ });
   const lastItem = page.getByRole("menuitem", { name: /^(Dark|Light) theme/ });
   await expect(firstItem).toBeFocused();
   await page.keyboard.press("End");

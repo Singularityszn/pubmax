@@ -121,7 +121,7 @@ function generatedVenue(
 async function cappedTestVenues(): Promise<ConciergeVenue[]> {
   const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
   const venues = await actual.loadConciergeVenues("london");
-  return ["Feeley's", "The Beehive - JD Wetherspoon", "Effra Social", "Prince of Wales"].map((name) => {
+  return ["Feeley's", "The Beehive", "Effra Social", "Prince of Wales"].map((name) => {
     const venue = venues.find((candidate) => candidate.name === name);
     if (!venue) throw new Error(`Missing canonical fixture: ${name}`);
     return venue;
@@ -1431,7 +1431,7 @@ describe("POST /api/plans/generate", () => {
     }), PLAN_GENERATION_TEST_NOW);
     if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
     expect(result.prepared.context.budgetLimitPence).toBeNull();
-    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive"]);
   });
 
   it.each(["beer", "drink", "pint"].flatMap((item) => [
@@ -1498,7 +1498,7 @@ describe("POST /api/plans/generate", () => {
     if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
     expect(result.prepared.context.budgetLimitPence).toBeNull();
     if (JSON.stringify(input).includes("£1")) expect(result.prepared.candidates).toHaveLength(0);
-    else expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    else expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive"]);
   });
 
   it.each([
@@ -1530,7 +1530,7 @@ describe("POST /api/plans/generate", () => {
     }), PLAN_GENERATION_TEST_NOW);
     if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
     expect(result.prepared.context.budgetLimitPence).toBeNull();
-    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive"]);
   });
 
   it.each([
@@ -1707,7 +1707,7 @@ describe("POST /api/plans/generate", () => {
       method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, pints under £5" }),
     }), PLAN_GENERATION_TEST_NOW);
     if (!("prepared" in result)) throw new Error("Expected canonical price filtering");
-    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive"]);
     expect(result.prepared.candidates.map(({ venue }) => venue.cheapestPrice).sort()).toEqual([2.89, 4.2, 4.7]);
   });
 
@@ -1738,7 +1738,7 @@ describe("POST /api/plans/generate", () => {
     }), PLAN_GENERATION_TEST_NOW);
     if (!("prepared" in result)) throw new Error("Expected a prepared pub route");
     expect(result.prepared.context.budgetLimitPence).toBe(total);
-    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive"]);
   });
 
   it.each([
@@ -1977,7 +1977,7 @@ describe("POST /api/plans/generate", () => {
     if (!("prepared" in result)) throw new Error(`Expected a prepared food-aware pub route: ${JSON.stringify({ query, foodNeeds, response: await result.response.json() })}`);
     expect(result.prepared.context.budgetLimitPence).toBe(2000);
     expect(result.prepared.context.foodNeeds).toEqual(foodNeeds ?? [query.includes("pizza") ? "pizza" : "food"]);
-    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive - JD Wetherspoon"]);
+    expect(result.prepared.candidates.map(({ venue }) => venue.name).sort()).toEqual(["Effra Social", "Feeley's", "The Beehive"]);
   });
 
   beforeEach(async () => {

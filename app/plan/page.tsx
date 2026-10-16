@@ -3,10 +3,11 @@ import type { Metadata } from "next";
 import PlanComposer from "@/components/plan/PlanComposer";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 import "./plan.css";
 
-const PAGE_TITLE = "Sort the outing";
+const PAGE_TITLE = PLAN_HEADING;
 const PAGE_DESCRIPTION =
   "Put the pubs in order, pick a time, and send one link to the crew.";
 /** The site card. There is no per-plan card until a plan exists. */

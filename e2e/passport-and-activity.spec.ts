@@ -35,7 +35,7 @@ test.describe("/u/you — signed-out identity invitation (fresh context, no loca
 
     const invite = page.locator(".youIdentityIntro");
     await expect(invite).toBeVisible();
-    await expect(invite.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
+    await expect(invite.getByRole("heading", { name: "Claim your @handle." })).toBeVisible();
 
     // One primary CTA (start identity) + one quiet secondary — no more. The
     // primary is a real door to /login: as an in-page anchor it scrolled the

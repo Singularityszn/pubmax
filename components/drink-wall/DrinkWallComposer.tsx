@@ -153,7 +153,7 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
         type="file"
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
         className="venuePhotoComposerFile"
-        aria-label="Choose a drink wall photo"
+        aria-label="Photo for the wall"
         onChange={(event) => {
           const file = event.target.files?.[0] ?? null;
           event.target.value = "";

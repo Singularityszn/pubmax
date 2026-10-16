@@ -106,7 +106,7 @@ async function defaultListOpenSoftPlans(
       })
       .map((row) => ({
         id: String(row.id),
-        title: typeof row.title === "string" ? row.title : "Soft Plan",
+        title: typeof row.title === "string" ? row.title : "Your plan",
       }));
   } catch {
     return [];

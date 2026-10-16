@@ -363,7 +363,7 @@ function CityPanel({
           className="placesSection"
           aria-labelledby="places-prices-title"
         >
-          <Kicker tone="muted">Prices</Kicker>
+          <Kicker>Prices</Kicker>
           <h2 id="places-prices-title" className="placesSectionTitle">
             {row.pricesListed
               ? "Listed pint prices"
@@ -373,7 +373,7 @@ function CityPanel({
         </section>
 
         <section className="placesSection" aria-labelledby="places-areas-title">
-          <Kicker tone="muted">{PLACES_AREAS_KICKER}</Kicker>
+          <Kicker>{PLACES_AREAS_KICKER}</Kicker>
           <div className="placesSectionHead">
             <h2 id="places-areas-title" className="placesSectionTitle">
               {placesAreasTitle(cityId)}

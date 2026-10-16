@@ -103,12 +103,12 @@ export function drinkWallPlaceLine(photo: { venueName: string | null; placeLabel
 /** The author's delete removes the one row every wall reads, so the confirm names each wall it leaves. */
 export function drinkWallRemoveConfirmLine(photo: { venueId: string | null }): string {
   return photo.venueId
-    ? "Delete this photo for good? It comes off the Drink Wall and its pub wall."
-    : "Delete this photo for good? It comes off the Drink Wall.";
+    ? "Delete this photo for good? It comes off the photo wall and the pub's page."
+    : "Delete this photo for good? It comes off the photo wall.";
 }
 
 export const DRINK_WALL_SIGN_IN_LINE =
-  "Sign in and pick a handle to add a photo to the Drink Wall.";
+  "Sign in and pick a handle to add a photo.";
 
 export function drinkWallSignInHref(from?: string | null): Route {
   const back = from && from.startsWith("/") ? from : "/wall";

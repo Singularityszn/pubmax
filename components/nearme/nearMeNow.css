@@ -606,3 +606,11 @@
   gap: var(--space-4);
   width: 100%;
 }
+
+/* "Share this pint" rides the top answer only (lib/pintShare.ts), on its own
+   line under the card so it never competes with Keep for the row. Quiet ghost
+   weight: the price is the point, the share is an aside. */
+.nmnSharePint {
+  flex-basis: 100%;
+  padding-inline: var(--space-2);
+}

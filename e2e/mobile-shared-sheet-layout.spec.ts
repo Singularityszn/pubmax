@@ -233,7 +233,7 @@ test("mobile planner and contextual portal sheets retain the canonical bottom an
   expect(response?.status()).toBe(200);
   await expectMobileMapShellReady(page, 20_000);
 
-  await page.getByRole("button", { name: "Describe the outing" }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl" }).click();
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
   await expect(planner).toBeVisible();
   await expectSheetInsideViewport(page, planner.locator(".mobileSharedSheet"));

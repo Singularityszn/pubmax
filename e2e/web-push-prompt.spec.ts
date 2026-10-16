@@ -151,7 +151,7 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
 
   await page.goto("/map?plan=1");
   const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await expect(webPrompt).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
 
@@ -199,7 +199,7 @@ test("installed PWA recovers when service-worker readiness never settles", async
 
   await page.goto("/map?plan=1");
   const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
-  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(webPrompt).toBeVisible();
 

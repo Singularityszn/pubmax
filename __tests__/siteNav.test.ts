@@ -75,7 +75,7 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
       "/pal",
     ]);
     expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
-      "Drink Wall",
+      "Photos",
       "Near",
       "Historic",
       "Pal",

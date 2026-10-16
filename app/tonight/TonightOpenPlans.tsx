@@ -58,12 +58,12 @@ export default function TonightOpenPlans({ body }: { body: OutResponse | null })
         data-testid="tonight-drink-wall"
       >
         <h2 id="tonight-wall-heading" className="outSectionTitle">
-          Drink Wall
+          Photos from drinkers
         </h2>
         <p className="outStatus">
-          Pints, pub fronts and London views from drinkers on the map.{" "}
+          Pints, pub fronts and London views.{" "}
           <Link prefetch={false} href="/wall" className="outPlansFootLink">
-            Browse the wall
+            See the photos
           </Link>
         </p>
       </section>

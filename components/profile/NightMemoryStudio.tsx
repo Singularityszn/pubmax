@@ -112,7 +112,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       }));
     }).catch(() => {
       if (!controller.signal.aborted) {
-        setMessage("Your Memory studio could not be loaded. Try again.");
+        setMessage("Your memories could not be loaded. Try again.");
         setStudioLoaded(true);
       }
     });
@@ -534,7 +534,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     <section className="memoryStudio" id="night-memories" aria-labelledby="memory-studio-title">
       <div className="memoryStudioHeader">
         <div>
-          <p className="profileSectionKicker">Night Memory studio</p>
+          <p className="profileSectionKicker">Your memories</p>
           <h3 id="memory-studio-title">Keep the parts you will tell people about.</h3>
         </div>
         <p>Everything starts private. A Story is a separate draft, never an automatic post.</p>
@@ -543,7 +543,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
 
       {studioLoaded && memories.length === 0 && stories.length === 0 ? (
         <div className="memoryStudioFirstRun" role="status">
-          <p className="memoryStudioFirstRunTitle">Your Memory studio is empty.</p>
+          <p className="memoryStudioFirstRunTitle">No memories yet.</p>
           <p className="memoryStudioFirstRunBody">
             A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or save tonight from the map.
           </p>
