@@ -156,10 +156,10 @@ describe("the tonight lede, hydrated", () => {
     ).toBe("empty");
   });
 
-  it("leads with the pubs people are talking about when the pack carries rows", async () => {
+  it("leads with the pubs Londoners keep recommending when the pack carries rows", async () => {
     await mount({ hypedPubs: HYPED });
     const lede = ledeText();
-    expect(lede).toContain("Pubs people are talking about");
+    expect(lede).toContain("Pubs Londoners keep recommending");
     expect(lede).toContain("The Pelican Rise");
     expect(lede).toContain("r/london");
     expect(lede).toContain("Not on our map yet");
@@ -167,7 +167,7 @@ describe("the tonight lede, hydrated", () => {
     expect(lede).not.toContain("Ticketmaster");
   });
 
-  it("keeps only the first pub explanation behind a disclosure", async () => {
+  it("shows every pub's reason the same way, with nothing behind a disclosure", async () => {
     const rows = Array.from({ length: 6 }, (_, index) => ({
       ...HYPED[index % HYPED.length]!,
       name: `Pub ${index + 1}`,
@@ -176,25 +176,40 @@ describe("the tonight lede, hydrated", () => {
     await mount({ hypedPubs: rows });
     const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
     expect(pubs).toHaveLength(6);
-    const firstDetails = pubs[0]!.querySelector("details");
-    expect(firstDetails).not.toBeNull();
-    expect(firstDetails?.open).toBe(false);
-    firstDetails!.querySelector("summary")!.click();
-    expect(firstDetails?.open).toBe(true);
-    expect(pubs[0]!.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[0]!.whyLine);
     for (const [index, pub] of pubs.entries()) {
+      expect(pub.querySelector("details")).toBeNull();
+      expect(pub.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
       expect(pub.querySelector(".tonightHypedSource")?.getAttribute("href"))
         .toBe(rows[index]!.sources[0]!.url);
       expect(pub.querySelector(".tonightHypedChecked")?.textContent).toContain("Checked");
-      if (index > 0) {
-        expect(pub.querySelector("details")).toBeNull();
-        expect(pub.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
-      }
     }
     const more = container.querySelector<HTMLDetailsElement>(".tonightHypedMore");
     more!.querySelector("summary")!.click();
     expect(more?.open).toBe(true);
     expect(more?.querySelector("details")).toBeNull();
+  });
+
+  it("leads with pubs the map can open and prints the listed pint we hold", async () => {
+    const priced: HypedPub[] = [
+      HYPED[0]!,
+      {
+        ...HYPED[1]!,
+        listedPint: { priceGbp: 5.2, observedAt: "2026-09-01T10:00:00.000Z" },
+      },
+    ];
+    await mount({ hypedPubs: priced });
+    const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
+    // The pack ranks the unmatched pub louder; the map's pub still leads.
+    expect(pubs.map((pub) => pub.querySelector(".tonightHypedName")?.textContent)).toEqual([
+      "The Dover Castle",
+      "The Pelican Rise",
+    ]);
+    const price = pubs[0]!.querySelector('[data-testid="tonight-hyped-price"]');
+    expect(price?.textContent).toContain("Cheapest listed pint");
+    expect(price?.textContent).toContain("£5.20");
+    expect(price?.textContent).toContain("1 September 2026");
+    expect(pubs[1]!.querySelector('[data-testid="tonight-hyped-price"]')).toBeNull();
+    expect(pubs[1]!.textContent).toContain("Not on our map yet");
   });
 
   it("does not call the city quiet beside pub suggestions", async () => {

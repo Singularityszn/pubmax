@@ -7,7 +7,8 @@ import {
   toTonightPickDto,
   type WeatherBrief,
 } from "@/lib/todayBrief";
-import { hypedPubsForPage } from "@/lib/hypedPubs";
+import { venueCheapestPintObservedAt } from "@/lib/drinks";
+import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { loadHistoricPubs } from "@/lib/historic";
@@ -209,7 +210,17 @@ export default async function TodayPage() {
     now,
   });
 
-  const suggestedPubs = hypedPubsForPage(hyped.rows);
+  // The same fresh, priced rows /tonight leads with (lib/hypedPubs.ts).
+  const suggestedPubs = hypedPubsForPage(hyped.rows, {
+    now,
+    prices: hypedPubPriceIndex(
+      pricedVenues.map((venue) => ({
+        id: venue.id,
+        cheapestPrice: venue.cheapestPrice,
+        observedAt: venueCheapestPintObservedAt(venue),
+      })),
+    ),
+  });
   const suggestedPubMapIds = mapSelectableVenueIds
     ? suggestedPubs.flatMap((pub) => pub.venueId && mapSelectableVenueIds.has(pub.venueId) ? [pub.venueId] : [])
     : null;

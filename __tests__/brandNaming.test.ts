@@ -65,7 +65,6 @@ describe("brand naming (product decision 16 Oct 2026)", () => {
 // to either group is caught.
 const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/about", async () => (await import("@/app/about/page")).metadata],
-  ["/out", async () => (await import("@/app/out/page")).metadata],
   ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
   ["/terms", async () => (await import("@/app/terms/page")).metadata],
   ["/historic", async () => (await import("@/app/historic/page")).metadata],
@@ -101,7 +100,6 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
 // Resolved with Next's own resolver rather than a restatement of it.
 const TEMPLATED_TITLE_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/about", async () => (await import("@/app/about/page")).metadata],
-  ["/out", async () => (await import("@/app/out/page")).metadata],
   ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
   ["/terms", async () => (await import("@/app/terms/page")).metadata],
   ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],

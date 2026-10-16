@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { loadHistoricPubs } from "@/lib/historic";
-import { hypedPubsForPage } from "@/lib/hypedPubs";
+import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
@@ -60,7 +60,7 @@ export default async function TonightPage() {
       getPricedVenues(),
       loadHistoricPubs(),
       loadMapSelectableVenueIds(),
-      // The pubs people are talking about. Read here rather than in the browser:
+      // The pubs Londoners keep recommending. Read here rather than in the browser:
       // this document is prerendered, so the rows cost the reader no request and
       // the route's byte ceiling is untouched.
       loadHypedPubs(),
@@ -114,7 +114,18 @@ export default async function TonightPage() {
       mapSelectableVenueIds={
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }
-      hypedPubs={hypedPubsForPage(hyped.rows)}
+      // Fresh rows only, measured on this render's clock, each carrying the
+      // cheapest pint we list there off the same dataset as the cheap pints.
+      hypedPubs={hypedPubsForPage(hyped.rows, {
+        now,
+        prices: hypedPubPriceIndex(
+          pricedVenues.map((venue) => ({
+            id: venue.id,
+            cheapestPrice: venue.cheapestPrice,
+            observedAt: venueCheapestPintObservedAt(venue),
+          })),
+        ),
+      })}
       // What a quiet night answers with: real pubs at a listed price, composed
       // from the dataset this page already read for the quiet-pint module.
       cheapPints={tonightCheapPints(

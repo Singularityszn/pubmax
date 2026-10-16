@@ -15,7 +15,6 @@ import {
 import { OUT_MAP_WAY, OUT_RETRY_LABEL } from "@/lib/out/outStatus";
 import type { EditorialSnapshot } from "@/lib/editorial";
 
-const OUT_CLIENT = readFileSync(join(process.cwd(), "app/out/OutClient.tsx"), "utf8");
 const TONIGHT = readFileSync(join(process.cwd(), "app/tonight/TonightClient.tsx"), "utf8");
 const MAP = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
 const RAIL_CSS = readFileSync(join(process.cwd(), "components/out/editorialRail.css"), "utf8");
@@ -137,8 +136,7 @@ describe("editorial rail", () => {
     expect(failed).not.toContain(`href="${OUT_MAP_WAY.href}"`);
   });
 
-  it("sits on /out and /tonight, never on the map cold-open", () => {
-    expect(OUT_CLIENT).toMatch(/EditorialRail/);
+  it("sits on /tonight (which /out folded into), never on the map cold-open", () => {
     expect(TONIGHT).toMatch(/EditorialRail/);
     expect(MAP).not.toMatch(/EditorialRail|editorial/);
   });
