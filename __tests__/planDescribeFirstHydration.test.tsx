@@ -46,7 +46,7 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 // hydrated, so the state initialisers read the recovered drafts. Whatever the
 // server-painted form held is thrown away. On a slow load the night-mode
 // browser spec typed its query into that form, lost it at the remount and
-// tapped Sort it on an empty field (5 Oct 2026). That form now takes no input.
+// tapped Plan it on an empty field (5 Oct 2026). That form now takes no input.
 
 let host: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -87,7 +87,7 @@ async function render(
       ...(ready === undefined ? {} : { ready }),
     }));
   });
-  return { field: field(), sortIt: button("Sort it") };
+  return { field: field(), sortIt: button("Plan it") };
 }
 
 function typeInto(input: HTMLInputElement, value: string) {
@@ -105,7 +105,7 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     const exampleChip = host!.querySelector<HTMLButtonElement>(".planDescribeFirst__chip:not(.planDescribeFirst__chip--culture)")!;
     const cultureChip = host!.querySelector<HTMLButtonElement>(".planDescribeFirst__chip--culture")!;
     const stopCount = button("2");
-    const guideMe = button("Guide me instead");
+    const guideMe = button("Step by step");
 
     expect(field.readOnly).toBe(true);
     for (const action of [sortIt, exampleChip, cultureChip, wantedChip, stopCount, guideMe]) {
@@ -137,16 +137,16 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     document.body.append(host);
 
     expect(field().readOnly).toBe(true);
-    expect(button("Sort it").getAttribute("aria-disabled")).toBe("true");
+    expect(button("Plan it").getAttribute("aria-disabled")).toBe("true");
 
     await act(async () => {
       root = hydrateRoot(host!, createElement(PlanComposer));
     });
 
     expect(field().readOnly).toBe(false);
-    expect(button("Sort it").hasAttribute("aria-disabled")).toBe(false);
+    expect(button("Plan it").hasAttribute("aria-disabled")).toBe(false);
     await act(async () => typeInto(field(), "Quiet in Clapham for 4"));
-    await act(async () => button("Sort it").click());
+    await act(async () => button("Plan it").click());
 
     const generate = fetchMock.mock.calls.find(([url]) => String(url) === "/api/plans/generate");
     expect(generate).toBeDefined();

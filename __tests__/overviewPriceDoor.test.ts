@@ -732,7 +732,7 @@ describe("price precedence in the rendered Overview", () => {
 
   it.each([
     { name: "anchor", base: venue({ kind: "restaurant", anchorLabel: "Negroni", cheapestPrice: 11 }), drops: [], figure: "£11.00", caption: "Not a pint price.", door: null, source: null },
-    { name: "contributor over sourced, listed and baseline", base: sourcedVenue(), drops: confirmedPair(), figure: "£4.50", caption: "Latest Pint Drop price", door: "log", source: null },
+    { name: "contributor over sourced, listed and baseline", base: sourcedVenue(), drops: confirmedPair(), figure: "£4.50", caption: "Latest price from a drinker", door: "log", source: null },
     { name: "sourced over listed, provisional and baseline", base: sourcedVenue(), drops: [drop()], figure: "£6.20", caption: "Sourced price", door: "log", source: sourced.sourceUrl },
     { name: "listed over provisional and baseline", base: venue({ cheapestPrice: 6.2, bundlePrices: { listed, estimate } } as Partial<Venue>), drops: [drop()], figure: "£6.00", caption: "Published price", door: "log", source: listed.sourceUrl },
     { name: "provisional over baseline", base: venue({ cheapestPrice: 6.2 }), drops: [drop()], figure: "£4.50", caption: "Logged once, needs a second drinker", door: "confirm", source: null },

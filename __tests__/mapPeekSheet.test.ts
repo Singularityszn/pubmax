@@ -15,7 +15,7 @@ function render(model: MapPeekModel) {
     createElement(
       MapPeekSheet,
       { model, onOpenVenue: vi.fn(), onOpenList: vi.fn() },
-      createElement("button", { className: "mobilePlanActivation" }, "Describe the outing"),
+      createElement("button", { className: "mobilePlanActivation" }, "Plan a pub crawl"),
     ),
   );
 }
@@ -79,7 +79,7 @@ describe("the bottom card's honest states", () => {
     for (const model of [ANSWER, { status: "none" } as MapPeekModel, { status: "loading" } as MapPeekModel]) {
       const html = render(model);
       expect(html).toContain("mobilePlanActivation");
-      expect(html).toContain("Describe the outing");
+      expect(html).toContain("Plan a pub crawl");
       // Door and answer share ONE surface.
       expect(html.match(/class="mapPeek"/g)).toHaveLength(1);
     }

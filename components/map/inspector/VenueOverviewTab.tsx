@@ -505,7 +505,7 @@ function VenuePriceSummary({
     return (
       <div className="contributorPrice" {...trustChipAttrs}>
         <span className={chromeRevealClass}>
-          <ClaimBadge kind="contributor" /> Latest Pint Drop price
+          <ClaimBadge kind="contributor" /> Latest price from a drinker
         </span>
         {/* A confirmed price says the figure and its standing in ONE mark, so
             the number is printed once and by the module that owns the words

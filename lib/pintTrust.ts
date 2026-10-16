@@ -114,7 +114,7 @@ export const PINT_TRUST_PIN_PAINT: Record<PintTrustState, PintTrustPinPaint> = {
 /**
  * The one line each drop-lane state prints beside its figure, or null where
  * the surface prints something richer (the trust pill on `confirmed`, the
- * "Latest Pint Drop price" row on `corroborated`) or nothing (`none`).
+ * "Latest price from a drinker" row on `corroborated`) or nothing (`none`).
  */
 export const PINT_TRUST_LINE: Record<PintTrustState, string | null> = {
   confirmed: null,

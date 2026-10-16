@@ -9,7 +9,7 @@ import {
 // after one "Plan stop" on The Sir Christopher Hatton the phone pill read
 // "6-stop plan · Edit route", because the tap mapped the SUGGESTED six-stop
 // route rather than the pub the reader had picked, and the planner sheet then
-// opened on the "Describe the outing" form with the picked pub a whole form
+// opened on the "Plan a pub crawl" form with the picked pub a whole form
 // below the fold. "Plan stop" now puts the map in build mode
 // (components/PubMap.tsx, toggleBuiltStop), the pill names the built crawl
 // (lib/planActivationPill.ts), and the built crawl leads the phone planner

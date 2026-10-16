@@ -48,7 +48,7 @@ for (const stopCount of [1, 2] as const) {
       response.request().method() === "POST"
       && response.url().endsWith("/api/plans/generate")
     ));
-    await page.getByRole("button", { name: "Sort it", exact: true }).click();
+    await page.getByRole("button", { name: "Plan it", exact: true }).click();
     const generated = await (await generation).json() as {
       stops?: Array<{ venueId?: string }>;
       inferredContext?: { stopCount?: number };
