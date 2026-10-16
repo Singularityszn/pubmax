@@ -57,10 +57,13 @@ function formatDropPrice(value: number | null): string | null {
 function formatDate(iso: string): string | null {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
+  // Rendered on the server, so the London calendar is named rather than left to
+  // the host's zone: a drop logged at 00:30 BST belongs to that day.
   return new Date(t).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/London",
   });
 }
 

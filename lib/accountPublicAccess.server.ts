@@ -40,6 +40,12 @@ const WITHDRAWN_HOLD_MS = 60_000;
 const AUTH_BAN_HOLD_MAX = 5_000;
 /** Ids per PostgREST `.in(...)`: the list travels in the request line. */
 const IN_CHUNK_SIZE = 100;
+/**
+ * PostgREST caps one response at max-rows (hosted default 1000), so the
+ * withdrawn list is read in pages no larger than that. Unpaged, every handle
+ * past the thousandth came back missing and its profile stopped being hidden.
+ */
+export const WITHDRAWN_RPC_PAGE_ROWS = 1_000;
 /** GoTrue admin reads in flight at once for one fallback read. */
 const AUTH_READ_CONCURRENCY = 8;
 
@@ -101,12 +107,21 @@ async function readMemoryWithdrawn(): Promise<WithdrawnRow[]> {
 }
 
 async function readWithdrawnByRpc(admin: SupabaseClient): Promise<WithdrawnRow[]> {
-  const { data, error } = await admin.rpc("public_withdrawn_profiles");
-  if (error) throw new Error(`${error.code ?? "rpc"}: ${error.message}`);
-  return ((data ?? []) as Array<{ profile_id?: unknown; handle?: unknown }>).map((row) => ({
-    profileId: String(row.profile_id ?? ""),
-    handle: String(row.handle ?? ""),
-  }));
+  const rows: WithdrawnRow[] = [];
+  for (let offset = 0; ; offset += WITHDRAWN_RPC_PAGE_ROWS) {
+    // Ordered on both columns so offset pages are a total order over the set.
+    const { data, error } = await admin
+      .rpc("public_withdrawn_profiles")
+      .order("profile_id", { ascending: true })
+      .order("handle", { ascending: true })
+      .range(offset, offset + WITHDRAWN_RPC_PAGE_ROWS - 1);
+    if (error) throw new Error(`${error.code ?? "rpc"}: ${error.message}`);
+    const page = (data ?? []) as Array<{ profile_id?: unknown; handle?: unknown }>;
+    for (const row of page) {
+      rows.push({ profileId: String(row.profile_id ?? ""), handle: String(row.handle ?? "") });
+    }
+    if (page.length < WITHDRAWN_RPC_PAGE_ROWS) return rows;
+  }
 }
 
 type Answer = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
