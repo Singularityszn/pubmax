@@ -44,6 +44,7 @@ import {
   type LastTrainResult,
 } from "@/lib/tfl";
 import { lineDisplayLabel } from "@/lib/tflDisruption";
+import { latestLastTrain } from "@/lib/tonightGetHome";
 import type { VenueKind } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -446,7 +447,9 @@ export default function LastTrainCard({
       decision: decision.decision,
       stationName: readyData?.station.name ?? decision.stationName,
       leaveByClock: leaveBy,
-      lastServiceClock: readyData?.trains?.[0]?.clock ?? null,
+      // Name the train the leave-by decision was computed from: the LATEST
+      // across lines, never trains[0], which is the earliest.
+      lastServiceClock: latestLastTrain(readyData?.trains)?.clock ?? null,
       modeWord: mode,
       destinationLabel,
     });
