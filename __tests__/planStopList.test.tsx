@@ -364,7 +364,7 @@ describe("PlanStopList", () => {
   it("prints the route's area only on stops the generator placed there", async () => {
     await mount();
     const meta = cards().map((card) => card.querySelector(".planStop__meta")?.textContent ?? null);
-    expect(meta).toEqual(["Clapham · Listed price", null, "Clapham · Listed price"]);
+    expect(meta).toEqual(["Clapham · Listed pint price", null, "Clapham · Listed pint price"]);
   });
 
   it("prints the area on an unpriced first stop the generator placed", async () => {

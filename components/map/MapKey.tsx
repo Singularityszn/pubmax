@@ -14,6 +14,7 @@ import type {
   MapPriceLegendModel,
 } from "@/lib/mapPriceLegend";
 import { mapPriceTrustBeats } from "@/lib/mapPriceTrust";
+import { priceBandClass } from "@/lib/priceBand";
 
 import "./mapKey.css";
 
@@ -110,7 +111,13 @@ export default function MapKey({
           <h3 id="mapKeyClusterHeading">Clusters</h3>
           <div className="mapKeyClusterRow">
             <span className="mapKeyClusterSample" aria-hidden="true">
-              {legend.cluster.sample}
+              {legend.cluster.samplePriced ? (
+                // A priced disc's figure wears its own band's ink, so the
+                // sample does too: the cheap band, the one "£4" sits in.
+                <span className={priceBandClass("cheap")}>{legend.cluster.sample}</span>
+              ) : (
+                legend.cluster.sample
+              )}
             </span>
             <p>{legend.cluster.note}</p>
           </div>

@@ -3,6 +3,7 @@
 import { PlusCircle } from "lucide-react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { mapPlanDrinkPriceDescription, type MapPlanDrinkPresentation } from "@/lib/mapPlanDrinkPresentation";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
@@ -58,7 +59,7 @@ export default function VenuePicker({
                     {drinkPresentation
                       ? mapPlanDrinkPriceDescription(drinkPresentation, venue.id, drinkPrices, drinkPriceStatus)
                       : formatPrice(venue.cheapestPrice)} ·{" "}
-                    {venue.primaryBorough || venue.visibleBoroughs[0] || "London"}
+                    {venueAreaLabel(venue)}
                   </small>
                 </span>
                 <span className="pickAction">{inCrawl ? "Remove" : "Add"}</span>

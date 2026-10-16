@@ -20,6 +20,7 @@ const hatton = {
   name: "The Sir Christopher Hatton",
   address: "4 Leather Lane, Holborn, EC1N 7RA, London",
   primaryBorough: "Camden",
+  locality: "Hatton Garden",
   kind: "pub",
   latitude: 51.5196,
   longitude: -0.1087,
@@ -43,13 +44,13 @@ function renderHeader(venue: Venue): string {
 describe("the venue sheet kicker is brand, not a label", () => {
   it("says the pub's area and kind", () => {
     const html = renderHeader(hatton);
-    expect(html).toContain('<div class="inspectorTitle"><span>Camden · Pub</span></div>');
+    expect(html).toContain('<div class="inspectorTitle"><span>Hatton Garden · Pub</span></div>');
     expect(html).not.toContain("Venue Detail");
   });
 
   it("names a non-pub by its own kind", () => {
     const html = renderHeader({ ...hatton, kind: "bar" } as Venue);
-    expect(html).toContain("<span>Camden · Bar</span>");
+    expect(html).toContain("<span>Hatton Garden · Bar</span>");
   });
 });
 

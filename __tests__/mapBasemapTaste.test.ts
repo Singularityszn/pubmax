@@ -4,7 +4,6 @@ import {
   applyBasemapTaste,
   applySelectionMute,
   buildPalette,
-  clusterRingColorExpr,
   isBasemapSelectionMuteLayer,
   mixHex,
   muteOpacityExpr,
@@ -82,42 +81,6 @@ const darkTokens = {
   buildingEmissive: "#8f7d6b",
   parkTint: "#3f5c38",
 };
-
-function evaluateClusterExpression(
-  expression: unknown,
-  properties: Record<string, unknown>,
-): unknown {
-  if (!Array.isArray(expression)) return expression;
-  const [operator, ...args] = expression;
-  const value = (item: unknown) =>
-    evaluateClusterExpression(item, properties);
-
-  if (operator === "get") return properties[String(args[0])];
-  if (operator === "coalesce") {
-    return args.map(value).find((item) => item !== null && item !== undefined);
-  }
-  if (operator === ">") return Number(value(args[0])) > Number(value(args[1]));
-  if (operator === ">=") return Number(value(args[0])) >= Number(value(args[1]));
-  if (operator === "!=") return value(args[0]) !== value(args[1]);
-  if (operator === "has") return Object.hasOwn(properties, String(args[0]));
-  if (operator === "%") return Number(value(args[0])) % Number(value(args[1]));
-  if (operator === "+") return args.reduce((sum, item) => sum + Number(value(item)), 0);
-  if (operator === "all") return args.every((item) => Boolean(value(item)));
-  if (operator === "match") {
-    const input = value(args[0]);
-    for (let index = 1; index < args.length - 1; index += 2) {
-      if (value(args[index]) === input) return value(args[index + 1]);
-    }
-    return value(args.at(-1));
-  }
-  if (operator === "case") {
-    for (let index = 0; index < args.length - 1; index += 2) {
-      if (value(args[index])) return value(args[index + 1]);
-    }
-    return value(args.at(-1));
-  }
-  throw new Error(`Unsupported test expression operator: ${String(operator)}`);
-}
 
 // Wave A — crude luminance proxy (sum of RGB channels) shared by the dark-map
 // hierarchy assertions. Accepts `#rrggbb`; the dark palette paints solid hex.
@@ -614,74 +577,6 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(paints.some(([id]) => id === "custom_road_layer")).toBe(true);
   });
 
-  it("rings fallback clusters by their most common known pint-price band", () => {
-    const expr = clusterRingColorExpr(tokens) as unknown[];
-    const serialized = JSON.stringify(expr);
-
-    expect(expr[0]).toBe("case");
-    expect(serialized).toContain('"b0"');
-    expect(serialized).toContain('"b1"');
-    expect(serialized).toContain('"b2"');
-    expect(serialized).not.toContain('"point_count"');
-    expect(serialized).toContain(tokens.pint);
-    expect(serialized).toContain(tokens.amber);
-    expect(serialized).toContain(tokens.brick);
-    expect(serialized).toContain(tokens.muted); // no known price
-    // A ring, never a fill: every colour is opaque, so none carries an alpha.
-    expect(serialized).not.toContain("rgba");
-  });
-
-  it.each([
-    {
-      name: "cheap wins a three-way tie",
-      properties: { b0: 2, b1: 2, b2: 2 },
-      expected: tokens.pint,
-    },
-    {
-      name: "middle wins a middle-dear tie",
-      properties: { b0: 0, b1: 3, b2: 3 },
-      expected: tokens.amber,
-    },
-    {
-      name: "dear wins when it has the largest count",
-      properties: { b0: 1, b1: 2, b2: 4 },
-      expected: tokens.brick,
-    },
-    {
-      name: "unknown pubs do not outvote a known band",
-      properties: { b0: 1, b1: 0, b2: 0, b3: 99 },
-      expected: tokens.pint,
-    },
-    {
-      name: "all unknown is grey",
-      properties: { b0: 0, b1: 0, b2: 0, b3: 12 },
-      expected: tokens.muted,
-    },
-    {
-      name: "missing counts are grey",
-      properties: {},
-      expected: tokens.muted,
-    },
-    {
-      // Under the Spoons value lens the disc counts the lens's own band, so a
-      // ring of pubs painted by units can never be coloured by their prices.
-      name: "the lens's own bands win once its counts are there",
-      properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 2, s3: 7 },
-      expected: tokens.brick,
-    },
-    {
-      name: "a cluster with nothing in the ranking is grey under the lens",
-      properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 0, s3: 9 },
-      expected: tokens.muted,
-    },
-  ])("$name", ({ properties, expected }) => {
-    expect(
-      evaluateClusterExpression(
-        clusterRingColorExpr(tokens),
-        properties,
-      ),
-    ).toBe(expected);
-  });
 });
 
 describe("mixHex (M4 token-derivation primitive)", () => {
