@@ -2,9 +2,9 @@
 // Service (https://query.wikidata.org/sparql). Wikidata is CC0 1.0. The query
 // service asks every client for a descriptive User-Agent, which this sends,
 // and is read one batch at a time, one second apart. Every read goes through
-// `wikidataSparqlRead` (scripts/lib/wikidataHistoryPack.mjs): the endpoint is a
-// constant, a redirect is refused, and a 429 or 5xx is retried a bounded
-// number of times.
+// `wikidataSparqlRead` (scripts/lib/wikidataHistoryPack.mjs): the endpoint
+// comes from the `wikidata-query-service` row in lib/harvest/sourcePolicy.ts, a
+// redirect is refused, and a 429 or 5xx is retried a bounded number of times.
 //
 // What it does:
 //   1. Reads the QIDs public/data/osm_wikidata/london.json names.

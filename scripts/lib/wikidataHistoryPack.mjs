@@ -11,6 +11,8 @@
 // (P31/P279* Q212198) and not as a brand (Q431289), so a chain's item that an
 // OSM pub mis-tags never lends the chain's founding year to one building.
 
+import { openDataSourceUrl } from "../../lib/harvest/sourcePolicy.ts";
+
 export const WIKIDATA_HISTORY_PACK_VERSION = 1;
 
 export const WIKIDATA_SOURCE = Object.freeze({
@@ -124,8 +126,8 @@ export function buildWikidataHistoryPack({ wanted, bindings, retrievedAt }) {
   };
 }
 
-/** The Wikidata Query Service: a constant, never a caller's string. */
-export const WIKIDATA_SPARQL_ENDPOINT = "https://query.wikidata.org/sparql";
+/** The Wikidata Query Service's row in lib/harvest/sourcePolicy.ts. */
+const WIKIDATA_SOURCE_POLICY_ID = "wikidata-query-service";
 const USER_AGENT = "PubmaxxingWikidataHistory/1.0 (https://pubmaxxing.com/credits)";
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 
@@ -133,8 +135,9 @@ const RETRYABLE = new Set([429, 500, 502, 503, 504]);
  * Run one SPARQL query against the Wikidata Query Service and return its
  * bindings.
  *
- * THE HOST IS PINNED: the URL is the constant endpoint plus the query, and a
- * redirect is an error, so no response from another host is ever read. The
+ * THE SOURCE POLICY OWNS THE HOST: the URL comes from `openDataSourceUrl`
+ * (lib/harvest/sourcePolicy.ts, row `wikidata-query-service`) plus the query,
+ * and a redirect is an error, so no response from another host is ever read. The
  * service asks for a descriptive User-Agent, which this sends. A 429 or a 5xx
  * is asked again after the service's `Retry-After` (or a doubling wait from
  * `baseDelayMs`), at most `maxAttempts` times in all; any other failure throws,
@@ -144,7 +147,7 @@ export async function wikidataSparqlRead(
   query,
   { fetchImpl = fetch, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), maxAttempts = 5, baseDelayMs = 2000 } = {},
 ) {
-  const url = `${WIKIDATA_SPARQL_ENDPOINT}?format=json&query=${encodeURIComponent(query)}`;
+  const url = openDataSourceUrl(WIKIDATA_SOURCE_POLICY_ID, `?format=json&query=${encodeURIComponent(query)}`).href;
   for (let attempt = 1; ; attempt += 1) {
     const response = await fetchImpl(url, {
       headers: { accept: "application/sparql-results+json", "user-agent": USER_AGENT },
