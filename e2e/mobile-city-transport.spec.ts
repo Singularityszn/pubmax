@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 test.setTimeout(60_000);
 
@@ -35,7 +36,7 @@ for (const city of ["manchester", "london"] as const) {
     });
 
     await page.goto(`/map/${city}`);
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     const tflButton = page.getByRole("button", { name: /TfL live/ });
 

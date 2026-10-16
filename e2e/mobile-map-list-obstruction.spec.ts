@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const MOBILE_VIEWPORTS = [
   { width: 390, height: 844 },
@@ -38,9 +39,7 @@ async function loadMobileMap(
   await prepareReturningVisitor(page);
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({
-    timeout: 30_000,
-  });
+  await expectMobileMapShellReady(page, 30_000);
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {
