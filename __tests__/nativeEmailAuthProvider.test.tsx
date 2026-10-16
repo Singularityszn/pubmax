@@ -267,6 +267,27 @@ describe("installed iPhone email link, relay and App consumer", () => {
     expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
     expect(h.otpBody).toBeNull();
   });
+  it("says the sign-in state could not be confirmed, not that a link expired, when the session read fails before any link", async () => {
+    h.getSession.mockImplementation(async () => ({ data: { session: null }, error: new Error("storage unavailable") }));
+    let result!: Awaited<ReturnType<AuthContextValue["signInWithEmail"]>>;
+    await act(async () => { result = await actions.signInWithEmail("native@example.test"); });
+    expect(result).toEqual({ status: "error", message: "Your sign-in state could not be confirmed. Try again." });
+    expect(h.otpBody).toBeNull();
+  });
+
+  it("says a superseded start was cancelled, not that a link expired", async () => {
+    let release!: () => void;
+    h.getSession.mockImplementationOnce(() => new Promise((resolve) => {
+      release = () => resolve({ data: { session: null }, error: null });
+    }));
+    let earlier!: ReturnType<AuthContextValue["signInWithEmail"]>;
+    await act(async () => { earlier = actions.signInWithEmail("earlier@example.test"); });
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    await act(async () => { actions.cancelAuthAttempt(); release(); });
+    expect(await earlier).toEqual({ status: "error", message: "Sign-in was cancelled. Try again." });
+    expect(h.otpBody).toBeNull();
+  });
+
   it("only lets the current native start replace the claim when concurrent requests queue", async () => {
     const queued = queueAuthLocks();
     let first!: ReturnType<AuthContextValue["signInWithEmail"]>;
