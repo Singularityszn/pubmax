@@ -62,8 +62,9 @@ export default function VenueOsmDetails({ facts }: { facts: OsmPubFacts | null |
         <small className="venuePlacesDetailsCredit">{view.credit}</small>
       </div> : null}
       <small className="venuePlacesDetailsCredit">
+        Facts from{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">
-          © OpenStreetMap contributors
+          OpenStreetMap contributors
         </a>
         , ODbL
       </small>

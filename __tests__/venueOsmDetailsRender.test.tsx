@@ -50,12 +50,12 @@ it("prints each OSM fact with its source and day, and the ODbL credit", () => {
   expect([...container.querySelectorAll(".venuePlacesDetailsCredit")].map((credit) => credit.textContent)).toEqual([
     "OpenStreetMap hours, checked 10 Dec 2023",
     "OpenStreetMap, checked 10 Dec 2023",
-    "© OpenStreetMap contributors, ODbL",
+    "Facts from OpenStreetMap contributors, ODbL",
   ]);
   const links = [...container.querySelectorAll("a")].map((link) => [link.textContent, link.getAttribute("href")]);
   expect(links).toEqual([
     ["Instagram", "https://www.instagram.com/testarms"],
-    ["© OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"],
+    ["OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"],
   ]);
   unmount();
 });
