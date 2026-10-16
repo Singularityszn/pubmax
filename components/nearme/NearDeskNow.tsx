@@ -290,9 +290,7 @@ export default function NearDeskNow({
     >
       {state === "idle" ? (
         /* The /near head in Desk mode: the same Screen primitive as Pint
-           (docs/design/LAUNCH_SCREENS.md), with Find a work spot as its one
-           primary. The mode keeps its code name; every line a reader sees says
-           what the switch above it says (UX sprint, 16 Oct 2026). */
+           (docs/design/LAUNCH_SCREENS.md), with Find a work spot as its one primary. */
         <Screen
           as="div"
           className="nmnScreen"

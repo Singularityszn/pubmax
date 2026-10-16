@@ -1,3 +1,4 @@
+import { PLAN_HEADING } from "@/lib/planCopy";
 import { planStopCountPhrase } from "@/lib/planStopCount";
 
 /**
@@ -22,7 +23,7 @@ export type PlanActivationPill = {
   label: string;
 };
 
-export const DESCRIBE_OUTING_LABEL = "Describe the outing";
+export const DESCRIBE_OUTING_LABEL = PLAN_HEADING;
 
 export function planActivationPill(input: {
   /** A mapped route of two or more stops, or the plan on tonight. */

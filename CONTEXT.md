@@ -139,7 +139,7 @@ A venue surfaced by product logic from current conditions, preferences, or other
 _Avoid_: Recommendation, user tip
 
 **Pint Drop**:
-A single community Night Moment attached to a Venue. It must carry an observed Pint Price or a Passed-Down Note and can add a pint or venue photo. It is separate from a Visit Report and is never the generic name for a Social Post.
+A single community Night Moment attached to a Venue. It must carry an observed Pint Price or a Passed-Down Note and can add a pint or venue photo. It is separate from a Visit Report and is never the generic name for a Social Post. Where drops are a section heading on screen (the venue sheet's Pints tab, the landing strip), the heading says "Recent prices"; "Pint Drop" stays the code and data name.
 _Avoid_: Social Post, check-in, upload
 
 **Second Drinker**:
@@ -215,7 +215,7 @@ A Crawl Route with a lifecycle from draft through completion, including explicit
 _Avoid_: Session, trip
 
 **Night Memory**:
-A private, user-owned record of a lived Pubmaxxing experience, including the people, places, drinks, events, images, and moments its participants choose to preserve. It remains private unless its owner deliberately shares it.
+A private, user-owned record of a lived Pubmaxxing experience, including the people, places, drinks, events, images, and moments its participants choose to preserve. It remains private unless its owner deliberately shares it. On screen it is a "memory" (plural "Memories"); "Night Memory" is the code and data name only.
 _Avoid_: Automatic public post, tracking history, Pal Memory
 
 **Night Story**:
@@ -239,7 +239,7 @@ A bundle of real accounts a new Pubmaxxer can follow in one tap, so their feed i
 _Avoid_: Seeded member, house account, suggested-for-you inference
 
 **Wanted**:
-A private place its owner means to try, captured by pasting a link or naming a venue. The source URL is provenance only and is never fetched server-side. A Wanted is owner-read only, and it is quietly fulfilled when the owner turns up at the venue. `lib/wanted.ts`.
+A private place its owner means to try, captured by pasting a link or naming a venue. The source URL is provenance only and is never fetched server-side. A Wanted is owner-read only, and it is quietly fulfilled when the owner turns up at the venue. `lib/wanted.ts`. On screen the list is called "Pubs to try"; "Wanted" is the code and data name only, and a screen never prints it.
 _Avoid_: Public list, scraped saves, server-fetched social post, Visited Venue
 
 **Open Crew**:

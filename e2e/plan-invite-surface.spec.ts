@@ -49,9 +49,9 @@ function inviteTokenFromHref(href: string | null): string | null {
 async function describeAPlan(page: Page): Promise<void> {
   await openHydratedPlanComposer(page);
   await page
-    .getByRole("textbox", { name: "Describe the outing" })
+    .getByRole("textbox", { name: "Where, how many, what budget" })
     .fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Sort it" }).click();
+  await page.getByRole("button", { name: "Plan it" }).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
 }
 

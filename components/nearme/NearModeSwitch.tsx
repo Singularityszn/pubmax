@@ -8,8 +8,8 @@ import "./nearModeSwitch.css";
 // mode, and a reader could not tell it meant a cafe, library or coworking
 // space to sit and work in (UX sprint, 15 Oct 2026).
 const LABELS: Record<NearMode, string> = {
-  pint: "Pint",
-  desk: "Work spot",
+  pint: "Pints",
+  desk: "Work spots",
 };
 
 export default function NearModeSwitch({
@@ -28,7 +28,7 @@ export default function NearModeSwitch({
       <div
         className="nearModeSwitchList"
         role="radiogroup"
-        aria-label="Near mode"
+        aria-label="What to find"
         onKeyDown={(event) => {
           if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
           const tabs = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')];

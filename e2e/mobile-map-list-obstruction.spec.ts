@@ -130,11 +130,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     test.setTimeout(120_000);
     await loadMobileMap(page, viewport);
     await expect(
-      page.getByRole("button", { name: "Describe the outing" }),
+      page.getByRole("button", { name: "Plan a pub crawl" }),
     ).toBeVisible();
     await openVenueList(page);
     await expect(
-      page.getByRole("button", { name: "Describe the outing" }),
+      page.getByRole("button", { name: "Plan a pub crawl" }),
     ).toHaveCount(0);
     // Opened from Map controls, the list offers Back, so its close names the map
     // it returns to (components/map/MapVenueList.tsx).
@@ -143,7 +143,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       .click();
     await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
     const plannerAction = page.getByRole("button", {
-      name: "Describe the outing",
+      name: "Plan a pub crawl",
     });
     await expect(plannerAction).toBeVisible();
     await plannerAction.click();

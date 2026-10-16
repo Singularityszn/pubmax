@@ -51,6 +51,8 @@ export const LAUNCH_TOKENS = [
   "--price-band-hue", "--price-band-ink", "--price-band-surface", "--price-band-border",
   "--badge-surface", "--badge-border", "--badge-ink",
   "--state-active-surface", "--state-active-border", "--state-active-ink",
+  // Selected: a chosen tab, chip or segment reads in ink, never coral.
+  "--state-selected-surface", "--state-selected-border", "--state-selected-ink",
   // Type.
   "--font-display", "--font-body", "--font-data",
   "--text-2xs", "--text-xs", "--text-sm", "--text-base", "--text-md",

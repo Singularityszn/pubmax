@@ -161,7 +161,7 @@ test.describe("§4.7 explicit Map arrival suppresses the first-run tour", () => 
 
     // A planner deep link is also explicit intent — no tour over it.
     await page.goto("/map?plan=1");
-    await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible({
       timeout: 30_000,
     });
     await expect(tour).toHaveCount(0);

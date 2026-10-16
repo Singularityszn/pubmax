@@ -447,7 +447,7 @@ function AnswerCard({
         preloadMedia={ANSWER_PHOTO_PRELOAD_MEDIA}
       />
       <div className="lpAnswerHead">
-        <Kicker tone="muted">
+        <Kicker>
           {kicker}
           {walk ? <span className="lpAnswerWalk"> · {walk}</span> : null}
         </Kicker>

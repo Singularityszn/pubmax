@@ -95,9 +95,9 @@
 }
 
 .historicToggle[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 @media (hover: hover) and (pointer: fine) {

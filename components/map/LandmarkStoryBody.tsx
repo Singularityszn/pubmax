@@ -83,7 +83,7 @@ export default function LandmarkStoryBody({
       {areaLine || showChapterLink ? (
         <div className="landmarkStoryWhere">
           {areaLine ? (
-            <Kicker tone="muted" as="span">
+            <Kicker as="span">
               {areaLine}
             </Kicker>
           ) : (

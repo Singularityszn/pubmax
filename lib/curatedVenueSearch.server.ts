@@ -50,7 +50,7 @@ export async function searchCuratedVenues(
   const scored: { tier: number; hit: CuratedVenueHit }[] = [];
   for (const [id, venue] of index) {
     const name = typeof venue.name === "string" ? venue.name : "";
-    const tiers = venueSearchNames({ id, name })
+    const tiers = venueSearchNames({ id, name, sourceName: venue.sourceName })
       .map((label) => matchTier(normaliseUkPlaceQuery(label), query))
       .filter((tier): tier is number => tier !== null);
     if (tiers.length === 0) continue;

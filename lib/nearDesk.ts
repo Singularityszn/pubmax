@@ -389,7 +389,7 @@ export function deskAnswerHeadline(input: {
   const place = input.patchLabel ?? null;
   if (place) return `Somewhere to sit around ${place}`;
   return input.scope === "widened"
-    ? "Nearest work spots a bit further out"
+    ? "Nearest work spots, a bit further out"
     : "Somewhere to sit near you";
 }
 

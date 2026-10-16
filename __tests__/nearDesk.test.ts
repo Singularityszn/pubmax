@@ -349,7 +349,7 @@ describe("desk copy", () => {
     expect(deskCheckedCaption("2026-08-16T04:01:27.583Z")).toBe("Checked 16 Aug");
     expect(deskCheckedCaption(null)).toBe("No date on this yet");
     expect(deskAnswerHeadline({ scope: "walkable" })).toBe("Somewhere to sit near you");
-    expect(deskAnswerHeadline({ scope: "widened" })).toBe("Nearest work spots a bit further out");
+    expect(deskAnswerHeadline({ scope: "widened" })).toBe("Nearest work spots, a bit further out");
     expect(deskAnswerHeadline({ scope: "walkable", patchLabel: "Soho" })).toBe(
       "Somewhere to sit around Soho",
     );

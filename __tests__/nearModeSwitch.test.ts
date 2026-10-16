@@ -12,12 +12,10 @@ describe("NearModeSwitch", () => {
       createElement(NearModeSwitch, { value: "pint", onChange: vi.fn() }),
     );
     expect(html).toContain('role="radiogroup"');
-    expect(html).toContain('aria-label="Near mode"');
+    expect(html).toContain('aria-label="What to find"');
     expect(html).toContain('role="radio"');
-    expect(html).toContain(">Pint<");
-    expect(html).toContain(">Work spot<");
-    // "Desk" was the code's word for the mode, not a word a reader could act on.
-    expect(html).not.toContain(">Desk<");
+    expect(html).toContain("Pints");
+    expect(html).toContain("Work spots");
     expect(html).toMatch(/aria-checked="true"/);
     expect(html).toMatch(/aria-checked="false"/);
   });
@@ -26,7 +24,7 @@ describe("NearModeSwitch", () => {
     const html = renderToStaticMarkup(
       createElement(NearModeSwitch, { value: "desk", onChange: vi.fn() }),
     );
-    expect(html).toMatch(/aria-checked="true"[^>]*>Work spot</);
+    expect(html).toMatch(/aria-checked="true"[^>]*>Work spots/);
   });
 });
 

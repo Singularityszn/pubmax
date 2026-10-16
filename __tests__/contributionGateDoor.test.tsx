@@ -91,8 +91,8 @@ describe("Wanted list behind the age gate", () => {
     });
     await settle();
 
-    expect(container.textContent).toContain("Confirm you are 18 or over to keep a Wanted list.");
-    expect(container.textContent).not.toContain("Could not load Wanted places");
+    expect(container.textContent).toContain("Confirm you are 18 or over to keep a list of pubs to try.");
+    expect(container.textContent).not.toContain("Could not load your pubs to try");
     // The capture form is not offered while the door stands.
     expect(container.querySelector("#wanted-paste")).toBeNull();
 
@@ -108,7 +108,7 @@ describe("Wanted list behind the age gate", () => {
     );
     expect(authedFetch).toHaveBeenCalledTimes(2);
     expect(container.querySelector("#wanted-paste")).not.toBeNull();
-    expect(container.textContent).toContain("No open Wanted places yet.");
+    expect(container.textContent).toContain("Nothing on your list yet.");
   });
 
   it("offers no tap to an account whose date of birth says under 18", async () => {
@@ -137,7 +137,7 @@ describe("Wanted list behind the age gate", () => {
     });
     await settle();
 
-    expect(container.textContent).toContain("Choose a handle to keep a Wanted list.");
+    expect(container.textContent).toContain("Choose a handle to keep a list of pubs to try.");
     expect(container.querySelector("a")?.textContent).toBe("Choose a handle");
   });
 });
@@ -173,7 +173,7 @@ describe("One tap for every door on the page", () => {
     await settle();
 
     expect(container.querySelectorAll(".contributionGateDoor")).toHaveLength(0);
-    expect(container.textContent).toContain("No open Wanted places yet.");
+    expect(container.textContent).toContain("Nothing on your list yet.");
     expect(container.textContent).toContain("Nothing logged yet.");
     // One tap was recorded, once.
     expect(authedActionFetch).toHaveBeenCalledTimes(1);
@@ -280,7 +280,7 @@ describe("Wanted capture behind the age gate", () => {
 
     // A private list is not a public contribution: no dialog, no handle claim.
     expect(document.body.querySelector(".contributionGate")).toBeNull();
-    expect(container.textContent).toContain("Confirm you are 18 or over to keep a Wanted list.");
+    expect(container.textContent).toContain("Confirm you are 18 or over to keep a list of pubs to try.");
     expect(container.textContent).not.toContain("public handle");
     expect(onSaved).not.toHaveBeenCalled();
 

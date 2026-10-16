@@ -119,9 +119,9 @@ Nothing in section 2 starts until the captain says so. The order is the point.
 | 2.1 | Confirm section 1 is complete and dated | Captain | Every row in section 5 carries a date. | This file, section 5 |
 | 2.2 | Apply any outstanding migration | Captain | `supabase migration list` shows the release set. Agents ship SQL only. Runbook 1.3. | `supabase db push --include-all` |
 | 2.3 | Confirm the production environment | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off`, `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, every secret set. Runbook 1.4. | Vercel, Project, Settings, Environment Variables |
-| 2.4 | Deploy | Captain | A build id from Vercel. Never pass `--prebuilt` from a Mac. | `vercel deploy` |
-| 2.5 | Promote | Captain | The promoted deployment id, recorded. Promotion repoints traffic and does not rebuild. | `vercel promote <deployment-url>` |
-| 2.6 | Both hosts serve the release | Fleet | Two 200 answers carrying the release build. | `curl -sSIL https://pubmaxxing.com/map` and `curl -sSIL https://www.pubmaxxing.com/map` |
+| 2.4 | Release | Captain | The [release command](DEPLOYMENT.md#one-release-command) ends with `[release] Released <sha> as <deploymentId>. The production smoke suite passed.` It builds with Production values, promotes, and waits for the smoke verdict. Never promote a Preview build. | `npm run release:prod` |
+| 2.5 | Record the release | Captain | The commit and deployment id from the final line of step 2.4, recorded in section 5. | Output of step 2.4 |
+| 2.6 | Both hosts resolve to the release | Fleet | The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`: the first response redirects to the apex with its path and query intact. | `curl -sS -o /dev/null -w '%{http_code}\n' https://pubmaxxing.com/map` and `curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'` |
 | 2.7 | Production smoke | Fleet | Every row of the runbook smoke grid passes on the production host. | Runbook section 2 |
 | 2.8 | The title markers answer | Fleet | Both greps match. | `curl --fail --silent --location https://pubmaxxing.com/map \| grep -F '<title>Map · PUBMAXXING</title>'` |
 | 2.9 | Freshness on production | Fleet | `summary` carries no `stale` and no `unknown`; `communityPrices.degraded` is `false`. | `curl -sS https://pubmaxxing.com/api/freshness` |
@@ -237,8 +237,8 @@ Decide fast. Each trigger has one lever. The commands live in runbook section 3.
 
 | Trigger | Lever | Owner | Command |
 |---|---|---|---|
-| A bad release, any cause | Promote the previous known-good deployment | Captain | `vercel promote <previous-deployment-url>` |
-| A Social incident | Set the launch flag to `0`, then promote | Captain | `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel Production |
+| A bad release, any cause | Promote the previous known-good Production deployment, never a Preview build | Captain | `vercel promote <previous-deployment-url>` |
+| A Social incident | Set the launch flag to `0`, then release again. A changed value reaches only a new build, so promoting an existing deployment would not carry it. | Captain | `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel Production, then `npm run release:prod` |
 | A price surface reading wrong | Promote back first, then hide the offending rows from the moderation queue | Captain | `vercel promote <previous-deployment-url>`, then `/admin` |
 | A schema fault | Run the matching rollback SQL by hand | Captain | `supabase/migrations/rollback/` |
 
@@ -271,7 +271,7 @@ from the owning service.
 | Seed density | Captain | Two boroughs reading as priced | |
 | Search Console and Bing | Captain | Verified property, submitted sitemap, successful fetch | |
 | Demo content off | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off` in Production, with the promoted deployment id | |
-| Promotion | Captain | The promoted deployment id | |
+| Release | Captain | The commit and deployment id from the last line of `npm run release:prod` | |
 | Production smoke | Fleet | Every runbook smoke row passing on the production host | |
 | Analytics live | Captain | The weekly dashboard, with all six insights | |
 | First cohort | Captain | 10 distinct map opens and 5 RSVPs or price logs, with no paid ads | |

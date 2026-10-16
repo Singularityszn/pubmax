@@ -113,7 +113,7 @@ async function sortIt(query: string): Promise<void> {
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, query);
     field.dispatchEvent(new Event("input", { bubbles: true }));
-    [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Sort it")!.click();
+    [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
     await Promise.resolve();
   });
   await settle();
@@ -176,7 +176,7 @@ async function openTune(): Promise<void> {
 }
 
 async function sortAgainFromTune(): Promise<void> {
-  const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Sort it again")!;
+  const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Plan it again")!;
   await act(async () => { again.click(); });
   await settle();
   await settle();
@@ -411,7 +411,7 @@ describe("sorting again from Tune details", () => {
     const generateCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).length;
     const before = generateCalls();
 
-    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Sort it again")!;
+    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Plan it again")!;
     await act(async () => { again.focus(); again.click(); });
     await settle();
 
