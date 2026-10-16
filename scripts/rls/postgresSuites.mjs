@@ -14,6 +14,7 @@
  * `__tests__/helpers/postgres` or `scripts/rls/session-harness.mjs`.
  */
 export const POSTGRES_BACKED_SUITES = Object.freeze([
+  "__tests__/accountDeletionEveryHandleMigrationEffective.test.ts",
   "__tests__/accountHasPasswordEffective.test.ts",
   "__tests__/accountRemovalMigrationEffective.test.ts",
   "__tests__/accountRetentionLedgerMigrationEffective.test.ts",
