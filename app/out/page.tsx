@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 
+import { buildOutResponse } from "@/lib/out/loadOut";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { outWindowToApiDay } from "@/lib/outListings";
+import type { OutResponse } from "@/lib/out/types";
 import { parseOutDayWindow } from "@/lib/outListings";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
@@ -43,5 +47,18 @@ export default async function OutPage({
 }) {
   const params = searchParams ? await searchParams : {};
   const day = parseOutDayWindow(params.day);
-  return <OutClient day={day} />;
+  const apiDay = outWindowToApiDay(day);
+  const servedAt = new Date().getTime();
+  let body: OutResponse | null = null;
+  try {
+    body = await buildOutResponse({ city: DEFAULT_CITY_ID, day: apiDay }, { now: servedAt });
+  } catch {
+    // A failed public read is distinct from a day with no listings.
+  }
+  return (
+    <OutClient
+      day={day}
+      initialAnswer={{ city: DEFAULT_CITY_ID, day: apiDay, body, failed: body === null, servedAt }}
+    />
+  );
 }

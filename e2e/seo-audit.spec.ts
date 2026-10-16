@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-for (const path of ["/tonight", "/pint-index", "/crawls"]) {
+for (const path of ["/tonight", "/out", "/pint-index", "/crawls"]) {
   test(`${path} has meaningful completed content without JavaScript`, async ({ browser, baseURL }) => {
     const context = await browser.newContext({ baseURL, javaScriptEnabled: false });
     const page = await context.newPage();
@@ -8,11 +8,14 @@ for (const path of ["/tonight", "/pint-index", "/crawls"]) {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+      await expect(page.locator('link[rel="canonical"]')).toHaveCount(path === "/out" ? 0 : 1);
       if (path === "/tonight") {
         await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
         await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
         await expect(page.getByTestId("tonight-screen")).not.toHaveAttribute("data-listings-status", "idle");
+      } else if (path === "/out") {
+        await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);
+        await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
       } else if (path === "/pint-index") {
         await expect(page.getByRole("heading", { name: "The Zone pint index" })).toBeVisible();
         await expect(page).toHaveTitle("London pint prices by borough and fare zone | PUBMAXX");
@@ -42,7 +45,7 @@ for (const width of [390, 1440]) {
         localStorage.setItem("pubmax-theme", value);
         localStorage.setItem("pubmax-tour-v1-done", "1");
       }, theme);
-      for (const path of ["/today", "/tonight", "/pint-index", "/crawls"]) {
+      for (const path of ["/today", "/tonight", "/out", "/pint-index", "/crawls"]) {
         expect((await page.goto(path))?.status()).toBe(200);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);

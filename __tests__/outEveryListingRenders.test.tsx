@@ -38,6 +38,7 @@ vi.mock("next/link", () => ({
 }));
 
 import OutClient from "@/app/out/OutClient";
+import type { HeldOutAnswer } from "@/components/out/useOutListings";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -85,7 +86,7 @@ function body(rows: WhatsOnRow[]): OutResponse {
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready") {
+async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready", initialAnswer?: HeldOutAnswer) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
@@ -99,7 +100,7 @@ async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "week
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(createElement(OutClient, { day }));
+    root?.render(createElement(OutClient, { day, initialAnswer }));
   });
   await act(async () => {});
 }
@@ -349,5 +350,35 @@ describe("a night with nothing on still has a way onward", () => {
     await renderOut([]);
     const primary = container.querySelector<HTMLAnchorElement>("[data-primary-action] a");
     expect(primary?.textContent).toBe("Open the map");
+  });
+});
+
+
+describe("the public server answer belongs to one city and service day", () => {
+  it.each([
+    { name: "a fresh London answer", city: "london" as const, age: 1_000, reads: 0 },
+    { name: "an expired answer", city: "london" as const, age: 300_001, reads: 1 },
+    { name: "another city's answer", city: "manchester" as const, age: 1_000, reads: 1 },
+  ])("handles $name", async ({ city, age, reads }) => {
+    const rows = [unmatchedRow(0)];
+    await renderOut(rows, "tonight", "ready", {
+      city, day: "today", body: body(rows), failed: false, servedAt: NOW - age,
+    });
+    const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
+    expect(calls).toHaveLength(reads);
+    expect(container.textContent).toContain("Sourced listing 0");
+  });
+
+  it.each([
+    ["2026-03-29T02:59:59Z", "2026-03-29T03:00:01Z"],
+    ["2026-10-25T03:59:59Z", "2026-10-25T04:00:01Z"],
+  ])("re-reads across the London service rollover from %s", async (before, after) => {
+    vi.setSystemTime(new Date(after));
+    const rows = [unmatchedRow(0)];
+    await renderOut(rows, "tonight", "ready", {
+      city: "london", day: "today", body: body(rows), failed: false, servedAt: Date.parse(before),
+    });
+    const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
+    expect(calls).toHaveLength(1);
   });
 });

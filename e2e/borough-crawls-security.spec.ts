@@ -133,7 +133,11 @@ test.describe("security headers", () => {
       const html = (await response?.text()) ?? "";
       expect(html, path).not.toMatch(/pubmax_handle/);
       expect(html, path).not.toMatch(/"handle":\s*"[^"]+"/);
-      expect(html, path).not.toMatch(/access_token|refresh_token/);
+      // Inline auth cleanup code names these keys without carrying a token.
+      // Refuse serialized values, while allowing that public script vocabulary.
+      const decoded = html.replaceAll('\\"', '"');
+      const carriesToken = /["'](?:access_token|refresh_token)["']\s*:\s*["'][^"']+["']/.test(decoded);
+      expect(carriesToken, `${path} must not serialize auth tokens`).toBe(false);
     }
   });
 
