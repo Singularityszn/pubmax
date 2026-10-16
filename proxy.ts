@@ -47,6 +47,18 @@ const CANONICAL_HOST = "pubmaxxing.com";
 // session in its document (`/u/you`, `/messages`, `/admin`) may never join
 // this list, whatever it would buy.
 //
+// WHAT "KEEPS THE NONCE" MEANS, HONESTLY: a CSP governs the DOCUMENT it
+// arrived with, and the browser never swaps it mid-session. So the strict
+// nonce policy holds when an identity or social route is loaded as a document
+// (a hard load: typed, bookmarked, refreshed, opened from another site). A
+// reader who lands on one of the CDN documents below and then moves by
+// client-side navigation stays under THAT landing document's policy, with
+// `'unsafe-inline'` in the script slot, for the rest of the session; the RSC
+// payloads of the routes they reach do not bring a policy of their own. This
+// is accepted, not fixed here: what keeps that session safe is that none of
+// these documents renders personal data or takes user input into markup (the
+// block further down that builds `inlineScriptSource` says the same).
+//
 // This list is a tracked constant so that adding a route to it is a deliberate
 // diff a reviewer sees, never a side effect of a refactor.
 // `__tests__/clerkProxyCsp.test.ts` pins both halves: these paths carry
@@ -238,10 +250,19 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
     pathname === "/_next/hmr" ||
     pathname.startsWith("/_next/hmr/") ||
     pathname === "/favicon.ico";
-  const prefetch =
-    request.headers.has("next-router-prefetch") ||
-    request.headers.get("purpose") === "prefetch";
-  return excludedPath || prefetch;
+  // Only NEXT's router prefetch skips the CSP work: it is an RSC fetch, the
+  // payload carries no document for a policy to govern, and minting a nonce
+  // for it is wasted work on every link the router warms. `Purpose: prefetch`
+  // and `Sec-Purpose: prefetch;prerender` are deliberately NOT read here. They
+  // are the BROWSER's words for a DOCUMENT fetched ahead of a navigation (a
+  // <link rel=prefetch>, or a speculation-rules prerender from app/layout.tsx
+  // of `/social`, `/crawls` or `/borough/*`), and that document is the one the
+  // reader is then shown, so it keeps its CSP, Clerk and every redirect and
+  // gate above. A request that asks for HTML is a document whatever else it
+  // carries, so even the router header cannot strip the policy off one.
+  const routerPrefetch =
+    request.headers.has("next-router-prefetch") && !wantsDocument(request);
+  return excludedPath || routerPrefetch;
 }
 
 // Per-request Content-Security-Policy with a fresh nonce.
@@ -669,10 +690,12 @@ export const config = {
     {
       source:
         "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
+      // Next's router prefetch (an RSC fetch) is kept out. The browser's own
+      // `Purpose: prefetch` is NOT: it marks a document prefetch or a
+      // speculation-rules prerender, which the reader is then shown, so it
+      // must run this function for its CSP, Clerk and redirects. See
+      // shouldSkipContentSecurityPolicy and `__tests__/clerkProxyCsp.test.ts`.
+      missing: [{ type: "header", key: "next-router-prefetch" }],
     },
   ],
 } satisfies ProxyConfig;
