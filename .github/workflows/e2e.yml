@@ -53,7 +53,7 @@ jobs:
           set -euo pipefail
           scope=code
           if [ "$EVENT_NAME" = pull_request ]; then
-            scope="$(git diff --name-only HEAD^1 HEAD | awk '
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               /^docs\// || /\.md$/ { docs++; next }
               /^data\/.*\.json$/ || /^public\/data\// { data++; next }
@@ -166,7 +166,7 @@ jobs:
           set -euo pipefail
           scope=code
           if [ "$EVENT_NAME" = pull_request ]; then
-            scope="$(git diff --name-only HEAD^1 HEAD | awk '
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               /^docs\// || /\.md$/ { docs++; next }
               /^data\/.*\.json$/ || /^public\/data\// { data++; next }

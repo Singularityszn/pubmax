@@ -82,7 +82,7 @@ jobs:
           set -euo pipefail
           scope=code
           if [ "$EVENT_NAME" = pull_request ]; then
-            scope="$(git diff --name-only HEAD^1 HEAD | awk '
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               /^docs\// || /\.md$/ { docs++; next }
               /^data\/.*\.json$/ || /^public\/data\// { data++; next }
@@ -155,7 +155,7 @@ jobs:
           set -euo pipefail
           scope=code
           if [ "$EVENT_NAME" = pull_request ]; then
-            scope="$(git diff --name-only HEAD^1 HEAD | awk '
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               /^docs\// || /\.md$/ { docs++; next }
               /^data\/.*\.json$/ || /^public\/data\// { data++; next }
@@ -224,7 +224,7 @@ jobs:
           set -euo pipefail
           scope=code
           if [ "$EVENT_NAME" = pull_request ]; then
-            scope="$(git diff --name-only HEAD^1 HEAD | awk '
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               /^docs\// || /\.md$/ { docs++; next }
               /^data\/.*\.json$/ || /^public\/data\// { data++; next }
@@ -291,7 +291,7 @@ jobs:
         run: |
           set -euo pipefail
           postgres_suites="$(node --input-type=module -e 'import { POSTGRES_BACKED_SUITES } from "./scripts/rls/postgresSuites.mjs"; console.log(POSTGRES_BACKED_SUITES.join("\n"))')"
-          tests="$(git diff --name-only HEAD^1 HEAD | while IFS= read -r file; do
+          tests="$(git diff --no-renames --name-only HEAD^1 HEAD | while IFS= read -r file; do
             [ -n "$file" ] || continue
             grep -rlF -e "$file" -e "$(basename "$file")" __tests__ --include='*.test.ts' --include='*.test.tsx' || true
           done | sort -u | grep -vxF -f <(printf '%s\n' "$postgres_suites") || true)"
@@ -342,7 +342,7 @@ jobs:
           set -euo pipefail
           scope=code
           if [ "$EVENT_NAME" = pull_request ]; then
-            scope="$(git diff --name-only HEAD^1 HEAD | awk '
+            scope="$(git diff --no-renames --name-only HEAD^1 HEAD | awk '
               NF == 0 { next }
               /^docs\// || /\.md$/ { docs++; next }
               /^data\/.*\.json$/ || /^public\/data\// { data++; next }

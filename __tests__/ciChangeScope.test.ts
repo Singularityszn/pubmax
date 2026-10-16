@@ -16,7 +16,7 @@
 // how they are spelled.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -59,14 +59,14 @@ function step(where: string, name: string): Step {
 const scratch = mkdtempSync(join(tmpdir(), "pubmax-ci-scope-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
-/** A `git` that answers `git diff --name-only HEAD^1 HEAD` with FAKE_DIFF. */
+/** A `git` that answers `git diff --no-renames --name-only HEAD^1 HEAD` with FAKE_DIFF. */
 function shimBin(): string {
   const bin = mkdtempSync(join(scratch, "bin-"));
   writeFileSync(
     join(bin, "git"),
     [
       "#!/bin/sh",
-      'if [ "$1 $2 $3 $4" = "diff --name-only HEAD^1 HEAD" ]; then printf "%s" "$FAKE_DIFF"; exit 0; fi',
+      'if [ "$*" = "diff --no-renames --name-only HEAD^1 HEAD" ]; then printf "%s" "$FAKE_DIFF"; exit 0; fi',
       'echo "unexpected git $*" >&2; exit 2',
     ].join("\n"),
   );
@@ -79,13 +79,18 @@ function shimBin(): string {
 
 const BIN = shimBin();
 
-function runStep(run: string, env: Record<string, string>): { status: number | null; output: string; stdout: string; stderr: string } {
+function runStep(
+  run: string,
+  env: Record<string, string>,
+  { cwd = ROOT, realGit = false }: { cwd?: string; realGit?: boolean } = {},
+): { status: number | null; output: string; stdout: string; stderr: string } {
   const outputFile = join(mkdtempSync(join(scratch, "out-")), "github-output");
   writeFileSync(outputFile, "");
+  const path = realGit ? (process.env.PATH ?? "") : `${BIN}:${process.env.PATH ?? ""}`;
   const result = spawnSync("bash", ["-e", "-c", run], {
-    cwd: ROOT,
+    cwd,
     encoding: "utf8",
-    env: { ...process.env, PATH: `${BIN}:${process.env.PATH ?? ""}`, GITHUB_OUTPUT: outputFile, ...env },
+    env: { ...process.env, PATH: path, GITHUB_OUTPUT: outputFile, ...env },
   });
   return { status: result.status, output: readFileSync(outputFile, "utf8"), stdout: result.stdout, stderr: result.stderr };
 }
@@ -135,6 +140,29 @@ describe("the change scope", () => {
     { files: [], scope: "code" },
   ])("reads $files as $scope", ({ files, scope }) => {
     expect(scopeOf(files)).toBe(scope);
+  });
+
+  it("reads a code file renamed into docs as code, by asking real git", () => {
+    // Rename detection would print only the new docs path, and a pull request
+    // that moves lib/ code under docs/ would skip every heavy job.
+    const repo = mkdtempSync(join(scratch, "repo-"));
+    const git = (...args: string[]) => {
+      const result = spawnSync("git", args, { cwd: repo, encoding: "utf8" });
+      expect(result.status, result.stderr).toBe(0);
+    };
+    git("init", "-q");
+    git("config", "user.email", "ci@example.invalid");
+    git("config", "user.name", "ci");
+    mkdirSync(join(repo, "lib"));
+    writeFileSync(join(repo, "lib/moved.ts"), "export const moved = 1;\n".repeat(20));
+    git("add", ".");
+    git("commit", "-q", "-m", "base");
+    mkdirSync(join(repo, "docs"));
+    git("mv", "lib/moved.ts", "docs/moved.md");
+    git("commit", "-q", "-m", "move");
+    const result = runStep(CLASSIFY_RUN, { EVENT_NAME: "pull_request" }, { cwd: repo, realGit: true });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.output).toMatch(/^scope=code$/m);
   });
 
   it("runs in full on every event other than a pull request, without asking git", () => {
