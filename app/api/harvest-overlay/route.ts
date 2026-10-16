@@ -1,5 +1,6 @@
 // GET /api/harvest-overlay?venueId= — lazy website, menu, and cited lore
-// for one OSM-identified venue. Never rides in pin or slim payloads.
+// for one OSM-identified venue, with its Google Places record and its OSM
+// facts (lib/osmPubFacts.ts) beside it. Never rides in pin or slim payloads.
 // A miss is unknown, not "no history". A failed read is degraded.
 
 import { publicApiError } from "@/lib/apiError";
@@ -8,6 +9,7 @@ import { mergePublicHarvestOverlays, toPublicOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { isLimited } from "@/lib/pintDrops";
+import { osmFactsForOsmIds } from "@/lib/osmPubFacts.server";
 import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -28,9 +30,11 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const resolution = await resolveHarvestOverlayVenue(venueId);
-    const placesContent = await placesRecordForVenue(venueId, resolution.status === "resolved" ? resolution.venueIds : []);
+    const osmIds = resolution.status === "resolved" ? resolution.venueIds : [];
+    const [placesContent, osmFacts] = await Promise.all([placesRecordForVenue(venueId, osmIds), osmFactsForOsmIds(osmIds)]);
+    const sources = { ...(placesContent ? { placesContent } : {}), ...(osmFacts ? { osmFacts } : {}) };
     if (resolution.status === "unavailable") {
-      return jsonNoStore({ status: "degraded", overlay: null, ...(placesContent ? { placesContent } : {}) }, { status: 200 });
+      return jsonNoStore({ status: "degraded", overlay: null, ...sources }, { status: 200 });
     }
     const reads =
       resolution.status === "resolved"
@@ -41,7 +45,7 @@ export async function GET(request: Request): Promise<Response> {
           )
         : [{ status: "ready" as const, overlay: null }];
     if (reads.some((read) => read.status === "degraded")) {
-      return jsonNoStore({ status: "degraded", overlay: null, ...(placesContent ? { placesContent } : {}) }, { status: 200 });
+      return jsonNoStore({ status: "degraded", overlay: null, ...sources }, { status: 200 });
     }
     const publicOverlays = reads.flatMap((read) =>
       read.status === "ready" && read.overlay ? [toPublicOverlay(read.overlay)] : [],
@@ -49,7 +53,7 @@ export async function GET(request: Request): Promise<Response> {
     const overlay = mergePublicHarvestOverlays(publicOverlays);
     if (!overlay.website && !overlay.menuUrl && !overlay.lore) {
       return Response.json(
-        { status: "ready", overlay: null, ...(placesContent ? { placesContent } : {}) },
+        { status: "ready", overlay: null, ...sources },
         { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
       );
     }
@@ -57,7 +61,7 @@ export async function GET(request: Request): Promise<Response> {
       {
         status: "ready",
         overlay,
-        ...(placesContent ? { placesContent } : {}),
+        ...sources,
       },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
     );

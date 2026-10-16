@@ -14,7 +14,7 @@ import "./[code]/round.css";
 // the starter takes a handle, so a signed-out visitor is never turned away.
 
 export const metadata: Metadata = {
-  title: "Rounds · PUBMAXXING",
+  title: "Rounds",
   description: "Start a round and share the code, or join one from a share link.",
   robots: { index: false, follow: false },
 };

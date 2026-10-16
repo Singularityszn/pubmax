@@ -20,11 +20,9 @@ vi.mock("next/link", async () => {
 
 import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
 
-// Social left the primary row for the desktop More menu, so More is where a
-// reader on a Social page is told where they are. The dock tabs light on their
-// routes AND the routes those routes own; the More entry must do the same, or a
-// desktop reader on /feed or /crawls/soho loses both the lit item and
-// aria-current="page".
+// The More menu marks the secondary destination a reader is on, with
+// aria-current="page", and never a lookalike prefix. Social is a primary tab
+// (captain, 16 Oct 2026), so a Social page lights the tab and nothing in here.
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -50,7 +48,7 @@ async function openMoreOn(pathname: string): Promise<HTMLAnchorElement[]> {
   root = createRoot(container);
   route.pathname = pathname;
   await act(async () => {
-    root.render(<SiteNavMore items={siteNavMoreItems("Social")} />);
+    root.render(<SiteNavMore items={siteNavMoreItems()} />);
   });
   const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn");
   if (!trigger) throw new Error("More trigger not rendered");
@@ -69,26 +67,21 @@ function current(items: HTMLAnchorElement[]): string[] {
 }
 
 describe("the More menu marks where a reader is", () => {
-  it.each([
-    "/social",
-    "/social/crews/crew-1",
-    "/feed",
-    "/feed/friends",
-    "/discover",
-    "/drinks",
-    "/stories",
-    "/crawls",
-    "/crawls/soho",
-  ])("marks Social as the current page on %s", async (pathname) => {
+  it.each(["/wall", "/near", "/historic", "/pal"])("marks the item current on %s", async (pathname) => {
     const items = await openMoreOn(pathname);
-    expect(current(items)).toEqual(["Social"]);
-    const social = items.find((item) => item.getAttribute("href") === "/social");
-    expect(social?.classList.contains("isActive")).toBe(true);
+    expect(items.filter((item) => item.getAttribute("aria-current") === "page")).toHaveLength(1);
+    expect(items.find((item) => item.getAttribute("href") === pathname)?.classList.contains("isActive")).toBe(true);
+  });
+
+  it.each(["/social", "/feed", "/crawls/soho"])("lists no Social item and marks nothing on %s", async (pathname) => {
+    const items = await openMoreOn(pathname);
+    expect(items.some((item) => item.getAttribute("href") === "/social")).toBe(false);
+    expect(current(items)).toEqual([]);
   });
 
   it("marks only the destination a reader is on, never a lookalike prefix", async () => {
     expect(current(await openMoreOn("/near"))).toEqual(["Near"]);
-    expect(current(await openMoreOn("/socialite"))).toEqual([]);
+    expect(current(await openMoreOn("/nearby"))).toEqual([]);
     expect(current(await openMoreOn("/tonight"))).toEqual([]);
   });
 });

@@ -531,13 +531,24 @@
 
 /* NO PRIMARY IN THIS BAR. The sheet's one painted price action is the
    Overview's price door (`.priceDoor`, app/globals.css) and the phone peek's
-   "Plan stop" is its one painted plan action, so every command here is a
-   ghost: Make it Stop 1, Crawl, Share. */
+   one plan door (lib/venuePlanDoor.ts) is its one painted plan action, so
+   every command here is a ghost: Make it Stop 1 and Crawl on desktop, Share
+   everywhere. */
 .venueSheetStickyGhost {
   flex: 1 1 0;
   border: 1px solid var(--control-tint-border, var(--line));
   background: var(--control-tint-surface, var(--panel-raised));
   color: var(--ink);
+}
+
+/* A LONE GHOST IS THE SIZE OF ITS LABEL. Siblings share the row, but on a
+   phone the plan ghosts moved to the peek and Share stands alone, and
+   `flex: 1 1 0` stretched one small command into an edge-to-edge slab that
+   read as the sheet's primary. The feedback lines are spans, so they never
+   count against `:only-of-type`. */
+.venueSheetStickyGhost:only-of-type {
+  flex: 0 0 auto;
+  padding-inline: var(--control-pad-x, 16px);
 }
 
 .venueSheetStickyGhost[aria-pressed="true"] {

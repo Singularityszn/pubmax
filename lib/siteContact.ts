@@ -4,4 +4,4 @@
 // under scripts/ read for their crawler user-agent headers. This file exists so
 // every app surface keeps importing "@/lib/siteContact" unchanged, and so there
 // is still exactly ONE place the address is written down.
-export { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact.mjs";
+export { CONTACT_EMAIL, CONTACT_MAILTO, HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact.mjs";

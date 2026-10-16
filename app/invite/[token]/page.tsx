@@ -198,7 +198,7 @@ function InviteNotFound() {
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <Link className="invite__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite link isn&rsquo;t valid</h1>
@@ -216,7 +216,7 @@ function InviteUnavailable() {
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <Link className="invite__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite isn&rsquo;t available right now</h1>
@@ -262,7 +262,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
       <div className="invite__mat">
         <div className="invite__kicker">
           <Link className="invite__brand" href="/">
-            PUBMAXXING
+            PUBMAXX
           </Link>
           <span className="invite__edition">You&rsquo;re invited</span>
         </div>

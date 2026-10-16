@@ -56,7 +56,13 @@ test.describe("mobile Pubs gallery", () => {
     const response = await page.goto("/pubs");
     expect(response?.status()).toBe(200);
 
-    await expect(page.getByRole("heading", { level: 1, name: /Chains/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Pub chains in London" }),
+    ).toBeVisible();
+    // The fare-zone squares carry a visible label, so they never read as pages.
+    await expect(page.locator(".pubsZoneLabel")).toHaveText("Zone");
+    // No card prints a drink word picked by hashing the venue id.
+    await expect(page.locator(".pubsCardShelf, .pubsCardDrink, .pubsCardArtLabel")).toHaveCount(0);
     await expect(page.locator(".pubsCard").first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
@@ -83,15 +89,30 @@ test.describe("mobile Pubs gallery", () => {
 
     const firstCard = page.locator(".pubsCard").first();
     await expect(firstCard).toBeVisible();
-    await expectTappable(firstCard.locator(".pubsCardName a"), "pub card title link");
     await expectTappable(firstCard.locator(".pubsMapLink"), "pub card map link");
     await expectVisibleTargetsTappable(firstCard.locator(".pubsMenuLink"), "pub card menu link");
     await expectVisibleTargetsTappable(firstCard.locator(".pubsBookLink"), "pub card booking link");
     await expectNoHorizontalOverflow(page);
 
+    // THE CARD IS ONE DOOR: a tap on the pub's name, not on the button, still
+    // lands on the map link stretched over the card, while the booking link
+    // keeps its own target above the stretch.
     const mapLink = firstCard.locator(".pubsMapLink");
     await expect(mapLink).toHaveAttribute("href", /\/map\?sel=venue-/);
-    await mapLink.click();
+    const owner = async (selector: string): Promise<string | null> => {
+      const box = await firstCard.locator(selector).boundingBox();
+      if (!box) return null;
+      return page.evaluate(
+        ({ x, y }) => {
+          const hit = document.elementFromPoint(x, y);
+          return hit?.closest("a")?.className ?? null;
+        },
+        { x: box.x + Math.min(10, box.width / 2), y: box.y + box.height / 2 },
+      );
+    };
+    expect(await owner(".pubsCardName")).toContain("pubsMapLink");
+    expect(await owner(".pubsBookLink")).toContain("pubsBookLink");
+    await firstCard.locator(".pubsCardName").click();
     await expect(page).toHaveURL(/\/map\?sel=venue-/, { timeout: 30_000 });
     await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 

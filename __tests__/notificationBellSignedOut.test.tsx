@@ -72,5 +72,14 @@ describe("NotificationBell signed-in poll", () => {
 
     expect(fetchMock).toHaveBeenCalled();
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/api/notifications");
+    expect(document.querySelector("a[href='/activity']")).not.toBeNull();
+  });
+
+  it("draws no bell for a signed-out visitor, who has no activity behind it", async () => {
+    // Oct 2026 UX audit: an icon with nothing behind it is header noise.
+    await mount();
+
+    expect(document.querySelector("a[href='/activity']")).toBeNull();
+    expect(document.querySelector(".siteNavBell")).toBeNull();
   });
 });

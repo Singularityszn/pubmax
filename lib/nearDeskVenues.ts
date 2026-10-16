@@ -22,11 +22,11 @@ import { discardBody } from "@/lib/responseBody";
 import {
   isDeskEligible,
   laptopFromOsm,
-  parseOsmOpeningHours,
   wifiFromOsm,
   type DeskPoint,
 } from "@/lib/nearDesk";
 import { londonVenueIdFor } from "@/lib/londonVenueShards";
+import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
 import { VERIFIED_CLOSED_OSM_REFS } from "@/lib/verifiedClosedPubs";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 
