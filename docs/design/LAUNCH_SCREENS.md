@@ -60,7 +60,7 @@ Rules the table obeys:
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
 | `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/places` | Places | Pick a city. | Open London | Browse pubs across the UK |
-| `/pubs` | Pubs | Every pub on record. | Open the map | Find my pint |
+| `/pubs` | Pubs | Pub chains in London (the count rides in the lede) | Open the map | Find my pint |
 | `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |
 | `/borough/[slug]` | (the borough) | Pubs in (the borough). | Open the map here | Find my pint |
 | `/crawls` | Crawls | Pub stories mapped into walks. | Start a crawl | Open the map |
