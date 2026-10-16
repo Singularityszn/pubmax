@@ -49,7 +49,7 @@ describe("the front door's two answers", () => {
       stale: true,
     });
     expect(todayAnswer(facts, STAMP)).toEqual({
-      line: "Last read of the sky: feels like 19°C, cloudy, 0% chance of rain, 11 km/h wind.",
+      line: "Last reading: feels like 19°C, cloudy, 0% chance of rain, 11 km/h wind.",
       stamp: STAMP,
       measured: false,
     });
@@ -79,12 +79,12 @@ describe("the front door's two answers", () => {
     });
   });
 
-  it("counts hyped pubs the /tonight route will show when listings are empty", () => {
+  it("names the /tonight recommendations as recommendations when listings are empty, never as tonight's talk", () => {
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 4 }, STAMP).line).toBe(
-      "4 pubs people are talking about tonight.",
+      "Nothing’s confirmed on tonight yet. Here are 4 pubs Londoners keep recommending.",
     );
     expect(tonightAnswer({ unread: false, count: 0, hypedCount: 1 }, STAMP).line).toBe(
-      "1 pub people are talking about tonight.",
+      "Nothing’s confirmed on tonight yet. Here’s a pub Londoners keep recommending.",
     );
     // Listings still win when both lanes have rows.
     expect(tonightAnswer({ unread: false, count: 3, hypedCount: 4 }, STAMP).line).toBe(

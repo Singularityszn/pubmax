@@ -14,11 +14,12 @@ import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 export async function GET(request: Request): Promise<Response> {
+  // Per address only. A read route has no global budget: a shared 1,200 a
+  // minute beside a per-address 120 let about ten addresses lock every other
+  // reader out of a venue sheet. A miss here is a cheap indexed read, so the
+  // per-address budget is the whole brake.
   const ipHash = hashIp(clientIp(request));
-  if (
-    (await isLimited(`harvest-overlay:${ipHash}`, `harvest-overlay:${ipHash}`, 120)) ||
-    (await isLimited("harvest-overlay:global", "harvest-overlay:global", 1200))
-  ) {
+  if (await isLimited(`harvest-overlay:${ipHash}`, `harvest-overlay:${ipHash}`, 120)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 

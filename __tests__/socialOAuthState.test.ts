@@ -34,11 +34,11 @@ describe("social OAuth state", () => {
         origin: "https://pubmaxxing.com",
       }),
     ).rejects.toThrow("x OAuth is not configured");
-    await expect(readSocialOAuthState("unused", "x")).rejects.toThrow(
+    await expect(readSocialOAuthState("unused", "x", null)).rejects.toThrow(
       "Expired or mismatched OAuth state",
     );
     await expect(
-      completeSocialOAuth({ provider: "x", code: "code", state: "stale-state" }),
+      completeSocialOAuth({ provider: "x", code: "code", state: "stale-state", browserNonce: null }),
     ).rejects.toThrow("x OAuth is not certified");
   });
 

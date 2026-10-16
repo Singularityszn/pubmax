@@ -194,7 +194,7 @@ async function timeAcknowledgedSave(page: Page): Promise<number> {
   // idiom is to retry the TAP rather than to assert harder on what follows it
   // (AGENTS.md; e2e/plan-single-stop.spec.ts).
   await expect(async () => {
-    await page.getByRole("button", { name: "Sort it", exact: true }).click();
+    await page.getByRole("button", { name: "Plan it", exact: true }).click();
     await expect(page.locator(".planComposer__stop").first()).toBeVisible({ timeout: 20_000 });
   }).toPass({ timeout: PRODUCT_TIMING_CEILING_MS });
 

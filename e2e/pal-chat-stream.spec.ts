@@ -47,7 +47,7 @@ test("a streamed answer lands as one bubble with its cards", async ({ page }) =>
   });
 
   await page.goto("/pal/chat");
-  await page.getByRole("textbox", { name: /Describe the outing/i }).fill("cheapest pint in Soho");
+  await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill("cheapest pint in Soho");
   await page.getByRole("button", { name: "Ask" }).click();
 
   const bubbles = page.locator(".palChatRow--pal .palChatBubble");

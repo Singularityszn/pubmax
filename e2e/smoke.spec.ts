@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // P3.11 smoke suite. High-signal, non-flaky, WebGL-agnostic: nothing here asserts
 // that the MapLibre canvas actually paints (headless boxes have no GPU), only
@@ -238,9 +238,7 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   }
 
   // B1 consolidated separate Drinks/Price controls into one Filters sheet.
-  const filters = page
-    .locator(".mobileMapTopbar")
-    .getByRole("button", { name: /^Filters/ });
+  const filters = await mobileMapShellControl(page, "filters");
   await expect(filters).toBeVisible();
   await filters.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
@@ -438,7 +436,7 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
   await page.setViewportSize({ width: 390, height: 844 });
   await dismissMapFirstRunTour(page);
   await page.goto("/map");
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   // PR #677 (3740a132, accessible context-aware map key) added the "Key" tab
   // and made it the default, pushing the ThemeToggle behind the "Layers" tab
   // (components/PubMap.tsx, mobileLayersTab).

@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import ShareBar from "@/components/share/ShareBar";
 import EmptyState from "@/components/ui/empty-state";
@@ -11,10 +12,16 @@ import type { HistoricPub } from "@/lib/historic";
 import {
   citationLabel,
   heritageSourceLabel,
+  historicRecord,
   listedBadge,
   venueStatusBadge,
 } from "@/lib/historicFilter";
+import { formatObservedDate } from "@/lib/dataFreshness";
+import { LANDING_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
+import type { VenueListedPint } from "@/lib/venueListedPint";
+import { formatPrice } from "@/lib/venues";
 
 // One notable pub's cited heritage story, with the record already loaded. The
 // page (page.tsx) reads the dataset and hands the record here; this component
@@ -35,7 +42,81 @@ function planNightHref(venueId: string): Route {
   return `/map?${params.toString()}`;
 }
 
-export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
+// The day a listed row was read, in words. The row carries a London day.
+function collectedDay(isoDay: string): string {
+  const ms = Date.parse(`${isoDay}T12:00:00.000Z`);
+  return Number.isFinite(ms) ? formatObservedDate(new Date(ms)) : isoDay;
+}
+
+// THE PRICE COMES FIRST AFTER THE NAME. The figure the app already lists for
+// this pub (the map pin's figure), the drink it is for, and who listed it on
+// which day, in the landing answer card's words. A pub we hold no price for
+// says so and offers the way to log one; a pub the map cannot open gets the
+// words alone, because a log door naming a pub the map would drop is a promise
+// it cannot keep.
+function HistoricListedPint({
+  venueId,
+  listedPint,
+}: {
+  venueId: string | null;
+  listedPint: VenueListedPint | null;
+}) {
+  if (!listedPint) {
+    return (
+      <section className="hdPrice" aria-label="Pint price">
+        <p className="hdPriceNone">
+          No price logged here yet.
+          {venueId ? (
+            <>
+              {" "}
+              <Link prefetch={false} href={pintDropDoorHref(venueId)} className="hdPriceLog">
+                {LANDING_RECEIPT_LABEL}
+              </Link>
+            </>
+          ) : null}
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="hdPrice" aria-label="Pint price">
+      <p className="hdPriceFigure">
+        <PriceBadge
+          variant="current"
+          band={priceBand(listedPint.priceGbp, venueId ? priceBandAreaForVenue(venueId) : undefined)}
+        >
+          {formatPrice(listedPint.priceGbp)}
+        </PriceBadge>
+        <span className="hdPricePint">{listedPint.pintName ?? "cheapest pint"}</span>
+      </p>
+      <p className="hdPriceSource">
+        {listedPint.publisher ? (
+          <>
+            Listed by{" "}
+            <a href={listedPint.publisher.url} target="_blank" rel="noopener noreferrer">
+              {listedPint.publisher.label}
+            </a>
+          </>
+        ) : (
+          "Publisher not recorded"
+        )}
+        {listedPint.observedOn ? `, collected ${collectedDay(listedPint.observedOn)}` : ""}.
+      </p>
+    </section>
+  );
+}
+
+export default function HistoricPubDetail({
+  pub,
+  listedPint,
+}: {
+  pub: HistoricPub;
+  /**
+   * The pint the app lists for this pub. Null when it holds none, so the page
+   * says so; absent when the caller read no prices, so the page claims nothing.
+   */
+  listedPint?: VenueListedPint | null;
+}) {
   // The date chip states what the date is OF, never a bare year: The Captain
   // Kidd's 1701 is the year the pirate it is named after was hanged, and a bare
   // 1701 reads as the year the pub opened (lib/heritageDate.mjs).
@@ -46,6 +127,9 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
   const mapHref: Route | null = pub.venueId ? `/map?sel=${pub.venueId}` : null;
   const canonical = `/historic/${pub.slug}`;
   const shareText = buildHistoricPubShareText({ name: pub.name, hook: pub.hook });
+  // The intro is the pub's own cited hook, so the record leaves it out and only
+  // names its source, and a fact another fact already says is printed once.
+  const record = historicRecord(pub);
 
   return (
     <>
@@ -75,6 +159,10 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
           ) : undefined
         }
       >
+        {listedPint !== undefined ? (
+          <HistoricListedPint venueId={pub.venueId} listedPint={listedPint} />
+        ) : null}
+
         {dateLabel || grade || status || pub.borough ? (
           <div className="hdMeta">
             {dateLabel ? <span className="hdEra">{dateLabel}</span> : null}
@@ -99,14 +187,37 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
             The record
           </h2>
 
-          {pub.facts.length === 0 ? (
-            <EmptyState title="No fuller story on record.">
-              Every claim here is cited, and we won&rsquo;t invent one to fill the
-              gap.
-            </EmptyState>
+          {record.introSource ? (
+            <p className="hdIntroSource">
+              {record.introSource.sourceRef ? (
+                <span>The lead above is cited from</span>
+              ) : (
+                <span>The lead above is from {heritageSourceLabel(record.introSource.source)}.</span>
+              )}
+              {record.introSource.sourceRef ? (
+                <a
+                  className="hdCite"
+                  href={record.introSource.sourceRef}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {citationLabel(record.introSource.sourceRef)}
+                  <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              ) : null}
+            </p>
+          ) : null}
+
+          {record.facts.length === 0 ? (
+            record.introSource ? null : (
+              <EmptyState title="No fuller story on record.">
+                Every claim here is cited, and we won&rsquo;t invent one to fill the
+                gap.
+              </EmptyState>
+            )
           ) : (
             <ol className="hdFacts">
-              {pub.facts.map((fact, i) => (
+              {record.facts.map((fact, i) => (
                 <li key={`${fact.source}-${i}`} className="hdFact">
                   <p className="hdFactText">{fact.fact}</p>
                   <div className="hdFactProvenance">

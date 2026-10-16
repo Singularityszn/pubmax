@@ -152,7 +152,7 @@ function pinPriceStack(
  * Only REAL recorded drink categories drive the resting (lens-off) glyph. When
  * a venue has none (filterHints.drinkCategories absent or empty), the honest
  * default for a pub is a pint glass, never the synthetic per-venue accent hash
- * (drinkAccentForVenue stays decorative card art), which otherwise painted
+ * (the retired /pubs card hash was decoration, never a fact), which otherwise painted
  * ale-led heritage pubs like The Black Friar with a hash-random martini glyph
  * (owner audit). #372 fixed the amenity path; this closes the accent path. The
  * cocktails amenity alone likewise never promotes a hintless pub to a martini

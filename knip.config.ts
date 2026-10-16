@@ -101,6 +101,11 @@ const config: KnipConfig = {
     "public/sw-plan-cache.js",
     "public/theme-init.js",
 
+    // Capacitor generates these bundle assets; the native JSExport loader
+    // reads them outside the JavaScript import graph.
+    "ios/App/App/public/cordova.js",
+    "ios/App/App/public/cordova_plugins.js",
+
     // Read from disk by an e2e spec rather than imported.
     "e2e/fixtures/**",
 
@@ -158,10 +163,7 @@ const config: KnipConfig = {
     "scripts/gen-store-assets.mjs",
     "scripts/landing/build-landing-map.mjs",
     "scripts/landing/build-landing-photos.mjs",
-    "scripts/landing/build-london-collage.mjs",
     "scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs",
-    "scripts/whatson/quizRefresh.mjs",
-    "scripts/whatson/scrape_greene_king_sport.mjs",
 
     // Audit CLIs whose source text or output shape a fence test reads.
     "scripts/ui-ux-axe-audit.mjs",

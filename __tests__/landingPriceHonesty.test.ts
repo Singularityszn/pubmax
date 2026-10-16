@@ -63,7 +63,8 @@ describe("landing price honesty", () => {
   });
 
   it("keeps the saving beat as one column of plain words", () => {
-    // One measured savings line under the answer cards; no second hero claim.
+    // The city's saving is the hero's line now; this band holds the reader's
+    // own total (signed in only) and the map, and no second hero claim.
     expect(copy).toContain('aria-label="What it saves you"');
     expect(copy).not.toContain("The cheapest listed pint near you, on one map.");
     const worth = copy.match(/aria-label="What it saves you"[\s\S]*?<\/section>/)?.[0] ?? "";
@@ -71,8 +72,8 @@ describe("landing price honesty", () => {
     expect(worth).not.toContain("data-primary-action");
     expect(worth).not.toMatch(/href="\/plan"/);
     // The gap sentence moved to the questions, and it is still said once.
-    expect(faqText).toContain("We'd rather leave a gap than invent a figure.");
-    expect(faqText.match(/We'd rather leave a gap than invent a figure\./g)).toHaveLength(1);
+    expect(faqText).toContain("we'd rather leave a gap than invent a figure.");
+    expect(faqText.match(/we'd rather leave a gap than invent a figure\./gi)).toHaveLength(1);
   });
 
   it("stays out of the marketing register", () => {

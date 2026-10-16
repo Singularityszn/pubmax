@@ -89,7 +89,7 @@ export default function AccountMenu({
           Your profile
         </Link>
         <Link href={wantedPath} onClick={onNavigate}>
-          Your Wanteds
+          Your pubs to try
         </Link>
         <Link href={editPath} onClick={onNavigate}>
           Edit profile

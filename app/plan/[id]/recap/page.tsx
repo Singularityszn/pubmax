@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const area = state ? buildPlanPrivacyPreview(state).areaName : null;
   const safeTitle = area ? `A night out in ${area}` : "Recap";
   return {
-    title: `${safeTitle} · Recap · PUBMAXXING`,
+    title: `${safeTitle} · Recap`,
     // The recap is private to the crew by default — nothing here should be
     // indexed. The only public surface is an explicitly approved Night Story.
     robots: { index: false, follow: false },

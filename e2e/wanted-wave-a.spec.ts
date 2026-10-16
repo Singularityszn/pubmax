@@ -19,24 +19,20 @@ test.describe("Wanted Wave A phone chrome", () => {
     });
   });
 
-  test("You page shows the Wanted paste surface at 390x844", async ({ page }) => {
+  // Signed out, the You page is one invitation and a short list. The pubs-to-try
+  // panel paints while identity is answering, then steps aside for a reader
+  // who has no list yet (UX audit P2-B, 16 Oct 2026).
+  test("signed-out You page names the list once and shows no empty panel at 390x844", async ({ page }) => {
     await page.goto("/u/you", { waitUntil: "domcontentloaded" });
-    const heading = page.getByRole("heading", { name: "Wanted" });
-    await expect(heading).toBeVisible({
+    const invite = page.locator(".youIdentityIntro");
+    await expect(invite.getByRole("heading", { name: "Claim your @handle." })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByText("Loading your Wanted list…")).toBeHidden({
+    await expect(invite).toContainText("keep a list of ones to try");
+    await expect(page.getByRole("heading", { name: "Pubs to try" })).toHaveCount(0, {
       timeout: 20_000,
     });
-    const pasteInput = page.getByLabel("Pub name or link");
-    if (await pasteInput.isVisible().catch(() => false)) {
-      await expect(pasteInput).toBeVisible();
-      await expect(
-        page.getByText(/never fetch Instagram or TikTok/i),
-      ).toBeVisible();
-    } else {
-      await expect(page.getByText(/Sign in to keep a Wanted list/i)).toBeVisible();
-    }
+    await expect(page.getByText(/Sign in to keep a list of pubs to try/i)).toHaveCount(0);
     await page.screenshot({
       path: path.join(SHOTS, "wanted-wave-a-you-390.png"),
       fullPage: true,
@@ -57,11 +53,11 @@ test.describe("Wanted Wave A phone chrome", () => {
     // Since #1402 the Screen primitive owns the planner's one heading
     // (components/plan/PlanDescribeFirst.tsx).
     await expect(
-      page.getByRole("heading", { name: /Describe the outing\. We.ll put it in order\./ }),
+      page.getByRole("heading", { name: /Plan a pub crawl/ }),
     ).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByLabel("Your Wanted list")).toHaveCount(0);
+    await expect(page.getByLabel("Your pubs to try")).toHaveCount(0);
     await page.waitForTimeout(500);
     expect(wantedReads).toEqual([]);
     await page.screenshot({

@@ -185,8 +185,11 @@
 }
 
 .pubsCard {
+  position: relative;
   display: grid;
-  grid-template-rows: 168px auto;
+  /* The body takes the rest of the row's height (1fr), so every card in a
+     row ends at the same edge and its actions can sit on it. */
+  grid-template-rows: 168px 1fr;
   border: 1px solid var(--line);
   border-radius: 18px;
   overflow: hidden;
@@ -196,7 +199,7 @@
 }
 
 .pubsCard--no-art {
-  grid-template-rows: auto;
+  grid-template-rows: 1fr;
 }
 
 .pubsCard:hover {
@@ -210,11 +213,7 @@
   isolation: isolate;
   overflow: hidden;
   min-height: 168px;
-  color: var(--drink, var(--pint));
-  background:
-    radial-gradient(120% 90% at 18% 12%, color-mix(in srgb, var(--drink) 34%, transparent), transparent 58%),
-    radial-gradient(90% 80% at 88% 88%, color-mix(in srgb, var(--drink) 22%, transparent), transparent 55%),
-    linear-gradient(160deg, color-mix(in srgb, var(--drink) 16%, var(--panel)), var(--panel-raised));
+  background: var(--panel);
 }
 
 .pubsCardPhoto {
@@ -240,104 +239,30 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, transparent 35%, color-mix(in srgb, var(--ink-deep, #16122a) 55%, transparent) 100%),
-    radial-gradient(80% 70% at 50% 30%, transparent, color-mix(in srgb, var(--drink) 18%, transparent));
+    linear-gradient(180deg, transparent 35%, color-mix(in srgb, var(--ink-deep, #16122a) 55%, transparent) 100%);
   pointer-events: none;
   z-index: 1;
 }
 
-.pubsCardGlyphHero {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  z-index: 2;
-  color: color-mix(in srgb, var(--drink) 85%, white);
-  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--ink) 25%, transparent));
-  animation: pubsGlyphFloat 4.8s ease-in-out infinite;
-}
-
-.pubsCard:nth-child(3n) .pubsCardGlyphHero {
-  animation-delay: -1.2s;
-}
-
-.pubsCard:nth-child(3n + 1) .pubsCardGlyphHero {
-  animation-delay: -2.4s;
-}
-
-@keyframes pubsGlyphFloat {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-5px) scale(1.04);
-  }
-}
-
-.pubsCardShelf {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  z-index: 3;
-  display: flex;
-  gap: 6px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.pubsCardShelf li {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 24px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
-  color: var(--ink);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  backdrop-filter: blur(6px);
-}
-
-.pubsCardShelf li span {
-  max-width: 4.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pubsCardArtLabel {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-raised) 86%, transparent);
-  color: var(--ink);
-  font-size: var(--text-2xs);
-  font-weight: 750;
-  backdrop-filter: blur(6px);
-}
-
+/* A column, not a grid: a stretched grid shared the row's spare height out
+   between its lines, so a card beside a taller one printed its name, price
+   and actions with wide gaps between them and stretched "See on map" to fit
+   its share. The lines pack at the top and the map door and the small links
+   sit on the card's foot, level across the row. */
 .pubsCardBody {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   padding: 12px 12px 14px;
 }
 
-.pubsCardDrink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.78rem;
-  font-weight: 700;
+.pubsCardBody > .pubsCardMeta {
+  align-self: stretch;
+}
+
+.pubsCardBody > .pubsMapLink {
+  margin-top: auto;
 }
 
 .pubsCardMeta {
@@ -396,8 +321,24 @@
   background: var(--badge-surface);
 }
 
-.pubsZoneChips {
+/* The fare-zone row: a visible "Zone" label, then the number squares, so the
+   squares cannot be read as page numbers. */
+.pubsZoneRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
   margin: 4px 0 0;
+}
+
+.pubsZoneLabel {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pubsZoneChips {
+  margin: 0;
 }
 
 .pubsCardName {
@@ -408,18 +349,6 @@
   font-weight: 700;
 }
 
-.pubsCardName a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.pubsCardName a:hover,
-.pubsCardName a:focus-visible {
-  color: var(--accent-action);
-}
 
 .pubsCardPrice {
   margin: 0;
@@ -428,53 +357,85 @@
   color: var(--ink-soft);
 }
 
-.pubsCardActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.pubsMapLink,
-.pubsMenuLink,
-.pubsBookLink {
-  /* Text buttons read the --control-* row (docs/DESIGN_SYSTEM.md), at every
-     width: these were 30px pills in 0.76rem on a desktop, under the tap
-     floor, and 44px only on a phone. */
+.pubsCardLog {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
+  color: var(--river);
+  font-family: var(--font-body, inherit);
+  font-weight: 700;
+}
+
+/* THE CARD IS ONE DOOR. "See on map" is the card's leading action, the tinted
+   secondary on the --control-* row (docs/DESIGN_SYSTEM.md), and its ::after is
+   stretched over the whole card so a tap anywhere opens the pub on the map. A
+   coral fill on every card would put a primary on each of them against the
+   page's own Open the map, so it stays tinted. */
+.pubsMapLink {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
   gap: 5px;
   min-height: var(--control-height, 44px);
   padding: 0 var(--control-pad-x, 16px);
   border-radius: var(--control-radius, 14px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  background: var(--control-secondary-surface, var(--panel));
-  color: var(--ink);
+  border: 1px solid var(--control-tint-border, var(--line));
+  background: var(--control-tint-surface, var(--panel-raised));
+  color: var(--state-active-ink, var(--ink));
   font-size: var(--control-font-size, 0.86rem);
   font-weight: var(--control-font-weight, 700);
   text-decoration: none;
 }
 
-.pubsMapLink {
-  /* The card's LEADING action: first in the row and the tinted secondary,
-     so it is findable ("see it on the map" was invisible as a terse
-     tertiary chip; the owner could not find it at 390px) without being a
-     painted primary. A coral fill on every card put 119 primaries on one
-     page against the page's own Open the map. */
-  order: -1;
-  border-color: var(--control-tint-border, var(--line));
-  background: var(--control-tint-surface, var(--panel-raised));
-  color: var(--state-active-ink, var(--ink));
+.pubsMapLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
 }
 
-.pubsBookLink[data-tier="search"] {
-  border-style: dashed;
+.pubsMapLink:focus-visible {
+  outline: none;
+}
+
+.pubsCard:has(.pubsMapLink:focus-visible) {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
+.pubsCard:hover .pubsMapLink {
+  border-color: var(--accent-action);
+}
+
+/* Menu and booking are small text links, raised above the stretched map link
+   so each still opens its own page. They keep the 44px tap height. */
+.pubsCardLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+
+.pubsMenuLink,
+.pubsBookLink {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .pubsMenuLink:hover,
 .pubsBookLink:hover,
-.pubsMapLink:hover {
-  border-color: var(--accent-action);
+.pubsCardLog:hover {
+  color: var(--accent-action);
 }
 
 .pubsEmpty {
@@ -484,7 +445,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pubsCard,
-  .pubsCardGlyphHero,
   .pubsJumpChip,
   .pubsShowMoreBtn {
     transition: none;
@@ -512,20 +472,11 @@
   }
 
   .pubsCard {
-    grid-template-rows: 140px auto;
+    grid-template-rows: 140px 1fr;
   }
 
   .pubsCard.pubsCard--no-art {
-    grid-template-rows: auto;
-  }
-
-  .pubsCardGlyphHero svg {
-    width: 56px;
-    height: 56px;
-  }
-
-  .pubsCardShelf li span {
-    display: none;
+    grid-template-rows: 1fr;
   }
 
   .pubsCardName {

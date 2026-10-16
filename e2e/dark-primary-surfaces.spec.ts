@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -269,10 +270,7 @@ for (const viewport of VIEWPORTS) {
     // The venue-type chips are read in the Filters sheet on a phone (design
     // judgement 2026-08-01, finding 2.3), so that is where their contrast is
     // measured.
-    await page
-      .locator(".mobileMapTopbar")
-      .getByRole("button", { name: /^Filters/ })
-      .click();
+    await (await mobileMapShellControl(page, "filters")).click();
     const filtersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
@@ -304,7 +302,7 @@ for (const viewport of VIEWPORTS) {
     );
 
     // Selection is the fill (#700, components/map/venueSheet.css): the active
-    // tab is flat `--panel-raised` with ink text and a 2px coral underline. The
+    // tab is flat `--panel-raised` with ink text and a 2px ink underline. The
     // coral gradient it replaced is gone, so its contrast is read off the fill.
     const activeTab = sheet.locator(".venueTab.active");
     await expect(activeTab).toBeVisible();

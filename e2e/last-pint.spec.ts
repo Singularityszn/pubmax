@@ -278,7 +278,7 @@ test.describe("Last Pint card — decision states (mocked /api/last-train)", () 
     expect(sharedText).toContain("Arnos Grove");
     expect(sharedText).toContain("Leave by");
     expect(sharedText).toContain("Time to settle up.");
-    expect(sharedText).toContain("via PUBMAXXING");
+    expect(sharedText).toContain("via PUBMAXX");
     expect(sharedText?.toLowerCase()).not.toContain("another round");
   });
 

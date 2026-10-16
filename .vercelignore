@@ -8,6 +8,32 @@
 # over 5 MB is either a deploy input named there with the reason it is one, or
 # it appears below.
 
+# Secret-bearing local files. Size is not the test here: each is gitignored
+# because it can hold a credential or private data, and `git status --porcelain`
+# (the dirty-tree check in scripts/deploy-vercel.mjs and the release) never
+# shows a gitignored file, so nothing else would notice one riding an upload.
+# Vercel's own default skips only `.env.local` and `.env.*.local`. No build or
+# runtime reads any of these: a cloud build takes its values from the project
+# environment. `.env.example` is committed documentation with no values, and
+# is kept.
+.env*
+!.env.example
+*.env
+/.clerk/
+/.mcp.json
+/.tavily/
+/.context/
+/.codex/
+/.codex-worktrees/
+/.data/
+/.claude-flow/
+/.playwright-mcp/
+/.lavish/
+# A database dump is private data.
+*.dump
+*.dump.partial
+/pubmax-backups/
+
 # Local verification and generated build output are not production inputs.
 # `.next` is named on its own line because `/.next-*` does not match it.
 # `.vercel` is the CLI's own project link and its local build output: the

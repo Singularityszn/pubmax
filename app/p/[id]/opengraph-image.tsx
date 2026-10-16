@@ -12,7 +12,7 @@ import { clampOgText } from "@/lib/ogCardText";
 // user content, so it is never rendered unbounded.
 
 export const runtime = "nodejs";
-export const alt = "A Pint Drop on PUBMAXXING";
+export const alt = "A Pint Drop on PUBMAXX";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -126,7 +126,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   letterSpacing: 0.5,
                 }}
               >
-                PUBMAXXING
+                PUBMAXX
               </div>
             </div>
             <div

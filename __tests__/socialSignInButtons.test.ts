@@ -13,9 +13,8 @@ const authState = vi.hoisted(() => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
-vi.mock("@/components/auth/ClerkAccountControls", () => ({
-  default: () => "Clerk account controls",
-}));
+// Clerk controls are portalled in by the Clerk tree (ConfiguredClerkTree); the
+// gate SignInButton owns is whether it renders their ClerkAccountSlot host.
 
 afterEach(() => {
   authState.current = {};
@@ -152,7 +151,7 @@ describe("signed-out sign-in surface", () => {
     expect(html).not.toContain('aria-label="Continue with Google"');
     expect(html).not.toContain("Continue with Apple");
     expect(html).not.toContain("Continue with email");
-    expect(html).not.toContain("Clerk account controls");
+    expect(html).not.toContain("clerkAccountSlot");
   });
 });
 
@@ -180,7 +179,7 @@ describe("signed-in account surface", () => {
     const html = renderToStaticMarkup(createElement(SignInButton));
 
     expect(html).toContain("reader@example.com");
-    expect(html).not.toContain("Clerk account controls");
+    expect(html).not.toContain("clerkAccountSlot");
   });
 
   it("makes Clerk secondary controls reachable only after the server confirms both keys", () => {
@@ -204,6 +203,6 @@ describe("signed-in account surface", () => {
 
     const html = renderToStaticMarkup(createElement(SignInButton));
 
-    expect(html).toContain("Clerk account controls");
+    expect(html).toContain("clerkAccountSlot");
   });
 });

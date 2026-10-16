@@ -7,10 +7,12 @@
 //
 // Identity is the self-asserted `handle` (no auth yet) — the SAME trust
 // posture as reactions/comments/notifications: a star rating is already-public
-// low-sensitivity signal, and the unique (ref, handle) upsert means the worst
-// a spoofed handle can do is move ONE vote. Noted honestly here, in
-// lib/ratingsStore.ts, and in migration 0020. When auth ownership merges, gate
-// writes on auth.uid().
+// low-sensitivity signal, and the unique (ref, handle) upsert means one
+// handle holds ONE vote. Handles are unbounded, though, so a caller inventing a
+// fresh one per request would add a vote each time: the second budget below is
+// keyed on the hashed IP alone, and that is what bounds it. Noted honestly here,
+// in lib/ratingsStore.ts, and in migration 0020. When auth ownership merges,
+// gate writes on auth.uid().
 //
 // Reads are fail-soft (the store returns empty summaries / [] on any storage
 // error) so a ratings outage can never 500 a menu or the discover page. The
@@ -39,6 +41,11 @@ assertServerEnv();
 // Bound untrusted keys/batches so one request can't carry an unbounded load.
 const MAX_REF_LENGTH = 200;
 const MAX_BATCH_REFS = 50;
+
+// The per-IP budget, independent of the handle. Rating a whole menu in one
+// sitting stays well under it; a loop of invented handles does not.
+const RATING_IP_LIMIT = 40;
+const RATING_IP_WINDOW_MS = 10 * 60_000;
 
 function cleanRef(value: unknown): string | null {
   const ref = readString(value)?.trim() ?? "";
@@ -75,9 +82,16 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Pick 1–5 stars, in half-star steps.", "INVALID_REQUEST", 400);
   }
 
-  // Rate-limit per handle + hashed IP, like the app's other write routes.
-  const key = `rating:${ownership.handle}:${hashIp(clientIp(request))}`;
-  if (await isLimited(key, key)) {
+  // Two independent budgets, like saved-pubs: per handle + hashed IP stops one
+  // profile flooding, and per hashed IP alone stops one caller minting a fresh
+  // handle per vote. 429 when either is spent.
+  const ipHash = hashIp(clientIp(request));
+  const key = `rating:${ownership.handle}:${ipHash}`;
+  const ipKey = `rating-ip:${ipHash}`;
+  if (
+    (await isLimited(key, key)) ||
+    (await isLimited(ipKey, ipKey, RATING_IP_LIMIT, RATING_IP_WINDOW_MS))
+  ) {
     return publicApiError("Too many ratings, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 

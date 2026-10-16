@@ -21,7 +21,7 @@ describe("homepage identity", () => {
     );
     expect(organization).toBeDefined();
     expect(organization).toMatchObject({
-      name: "PubMaxxing",
+      name: "PUBMAXX",
       founder: {
         "@type": "Person",
         name: "Karan Manoharan",
@@ -32,16 +32,17 @@ describe("homepage identity", () => {
     expect(layoutSource).toContain('import { siteJsonLd } from "@/lib/siteJsonLd"');
   });
 
-  it("names PubMaxxing on the WebSite and Organization graph with brand alternates", () => {
+  it("names PUBMAXX on the WebSite and Organization graph with the domain's spelling as an alternate", () => {
     const website = siteJsonLd.find((node) => node["@type"] === "WebSite");
-    expect(website?.name).toBe("PubMaxxing");
-    expect(website?.alternateName).toContain("PUBMAXX");
+    expect(website?.name).toBe("PUBMAXX");
+    expect(website?.alternateName).toContain("PubMaxxing");
+    expect(website?.alternateName).not.toContain("PUBMAXX");
     expect(website?.url).toBe("https://pubmaxxing.com");
     const organization = siteJsonLd.find(
       (node) => node["@type"] === "Organization",
     );
     expect(organization?.logo).toBe("https://pubmaxxing.com/brand/icon.svg");
-    expect(organization?.alternateName).toContain("PUBMAXX");
+    expect(organization?.alternateName).toContain("PubMaxxing");
   });
 
   it("credits the founder in the landing footer", () => {

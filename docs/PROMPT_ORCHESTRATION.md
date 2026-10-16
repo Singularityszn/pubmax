@@ -14,7 +14,7 @@ Interruptive prompt surfaces mount globally or on `/map`:
 | First-run tour | #296 | `main` (merged) | `/map` load, first visit |
 | Identity nudge | #312 | `feat/identity-nudges` | first plan create/join, first moment draft |
 | Native push prompt | #299 | `feat/native-first-run` | plan join / activation / collab confirm (native only) |
-| A2HS install | #313 | `feat/a2hs-flow` | after proven value (2nd distinct day or completed crawl) |
+| A2HS install | #313 | `feat/a2hs-flow` | after proven value (2nd distinct day or completed crawl) AND a price answer this session, off a phone map or plan foot ([rule](rules/components-design-system-and-launch-primitives.md#the-install-ask-waits-for-a-price-answer-and-asks-at-most-once-a-fortnight)) |
 
 The review proved two independent defects:
 

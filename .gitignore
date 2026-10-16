@@ -135,6 +135,8 @@ notes.md
 PR_TITLE_AND_BODY.json
 CHECK_SUMMARY.json
 EXIT.json
+/findings.json
+/review-results.json
 
 # Playwright screenshots written by the Tonight trusted-UI specs. The specs
 # create the directory themselves and overwrite every file on each run, so a

@@ -7,12 +7,12 @@ PUBMAXX helps people discover pubs and plan pub crawls using pint prices, locati
 ### Brand Language
 
 **PUBMAXX**:
-The canonical name of the brand and the cultural movement. The double `xx` is inseparable from the name in every form. Share cards and the document title suffix carry this name.
-_Avoid_: PubMax, Pub Max, PubMaxing
+The canonical name of the brand, the product and the cultural movement, on every web surface: the wordmark, page and share-card titles, the manifest, copy and accessible names. The double `xx` is inseparable from the name in every form. `lib/brandNaming.ts` owns it.
+_Avoid_: PubMax, Pub Max, PubMaxing, PUBMAXXING as a product name on the web
 
 **PUBMAXXING**:
-The name of the app itself, in capitals. Install titles, the manifest name, and in-app page titles carry this name. `lib/brandNaming.ts` owns both names.
-_Avoid_: PUBMAXXING as the brand in metadata `siteName`, two brand names in one document title
+The spelling of the domain (`pubmaxxing.com`) and of the native shells' install name until the captain renames the store records. It is an address, not a second product name.
+_Avoid_: PUBMAXXING in a page title, a share card, copy or an aria-label
 
 **Pubmaxxing**:
 The activity of intentionally discovering and experiencing a night out through PUBMAXX.
@@ -139,7 +139,7 @@ A venue surfaced by product logic from current conditions, preferences, or other
 _Avoid_: Recommendation, user tip
 
 **Pint Drop**:
-A single community Night Moment attached to a Venue. It must carry an observed Pint Price or a Passed-Down Note and can add a pint or venue photo. It is separate from a Visit Report and is never the generic name for a Social Post.
+A single community Night Moment attached to a Venue. It must carry an observed Pint Price or a Passed-Down Note and can add a pint or venue photo. It is separate from a Visit Report and is never the generic name for a Social Post. Where drops are a section heading on screen (the venue sheet's Pints tab, the landing strip), the heading says "Recent prices"; "Pint Drop" stays the code and data name.
 _Avoid_: Social Post, check-in, upload
 
 **Second Drinker**:
@@ -215,7 +215,7 @@ A Crawl Route with a lifecycle from draft through completion, including explicit
 _Avoid_: Session, trip
 
 **Night Memory**:
-A private, user-owned record of a lived Pubmaxxing experience, including the people, places, drinks, events, images, and moments its participants choose to preserve. It remains private unless its owner deliberately shares it.
+A private, user-owned record of a lived Pubmaxxing experience, including the people, places, drinks, events, images, and moments its participants choose to preserve. It remains private unless its owner deliberately shares it. On screen it is a "memory" (plural "Memories"); "Night Memory" is the code and data name only.
 _Avoid_: Automatic public post, tracking history, Pal Memory
 
 **Night Story**:
@@ -239,7 +239,7 @@ A bundle of real accounts a new Pubmaxxer can follow in one tap, so their feed i
 _Avoid_: Seeded member, house account, suggested-for-you inference
 
 **Wanted**:
-A private place its owner means to try, captured by pasting a link or naming a venue. The source URL is provenance only and is never fetched server-side. A Wanted is owner-read only, and it is quietly fulfilled when the owner turns up at the venue. `lib/wanted.ts`.
+A private place its owner means to try, captured by pasting a link or naming a venue. The source URL is provenance only and is never fetched server-side. A Wanted is owner-read only, and it is quietly fulfilled when the owner turns up at the venue. `lib/wanted.ts`. On screen the list is called "Pubs to try"; "Wanted" is the code and data name only, and a screen never prints it.
 _Avoid_: Public list, scraped saves, server-fetched social post, Visited Venue
 
 **Open Crew**:

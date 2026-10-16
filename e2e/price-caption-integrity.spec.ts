@@ -6,6 +6,7 @@ import { listEnabledCities } from "@/lib/cities";
 
 import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 360, height: 800 },
@@ -509,7 +510,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     expect(attributionState.top).toBeGreaterThanOrEqual(geometry!.chip.bottom);
     expect(attributionState.bottom).toBeLessThanOrEqual(geometry!.tab.y);
 
-    await page.getByRole("button", { name: "More map controls" }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     const layersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
     );

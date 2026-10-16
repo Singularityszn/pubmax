@@ -27,7 +27,8 @@ const entrySurfaces = [
   "components/landing/LandingHero.tsx",
   "app/today/TodayClient.tsx",
   "app/tonight/TonightClient.tsx",
-  "app/out/OutClient.tsx",
+  "app/tonight/TonightLaterListings.tsx",
+  "app/tonight/TonightOpenPlans.tsx",
 ];
 
 describe("entry-route prefetch containment", () => {

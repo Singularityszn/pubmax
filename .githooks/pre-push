@@ -9,9 +9,11 @@
 # PUBMAX_RLS_ALLOW_SKIP=1 and says so out loud; a skipped policy proof read as a
 # pass is what let an RLS hole live for four days.
 #
-# The heavier `next build` is intentionally left out here (it's slow); Vercel
-# runs the full `npm run ci` (incl. build) on every deploy via vercel.json, so
-# a broken build still can't reach production.
+# The heavier `next build` is intentionally left out here (it's slow). Vercel
+# runs `npm run validate-data && npm run build` on every deploy (vercel.json
+# `buildCommand`), so a broken build still can't reach production. It does NOT
+# run `npm run ci` or the rest of verify (lint, typecheck, tests): this hook is
+# where those run. `npm run ci` is verify plus build, for a local full check.
 set -e
 echo "pre-push › npm run verify"
 npm run verify

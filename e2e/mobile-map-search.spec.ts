@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -31,7 +32,7 @@ test("mobile top-bar search filters suggestions, keeps pins, and clears only the
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
-  await page.getByRole("button", { name: "Search the map" }).click();
+  await (await mobileMapShellControl(page, "search")).click();
   // The field suggests pubs as it is typed in, so it is a combobox, not a
   // bare searchbox (components/map/MapSearchSuggest.tsx).
   const search = page.getByRole("combobox", { name: "Search pubs" });

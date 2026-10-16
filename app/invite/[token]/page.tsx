@@ -131,6 +131,18 @@ function inviteDescription(
   return `${detail} on PUBMAXX.`;
 }
 
+// AN INVITE IS ONE CREW'S NIGHT, SO IT IS NOT A SEARCH RESULT. The page renders
+// the title, host, start time, every stop and the RSVP list, and the bearer
+// token is the URL, so every branch below carries the same noindex the Plan
+// page does (app/plan/[id]/page.tsx). A meta tag rather than a robots.txt
+// disallow, so a crawler can still read it. Follow stays true and `og:` is
+// untouched: an unfurler ignores robots, and the WhatsApp card IS the invite.
+const INVITE_ROBOTS = {
+  index: false,
+  follow: true,
+  googleBot: { index: false, follow: true },
+} as const;
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { token } = await params;
   const lookup = await resolvePlanIdByInviteToken(token);
@@ -139,6 +151,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title: "This invite link isn't valid",
       description: "This PUBMAXX invite couldn't be found.",
+      robots: INVITE_ROBOTS,
     };
   }
 
@@ -148,6 +161,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title: "This invite link isn't valid",
       description: "This PUBMAXX invite couldn't be found.",
+      robots: INVITE_ROBOTS,
     };
   }
 
@@ -163,6 +177,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
+    robots: INVITE_ROBOTS,
     openGraph: {
       title,
       description,
@@ -183,7 +198,7 @@ function InviteNotFound() {
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <Link className="invite__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite link isn&rsquo;t valid</h1>
@@ -201,7 +216,7 @@ function InviteUnavailable() {
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <Link className="invite__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite isn&rsquo;t available right now</h1>
@@ -247,7 +262,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
       <div className="invite__mat">
         <div className="invite__kicker">
           <Link className="invite__brand" href="/">
-            PUBMAXXING
+            PUBMAXX
           </Link>
           <span className="invite__edition">You&rsquo;re invited</span>
         </div>

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Mobile bottom-tab navigation coverage. The assertions deliberately target
 // route DOM and accessible controls, never MapLibre's canvas or WebGL state.
@@ -51,10 +52,10 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toBeVisible();
     await expect(nav).toHaveCSS("opacity", "1");
 
-    // On a phone the planner opens from the map's own Describe the outing
+    // On a phone the planner opens from the map's own Plan a pub crawl
     // action; More map controls holds layers only. The button is server-painted,
     // so retry the tap until the sheet answers (e2e/AGENTS.md).
-    const describe = page.getByRole("button", { name: "Describe the outing" });
+    const describe = page.getByRole("button", { name: "Plan a pub crawl" });
     const shell = page.locator(".appShell");
     await expect(async () => {
       if (!/planning-open/.test((await shell.getAttribute("class")) ?? "")) {
@@ -77,18 +78,18 @@ test.describe("mobile bottom-tab navigation", () => {
     await primaryNav(page).getByRole("link", { name: "Map", exact: true }).click();
 
     await expect(page).toHaveURL(/\/map$/);
-    await page.getByRole("button", { name: "Search the map" }).click();
+    await (await mobileMapShellControl(page, "search")).click();
     await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
   });
 
   test("Create logs a price in the city chosen from Places", async ({ page }) => {
     test.slow();
     await installDeterministicMapBasemap(page);
-    await page.goto("/places");
-    await page.getByRole("link", { name: /Manchester/ }).click();
-    await expect(page).toHaveURL(/\/places\?city=manchester$/);
+    // Manchester is no longer a row on the list (it has no listed prices), so
+    // its panel is reached by its own address.
+    await page.goto("/places?city=manchester");
     await page.getByTestId("places-set-city").click();
-    await expect(page.getByText("The map, Out and Near now open on Manchester.")).toBeVisible();
+    await expect(page.getByText("The map and Near now open on Manchester.")).toBeVisible();
 
     const create = page.getByRole("button", { name: "Create", exact: true });
     await create.click();
@@ -121,14 +122,24 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
-  test("Out tab routes to /out", async ({ page }) => {
+  test("the dock is five doors in loop order, and Out is Tonight", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Out", exact: true }).click();
+    const tabs = primaryNav(page).locator(".mobileTab");
+    await expect(tabs).toHaveCount(5);
+    expect(
+      await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
+    ).toEqual(["Map", "Tonight", "Plan", "Social", "You"]);
+    await expect(primaryNav(page).getByRole("link", { name: "Out", exact: true })).toHaveCount(0);
+    await expect(primaryNav(page).getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
 
-    await expect(page).toHaveURL(/\/out$/);
-    await expect(page.getByTestId("out-screen")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1, name: "What’s on tonight." })).toBeVisible();
+    // An old /out link lands on Tonight, which lights the Tonight tab.
+    await page.goto("/out");
+    await expect(page).toHaveURL(/\/tonight$/);
+    await expect(page.getByTestId("tonight-screen")).toBeVisible();
+    await expect(
+      primaryNav(page).getByRole("link", { name: "Tonight", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   test("create action opens Moment with the live return path", async ({ page }) => {
@@ -143,10 +154,13 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("link", { name: "Back", exact: true })).toHaveAttribute("href", "/map");
   });
 
-  test("gated Social stays out of the primary tab row", async ({ page }) => {
+  // Captain, 16 Oct 2026: Social is a main tab, and it lights for its aliases.
+  test("Social is one tab in the primary row and lights on its aliases", async ({ page }) => {
     await page.goto("/map");
 
-    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveCount(0);
+    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveCount(1);
+    await page.goto("/feed");
+    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveAttribute("aria-current", "page");
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {
@@ -155,6 +169,6 @@ test.describe("mobile bottom-tab navigation", () => {
     await primaryNav(page).getByRole("link", { name: "You", exact: true }).click();
 
     await expect(page).toHaveURL(/\/u\/you$/, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Claim your @handle." })).toBeVisible();
   });
 });

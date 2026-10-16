@@ -158,7 +158,7 @@ describe("SaveForNightButton prompt slot", () => {
     });
     await flush();
     expect(authedActionFetch).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Choose a handle to keep a Wanted list.");
+    expect(container.textContent).toContain("Choose a handle to keep a list of pubs to try.");
     expect(container.textContent).not.toContain("public handle");
   });
 

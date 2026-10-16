@@ -1,6 +1,7 @@
 import { test, expect, type ConsoleMessage } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Map console-health regression (review issue #5). Runs under the `chromium-gl`
 // project (SwiftShader software WebGL2) so a real GL context exists and the map
@@ -174,10 +175,15 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // Exercise the normal theme path in both directions. Page errors are
   // recorded above, so the historical MapLibre `sources` exception fails this
   // test even when the canvas remains superficially usable.
+  // The theme left the header for the desktop More menu (Oct 2026 UX audit).
   for (let index = 0; index < 2; index += 1) {
-    const themeToggle = page.locator(".themeToggle:visible").first();
-    await expect(themeToggle).toBeVisible();
-    await themeToggle.click();
+    await page
+      .getByRole("navigation", { name: "Site navigation" })
+      .getByRole("button", { name: "More pages" })
+      .click();
+    const themeItem = page.getByRole("menuitem", { name: /^(Dark|Light) theme/ });
+    await expect(themeItem).toBeVisible();
+    await themeItem.click();
     await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
     await page.waitForTimeout(2_000);
   }
@@ -188,7 +194,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // phone must not do is answer the same question with MapLibre's own flattened
   // compass, or its native zoom pair.
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "More map controls" })).toBeVisible();
+  await expect(await mobileMapShellControl(page, "more")).toBeVisible();
   await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
   await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeHidden();
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();

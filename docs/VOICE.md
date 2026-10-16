@@ -77,6 +77,24 @@ Hard bans in product copy. These are the AI/marketing tells:
 
 Plus the plumbing words from Rule 2 (`capture`, `evidence gate`, `snapshot`, `provenance`, `Night Area`, etc.) and the corporate Latinate list from Rule 1.
 
+## Code names are not screen names
+
+Plain, short and confident beats clever (UX audit P2-B, 16 Oct 2026). A feature
+can keep a coined name in its routes, tables, analytics events, storage keys and
+identifiers, because renaming those breaks data. The screen says what the thing
+is. When you add a surface for one of these, print the right-hand column.
+
+| Code and data name | What the screen says |
+|---|---|
+| Wanted | Pubs to try |
+| Night Memory | memory, Memories |
+| Step Out | Weekly nudge |
+| Soft Plan, soft plans | your plan for tonight; Ideas for tonight (the /tonight module) |
+| Desk mode (`/near?mode=desk`) | Work spots (the toggle reads Pints, Work spots) |
+| Pint Drops, as a section heading | Recent prices |
+| Drink Wall (`/wall`) | Photos from drinkers (heading), Photos (menu) |
+| Describe the outing, Sort it, Guide me instead | Plan a pub crawl, Plan it, Step by step (`lib/planCopy.ts`) |
+
 ## Template patterns
 
 Captain, 3 September 2026: "I don't want AI slop; remove anything that looks AI generated." The tells are not a matter of taste. They are shapes a template generator reaches for and a person at the bar never asked for. `__tests__/templatePatterns.test.ts` reads the source of every file under `components/` and fails on nine of them. The fence keeps a backlog (`PENDING_REMOVAL`) that names the file, the pattern and the PR that removes it, and the backlog may only shrink.

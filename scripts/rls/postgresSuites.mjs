@@ -14,6 +14,7 @@
  * `__tests__/helpers/postgres` or `scripts/rls/session-harness.mjs`.
  */
 export const POSTGRES_BACKED_SUITES = Object.freeze([
+  "__tests__/accountDeletionEveryHandleMigrationEffective.test.ts",
   "__tests__/accountHasPasswordEffective.test.ts",
   "__tests__/accountRemovalMigrationEffective.test.ts",
   "__tests__/accountRetentionLedgerMigrationEffective.test.ts",
@@ -32,9 +33,11 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/nightSignalCheckpointMigrationEffective.test.ts",
   "__tests__/occupancyMigration0109.test.ts",
   "__tests__/occupancyMigrationEffective.test.ts",
+  "__tests__/offPlatformBackupEffective.test.ts",
   "__tests__/oneTapPricePairRemovalEffective.test.ts",
   "__tests__/openSocialCrewsMigration.test.ts",
   "__tests__/permissionMatrixEffective.test.ts",
+  "__tests__/pintDropCommentsPublicationMigrationEffective.test.ts",
   "__tests__/pintDropConfirmationsMigrationEffective.test.ts",
   "__tests__/pintDropDailyCapAtomicEffective.test.ts",
   "__tests__/pintDropMeasureMigrationEffective.test.ts",
@@ -69,6 +72,7 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/socialInteractionsMigration.test.ts",
   "__tests__/socialPostsMigration.test.ts",
   "__tests__/supabaseHygieneMigrationEffective.test.ts",
+  "__tests__/unlistedTableReadsMigrationEffective.test.ts",
   "__tests__/venueVisitReportActorAppendMigrationEffective.test.ts",
   "__tests__/wantedPromotionMigrationEffective.test.ts",
   "__tests__/whatsOnListingsMigration.test.ts",

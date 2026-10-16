@@ -239,10 +239,24 @@
       "class": "live",
       "artifact": null,
       "stamp": null,
-      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached)",
+      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), which registers its own row when npm run build:fsa-hygiene first writes public/data/fsa_hygiene/london.json.",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "live-per-request (app/api/hygiene)",
       "gate": "none (keyless open API; requires the x-api-version: 2 header)"
+    },
+    {
+      "id": "osm_fhrs_links",
+      "label": "OSM fhrs:id links for London pubs (FSA hygiene join key)",
+      "class": "episodic",
+      "artifact": "public/data/osm_fhrs/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "fetchedAt"
+      },
+      "cadence": "episodic — re-derived from the committed UK Overpass snapshot whenever data/osm/uk/raw is refreshed",
+      "stalenessBudgetHours": 4320,
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-fhrs-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived.",
+      "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: the FSA's ratings are their own OGL pack."
     },
     {
       "id": "citymcp",
@@ -275,6 +289,17 @@
       "cadence": "static — line geometry changes rarely",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual",
+      "gate": "none"
+    },
+    {
+      "id": "station_walk_access",
+      "label": "Street walks to stations (Zone 1)",
+      "class": "static",
+      "artifact": "data/station_walk_access.json",
+      "stamp": null,
+      "cadence": "static: built offline from a pinned Overture Maps release; streets change rarely",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (uv run scripts/build_station_walk_access.py)",
       "gate": "none"
     },
     {

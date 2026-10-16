@@ -18,9 +18,10 @@ import {
 import type { Venue } from "@/lib/venues";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 
-// v3: a v2 snapshot could hold the current city as only the shards the map had
+// v3: venue names lost their operator suffix and carry `sourceName` for search.
+// v4: a v3 snapshot could hold the current city as only the shards the map had
 // loaded around the opening viewport, so it is not trusted.
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v3";
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v4";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
@@ -76,6 +77,7 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
     venues: venues.map((venue) => ({
       id: venue.id,
       name: venue.name,
+      ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
       area: venueAreaLabel({ locality: venue.locality, primaryBorough: venue.borough }),
     })),
   };
@@ -88,7 +90,7 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
  */
 function packWithCurrentVenues(
   pack: MapSearchPack,
-  venues: readonly Pick<Venue, "id" | "name" | "primaryBorough" | "locality">[],
+  venues: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[],
 ): MapSearchPack {
   const packIds = new Set(pack.venues.map((venue) => venue.id));
   return {
@@ -100,6 +102,7 @@ function packWithCurrentVenues(
         .map((venue) => ({
           id: venue.id,
           name: venue.name,
+          ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
           area: venueAreaLabel(venue),
         })),
     ],
@@ -115,7 +118,7 @@ function loadCityPack(cityId: CityId): Promise<SlimVenueLoadResult> {
 
 export type MapSearchIndexLoadOptions = {
   currentCityId?: CityId;
-  currentVenues?: readonly Pick<Venue, "id" | "name" | "primaryBorough" | "locality">[];
+  currentVenues?: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[];
 };
 
 export function loadMapSearchIndex(
