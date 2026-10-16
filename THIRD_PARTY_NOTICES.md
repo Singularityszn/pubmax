@@ -4,7 +4,7 @@ The root MIT licence covers first-party PUBMAXX source code. It does not replace
 
 ## OpenStreetMap data
 
-OpenStreetMap-derived venue, locality, boundary, and UK base-pub data is copyright OpenStreetMap contributors and is available under the Open Database Licence 1.0.
+OpenStreetMap-derived venue, locality, boundary, UK base-pub and London pub-facts data is copyright OpenStreetMap contributors and is available under the Open Database Licence 1.0.
 
 - Copyright and licence: <https://www.openstreetmap.org/copyright>
 - ODbL 1.0: <https://opendatacommons.org/licenses/odbl/1-0/>
