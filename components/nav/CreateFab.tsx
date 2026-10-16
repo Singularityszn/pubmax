@@ -21,6 +21,7 @@ import {
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { trackEvent } from "@/lib/analytics";
+import { useCreateFabScrollTuck } from "@/lib/createFabScrollTuck";
 import {
   readPreferredCity,
   subscribePreferredCity,
@@ -113,11 +114,19 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
   }, [open, close]);
 
   const menuOpen = createFabMenuVisible(open, keyboardOpen);
+  // Reading down a page tucks the control off the words under it; it stays a
+  // tab stop and a screen-reader node, and focus brings it back
+  // (createFab.css), so only the eye loses it while it would be in the way.
+  const scrollTucked = useCreateFabScrollTuck(!open && !chromeWithdrawn);
 
   return (
     <div
       ref={rootRef}
-      className={"createFabRoot" + (keyboardOpen ? " isKeyboardHidden" : "")}
+      className={
+        "createFabRoot" +
+        (keyboardOpen ? " isKeyboardHidden" : "") +
+        (scrollTucked ? " isScrollTucked" : "")
+      }
       // Hidden from the reader means hidden from a screen reader and from the
       // keyboard's own next-field key too. The tab bar beside it takes the same
       // pair for the same reason: a control that has slid off the bottom of the
