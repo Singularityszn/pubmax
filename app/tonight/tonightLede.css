@@ -130,11 +130,15 @@
   margin-top: 0;
 }
 
+/* Two auto columns packed to the start: equal 1fr halves seated "Open on map"
+   at the card's midline on a wide card, out of line with every card that has
+   no toggle, where the link sits at the left edge. */
 .tonightHypedActions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: auto auto;
+  justify-content: start;
   align-items: start;
-  gap: 0 var(--space-2);
+  gap: 0 var(--space-5);
   margin-top: var(--space-2);
 }
 
