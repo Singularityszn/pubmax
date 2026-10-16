@@ -88,7 +88,7 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="who">
         <h2 id="who" className="legalH2">Who&rsquo;s responsible</h2>
         <p className="legalBody">
-          PUBMAXXING is run by Karan Manoharan, an individual based in London,
+          PUBMAXX is run by Karan Manoharan, an individual based in London,
           UK. There is no company behind it yet, so for UK GDPR purposes the
           data controller is that individual, reachable at{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>. We

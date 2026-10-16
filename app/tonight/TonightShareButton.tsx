@@ -21,7 +21,7 @@ export default function TonightShareButton(): React.JSX.Element {
     if (typeof window === "undefined") return;
     const url = `${window.location.origin}/tonight`;
     const shareData = {
-      title: "Tonight in London · PUBMAXXING",
+      title: "Tonight in London · PUBMAXX",
       text: "What's on in London tonight, from sourced listings.",
       url,
     };

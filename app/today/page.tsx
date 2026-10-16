@@ -42,7 +42,7 @@ import { buildTodayPintsIndex, type TodayPintsIndex } from "./todayPints";
 // location or remembered area and live TfL, so they own their own fetches.
 
 export const metadata: Metadata = {
-  title: "Today in London · PUBMAXXING",
+  title: "Today in London",
   description:
     "Your morning brief: is it a pint-in-the-garden day, tonight's top picks, how you'll get home, and one sourced pub fact.",
   alternates: { canonical: "/today" },

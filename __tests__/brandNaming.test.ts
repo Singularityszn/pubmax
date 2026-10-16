@@ -33,14 +33,16 @@ vi.mock("next/font/local", () => {
   return { default: face };
 });
 
-describe("brand naming (captain 2026-08-17)", () => {
-  it("names the brand and app separately", () => {
+describe("brand naming (product decision 16 Oct 2026)", () => {
+  it("names PUBMAXX on the web, and keeps the old name for the native install alone", () => {
     expect(BRAND_NAME).toBe("PUBMAXX");
+    // The native shells and the store record keep it until the captain
+    // renames them; no web surface may print it (the fences below).
     expect(APP_NAME).toBe("PUBMAXXING");
   });
 
-  it("uses the app name in page titles", () => {
-    expect(appPageTitle("Privacy")).toBe("Privacy · PUBMAXXING");
+  it("uses the one name in share-card page titles", () => {
+    expect(appPageTitle("Privacy")).toBe("Privacy · PUBMAXX");
   });
 
   it("uses the brand in metadata siteName", () => {
@@ -51,7 +53,7 @@ describe("brand naming (captain 2026-08-17)", () => {
 // Every route that restates openGraph must resolve the BRAND for siteName. App
 // Router replaces a parent's openGraph object wholesale rather than merging it,
 // so each of these owns its own share-card name, and the assertion runs their
-// real `metadata` / `generateMetadata`: a page that reverts to "PUBMAXXING"
+// real `metadata` / `generateMetadata`: a page that reverts to the old name
 // fails here rather than shipping a wrong card. The list covers the routes the
 // brand decision touched PLUS the ones that still hold the literal, so an edit
 // to either group is caught.
@@ -127,13 +129,15 @@ describe("page metadata names the brand, never the app", () => {
     ).toBe(BRAND_NAME);
   });
 
-  it("names the app, never the brand, in the share-card title", async () => {
+  it("names PUBMAXX, never the old app name, in the share-card title", async () => {
     const privacy = (await import("@/app/privacy/page")).metadata;
     const privacyCardTitle = (privacy.openGraph as { title?: string }).title;
     expect(privacyCardTitle).toBe(appPageTitle("Privacy"));
 
     const social = await (await import("@/app/social/page")).generateMetadata();
-    expect((social.openGraph as { title?: string }).title).toContain(APP_NAME);
+    const socialCardTitle = (social.openGraph as { title?: string }).title ?? "";
+    expect(socialCardTitle).toContain(BRAND_NAME);
+    expect(socialCardTitle).not.toContain(APP_NAME);
   });
 });
 

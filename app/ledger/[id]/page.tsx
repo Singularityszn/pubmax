@@ -84,13 +84,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // an absent pub gets, because the answer is unknown, not "no".
   if (read.status !== "found") {
     return {
-      title: "The Ledger: PUBMAXXING",
+      title: "The Ledger",
       robots: { index: false, follow: false },
     };
   }
   const { venue } = read;
 
-  const title = `The Ledger: ${venue.name}. PUBMAXXING`;
+  const title = `The Ledger: ${venue.name}. PUBMAXX`;
   const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
@@ -172,7 +172,7 @@ function NotInTheLedger() {
     <main id="main" className="ledgerPage ledgerPage--empty">
       <div className="ledgerEmptyCard">
         <Link className="ledgerHomeLink" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="ledgerEyebrow">The Ledger</p>
         <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
@@ -192,7 +192,7 @@ function LedgerReadUnavailable({ id }: { id: string }) {
     <main id="main" className="ledgerPage ledgerPage--empty">
       <div className="ledgerEmptyCard">
         <Link className="ledgerHomeLink" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <VenueReadUnavailable
           eyebrow="The Ledger"
@@ -309,7 +309,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
       <JsonLd data={venueJsonLd(venue, listedBuilding)} nonce={nonce} />
       <header className="ledgerHead">
         <Link className="ledgerHomeLink" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="ledgerEyebrow">The Ledger</p>
         <h1 className="ledgerTitle">{venue.name}</h1>

@@ -44,10 +44,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // A read we could not run claims nothing in the unfurl: the same bare title
   // an absent pub gets, because the answer is unknown, not "no".
   if (read.status !== "found") {
-    return { title: "Bar Tab: PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Bar Tab", robots: { index: false, follow: false } };
   }
   const { venue } = read;
-  const title = `The Bar Tab: ${venue.name}. PUBMAXXING`;
+  const title = `The Bar Tab: ${venue.name}. PUBMAXX`;
   const description = `Recent pints dropped at ${venue.name} in ${
     venue.primaryBorough || "London"
   }. Photos, prices, and the stories behind them.`;

@@ -389,9 +389,9 @@ export default function FirstRunOnboarding({
       data-stage={step}
     >
       <header className="firstRunTopbar">
-        <div className="firstRunBrand" aria-label="PUBMAXXING">
+        <div className="firstRunBrand" aria-label="PUBMAXX">
           <Image src="/brand/icon.svg" alt="" width={30} height={30} priority />
-          <span>PUBMAXXING</span>
+          <span>PUBMAXX</span>
         </div>
         <div
           className="firstRunProgress"
