@@ -578,3 +578,145 @@ describe("a native start queued behind an older canonical installation after a r
     await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledOnce(), { timeout: 1000 });
   });
 });
+
+describe("a native provider start held at its fresh provider settings read", () => {
+  const RECEIPT = "pubmax_native_email_attempt_v1";
+  const ENABLED = { google: true, apple: true, microsoft: true };
+  let settings: ((response: Response) => void) | null = null;
+  let settingsHeld = false;
+
+  async function mountWithSentLink() {
+    const actual = await vi.importActual<typeof import("@/lib/authClient")>("@/lib/authClient");
+    const transport = fetch;
+    settings = null; settingsHeld = false;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), window.location.href);
+      if (url.pathname === "/auth/v1/token") {
+        return Response.json({ ...replacement, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600 });
+      }
+      if (url.pathname === "/api/auth/providers" && url.searchParams.get("fresh") === "1" && !settingsHeld) {
+        settingsHeld = true;
+        return new Promise<Response>((resolve) => { settings = resolve; });
+      }
+      return transport(input, init);
+    });
+    await act(async () => root.unmount());
+    h.realAuth = await actual.ensureSupabaseBrowser();
+    await mountSurface("page");
+    await enterEmail();
+    await click(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!);
+    await vi.waitFor(() => expect(cancelButton()).not.toBeNull(), { timeout: 1000 });
+    expect(h.otpBody?.email).toBe("native@example.test");
+    expect(localStorage.getItem(RECEIPT)).not.toBeNull();
+  }
+  async function holdSettings(name: string) {
+    const operations = uiOperations.length;
+    await click(providerButton(name));
+    await vi.waitFor(() => expect(settingsHeld).toBe(true), { timeout: 1000 });
+    expect(uiOperations.length).toBe(operations + 1);
+    return uiOperations.at(-1)!;
+  }
+  function releaseSettings(response: Response = Response.json(ENABLED)) {
+    const resolve = settings;
+    settings = null;
+    resolve?.(response);
+  }
+  async function expectNothingOpened() {
+    expect(h.authenticate).not.toHaveBeenCalled();
+    expect(h.nativeOAuth).not.toHaveBeenCalled();
+    expect(localStorage.getItem(RECEIPT)).toBeNull();
+    expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
+    await vi.waitFor(async () => expect((await h.realAuth!.auth.getSession()).data.session).toBeNull(), { timeout: 1000 });
+    expect(h.persist).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+  }
+
+  it.each(["Google", "Apple", "Microsoft"])("does not open %s after Cancel sign-in during its settings read", async (name) => {
+    await mountWithSentLink();
+    let operation: (typeof uiOperations)[number] | undefined;
+    try {
+      operation = await holdSettings(name);
+      expect(providerButton(name).disabled).toBe(true);
+      await click(cancelButton());
+    } finally { await act(async () => { releaseSettings(); await operation?.promise; }); }
+    expect(operation!.result).toEqual({ error: null });
+    await expectNothingOpened();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    expect(providerButton(name).disabled).toBe(false);
+    expect(container.querySelector(".loginPageError")).toBeNull();
+  });
+
+  it("does not open a provider whose settings read outlives the auth provider", async () => {
+    await mountWithSentLink();
+    let operation: (typeof uiOperations)[number] | undefined;
+    try {
+      operation = await holdSettings("Apple");
+      await act(async () => root.unmount());
+    } finally { await act(async () => { releaseSettings(); await operation?.promise; }); }
+    root = createRoot(container);
+    expect(operation!.result).toEqual({ error: null });
+    expect(h.authenticate).not.toHaveBeenCalled();
+    expect(h.nativeOAuth).not.toHaveBeenCalled();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(h.persist).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+  });
+
+  it.each([["Google", "google"], ["Apple", "apple"], ["Microsoft", "azure"]])("opens %s once its uncancelled settings read enables it", async (name, provider) => {
+    await mountWithSentLink();
+    let operation: (typeof uiOperations)[number] | undefined;
+    try {
+      operation = await holdSettings(name);
+    } finally { await act(async () => { releaseSettings(); await operation?.promise; }); }
+    expect(operation!.result).toEqual({ error: null });
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"), { timeout: 1000 });
+    expect(h.nativeOAuth.mock.calls.map(([options]) => options.provider)).toEqual([provider]);
+    expect(h.authenticate).toHaveBeenCalledOnce();
+    expect(localStorage.getItem(RECEIPT)).toBeNull();
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledOnce(), { timeout: 1000 });
+  });
+
+  it.each([
+    ["disables it", () => Response.json({ ...ENABLED, google: false })],
+    ["fails", () => Response.json({ error: "unavailable" }, { status: 503 })],
+  ] as const)("names Google unavailable when its uncancelled settings read %s", async (_outcome, response) => {
+    await mountWithSentLink();
+    let operation: (typeof uiOperations)[number] | undefined;
+    try {
+      operation = await holdSettings("Google");
+    } finally { await act(async () => { releaseSettings(response()); await operation?.promise; }); }
+    expect(operation!.result).toEqual({ error: "Google sign-in isn't available right now. Use email instead." });
+    await vi.waitFor(() => expect(container.querySelector(".loginPageError")?.textContent)
+      .toBe("Google sign-in isn't available right now. Use email instead."), { timeout: 1000 });
+    expect(h.authenticate).not.toHaveBeenCalled();
+    expect(h.nativeOAuth).not.toHaveBeenCalled();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    expect(h.navigate).not.toHaveBeenCalled();
+  });
+
+  it("keeps a newer provider open when an earlier provider's settings read settles after a restored page", async () => {
+    await mountWithSentLink();
+    let finish: (() => void) | undefined;
+    h.authenticate.mockImplementationOnce(({ attemptId }: { attemptId: string }) => new Promise((resolve) => {
+      finish = () => resolve({ url: `pubmaxx://native-auth/callback?code=one-use-code&_authAttempt=${attemptId}#` });
+    }));
+    let earlier: (typeof uiOperations)[number] | undefined;
+    let newer: (typeof uiOperations)[number] | undefined;
+    try {
+      earlier = await holdSettings("Google");
+      await act(async () => { window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true })); });
+      await click(providerButton("Apple"));
+      newer = uiOperations.at(-1);
+      await vi.waitFor(() => expect(h.authenticate).toHaveBeenCalledOnce(), { timeout: 1000 });
+      await act(async () => { releaseSettings(); await earlier?.promise; });
+      expect(earlier!.result).toEqual({ error: null });
+      expect(h.authenticate).toHaveBeenCalledOnce();
+      expect(h.cancel).not.toHaveBeenCalled();
+    } finally { await act(async () => { releaseSettings(); finish?.(); await earlier?.promise; await newer?.promise; }); }
+    expect(newer!.result).toEqual({ error: null });
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"), { timeout: 1000 });
+    expect(h.nativeOAuth.mock.calls.map(([options]) => options.provider)).toEqual(["apple"]);
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledOnce(), { timeout: 1000 });
+  });
+});

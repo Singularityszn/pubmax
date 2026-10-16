@@ -974,9 +974,17 @@ export function AuthProvider({
     }).catch(() => {});
   }, [router]);
 
-  const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<{ error: string | null } | { useExistingOAuth: true }> => {
+  const claimNativeIOSOAuth = useCallback(() => {
+    if (typeof window === "undefined" || nativePlatform() !== "ios") return null;
     const installation = cancelPendingNativeAuth();
-    const ticket = nativeAuthLifetime.current.begin();
+    return { installation, ticket: nativeAuthLifetime.current.begin() };
+  }, [cancelPendingNativeAuth]);
+
+  const startNativeIOSOAuth = useCallback(async (
+    provider: "google" | "apple" | "azure",
+    { installation, ticket }: NonNullable<ReturnType<typeof claimNativeIOSOAuth>>,
+    next?: string,
+  ): Promise<{ error: string | null } | { useExistingOAuth: true }> => {
     await installation;
     if (!ticket.current()) return { error: null };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
@@ -1033,7 +1041,7 @@ export function AuthProvider({
     if (!completed) return { error: AUTH_CALLBACK_ERROR_MESSAGE };
     finishNativeSignIn(completed, ticket.current);
     return { error: null };
-  }, [cancelPendingNativeAuth, finishNativeSignIn]);
+  }, [finishNativeSignIn]);
 
   const nativeEmailCallbacks = useRef(new Set<string>());
   useEffect(() => {
@@ -1144,10 +1152,10 @@ export function AuthProvider({
     [],
   );
 
-  const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseGoogleOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    if (nativePlatform() === "ios") {
-      const native = await startNativeIOSOAuth("google", next);
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("google", nativeClaim, next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -1180,10 +1188,10 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseAppleOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    if (nativePlatform() === "ios") {
-      const native = await startNativeIOSOAuth("apple", next);
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("apple", nativeClaim, next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -1214,10 +1222,10 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseMicrosoftOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseMicrosoftOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    if (nativePlatform() === "ios") {
-      const native = await startNativeIOSOAuth("azure", next);
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("azure", nativeClaim, next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -1250,34 +1258,37 @@ export function AuthProvider({
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
   const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "google",
-      () => startSupabaseGoogleOAuth(next),
+      () => startSupabaseGoogleOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseGoogleOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseGoogleOAuth]);
 
   const signInWithApple = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "apple",
-      () => startSupabaseAppleOAuth(next),
+      () => startSupabaseAppleOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseAppleOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseAppleOAuth]);
 
   const signInWithMicrosoft = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "microsoft",
-      () => startSupabaseMicrosoftOAuth(next),
+      () => startSupabaseMicrosoftOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseMicrosoftOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseMicrosoftOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
