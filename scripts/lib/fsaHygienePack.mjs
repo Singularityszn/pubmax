@@ -89,3 +89,45 @@ export function buildFsaHygienePack({ wanted, establishments, retrievedAt }) {
   for (const id of [...rows.keys()].sort((a, b) => a - b)) ratings[String(id)] = rows.get(id);
   return { version: FSA_HYGIENE_PACK_VERSION, ...FSA_SOURCE, retrievedAt, counts, ratings };
 }
+
+/**
+ * The FSA's own page-size ceiling: its API best-practice note asks for pages
+ * of 200 or fewer and rate-limits larger ones.
+ */
+export const FSA_PAGE_SIZE = 200;
+
+const FSA_API_HOST = new URL(FSA_SOURCE.apiUrl).host;
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+
+/**
+ * GET one FSA API path as JSON, or null when the FSA answers 404.
+ *
+ * THE HOST IS PINNED. The path is joined to `FSA_SOURCE.apiUrl` here, a URL
+ * that lands anywhere else is refused before it is asked, and a redirect is an
+ * error, so no response from another host is ever read. A 429 or a 5xx is
+ * asked again after the server's `Retry-After` (or a doubling wait from
+ * `baseDelayMs`), at most `maxAttempts` times in all; any other failure stops
+ * the run, so a partial read never ships.
+ */
+export async function fsaGetJson(
+  pathAndQuery,
+  { fetchImpl = fetch, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), maxAttempts = 5, baseDelayMs = 2000 } = {},
+) {
+  const url = new URL(pathAndQuery, FSA_SOURCE.apiUrl);
+  if (url.protocol !== "https:" || url.host !== FSA_API_HOST) {
+    throw new Error(`FSA read refused: ${url.href} is not ${FSA_SOURCE.apiUrl}`);
+  }
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetchImpl(url.href, {
+      headers: { "x-api-version": "2", accept: "application/json" },
+      redirect: "error",
+    });
+    if (response.status === 404) return null;
+    if (response.ok) return response.json();
+    if (!RETRYABLE.has(response.status) || attempt >= maxAttempts) {
+      throw new Error(`FSA ${response.status} for ${url.href} after ${attempt} attempt(s)`);
+    }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : baseDelayMs * 2 ** (attempt - 1));
+  }
+}

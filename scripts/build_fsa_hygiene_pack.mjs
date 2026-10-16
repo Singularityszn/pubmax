@@ -2,9 +2,10 @@
 //
 // Source: https://api.ratings.food.gov.uk (keyless; every request sends
 // `x-api-version: 2`, the header lib/foodHygiene.ts already sends). Licence:
-// Open Government Licence v3.0, attribution in the pack and on /credits. The
-// endpoint is a constant here and never a caller's string, the same footing as
-// the NHLE read in scripts/build_heritage_listings.mjs.
+// Open Government Licence v3.0, attribution in the pack and on /credits. Every
+// read goes through `fsaGetJson` (scripts/lib/fsaHygienePack.mjs): the host is
+// pinned, a redirect is refused, pages are the FSA's own 200-row ceiling, and a
+// 429 or 5xx is retried a bounded number of times.
 //
 // What it does:
 //   1. Reads the FHRSIDs public/data/osm_fhrs/london.json names.
@@ -21,14 +22,12 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildFsaHygienePack, wantedFhrsIds } from "./lib/fsaHygienePack.mjs";
+import { buildFsaHygienePack, FSA_PAGE_SIZE, fsaGetJson, wantedFhrsIds } from "./lib/fsaHygienePack.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LINKS_PATH = path.join(ROOT, "public", "data", "osm_fhrs", "london.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "fsa_hygiene", "london.json");
-const API = "https://api.ratings.food.gov.uk";
 const DELAY_MS = 1000;
-const PAGE_SIZE = 5000;
 
 function argValue(name, fallback) {
   const index = process.argv.indexOf(name);
@@ -37,10 +36,10 @@ function argValue(name, fallback) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function getJson(url) {
-  const response = await fetch(url, { headers: { "x-api-version": "2", accept: "application/json" } });
-  if (!response.ok) throw new Error(`FSA ${response.status} for ${url}`);
-  return response.json();
+async function getJson(pathAndQuery) {
+  const body = await fsaGetJson(pathAndQuery, { sleep });
+  if (body === null) throw new Error(`FSA 404 for ${pathAndQuery}`);
+  return body;
 }
 
 async function main() {
@@ -49,7 +48,7 @@ async function main() {
   const wanted = wantedFhrsIds(links);
   const retrievedAt = new Date().toISOString();
 
-  const { authorities = [] } = await getJson(`${API}/Authorities`);
+  const { authorities = [] } = await getJson("/Authorities");
   const london = authorities.filter((authority) => authority?.RegionName === "London");
   if (london.length < 30) throw new Error(`Expected the 33 London authorities, the FSA listed ${london.length}`);
 
@@ -58,7 +57,7 @@ async function main() {
     for (let page = 1; ; page += 1) {
       await sleep(DELAY_MS);
       const body = await getJson(
-        `${API}/Establishments?localAuthorityId=${authority.LocalAuthorityId}&pageSize=${PAGE_SIZE}&pageNumber=${page}`,
+        `/Establishments?localAuthorityId=${encodeURIComponent(authority.LocalAuthorityId)}&pageSize=${FSA_PAGE_SIZE}&pageNumber=${page}`,
       );
       establishments.push(...(body.establishments ?? []));
       if (page >= (body.meta?.totalPages ?? 1)) break;
@@ -70,13 +69,9 @@ async function main() {
   const missing = [...wanted].filter((id) => !read.has(id)).slice(0, maxSingle);
   for (const id of missing) {
     await sleep(DELAY_MS);
-    const response = await fetch(`${API}/Establishments/${id}`, {
-      headers: { "x-api-version": "2", accept: "application/json" },
-    });
+    const body = await fsaGetJson(`/Establishments/${id}`, { sleep });
     // A withdrawn establishment answers 404: the FSA states nothing about it.
-    if (response.status === 404) continue;
-    if (!response.ok) throw new Error(`FSA ${response.status} for establishment ${id}`);
-    establishments.push(await response.json());
+    if (body !== null) establishments.push(body);
   }
 
   const pack = buildFsaHygienePack({ wanted, establishments, retrievedAt });

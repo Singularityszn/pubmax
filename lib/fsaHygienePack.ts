@@ -111,6 +111,12 @@ export function osmRefForVenueId(venueId: string, links: OsmFhrsLinks): string |
   return links.refByVenueId.get(venueId) ?? null;
 }
 
+/** The FHRSID this venue's OSM object names in `fhrs:id`, or null. */
+export function linkedFhrsId(venueId: string, links: OsmFhrsLinks): number | null {
+  const ref = osmRefForVenueId(venueId, links);
+  return (ref ? links.fhrsByRef.get(ref) : undefined) ?? null;
+}
+
 /** The FSA's rating for this venue, through its OSM `fhrs:id`, or null. */
 export function fsaHygieneForVenue(
   venueId: string,
@@ -118,9 +124,8 @@ export function fsaHygieneForVenue(
   ratings: FsaHygieneRatings | null,
 ): FsaHygieneFact | null {
   if (!links || !ratings) return null;
-  const ref = osmRefForVenueId(venueId, links);
-  const fhrsid = ref ? links.fhrsByRef.get(ref) : undefined;
-  if (fhrsid === undefined) return null;
+  const fhrsid = linkedFhrsId(venueId, links);
+  if (fhrsid === null) return null;
   const row = ratings.byFhrsId.get(fhrsid);
   if (!row) return null;
   return {

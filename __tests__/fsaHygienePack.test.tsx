@@ -21,6 +21,8 @@ import { buildOsmFhrsLinks, parseFhrsId } from "@/scripts/lib/osmFhrsLinks.mjs";
 import {
   buildFsaHygienePack,
   compactEstablishment,
+  FSA_PAGE_SIZE,
+  fsaGetJson,
   wantedFhrsIds,
 } from "@/scripts/lib/fsaHygienePack.mjs";
 import {
@@ -30,6 +32,7 @@ import {
   parseOsmFhrsLinks,
 } from "@/lib/fsaHygienePack";
 import VenueHygiene, { hygieneBadge } from "@/components/map/VenueHygiene";
+import { defined } from "@/__tests__/helpers/defined";
 import { READ_PHASE_DELAY_MS } from "@/lib/useStaggeredRead";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -221,9 +224,12 @@ describe("the route", () => {
     vi.resetModules();
   });
 
-  async function routeWith(fact: unknown) {
+  async function routeWith(fact: unknown, linkedFhrsId: number | null = null) {
     vi.resetModules();
-    vi.doMock("@/lib/fsaHygienePack.server", () => ({ packHygieneForVenue: vi.fn(async () => fact) }));
+    vi.doMock("@/lib/fsaHygienePack.server", () => ({
+      packHygieneForVenue: vi.fn(async () => fact),
+      linkedFhrsIdForVenue: vi.fn(async () => linkedFhrsId),
+    }));
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     return (await import("@/app/api/hygiene/route")).GET;
@@ -256,6 +262,83 @@ describe("the route", () => {
     expect(body.fact).toBeUndefined();
     expect(body.rating.fhrsid).toBe(1026539);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // A NEIGHBOUR WITH THE SAME NAME IS NOT THIS PUB. OSM names the FHRSID, so
+  // the live read at the postcode keeps that establishment or nothing.
+  const NEIGHBOUR = { ...ESTABLISHMENT, FHRSID: 9999001, BusinessName: "The Arnos Arms Kitchen", RatingValue: "1" };
+
+  it("matches a linked venue by its FHRSID alone, never by a similar name", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ establishments: [NEIGHBOUR] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const GET = await routeWith(null, 1026539);
+    const res = await GET(
+      new Request("http://localhost/api/hygiene?venueId=venue-uk-n1&name=The%20Arnos%20Arms&postcode=N11%201AN"),
+    );
+    expect(await res.json()).toEqual({ rating: null });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("finds a linked venue at its postcode under whatever name the FSA files it", async () => {
+    const filed = { ...ESTABLISHMENT, BusinessName: "Arnos Grove Hospitality Ltd" };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ establishments: [NEIGHBOUR, filed] }), { status: 200 })));
+    const GET = await routeWith(null, 1026539);
+    const res = await GET(
+      new Request("http://localhost/api/hygiene?venueId=venue-uk-n1&name=The%20Arnos%20Arms&postcode=N11%201AN"),
+    );
+    const body = await res.json();
+    expect(body.rating).toMatchObject({ fhrsid: 1026539, ratingValue: 5, businessName: "Arnos Grove Hospitality Ltd" });
+  });
+});
+
+describe("the builder's FSA reads", () => {
+  const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+  const noSleep = vi.fn(async () => {});
+
+  it("asks only the FSA API host, refuses a redirect, and pages at the FSA's ceiling", async () => {
+    const fetchImpl = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => ok({ establishments: [] }));
+    await fsaGetJson(`/Establishments?localAuthorityId=1&pageSize=${FSA_PAGE_SIZE}&pageNumber=1`, {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleep: noSleep,
+    });
+    const [url, init] = defined(fetchImpl.mock.calls[0], "one read");
+    expect(new URL(url).host).toBe("api.ratings.food.gov.uk");
+    expect(init?.redirect).toBe("error");
+    expect(FSA_PAGE_SIZE).toBeLessThanOrEqual(200);
+    await expect(fsaGetJson("//example.com/Establishments", { fetchImpl: fetchImpl as unknown as typeof fetch })).rejects.toThrow(
+      /refused/,
+    );
+    await expect(fsaGetJson("http://api.ratings.food.gov.uk/Authorities", { fetchImpl: fetchImpl as unknown as typeof fetch })).rejects.toThrow(
+      /refused/,
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits out a 429 as the FSA asks, then reads", async () => {
+    const sleep = vi.fn(async () => {});
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429, headers: { "retry-after": "7" } }))
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(ok({ authorities: [] }));
+    expect(await fsaGetJson("/Authorities", { fetchImpl, sleep, baseDelayMs: 100 })).toEqual({ authorities: [] });
+    expect(sleep.mock.calls).toEqual([[7000], [200]]);
+  });
+
+  it("stops after a bounded number of attempts, and on any other failure at once", async () => {
+    const throttled = vi.fn(async () => new Response("", { status: 429 }));
+    await expect(fsaGetJson("/Authorities", { fetchImpl: throttled, sleep: noSleep, maxAttempts: 3 })).rejects.toThrow(
+      /429 .* after 3 attempt/,
+    );
+    expect(throttled).toHaveBeenCalledTimes(3);
+    const refused = vi.fn(async () => new Response("", { status: 403 }));
+    await expect(fsaGetJson("/Authorities", { fetchImpl: refused, sleep: noSleep })).rejects.toThrow(/403/);
+    expect(refused).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a withdrawn establishment as nothing", async () => {
+    const gone = vi.fn(async () => new Response("", { status: 404 }));
+    expect(await fsaGetJson("/Establishments/1", { fetchImpl: gone, sleep: noSleep })).toBeNull();
   });
 });
 

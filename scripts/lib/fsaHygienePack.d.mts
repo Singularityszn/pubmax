@@ -28,3 +28,13 @@ export function buildFsaHygienePack(input: {
   establishments: readonly unknown[];
   retrievedAt: string;
 }): FsaHygienePack;
+export const FSA_PAGE_SIZE: 200;
+export function fsaGetJson(
+  pathAndQuery: string,
+  options?: {
+    fetchImpl?: typeof fetch;
+    sleep?: (ms: number) => Promise<void>;
+    maxAttempts?: number;
+    baseDelayMs?: number;
+  },
+): Promise<unknown>;

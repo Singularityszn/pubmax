@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   fsaHygieneForVenue,
+  linkedFhrsId,
   parseFsaHygieneRatings,
   parseOsmFhrsLinks,
   type FsaHygieneFact,
@@ -27,13 +28,23 @@ async function readPack(include: string): Promise<unknown> {
 
 let cached: Promise<{ links: OsmFhrsLinks | null; ratings: FsaHygieneRatings | null }> | undefined;
 
-/** The FSA rating the packs state for this venue, or null. */
-export async function packHygieneForVenue(venueId: string): Promise<FsaHygieneFact | null> {
+function packs() {
   cached ??= Promise.all([
     readPack(OSM_FHRS_LINKS_TRACING_INCLUDE),
     readPack(FSA_HYGIENE_PACK_TRACING_INCLUDE),
   ]).then(([links, ratings]) => ({ links: parseOsmFhrsLinks(links), ratings: parseFsaHygieneRatings(ratings) }));
-  const { links, ratings } = await cached;
+  return cached;
+}
+
+/** The FSA rating the packs state for this venue, or null. */
+export async function packHygieneForVenue(venueId: string): Promise<FsaHygieneFact | null> {
+  const { links, ratings } = await packs();
   return fsaHygieneForVenue(venueId, links, ratings);
+}
+
+/** The FHRSID OSM links this venue to, or null when OSM names none. */
+export async function linkedFhrsIdForVenue(venueId: string): Promise<number | null> {
+  const { links } = await packs();
+  return links ? linkedFhrsId(venueId, links) : null;
 }
 
