@@ -183,9 +183,9 @@ function CrawlsPageInner() {
           as="section"
           className="crawlEmpty"
           kicker="Crawls"
-          title="Pub stories mapped into walks."
+          title="London pub crawl routes"
           titleId="crawlsHeading"
-          lede="A Crawl Story is a poster of a London pub crawl that you can share, with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
+          lede="Pub stories mapped into walks. Share a London pub crawl with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
           primary={
             <Link
               prefetch={false}
