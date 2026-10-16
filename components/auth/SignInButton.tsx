@@ -34,6 +34,7 @@ import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   ARRIVAL_FROM_PARAM,
   LOGIN_ADD_ACCOUNT_PARAM,
@@ -126,6 +127,15 @@ function accountIdentity(
   };
 }
 
+function authMenuCanShow({
+  compact,
+  phoneLogin,
+  signedIn,
+  available,
+}: { compact: boolean; phoneLogin: boolean; signedIn: boolean; available: boolean }): boolean {
+  return compact && (signedIn || !phoneLogin) && available;
+}
+
 export default function SignInButton({
   compact = false,
 }: {
@@ -175,6 +185,18 @@ export default function SignInButton({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
   const menuId = useId();
+  // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
+  // secondary controls stay behind an established product session until that
+  // provider bridge exists end to end.
+  const clerkSessionAvailable = isClerkProductSessionAvailable(
+    user,
+    clerkIntegrationConfigured,
+  );
+  const menuVisible = menuOpen && authMenuCanShow({ compact, phoneLogin, signedIn: Boolean(user), available: configured || clerkSessionAvailable });
+  useDismissOnEscape(menuVisible, () => {
+    setMenuOpen(false);
+    triggerRef.current?.focus();
+  }, menuRef);
 
   // Phone viewports own a full /login page. Desktop keeps the compact popover.
   useEffect(() => {
@@ -215,10 +237,6 @@ export default function SignInButton({
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        return;
-      }
       if (event.key === "Tab") {
         const focusables = menuRef.current?.querySelectorAll<HTMLElement>(
           AUTH_MENU_FOCUSABLE_SELECTOR,
@@ -323,13 +341,6 @@ export default function SignInButton({
     [signOut],
   );
 
-  // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
-  // secondary controls stay behind an established product session until that
-  // provider bridge exists end to end.
-  const clerkSessionAvailable = isClerkProductSessionAvailable(
-    user,
-    clerkIntegrationConfigured,
-  );
   if (!configured && !clerkSessionAvailable) {
     return (
       <span
