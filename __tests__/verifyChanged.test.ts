@@ -122,6 +122,34 @@ describe("a change-scoped plan", () => {
     expect(scoped.tests).toEqual(["__tests__/voiceFence.test.ts", "docs/VOICE.md"]);
   });
 
+  it("searches deleted paths for the tests that name them, but never hands vitest a deleted file", () => {
+    const texts: Record<string, string> = {
+      "__tests__/designTokens.test.ts": 'readFileSync("docs/DESIGN_SYSTEM.md")',
+    };
+    const scoped = plan([{ path: "docs/DESIGN_SYSTEM.md", status: "D" }], {
+      testFiles: Object.keys(texts),
+      readText: (path) => defined(texts[path]),
+    });
+    expect(scoped.tests).toEqual(["__tests__/designTokens.test.ts"]);
+  });
+
+  it("typechecks the importers of the .mjs module a changed .d.mts sidecar declares", () => {
+    const importers = new Map([["scripts/lib/geo.mjs", new Set(["lib/venues.ts"])]]);
+    const scoped = plan(modified("scripts/lib/geo.d.mts"), { importers });
+    expect(scoped.typecheck).toEqual(["lib/venues.ts", "scripts/lib/geo.d.mts"]);
+  });
+
+  it("runs test:rls when a PostgreSQL suite depends on the change, directly or through other modules", () => {
+    const suite = defined(POSTGRES_BACKED_SUITES[0]);
+    const importers = new Map([
+      ["lib/accountGate.ts", new Set(["app/api/account/route.ts"])],
+      ["app/api/account/route.ts", new Set([suite])],
+    ]);
+    expect(plan(modified("app/api/account/route.ts"), { importers }).rls).toBe(true);
+    expect(plan(modified("lib/accountGate.ts"), { importers }).rls).toBe(true);
+    expect(plan(modified("lib/unrelated.ts"), { importers }).rls).toBe(false);
+  });
+
   it("leaves the PostgreSQL suites to npm run test:rls, and runs it when the database layer changes", () => {
     const suite = defined(POSTGRES_BACKED_SUITES[0]);
     expect(plan(modified("lib/x.ts")).rls).toBe(false);
@@ -143,6 +171,9 @@ describe("a change-scoped plan", () => {
     expect(plan(modified("public/data/cities/bath/venues_slim.manifest.json")).validateData).toBe(true);
     expect(plan(modified("supabase/migrations/0200_x.sql")).dbTypes).toBe(true);
     expect(plan(modified("types/database.ts")).dbTypes).toBe(true);
+    // Every input scripts/db/generate-database-types.mjs reads.
+    expect(plan(modified("scripts/rls/session-fixture.sql")).dbTypes).toBe(true);
+    expect(plan(modified("scripts/qa/migration-apply-list.mjs")).dbTypes).toBe(true);
     expect(plan(modified("e2e/map.spec.ts")).e2eSkips).toBe(true);
     expect(plan(modified("scripts/chatgpt-map/src/server.ts")).chatgptMap).toBe(true);
   });
@@ -165,6 +196,8 @@ describe("a change-scoped plan", () => {
     const labels = checkSteps(plan(modified("lib/x.ts"))).map((step) => step.label);
     expect(labels).toContain("deadcode");
     expect(labels).toContain("install-script allowlist");
+    // No workflow runs the advisory audit, so the scoped gate keeps it.
+    expect(labels).toContain("dependency audit");
   });
 
   it("plans nothing to lint, typecheck or test for a docs-only change no test names", () => {

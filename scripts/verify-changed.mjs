@@ -18,7 +18,8 @@
  *     doc or a config by path, which no import graph can see). It fails on any
  *     failing test it runs.
  *   - The whole-tree gates only `npm run verify` runs and no workflow does
- *     (deadcode, the install-script allowlist), and the input-scoped gates
+ *     (deadcode, the install-script allowlist, the dependency audit), and the
+ *     input-scoped gates
  *     (test:rls, validate-data, db:types:check, gate:e2e-skips, chatgpt-map)
  *     when their inputs change.
  *
@@ -70,7 +71,14 @@ const TEST_FILE = /^__tests__\/.+\.test\.tsx?$/;
 
 const RLS_INPUTS = [/^supabase\//, /^scripts\/rls\//];
 const DATA_INPUTS = [/^data\//, /^public\/data\//, /^scripts\/(?:pre)?validate-data\.mjs$/];
-const DB_TYPES_INPUTS = [/^supabase\//, /^types\/database\.ts$/, /^scripts\/db\//];
+// Every input scripts/db/generate-database-types.mjs reads.
+const DB_TYPES_INPUTS = [
+  /^supabase\//,
+  /^types\/database\.ts$/,
+  /^scripts\/db\//,
+  /^scripts\/rls\/session-fixture\.sql$/,
+  /^scripts\/qa\/migration-apply-list\.mjs$/,
+];
 const E2E_SKIP_INPUTS = [/^e2e\//, /^scripts\/assert-no-conditional-e2e-skips\.mjs$/];
 const CHATGPT_MAP_INPUTS = [/^scripts\/chatgpt-map\//];
 
@@ -159,8 +167,14 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
   const sorted = (values) => [...new Set(values)].sort();
   const postgres = new Set(POSTGRES_BACKED_SUITES);
 
+  // A .d.mts sidecar and its .mjs are one module in two files, and importers
+  // name the .mjs, so a changed declaration reaches the module's importers.
+  const importersOf = (path) => [
+    ...(importers.get(path) ?? []),
+    ...(path.endsWith(".d.mts") ? (importers.get(path.replace(/\.d\.mts$/, ".mjs")) ?? []) : []),
+  ];
   const typecheck = present
-    .flatMap((path) => [path, ...(importers.get(path) ?? [])])
+    .flatMap((path) => [path, ...importersOf(path)])
     .filter((path) => TYPESCRIPT.test(path) && !NOT_TYPECHECKED.test(path));
 
   const named = testFiles.filter((test) => {
@@ -170,15 +184,32 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
     } catch {
       return false;
     }
-    return present.some((path) => path !== test && text.includes(path));
+    // Deleted paths too: a fence that reads a deleted doc must fail here.
+    return paths.some((path) => path !== test && text.includes(path));
   });
+  const deleted = new Set(paths.filter((path) => !present.includes(path)));
+
+  // A PostgreSQL suite anywhere upstream of the change needs the cluster run.
+  const reached = new Set();
+  const queue = [...present];
+  while (queue.length > 0) {
+    for (const importer of importersOf(queue.pop())) {
+      if (!reached.has(importer)) {
+        reached.add(importer);
+        queue.push(importer);
+      }
+    }
+  }
 
   return {
     full: fullSuiteReason(changed, importers, env),
     lint: sorted(present.filter((path) => LINTED.test(path))),
     typecheck: sorted(typecheck),
-    tests: sorted([...present, ...named].filter((path) => !postgres.has(path))),
-    rls: touches(RLS_INPUTS) || paths.some((path) => postgres.has(path)),
+    tests: sorted([...present, ...named].filter((path) => !postgres.has(path) && !deleted.has(path))),
+    rls:
+      touches(RLS_INPUTS) ||
+      paths.some((path) => postgres.has(path)) ||
+      [...reached].some((path) => postgres.has(path)),
     validateData: touches(DATA_INPUTS),
     dbTypes: touches(DB_TYPES_INPUTS),
     e2eSkips: touches(E2E_SKIP_INPUTS),
@@ -232,6 +263,8 @@ export function checkSteps(plan) {
   if (plan.e2eSkips) steps.push({ label: "gate:e2e-skips", command: "npm", args: ["run", "gate:e2e-skips"] });
   if (plan.chatgptMap) steps.push({ label: "test:chatgpt-map", command: "npm", args: ["run", "test:chatgpt-map"] });
   steps.push({ label: "deadcode", command: "npm", args: ["run", "deadcode"] });
+  // No workflow runs the advisory audit, and a new advisory needs no diff.
+  steps.push({ label: "dependency audit", command: "node", args: ["scripts/resilient-audit.mjs"] });
   steps.push({
     label: "install-script allowlist",
     command: "node",
