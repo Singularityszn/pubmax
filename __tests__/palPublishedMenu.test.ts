@@ -715,6 +715,85 @@ it.each(categoryRequests.flatMap((record) => menuRequestPrefixes.flatMap((prefix
   },
 );
 
+async function foodCardsAtBoundary(query: string, boundary: typeof dietaryBoundaries[number]): Promise<AskCard[]> {
+  if (boundary === "reader") return (await publishedMenuCards("venue-17qpap6", query)).cards;
+  if (boundary === "ask" || boundary === "keyless chat") return (await (await (boundary === "ask" ? ask : chat)(request(query))).json()).cards;
+  if (boundary === "chat session") {
+    const session = createPalChatSession({ fetchImpl: async (_url, init) => chat(new Request("http://localhost/api/pub-pal/chat", init)) });
+    const result = await session(query, "london");
+    if (!result || result.status === "error") throw new Error("Chat session returned no answer");
+    return result.cards;
+  }
+  if (boundary === "tool dispatch") return (await runAskTool("venue_prices", { venueName: "The Lamb", query: "Pint at The Lamb" }, { query, cityId: "london", skipModel: true })).cards;
+  await registerPubPalToolTurn("conv_menuprefix01", { query, cityId: "london", ownerId: "menu-owner" });
+  let cards: AskCard[];
+  if (boundary === "configured chat") {
+    vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+    const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+    vi.stubGlobal("fetch", fetcher);
+    const result = await runPalElevenLabsChatTurn({ query, cityId: "london", ownerId: "menu-owner", threadId: "conv_menuprefix01" });
+    if (!result.ok) throw new Error("Configured interception failed");
+    ({ cards } = result);
+    expect(fetcher).not.toHaveBeenCalled();
+  } else {
+    vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "offline-test-secret");
+    const response = await webhook(new Request("http://localhost/api/pub-pal/tools/venue_prices", {
+      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer offline-test-secret" },
+      body: JSON.stringify({ conversation_id: "conv_menuprefix01", parameters: { query: "Pint at The Lamb", venueName: "The Lamb" } }),
+    }), { params: Promise.resolve({ toolName: "venue_prices" }) });
+    expect(response.status).toBe(200);
+    ({ cards } = (await response.json()).result);
+  }
+  expect((await readOwnedPubPalToolTurn("conv_menuprefix01", "menu-owner"))?.cards).toEqual(cards);
+  expect(await readOwnedPubPalToolTurn("conv_menuprefix01", "another-owner")).toBeNull();
+  return cards;
+}
+
+const prefixedItemRequests = [
+  ["Could you tell me the price of Mixed Olives at The New Inn?", true],
+  ["Can you tell me the price of Mixed Olives at The New Inn?", true],
+  ["Please tell me the price of Mixed Olives at The New Inn", true],
+  ["Show me the price of Mixed Olives at The New Inn", true],
+  ["Could you tell me how many calories are in Mixed Olives at The New Inn?", true],
+  ["Tell me the calories in Mixed Olives at The New Inn", true],
+  ["Could you tell me the price of Mixed Olives under £5.01 at The New Inn?", true],
+  ["Could you tell me the price of Missing Olives at The New Inn?", false],
+  ["Could you tell me the price of 8oz Mixed Olives at The New Inn?", false],
+  ["Could you tell me the price of Mixed Olives under £5 at The New Inn?", false],
+  ["Could you tell me the price of gluten-free Mixed Olives at The New Inn?", false],
+] as const;
+
+it.each(prefixedItemRequests.flatMap(([query, accepted]) => dietaryBoundaries.map((boundary) => ({ query, accepted, boundary }))))(
+  "normalizes recognized request prefixes before named item selection through $boundary: $query", async ({ query, accepted, boundary }) => {
+    const cards = await foodCardsAtBoundary(query, boundary);
+    if (!accepted) {
+      expect(cards).toEqual([]);
+      return;
+    }
+    expect(cards).toEqual([expect.objectContaining({ venueId: "venue-17qpap6", price: 5,
+      menuEvidence: expect.objectContaining({ itemName: "Mixed Olives", menu: "food", currency: "GBP", serving: null, caloriesKcal: 163,
+        dietary: ["vegan", "vegetarian"], observedAt: "2026-10-13T09:43:11.443Z",
+        source: "The New Inn - official published menu", sourceUrl: "https://www.newinnealing.com/food-and-drink", availability: "unknown" }),
+      provenance: expect.objectContaining({ kind: "published-menu", url: "https://www.newinnealing.com/food-and-drink" }),
+    })]);
+  },
+);
+
+it.each(["Find me vegan options at The New Inn", "Could you find me vegan options at The New Inn?", "Please show me vegan food under £10 at The New Inn"]
+  .flatMap((query) => dietaryBoundaries.map((boundary) => ({ query, boundary }))))(
+  "preserves dietary discovery after a recognized request prefix through $boundary: $query", async ({ query, boundary }) => {
+    const cards = await foodCardsAtBoundary(query, boundary);
+    expect(cards).toContainEqual(expect.objectContaining({ venueId: "venue-17qpap6", price: 5,
+      menuEvidence: expect.objectContaining({ itemName: "Mixed Olives", caloriesKcal: 163, dietary: ["vegan", "vegetarian"] }) }));
+    for (const card of cards) {
+      expect(card.menuEvidence?.dietary).toContain("vegan");
+      expect(card.menuEvidence?.dietaryProvenance?.sourceUrl).toBe("https://www.newinnealing.com/food-and-drink");
+      if (query.includes("under")) expect(card.price).toBeLessThan(10);
+    }
+  },
+);
+
 const servingCategoryRequests = [
   ['Show me the wine menu 175ml glass "House Wine" under £10', [7.2]],
   ['Tell me the wine menu 175ml glass "House Wine" under £7.20', []],

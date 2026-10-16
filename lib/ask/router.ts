@@ -167,7 +167,7 @@ export function namedMenuRequest(query: string): { venueName: string; subject: s
   const category = bareCategory ?? (categoryPrefix ? recordedPriceCategory(categoryPrefix[1]!) : undefined);
   return {
     venueName,
-    subject: bareCategory ? "drinks" : category && categoryPrefix ? categorySubject.slice(categoryPrefix[1]!.length).trim() : subject,
+    subject: bareCategory ? "drinks" : category && categoryPrefix ? categorySubject.slice(categoryPrefix[1]!.length).trim() : categorySubject,
     ...(category ? { category } : {}),
   };
 }

@@ -44,7 +44,7 @@ export async function publishedMenuCards(venueId: string, query: string, categor
     .replace(BUDGET_RE, " ")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:does|do)\s+(.+?)\s+(?:have|contain)\s*$/i, "$1")
     .replace(/^how many\s+(?:calories|kcal)\s+(?:are\s+(?:there\s+)?in|in)\s+/i, " ")
-    .replace(/^what(?:'s| is| are)?\s+(?:the\s+)?(?:published\s+)?(?:calories|calorie(?: count| content)?|kcal)\s+(?:(?:are|is)\s+)?(?:in|of|for)\s+/i, " ")
+    .replace(/^(?:what(?:'s| is| are)?\s+)?(?:the\s+)?(?:published\s+)?(?:calories|calorie(?: count| content)?|kcal)\s+(?:(?:are|is)\s+)?(?:in|of|for)\s+/i, " ")
     .replace(SERVING_RE, " ")
     .replace(/\b(?:right now|this evening|this afternoon|this morning|this weekend|tonight|now|later|today)\b/gi, " ")
     .replace(/\b(?:what|which|is|are|does|do|the|a|an|and|or|of|for|its|it|their|they|have|has|how|much|price|prices|cost|costs|published|recorded|calorie|calories|kcal|dietary|vegan|vegetarian|gluten[- ]free|options?|food|meals?|drinks?|menu|servings?|please|show|me|tell)\b/gi, " "));
