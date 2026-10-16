@@ -118,6 +118,21 @@ describe("reading a way home out of a plan request", () => {
     }
   });
 
+  // A way home is taken out of the request and only then is the tube asked
+  // about, so one way-home phrase can never silence a separate tube rule in
+  // the same sentence (review, PR #2134), and a tube that is not the ride home
+  // is never read as one because "home" is near it.
+  it("keeps a tube route rule that sits beside a tube way home", () => {
+    for (const query of [
+      "pubs near a tube, then home by tube",
+      "home by tube, but pubs near a tube station in Soho",
+      "pints near a tube station in Soho, then get the tube home",
+      "near a tube, then home by bus",
+    ]) {
+      expect(inferNightContext(query, NOW).context.transportConstraints, query).toEqual(["tube"]);
+    }
+  });
+
   // A tube way home must never take a stated walk rule out of the record: the
   // ternary used to let "tube" win, so naming the tube UNLOCKED a route for a
   // request that still carried a walk rule the optimizer has no evidence for.

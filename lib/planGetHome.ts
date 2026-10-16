@@ -5,15 +5,18 @@
  * is a rule the optimizer has no evidence for, so it stays one: the route
  * fails closed and the answer names the need it missed.
  *
- * The test is the two words in one breath, in either order, because that is
- * what the phrasing is - "home by tube", "tube home", "get the tube home",
- * "home on the last tube". A tube named well away from any mention of home
- * stays a route rule, which is the honest default for a reading we are not
- * sure of.
+ * A way home is the tube named AS the ride home - "home by tube", "home on
+ * the last tube", "get the tube home", "take the tube back home". Each such
+ * phrase is taken out of the request first, and any tube still named after
+ * that is a route rule. So "pubs near a tube, then home by tube" keeps its
+ * proximity rule, and "near a tube, then home by bus" never reads the station
+ * as a ride home. A tube we are not sure of stays a route rule, which is the
+ * honest default.
  */
 const TUBE = /\btube\b/;
-const TUBE_WAY_HOME = /\btube\b[^.!?]{0,24}\bhome\b|\bhome\b[^.!?]{0,24}\btube\b/;
+const TUBE_WAY_HOME =
+  /\bhome\s+(?:by|on|via)\s+(?:the\s+)?(?:last\s+)?tube\b|\btube\s+(?:back\s+)?home\b/g;
 
 export function tubeIsARouteRule(lowerQuery: string): boolean {
-  return TUBE.test(lowerQuery) && !TUBE_WAY_HOME.test(lowerQuery);
+  return TUBE.test(lowerQuery.replace(TUBE_WAY_HOME, " "));
 }
