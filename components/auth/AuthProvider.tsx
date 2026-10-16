@@ -980,7 +980,7 @@ export function AuthProvider({
     if (!supabase) return { error: "Sign-in is not configured." };
     const activeSession = await supabase.auth.getSession().catch(() => null);
     if (!ticket.current()) return { error: null };
-    if (!activeSession || activeSession.error) return { error: AUTH_CALLBACK_ERROR_MESSAGE };
+    if (!activeSession || activeSession.error) return { error: AUTH_STATE_UNCONFIRMED_MESSAGE };
     if (activeSession.data.session) {
       const page = new URL(window.location.href);
       const addAccount = (page.pathname === "/login" || page.pathname === "/signin") &&
