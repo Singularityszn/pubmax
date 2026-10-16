@@ -123,3 +123,41 @@ export function buildWikidataHistoryPack({ wanted, bindings, retrievedAt }) {
     items,
   };
 }
+
+/** The Wikidata Query Service: a constant, never a caller's string. */
+export const WIKIDATA_SPARQL_ENDPOINT = "https://query.wikidata.org/sparql";
+const USER_AGENT = "PubmaxxingWikidataHistory/1.0 (https://pubmaxxing.com/credits)";
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+
+/**
+ * Run one SPARQL query against the Wikidata Query Service and return its
+ * bindings.
+ *
+ * THE HOST IS PINNED: the URL is the constant endpoint plus the query, and a
+ * redirect is an error, so no response from another host is ever read. The
+ * service asks for a descriptive User-Agent, which this sends. A 429 or a 5xx
+ * is asked again after the service's `Retry-After` (or a doubling wait from
+ * `baseDelayMs`), at most `maxAttempts` times in all; any other failure throws,
+ * so a partial read never ships.
+ */
+export async function wikidataSparqlRead(
+  query,
+  { fetchImpl = fetch, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), maxAttempts = 5, baseDelayMs = 2000 } = {},
+) {
+  const url = `${WIKIDATA_SPARQL_ENDPOINT}?format=json&query=${encodeURIComponent(query)}`;
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetchImpl(url, {
+      headers: { accept: "application/sparql-results+json", "user-agent": USER_AGENT },
+      redirect: "error",
+    });
+    if (response.ok) {
+      const body = await response.json();
+      return Array.isArray(body?.results?.bindings) ? body.results.bindings : [];
+    }
+    if (!RETRYABLE.has(response.status) || attempt >= maxAttempts) {
+      throw new Error(`Wikidata ${response.status} after ${attempt} attempt(s)`);
+    }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : baseDelayMs * 2 ** (attempt - 1));
+  }
+}

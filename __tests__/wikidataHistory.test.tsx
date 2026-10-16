@@ -23,6 +23,7 @@ import {
   historyQuery,
   timeAtPrecision,
   wantedQids,
+  wikidataSparqlRead,
 } from "@/scripts/lib/wikidataHistoryPack.mjs";
 import {
   parseOsmWikidataLinks,
@@ -138,6 +139,39 @@ describe("the Wikidata history pack", () => {
     expect(pack.counts).toEqual({ wanted: 2, withHistory: 1 });
     expect(pack).toMatchObject({ source: "Wikidata", license: "CC0 1.0", retrievedAt: READ_AT });
     expect(() => buildWikidataHistoryPack({ wanted: new Set(), bindings: [], retrievedAt: "" })).toThrow();
+  });
+});
+
+describe("the builder's Wikidata reads", () => {
+  const noSleep = vi.fn(async () => {});
+  const ok = (bindings: unknown[]) => new Response(JSON.stringify({ results: { bindings } }), { status: 200 });
+
+  it("asks only the query service, names itself, and refuses a redirect", async () => {
+    const fetchImpl = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => ok([{ item: 1 }]));
+    expect(await wikidataSparqlRead("SELECT 1", { fetchImpl: fetchImpl as unknown as typeof fetch, sleep: noSleep })).toEqual([
+      { item: 1 },
+    ]);
+    const [url, init] = fetchImpl.mock.calls[0] ?? [];
+    expect(new URL(url ?? "").origin + new URL(url ?? "").pathname).toBe("https://query.wikidata.org/sparql");
+    expect(init?.redirect).toBe("error");
+    expect((init?.headers as Record<string, string>)["user-agent"]).toMatch(/^Pubmaxxing/);
+  });
+
+  it("waits out a 429 as the service asks, and gives up after a bounded number of attempts", async () => {
+    const sleep = vi.fn(async () => {});
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429, headers: { "retry-after": "3" } }))
+      .mockResolvedValueOnce(ok([]));
+    expect(await wikidataSparqlRead("SELECT 1", { fetchImpl, sleep })).toEqual([]);
+    expect(sleep.mock.calls).toEqual([[3000]]);
+    const throttled = vi.fn(async () => new Response("", { status: 503 }));
+    await expect(wikidataSparqlRead("SELECT 1", { fetchImpl: throttled, sleep: noSleep, maxAttempts: 2 })).rejects.toThrow(
+      /503 after 2 attempt/,
+    );
+    const refused = vi.fn(async () => new Response("", { status: 403 }));
+    await expect(wikidataSparqlRead("SELECT 1", { fetchImpl: refused, sleep: noSleep })).rejects.toThrow(/403/);
+    expect(refused).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -21,3 +21,13 @@ export function buildWikidataHistoryPack(input: {
   bindings: readonly unknown[];
   retrievedAt: string;
 }): WikidataHistoryPack;
+export const WIKIDATA_SPARQL_ENDPOINT: "https://query.wikidata.org/sparql";
+export function wikidataSparqlRead(
+  query: string,
+  options?: {
+    fetchImpl?: typeof fetch;
+    sleep?: (ms: number) => Promise<void>;
+    maxAttempts?: number;
+    baseDelayMs?: number;
+  },
+): Promise<unknown[]>;
