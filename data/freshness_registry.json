@@ -279,7 +279,7 @@
     },
     {
       "id": "station_walk_access",
-      "label": "Street walks to stations (West End pilot)",
+      "label": "Street walks to stations (Zone 1)",
       "class": "static",
       "artifact": "data/station_walk_access.json",
       "stamp": null,

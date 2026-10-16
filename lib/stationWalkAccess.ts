@@ -1,8 +1,8 @@
 // Street-network walks from a rounded point to the stations around it.
 //
 // The Last Pint leave-by clock used to walk a drinker to the station along the
-// straight line. Streets do not run straight: in the West End pilot the street
-// walk is a median 1.37 times the straight line, and 1.71 times at the 90th
+// straight line. Streets do not run straight: across Zone 1 the street walk is
+// a median 1.35 times the straight line, and 1.73 times at the 90th
 // percentile, so the card handed people time they did not have.
 //
 // `data/station_walk_access.json` is built offline by
@@ -142,8 +142,9 @@ type CandidateStation = { lat?: number; lon?: number };
  * Pick the station a drinker reaches soonest on foot from TfL's candidates.
  *
  * TfL's StopPoint search lists stations nearest first along the straight
- * line, and the first is not always the shortest walk: in the West End pilot
- * 12 of 113 curated pubs reach a different station first on foot. Re-ranking
+ * line, and the first is not always the shortest walk: across Zone 1, 904 of
+ * 6,907 grid points and 73 of the 663 curated pubs inside it reach a
+ * different station first on foot. Re-ranking
  * applies only when TfL's own first choice has a street walk, so every
  * comparison is street against street. When it has none, TfL's order stands.
  */

@@ -4,6 +4,7 @@
 #   "city2graph==1.0.0",
 #   "overturemaps==1.0.2",
 #   "pyproj>=3.6",
+#   "scipy>=1.11",
 # ]
 # ///
 """Build data/station_walk_access.json: street-network walks to the nearest stations.
@@ -14,7 +15,8 @@ straight-line distance. Central London streets do not run straight: the
 straight line, and 2 times at the 90th percentile, so the card told people they
 had a third more time than they did.
 
-WHAT. For every point of the 0.001-degree grid inside the pilot box, the street
+WHAT. For every point of the 0.001-degree grid within GRID_RADIUS_M of a Zone 1
+station, the street
 walking distance to up to three of the nearest stations, by street walk. The
 grid is the SAME rounding `coarsenViewerPoint` applies before a point leaves
 the browser (lib/geo.ts), so the server can look a request up without ever
@@ -47,7 +49,7 @@ station points, as the first pilot did.
 
 It reads Overture's public S3 bucket directly (no STAC catalog), pinned to
 OVERTURE_RELEASE, and writes only data/station_walk_access.json. Widening the
-pilot is a change to PILOT and a re-run; the reader in
+area is a change to AREA and a re-run; the reader in
 lib/stationWalkAccess.ts falls back to the straight line outside it.
 """
 
@@ -68,6 +70,7 @@ import networkx as nx
 import numpy as np
 import overturemaps.core as overture
 from pyproj import Transformer
+from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIONS_PATH = ROOT / "data" / "tfl_station_zones.json"
@@ -75,15 +78,18 @@ OUT_PATH = ROOT / "data" / "station_walk_access.json"
 
 OVERTURE_RELEASE = "2026-09-23.1"
 
-# The pilot. `grid` is the area a request may be answered for; `network` is
-# the street graph, wider on every side so a walk near the grid's edge can
-# still leave it and come back.
-PILOT = {
-    "id": "west-end",
-    "label": "Soho, Covent Garden, Fitzrovia and the Strand",
-    "grid": (-0.141, 51.508, -0.119, 51.519),
-    "network": (-0.150, 51.502, -0.110, 51.525),
+# The area a request may be answered for: every grid point within
+# GRID_RADIUS_M of a station in these fare zones. The street graph is the
+# zones' station box widened by NETWORK_PAD_DEGREES on every side, so a walk
+# near the edge can leave the area and come back, and a station just outside
+# the zones is still a destination.
+AREA = {
+    "id": "zone-1",
+    "label": "Fare Zone 1",
+    "zones": {1},
 }
+GRID_RADIUS_M = 1_000
+NETWORK_PAD_DEGREES = (0.03, 0.02)  # (lng, lat): about 2 km either way in London
 
 GRID_STEP = 0.001
 STATIONS_PER_CELL = 3
@@ -148,15 +154,33 @@ def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def grid_keys(bbox: tuple[float, float, float, float]) -> list[tuple[str, float, float]]:
-    min_lng, min_lat, max_lng, max_lat = bbox
-    lats = np.arange(round(min_lat / GRID_STEP), round(max_lat / GRID_STEP) + 1) * GRID_STEP
-    lngs = np.arange(round(min_lng / GRID_STEP), round(max_lng / GRID_STEP) + 1) * GRID_STEP
+def zone_box(zone_stations: list[dict]) -> tuple[float, float, float, float]:
+    return (
+        min(s["lng"] for s in zone_stations),
+        min(s["lat"] for s in zone_stations),
+        max(s["lng"] for s in zone_stations),
+        max(s["lat"] for s in zone_stations),
+    )
+
+
+def network_box(zone_stations: list[dict]) -> tuple[float, float, float, float]:
+    min_lng, min_lat, max_lng, max_lat = zone_box(zone_stations)
+    pad_lng, pad_lat = NETWORK_PAD_DEGREES
+    return (min_lng - pad_lng, min_lat - pad_lat, max_lng + pad_lng, max_lat + pad_lat)
+
+
+def grid_keys(zone_stations: list[dict]) -> list[tuple[str, float, float]]:
+    """Every grid point within GRID_RADIUS_M of one of the zone's stations."""
+    pad_lng, pad_lat = 0.02, 0.012  # comfortably wider than GRID_RADIUS_M
+    min_lng, min_lat, max_lng, max_lat = zone_box(zone_stations)
+    lats = np.arange(round((min_lat - pad_lat) / GRID_STEP), round((max_lat + pad_lat) / GRID_STEP) + 1) * GRID_STEP
+    lngs = np.arange(round((min_lng - pad_lng) / GRID_STEP), round((max_lng + pad_lng) / GRID_STEP) + 1) * GRID_STEP
     out = []
     for lat in lats:
         for lng in lngs:
             lat_r, lng_r = round(float(lat), 3), round(float(lng), 3)
-            out.append((f"{lat_r:.3f},{lng_r:.3f}", lat_r, lng_r))
+            if any(haversine_m(lat_r, lng_r, s["lat"], s["lng"]) <= GRID_RADIUS_M for s in zone_stations):
+                out.append((f"{lat_r:.3f},{lng_r:.3f}", lat_r, lng_r))
     return out
 
 
@@ -164,11 +188,11 @@ def name_tokens(name: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", name.lower().replace("'", "").replace("\u2019", ""))
 
 
-def load_entrances(path: Path, stations: list[dict]) -> tuple[list[list[tuple[float, float]]], dict]:
+def load_entrances(path: Path, stations: list[dict], zone_stations: list[dict]) -> tuple[list[list[tuple[float, float]]], dict]:
     """Join NaPTAN entrances to stations; return per-station [(lat, lng)] and a tally."""
     joined: list[list[tuple[float, float]]] = [[] for _ in stations]
     tally = {"read": 0, "joined": 0, "unjoined": 0, "inactive": 0}
-    min_lng, min_lat, max_lng, max_lat = PILOT["network"]
+    min_lng, min_lat, max_lng, max_lat = network_box(zone_stations)
     with path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
         missing = NAPTAN_COLUMNS - set(reader.fieldnames or [])
@@ -227,31 +251,31 @@ def main() -> int:
     args = parser.parse_args()
 
     stations_all = json.loads(STATIONS_PATH.read_text())["stations"]
-    min_lng, min_lat, max_lng, max_lat = PILOT["network"]
+    zone_stations = [s for s in stations_all if s.get("zone") in AREA["zones"]]
+    if not zone_stations:
+        print(f"no stations in zones {sorted(AREA['zones'])}", file=sys.stderr)
+        return 1
+    box = network_box(zone_stations)
+    min_lng, min_lat, max_lng, max_lat = box
     stations = sorted(
         (s for s in stations_all if min_lng < s["lng"] < max_lng and min_lat < s["lat"] < max_lat),
         key=lambda s: s["name"],
     )
-    if not stations:
-        print("no stations inside the pilot network box", file=sys.stderr)
-        return 1
 
     entrances: list[list[tuple[float, float]]] = [[] for _ in stations]
     entrance_tally: dict | None = None
     if args.entrances:
-        entrances, entrance_tally = load_entrances(args.entrances, stations)
+        entrances, entrance_tally = load_entrances(args.entrances, stations, zone_stations)
     # Where a walk to each station may end: its entrances, else its mapped point.
     endpoints = [e or [(s["lat"], s["lng"])] for s, e in zip(stations, entrances)]
 
-    graph = walk_graph(*load_segments(PILOT["network"]))
+    graph = walk_graph(*load_segments(box))
     node_ids = list(graph.nodes)
-    node_xy = np.array([graph.nodes[n]["pos"] for n in node_ids])
+    tree = cKDTree(np.array([graph.nodes[n]["pos"] for n in node_ids]))
 
     def snap(lat: float, lng: float) -> tuple[object, float]:
-        x, y = to_bng.transform(lng, lat)
-        d = np.hypot(node_xy[:, 0] - x, node_xy[:, 1] - y)
-        i = int(d.argmin())
-        return node_ids[i], float(d[i])
+        distance, i = tree.query(to_bng.transform(lng, lat))
+        return node_ids[int(i)], float(distance)
 
     # One search per station from all of its endpoints at once: a virtual
     # source joined to each endpoint's street node by that endpoint's snap leg,
@@ -271,7 +295,8 @@ def main() -> int:
     cells: dict[str, list[list[int]]] = {}
     skipped_snap = 0
     ratios: list[float] = []
-    for key, lat, lng in grid_keys(PILOT["grid"]):
+    keys = grid_keys(zone_stations)
+    for key, lat, lng in keys:
         node, snap_m = snap(lat, lng)
         if snap_m > MAX_SNAP_M:
             skipped_snap += 1
@@ -319,7 +344,18 @@ def main() -> int:
             "city2graph": version("city2graph"),
             "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
-        "pilot": {"id": PILOT["id"], "label": PILOT["label"], "grid": list(PILOT["grid"])},
+        "area": {
+            "id": AREA["id"],
+            "label": AREA["label"],
+            "gridRadiusMetres": GRID_RADIUS_M,
+            "zoneStations": len(zone_stations),
+            "grid": [
+                min(lng for _, _, lng in keys),
+                min(lat for _, lat, _ in keys),
+                max(lng for _, _, lng in keys),
+                max(lat for _, lat, _ in keys),
+            ],
+        },
         "gridStepDegrees": GRID_STEP,
         "maxWalkMetres": MAX_WALK_M,
         "stations": [

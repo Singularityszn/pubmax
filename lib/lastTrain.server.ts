@@ -531,7 +531,7 @@ function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): R
 }
 
 // Walk estimate: venue (the point the card was called with) → station, at a
-// brisk walking pace. Inside the street-walk pilot it follows the streets
+// brisk walking pace. Inside the street-walk area it follows the streets
 // (lib/stationWalkAccess); everywhere else it is the straight line. The
 // response's `walkBasis` says which, so the card never passes one off as the
 // other.

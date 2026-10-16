@@ -514,7 +514,7 @@ describe("GET /api/last-train", () => {
     expect(afterBody.decision.leaveByIso).toBe("2026-10-25T00:30:00.000Z");
   });
 
-  it("walks to the station along the streets inside the pilot, and says so", async () => {
+  it("walks to the station along the streets inside Zone 1, and says so", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
     // TfL's hub point for Tottenham Court Road, about 60 m from ours.
@@ -537,13 +537,14 @@ describe("GET /api/last-train", () => {
     expect(body.decision.walkMinutesEstimate).toBe(6);
   });
 
-  it("keeps the straight line outside the pilot and labels it", async () => {
+  it("keeps the straight line outside the street-walk area and labels it", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
-    mockLastTrainResponses("24", "30");
+    // Brixton is Zone 2, more than 1 km from any Zone 1 station.
+    mockLastTrainResponses("24", "30", { id: "940GZZLUBXN", commonName: "Brixton", lat: 51.4627, lon: -0.1145 });
 
     const res = await GET(
-      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+      new Request("http://localhost/api/last-train?lat=51.4627&lng=-0.1145", {
         headers: { "x-forwarded-for": "198.51.100.37" },
       }),
     );
@@ -576,21 +577,21 @@ describe("GET /api/last-train", () => {
     expect(body.decision.walkMinutesEstimate).toBe(6);
   });
 
-  it("keeps TfL's first station outside the pilot", async () => {
+  it("keeps TfL's first station outside the street-walk area", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
     mockLastTrainResponses("24", "30", [
-      OXFORD_CIRCUS_FIXTURE,
-      { id: "940GZZLUCHX", commonName: "Charing Cross", lat: 51.5082, lon: -0.1247 },
+      { id: "940GZZLUBXN", commonName: "Brixton", lat: 51.4627, lon: -0.1145 },
+      { id: "940GZZLUSKW", commonName: "Stockwell", lat: 51.4723, lon: -0.123 },
     ]);
 
     const res = await GET(
-      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+      new Request("http://localhost/api/last-train?lat=51.4627&lng=-0.1145", {
         headers: { "x-forwarded-for": "198.51.100.39" },
       }),
     );
     const body = await res.json();
-    expect(body.station.id).toBe("940GZZLUOXC");
+    expect(body.station.id).toBe("940GZZLUBXN");
     expect(body.walkBasis).toBe("straight");
   });
 });

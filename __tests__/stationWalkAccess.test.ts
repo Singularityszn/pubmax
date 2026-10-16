@@ -34,7 +34,7 @@ describe("streetWalkMetres", () => {
     expect(streetWalkMetres({ lat: 51.51404, lng: -0.13196 }, FIXTURE.stations[1]!, FIXTURE)).toBe(489);
   });
 
-  it("returns null outside the pilot, so the caller keeps the straight line", () => {
+  it("returns null outside the table, so the caller keeps the straight line", () => {
     expect(streetWalkMetres({ lat: 51.53, lng: -0.12 }, FIXTURE.stations[0]!, FIXTURE)).toBeNull();
   });
 
@@ -137,8 +137,8 @@ describe("data/station_walk_access.json", () => {
     expect(Object.keys(access.cells).length).toBeGreaterThan(200);
   });
 
-  it("keys every cell on the grid coarsenViewerPoint rounds to, inside the pilot", () => {
-    const [minLng, minLat, maxLng, maxLat] = raw.pilot.grid as number[];
+  it("keys every cell on the grid coarsenViewerPoint rounds to, inside the area", () => {
+    const [minLng, minLat, maxLng, maxLat] = raw.area.grid as number[];
     for (const key of Object.keys(access.cells)) {
       const [lat, lng] = key.split(",").map(Number) as [number, number];
       expect(cellKey(lat, lng)).toBe(key);

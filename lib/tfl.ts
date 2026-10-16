@@ -174,7 +174,7 @@ export type LastTrainResult = {
   staticFallback?: boolean;
   /**
    * How `decision.walkMinutesEstimate` was measured: along the streets
-   * (lib/stationWalkAccess, a pilot area) or the straight line everywhere else.
+   * (lib/stationWalkAccess, Zone 1 and 1 km around it) or the straight line everywhere else.
    */
   walkBasis?: WalkBasis;
 };
