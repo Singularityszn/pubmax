@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // P3.11 smoke suite. High-signal, non-flaky, WebGL-agnostic: nothing here asserts
 // that the MapLibre canvas actually paints (headless boxes have no GPU), only
@@ -219,7 +220,7 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
+  await expectMobileMapShellReady(page, 20_000);
   // The phone map chrome is ONE bar (design judgement 2026-08-01, finding 2.3).
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
 

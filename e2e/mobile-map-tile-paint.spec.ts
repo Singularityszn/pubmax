@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 /** Pre-fix throttled cold-open baseline (Aug 2026 repro). */
@@ -171,7 +172,7 @@ test.describe("mobile map tile paint", () => {
     });
 
     await page.goto("/map");
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 15_000 });

@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -171,9 +172,7 @@ async function preparePhoneMap(
 
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({
-    timeout: 45_000,
-  });
+  await expectMobileMapShellReady(page, 45_000);
 }
 
 async function openPhoneMap(
