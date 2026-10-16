@@ -331,6 +331,20 @@
       "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
     },
     {
+      "id": "osm_pub_facts",
+      "label": "London pub facts from OpenStreetMap (ODbL pack)",
+      "class": "episodic",
+      "artifact": "data/osm/facts/london_pub_facts.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "extractedAt"
+      },
+      "cadence": "episodic - npm run build:osm-pub-facts after npm run fetch:uk-pubs refreshes data/osm/uk/raw/",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-pub-facts)",
+      "gate": "none (offline read of the committed data/osm/uk/raw/ chunks; OSM data, ODbL)"
+    },
+    {
       "id": "area_news",
       "label": "Area news (fresh-facts layer)",
       "class": "snapshot",

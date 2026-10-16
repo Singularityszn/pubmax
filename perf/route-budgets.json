@@ -409,6 +409,15 @@
       "lcpMs": 500
     },
     {
+      "path": "/price-pulse",
+      "readySelector": "main.pricePulsePage",
+      "why": "The weekly Price Pulse and the Where your £6 goes explainer. It is the legal shell plus SiteNav, the same composition as /about, and it reads the Pint Drop store only for a line that names a pub on the map. Seeded 16 October 2026 unmeasured, in family with /about: the CI sweep is the oracle and these ceilings come down at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 960,
+      "requests": 43,
+      "lcpMs": 500
+    },
+    {
       "path": "/places",
       "readySelector": "main.placesBody",
       "why": "The Places tab, which sets the one city Map, Out and Near follow. It shipped in #1368 after this sweep's route list was drawn, and an unbudgeted route is one nothing can regress.",
