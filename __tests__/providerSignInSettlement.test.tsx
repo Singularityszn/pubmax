@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { AuthError, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/components/auth/authContext";
 
@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
   nativeOAuth: vi.fn(), exchange: vi.fn(), verify: vi.fn(), authenticate: vi.fn(), cancel: vi.fn(),
   listeners: new Set<(event: { url: string }) => void>(),
   otpBody: null as Record<string, unknown> | null,
+  clientHold: null as Promise<void> | null, clientHeld: false, clientFailure: null as null | "missing" | "rejected",
+  otpHold: null as Promise<Response> | null, otpHeld: false,
 }));
 vi.mock("@capacitor/app", () => ({ App: {
   addListener: async (_name: string, listener: (event: { url: string }) => void) => {
@@ -36,7 +38,14 @@ vi.mock("@/lib/authClient", async (original) => ({
     signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: h.stopAutoRefresh,
   } }),
   isAuthConfigured: () => true,
-  ensureSupabaseBrowser: async () => h.realAuth,
+  ensureSupabaseBrowser: async () => {
+    const hold = h.clientHold;
+    if (hold) { h.clientHold = null; h.clientHeld = true; await hold; }
+    const failure = h.clientFailure;
+    h.clientFailure = null;
+    if (failure === "rejected") throw new Error("client unavailable");
+    return failure === "missing" ? null : h.realAuth;
+  },
   getAccessToken: async () => (await h.realAuth!.auth.getSession()).data.session?.access_token ?? null,
 }));
 vi.mock("@/lib/authSessionBootstrap", () => ({
@@ -84,7 +93,8 @@ let container: HTMLDivElement;
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks(); uiOperations.length = 0;
-  h.realAuth = null; h.otpBody = null; h.listeners.clear();
+  h.realAuth = null; h.otpBody = null; h.listeners.clear(); h.clientHold = null; h.clientHeld = false; h.clientFailure = null;
+  h.otpHold = null; h.otpHeld = false;
   h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/login");
@@ -93,7 +103,12 @@ beforeEach(() => {
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), window.location.href);
     if (url.pathname === "/api/auth/providers") return Response.json({ google: true, apple: true, microsoft: true });
-    if (url.pathname === "/auth/v1/otp") { h.otpBody = JSON.parse(String(init?.body)); return Response.json({}); }
+    if (url.pathname === "/auth/v1/otp") {
+      h.otpBody = JSON.parse(String(init?.body));
+      const hold = h.otpHold;
+      if (hold) { h.otpHold = null; h.otpHeld = true; return hold; }
+      return Response.json({});
+    }
     if (url.pathname === "/auth/v1/user") return Response.json(replacement.user);
     return Response.json({});
   });
@@ -210,5 +225,142 @@ describe("provider UI settlement through native callbacks and canonical SDK", ()
         }
       }
     }
+  });
+});
+
+describe("a still-mounted email form after its native start loses ownership", () => {
+  const ALERTS = '.authMagicLink [role="alert"]';
+  async function mountPage() {
+    const actual = await vi.importActual<typeof import("@/lib/authClient")>("@/lib/authClient");
+    await act(async () => root.unmount());
+    h.realAuth = await actual.ensureSupabaseBrowser();
+    await mountSurface("page");
+    await enterEmail();
+  }
+  function submit() {
+    return click(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!);
+  }
+  async function expectQuietForm() {
+    await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!.textContent).not.toBe("Sending…"), { timeout: 1000 });
+    expect(container.querySelector(ALERTS)).toBeNull();
+    expect(container.querySelector(".authMagicLinkSuccess")).toBeNull();
+    expect(container.querySelector(".authMagicLinkCancel")).toBeNull();
+    expect(emailField().getAttribute("aria-invalid")).toBe("false");
+  }
+
+  it("shows no link-expiry alert when a restored page cancels a start held at client lookup", async () => {
+    await mountPage();
+    let release!: () => void;
+    h.clientHold = new Promise<void>((resolve) => { release = resolve; });
+    try {
+      await submit();
+      await vi.waitFor(() => expect(h.clientHeld).toBe(true), { timeout: 1000 });
+      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+      await act(async () => { window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true })); });
+    } finally { await act(async () => { release(); }); }
+    await expectQuietForm();
+    expect(emailField().disabled).toBe(false);
+    expect(container.textContent).not.toContain("The link may be invalid or expired");
+    expect(h.otpBody).toBeNull();
+    expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+  });
+
+  it("shows no storage alert when a provider start supersedes the email during receipt crypto", async () => {
+    await mountPage();
+    let release!: (digest: ArrayBuffer) => void;
+    const held = new Promise<ArrayBuffer>((resolve) => { release = resolve; });
+    let holding = false;
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, "digest").mockImplementationOnce(async () => { holding = true; return held; })
+      .mockImplementation((...args: Parameters<typeof digest>) => digest(...args));
+    let cancelProvider!: (error: Error) => void;
+    h.authenticate.mockImplementationOnce(() => new Promise((_resolve, reject) => { cancelProvider = reject; }));
+    try {
+      await submit();
+      await vi.waitFor(() => expect(holding).toBe(true), { timeout: 1000 });
+      await click(providerButton("Google"));
+      await vi.waitFor(() => expect(h.authenticate).toHaveBeenCalledOnce(), { timeout: 1000 });
+      await act(async () => { release(new ArrayBuffer(32)); });
+      await expectQuietForm();
+      expect(emailField().disabled).toBe(true);
+      expect(container.textContent).not.toContain("Sign-in needs browser storage");
+      expect(h.otpBody).toBeNull();
+      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+    } finally {
+      release(new ArrayBuffer(32));
+      await act(async () => { cancelProvider?.(new Error("cancelled")); await uiOperations.at(-1)?.promise.catch(() => {}); });
+    }
+    await vi.waitFor(() => expect(emailField().disabled).toBe(false), { timeout: 1000 });
+    expect(container.querySelector(ALERTS)).toBeNull();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+  });
+
+  async function expectNoEmailStarted() {
+    expect(container.textContent).not.toContain("The link may be invalid or expired");
+    expect(h.otpBody).toBeNull();
+    expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+    expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+  }
+
+  it.each(["missing", "rejected"] as const)("names an unavailable auth client when it is %s before a link exists", async (failure) => {
+    await mountPage();
+    h.clientFailure = failure;
+    await submit();
+    await vi.waitFor(() => expect(container.querySelector(ALERTS)?.textContent).toBe("Sign-in is not configured."), { timeout: 1000 });
+    await expectNoEmailStarted();
+  });
+
+  it.each(["rejected", "errored"] as const)("says the sign-in state is unconfirmed when the session lookup is %s", async (failure) => {
+    await mountPage();
+    const lookup = vi.spyOn(h.realAuth!.auth, "getSession").mockImplementationOnce(async () => {
+      if (failure === "rejected") throw new Error("lookup failed");
+      return { data: { session: null }, error: new AuthError("lookup failed") };
+    });
+    await submit();
+    await vi.waitFor(() => expect(container.querySelector(ALERTS)?.textContent).toBe("Your sign-in state could not be confirmed. Try again."), { timeout: 1000 });
+    expect(lookup).toHaveBeenCalled();
+    await expectNoEmailStarted();
+  });
+
+  it.each([
+    ["restored page", "sent"], ["restored page", "failed"], ["provider start", "sent"], ["provider start", "failed"],
+  ] as const)("keeps the form quiet when a %s takes over before a held %s email response settles", async (change, outcome) => {
+    await mountPage();
+    const response = () => outcome === "sent" ? Response.json({}) : Response.json({ msg: "upstream failure" }, { status: 500 });
+    let release!: (response: Response) => void;
+    h.otpHold = new Promise<Response>((resolve) => { release = resolve; });
+    let cancelProvider: ((error: Error) => void) | undefined;
+    if (change === "provider start") {
+      h.authenticate.mockImplementationOnce(() => new Promise((_resolve, reject) => { cancelProvider = reject; }));
+    }
+    try {
+      await submit();
+      await vi.waitFor(() => expect(h.otpHeld).toBe(true), { timeout: 1000 });
+      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).not.toBeNull();
+      if (change === "restored page") {
+        await act(async () => { window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true })); });
+      } else {
+        await click(providerButton("Google"));
+        await vi.waitFor(() => expect(h.authenticate).toHaveBeenCalledOnce(), { timeout: 1000 });
+      }
+      await act(async () => { release(response()); });
+      await expectQuietForm();
+      expect(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!.textContent).not.toBe("Link sent");
+      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+    } finally {
+      release(response());
+      if (cancelProvider) await act(async () => { cancelProvider!(new Error("cancelled")); await uiOperations.at(-1)?.promise.catch(() => {}); });
+    }
+    await vi.waitFor(() => expect(emailField().disabled).toBe(false), { timeout: 1000 });
+    expect(container.querySelector(ALERTS)).toBeNull();
+    expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    expect(h.persist).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
   });
 });

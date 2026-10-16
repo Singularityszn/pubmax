@@ -146,6 +146,10 @@ export { useAuth } from "@/components/auth/authContext";
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
+const AUTH_STATE_UNCONFIRMED_MESSAGE = "Your sign-in state could not be confirmed. Try again.";
+// An obsolete native email start cannot publish a visible result, even if its
+// transport already ran. The form returns to idle with no alert and no sent claim.
+const NATIVE_EMAIL_SUPERSEDED: MagicLinkResult = { status: "cancelled", message: "" };
 
 function signedInAsMessage(user: User): string {
   const address = authCallbackConfirmationLabel({
@@ -992,7 +996,7 @@ export function AuthProvider({
       return { error: "You are already signed in. Use Switch account to add or change an account." };
     }
     if (sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") !== "signed-out") {
-      return { error: "Your sign-in state could not be confirmed. Try again." };
+      return { error: AUTH_STATE_UNCONFIRMED_MESSAGE };
     }
     const revision = readProviderIdentityRevision();
     if (!await nativeAuthSessionAvailable()) return { error: "Update the iPhone app to use Google, Apple or Microsoft sign-in." };
@@ -1081,9 +1085,11 @@ export function AuthProvider({
     await cancelPendingNativeAuth();
     const ticket = nativeAuthLifetime.current.begin();
     const supabase = await ensureSupabaseBrowser().catch(() => null);
-    if (!ticket.current()) return { status: "error", message: AUTH_CALLBACK_ERROR_MESSAGE };
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
     const activeSession = await supabase?.auth.getSession().catch(() => null);
-    if (!ticket.current() || !supabase || !activeSession || activeSession.error) return { status: "error", message: AUTH_CALLBACK_ERROR_MESSAGE };
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
+    if (!supabase) return { status: "error", message: "Sign-in is not configured." };
+    if (!activeSession || activeSession.error) return { status: "error", message: AUTH_STATE_UNCONFIRMED_MESSAGE };
     if (activeSession.data.session) {
       const page = new URL(window.location.href);
       if ((page.pathname === "/login" || page.pathname === "/signin") && page.searchParams.getAll(LOGIN_ADD_ACCOUNT_PARAM).length === 1 &&
@@ -1091,17 +1097,20 @@ export function AuthProvider({
           sessionTransitions.current.currentUserId() === activeSession.data.session.user.id) return { useExistingEmail: true };
       return { status: "error", message: "You are already signed in. Use Switch account to add or change an account." };
     }
-    if (sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") !== "signed-out") return { status: "error", message: AUTH_CALLBACK_ERROR_MESSAGE };
+    if (sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") !== "signed-out") return { status: "error", message: AUTH_STATE_UNCONFIRMED_MESSAGE };
     const attempt = await prepareAuthCallback(window.location.href, next ?? defaultEmailAuthNext(window.location.href),
       () => ticket.current() && sessionTransitions.current.currentUserId() === null && readProviderAuthState("supabase") === "signed-out");
     if ("navigationStarted" in attempt) return { status: "error", message: "Continue sign-in on pubmaxxing.com." };
-    if (!attempt.ok) return { status: "error", message: attempt.message };
+    if (!attempt.ok) return ticket.current() ? { status: "error", message: attempt.message } : NATIVE_EMAIL_SUPERSEDED;
     const config = nativeEmailAuthConfig();
     if (!config) { releaseBrowserAuthAttempt(attempt.id); return { status: "error", message: "Sign-in is not configured." }; }
     const prepared = await prepareNativeEmailReceipt(attempt, email, browserLocalStorage(), Date.now(), ticket.current, config);
-    if (!prepared || !config || !ticket.current()) {
+    if (prepared.status !== "prepared" || !ticket.current()) {
       removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
-      return { status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." };
+      if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
+      return prepared.status === "storage"
+        ? { status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." }
+        : { status: "error", message: "Sign-in could not be started. Try again." };
     }
     const result = email === null
       ? await requestResumeLink(prepared.receipt.callbackUrl, fetch, { codeChallenge: prepared.challenge })
@@ -1109,7 +1118,7 @@ export function AuthProvider({
     if (result.status !== "sent") {
       removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
     }
-    return result;
+    return ticket.current() ? result : NATIVE_EMAIL_SUPERSEDED;
   }, [cancelPendingNativeAuth]);
 
   // Android opens the provider through lib/nativeOAuth.ts and returns via its
