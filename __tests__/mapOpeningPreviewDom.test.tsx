@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
+import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import {
   MAP_OPENING_FRAME_EVENT,
   MAP_OPENING_PREVIEW_CAMERA,
@@ -38,10 +39,8 @@ const DISC: OpeningPreviewDisc = {
   priceGbp: 5.2,
   figure: "£5.20",
   count: 93,
-  badge: "93",
-  ringBand: 2,
-  shares: [0.1, 0.25, 0.3, 0.35],
-  bands: [9, 23, 28, 33],
+  figureBand: 0,
+  priceKey: 5200,
 };
 
 beforeEach(() => {
@@ -106,7 +105,26 @@ describe("MapOpeningPreview", () => {
     expect(html).toContain("--y:30px");
     expect(html).toContain('elementtiming="map-first-price"');
     expect(html).toContain(">£5.20<");
-    expect(html).toContain(">93<");
+  });
+
+  it("draws the canvas's disc: neutral, 'from' over the figure in its own band's ink, no count", () => {
+    const html = renderToStaticMarkup(
+      createElement(MapOpeningPreview, { discs: [DISC, { ...DISC, id: 257, figureBand: 2 }] }),
+    );
+    expect(html).toContain(">from<");
+    expect(html).toContain("--figure-ink:var(--price-band-cheap-ink)");
+    expect(html).toContain("--figure-ink:var(--price-band-expensive-ink)");
+    // The map drops a caption a neighbour is in the way of; the document cannot
+    // know which, so it draws no count at all.
+    expect(html).not.toContain(">93<");
+    expect(html).not.toContain("pubs<");
+  });
+
+  it("sizes 'from' as the canvas does", () => {
+    const css = readFileSync(join(process.cwd(), "components/map/mapOpeningPreview.css"), "utf8");
+    expect(css).toContain(`calc(var(--figure-size) * ${DONUT_CAPTION_SCALE})`);
+    // The ring is neutral, as the canvas's is: no band, no band mix.
+    expect(css).not.toMatch(/conic-gradient|--segments|--ring\b/);
   });
 
   it("renders nothing when the build found no discs", () => {

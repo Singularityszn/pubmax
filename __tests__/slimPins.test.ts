@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
+import { pinsToSlimVenues, slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 const slim: SlimVenue = {
@@ -144,5 +144,14 @@ describe("slimVenuesToPins", () => {
 
   it("returns [] for an empty input", () => {
     expect(slimVenuesToPins([])).toEqual([]);
+  });
+});
+
+describe("pinsToSlimVenues", () => {
+  it("keeps the published price's read day in the resume snapshot, so a restored pin is not aged", () => {
+    const pin = slimVenueToPin({ ...slim, priceObservedAt: "2026-10-01" });
+    const compacted = pinsToSlimVenues([pin])[0]!;
+    expect(compacted.priceObservedAt).toBe("2026-10-01");
+    expect(slimVenueToPin(compacted).priceObservedAt).toBe("2026-10-01");
   });
 });

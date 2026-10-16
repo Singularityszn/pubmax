@@ -10,6 +10,8 @@ import {
   buildUkBase,
   CLUSTER_CASING_PX,
   CLUSTER_COLLISION_PADDING,
+  CLUSTER_LABEL_HALF_HEIGHT_EM,
+  clusterCaptionTopPx,
   CLUSTER_DISC_SMALL_FROM_ZOOM,
   CLUSTER_MAX_RADIUS_PX,
   CLUSTER_MIN_RADIUS_PX,
@@ -35,7 +37,9 @@ import {
 } from "@/components/map/canvas/buildScene";
 import {
   CLUSTER_COUNT_BADGE_FILTER,
+  CLUSTER_COUNT_CAPTION_EXPR,
   CLUSTER_FIGURE_EXPR,
+  CLUSTER_PRICE_KEY_PROPERTY,
   CLUSTER_PRICE_NONE,
   clusterEntranceProgress,
   pricePillFilter,
@@ -48,6 +52,7 @@ import {
   SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
+import { DONUT_CAPTION_SCALE } from "@/lib/donutClusterGeometry";
 import type { Landmark } from "@/lib/landmarks";
 import {
   GLOW_BASE_STROKE_OPACITY,
@@ -68,6 +73,10 @@ type BuiltLayer = maplibregl.AddLayerObject & {
   filter?: unknown;
 };
 
+// Distinct stand-ins, so a test can tell a band ink from the neutral ring.
+const BAND_INK = ["#118811", "#888811", "#881111"] as const;
+const NEUTRAL_LINE = "#dddddd";
+
 function buildScenePieces(selectedId = "") {
   const layers = new Map<string, BuiltLayer>();
   const sources = new Map<string, Record<string, unknown>>();
@@ -85,7 +94,13 @@ function buildScenePieces(selectedId = "") {
       {},
       {
         get: (_target, key) =>
-          key === "priceStampTiltDeg" ? -1.5 : "#000000",
+          key === "priceStampTiltDeg"
+            ? -1.5
+            : key === "bandInk"
+              ? BAND_INK
+              : key === "line"
+                ? NEUTRAL_LINE
+                : "#000000",
       },
     ) as unknown as Tokens,
     dark: false,
@@ -478,10 +493,24 @@ describe("symbol collision policy", () => {
         const feature = { type: 1, properties } as never;
         const label = String(field.evaluate({ zoom } as never, feature));
         const px = Number(size.evaluate({ zoom } as never, feature));
-        expect(label.length * ADVANCE_EM * px, `${label} at z${zoom}`).toBeLessThan(paper);
-        // The figure's padded box reaches the disc's edge, so no label can land
-        // on the top or bottom of the disc.
-        expect(px / 2 + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(outer);
+        // A priced disc is two lines: a small "from" over the figure. Each line
+        // fits across the paper, and the two together fit down it.
+        const lines = label.split("\n");
+        for (const line of lines) {
+          const scale = line === "from" ? DONUT_CAPTION_SCALE : 1;
+          expect(line.length * ADVANCE_EM * px * scale, `${line} at z${zoom}`).toBeLessThan(paper);
+        }
+        const LINE_HEIGHT_EM = 1.2;
+        const tall = lines.reduce((sum, line) => sum + px * (line === "from" ? DONUT_CAPTION_SCALE : 1), 0);
+        expect(tall * LINE_HEIGHT_EM, `${label} height at z${zoom}`).toBeLessThan(paper);
+        // A priced disc's padded two-line block reaches the disc's edge, so no
+        // label can land on the top or bottom of it.
+        if (lines.length === 2) {
+          expect(CLUSTER_LABEL_HALF_HEIGHT_EM * px + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(outer);
+          // And its own caption starts past that box, so it only ever gives
+          // way to a NEIGHBOUR, never to its own disc.
+          expect(clusterCaptionTopPx(outer)).toBeGreaterThan(CLUSTER_LABEL_HALF_HEIGHT_EM * px + CLUSTER_COLLISION_PADDING);
+        }
       }
     }
     // A short figure keeps the full size: only a long one steps down.
@@ -916,31 +945,32 @@ describe("pubs-selected-glow is built on its rest frame", () => {
 });
 
 
-// A cluster is a paper disc wearing a band ring and the cheapest price inside it.
-// The band used to be the fill, which painted every dear pocket of London in the
-// coral that owns the Plan CTA.
-describe("cluster disc (paper, ring, cheapest price)", () => {
+// A cluster is a NEUTRAL paper disc with "from" over the cheapest price inside
+// it, that price in its own band's ink, and "n pubs" under it (owner decision
+// 16 Oct 2026). The ring used to wear the commonest band, so "£2.49" could
+// stand in the red "dear" ring of the pubs round it.
+describe("cluster disc (neutral, from the cheapest price, n pubs)", () => {
   const { layers, sources } = buildScenePieces();
   const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
   const paint = (id: string) => (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
 
-  it("stacks casing, disc, count and rim count in that order, each over the last", () => {
+  it("stacks casing, disc, count caption and figure, so the figure places first and the caption gives way", () => {
     const ids = [...layers.keys()];
     const at = (id: string) => ids.indexOf(id);
     expect(at("clusters-casing")).toBeGreaterThan(-1);
     expect(at("clusters-casing")).toBeLessThan(at("clusters"));
-    expect(at("clusters")).toBeLessThan(at("cluster-count"));
-    expect(at("cluster-count")).toBeLessThan(at("cluster-count-badge"));
+    expect(at("clusters")).toBeLessThan(at("cluster-count-badge"));
+    expect(at("cluster-count-badge")).toBeLessThan(at("cluster-count"));
   });
 
-  it("fills the disc with paper and puts the band on the ring alone", () => {
+  it("fills the disc with paper and rings it in the neutral hairline, never a band", () => {
     const disc = paint("clusters");
-    // A constant, never a data expression: no price band can reach a fill.
+    // Constants, never data expressions: no price band can reach the disc.
     expect(typeof disc["circle-color"]).toBe("string");
-    expect(JSON.stringify(disc["circle-color"])).not.toContain("b0");
-    // The ring is where the band lives, and it is the price band's own tokens.
-    const ring = JSON.stringify(disc["circle-stroke-color"]);
-    for (const key of ["b0", "b1", "b2"]) expect(ring).toContain(`"${key}"`);
+    expect(disc["circle-stroke-color"]).toBe(NEUTRAL_LINE);
+    const discJson = JSON.stringify(disc);
+    for (const key of ["b0", "b1", "b2", "s0", "minPriceKey"]) expect(discJson).not.toContain(`"${key}"`);
+    for (const ink of BAND_INK) expect(discJson).not.toContain(ink);
     expect(disc["circle-stroke-width"]).toBe(CLUSTER_RING_PX);
     expect(CLUSTER_RING_PX).toBe(3);
   });
@@ -968,8 +998,12 @@ describe("cluster disc (paper, ring, cheapest price)", () => {
     }
   });
 
-  it("prints the cheapest price, or the count where no pub in the disc says one", () => {
-    expect(layout("cluster-count")["text-field"]).toEqual(CLUSTER_FIGURE_EXPR);
+  it("prints from and the cheapest price in its band's ink, or the count where no pub says one", () => {
+    const field = JSON.stringify(layout("cluster-count")["text-field"]);
+    expect(field).toContain('"format"');
+    expect(field).toContain('"from"');
+    expect(field).toContain(JSON.stringify(CLUSTER_FIGURE_EXPR));
+    for (const ink of BAND_INK) expect(field).toContain(ink);
     // The cheaper disc wins a contested spot; a count is the weaker answer.
     expect(layout("cluster-count")["symbol-sort-key"]).toEqual([
       "coalesce",
@@ -984,16 +1018,19 @@ describe("cluster disc (paper, ring, cheapest price)", () => {
       "min",
       ["coalesce", ["get", "clusterPrice"], CLUSTER_PRICE_NONE],
     ]);
-    // The band counts the ring reads are untouched.
+    // The same figure carrying its own pub's band, so the ink is that pub's.
+    expect(props.minPriceKey).toEqual(CLUSTER_PRICE_KEY_PROPERTY);
+    // The band counts are still reduced (the map key and the rendered state read them).
     for (const key of ["b0", "b1", "b2", "b3", "s0", "s1", "s2", "s3"]) {
       expect(props[key]?.[0]).toBe("+");
     }
   });
 
-  it("wears the count on the rim only once the disc has a price and ten pubs", () => {
+  it("hangs n pubs under every disc that has a price, and nothing under one that has none", () => {
     expect(layers.get("cluster-count-badge")?.filter).toEqual(CLUSTER_COUNT_BADGE_FILTER);
     const badge = layout("cluster-count-badge");
-    expect(badge["text-field"]).toEqual(["get", "point_count_abbreviated"]);
+    expect(badge["text-field"]).toEqual(CLUSTER_COUNT_CAPTION_EXPR);
+    expect(badge["text-anchor"]).toBe("top");
     expect(badge["text-size"]).toBe(10);
     // Never invisible to placement, like every other app symbol.
     expect(badge["text-ignore-placement"]).toBe(false);
@@ -1001,9 +1038,17 @@ describe("cluster disc (paper, ring, cheapest price)", () => {
     const at = (point_count: number, minPrice: number) =>
       filter({ zoom: 12 }, { type: 1, properties: { point_count, minPrice } } as never);
     expect(at(94, 3.2)).toBe(true);
-    expect(at(10, 3.2)).toBe(true);
-    expect(at(9, 3.2)).toBe(false);
+    expect(at(2, 3.2)).toBe(true);
     expect(at(94, CLUSTER_PRICE_NONE)).toBe(false);
+    const caption = createExpression(CLUSTER_COUNT_CAPTION_EXPR as never, {
+      type: "string",
+      "property-type": "data-driven",
+      expression: { interpolated: false, parameters: ["zoom", "feature"] },
+    } as never);
+    if (caption.result !== "success") throw new Error("caption did not compile");
+    expect(
+      caption.value.evaluate({ zoom: 12 } as never, { type: 1, properties: { point_count_abbreviated: "12" } } as never),
+    ).toBe("12 pubs");
   });
 
   it("still ignores nothing: the figure reserves the disc's space", () => {
@@ -1133,5 +1178,13 @@ describe("landmark pictogram size", () => {
   it("grows only into the landmark inspector's band, where the pictogram is the hero", () => {
     expect(size(15)).toBeCloseTo(LANDMARK_INSPECTOR_ICON_SIZE_PX, 5);
     expect(size(17)).toBeCloseTo(LANDMARK_INSPECTOR_ICON_SIZE_PX, 5);
+  });
+});
+
+describe("the cluster count caption gives way", () => {
+  it("drops rather than draw over a neighbouring disc", () => {
+    const badge = (buildScenePieces().layers.get("cluster-count-badge")?.layout ?? {}) as Record<string, unknown>;
+    expect(badge["text-allow-overlap"]).toBe(false);
+    expect(badge["text-ignore-placement"]).toBe(false);
   });
 });

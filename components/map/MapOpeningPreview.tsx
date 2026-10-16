@@ -25,23 +25,22 @@ import "./mapOpeningPreview.css";
 // handoff: the preview stands down when the map reveals its own pins, or the
 // moment the frame the map is about to draw differs from the one drawn here
 // (the canvas publishes each one before its reveal, and this re-clusters it:
-// another camera, another cluster, another count or another cheapest price),
-// or when the map says it cannot draw at all. It never re-appears.
+// another camera, another cluster, another count, another cheapest price or
+// another band mix), or when the map says it cannot draw at all. It never
+// re-appears.
+//
+// The disc is the canvas's: neutral paper, a plain ring, "from" over the
+// cheapest figure in that figure's own band ink (components/map/canvas/
+// filters.ts, clusterLabelExpr). The "n pubs" caption under a canvas disc is
+// left off: the map drops a caption where a neighbour is in its way, and the
+// document cannot know which, so it draws none rather than one the map won't.
 
-/** The band colours a ring can wear, in band order; 3 is no known price. */
-const RING_COLOURS = ["var(--pint)", "var(--amber)", "var(--brick)", "var(--muted)"] as const;
-
-function segmentsFor(shares: OpeningPreviewDisc["shares"]): string {
-  let from = 0;
-  const stops: string[] = [];
-  shares.forEach((share, index) => {
-    if (share <= 0) return;
-    const to = Math.min(1, from + share);
-    stops.push(`${RING_COLOURS[index]} ${(from * 100).toFixed(1)}% ${(to * 100).toFixed(1)}%`);
-    from = to;
-  });
-  return stops.length > 0 ? `conic-gradient(${stops.join(", ")})` : RING_COLOURS[3];
-}
+/** The ink a figure wears, by the band of the pub that says it. */
+const FIGURE_INKS = [
+  "var(--price-band-cheap-ink)",
+  "var(--price-band-average-ink)",
+  "var(--price-band-expensive-ink)",
+] as const;
 
 /** Marked when the preview stands down, so a timing can read the handoff. */
 const MAP_OPENING_PREVIEW_DONE_MARK = "pubmax:opening-preview-done";
@@ -98,12 +97,12 @@ export default function MapOpeningPreview({ discs }: { discs: readonly OpeningPr
               {
                 "--x": `${disc.x}px`,
                 "--y": `${disc.y}px`,
-                "--ring": RING_COLOURS[disc.ringBand],
-                "--segments": segmentsFor(disc.shares),
+                "--figure-ink": FIGURE_INKS[disc.figureBand],
                 "--figure-size": `${donutFigureFontSize(disc.figure.length, DONUT_OUTER_RADIUS_LARGE)}px`,
               } as CSSProperties
             }
           >
+            <span className="mapOpeningPreviewFrom">from</span>
             <span
               className="mapOpeningPreviewFigure"
               // The first price a reader sees, for the field and lab timings.
@@ -111,7 +110,6 @@ export default function MapOpeningPreview({ discs }: { discs: readonly OpeningPr
             >
               {disc.figure}
             </span>
-            {disc.badge ? <span className="mapOpeningPreviewBadge">{disc.badge}</span> : null}
           </span>
         ))}
       </div>

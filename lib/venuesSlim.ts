@@ -50,6 +50,12 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  /**
+   * `YYYY-MM-DD` the cheapest figure was last read at its source (build_slim_index,
+   * lib/priceReadDay.mjs). Absent when no row carrying it records a read, which
+   * `priceAgeFor` (lib/priceTier.ts) reads as aging, never as fresh.
+   */
+  priceObservedAt?: string;
   borough: string;
   /** Neighbourhood label for reader-facing area surfaces. */
   locality?: string;
@@ -163,6 +169,9 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
       Number.isInteger(row.zone) &&
       row.zone > 0);
   const kindOk = row.kind === undefined || isVenueKind(row.kind);
+  const observedOk =
+    row.priceObservedAt === undefined ||
+    (typeof row.priceObservedAt === "string" && row.priceObservedAt.length > 0);
   const priceBandOk =
     row.priceBand === undefined ||
     row.priceBand === 0 ||
@@ -170,6 +179,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
+    observedOk &&
     localityOk &&
     zoneOk &&
     kindOk &&
@@ -191,6 +201,9 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(venue.priceObservedAt !== undefined
+      ? { priceObservedAt: venue.priceObservedAt }
+      : {}),
     borough: venue.borough,
     ...(venue.locality !== undefined ? { locality: venue.locality } : {}),
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),

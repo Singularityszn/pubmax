@@ -250,6 +250,7 @@ export const MAP_OPENING_PREVIEW_RETRACT_EVENT = "pubmax:opening-preview-retract
 export const OPENING_CLUSTER_RADIUS_PX = 56;
 export const OPENING_CLUSTER_MAX_ZOOM = 13;
 export const OPENING_CLUSTER_PRICE_NONE = 9999;
+export const OPENING_CLUSTER_PRICE_KEY_NONE = 99_999_999;
 
 /**
  * The event the canvas dispatches, before its pins are revealed, each time it
@@ -271,10 +272,11 @@ export type OpeningDiscClaim = {
   id: number;
   count: number;
   priceGbp: number;
-  bands: readonly [number, number, number, number];
+  /** The cheapest figure and its pub's band, pence x 10 + band: the figure's ink. */
+  priceKey: number;
 };
 
-type ClaimProps = { minPrice: number; bands: [number, number, number, number] };
+type ClaimProps = { minPrice: number; minPriceKey: number };
 
 /**
  * The priced clusters a set of pub features makes at the opening camera's
@@ -294,18 +296,17 @@ export function openingDiscClaims(features: readonly GeoJSON.Feature[]): Opening
       map: (properties) => {
         const price = properties?.clusterPrice;
         const bucket = typeof properties?.bucket === "number" ? properties.bucket : 3;
-        const bands: ClaimProps["bands"] = [0, 0, 0, 0];
-        if (bucket >= 0 && bucket <= 3) bands[bucket] = 1;
-        return { minPrice: typeof price === "number" ? price : OPENING_CLUSTER_PRICE_NONE, bands };
+        return {
+          minPrice: typeof price === "number" ? price : OPENING_CLUSTER_PRICE_NONE,
+          minPriceKey:
+            typeof price === "number"
+              ? Math.round(price * 100) * 10 + Math.min(bucket, 3)
+              : OPENING_CLUSTER_PRICE_KEY_NONE,
+        };
       },
       reduce: (into, next) => {
         into.minPrice = Math.min(into.minPrice, next.minPrice);
-        into.bands = [
-          into.bands[0] + next.bands[0],
-          into.bands[1] + next.bands[1],
-          into.bands[2] + next.bands[2],
-          into.bands[3] + next.bands[3],
-        ];
+        into.minPriceKey = Math.min(into.minPriceKey, next.minPriceKey);
       },
     },
   );
@@ -315,7 +316,7 @@ export function openingDiscClaims(features: readonly GeoJSON.Feature[]): Opening
       id: cluster.id,
       count: cluster.count,
       priceGbp: cluster.props.minPrice,
-      bands: cluster.props.bands,
+      priceKey: cluster.props.minPriceKey,
     }));
 }
 
@@ -335,9 +336,9 @@ function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
 /**
  * Whether the frame the map is about to draw is the frame the preview drew:
  * the opening camera, and every priced disc the same cluster with the same
- * count, the same cheapest price and the same band counts (a live Pint Drop can
- * move a pub between bands and so redraw a ring without changing the rest), no
- * more and no fewer. A frame with no
+ * count and the same cheapest price in the same band ink (a live Pint Drop can
+ * move the cheapest pub to another band, which recolours the figure without
+ * changing the price), no more and no fewer. A frame with no
  * pubs yet (the source before its data lands) contradicts nothing.
  */
 export function frameMatchesPreview(
@@ -355,7 +356,7 @@ export function frameMatchesPreview(
       twin !== undefined &&
       twin.count === claim.count &&
       Math.round(twin.priceGbp * 100) === Math.round(claim.priceGbp * 100) &&
-      twin.bands.every((n, band) => n === claim.bands[band])
+      twin.priceKey === claim.priceKey
     );
   });
 }

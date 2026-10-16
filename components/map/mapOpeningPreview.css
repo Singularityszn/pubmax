@@ -68,15 +68,20 @@ html[data-map-preview="done"] .mapOpeningPreview {
   transform-style: preserve-3d;
 }
 
-/* One disc: the GL disc's geometry (lib/donutClusterGeometry.ts) - a 44px
-   outer circle, a 1.25px ink casing, a 3px ring, paper inside - stood upright
-   to face the camera at its own point on the plane. */
+/* One disc: the canvas's (lib/donutClusterGeometry.ts) - a 44px outer
+   circle, a 1.25px ink casing, a plain 3px ring in --line that carries no band,
+   neutral paper inside - stood upright to face the camera at its own point on
+   the plane. "from" sits over the figure at DONUT_CAPTION_SCALE of its size,
+   and the figure wears its own band's ink, as clusterLabelExpr writes it. */
 .mapOpeningPreviewDisc {
   position: absolute;
   top: -22px;
   left: -22px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
   box-sizing: border-box;
   width: 44px;
   height: 44px;
@@ -86,7 +91,7 @@ html[data-map-preview="done"] .mapOpeningPreview {
     radial-gradient(
       circle,
       var(--panel-raised) 0 17.75px,
-      var(--ring) 17.75px 20.75px,
+      var(--line) 17.75px 20.75px,
       var(--ink-deep) 20.75px
     );
   color: var(--ink-deep);
@@ -98,53 +103,35 @@ html[data-theme="dark"] .mapOpeningPreviewDisc {
     radial-gradient(
       circle,
       var(--panel-raised) 0 17.75px,
-      var(--ring) 17.75px 20.75px,
+      var(--line) 17.75px 20.75px,
       var(--ink) 20.75px
     );
   color: var(--ink);
 }
 
+.mapOpeningPreviewFrom,
 .mapOpeningPreviewFigure {
   font-family: "Noto Sans", var(--font-body, sans-serif);
+  line-height: 1;
+}
+
+.mapOpeningPreviewFrom {
+  font-size: calc(var(--figure-size) * 0.62);
+  font-weight: 600;
+}
+
+.mapOpeningPreviewFigure {
+  color: var(--figure-ink);
   font-size: var(--figure-size);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
-  line-height: 1;
 }
 
-/* The count on the rim at the upper right, from ten pubs up, in a paper halo. */
-.mapOpeningPreviewBadge {
-  position: absolute;
-  top: calc(50% - 13.6px);
-  left: calc(50% + 13.6px);
-  transform: translate(-50%, -50%);
-  font-family: "Noto Sans", var(--font-body, sans-serif);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  text-shadow:
-    0 0 2px var(--panel-raised),
-    0 0 2px var(--panel-raised),
-    0 0 2px var(--panel-raised);
-}
-
-/* The desktop draws its discs in the DOM with the whole band mix on the ring
-   and the figure in the data face (components/map/canvas/donutClusters.ts);
-   the same media query decides it there. */
+/* The desktop draws its discs in the DOM, the same disc with its figure in
+   the data face (components/map/canvas/donutClusters.ts); the same media query
+   decides it there. */
 @media not ((max-width: 640px) or (pointer: coarse)) {
-  .mapOpeningPreviewDisc {
-    background:
-      radial-gradient(circle, var(--panel-raised) 0 17.75px, transparent 17.75px 20.75px, var(--ink-deep) 20.75px),
-      var(--segments);
-  }
-
-  html[data-theme="dark"] .mapOpeningPreviewDisc {
-    background:
-      radial-gradient(circle, var(--panel-raised) 0 17.75px, transparent 17.75px 20.75px, var(--ink) 20.75px),
-      var(--segments);
-  }
-
   .mapOpeningPreviewFigure {
     font-family: var(--font-data, ui-monospace, monospace);
   }

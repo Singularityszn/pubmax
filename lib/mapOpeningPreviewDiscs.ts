@@ -6,9 +6,8 @@
 // loader (lib/mapOpeningPreview.server.ts) hands it the shipped file.
 
 import { CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } from "@/components/map/canvas/buildScene";
-import { CLUSTER_PRICE_NONE } from "@/components/map/canvas/filters";
+import { CLUSTER_PRICE_KEY_NONE, CLUSTER_PRICE_NONE } from "@/components/map/canvas/filters";
 import { formatPinPriceLabel, pubsToGeoJSON } from "@/components/map/canvas/geojson";
-import { DONUT_BADGE_MIN, formatDonutCount } from "@/lib/donutClusterGeometry";
 import {
   clusterAtZoom,
   groundOffsetPx,
@@ -18,10 +17,11 @@ import { slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { defaultVenueKindVisibility, filterVenuesByKind } from "@/lib/venueKindFilters";
 
-/** The band counts and cheapest figure a disc reduces, as the source does. */
+/** The cheapest figure and its key a disc reduces, as the source does. */
 type DiscProps = {
-  b: [number, number, number, number];
   minPrice: number;
+  /** pence x 10 + band of the pub saying the cheapest figure (CLUSTER_PRICE_KEY_PROPERTY). */
+  minPriceKey: number;
 };
 
 export type OpeningPreviewDisc = {
@@ -38,26 +38,14 @@ export type OpeningPreviewDisc = {
   figure: string;
   /** Pubs in the disc. */
   count: number;
-  /** The rim count, from DONUT_BADGE_MIN pubs up, or null. */
-  badge: string | null;
   /**
-   * The ring a phone's GL disc wears: the most common KNOWN band, 3 for none
-   * (the rule `clusterRingColorExpr` in lib/mapBasemapTaste.ts paints).
+   * The band of the pub that says the cheapest figure, whose ink the figure
+   * wears (CLUSTER_FIGURE_BAND_EXPR): the disc and its ring are neutral.
    */
-  ringBand: 0 | 1 | 2 | 3;
-  /** The desktop disc's ring: each band's share of the pubs, b0..b3. */
-  shares: [number, number, number, number];
-  /** Pubs in each band, b0..b3: what the shares and the ring are read from. */
-  bands: [number, number, number, number];
+  figureBand: 0 | 1 | 2;
+  /** The cheapest figure's key, pence x 10 + band, as the source reduces it. */
+  priceKey: number;
 };
-
-/** The most common known band, by the GL ring's own tie rules. */
-function ringBandFor([cheap, middle, dear]: DiscProps["b"]): OpeningPreviewDisc["ringBand"] {
-  if (cheap > 0 && cheap >= middle && cheap >= dear) return 0;
-  if (middle > 0 && middle > cheap && middle >= dear) return 1;
-  if (dear > 0 && dear > cheap && dear > middle) return 2;
-  return 3;
-}
 
 /**
  * The priced discs the map's first frame draws for these eager-cell rows, at
@@ -80,17 +68,18 @@ export function openingPreviewDiscs(rows: readonly SlimVenue[]): OpeningPreviewD
       zoom: Math.floor(camera.zoom),
       map: (properties) => {
         const bucket = typeof properties.bucket === "number" ? properties.bucket : 3;
-        const b: DiscProps["b"] = [0, 0, 0, 0];
-        if (bucket >= 0 && bucket <= 3) b[bucket] = 1;
         const price = properties.clusterPrice;
         return {
-          b,
           minPrice: typeof price === "number" ? price : CLUSTER_PRICE_NONE,
+          minPriceKey:
+            typeof price === "number"
+              ? Math.round(price * 100) * 10 + Math.min(bucket, 3)
+              : CLUSTER_PRICE_KEY_NONE,
         };
       },
       reduce: (into, next) => {
-        into.b = [into.b[0] + next.b[0], into.b[1] + next.b[1], into.b[2] + next.b[2], into.b[3] + next.b[3]];
         into.minPrice = Math.min(into.minPrice, next.minPrice);
+        into.minPriceKey = Math.min(into.minPriceKey, next.minPriceKey);
       },
     },
   );
@@ -99,8 +88,11 @@ export function openingPreviewDiscs(rows: readonly SlimVenue[]): OpeningPreviewD
     if (!(cluster.props.minPrice < CLUSTER_PRICE_NONE)) continue;
     const figure = formatPinPriceLabel(cluster.props.minPrice);
     if (!figure) continue;
+    const figureBand = cluster.props.minPriceKey % 10;
+    // A figure whose pub carries no band prints in plain ink on the canvas;
+    // the preview leaves that disc out rather than guess at its colour.
+    if (figureBand !== 0 && figureBand !== 1 && figureBand !== 2) continue;
     const ground = groundOffsetPx(cluster.lng, cluster.lat, camera);
-    const total = cluster.props.b.reduce((sum, n) => sum + n, 0) || 1;
     discs.push({
       id: cluster.id,
       lng: cluster.lng,
@@ -110,10 +102,8 @@ export function openingPreviewDiscs(rows: readonly SlimVenue[]): OpeningPreviewD
       priceGbp: cluster.props.minPrice,
       figure,
       count: cluster.count,
-      badge: cluster.count >= DONUT_BADGE_MIN ? formatDonutCount(cluster.count) : null,
-      ringBand: ringBandFor(cluster.props.b),
-      shares: cluster.props.b.map((n) => Math.round((n / total) * 1000) / 1000) as OpeningPreviewDisc["shares"],
-      bands: cluster.props.b,
+      figureBand,
+      priceKey: cluster.props.minPriceKey,
     });
   }
   // Cheapest first: the first disc in the document is the one a reader's eye
