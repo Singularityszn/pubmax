@@ -365,10 +365,10 @@ for (const scenario of [
     const sent = response.request().postDataJSON() as { context: Record<string, unknown> };
     // A request that names its drink sends no map drink: the client leaves
     // the words to the server (mapPlanDrinkDefaultContext in
-    // lib/mapPlanDrinkPresentation.ts), which answered soft-drink above. A
-    // location-only request carries the map's own Soft drinks. Either way the
-    // map's drink never overrides the one asked for.
-    expect([undefined, "soft-drink"]).toContain(sent.context.drinkCategory);
+    // lib/mapPlanDrinkPresentation.ts), which answered soft-drink above, so a
+    // Wine or Beer map never overrides the drink asked for. Only a
+    // location-only request carries the map's own Soft drinks.
+    expect(sent.context.drinkCategory).toBe(scenario.zeroProof ? undefined : "soft-drink");
     await expect(page).toHaveURL(/[?&]drink=soft-drink(?:&|$)/);
     await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
     await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
