@@ -259,7 +259,7 @@ export default function FindYourLot({
       className={compact ? "findLot findLot--compact" : "findLot"}
       aria-labelledby="find-lot-title"
     >
-      <Kicker tone="muted">Your lot</Kicker>
+      <Kicker>Your lot</Kicker>
       <h2 id="find-lot-title" className="findLot__title">
         Find your lot
       </h2>

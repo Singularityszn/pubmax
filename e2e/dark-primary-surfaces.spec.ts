@@ -304,7 +304,7 @@ for (const viewport of VIEWPORTS) {
     );
 
     // Selection is the fill (#700, components/map/venueSheet.css): the active
-    // tab is flat `--panel-raised` with ink text and a 2px coral underline. The
+    // tab is flat `--panel-raised` with ink text and a 2px ink underline. The
     // coral gradient it replaced is gone, so its contrast is read off the fill.
     const activeTab = sheet.locator(".venueTab.active");
     await expect(activeTab).toBeVisible();
