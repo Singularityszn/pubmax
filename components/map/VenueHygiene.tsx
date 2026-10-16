@@ -2,9 +2,10 @@
 
 // Food hygiene badge (FSA FHRS) on the venue sheet Overview.
 //
-// PROVENANCE IS THE FEATURE: this shows the FSA's own published rating, matched
-// to the venue by postcode + fuzzy name server-side. The client only reads
-// /api/hygiene — it never touches the FHRS upstream. Fail-soft: no confident
+// PROVENANCE IS THE FEATURE: this shows the FSA's own published rating. The
+// server answers from the exact OSM fhrs:id join when the packs know the pub
+// (lib/fsaHygienePack.ts), else from the live postcode + fuzzy name match. The
+// client only reads /api/hygiene — it never touches the FHRS upstream. Fail-soft: no confident
 // match, an unparseable postcode, or any error renders nothing (no badge, no
 // error text). Generation token drops stale writes on rapid venue switches,
 // same idiom as VenueBuzz. No animation — reduced-motion compliant by default.
@@ -25,6 +26,30 @@ type HygieneRating = {
   localAuthority: string | null;
 };
 
+/** The exact OSM fhrs:id join (lib/fsaHygienePack.ts), with its source and dates. */
+type HygieneFact = {
+  fhrsid: number;
+  rating: "0" | "1" | "2" | "3" | "4" | "5" | "Exempt" | "AwaitingInspection";
+  ratingDate: string | null;
+  localAuthority: string | null;
+  source: string;
+  license: string;
+  retrievedAt: string;
+};
+
+/** What the badge prints, whichever lane answered. */
+export type HygieneBadge = {
+  fhrsid: number;
+  /** "5", "Exempt", "Awaiting inspection". */
+  score: string;
+  /** Spoken form: "5 out of 5", "exempt", "awaiting inspection". */
+  spoken: string;
+  ratingDate: string | null;
+  localAuthority: string | null;
+  /** The visible source line: who said it and when we read it. */
+  provenance: string;
+};
+
 type Props = {
   venueId: string;
   venueName: string;
@@ -32,12 +57,56 @@ type Props = {
   address: string;
 };
 
-async function fetchRating(
+// Format a date as a quiet "Jun 2025" month stamp. Null for a missing or
+// unparseable date (fail-soft).
+function formatMonth(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "Europe/London" });
+}
+
+function formatDay(iso: string): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+}
+
+/** One badge from either lane. Exported for the tests. */
+export function hygieneBadge(body: { rating?: HygieneRating | null; fact?: HygieneFact | null }): HygieneBadge | null {
+  const fact = body.fact;
+  if (fact) {
+    const numeric = /^[0-5]$/.test(fact.rating);
+    const score = numeric ? fact.rating : fact.rating === "Exempt" ? "Exempt" : "Awaiting inspection";
+    const read = formatDay(fact.retrievedAt);
+    return {
+      fhrsid: fact.fhrsid,
+      score,
+      spoken: numeric ? `${fact.rating} out of 5` : score.toLowerCase(),
+      ratingDate: fact.ratingDate,
+      localAuthority: fact.localAuthority,
+      provenance: read ? `FSA open data (${fact.license}), read ${read}` : `FSA open data (${fact.license})`,
+    };
+  }
+  const rating = body.rating;
+  if (!rating) return null;
+  return {
+    fhrsid: rating.fhrsid,
+    score: String(rating.ratingValue),
+    spoken: `${rating.ratingValue} out of 5`,
+    ratingDate: rating.ratingDate,
+    localAuthority: rating.localAuthority,
+    provenance: "FSA ratings API, read live",
+  };
+}
+
+async function fetchBadge(
+  venueId: string,
   name: string,
   address: string,
   signal: AbortSignal,
-): Promise<HygieneRating | null> {
-  const params = new URLSearchParams({ name, postcode: address });
+): Promise<HygieneBadge | null> {
+  const params = new URLSearchParams({ venueId, name, postcode: address });
   const res = await fetch(`/api/hygiene?${params.toString()}`, {
     signal,
     headers: { accept: "application/json" },
@@ -46,21 +115,11 @@ async function fetchRating(
     discardBody(res);
     return null;
   }
-  const body = (await res.json()) as { rating?: HygieneRating | null };
-  return body.rating ?? null;
-}
-
-// Format the FSA rating date as a quiet "Jun 2025" month stamp for the title/aria
-// provenance line. Returns null for a missing or unparseable date (fail-soft).
-function formatRatedMonth(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  return hygieneBadge((await res.json()) as { rating?: HygieneRating | null; fact?: HygieneFact | null });
 }
 
 export default function VenueHygiene({ venueId, venueName, address }: Props) {
-  const [rating, setRating] = useState<HygieneRating | null>(null);
+  const [rating, setRating] = useState<HygieneBadge | null>(null);
   // Which pub the held rating is ABOUT. Adopted during render, so the wait
   // before the next pub's read never shows the previous pub's rating.
   const [ratingFor, setRatingFor] = useState(venueId);
@@ -73,7 +132,7 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
   const ready = useStaggeredRead(2, venueId);
 
   useEffect(() => {
-    if (!ready || !venueName || !address) return;
+    if (!ready || !venueId) return;
     const generation = ++generationRef.current;
     // Reset immediately on venue change so the previous pub's rating never
     // lingers (React 19: defer the setState off the effect body).
@@ -84,7 +143,7 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
     const controller = new AbortController();
     (async () => {
       try {
-        const next = await fetchRating(venueName, address, controller.signal);
+        const next = await fetchBadge(venueId, venueName, address, controller.signal);
         if (controller.signal.aborted || !next) return;
         void Promise.resolve().then(() => {
           if (generationRef.current === generation) setRating(next);
@@ -105,13 +164,11 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
 
   if (!rating) return null;
 
-  // Quiet provenance: surface WHEN the FSA assessed the venue (month + year from
-  // the ISO ratingDate) in the title/aria text only, no extra chrome on the chip.
-  const rated = formatRatedMonth(rating.ratingDate);
-  const base = rating.localAuthority
-    ? `FSA food hygiene rating ${rating.ratingValue} out of 5, rated by ${rating.localAuthority}`
-    : `FSA food hygiene rating ${rating.ratingValue} out of 5`;
-  const title = rated ? `${base}, rated ${rated}` : base;
+  // Every fact carries its source and its dates: the month the local authority
+  // rated the pub and, under it, who published the rating and when we read it.
+  const rated = formatMonth(rating.ratingDate);
+  const by = rating.localAuthority ? `, rated by ${rating.localAuthority}` : "";
+  const title = `FSA food hygiene rating ${rating.spoken}${by}${rated ? `, ${rated}` : ""}. ${rating.provenance}.`;
 
   return (
     <a
@@ -123,9 +180,14 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
       aria-label={title}
     >
       <ShieldCheck size={14} aria-hidden="true" />
-      <span className="venueHygieneLabel">Food hygiene</span>
-      <span className="venueHygieneScore">{rating.ratingValue}</span>
-      <span className="venueHygieneSource">FSA</span>
+      <span className="venueHygieneBody">
+        <span className="venueHygieneHead">
+          <span className="venueHygieneLabel">Food hygiene</span>
+          <span className="venueHygieneScore">{rating.score}</span>
+          {rated ? <span className="venueHygieneSource">rated {rated}</span> : null}
+        </span>
+        <span className="venueHygieneSource venueHygieneProvenance">{rating.provenance}</span>
+      </span>
     </a>
   );
 }

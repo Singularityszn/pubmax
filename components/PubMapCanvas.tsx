@@ -3955,7 +3955,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     let frame: number | null = null;
     let lastMembershipKey: string | null = null;
     const publishVisibleMembership = () => {
-      frame = null;
       const container = map.getContainer();
       const viewport = {
         width: container.clientWidth,
@@ -3998,16 +3997,24 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     };
     const scheduleVisibleMembership = () => {
       if (frame !== null) return;
-      frame = requestAnimationFrame(publishVisibleMembership);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        publishVisibleMembership();
+      });
     };
+    // MapLibre already emits move on its camera frame. A second frame can
+    // leave operable rows behind the camera while rendering is busy.
+    const updateVisibleMembership = venueListOpen
+      ? publishVisibleMembership
+      : scheduleVisibleMembership;
 
-    map.on(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
-    map.on("resize", scheduleVisibleMembership);
+    map.on(venueListOpen ? "move" : "moveend", updateVisibleMembership);
+    map.on("resize", updateVisibleMembership);
     scheduleVisibleMembership();
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
-      map.off(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
-      map.off("resize", scheduleVisibleMembership);
+      map.off(venueListOpen ? "move" : "moveend", updateVisibleMembership);
+      map.off("resize", updateVisibleMembership);
     };
   }, [
     londonRestaurants,

@@ -181,6 +181,62 @@ export function normalizeOsmVenueElement(element, { kind, taxonomyKey, fallbackC
 }
 
 /**
+ * The facts a pub sheet prints from OpenStreetMap, each kept as the verbatim
+ * tag value. A field lists its keys in order of preference, so `contact:*`
+ * wins over the older bare key. A tag OSM does not state stays absent: a
+ * missing `dog` is not "no dogs", and nothing here becomes a default.
+ *
+ * These fields are written to their own ODbL pack
+ * (`scripts/build_osm_pub_facts.mjs`), never into a pack under another
+ * licence, so OSM's share-alike stays inside that file.
+ */
+export const OSM_PUB_FACT_TAGS = /** @type {const} */ ([
+  ["openingHours", ["opening_hours"]],
+  ["hoursCheckDate", ["check_date:opening_hours"]],
+  ["checkDate", ["check_date"]],
+  ["wheelchair", ["wheelchair"]],
+  ["liveSport", ["live_sport"]],
+  ["outdoorSeating", ["outdoor_seating"]],
+  ["beerGarden", ["beer_garden"]],
+  ["realAle", ["real_ale"]],
+  ["dog", ["dog"]],
+  ["menuUrl", ["website:menu"]],
+  ["facebook", ["contact:facebook", "facebook"]],
+  ["instagram", ["contact:instagram", "instagram"]],
+  ["twitter", ["contact:twitter", "twitter"]],
+  ["operator", ["operator"]],
+  ["brand", ["brand"]],
+  ["brewery", ["brewery"]],
+]);
+
+/** Fields that date the others and state nothing about the pub on their own. */
+const OSM_PUB_FACT_DATE_FIELDS = new Set(["hoursCheckDate", "checkDate"]);
+
+/**
+ * The OSM pub facts one element states, or null when it states none. A check
+ * date alone is not a fact, so an element with only a date returns null.
+ *
+ * @param {Record<string, unknown> | undefined} tags
+ * @returns {Record<string, string> | null}
+ */
+export function readOsmPubFacts(tags) {
+  if (!tags) return null;
+  /** @type {Record<string, string>} */
+  const facts = {};
+  let stated = false;
+  for (const [field, keys] of OSM_PUB_FACT_TAGS) {
+    for (const key of keys) {
+      const value = typeof tags[key] === "string" ? tags[key].trim() : "";
+      if (!value) continue;
+      facts[field] = value;
+      if (!OSM_PUB_FACT_DATE_FIELDS.has(field)) stated = true;
+      break;
+    }
+  }
+  return stated ? facts : null;
+}
+
+/**
  * Sort normalized OSM pubs by stable geographic and identity keys.
  *
  * @param {Array<Record<string, any>>} pubs
