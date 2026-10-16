@@ -809,14 +809,16 @@ button {
 }
 
 .siteNav a:hover {
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: var(--ink);
 }
 
+/* "You are here" is an ink tint, never a coral fill: see .siteNavLink.isActive
+   in components/nav/siteNav.css. */
 .siteNav a[aria-current="page"] {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 28%, transparent);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  color: var(--ink);
+  box-shadow: none;
 }
 
 .demoDataNote {
