@@ -92,6 +92,9 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     sourceDatasets: [],
     curation: {},
     ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
+    ...(slim.priceObservedAt !== undefined
+      ? { priceObservedAt: slim.priceObservedAt }
+      : {}),
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
     ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
     ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),

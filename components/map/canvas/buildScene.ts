@@ -2,7 +2,6 @@ import type * as maplibregl from "maplibre-gl";
 import {
   applyBasemapTaste,
   applySelectionMute,
-  clusterRingColorExpr,
 } from "@/lib/mapBasemapTaste";
 import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
@@ -52,8 +51,11 @@ import {
   pinPriceLabelExpr,
   pricePillFilter,
   CLUSTER_COUNT_BADGE_FILTER,
+  CLUSTER_COUNT_CAPTION_EXPR,
   CLUSTER_FIGURE_EXPR,
+  CLUSTER_PRICE_KEY_PROPERTY,
   CLUSTER_PRICE_NONE,
+  clusterLabelExpr,
   PIN_ICON_SIZE_EXPR,
   PIN_PRICE_LABEL_MIN_ZOOM,
   SELECTED_PIN_PRICE_LABEL_EXPR,
@@ -199,7 +201,7 @@ export const CLUSTER_RADIUS_PX = 56;
 
 // A cluster disc is one size per zoom band, not one per count: it answers
 // "where is the cheap pint", so its figure is the price and the count is the
-// small number on its rim. 44px up to the last whole zoom the source clusters
+// small caption under it. 44px up to the last whole zoom the source clusters
 // below the street band, 36px from CLUSTER_DISC_SMALL_FROM_ZOOM on, where the
 // discs thin out and a smaller one keeps the street under it readable. These
 // are the OUTER radii, casing included.
@@ -219,7 +221,7 @@ const clusterFigureSizeExpr = (outer: number): maplibregl.ExpressionSpecificatio
   }
   return ["step", ["length", CLUSTER_FIGURE_EXPR], donutFigureFontSize(1, outer), ...stops];
 };
-/** The rim count's text size in px, which is also the em its offset is in. */
+/** The count caption's text size in px, which is also the em its offset is in. */
 const CLUSTER_COUNT_BADGE_SIZE_PX = 10;
 
 // `clusters` / `cluster-count` resting paint. Named because the entrance ramp
@@ -1339,6 +1341,10 @@ export function buildPubs(ctx: SceneCtx) {
         // nothing contributes CLUSTER_PRICE_NONE so the `min` has a value to
         // start from; a cluster still at that figure prints its count.
         minPrice: ["min", ["coalesce", ["get", "clusterPrice"], CLUSTER_PRICE_NONE]],
+        // The same cheapest figure with its own pub's band in the last digit
+        // (filters.ts, CLUSTER_PRICE_KEY_PROPERTY), so the figure can wear the
+        // ink of ITS band and never the colour of the crowd round it.
+        minPriceKey: CLUSTER_PRICE_KEY_PROPERTY,
       },
     });
   }
@@ -1685,15 +1691,16 @@ export function buildPubs(ctx: SceneCtx) {
     ],
     paint: confirmedBadgePaint(tokens, dark, pubIconOpacityExpr(selectedId)),
   });
-  // A cluster is a PAPER disc wearing a band ring and the cheapest price in it.
-  // The band used to be the fill, which painted every dear pocket of London in
-  // the coral that owns the Plan CTA (DESIGN.md, One Accent Rule: `--brick`
-  // shares the coral family) and made the map read as a warning. A ring is a
-  // hint the figure can contradict, a fill was a verdict.
+  // A cluster is a NEUTRAL paper disc with "from" and the cheapest price in it,
+  // that price in its own band's ink, and the count under it (owner decision
+  // 16 Oct 2026). The band used to be the fill, then a ring of the commonest
+  // band inside, and a ring could contradict its own figure: "£2.49" stood in
+  // the red "dear" ring of the pubs round it. Now the one colour on a disc is
+  // the figure's own band (Price Band law: the colour carries the band only).
   //
   // Three circles and two labels, in this order from the bottom: the casing
-  // (ink, so the edge against every basemap tone does not depend on the band),
-  // the disc (paper fill, band ring), the figure, and the count on the rim.
+  // (ink, so the edge against every basemap tone does not depend on a band),
+  // the disc (paper fill, a neutral hairline ring), the figure, and the count.
   const discRadius = (outer: number) => outer - CLUSTER_CASING_PX - CLUSTER_RING_PX;
   const clusterRadiusByZoom = (casing: boolean): maplibregl.ExpressionSpecification => [
     "step",
@@ -1720,12 +1727,12 @@ export function buildPubs(ctx: SceneCtx) {
     source: "pubs",
     filter: CLUSTER_FILTER,
     paint: {
-      // Price-aware GL disc. Desktop normally replaces these circles with
-      // segmented donuts; phones and large cluster sets keep this layer, whose
-      // ring follows the most common known price band in b0..b2. Grey means no
-      // known price. Radius no longer carries density: the count is on the rim.
+      // The GL disc. Desktop normally replaces these circles with DOM discs
+      // drawn to the same design (donutClusters.ts); phones and large cluster
+      // sets keep this layer. The ring is NEUTRAL, the `--line` hairline, and
+      // carries no band. Radius does not carry density: the count is under it.
       "circle-color": tokens.panelRaised,
-      "circle-stroke-color": clusterRingColorExpr(tokens) as maplibregl.ExpressionSpecification,
+      "circle-stroke-color": tokens.line,
       "circle-stroke-width": CLUSTER_RING_PX,
       "circle-stroke-opacity": CLUSTER_STROKE_OPACITY,
       "circle-radius": clusterRadiusByZoom(false),
@@ -1742,9 +1749,10 @@ export function buildPubs(ctx: SceneCtx) {
     source: "pubs",
     filter: CLUSTER_FILTER,
     layout: {
-      // The cheapest price in the disc, or its count where no pub in it says a
-      // price. See CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
-      "text-field": CLUSTER_FIGURE_EXPR,
+      // "from" over the cheapest price in the disc, that price in its own
+      // band's ink, or the count where no pub in it says a price. See
+      // CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
+      "text-field": clusterLabelExpr(dark ? tokens.ink : tokens.inkDeep, tokens.bandInk),
       "text-font": textFont,
       "text-size": [
         "step",
@@ -1773,27 +1781,30 @@ export function buildPubs(ctx: SceneCtx) {
       "text-opacity-transition": { duration: 0, delay: 0 },
     },
   });
-  // The count, on the rim at the upper right, once the disc is wearing a price.
-  // A count over nine only: "3" beside a price says less than the disc does.
-  const rimOffset = (outer: number): [number, number] => {
-    const em = (outer - CLUSTER_CASING_PX - CLUSTER_RING_PX / 2) * Math.SQRT1_2 / CLUSTER_COUNT_BADGE_SIZE_PX;
-    return [Number(em.toFixed(3)), Number((-em).toFixed(3))];
-  };
+  // The count, as "n pubs" just under the disc, once the disc is wearing a
+  // price: the figure stays the claim and the count reads after it, the way
+  // the desktop disc's label says "from £4.85 · 12 pubs". A disc with no price
+  // prints its count in the middle instead and wears nothing here.
+  const captionOffset = (outer: number): [number, number] => [
+    0,
+    Number(((outer + 1) / CLUSTER_COUNT_BADGE_SIZE_PX).toFixed(3)),
+  ];
   addLayerOnce({
     id: "cluster-count-badge",
     type: "symbol",
     source: "pubs",
     filter: CLUSTER_COUNT_BADGE_FILTER,
     layout: {
-      "text-field": ["get", "point_count_abbreviated"],
+      "text-field": CLUSTER_COUNT_CAPTION_EXPR,
       "text-font": textFont,
       "text-size": CLUSTER_COUNT_BADGE_SIZE_PX,
+      "text-anchor": "top",
       "text-offset": [
         "step",
         ["zoom"],
-        ["literal", rimOffset(CLUSTER_MAX_RADIUS_PX)],
+        ["literal", captionOffset(CLUSTER_MAX_RADIUS_PX)],
         CLUSTER_DISC_SMALL_FROM_ZOOM,
-        ["literal", rimOffset(CLUSTER_MIN_RADIUS_PX)],
+        ["literal", captionOffset(CLUSTER_MIN_RADIUS_PX)],
       ] as unknown as maplibregl.ExpressionSpecification,
       "text-allow-overlap": true,
       "text-ignore-placement": false,

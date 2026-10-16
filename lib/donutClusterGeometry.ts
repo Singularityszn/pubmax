@@ -35,60 +35,32 @@ export function readMinPrice(
   return Number.isFinite(n) && n > 0 && n < none ? n : null;
 }
 
-export type DonutStrokeSegment = {
-  index: number;
-  count: number;
-  color: string;
-  /** SVG `stroke-dasharray` value: "<arc length> <remaining circumference>". */
-  dasharray: string;
-  /** SVG `stroke-dashoffset` value (negative — segments are laid end to end,
-   *  starting from 12 o'clock via the caller's -90deg group rotation). */
-  dashoffset: number;
-};
-
-/** Builds concentric-circle stroke segments (dasharray/dashoffset), one per
- *  non-zero bucket, proportional to its share of the total. This is the
- *  standard "circle as pie/donut" SVG technique — far simpler and more
- *  robust than hand-rolled arc `path d=` math (no edge cases for a segment
- *  that spans a full circle). Buckets with a zero count are omitted so the
- *  DOM/paint stays proportional to what is actually drawn. */
-export function buildDonutStrokeSegments(
-  counts: DonutCounts,
-  colors: readonly string[],
-  radius: number,
-): DonutStrokeSegment[] {
-  const total = counts.reduce((sum, n) => sum + Math.max(0, n), 0);
-  if (total <= 0 || radius <= 0) return [];
-  const circumference = 2 * Math.PI * radius;
-  const segments: DonutStrokeSegment[] = [];
-  let cumulative = 0;
-  counts.forEach((count, index) => {
-    if (count <= 0) return;
-    const arcLength = (count / total) * circumference;
-    segments.push({
-      index,
-      count,
-      color: colors[index] ?? "#888888",
-      dasharray: `${arcLength.toFixed(3)} ${(circumference - arcLength).toFixed(3)}`,
-      dashoffset: -cumulative,
-    });
-    cumulative += arcLength;
-  });
-  return segments;
+/** The band (0..2) of a cluster's cheapest figure, read off `minPriceKey`
+ *  (pence × 10 + band, components/map/canvas/filters.ts), or null when the
+ *  cluster says no price or its cheapest pub has no band. */
+export function readMinPriceBand(
+  props: GeoJSON.GeoJsonProperties,
+): 0 | 1 | 2 | null {
+  const raw = props?.minPriceKey;
+  const n = typeof raw === "number" ? raw : Number(raw ?? Number.NaN);
+  if (!Number.isFinite(n) || n < 0) return null;
+  const band = Math.round(n) % 10;
+  return band === 0 || band === 1 || band === 2 ? band : null;
 }
 
 export type DonutMarkerSvgParams = {
   counts: DonutCounts;
-  /** Colors indexed the same way as `counts` (bucket 0..3). */
-  colors: readonly string[];
   /** The paper the disc is filled with. */
   discColor: string;
   /** The ink hairline round the outside, which edges the disc on any basemap. */
   casingColor: string;
-  /** Track ring color (drawn under the segments at low opacity). */
+  /** The neutral ring inside the casing. It carries no band. */
   trackColor: string;
-  /** The figure's color. */
+  /** Ink for the count and the small words round the figure. */
   textColor: string;
+  /** The figure's colour: its own cheapest pub's band ink, or `textColor` when
+   *  that pub has no band. The only colour on the disc that means a price. */
+  figureColor: string;
   /** The outer radius from {@link donutOuterRadius}. */
   outerRadius: number;
   /** The price the disc prints, already written the pin's way ("£5.40"), or
@@ -120,8 +92,9 @@ export function formatDonutCount(total: number): string {
  *  CLUSTER_CASING_PX) and the width of the band ring inside it (CLUSTER_RING_PX). */
 export const DONUT_CASING_PX = 1.25;
 export const DONUT_RING_PX = 3;
-/** Fewer pubs than this and the disc wears no count on its rim. */
-export const DONUT_BADGE_MIN = 10;
+/** The "from" over the figure and the "n pubs" under the disc, as a share of
+ *  the figure's own size. Small enough that the figure stays the claim. */
+export const DONUT_CAPTION_SCALE = 0.62;
 /** The figure is set in --font-data (JetBrains Mono) on the donut, where every
  *  glyph advances 600/1000 of an em, and in Noto Sans Bold or Montserrat Medium
  *  on the GL disc, whose glyphs advance no further on average. It keeps this
@@ -142,56 +115,62 @@ export function donutFigureFontSize(labelLength: number, outerRadius: number): n
   return Math.min(base, Math.floor(fit * 10) / 10);
 }
 
+/** A cluster's spoken label: "from £4.85 · 12 pubs", or "12 pubs" with no price.
+ *  The disc draws the same words: "from" over the figure, the count beneath. */
+export function clusterLabelText(figure: string | null, total: number): string {
+  const pubs = `${formatDonutCount(total)} ${total === 1 ? "pub" : "pubs"}`;
+  return figure === null ? pubs : `from ${figure} · ${pubs}`;
+}
+
 /** Builds the full marker SVG markup (string in, string out - pure) for a
- *  cluster: a paper disc with an ink casing, the price-band mix as a 3px ring,
- *  the cheapest price in the middle (the count where there is none) and, from
- *  ten pubs up, the count on the rim at the upper right. The ring is a hint and
- *  the figure is the claim, so a band is never a fill. */
+ *  cluster (owner decision 16 Oct 2026): a NEUTRAL paper disc with an ink
+ *  casing and a plain ring that carries no band, "from" over the cheapest price
+ *  in that price's own band ink, and "n pubs" under the disc. Where no pub in it
+ *  says a price the disc prints its count, in ink, and nothing under it. The
+ *  colour on the disc is the figure's band and nothing else, so a cheap figure
+ *  can never stand in a dear ring. */
 export function buildDonutMarkerSvg(params: DonutMarkerSvgParams): string {
   const total = donutTotal(params.counts);
   const outerRadius = params.outerRadius;
   const ringRadius = outerRadius - DONUT_CASING_PX - DONUT_RING_PX / 2;
   const discRadius = outerRadius - DONUT_CASING_PX;
   const size = outerRadius * 2;
-  const segments = buildDonutStrokeSegments(params.counts, params.colors, ringRadius);
   const label = params.figure ?? formatDonutCount(total);
   const fontSize = donutFigureFontSize(label.length, outerRadius);
-  const badge =
-    params.figure !== null && total >= DONUT_BADGE_MIN ? formatDonutCount(total) : null;
-  const segmentMarkup = segments
-    .map(
-      (seg) =>
-        `<circle cx="${outerRadius}" cy="${outerRadius}" r="${ringRadius}" fill="none" ` +
-        `stroke="${seg.color}" stroke-width="${DONUT_RING_PX}" ` +
-        `stroke-dasharray="${seg.dasharray}" stroke-dashoffset="${seg.dashoffset}" ` +
-        `stroke-linecap="butt" data-bucket="${seg.index}" />`,
-    )
-    .join("");
-  // The count on the rim sits on the ring at 45 degrees, in a paper halo so it
-  // reads over the ring and the map alike. It overhangs the disc a little, so
-  // the SVG's box is the disc's and its overflow is visible.
-  const badgeOffset = ringRadius * Math.SQRT1_2;
-  const badgeMarkup =
-    badge === null
+  const captionSize = Math.round(fontSize * DONUT_CAPTION_SCALE * 10) / 10;
+  // "from" and the figure are set as one block centred on the disc.
+  const block = captionSize + 1 + fontSize;
+  const figureY = params.figure === null ? outerRadius : outerRadius + block / 2 - fontSize / 2;
+  const fromY = outerRadius - block / 2 + captionSize / 2;
+  const halo =
+    `stroke="${params.discColor}" stroke-width="2" paint-order="stroke" stroke-linejoin="round"`;
+  const fromMarkup =
+    params.figure === null
       ? ""
-      : `<text x="${(outerRadius + badgeOffset).toFixed(2)}" y="${(outerRadius - badgeOffset).toFixed(2)}" ` +
-        `text-anchor="middle" dominant-baseline="central" fill="${params.textColor}" ` +
-        `font-size="10" font-weight="700" stroke="${params.discColor}" stroke-width="2" ` +
-        `paint-order="stroke" stroke-linejoin="round" font-family="sans-serif" ` +
-        `data-role="count">${badge}</text>`;
+      : `<text x="${outerRadius}" y="${fromY.toFixed(2)}" text-anchor="middle" ` +
+        `dominant-baseline="central" fill="${params.textColor}" font-size="${captionSize}" ` +
+        `font-weight="600" font-family="sans-serif" data-role="from">from</text>`;
+  // The count, under the disc in a paper halo so it reads over the map.
+  const countMarkup =
+    params.figure === null
+      ? ""
+      : `<text x="${outerRadius}" y="${(size + captionSize * 0.9).toFixed(2)}" text-anchor="middle" ` +
+        `dominant-baseline="central" fill="${params.textColor}" font-size="${captionSize + 1}" ` +
+        `font-weight="700" ${halo} font-family="sans-serif" data-role="count">` +
+        `${formatDonutCount(total)} pubs</text>`;
   return (
     `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="overflow:visible" ` +
-    `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${total} pubs">` +
+    `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${clusterLabelText(params.figure, total)}">` +
     `<circle cx="${outerRadius}" cy="${outerRadius}" r="${outerRadius}" fill="${params.casingColor}" />` +
     `<circle cx="${outerRadius}" cy="${outerRadius}" r="${discRadius}" fill="${params.discColor}" />` +
     `<circle cx="${outerRadius}" cy="${outerRadius}" r="${ringRadius}" fill="none" ` +
-    `stroke="${params.trackColor}" stroke-width="${DONUT_RING_PX}" opacity="0.28" />` +
-    `<g transform="rotate(-90 ${outerRadius} ${outerRadius})">${segmentMarkup}</g>` +
-    `<text x="${outerRadius}" y="${outerRadius}" text-anchor="middle" dominant-baseline="central" ` +
-    `fill="${params.textColor}" font-size="${fontSize}" font-weight="700" ` +
+    `stroke="${params.trackColor}" stroke-width="${DONUT_RING_PX}" data-role="ring" />` +
+    fromMarkup +
+    `<text x="${outerRadius}" y="${figureY.toFixed(2)}" text-anchor="middle" dominant-baseline="central" ` +
+    `fill="${params.figure === null ? params.textColor : params.figureColor}" font-size="${fontSize}" font-weight="700" ` +
     `style="font-family: var(--font-data, ui-monospace, monospace); font-variant-numeric: tabular-nums" ` +
     `data-role="figure">${label}</text>` +
-    badgeMarkup +
+    countMarkup +
     `</svg>`
   );
 }

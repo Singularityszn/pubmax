@@ -85,16 +85,12 @@
   place-items: center;
   width: 29px;
   height: 29px;
-  border: 4px solid transparent;
+  /* The neutral disc the map draws: paper, a hairline ring that carries no
+     band, and an ink casing. Only a price figure in it wears a band. */
+  border: 3px solid var(--line);
   border-radius: 50%;
-  background:
-    linear-gradient(var(--panel-raised), var(--panel-raised)) padding-box,
-    conic-gradient(
-      var(--pint) 0 35%,
-      var(--amber) 35% 62%,
-      var(--brick) 62% 78%,
-      #9a7a72 78% 100%
-    ) border-box;
+  background: var(--panel-raised);
+  box-shadow: 0 0 0 1px var(--ink-deep);
   color: var(--ink);
   font-size: 0.64rem;
   font-weight: 850;
@@ -257,6 +253,13 @@
 .mapKeyMarker--public-listing::before {
   border-width: 1px;
   border-color: var(--brass);
+}
+
+/* The aging price: a glass whose rim is broken, never a new colour. */
+.mapKeyMarker--aging-price::before {
+  width: 15px;
+  height: 15px;
+  border: 2px dashed var(--ink);
 }
 
 .mapKeyMarker--base-selected::before {

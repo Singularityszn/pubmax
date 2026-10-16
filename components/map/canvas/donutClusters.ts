@@ -3,8 +3,10 @@ import type { GeoJSONFeature } from "maplibre-gl";
 import {
   buildDonutMarkerSvg,
   donutOuterRadius,
+  clusterLabelText,
   donutTotal,
   readMinPrice,
+  readMinPriceBand,
   type DonutCounts,
 } from "@/lib/donutClusterGeometry";
 import { CLUSTER_COUNT_BADGE_FILTER, CLUSTER_PRICE_NONE } from "./filters";
@@ -12,10 +14,12 @@ import { formatPinPriceLabel } from "./geojson";
 import { readTokens } from "./tokens";
 import { CLUSTER_FILTER, CLUSTER_MAX_ZOOM } from "./buildScene";
 
-// M5 — donut cluster markers segmented by price band. `clusterProperties`
-// (wired in buildPubs, buildScene.ts) accumulate per-bucket counts (b0..b3 —
-// same priceBucket() order the legend/pin fill already use: ≤£5.50 / >£5.50–
-// ≤£7 / >£7 / no price) directly on the supercluster tree, so no extra
+// M5 — DOM cluster discs for the desktop. Once segmented by price band, now
+// (owner decision 16 Oct 2026) a NEUTRAL disc: "from" over the cheapest figure
+// in that figure's own band ink and "n pubs" under it, the design the GL
+// `clusters` / `cluster-count` / `cluster-count-badge` layers draw too.
+// `clusterProperties` (wired in buildPubs, buildScene.ts) accumulate the counts
+// and `minPrice` / `minPriceKey` directly on the supercluster tree, so no extra
 // source or client-side aggregation is needed here — just read them off the
 // queried cluster features.
 //
@@ -35,8 +39,6 @@ const DONUT_CAP = 60;
 // explicit camera moves, so throttle the expensive querySourceFeatures + diff
 // pass rather than run it 60x/sec.
 const RENDER_THROTTLE_MS = 120;
-
-const BUCKET_COLOR_KEYS = ["pint", "amber", "brick", "muted"] as const;
 
 // Exported for unit tests — coerces the supercluster's accumulated b0..b3
 // per-bucket props into a DonutCounts tuple, guarding a missing / non-numeric /
@@ -184,18 +186,19 @@ export function createDonutClusterSync(
     }
     const tokens = readTokens();
     const dark = document.documentElement.dataset.theme === "dark";
-    const colors = BUCKET_COLOR_KEYS.map((key) => tokens[key]);
     const textColor = dark ? tokens.ink : tokens.inkDeep;
     const casingColor = dark ? tokens.ink : tokens.inkDeep;
     const outerRadius = donutOuterRadius(map.getZoom());
-    const markup = (counts: DonutCounts, figure: string | null) =>
+    const markup = (counts: DonutCounts, figure: string | null, figureColor: string) =>
       buildDonutMarkerSvg({
         counts,
-        colors,
         discColor: tokens.panelRaised,
         casingColor,
-        trackColor: tokens.muted,
+        // The GL disc's own neutral ring (buildScene `clusters`), so the two
+        // renderers draw one design.
+        trackColor: tokens.line,
         textColor,
+        figureColor,
         outerRadius,
         figure,
       });
@@ -208,11 +211,11 @@ export function createDonutClusterSync(
       // prints its count, exactly as the GL layer does.
       const minPrice = readMinPrice(feature.properties, CLUSTER_PRICE_NONE);
       const figure = minPrice === null ? null : formatPinPriceLabel(minPrice);
-      const look = `${outerRadius}|${figure ?? ""}|${textColor}|${casingColor}|${tokens.panelRaised}`;
-      const label =
-        figure === null
-          ? `${donutTotal(counts)} pubs, tap to zoom in`
-          : `${donutTotal(counts)} pubs, cheapest ${figure}, tap to zoom in`;
+      // The figure wears its OWN pub's band ink, never the crowd's colour.
+      const band = figure === null ? null : readMinPriceBand(feature.properties);
+      const figureColor = band === null ? textColor : tokens.bandInk[band];
+      const look = `${outerRadius}|${figure ?? ""}|${figureColor}|${textColor}|${casingColor}|${tokens.panelRaised}`;
+      const label = `${clusterLabelText(figure, donutTotal(counts))}, tap to zoom in`;
       const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       const existing = markers.get(clusterId);
       if (existing) {
@@ -224,7 +227,7 @@ export function createDonutClusterSync(
           existing.counts = counts;
           existing.look = look;
           existing.el.setAttribute("aria-label", label);
-          existing.el.innerHTML = markup(counts, figure);
+          existing.el.innerHTML = markup(counts, figure, figureColor);
         }
         continue;
       }
@@ -233,7 +236,7 @@ export function createDonutClusterSync(
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
       el.setAttribute("aria-label", label);
-      el.innerHTML = markup(counts, figure);
+      el.innerHTML = markup(counts, figure, figureColor);
       el.addEventListener("click", (event) => {
         event.stopPropagation();
         handleClusterClick(clusterId, [lng, lat]);

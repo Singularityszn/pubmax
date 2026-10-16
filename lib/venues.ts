@@ -245,6 +245,11 @@ export type Venue = {
   kind?: VenueKind;
   /** Type-relative price band computed at build time (cheap/mid/dear). */
   priceBand?: 0 | 1 | 2;
+  /**
+   * `YYYY-MM-DD` the slim index's cheapest figure was last read at its source.
+   * Absent when unknown; the map reads that as an aging price, never a fresh one.
+   */
+  priceObservedAt?: string;
   /** Provenance for non-pub anchor prices and editorial stories. */
   anchorLabel?: string;
   anchorCourse?: FoodCategory;
