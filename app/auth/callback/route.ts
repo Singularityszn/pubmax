@@ -1,9 +1,12 @@
-// Auth callback landing. Supabase Auth (Google / Apple / Microsoft / email magic link)
-// redirects here after the user approves, carrying the implicit-flow session
+// Auth callback landing. Web and Android sign-in, plus signed-in iPhone Add
+// account, redirect here carrying the canonical implicit-flow session
 // tokens in the URL FRAGMENT. The fragment never reaches this server; the
 // browser carries it across our redirect below, and AuthProvider establishes
 // the session from it on the landing page (see lib/authClient.ts and
 // components/auth/AuthProvider.tsx).
+//
+// Separate signed-out iPhone returns use the fixed PKCE relays documented in
+// docs/rules/ios-native-auth-return.md and docs/rules/ios-native-email-return.md.
 //
 // Why implicit rather than PKCE: the PKCE code-verifier lives in the
 // REQUESTING browser's localStorage, so an email magic link opened in a
@@ -14,13 +17,15 @@
 // on @supabase/supabase-js (no @supabase/ssr cookie adapter), so a server-side
 // exchange is not available either.
 //
-// Because the tokens are invisible here, this route cannot tell success from
-// failure. It forwards every valid attempt to the safe target with the
+// For implicit callbacks, the tokens are invisible here. The route cannot
+// determine success or failure. It forwards every valid attempt to the safe target with the
 // callback marker; the client decides. Only a query-visible provider error or
 // a missing attempt id earns the authError flag, so the app can explain the
 // failure without blocking browsing.
 
 import { NextResponse } from "next/server";
+import { IOS_EMAIL_AUTH_MODE } from "@/lib/nativeEmailPkce";
+import { IOS_AUTH_MODE, nativeAuthCallbackLocation } from "@/lib/nativeAuthCallback";
 import {
   AUTH_ATTEMPT_PARAM,
   AUTH_CALLBACK_MARKER,
@@ -32,6 +37,12 @@ import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
+  if (url.searchParams.getAll("native").length === 1 && (url.searchParams.get("native") === IOS_AUTH_MODE || url.searchParams.get("native") === IOS_EMAIL_AUTH_MODE)) {
+    return new Response(null, {
+      status: 307,
+      headers: { location: nativeAuthCallbackLocation(url), "cache-control": "no-store", "referrer-policy": "no-referrer" },
+    });
+  }
   const oauthError = url.searchParams.get("error");
   const next = safeAuthNext(url.searchParams.get("next"), url.origin);
   const rawAttemptId = url.searchParams.get(AUTH_ATTEMPT_PARAM);

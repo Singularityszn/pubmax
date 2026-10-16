@@ -7,6 +7,8 @@
 //             token at Supabase Auth for a fresh session; rotates the cookie
 //   POST    { action: "resume", callbackUrl }    send a magic link to the
 //             cookie's email without the user retyping it
+//             codeChallenge is required only for the native email relay.
+//             See docs/rules/ios-native-email-return.md.
 //   DELETE  → clears the cookie (sign-out)
 //
 // The refresh token only ever moves between this route's HttpOnly cookie and
@@ -31,6 +33,7 @@ import {
   maskEmail,
   type AuthResumeCookiePayload,
 } from "@/lib/authSessionResume";
+import { isNativeEmailCallbackUrl, isS256CodeChallenge } from "@/lib/nativeEmailPkce";
 import { requestMagicLink } from "@/lib/passwordlessAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -316,6 +319,16 @@ async function resume(
     return publicApiError("The callback URL is not allowed.", "INVALID_REQUEST", 400);
   }
 
+  const nativeEmail = isNativeEmailCallbackUrl(callbackUrl);
+  if ((callbackUrl.searchParams.has("native") && !nativeEmail) ||
+      (nativeEmail && !isS256CodeChallenge(body.codeChallenge)) ||
+      (!nativeEmail && Object.prototype.hasOwnProperty.call(body, "codeChallenge"))) {
+    return publicApiError("The native email challenge is not allowed.", "INVALID_REQUEST", 400);
+  }
+  if (nativeEmail && (callbackUrl.hash || callbackUrl.username || callbackUrl.password)) {
+    return publicApiError("The callback URL is not allowed.", "INVALID_REQUEST", 400);
+  }
+
   const email = payload.email;
   const result = await requestMagicLink(
     {
@@ -332,6 +345,7 @@ async function resume(
             body: JSON.stringify({
               email: address,
               create_user: options.shouldCreateUser,
+              ...(nativeEmail ? { code_challenge: body.codeChallenge, code_challenge_method: "s256" } : {}),
             }),
             cache: "no-store",
             signal: AbortSignal.timeout(GOTRUE_TIMEOUT_MS),
