@@ -15,6 +15,8 @@ export type MapSearchCityInput = {
 type MapSearchVenue = {
   id: string;
   name: string;
+  /** The dataset's own name when it carries an operator suffix; matched, never shown. */
+  sourceName?: string;
   area: string;
 };
 
@@ -107,6 +109,7 @@ export function buildMapSearchIndex(
       venues.push({
         id: venue.id,
         name: venue.name,
+        ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
         area: venue.area ?? "",
         cityId: pack.cityId,
       });

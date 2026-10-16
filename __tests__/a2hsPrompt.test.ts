@@ -16,6 +16,7 @@ import {
   registerDecline,
   registerDismissedForever,
   registerInstalled,
+  registerShown,
   writeA2hsState,
   type A2hsState,
 } from "@/lib/a2hsPrompt";
@@ -242,6 +243,7 @@ describe("parseA2hsState", () => {
       firstDayBucket: 10,
       secondDayBucket: 12,
       declinedDayBucket: 12,
+      shownDayBucket: 11,
       outcome: "installed",
     };
     expect(parseA2hsState(JSON.stringify(original))).toEqual(original);
@@ -257,6 +259,7 @@ describe("evaluateA2hs (the gate)", () => {
       state: { ...EMPTY_A2HS_STATE, firstDayBucket: 100 },
       todayBucket: 100,
       planCompleted: false,
+      priceAnswerSeen: true,
       androidPromptReady: false,
     });
     expect(d.show).toBe(false);
@@ -269,6 +272,7 @@ describe("evaluateA2hs (the gate)", () => {
       state: proven,
       todayBucket: 101,
       planCompleted: false,
+      priceAnswerSeen: true,
       androidPromptReady: false,
     });
     expect(d).toMatchObject({ show: true, surface: "ios", reason: "eligible" });
@@ -280,6 +284,7 @@ describe("evaluateA2hs (the gate)", () => {
       state: proven,
       todayBucket: 101,
       planCompleted: false,
+      priceAnswerSeen: true,
     };
     expect(evaluateA2hs({ ...base, androidPromptReady: false }).show).toBe(false);
     expect(evaluateA2hs({ ...base, androidPromptReady: false }).reason).toBe(
@@ -297,13 +302,14 @@ describe("evaluateA2hs (the gate)", () => {
       state: { ...EMPTY_A2HS_STATE, firstDayBucket: 100 },
       todayBucket: 100,
       planCompleted: true,
+      priceAnswerSeen: true,
       androidPromptReady: false,
     });
     expect(d.show).toBe(true);
   });
 
   it("never shows when standalone / unsupported / already installed / dismissed", () => {
-    const common = { state: proven, todayBucket: 101, planCompleted: true, androidPromptReady: true };
+    const common = { state: proven, todayBucket: 101, planCompleted: true, androidPromptReady: true, priceAnswerSeen: true };
     expect(evaluateA2hs({ ...common, platform: "standalone" }).reason).toBe("standalone");
     expect(evaluateA2hs({ ...common, platform: "unsupported" }).reason).toBe(
       "unsupported-platform",
@@ -328,6 +334,7 @@ describe("evaluateA2hs (the gate)", () => {
         state: declined,
         todayBucket: 101 + 5,
         planCompleted: true,
+        priceAnswerSeen: true,
         androidPromptReady: false,
       }).reason,
     ).toBe("decline-cooldown");
@@ -337,9 +344,81 @@ describe("evaluateA2hs (the gate)", () => {
         state: declined,
         todayBucket: 101 + A2HS_DECLINE_COOLDOWN_DAYS,
         planCompleted: true,
+        priceAnswerSeen: true,
         androidPromptReady: false,
       }).show,
     ).toBe(true);
+  });
+});
+
+describe("the install ask waits for a price answer (P2-C)", () => {
+  const proven: A2hsState = { ...EMPTY_A2HS_STATE, firstDayBucket: 100, secondDayBucket: 101 };
+
+  it("holds a proven, eligible reader until this session has seen a price", () => {
+    const base = { state: proven, todayBucket: 101, planCompleted: false, androidPromptReady: true };
+    for (const platform of ["ios-safari", "android"] as const) {
+      expect(evaluateA2hs({ ...base, platform, priceAnswerSeen: false })).toEqual({
+        show: false,
+        surface: null,
+        reason: "awaiting-price-answer",
+      });
+    }
+    expect(evaluateA2hs({ ...base, platform: "ios-safari", priceAnswerSeen: true }))
+      .toMatchObject({ show: true, surface: "ios" });
+    expect(evaluateA2hs({ ...base, platform: "android", priceAnswerSeen: true }))
+      .toMatchObject({ show: true, surface: "android" });
+  });
+
+  it("a price answer alone never proves value on the first day", () => {
+    expect(
+      evaluateA2hs({
+        platform: "ios-safari",
+        state: { ...EMPTY_A2HS_STATE, firstDayBucket: 100 },
+        todayBucket: 100,
+        planCompleted: false,
+        androidPromptReady: false,
+        priceAnswerSeen: true,
+      }).reason,
+    ).toBe("unproven-value");
+  });
+
+  it("iOS Safari gets the manual steps, because it has no install event", () => {
+    expect(
+      evaluateA2hs({
+        platform: "ios-safari",
+        state: proven,
+        todayBucket: 101,
+        planCompleted: false,
+        androidPromptReady: false,
+        priceAnswerSeen: true,
+      }),
+    ).toEqual({ show: true, surface: "ios", reason: "eligible" });
+  });
+
+  it("a show starts the cooldown, so the sheet is offered at most once per window", () => {
+    const shown = registerShown(proven, 101);
+    expect(shown.shownDayBucket).toBe(101);
+    expect(canReoffer(shown, 101)).toBe(false);
+    expect(canReoffer(shown, 101 + A2HS_DECLINE_COOLDOWN_DAYS - 1)).toBe(false);
+    expect(canReoffer(shown, 101 + A2HS_DECLINE_COOLDOWN_DAYS)).toBe(true);
+    // The later of a decline and a show is the one the window runs from.
+    const both = registerDecline(registerShown(proven, 101), 90);
+    expect(canReoffer(both, 101 + 5)).toBe(false);
+    expect(
+      evaluateA2hs({
+        platform: "ios-safari",
+        state: shown,
+        todayBucket: 102,
+        planCompleted: false,
+        androidPromptReady: false,
+        priceAnswerSeen: true,
+      }).reason,
+    ).toBe("decline-cooldown");
+  });
+
+  it("parses a stored show day and drops a malformed one", () => {
+    expect(parseA2hsState(JSON.stringify({ shownDayBucket: 7 })).shownDayBucket).toBe(7);
+    expect(parseA2hsState(JSON.stringify({ shownDayBucket: "7" })).shownDayBucket).toBeNull();
   });
 });
 

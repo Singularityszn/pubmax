@@ -1,6 +1,7 @@
 import { cheapestPints, type LeaderboardRowView } from "@/lib/leaderboard";
 import { PRICE_STANDINGS, type PriceStanding } from "@/lib/priceTier";
 import type { Venue } from "@/lib/venues";
+import { displayVenueName } from "@/lib/venueDisplay";
 
 // The Discover board, cut from the bundled pint dataset at BUILD time.
 //
@@ -113,7 +114,7 @@ function parseRow(raw: unknown): DiscoverBoardRow | null {
     standing: row.standing,
     venue: {
       id: v.id,
-      name: v.name,
+      name: displayVenueName(v.name),
       cheapestPint: typeof v.cheapestPint === "string" ? v.cheapestPint : "",
       cheapestPrice: v.cheapestPrice,
     },
@@ -126,7 +127,7 @@ function parseBaseline(raw: unknown): DiscoverBoardBaseline | null {
   if (typeof row.id !== "string" || !row.id) return null;
   if (typeof row.name !== "string") return null;
   if (!isFiniteNumber(row.cheapestPrice)) return null;
-  return { id: row.id, name: row.name, cheapestPrice: row.cheapestPrice };
+  return { id: row.id, name: displayVenueName(row.name), cheapestPrice: row.cheapestPrice };
 }
 
 /**

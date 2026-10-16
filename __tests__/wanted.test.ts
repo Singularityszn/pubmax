@@ -90,7 +90,7 @@ describe("wanted create validation", () => {
 
 describe("wanted copy", () => {
   it("celebrates fulfilment in one plain line", () => {
-    expect(wantedFulfilledLine("The Dove")).toBe("Wanted, done: you made it to The Dove.");
+    expect(wantedFulfilledLine("The Dove")).toBe("Ticked off: you made it to The Dove.");
   });
 
   it("labels pending Wanteds honestly", () => {

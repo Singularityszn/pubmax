@@ -222,6 +222,16 @@
   --state-active-border: color-mix(in srgb, var(--brass) 36%, var(--line));
   --state-active-ink: color-mix(in srgb, var(--brass) 52%, var(--ink));
 
+  /* Selected - the NEUTRAL "this one". An active tab, a pressed chip and a
+     chosen segment say so in ink: a quiet ink tint, an ink edge and the page's
+     own ink, never coral. Coral FILL is spent on the one primary action per
+     screen and the floating create disc (docs/DESIGN_SYSTEM.md "Coral is
+     spent twice"); a selection painted in it read as a second primary.
+     __tests__/visualDiscipline.test.ts holds the selection rules to these. */
+  --state-selected-surface: color-mix(in srgb, var(--ink) 9%, var(--panel-raised));
+  --state-selected-border: color-mix(in srgb, var(--ink) 55%, var(--line));
+  --state-selected-ink: var(--ink);
+
   /* Badge / count — neutral-strong. Counts, tallies and metadata pills read as
      confident ink chrome, not as an accent competing with the CTA. */
   --badge-surface: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
@@ -893,7 +903,7 @@ button {
 
 .eyebrow {
   margin: 0 0 4px;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -1021,10 +1031,9 @@ h3 {
 }
 
 .segmented button.selected {
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 24%, transparent);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .featuredHint {
@@ -1841,7 +1850,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .mapOnboardingCard .eyebrow {
   margin: 0;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .mapOnboardingCard h2 {
@@ -2142,12 +2151,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .mapLoadingEyebrow {
   display: block;
   margin-bottom: 2px;
-  color: var(--brass);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .mapLoadingSlow {
@@ -2180,10 +2188,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   .mapLoadingProgressBar {
     transition: none;
   }
-}
-
-[data-theme="dark"] .mapLoadingEyebrow {
-  color: var(--brass-bright);
 }
 
 @media (max-width: 640px) {
@@ -2832,7 +2836,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: block;
   max-width: 340px;
   margin: 6px auto 0;
-  font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
+  font-family: var(--font-body);
   font-size: 0.68rem;
   letter-spacing: 0.02em;
   line-height: 1.4;
@@ -2983,12 +2987,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .venueHoverEyebrow {
-  color: var(--brass);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .venueHoverBody strong {
@@ -4082,9 +4085,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .routePaceBtn.active {
-  border-color: var(--brass);
-  color: var(--color-on-accent);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-ink);
+  background: var(--state-selected-surface);
 }
 
 .routePaceTotal {
@@ -5137,14 +5140,14 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 }
 
 .vibeChip:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--state-selected-border);
+  color: var(--ink);
 }
 
 .vibeChip.selected {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  color: var(--brass);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .vibeChip:disabled {
@@ -5168,9 +5171,9 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 .vibeChip.small {
   min-height: 0;
   padding: 2px 8px;
-  border-color: color-mix(in srgb, var(--brass) 35%, transparent);
-  background: rgba(176, 129, 58, 0.1);
-  color: var(--brass);
+  border-color: var(--badge-border);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
   font-size: 0.7rem;
   cursor: default;
 }
