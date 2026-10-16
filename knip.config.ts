@@ -59,6 +59,8 @@ const config: KnipConfig = {
     "scripts/record_concierge_intent_probabilities.ts",
     // Standalone disposable Plan browser proof; traces its database helper too.
     "scripts/e2e/run-disposable-plan-browser.mjs",
+    // Forked by e2e/web-first-run-journey.spec.ts for real fixture-clock HTTP.
+    "scripts/e2e/canonical-price-server.ts",
   ],
   ignore: [
     ...AGENT_TOOLING_PATHS,
@@ -118,6 +120,9 @@ const config: KnipConfig = {
 
     // The perf baseline harness, run by hand and cited by perf/ evidence.
     "scripts/perf-baseline.mjs",
+    // The /map canvas-chunk preload A/B, run by hand and cited by
+    // docs/proof/map-chunk-preload/.
+    "scripts/perf-map-chunk-preload-ab.mjs",
 
     // Run with execFileSync by scripts/perf-ab.mjs.
     "scripts/print-e2e-server-env.ts",

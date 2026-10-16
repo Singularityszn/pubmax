@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 320, height: 568 },
@@ -59,9 +60,7 @@ for (const viewport of VIEWPORTS) {
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
 
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({
-      timeout: 45_000,
-    });
+    await expectMobileMapShellReady(page, 45_000);
     const arrival = page.locator(".mapArrivalCard");
     await expect(arrival).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".maplibregl-canvas")).toBeVisible({

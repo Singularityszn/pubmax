@@ -1,0 +1,76 @@
+page:
+  title: Sort the outing | PUBMAXX
+  refs: 66
+snapshot:
+uid=g8:1_0 RootWebArea "Sort the outing | PUBMAXX" url="http://127.0.0.1:38761/plan?query=One%20pizza%20and%20a%20pint%20under%20%C2%A310%20in%20Soho"
+  uid=g8:1_1 link "Skip to main content" url="http://127.0.0.1:38761/plan?query=One%20pizza%20and%20a%20pint%20under%20%C2%A310%20in%20Soho#main"
+    uid=g8:1_2 StaticText "Skip to main content"
+  uid=g8:1_3 main
+    uid=g8:1_4 navigation "Site navigation"
+      uid=g8:1_5 link "Open PUBMAXX landing page" url="http://127.0.0.1:38761/"
+        uid=g8:1_6 image "PUBMAXX"
+      uid=g8:1_7 link "Tonight" url="http://127.0.0.1:38761/tonight"
+        uid=g8:1_8 StaticText "Tonight"
+      uid=g8:1_9 link "Map" url="http://127.0.0.1:38761/map"
+        uid=g8:1_10 StaticText "Map"
+      uid=g8:1_11 link "Places" url="http://127.0.0.1:38761/places"
+        uid=g8:1_12 StaticText "Places"
+      uid=g8:1_13 link "Out" url="http://127.0.0.1:38761/out"
+        uid=g8:1_14 StaticText "Out"
+      uid=g8:1_15 link "Plan" url="http://127.0.0.1:38761/plan"
+        uid=g8:1_16 StaticText "Plan"
+      uid=g8:1_17 link "You" url="http://127.0.0.1:38761/u/you"
+        uid=g8:1_18 StaticText "You"
+      uid=g8:1_19 button "More pages" expandable haspopup="menu"
+      uid=g8:1_20 link "Share a Moment" description="Share a Moment" url="http://127.0.0.1:38761/moment?returnTo=%2Fplan"
+      uid=g8:1_21 button "Open command palette" description="Search & jump to a page (⌘K / Ctrl+K)"
+      uid=g8:1_22 link "Activity" description="Activity" url="http://127.0.0.1:38761/activity"
+      uid=g8:1_23 link "Messages" description="Messages" url="http://127.0.0.1:38761/messages"
+      uid=g8:1_24 button "Switch to light theme" description="Switch to light theme"
+    uid=g8:1_25 form
+      uid=g8:1_39 region "Today in Piccadilly & Soho"
+        uid=g8:6_0 heading "Today in Piccadilly & Soho" level="2"
+        uid=g8:6_1 button "Tune details" haspopup="dialog"
+        uid=g8:6_2 StaticText "1 stop · £6.20 each"
+        uid=g8:6_3 status atomic focusable focused live="polite" relevant="additions text"
+          uid=g8:6_4 StaticText "Route refreshed. Review the preview, then lock it in when it feels right."
+        uid=g8:6_5 StaticText "Pub list refreshed 2 Oct 2026."
+      uid=g8:6_6 StaticText "The "
+      uid=g8:6_7 StaticText "meetup"
+      uid=g8:6_8 StaticText " "
+      uid=g8:6_9 StaticText "Preview"
+      uid=g8:6_10 link "The Lyric" url="http://127.0.0.1:38761/map?sel=venue-7tarkc"
+        uid=g8:6_11 StaticText "The Lyric"
+      uid=g8:6_12 StaticText "Piccadilly & Soho · Listed price"
+      uid=g8:6_13 StaticText "£6.20"
+      uid=g8:6_14 button "Swap stop 1, currently The Lyric" description="2 other pubs"
+      uid=g8:6_15 button "Add another stop"
+      uid=g8:1_56 StaticText "Name the night"
+      uid=g8:1_57 textbox "Name the night" value="Tonight, sorted"
+      uid=g8:1_58 StaticText "Your name"
+      uid=g8:1_59 textbox "Your name" required
+      uid=g8:1_60 StaticText "First pint"
+      uid=g8:1_61 DateTime "First pint" value="2026-10-15T18:00"
+        uid=g8:1_62 spinbutton "Day Day" value="15" valuemax="31" valuemin="1" valuetext=""
+        uid=g8:1_63 StaticText "/"
+        uid=g8:1_64 spinbutton "Month Month" value="10" valuemax="12" valuemin="1" valuetext=""
+        uid=g8:1_65 StaticText "/"
+        uid=g8:1_66 spinbutton "Year Year" value="2026" valuemax="275760" valuemin="1" valuetext=""
+        uid=g8:1_67 StaticText ", "
+        uid=g8:1_68 spinbutton "Hours Hours" value="18" valuemax="23" valuemin="0" valuetext=""
+        uid=g8:1_69 StaticText ":"
+        uid=g8:1_70 spinbutton "Minutes Minutes" value="0" valuemax="59" valuemin="0" valuetext=""
+        uid=g8:1_71 button "Show local date and time picker Show local date and time picker" haspopup="menu"
+      uid=g8:6_16 region "Area coverage"
+        uid=g8:6_17 DisclosureTriangle "Area coverage 4 of 47 crawl-ready +" expandable
+      uid=g8:6_18 status atomic live="polite" relevant="additions text"
+        uid=g8:6_19 StaticText "1 stop we can stand behind, shaped by the outing you set."
+      uid=g8:1_81 button "Lock it in" description="Add your name." disableable disabled
+      uid=g8:6_20 StaticText "Add your name."
+  uid=g8:1_84 alert atomic live="assertive" relevant="additions text"
+help[5]:
+  Run `chrome-devtools-axi fill @g8:1_57 "text"` to fill the "Name the night" field
+  Run `chrome-devtools-axi click @g8:1_19` to click the "More pages" button
+  Run `chrome-devtools-axi click @g8:1_1` to click the "Skip to main content" link
+  Run `chrome-devtools-axi scroll down` to scroll down
+  Use `chrome-devtools-axi eval <expr>` for JS expressions. For multi-statement code, pass a function: `eval "() => { ...; return result }"`

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defined } from "@/__tests__/helpers/defined";
 
 type Listener = (event: unknown) => void;
@@ -84,6 +84,7 @@ function rolloutWorkerHarness(input: {
   rejectDeletes?: boolean;
   importError?: Error;
   response?: Response;
+  pendingResponse?: Promise<Response>;
 }) {
   const listeners = new Map<string, Listener>();
   const records = new Map<
@@ -182,6 +183,7 @@ function rolloutWorkerHarness(input: {
       active: {
         scriptURL: "https://pubmaxxing.com/sw.js?v=legacy-active",
       },
+      navigationPreload: { enable: vi.fn(async () => undefined) },
       showNotification: vi.fn(async () => undefined),
     },
     skipWaiting: vi.fn(async () => undefined),
@@ -195,6 +197,7 @@ function rolloutWorkerHarness(input: {
     },
   };
   const doFetch = vi.fn(async () => {
+    if (input.pendingResponse) return input.pendingResponse;
     if (input.response) return input.response;
     throw new TypeError("network unavailable");
   });
@@ -216,6 +219,7 @@ function rolloutWorkerHarness(input: {
 
   return {
     deletedCaches,
+    doFetch,
     fakeCaches,
     fakeSelf,
     importScripts,
@@ -227,6 +231,7 @@ function rolloutWorkerHarness(input: {
 function dispatchFetch(
   listener: Listener,
   request: Request,
+  preloadResponse?: Promise<Response | undefined>,
 ): {
   response: Promise<unknown> | null;
   lifetime: Promise<unknown>[];
@@ -235,6 +240,7 @@ function dispatchFetch(
   const lifetime: Promise<unknown>[] = [];
   listener({
     request,
+    preloadResponse,
     respondWith(value: Promise<unknown>) {
       response = Promise.resolve(value);
     },
@@ -1308,4 +1314,176 @@ describe("old Plan navigation privacy", () => {
       expect(response).toBe(home);
     },
   );
+});
+
+describe("stalled and preloaded navigations", () => {
+  const TIMEOUT_MS = 4000;
+  const NOW = Date.parse("2026-10-15T21:00:00Z");
+
+  function shelvedShell(body: string, servedAgoMs: number, ageSeconds = 0) {
+    return new Response(body, {
+      headers: {
+        date: new Date(NOW - servedAgoMs).toUTCString(),
+        age: String(ageSeconds),
+      },
+    });
+  }
+
+  function stalledNetwork() {
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>((done) => {
+      resolve = done;
+    });
+    return { pending, resolve };
+  }
+
+  function navigate(listener: Listener, path: string, preload?: Promise<Response | undefined>) {
+    return dispatchFetch(
+      listener,
+      { method: "GET", mode: "navigate", url: `https://pubmaxxing.com${path}` } as Request,
+      preload,
+    );
+  }
+
+  async function settledWithin(promise: Promise<unknown>, ms: number) {
+    let settled = false;
+    void promise.then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(ms);
+    return settled;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("enables navigation preload when it activates", async () => {
+    const { fakeSelf, listeners } = rolloutWorkerHarness({ entries: {} });
+    await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+    expect(fakeSelf.registration.navigationPreload.enable).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers a navigation from its preload response without a second fetch", async () => {
+    const preloaded = new Response("preloaded map");
+    const { doFetch, listeners, records } = rolloutWorkerHarness({ entries: {} });
+
+    const navigation = navigate(listeners.get("fetch")!, "/map", Promise.resolve(preloaded));
+
+    expect(await navigation.response).toBe(preloaded);
+    expect(doFetch).not.toHaveBeenCalled();
+    await Promise.all(navigation.lifetime);
+    expect(records.get("pubmax-sw-shell-target")?.has("https://pubmaxxing.com/map")).toBe(true);
+  });
+
+  it("falls back to fetch when no preload response is offered", async () => {
+    const live = new Response("live map");
+    const { doFetch, listeners } = rolloutWorkerHarness({ entries: {}, response: live });
+
+    const navigation = navigate(listeners.get("fetch")!, "/map", Promise.resolve(undefined));
+
+    expect(await navigation.response).toBe(live);
+    expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves a fresh shelved /tonight after the timeout and refreshes the shelf from the late answer", async () => {
+    const shelf = shelvedShell("shelved tonight", 60_000, 60);
+    const network = stalledNetwork();
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/tonight", shelf]] },
+      pendingResponse: network.pending,
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/tonight");
+    expect(await settledWithin(navigation.response!, TIMEOUT_MS - 1)).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await navigation.response).toBe(shelf);
+
+    const live = new Response("live tonight");
+    network.resolve(live);
+    await Promise.all(navigation.lifetime);
+    const stored = records.get("pubmax-sw-shell-target")?.get("https://pubmaxxing.com/tonight");
+    expect(await stored?.response.text()).toBe("live tonight");
+  });
+
+  it("keeps waiting on the network when the shelved /tonight is older than its five-minute window", async () => {
+    // Date four minutes ago plus a two-minute CDN Age: six minutes of price lag.
+    const shelf = shelvedShell("old tonight", 4 * 60_000, 120);
+    const network = stalledNetwork();
+    const { listeners } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/tonight", shelf]] },
+      pendingResponse: network.pending,
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/tonight");
+    expect(await settledWithin(navigation.response!, TIMEOUT_MS * 5)).toBe(false);
+
+    const live = new Response("live tonight");
+    network.resolve(live);
+    expect(await navigation.response).toBe(live);
+  });
+
+  it("serves a shelved map shell within its hour after the timeout", async () => {
+    const shelf = shelvedShell("shelved map", 50 * 60_000);
+    const network = stalledNetwork();
+    const { listeners } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/map", shelf]] },
+      pendingResponse: network.pending,
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/map");
+    await vi.advanceTimersByTimeAsync(TIMEOUT_MS);
+    expect(await navigation.response).toBe(shelf);
+    network.resolve(new Response("live map"));
+  });
+
+  it("never answers early from a shelved shell with no readable Date", async () => {
+    const shelf = new Response("undated home");
+    const network = stalledNetwork();
+    const { listeners } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/", shelf]] },
+      pendingResponse: network.pending,
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/");
+    expect(await settledWithin(navigation.response!, TIMEOUT_MS * 5)).toBe(false);
+    const live = new Response("live home");
+    network.resolve(live);
+    expect(await navigation.response).toBe(live);
+  });
+
+  it("does not time out navigations to pages it does not shelve", async () => {
+    const home = shelvedShell("fresh home", 0);
+    const network = stalledNetwork();
+    const { listeners } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/", home]] },
+      pendingResponse: network.pending,
+    });
+
+    const navigation = navigate(listeners.get("fetch")!, "/pubs");
+    expect(await settledWithin(navigation.response!, TIMEOUT_MS * 5)).toBe(false);
+    const live = new Response("live pubs");
+    network.resolve(live);
+    expect(await navigation.response).toBe(live);
+  });
+
+  it("keeps the offline ladder when the preload fails outright", async () => {
+    const home = new Response("offline home");
+    const { doFetch, listeners } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/", home]] },
+    });
+
+    const navigation = navigate(
+      listeners.get("fetch")!,
+      "/pubs",
+      Promise.reject(new TypeError("network unavailable")),
+    );
+    expect(await navigation.response).toBe(home);
+    expect(doFetch).not.toHaveBeenCalled();
+  });
 });

@@ -1,0 +1,142 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+································································································································································································································································································································································································································································································································································································································································································································································································································································································································x·xxx····························x·xxx····························x·xxx····························x·xxx····························x·xxx····························x·xxx····························x·xxx····························x·xxx·············································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································xx··············xx··············xx··············xx·······················································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One vegan meal in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160111}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One meal under 500 calories in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160114}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"One pizza under £10 in Soho"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160116}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160117}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":""}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160119}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"not-a-city"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160121}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"query":"3 pubs in Soho","cityId":"manchester"}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160123}
+
+stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps the paid slot available after a deterministic refusal: {"intake":{"version":1,"area":{"kind":"night-patch","id":"hackney"},"timeWindow":null,"groupSize":4,"budget":{"tier":"standard","limitPence":null},"accessibilityNeeds":[],"skipped":["time-window"]}}
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1,"windowMs":86400000,"ts":1792078160125}
+
+················································································································································································································stdout | __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses with the deployment ceiling's own sentence once it is spent
+{"level":"warn","event":"paid_spend.budget_spent","lane":"plan-generate","budget":1000,"windowMs":86400000,"ts":1792078160423}
+
+··············································
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 40 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a pub lunch"}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:433:8
+    431|       preparation: "response" in prepared ? prepared.response.status :…
+    432|       post: response.status,
+    433|     }).toEqual({ preparation: 422, post: 422 });
+       |        ^
+    434|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    435|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/40]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a pub lunch"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a pub lunch"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a pub lunch"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a pub meal"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a pub meal"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a pub meal"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a pub meal"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a pub food"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a pub food"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a pub food"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a pub food"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a pub burger"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a pub burger"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a pub burger"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a pub burger"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a bar lunch"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a bar lunch"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a bar lunch"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a bar lunch"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a bar meal"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a bar meal"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a bar meal"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a bar meal"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a bar food"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a bar food"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a bar food"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a bar food"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham under £20 for a bar burger"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham, pubs under£20 for a bar burger"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham pubs under£20 for a bar burger"}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > refuses complete priced food subjects at preparation and POST: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pubs under£20 for a bar burger"]}}
+AssertionError: expected { preparation: 'prepared', post: 200 } to deeply equal { preparation: 422, post: 422 }
+
+- Expected
++ Received
+
+  {
+-   "post": 422,
+-   "preparation": 422,
++   "post": 200,
++   "preparation": "prepared",
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:433:8
+    431|       preparation: "response" in prepared ? prepared.response.status :…
+    432|       post: response.status,
+    433|     }).toEqual({ preparation: 422, post: 422 });
+       |        ^
+    434|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    435|     if (!("response" in prepared)) throw new Error("Expected meal limi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/40]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One total budget of£10 for pizza and a beer in Soho","context":{"stopCount":1}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One pub in Soho","context":{"stopCount":1,"foodNeeds":["total budget of£10 for pizza and a beer"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One total budget of£10 for pizza and a drink in Soho","context":{"stopCount":1}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One pub in Soho","context":{"stopCount":1,"foodNeeds":["total budget of£10 for pizza and a drink"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One total budget of£10 for pizza and a pint in Soho","context":{"stopCount":1}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One pub in Soho","context":{"stopCount":1,"foodNeeds":["total budget of£10 for pizza and a pint"]}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One route total£10 for pizza & pint of beer in Soho","context":{"stopCount":1}}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > retains meal bundle ownership for every drink alias: {"query":"One pub in Soho","context":{"stopCount":1,"foodNeeds":["route total£10 for pizza & pint of beer"]}}
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ __tests__/planGenerateRoute.test.ts:890:29
+    888|       method: "POST", body: JSON.stringify(input),
+    889|     }));
+    890|     expect(response.status).toBe(422);
+       |                             ^
+    891|     expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAI…
+    892|     expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendB…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/40]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  40 failed | 3256 passed (3296)
+   Start at  16:29:09
+   Duration  11.77s (tests 95%, transform 4%, import 1%)
+

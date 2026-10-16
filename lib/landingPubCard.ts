@@ -37,6 +37,7 @@ import { priceMovementLine } from "@/lib/priceMovementLine";
 import type { PriceStanding } from "@/lib/priceTier";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import type { Venue } from "@/lib/venues";
 
 /** Pubs a Londoner knows, tried in order. Ids are the curated venue ids. */
@@ -50,6 +51,7 @@ export type LandingPubCardData = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   /** Listed cheapest pint today, in pounds. */
   priceGbp: number;
   /** The pint the price is for, as the dataset names it. */
@@ -132,7 +134,8 @@ export function buildLandingPubCard(
   return {
     id: chosen.id,
     name: chosen.name,
-    area: chosen.primaryBorough,
+    area: venueAreaLabel(chosen),
+    primaryBorough: chosen.primaryBorough,
     priceGbp: arc.nowGbp,
     pintName: pintLabel(chosen),
     drinkHref: drinkHrefFor(chosen, venues),
@@ -190,7 +193,7 @@ export function buildLandingArchiveIndex(
  */
 export function buildLandingAnchorRail(
   venues: readonly Venue[],
-  anchor: { id: string; area: string },
+  anchor: { id: string; primaryBorough: string },
   archive: LandingArchiveIndex,
 ): LandingRailRow[] {
   return venues
@@ -198,7 +201,7 @@ export function buildLandingAnchorRail(
       (venue) =>
         venue.id !== anchor.id &&
         isPubVenueKind(venue.kind) &&
-        venue.primaryBorough === anchor.area &&
+        venue.primaryBorough === anchor.primaryBorough &&
         typeof venue.cheapestPrice === "number" &&
         venue.cheapestPrice > 0,
     )
@@ -207,7 +210,8 @@ export function buildLandingAnchorRail(
     .map((venue) => ({
       id: venue.id,
       name: venue.name,
-      area: venue.primaryBorough,
+      area: venueAreaLabel(venue),
+      primaryBorough: venue.primaryBorough,
       priceGbp: venue.cheapestPrice as number,
       hasThen: venue.id in archive,
     }));

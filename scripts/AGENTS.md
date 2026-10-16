@@ -15,7 +15,8 @@ Full rules: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-
 - [A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT, AND NOTHING ELSE MAY.](../docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may)
 - [EVERY GATE IS RUN BY SOMETHING, AND A REPORT-GATE RUNS WHERE THE REPORT IS.](../docs/rules/scripts-ci-gates-and-audits.md#every-gate-is-run-by-something-and-a-report-gate-runs-where-the-report-is)
 - [An audit waiver is a documented exception, not a mute button.](../docs/rules/scripts-ci-gates-and-audits.md#an-audit-waiver-is-a-documented-exception-not-a-mute-button)
-- [The no-mistakes Test step runs `npm run verify:no-mistakes` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
+- [The no-mistakes Test step runs `npm run verify:no-mistakes:changed` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
+- [The local no-mistakes Test step runs change-scoped checks, and the full unit suite runs once, in GitHub CI.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-change-scoped-checks-and-ci-runs-the-full-suite)
 - [Generated database types are cut from the harness cluster, and verify refuses drift.](../docs/rules/scripts-ci-gates-and-audits.md#generated-database-types-are-cut-from-the-harness-cluster-and-verify-refuses-drift)
 
 ## Harvest and source permission

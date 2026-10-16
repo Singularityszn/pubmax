@@ -2,18 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDonutMarkerSvg,
-  buildDonutStrokeSegments,
-  DONUT_BADGE_MIN,
   DONUT_CASING_PX,
   DONUT_RING_PX,
   donutOuterRadius,
   donutTotal,
   formatDonutCount,
   readMinPrice,
-  type DonutCounts,
   type DonutMarkerSvgParams,
 } from "@/lib/donutClusterGeometry";
-import { defined } from "@/__tests__/helpers/defined";
 
 const COLORS = ["#2f8f5b", "#d99f45", "#d16353", "#6b726a"];
 
@@ -53,36 +49,6 @@ describe("donutTotal", () => {
   });
 });
 
-describe("buildDonutStrokeSegments", () => {
-  it("returns one segment per non-zero bucket, proportional to share of total", () => {
-    const counts: DonutCounts = [3, 1, 0, 0];
-    const radius = 10;
-    const circumference = 2 * Math.PI * radius;
-    const segments = buildDonutStrokeSegments(counts, COLORS, radius);
-    expect(segments).toHaveLength(2);
-    expect(defined(segments[0]).index).toBe(0);
-    expect(defined(segments[0]).color).toBe(COLORS[0]);
-    expect(defined(segments[1]).index).toBe(1);
-
-    // First segment's arc length is 3/4 of the circumference.
-    const [firstArc] = defined(segments[0]).dasharray.split(" ").map(Number);
-    expect(firstArc).toBeCloseTo(circumference * 0.75, 2);
-    // Segments are laid end to end: the second starts where the first ends.
-    expect(defined(segments[1]).dashoffset).toBeCloseTo(-defined(firstArc), 2);
-    expect(defined(segments[0]).dashoffset).toBeCloseTo(0, 5);
-  });
-
-  it("returns no segments when every bucket is empty or radius is non-positive", () => {
-    expect(buildDonutStrokeSegments([0, 0, 0, 0], COLORS, 10)).toEqual([]);
-    expect(buildDonutStrokeSegments([1, 0, 0, 0], COLORS, 0)).toEqual([]);
-  });
-
-  it("omits zero-count buckets entirely (proportional to what actually renders)", () => {
-    const segments = buildDonutStrokeSegments([0, 5, 0, 5], COLORS, 10);
-    expect(segments.map((s) => s.index)).toEqual([1, 3]);
-  });
-});
-
 describe("formatDonutCount", () => {
   it("matches supercluster's point_count_abbreviated exactly", () => {
     expect(formatDonutCount(3)).toBe("3");
@@ -98,51 +64,46 @@ describe("formatDonutCount", () => {
 describe("buildDonutMarkerSvg", () => {
   const params = (over: Partial<DonutMarkerSvgParams> = {}): DonutMarkerSvgParams => ({
     counts: [2, 1, 0, 0],
-    colors: COLORS,
     discColor: "#fffdf9",
     casingColor: "#0b0b0d",
     trackColor: "#666670",
     textColor: "#111111",
+    figureColor: COLORS[0]!,
     outerRadius: 22,
     figure: null,
     ...over,
   });
   const widthOf = (svg: string) => Number(/width="([\d.]+)"/.exec(svg)?.[1]);
 
-  it("renders one ring segment per non-zero bucket and the count when there is no price", () => {
+  it("prints the count in ink when there is no price, on a ring that carries no band", () => {
     const svg = buildDonutMarkerSvg(params());
     expect(svg).toContain("<svg");
-    expect(svg).toContain(">3<"); // the count, where no pub says a price
-    expect((svg.match(/data-bucket="0"/g) ?? []).length).toBe(1);
-    expect((svg.match(/data-bucket="1"/g) ?? []).length).toBe(1);
-    expect(svg).not.toContain('data-bucket="2"');
-    expect(svg).not.toContain('data-bucket="3"');
-    expect(svg).toContain(COLORS[0]);
-    expect(svg).toContain(COLORS[1]);
+    expect(svg).toMatch(/fill="#111111"[^>]*data-role="figure">3</);
+    expect(svg).not.toContain("data-bucket");
+    for (const colour of COLORS) expect(svg).not.toContain(colour);
   });
 
-  it("is a paper disc on an ink casing, with the band as a ring and never a fill", () => {
-    const svg = buildDonutMarkerSvg(params());
+  it("is a paper disc on an ink casing with a neutral ring, and no band is ever a fill", () => {
+    const svg = buildDonutMarkerSvg(params({ figure: "£3.20" }));
     const circles = svg.match(/<circle [^>]*>/g) ?? [];
-    // casing, paper, track, then one per segment
+    // casing, paper, the neutral ring, and nothing else
+    expect(circles).toHaveLength(3);
     expect(circles[0]).toContain('fill="#0b0b0d"');
     expect(circles[1]).toContain('fill="#fffdf9"');
-    for (const segment of circles.filter((c) => c.includes("data-bucket"))) {
-      expect(segment).toContain('fill="none"');
-      expect(segment).toContain('stroke-width="3"');
-    }
-    // No band colour is ever a fill.
-    for (const colour of COLORS) expect(svg).not.toContain(`fill="${colour}"`);
+    expect(circles[2]).toContain('fill="none"');
+    expect(circles[2]).toContain('stroke="#666670"');
+    expect(circles[2]).toContain('stroke-width="3"');
+    for (const colour of COLORS) expect(svg).not.toContain(`fill="${colour}"><`);
   });
 
-  it("prints the cheapest price in the middle and the count on the rim from ten pubs up", () => {
+  it("prints from and the cheapest price in its band ink, and n pubs under the disc", () => {
     const priced = buildDonutMarkerSvg(params({ counts: [60, 20, 14, 0], figure: "£3.20" }));
-    expect(priced).toMatch(/data-role="figure">£3\.20</);
-    expect(priced).toMatch(/data-role="count">94</);
-    // A small cluster's count says less than its size does, so it stays off.
+    expect(priced).toMatch(new RegExp(`fill="${COLORS[0]}"[^>]*data-role="figure">£3\\.20<`));
+    expect(priced).toMatch(/data-role="from">from</);
+    expect(priced).toMatch(/data-role="count">94 pubs</);
+    // A small cluster says its count too: the label is "from £x · n pubs".
     const small = buildDonutMarkerSvg(params({ counts: [2, 1, 0, 0], figure: "£3.20" }));
-    expect(DONUT_BADGE_MIN).toBe(10);
-    expect(small).not.toContain('data-role="count"');
+    expect(small).toMatch(/data-role="count">3 pubs</);
     // And with no price the count IS the figure, never printed twice.
     const unpriced = buildDonutMarkerSvg(params({ counts: [60, 20, 14, 0], figure: null }));
     expect(unpriced).toMatch(/data-role="figure">94</);

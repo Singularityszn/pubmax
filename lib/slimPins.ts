@@ -12,6 +12,7 @@
 import type { Venue } from "@/lib/venues";
 import { isNationalBaseVenueId, venueCityPrefix } from "@/lib/cityVenueIds";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
+import { displayVenueAddress } from "@/lib/venueDisplay";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 /**
@@ -50,10 +51,11 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
   return {
     id: slim.id,
     name: slim.name,
-    address: addressFromSlimSearchText(slim),
+    address: displayVenueAddress(addressFromSlimSearchText(slim)),
     latitude: slim.lat,
     longitude: slim.lng,
     primaryBorough: slim.borough,
+    ...(slim.locality !== undefined ? { locality: slim.locality } : {}),
     // Carry the nearest-station fare zone so the zone lens filters slim pins
     // before detail hydrates (undefined stays undefined — honestly unknown).
     ...(slim.zone !== undefined ? { zone: slim.zone } : {}),
@@ -92,6 +94,9 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     sourceDatasets: [],
     curation: {},
     ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
+    ...(slim.priceObservedAt !== undefined
+      ? { priceObservedAt: slim.priceObservedAt }
+      : {}),
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
     ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
     ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),
@@ -121,10 +126,12 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
     lng: pin.longitude,
     cheapestPrice: pin.cheapestPrice,
     borough: pin.primaryBorough,
+    ...(pin.locality !== undefined ? { locality: pin.locality } : {}),
     ...(pin.zone !== undefined ? { zone: pin.zone } : {}),
     ...(pin.filterHints ? { filterHints: pin.filterHints } : {}),
     ...(pin.kind !== undefined ? { kind: pin.kind } : {}),
     ...(pin.priceBand !== undefined ? { priceBand: pin.priceBand } : {}),
+    ...(pin.priceObservedAt !== undefined ? { priceObservedAt: pin.priceObservedAt } : {}),
     ...(pin.anchorLabel !== undefined ? { anchorLabel: pin.anchorLabel } : {}),
     ...(pin.anchorCourse !== undefined ? { anchorCourse: pin.anchorCourse } : {}),
     ...(pin.anchorObservedAt !== undefined

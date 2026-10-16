@@ -1,0 +1,73 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4ZQRV5QZPYFNNC4P95AMFCP
+
+xxxx·x·xxxxx········xxxx···x·x---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint at pubs serving pizza","total":null,"ceiling":500}
+AssertionError: {"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}: expected { preparation: 422, post: 422 } to deeply equal { preparation: 200, post: 200 }
+
+- Expected
++ Received
+
+  {
+-   "post": 200,
+-   "preparation": 200,
++   "post": 422,
++   "preparation": 422,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:240:10
+    238|       const body = await response.json();
+    239|       expect({ preparation: "prepared" in prepared ? 200 : prepared.re…
+    240|         .toEqual({ preparation: 200, post: 200 });
+       |          ^
+    241|       if (!("prepared" in prepared)) throw new Error(JSON.stringify(aw…
+    242|       expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 for a pint at pubs serving pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pints under£5 at pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5 at pubs serving pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 for a pint at pubs serving food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5 at pubs serving food"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, £5 for a pint in pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["£5 for a pint in pubs serving pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pints under£5 in pubs serving pizza","total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["pints under£5 in pubs serving pizza"]},"total":null,"ceiling":500}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, route budget of£20 at pubs serving pizza","total":2000,"ceiling":null}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route budget of£20 at pubs serving pizza"]},"total":2000,"ceiling":null}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, route total£20 for drinks serving pizza","total":2000,"ceiling":null}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route total£20 for drinks serving pizza"]},"total":2000,"ceiling":null}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham","context":{"foodNeeds":["route budget of£20 at pubs serving food"]},"total":2000,"ceiling":null}
+ FAIL  __tests__/planGenerateRoute.test.ts > POST /api/plans/generate > keeps price subjects separate from venue food preferences: {"query":"3 pubs in Clapham, pub route budget of£20 for drinks at pubs serving pizza","total":2000,"ceiling":null}
+AssertionError: {"error":"This route planner cannot verify meal prices, dietary requirements or calories. Use the food map for sourced menu items.","code":"MEAL_CONSTRAINTS_UNSUPPORTED","retryable":false}: expected { preparation: 422, post: 422 } to deeply equal { preparation: 200, post: 200 }
+
+- Expected
++ Received
+
+  {
+-   "post": 200,
+-   "preparation": 200,
++   "post": 422,
++   "preparation": 422,
+  }
+
+ ❯ __tests__/planGenerateRoute.test.ts:240:10
+    238|       const body = await response.json();
+    239|       expect({ preparation: "prepared" in prepared ? 200 : prepared.re…
+    240|         .toEqual({ preparation: 200, post: 200 });
+       |          ^
+    241|       if (!("prepared" in prepared)) throw new Error(JSON.stringify(aw…
+    242|       expect(prepared.prepared.context.budgetLimitPence).toBe(total);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  16 failed | 14 passed | 1647 skipped (1677)
+   Start at  15:26:42
+   Duration  906ms (transform 52%, tests 30%, import 17%)
+

@@ -225,6 +225,7 @@ describe("first-run handoff in the phone planner", () => {
     expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1500 });
   });
 
+
   it("is read once: a second planner opens on its own defaults", async () => {
     writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
     await render(wine);

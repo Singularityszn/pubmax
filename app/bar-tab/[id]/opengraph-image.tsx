@@ -13,6 +13,7 @@ import { clampOgText } from "@/lib/ogCardText";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import type { Venue } from "@/lib/venues";
 
 // Per-venue Bar Tab OG share card (Next `opengraph-image` convention) — the
@@ -58,7 +59,7 @@ async function loadBarTab(venueId: string) {
 }
 
 // A raised stat tile: a value over a muted label, on a panel step above the
-// page (mirrors the borough card).
+// page (mirrors the area card).
 function StatTile({ value, label }: { value: string; label: string }) {
   return (
     <div
@@ -112,7 +113,7 @@ export default async function Image({
     collapseWhitespace: true,
     collapseBeforeFilter: true,
   });
-  const borough = clampOgText(venue?.primaryBorough, 28, "London", {
+  const area = clampOgText(venue ? venueAreaLabel(venue) : undefined, 28, "London", {
     collapseWhitespace: true,
     collapseBeforeFilter: true,
   });
@@ -257,7 +258,7 @@ export default async function Image({
           )}
         </div>
 
-        {/* Footer: borough + URL joined by the coral rule */}
+        {/* Footer: area + URL joined by the coral rule */}
         <div
           style={{
             display: "flex",
@@ -273,7 +274,7 @@ export default async function Image({
               letterSpacing: 0.5,
             }}
           >
-            {borough} · pints as they were poured
+            {area} · pints as they were poured
           </div>
           <div
             style={{
