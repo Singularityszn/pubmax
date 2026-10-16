@@ -5,6 +5,8 @@ import PubMaxingShell from "@/components/PubMaxingShell";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { pintShareCardVenue } from "@/lib/pintShare";
+import { pintShareMetadata } from "@/lib/pintShare.server";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import {
   UK_NATIONAL_BROWSE_COPY,
@@ -20,6 +22,8 @@ import { ukPlaceMapUrl } from "@/lib/ukPlaceSearch";
 // crawl share card - is rewritten HERE by proxy.ts, keeping `/map` in the
 // address bar. This is the page `/map` used to be; the split only decides which
 // requests pay for a render. lib/mapDocumentTwin.ts owns the key list.
+// A "Share this pint" link (`?sel=<id>&card=pint`, lib/pintShare.ts) is one
+// of them: its preview is that pub's listed pint.
 //
 // Reachable directly at /map/arrival too, which is why it is noindex: the
 // canonical address of every document below is `/map`.
@@ -103,6 +107,19 @@ export async function generateMetadata({
         title,
         description,
       },
+    };
+  }
+  // A "Share this pint" link: the pub's own card, read from the dataset.
+  const pintVenue = pintShareCardVenue(
+    firstSearchParam(sp?.card),
+    firstSearchParam(sp?.sel),
+  );
+  const pintMetadata = pintVenue ? await pintShareMetadata(pintVenue) : null;
+  if (pintMetadata) {
+    return {
+      ...pintMetadata,
+      alternates: { canonical: "/map" },
+      robots: { index: false, follow: true },
     };
   }
   const band = firstSearchParam(sp?.band);
