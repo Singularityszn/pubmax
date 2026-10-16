@@ -148,7 +148,7 @@ function buttons(): HTMLButtonElement[] {
 
 function planControls(): HTMLButtonElement[] {
   return buttons().filter((button) =>
-    /Stop 1|Plan stop|In plan|Crawl|Remove/.test(
+    /stop 1|plan stop|in plan|crawl|remove/i.test(
       `${button.getAttribute("aria-label") ?? ""} ${button.textContent ?? ""}`,
     ),
   );

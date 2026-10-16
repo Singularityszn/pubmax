@@ -26,7 +26,7 @@ const VENUE_NAME = COMMUNITY_SHEET_FIXTURE_VENUE_NAME;
 // The crawl already in progress when the reader opens VENUE: one picked stop.
 const CRAWL_STOP_ID = "venue-xjf3n0";
 const CRAWL_STOP_NAME = "Arnos Arms";
-const PLAN_DOOR_NAME = /Stop 1$|^Plan stop$|^In plan$|^Crawl$|^Remove$/;
+const PLAN_DOOR_NAME = /Stop 1$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/;
 
 async function preparePage(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
