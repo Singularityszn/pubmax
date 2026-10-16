@@ -12,13 +12,6 @@ const ROOT = path.resolve(__dirname, "..");
 const E2E = path.join(ROOT, "e2e");
 const HELPER = "helpers/mobileMapShell.ts";
 
-// Back and history specs, left in their own lane while that work is open.
-// Each still waits at least the shell's ceiling on its own.
-const DIRECT_WAIT_ALLOWED = new Set([
-  "surface-back-and-home.spec.ts",
-  "map-surface-history.spec.ts",
-]);
-
 function e2eSources(): Array<{ file: string; text: string }> {
   const out: Array<{ file: string; text: string }> = [];
   const walk = (dir: string) => {
@@ -99,20 +92,9 @@ describe("e2e phone map shell readiness", () => {
 
   it("waits for the phone top bar only through expectMobileMapShellReady", () => {
     const offenders = e2eSources()
-      .filter(({ file }) => file !== HELPER && !DIRECT_WAIT_ALLOWED.has(file))
+      .filter(({ file }) => file !== HELPER)
       .filter(({ text }) => waitsOnTopbar(text))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
-  });
-
-  it("keeps its allowlist honest", () => {
-    const sources = new Map(e2eSources().map(({ file, text }) => [file, text]));
-    for (const file of DIRECT_WAIT_ALLOWED) {
-      expect(sources.has(file), `${file} no longer exists`).toBe(true);
-      expect(
-        waitsOnTopbar(sources.get(file) ?? ""),
-        `${file} no longer waits on the top bar directly; drop it from the allowlist`,
-      ).toBe(true);
-    }
   });
 });
