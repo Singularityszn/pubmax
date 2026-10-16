@@ -29,6 +29,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function CrawlsPage() {
-  return <CrawlsPageClient />;
+export default async function CrawlsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ pack?: string | string[]; s?: string | string[] }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const pack = Array.isArray(params.pack) ? params.pack[0] : params.pack;
+  const encodedStory = Array.isArray(params.s) ? params.s[0] : params.s;
+  return <CrawlsPageClient pack={pack} encodedStory={encodedStory} />;
 }

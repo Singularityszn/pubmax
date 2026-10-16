@@ -10,7 +10,7 @@ import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import { OutOpenPlanCard } from "@/components/out/OutOpenPlanCard";
 import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import EditorialRail from "@/components/out/EditorialRail";
-import { useOutListings } from "@/components/out/useOutListings";
+import { useOutListings, type HeldOutAnswer } from "@/components/out/useOutListings";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -60,7 +60,7 @@ function OutListingCount({ count, lead }: { count: number; lead: ReturnType<type
   );
 }
 
-export default function OutClient({ day }: { day: OutDayWindow }) {
+export default function OutClient({ day, initialAnswer }: { day: OutDayWindow; initialAnswer?: HeldOutAnswer }) {
   // Out follows the city Places set. The server snapshot is null, so the first
   // paint asks for London and the browser's own answer takes over after mount:
   // this page is CDN-eligible by way of nothing personal being in its document,
@@ -71,7 +71,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     () => null,
   );
   const cityId = preferredCity ?? DEFAULT_CITY_ID;
-  const { body, failed, pending, retry } = useOutListings(day, cityId);
+  const { body, failed, pending, retry } = useOutListings(day, cityId, initialAnswer);
 
   useEffect(() => {
     trackEvent("out_screen_view");
