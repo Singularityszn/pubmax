@@ -1073,9 +1073,11 @@ function nextEvening(): string {
 }
 
 /**
- * The night the late default stepped over, as a one-tap choice. Read once at
- * mount from the same London clock the default read, so the choice and the
- * field agree; null before the cutoff, where the default already is tonight.
+ * The night the late default stepped over, as a one-tap choice: null before
+ * the cutoff, where the default already is tonight. Read on every render and
+ * again on the tap, never latched - a quarter-hour slot held from mount is a
+ * moment that has passed by the time a reader has described a night and sorted
+ * it, and the lock refuses a start in the past.
  */
 function tonightChoice(): { value: string; label: string } | null {
   const value = tonightLondonStartInput();
@@ -1334,7 +1336,6 @@ function PlanComposerForm({
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const [startTime, setStartTime] = useState(draftFields.startTime);
-  const [lateNightTonight] = useState(tonightChoice);
   const [stops, setStops] = useState<DraftStop[]>(
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
@@ -2501,6 +2502,7 @@ function PlanComposerForm({
   // Whether the field is parked on a night after the one running now. The
   // Tonight choice only has something to offer while that is true.
   const startsOnALaterNight = londonNightsAhead(startTime)?.nights !== 0;
+  const lateNightTonight = tonightChoice();
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
@@ -2523,7 +2525,7 @@ function PlanComposerForm({
             type="button"
             className="planComposer__tonight"
             data-testid="plan-tonight-choice"
-            onClick={() => updatePlanStartTime(lateNightTonight.value)}
+            onClick={() => updatePlanStartTime(tonightLondonStartInput() ?? lateNightTonight.value)}
           >
             Tonight, {lateNightTonight.label}
           </button>

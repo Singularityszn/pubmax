@@ -1,9 +1,10 @@
 /**
  * A way home the reader asked for. "Then home by tube" says how the night
- * ends, not how to walk between stops: it is the soft get-home preference the
- * live last-service read answers during the night (lib/lastTrain.server.ts),
- * and it never removes a pub from the route. Every other transport word is
- * still a route rule the optimizer has no evidence for, and fails closed.
+ * ends, not how to walk between stops, so the word is dropped from the route
+ * rules and never removes a pub from the route. Nothing here reads a last
+ * service: the live last-service answer is its own surface, the one the reader
+ * opens on the map. Every other transport word is still a route rule the
+ * optimizer has no evidence for, and fails closed.
  */
 const GET_HOME_TRANSPORT: ReadonlySet<string> = new Set(["tube"]);
 

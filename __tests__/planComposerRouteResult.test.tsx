@@ -42,6 +42,7 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import { resolveFutureLondonStartIso } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 
@@ -220,6 +221,50 @@ describe("the First pint beside a night the default stepped over", () => {
     expect(summary()).toContain("Thu 15 Oct, 23:00");
     // The choice is made, so the door closes.
     expect(tonightChoice()).toBeNull();
+  });
+
+  // The slot was latched at mount, so a reader who described a night and sorted
+  // it before tapping wrote a quarter-hour that had already passed: the lock
+  // then refuses the start it was handed, with nothing on screen saying so.
+  it("writes the slot the clock says on the tap, not the one it was offered at", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(tonightChoice()!.textContent).toBe("Tonight, Thu 15 Oct, 23:00");
+
+    // Twenty minutes of describing and sorting later, 23:00 is behind us.
+    vi.setSystemTime(new Date("2026-10-15T22:05:00.000Z"));
+    const tonight = tonightChoice()!;
+    await act(async () => { tonight.click(); });
+    await settle();
+
+    expect(startField().value).toBe("2026-10-15T23:30");
+    expect(summary()).toContain("Thu 15 Oct, 23:30");
+    // And the start the lock reads is still ahead of now.
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
+      .toBe("2026-10-15T22:30:00.000Z");
+  });
+
+  it("re-reads the offer as the clock moves, so the label names the slot it writes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(tonightChoice()!.textContent).toBe("Tonight, Thu 15 Oct, 23:00");
+
+    vi.setSystemTime(new Date("2026-10-15T22:05:00.000Z"));
+    // Any re-render re-reads the clock: the name on the door follows it.
+    const field = startField();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "2026-10-17T19:00");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+
+    expect(tonightChoice()!.textContent).toBe("Tonight, Thu 15 Oct, 23:30");
   });
 
   it("leaves an ordinary evening alone: the default is tonight and there is no second choice", async () => {
