@@ -1,4 +1,4 @@
-# PUBMAXX iPhone App — Product Requirements (v1)
+# PUBMAXXING iPhone App — Product Requirements (v1)
 
 **Status:** For Sol's review. Enables the app BUILD today (owner installs Xcode; free personal-team signing) with **paid Apple Developer enrollment deferred**.
 **Author:** Fable 5 (architect/reviewer — no inline execution).
@@ -32,11 +32,11 @@ The three native superpowers the shell adds on top of the site:
 
 1. **Real camera** — moment capture goes through `@capacitor/camera` instead of the WKWebView file-input (`lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx`). The web `capture="environment"` attribute is unreliable inside WKWebView; the native path returns a `File` shaped exactly like a file-input selection, so the rest of the moment pipeline is unchanged.
 2. **Push** — device-token registration today (`lib/nativePush.ts` → `POST /api/push-tokens`), server-side delivery behind an APNs-ready seam (`lib/pushProvider.ts`, `lib/pushSender.ts`). The launch payload is the **night-signal "went live" broadcast** (`broadcastNightSignalLive()`), the only push that can send pre-identity (see §2).
-3. **Home-screen presence** — a real App Store icon and a launch that opens straight on the map for a first-time native user (`lib/nativeFirstRun.ts`), rather than the marketing landing page built for organic web traffic.
+3. **Home-screen presence** - a real App Store icon and a launch that opens the dedicated onboarding route once for a first-time native user (`lib/nativeFirstRun.ts`), rather than the marketing landing page built for organic web traffic. Later root launches use `/tonight`.
 
 **What v1 deliberately is NOT:**
-- **No offline rebuild.** The shell loads `https://pubmaxxing.com` live (remote-URL mode). There is no bundled copy of the app. If prod is down, the app is down (mitigations in §5).
-- **No separate native UI.** No SwiftUI screens, no native navigation, no native map. The only Swift in the repo is the stock Capacitor `AppDelegate`/storyboards (`ios/App/App/`). Every screen is the same server-rendered React the web serves.
+- **No offline rebuild.** The shell loads `https://pubmaxxing.com` live (remote-URL mode). There is no bundled copy of the product UI. A failed main-frame load uses the bundled `native/web-stub/offline.html` retry page.
+- **No separate native UI.** No SwiftUI screens, no native navigation, no native map. The only Swift in the repo is the Capacitor `AppDelegate`/storyboards (`ios/App/App/`), including the APNs registration forwarding required by the push plugin. Every screen is the same server-rendered React the web serves.
 - **No multi-city.** London only. Wave-2 nine-city and Wave-4 Pub Pal voice are deferred (`fable-implement-prd.md` decision 3).
 - **No new product surface.** The app ships no feature the site doesn't already have; it upgrades three interaction points (camera, push, first-run) and adds an install identity.
 
@@ -52,15 +52,18 @@ The Next.js app is **server-rendered** (App Router, API routes, per-request data
 // capacitor.config.ts (#295)
 const config: CapacitorConfig = {
   appId: "com.pubmaxx.app",
-  appName: "PUBMAXX",
-  webDir: "native/web-stub",        // one-file stub — never served
-  server: { url: "https://pubmaxxing.com" },
+  appName: "PUBMAXXING",
+  webDir: "native/web-stub",
+  server: {
+    url: "https://pubmaxxing.com",
+    errorPath: "offline.html",
+  },
 };
 ```
 
-`webDir` must point at a real directory to satisfy the CLI's copy step, but pointing it at `public/` would bake ~6 MB of datasets/screenshots into the binary as dead weight, so `native/web-stub/index.html` is a one-file placeholder that is never actually served (`docs/CAPACITOR_WRAP.md`).
+`webDir` must point at a real directory to satisfy the CLI's copy step, but pointing it at `public/` would bake ~6 MB of datasets/screenshots into the binary as dead weight. `native/web-stub/index.html` is the placeholder and `offline.html` is the retry surface used by `server.errorPath` (`docs/CAPACITOR_WRAP.md`).
 
-Stack: **Capacitor 8** (`@capacitor/{core,cli,ios}@^8.4.2`, `@capacitor/camera@^8.2.1`, `@capacitor/push-notifications@^8.1.2`), **Next 16**. Capacitor 8 uses **Swift Package Manager** (`ios/App/CapApp-SPM`) — **no CocoaPods**.
+Stack: **Capacitor 8** (`@capacitor/{core,cli,ios,android}@^8.5.0`, `@capacitor/camera@^8.2.3`, `@capacitor/push-notifications@^8.1.2`), **Next 16**. Capacitor 8 uses **Swift Package Manager** (`ios/App/CapApp-SPM`) - **no CocoaPods**.
 
 ### 2.2 The seam contract (the load-bearing invariant)
 
@@ -71,16 +74,16 @@ Stack: **Capacitor 8** (`@capacitor/{core,cli,ios}@^8.4.2`, `@capacitor/camera@^
 
 Consequence: the web bundle is provably unaffected by the wrap. The same deploy of pubmaxxing.com serves both the browser and the shell; the shell just injects a `window.Capacitor` bridge before page scripts run, which flips every `isNativeApp()` branch on.
 
-### 2.3 What each PR contributes
+### 2.3 Historical PR composition (18 July)
 
 ```
-                        origin/main  (no native code — clean web app)
+                        origin/main  (18 July snapshot)
                              │
               ┌──────────────┴───────────────┐
               │  #295 feat/capacitor-ios-wrap │  ← native STACK BASE
               │  • capacitor.config.ts (remote-URL)
               │  • lib/nativePlatform / nativeCamera / nativePush.ts
-              │  • ios/ scaffold (SPM, stock AppDelegate + storyboards)
+              │  • ios/ scaffold (SPM, AppDelegate + storyboards)
               │  • POST /api/push-tokens + lib/pushTokenStore.ts
               │  • migration 0039_push_tokens
               │  • public/.well-known/apple-app-site-association (TEAMID placeholder)
@@ -90,7 +93,7 @@ Consequence: the web bundle is provably unaffected by the wrap. The same deploy 
     #299 feat/native-first-run     #300 feat/push-senders
     (stacked on #295)              (stacked on #295)
     • lib/nativeFirstRun.ts        • lib/pushProvider.ts  (noop | apns seam)
-      (landing→map, once ever)     • lib/pushSender.ts    (fan-out, prune, dedup)
+      (landing→onboarding once)    • lib/pushSender.ts    (fan-out, prune, dedup)
     • lib/nativePushPrompt.ts      • broadcastNightSignalLive() — the launch push
     • components/native/           • notifyPlanUpdate() — DORMANT (no identity)
       NativePushPrompt.tsx
@@ -106,27 +109,24 @@ Three interruptive prompts can fire off the same plan-join tap. The intended ord
 - **The push gate already defers structurally.** `lib/nativePushPrompt.ts` never fires at boot — iOS' permission dialog is one-shot, so it waits for the first *meaningful* plan action (join / start / confirm), shows an in-app explainer first, and only "Enable" calls `registerNativePush()`. "Later" re-offers only after the *next* qualifying action (monotonic action-sequence gate).
 - **A2HS has its own proven-value gate** (`lib/a2hsPrompt.ts`: second distinct day OR one completed night) plus a per-session `lib/promptBudget.ts` (#313).
 
-**The unifying ordering guard is NOT landed yet.** `fable-implement-prd.md` Cycle-7 defines a lane `fix/prompt-orchestration` to (a) adopt `promptBudget` across tour / identity / push / A2HS so only one prompt fires per session, and (b) wire `isIdentityNudgePending()` at the `PlanCrew` anchor so push only arms `if (!isIdentityNudgePending())`. As of this writing **that branch does not exist on origin, has no PR number, and there is no `docs/PROMPT_ORCHESTRATION` contract doc in the repo** — the ordering lives only as prose in `fable-implement-prd.md` and in `MERGE_ORDER_2026-07-18.md` §(b)/(c)/(e). See §5 open decisions.
+**The unifying ordering guard is implemented.** Tour, analytics consent, identity, push, web push, Cheap Pint Ping, and A2HS use the shared session budget in `lib/promptBudget.ts`. `components/plan/PlanCrew.tsx` records the identity trigger first and arms native push only when `isIdentityNudgePending()` is false. `docs/PROMPT_ORCHESTRATION.md` owns the contract.
 
 ---
 
 ## 3. Build-today path (no paid Apple account)
 
-Goal: get PUBMAXX booting in the iOS Simulator and on the owner's own iPhone **today**, using a **free Apple ID personal team**. No enrollment, no $99.
+Goal: get PUBMAXXING booting in the iOS Simulator and on the owner's own iPhone **today**, using a **free Apple ID personal team**. No enrollment, no $99.
 
-### 3.1 Merge prerequisites
+### 3.1 Current branch prerequisite
 
-Per `docs/MERGE_ORDER_2026-07-18.md`, the native stack lands **last** in the queue (step 28 `#295` → 29 `#299` → 30 `#300`), after `fix/prompt-orchestration` (step 22), `#312` (24) and `#313` (25). Two honest build targets:
-
-- **Minimal buildable shell (today, lowest risk):** merge **`#295` only**. This gives boots-on-device + real camera + remote-URL shell + AASA scaffold. First-run routing, push prompt, and A2HS suppression are absent. Sufficient to prove the wrap works end-to-end.
-- **Full v1 per the §6 acceptance criteria:** requires the native cluster **plus** its prompt neighbours — `#295`, `#299`, `#300`, `#312`, `#313`, and `fix/prompt-orchestration`. Because the native stack sits at the tail of a 30-step queue with three conflict clusters, the pragmatic path is to run the MERGE_ORDER top-to-bottom; the acceptance criteria cannot all be met from `#295` alone.
+The July merge queue is historical. Current native release branch consolidates the Capacitor shells, first-run route, native camera, push prompt, prompt orchestration, A2HS native suppression, APNs delivery, and Android FCM delivery. Merge still waits for focused checks and native runtime proof. Paid-account capabilities and credentials remain owner gates.
 
 ### 3.2 Ordered steps
 
-1. **Land the prerequisite PRs** (§3.1) on `main` via `MERGE_ORDER_2026-07-18.md`. Sol executes; Fable never merges.
+1. **Land the consolidated native branch** only after its focused checks and native runtime gates pass.
 2. **Owner installs full Xcode** (App Store, not just Command Line Tools). Confirm `xcode-select -p` points at `…/Xcode.app`, not `…/CommandLineTools` — Capacitor's `cap open ios` and the SPM build both require it (`docs/CAPACITOR_WRAP.md`).
 3. `npm install` — installs `@capacitor/{core,cli,ios,camera,push-notifications}`.
-4. **Add the camera usage strings to `ios/App/App/Info.plist`** — `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` / `NSPhotoLibraryAddUsageDescription`. **This is a build-today blocker, not a paid-account item:** `@capacitor/camera` will hard-crash the first time it accesses the camera/library without these strings, and the committed `Info.plist` does **not** contain them (see §5 finding F3). This edit needs no Apple account.
+4. **Verify the committed camera usage strings** in `ios/App/App/Info.plist`: `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`. These are present and must remain before camera or library access.
 5. `npx cap sync ios` — refreshes plugins + `capacitor.config.ts` into `ios/`.
 6. `npx cap open ios` — opens `ios/App` in Xcode.
 7. **Free personal-team signing** — App target → Signing & Capabilities → uncheck nothing, select the owner's personal Apple ID as Team ("Personal Team"), confirm bundle id `com.pubmaxx.app`. Xcode auto-manages a development cert. (Personal teams cannot add the Push Notifications or Associated Domains entitlements — see expected gaps.)
@@ -139,8 +139,8 @@ Per `docs/MERGE_ORDER_2026-07-18.md`, the native stack lands **last** in the que
 |---|---|---|
 | Remote-URL shell + full site loop | ✅ works | Just a WKWebView over prod. |
 | Real camera capture | ✅ works on device (Simulator falls back to library) | Only needs the Info.plist strings from step 4. |
-| Home-screen icon + first-run→map | ✅ works | Local logic + assets; `lib/nativeFirstRun.ts`. |
-| A2HS behaviour inside shell | ⚠️ needs the fix in §5/F1 | Not gated on `isNativeApp()` today. |
+| Home-screen icon + first-run onboarding | ✅ implemented | Local logic + assets; `lib/nativeFirstRun.ts`. Runtime proof remains required. |
+| A2HS behaviour inside shell | ✅ suppressed | `detectA2hsPlatform()` treats the Capacitor shell as already installed. |
 | **Push delivery** | ❌ won't deliver | APNs requires a **paid** account for the entitlement + an APNs key; `selectPushProvider("ios")` stays on the `noopPushProvider` with no keys. Registration UI can be exercised but no notification arrives. |
 | **Universal links** (`/plan/*`, `/rounds/*`, `/p/*`) | ❌ won't verify | AASA carries a `TEAMID` placeholder and Associated Domains needs a real Team ID; personal teams can't validate the entitlement. |
 
@@ -156,9 +156,9 @@ When the owner enrolls (the longest pole, per `fable-implement-prd.md` owner que
 4. **Verify `apnsPushProvider.send()`** - the HTTP/2 transport, ES256 provider JWT, payload mapping, invalid-token pruning, and night-signal fan-out are implemented. Live delivery still needs the owner APNs key, entitlement, signed build, and physical-device receipt proof.
 5. **AASA Team ID** — replace `TEAMID` in `public/.well-known/apple-app-site-association` with the real Team ID (final appID `TEAMID.com.pubmaxx.app`), deploy, and verify `https://pubmaxxing.com/.well-known/apple-app-site-association` returns `Content-Type: application/json` (header rule in `next.config.mjs`).
 6. **Xcode capabilities** — add **Push Notifications** and **Associated Domains** (`applinks:pubmaxxing.com`) to the App target.
-7. **AppDelegate APNs forwarding** — ⚠️ add the `didRegisterForRemoteNotificationsWithDeviceToken` / `didFailToRegisterForRemoteNotificationsWithError` forwarding to Capacitor. The committed `ios/App/App/AppDelegate.swift` is the **stock template and does NOT include it** (see §5/F2); without it the `registration` listener in `lib/nativePush.ts` never receives a token, so no device ever registers even with APNs configured.
+7. **AppDelegate APNs forwarding** - verify the committed `didRegisterForRemoteNotificationsWithDeviceToken` and `didFailToRegisterForRemoteNotificationsWithError` forwarding remains connected to Capacitor. Live registration still needs the entitlement, signed build, and physical-device proof.
 8. **TestFlight** — archive, upload, internal testing.
-9. **Review-readiness (Apple's thin-wrapper bar).** Apple rejects apps that are "just a website." Our three superpowers are the answer, and they must be demonstrably live at review time: **real camera** capture in moments, **push** notifications (night-signal go-live), and **universal links** that deep-link `/plan`, `/rounds`, `/p` into the app. The first-run→map routing and home-screen identity reinforce that this is an app, not a bookmark. Do not submit for review until push actually delivers (step 4) and universal links verify (step 5–6), or the thin-wrapper rejection is likely.
+9. **Review-readiness (Apple's thin-wrapper bar).** Apple rejects apps that are "just a website." Our three superpowers are the answer, and they must be demonstrably live at review time: **real camera** capture in moments, **push** notifications (night-signal go-live), and **universal links** that deep-link `/plan`, `/rounds`, `/p` into the app. First-run onboarding, `/tonight` cold starts, and home-screen identity reinforce that this is an app, not a bookmark. Do not submit for review until push actually delivers (step 4) and universal links verify (step 5-6), or the thin-wrapper rejection is likely.
 
 ---
 
@@ -173,17 +173,15 @@ When the owner enrolls (the longest pole, per `fable-implement-prd.md` owner que
 
 **Open decisions**
 
-- **`fix/prompt-orchestration` is unbuilt and there is no `PROMPT_ORCHESTRATION` contract doc.** The identity > push > A2HS ordering exists only as prose. Sol/owner: land the lane (and, recommended, write the contract doc) before the native cluster merges, or the three prompts can collide on one tap (this is exactly the P1 that deep-review #321 flagged).
-- **A2HS-inside-shell suppression is a required fix (F1 below), not just a QA note.**
 - **What v1.1 static-fallback could look like:** a thin bundled `webDir` (map shell + last-known cheapest-pubs rows from the slim index) that renders when `server.url` is unreachable, then hands off to the live site when connectivity returns. This reclaims graceful degradation without a native rebuild. Out of scope for v1; noted for the roadmap.
 
-**Findings surfaced while grounding this PRD** (these are real gaps in the open branches, not hypotheticals):
+**Findings surfaced while grounding this PRD:**
 
-- **F1 — A2HS is not suppressed inside the native shell (REQUIRED FIX for §6).** `#313`'s `detectA2hsPlatform()` (`lib/a2hsPrompt.ts`) classifies purely on `display-mode: standalone` / `navigator.standalone` / UA regex, and `components/pwa/A2HSInstallPrompt.tsx` **never imports `isNativeApp()`.** In the Capacitor iOS WKWebView: `display-mode` is not `standalone`, `navigator.standalone` is `false`, and the UA (`iPhone…`, no `CriOS`/`FBAN`/`Instagram`) matches **none** of the `IN_APP_WEBVIEW` / `IOS_NON_SAFARI` suppression regexes — so it falls through to `"ios-safari"` and the app would show the "Add to Home Screen" instruction sheet **inside the already-installed native app.** Fix: treat `isNativeApp()` as a suppression, same as `standalone` (early-return in the component or a branch in `detectA2hsPlatform`). Cheap, but must land before v1.
-- **F2 — `AppDelegate.swift` lacks the APNs registration forwarding.** The committed `ios/App/App/AppDelegate.swift` is the stock Capacitor template (`didFinishLaunching`, `open url`, `continue userActivity` only). It is missing `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)` / `…didFailToRegisterForRemoteNotificationsWithError:` forwarding to `NotificationCenter`/Capacitor. `docs/CAPACITOR_WRAP.md` step 3 flags this conditionally ("if the template didn't include it") — it did not. Must be added when push is activated (§4 step 7) or registration silently never completes.
-- **F3 — `Info.plist` has no camera/photo usage strings.** `ios/App/App/Info.plist` contains no `NSCameraUsageDescription` / `NSPhotoLibraryUsageDescription`. `@capacitor/camera` crashes on first access without them. This is a **build-today** blocker for the camera path (§3.2 step 4), independent of any Apple account.
-- **F4 — Associated Domains entitlement file is absent.** The `ios/` tree has no `App.entitlements`. Beyond the AASA `TEAMID` placeholder, the Associated Domains capability itself must be added in Xcode (paid team) — noted in §4 step 6; called out here so it isn't assumed present.
-- **F5 — Doc naming.** The task referenced `docs/MERGE_ORDER v2` and a `docs/PROMPT_ORCHESTRATION` contract. The actual merge doc is `docs/MERGE_ORDER_2026-07-18.md` (amended 2026-07-18 from the two deep reviews — effectively "v2"). No `PROMPT_ORCHESTRATION` doc exists anywhere in the repo (see open decisions).
+- **F1 - CLOSED:** `lib/a2hsPrompt.ts` accepts the canonical native-shell result and classifies it as installed. `components/pwa/A2HSInstallPrompt.tsx` supplies that result through `isNativeAppShell()`.
+- **F2 - CLOSED:** `ios/App/App/AppDelegate.swift` forwards APNs registration success and failure to the Capacitor notification names.
+- **F3 - CLOSED:** `ios/App/App/Info.plist` contains camera and photo-library usage descriptions.
+- **F4 - OPEN OWNER GATE:** the `ios/` tree has no `App.entitlements`. A real Team ID, Associated Domains, Push Notifications capability, and signed-device proof remain required.
+- **F5 - CLOSED:** `docs/PROMPT_ORCHESTRATION.md` exists. The historical merge document remains `docs/MERGE_ORDER_2026-07-18.md`.
 
 ---
 
@@ -193,9 +191,9 @@ v1 is "built" when, on the merged native cluster (§3.1 full target):
 
 1. **Boots on Simulator and on a physical device** via free personal-team signing; the app opens and loads pubmaxxing.com in the WKWebView with no error screen.
 2. **The map loop works** end-to-end inside the shell — near-me answer, map pan/tap, venue sheets, prices (the same server-rendered surfaces the web serves; `isNativeApp()` branches do not degrade them).
-3. **Moment capture uses the native camera** — the moment composer's picker routes through `captureNativePhoto()` (`lib/nativeCamera.ts`) inside the shell, returns a `File`, and the existing upload pipeline is unchanged. Requires F3 (Info.plist strings) landed.
-4. **First-run routes to the map** — a genuinely first-time native launch with no persisted city preference redirects landing → `/map` exactly once (`shouldRouteNativeFirstRun`, `lib/nativeFirstRun.ts`); never over an existing city choice, never twice.
-5. **Prompts obey orchestration** — on a plan-join tap, identity nudge takes precedence, the push explainer defers to it and only arms after a qualifying action (`lib/nativePushPrompt.ts`), and no more than one interruptive prompt fires per session. **Gated on `fix/prompt-orchestration` landing** (currently unbuilt — §5).
-6. **A2HS is suppressed inside the shell** — the "Add to Home Screen" prompt never appears inside the native app. **⚠️ Not satisfied by the current branches** — `#313` does not check `isNativeApp()` (finding F1). **This is a required fix before v1 can pass criterion 6.**
+3. **Moment capture uses the native camera** - the moment composer's picker routes through `captureNativePhoto()` (`lib/nativeCamera.ts`) inside the shell, returns a `File`, and the existing upload pipeline is unchanged. Camera and photo-library usage strings are present. Physical-device proof remains required.
+4. **First-run opens onboarding once** - a genuinely first-time native launch with no persisted city preference redirects landing to `/onboarding` exactly once (`shouldRouteNativeFirstRun`, `lib/nativeFirstRun.ts`); never over an existing city choice, never twice. Later root launches use `/tonight`.
+5. **Prompts obey orchestration** - on a plan-join tap, identity nudge takes precedence, the push explainer defers to it and only arms after a qualifying action (`lib/nativePushPrompt.ts`), and no more than one interruptive prompt fires per session. Source implementation is present and owned by `docs/PROMPT_ORCHESTRATION.md`.
+6. **A2HS is suppressed inside the shell** - the "Add to Home Screen" prompt never appears inside the native app. The source gate is implemented through `isNativeAppShell()` and `detectA2hsPlatform()`.
 
-Criteria 1–4 are met by `#295`(+F3) and `#299`. Criteria 5 and 6 each depend on an unbuilt/needed change (prompt-orchestration lane; A2HS native-guard fix) — both flagged above so Sol can schedule them into the queue before the native stack lands.
+Source support for criteria 3-6 is present. Criteria 1-4 still need simulator and physical-device proof before v1 can be called built.
