@@ -8,7 +8,20 @@ const realFetch = global.fetch;
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function mockLastTrainResponses(hour: string, minute: string): void {
+type MockStation = { id: string; commonName: string; lat: number; lon: number };
+
+const OXFORD_CIRCUS_FIXTURE: MockStation = {
+  id: "940GZZLUOXC",
+  commonName: "Oxford Circus",
+  lat: 51.5,
+  lon: -0.12,
+};
+
+function mockLastTrainResponses(
+  hour: string,
+  minute: string,
+  station: MockStation = OXFORD_CIRCUS_FIXTURE,
+): void {
   global.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/StopPoint?")) {
@@ -16,11 +29,8 @@ function mockLastTrainResponses(hour: string, minute: string): void {
         JSON.stringify({
           stopPoints: [
             {
-              id: "940GZZLUOXC",
-              commonName: "Oxford Circus",
+              ...station,
               distance: 0,
-              lat: 51.5,
-              lon: -0.12,
               lines: [{ id: "victoria", name: "Victoria" }],
             },
           ],
@@ -503,5 +513,43 @@ describe("GET /api/last-train", () => {
     const afterBody = await afterFallback.json();
     expect(afterBody.trains[0]).toMatchObject({ clock: "01:30", pastMidnight: true });
     expect(afterBody.decision.leaveByIso).toBe("2026-10-25T00:30:00.000Z");
+  });
+
+  it("walks to the station along the streets inside the pilot, and says so", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    // TfL's hub point for Tottenham Court Road, about 60 m from ours.
+    mockLastTrainResponses("24", "30", {
+      id: "940GZZLUTCR",
+      commonName: "Tottenham Court Road",
+      lat: 51.5167,
+      lon: -0.1305,
+    });
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.514&lng=-0.132", {
+        headers: { "x-forwarded-for": "198.51.100.36" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.walkBasis).toBe("street");
+    // 458 street metres from data/station_walk_access.json at 4.8 km/h is 6
+    // minutes; the straight line (about 320 m) would have said 4.
+    expect(body.decision.walkMinutesEstimate).toBe(6);
+  });
+
+  it("keeps the straight line outside the pilot and labels it", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-24T20:00:00.000Z"));
+    mockLastTrainResponses("24", "30");
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.37" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.walkBasis).toBe("straight");
+    expect(body.decision.walkMinutesEstimate).toBe(0);
   });
 });

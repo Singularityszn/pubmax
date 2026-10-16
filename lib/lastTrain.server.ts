@@ -57,12 +57,14 @@ import {
   type LastTrainResult,
   type NearestPub,
   type NextDepartures,
+  type WalkBasis,
 } from "@/lib/tfl";
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
+import { streetWalkMetres } from "@/lib/stationWalkAccess";
 import { tflGet } from "@/lib/tflClient.server";
 import { peekPricedVenues } from "@/lib/venuePriceIndex";
 import { cachedLastTrainValue } from "@/lib/lastTrainStableCache.server";
@@ -522,6 +524,29 @@ function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): R
   });
 }
 
+// Walk estimate: venue (the point the card was called with) → station, at a
+// brisk walking pace. Inside the street-walk pilot it follows the streets
+// (lib/stationWalkAccess); everywhere else it is the straight line. The
+// response's `walkBasis` says which, so the card never passes one off as the
+// other.
+function walkToStation(
+  from: { lat: number; lng: number },
+  station: StopPoint,
+): { walkMinutesEstimate: number; walkBasis: WalkBasis } {
+  if (typeof station.lat !== "number" || typeof station.lon !== "number") {
+    return { walkMinutesEstimate: walkMinutesForKm(0), walkBasis: "straight" };
+  }
+  const to = { lat: station.lat, lng: station.lon };
+  const streetMetres = streetWalkMetres(from, to);
+  if (streetMetres !== null) {
+    return { walkMinutesEstimate: walkMinutesForKm(streetMetres / 1_000), walkBasis: "street" };
+  }
+  return {
+    walkMinutesEstimate: walkMinutesForKm(haversineKm([from.lng, from.lat], [to.lng, to.lat])),
+    walkBasis: "straight",
+  };
+}
+
 export async function runLastTrainRoute(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const stableOnly = params.get("scope") === "stable";
@@ -710,14 +735,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     );
   }
 
-  // Walk estimate: venue (the point the card was called with) → station,
-  // straight-line haversine at a brisk walking pace. Labeled as straight-line in
-  // the response shape so the card can be honest about it (no routed distance).
-  const walkKm =
-    typeof nearest.lat === "number" && typeof nearest.lon === "number"
-      ? haversineKm([lng, lat], [nearest.lon, nearest.lat])
-      : 0;
-  const walkMinutesEstimate = walkMinutesForKm(walkKm);
+  const { walkMinutesEstimate, walkBasis } = walkToStation({ lat, lng }, nearest);
 
   // Minutes until the last train that matters: the LATEST across all resolved
   // lines (any one of them gets the drinker home), measured from "now" by ACTUAL
@@ -764,6 +782,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     decision,
     nearestPubs,
     generatedAt: new Date().toISOString(),
+    walkBasis,
   };
   return json(result);
   } finally {

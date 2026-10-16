@@ -278,6 +278,17 @@
       "gate": "none"
     },
     {
+      "id": "station_walk_access",
+      "label": "Street walks to stations (West End pilot)",
+      "class": "static",
+      "artifact": "data/station_walk_access.json",
+      "stamp": null,
+      "cadence": "static: built offline from a pinned Overture Maps release; streets change rarely",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (uv run scripts/build_station_walk_access.py)",
+      "gate": "none"
+    },
+    {
       "id": "london_pois",
       "label": "London POIs (map basemap)",
       "class": "static",
