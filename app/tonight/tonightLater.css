@@ -1,40 +1,17 @@
-/* Out tab shell (L1). Role tokens only. Tab-bar clearance belongs to
-   mobileNav.css. No em dashes. */
+/* Tomorrow, the weekend and open plans on /tonight: what the old /out page
+   carried, absorbed into Tonight when /out became a redirect (product owner,
+   16 Oct 2026). The listing cards (components/out/) keep their class names,
+   so their styles live here with them. Role tokens only. No em dashes. */
 
-.outPage {
-  /* The shell floor every sibling route keeps: body paints the party gradient,
-     so a short page ends its gradient box mid-viewport and leaves a hard seam
-     below it. */
-  min-height: 100dvh;
-  min-height: 100svh;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  /* A FLAT top, never the safe-area inset: SiteNav is this page's first child
-     and the bar already adds env(safe-area-inset-top) through
-     .siteNavBar:not(.siteNavBarFloating){margin-top}, so adding it here again
-     doubled the clock's clearance inside the native shells and the installed
-     PWA (59px twice on an iPhone 17 Pro) while an ordinary browser, where
-     env() is 0, never showed it. 10px + the bar's own inset lands the bar on
-     the same rect /tonight and the map use. */
-  padding: 10px var(--page-gutter)
-    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
-  color: var(--ink);
-}
-
-/* The head is the Screen primitive (components/ui/screen.css): kicker,
-   heading, one primary. The page shell already keeps the gutter, so the
-   screen does not pad it a second time. */
-.outPage > .outScreen {
-  padding-inline: 0;
-}
-
-.outPage > .outScreen > .screenHead {
-  padding-top: var(--space-3);
+.tonightLater,
+.tonightOpenPlans,
+.tonightWallLine {
+  margin: 0 0 22px;
 }
 
 .outDayChips {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px;
   width: 100%;
   min-height: 44px;
@@ -60,6 +37,9 @@
   font-size: 0.92rem;
   font-weight: 700;
   text-decoration: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 /* At a large phone text size a day may wrap onto a new row rather than split
@@ -76,7 +56,7 @@ html[data-text-scale="large"] .outDayChip {
   border-radius: calc(var(--radius-lg) - 2px);
 }
 
-.outDayChip[aria-current="page"] {
+.outDayChip[aria-pressed="true"] {
   background: var(--brass);
   color: var(--color-on-accent, var(--paper));
 }

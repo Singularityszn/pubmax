@@ -1,4 +1,4 @@
-// Arize AX tracing for PUBMAXXING server model calls. ONE module, registered
+// Arize AX tracing for PUBMAXX server model calls. ONE module, registered
 // once from the root `instrumentation.ts` before any request.
 //
 // WHAT IS TRACED: every paid-lane model call the app makes on the server:

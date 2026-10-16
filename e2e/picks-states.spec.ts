@@ -251,7 +251,7 @@ test.describe("Today picks states", () => {
       "temporarily_unavailable",
     ]).toContain(state);
 
-    const pubSuggestions = card.getByRole("region", { name: "Pubs people are talking about" });
+    const pubSuggestions = card.getByRole("region", { name: "Pubs Londoners keep recommending" });
     if (await pubSuggestions.count()) {
       await expect(pubSuggestions).toBeVisible();
       await expect(pubSuggestions.getByRole("link", { name: "Open on map" }).first())

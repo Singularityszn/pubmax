@@ -4,6 +4,7 @@ import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
 import { MAP_LIST_PATH, MAP_LIST_SEARCH_PARAM } from "@/lib/mapListRoute";
+import { OUT_PATH, TONIGHT_PATH } from "@/lib/outRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
@@ -349,6 +350,15 @@ export function securityProxy(request: NextRequest) {
   if (pathname === CHOOSE_CITY_PATH) {
     const target = new URL(request.url);
     target.pathname = PLACES_PATH;
+    return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
+  }
+  // Out is Tonight now (product owner, Oct 2026 UX audit): the primary row is
+  // Map, Tonight, Plan, Social, You, and Tonight carries what Out listed. /out keeps
+  // its address for every old link and bookmark by answering a permanent 308
+  // here, with the reader's own query riding along as on the 308s above.
+  if (pathname === OUT_PATH) {
+    const target = new URL(request.url);
+    target.pathname = TONIGHT_PATH;
     return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
   }
   // Hyphenated alias of /login. /signin stays the existing page redirect.
