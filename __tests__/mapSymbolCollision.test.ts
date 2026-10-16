@@ -10,6 +10,8 @@ import {
   buildUkBase,
   CLUSTER_CASING_PX,
   CLUSTER_COLLISION_PADDING,
+  CLUSTER_LABEL_HALF_HEIGHT_EM,
+  clusterCaptionTopPx,
   CLUSTER_DISC_SMALL_FROM_ZOOM,
   CLUSTER_MAX_RADIUS_PX,
   CLUSTER_MIN_RADIUS_PX,
@@ -501,9 +503,14 @@ describe("symbol collision policy", () => {
         const LINE_HEIGHT_EM = 1.2;
         const tall = lines.reduce((sum, line) => sum + px * (line === "from" ? DONUT_CAPTION_SCALE : 1), 0);
         expect(tall * LINE_HEIGHT_EM, `${label} height at z${zoom}`).toBeLessThan(paper);
-        // The figure's padded box reaches the disc's edge, so no label can land
-        // on the top or bottom of the disc.
-        expect(px / 2 + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(outer);
+        // A priced disc's padded two-line block reaches the disc's edge, so no
+        // label can land on the top or bottom of it.
+        if (lines.length === 2) {
+          expect(CLUSTER_LABEL_HALF_HEIGHT_EM * px + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(outer);
+          // And its own caption starts past that box, so it only ever gives
+          // way to a NEIGHBOUR, never to its own disc.
+          expect(clusterCaptionTopPx(outer)).toBeGreaterThan(CLUSTER_LABEL_HALF_HEIGHT_EM * px + CLUSTER_COLLISION_PADDING);
+        }
       }
     }
     // A short figure keeps the full size: only a long one steps down.

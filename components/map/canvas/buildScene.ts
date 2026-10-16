@@ -19,6 +19,7 @@ import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import {
   DONUT_CASING_PX,
   DONUT_FIGURE_MAX_LENGTH,
+  DONUT_CAPTION_SCALE,
   donutFigureFontSize,
   DONUT_OUTER_RADIUS_LARGE,
   DONUT_OUTER_RADIUS_SMALL,
@@ -235,8 +236,20 @@ export const CLUSTER_STROKE_OPACITY = 1;
 // names, basemap POIs) happily land on top of it. Padding the figure's box out
 // from its half-height to the widest disc's outer radius makes the whole
 // marker reserve its space, even when the longest figure has stepped down.
+// A priced disc's label is two lines ("from" over the figure), so the half
+// height it is padded from is that block's, at MapLibre's 1.2em line height.
+export const CLUSTER_LABEL_HALF_HEIGHT_EM = ((1 + DONUT_CAPTION_SCALE) * 1.2) / 2;
+/** How far below a disc's centre its "n pubs" caption starts: just past the
+ *  box its own figure reserves, so the caption collides with its neighbours
+ *  and never with its own disc. */
+export function clusterCaptionTopPx(outer: number): number {
+  const ownBox =
+    CLUSTER_LABEL_HALF_HEIGHT_EM * donutFigureFontSize(1, outer) + CLUSTER_COLLISION_PADDING;
+  return Math.max(outer + 2, Math.ceil(ownBox) + 1);
+}
 export const CLUSTER_COLLISION_PADDING =
-  CLUSTER_MAX_RADIUS_PX - donutFigureFontSize(DONUT_FIGURE_MAX_LENGTH, CLUSTER_MAX_RADIUS_PX) / 2;
+  CLUSTER_MAX_RADIUS_PX -
+  CLUSTER_LABEL_HALF_HEIGHT_EM * donutFigureFontSize(DONUT_FIGURE_MAX_LENGTH, CLUSTER_MAX_RADIUS_PX);
 
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report
@@ -1754,7 +1767,7 @@ export function buildPubs(ctx: SceneCtx) {
   // rim), so the caption collides with its NEIGHBOURS and never its own disc.
   const captionOffset = (outer: number): [number, number] => [
     0,
-    Number(((outer + 2) / CLUSTER_COUNT_BADGE_SIZE_PX).toFixed(3)),
+    Number((clusterCaptionTopPx(outer) / CLUSTER_COUNT_BADGE_SIZE_PX).toFixed(3)),
   ];
   addLayerOnce({
     id: "cluster-count-badge",
