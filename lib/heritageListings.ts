@@ -32,6 +32,8 @@ export type ListedBuilding = {
   url: string;
   /** Metres between the pub and the listed point (match confidence). */
   distanceM: number;
+  /** ISO day the NHLE was read (the pack's `$retrievedAt`), or null when it records none. */
+  retrievedAt?: string | null;
 };
 
 const LISTINGS_PATH = path.join(
@@ -42,33 +44,38 @@ const LISTINGS_PATH = path.join(
 );
 
 // Module-level cache — the file is immutable at runtime, so read it once.
-let cache: Record<string, ListedBuilding> | null = null;
+let cache: { listings: Record<string, ListedBuilding>; retrievedAt: string | null } | null = null;
 
-async function loadListings(): Promise<Record<string, ListedBuilding>> {
+async function loadListings(): Promise<{ listings: Record<string, ListedBuilding>; retrievedAt: string | null }> {
   if (cache) return cache;
   try {
     const raw = await readFile(LISTINGS_PATH, "utf8");
-    const parsed = JSON.parse(raw) as { listings?: unknown };
-    cache =
-      parsed && typeof parsed.listings === "object" && parsed.listings
-        ? (parsed.listings as Record<string, ListedBuilding>)
-        : {};
+    const parsed = JSON.parse(raw) as { listings?: unknown; $retrievedAt?: unknown };
+    const stamp = parsed?.$retrievedAt;
+    cache = {
+      listings:
+        parsed && typeof parsed.listings === "object" && parsed.listings
+          ? (parsed.listings as Record<string, ListedBuilding>)
+          : {},
+      retrievedAt: typeof stamp === "string" && Number.isFinite(Date.parse(stamp)) ? stamp : null,
+    };
   } catch {
-    cache = {};
+    cache = { listings: {}, retrievedAt: null };
   }
   return cache;
 }
 
-// The listed-building record for a venue id, or null when the pub is not on the
-// list (the common case — most pubs are not listed, and that is correct).
+// The listed-building record for a venue id, or null when the pack holds no
+// listing for it. Null is "nothing on record here", never "not listed": a pub
+// the conservative match skipped can still be on the list.
 export async function getListedBuilding(
   venueId: string | undefined,
 ): Promise<ListedBuilding | null> {
   if (!venueId) return null;
-  const listings = await loadListings();
+  const { listings, retrievedAt } = await loadListings();
   const record = listings[venueId];
   if (!record || typeof record.fact !== "string" || !record.fact.trim()) {
     return null;
   }
-  return record;
+  return { ...record, retrievedAt };
 }

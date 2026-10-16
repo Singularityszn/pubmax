@@ -38,6 +38,8 @@ export type HeritageFact = {
   source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle" | "web";
   fact: string;
   sourceRef?: string;
+  /** ISO day the source was read, where the pack records one; the sheet prints it. */
+  observedAt?: string;
 };
 
 // Sources that count as trusted/sourced facts (server-retrieved). "nhle" is
@@ -151,7 +153,12 @@ export async function retrieveHeritageWithStatus(input: {
   // same-named pub. This is the authoritative "brass plaque" line, so it leads.
   const listed = await getListedBuilding(input.venueId);
   if (listed) {
-    facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
+    facts.push({
+      source: "nhle",
+      fact: listed.fact,
+      sourceRef: listed.url,
+      ...(listed.retrievedAt ? { observedAt: listed.retrievedAt } : {}),
+    });
   }
 
   if (!input.venueId || serverVenueName) {

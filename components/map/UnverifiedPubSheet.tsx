@@ -9,6 +9,7 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+import VenueListedBuilding from "@/components/map/VenueListedBuilding";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
 import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
@@ -296,6 +297,9 @@ export default function UnverifiedPubSheet({
           base pins like this one, so the row lives on this sheet as well as on
           the curated Overview, and renders nothing for every other pub. */}
       <VenueSpoonsValueRow venueId={pub.id} visible={!drinkLensCategory} />
+      {/* Historic England's listing for this pub, when the NHLE join matched it
+          (scripts/build_heritage_listings.mjs). Renders nothing otherwise. */}
+      <VenueListedBuilding venueId={pub.id} venueName={pub.name} />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
