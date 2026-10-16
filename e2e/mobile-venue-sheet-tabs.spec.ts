@@ -143,13 +143,15 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   // The toolbar carries no price action: the Overview's one price door owns
-  // that (lib/pintTrust.ts, `overviewPriceDoor`). "Make <venue> Stop 1" rides
-  // as a ghost when acceptance is offered; this spec covers the tab strip's
-  // touch scrolling, so it asserts the commands the strip must keep reachable.
-  expect(actions.map((action) => action.name)).toEqual(
-    expect.arrayContaining(["Crawl", "Share Arnos Arms"]),
-  );
-  expect(actions.map((action) => action.name)).not.toContain("Add a price at Arnos Arms");
+  // that (lib/pintTrust.ts, `overviewPriceDoor`). On a phone it carries no plan
+  // action either, in build mode too: the peek's ONE plan door owns those
+  // (lib/venuePlanDoor.ts), so the Crawl and Stop 1 ghosts are desktop's alone.
+  expect(actions.map((action) => action.name)).toEqual(["Share Arnos Arms"]);
+  const planDoors = page
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .getByRole("button", { name: /Stop 1$|^Plan stop$|^In plan$|^Crawl$|^Remove$/ });
+  await expect(planDoors).toHaveCount(1);
+  await expect(planDoors).toHaveText("Make it Stop 1");
 
   for (const action of actions) {
     expect(action.width, `${action.name} width should be at least 44px`).toBeGreaterThanOrEqual(44);
@@ -282,9 +284,10 @@ test("the peek price plaque hugs its figure and stays inside its own row", async
  * standing line "Logged once, needs a second drinker" ran the full width of the
  * figure column, the phrase column had no floor of its own, and "Near me" -
  * one unbreakable phrase - overflowed its cell and printed as "Near m" under
- * the `Plan stop` button. The caption is set here rather than hunted for,
- * because the contract is about caption LENGTH and the pub a fixture opens on
- * is not the pub that carries the longest one.
+ * the peek's plan door (then `Plan stop`; with no crawl it is now
+ * `Make it Stop 1`, the longest label it carries). The caption is set here
+ * rather than hunted for, because the contract is about caption LENGTH and the
+ * pub a fixture opens on is not the pub that carries the longest one.
  */
 for (const width of [320, 390] as const) {
   test(`the peek head keeps Near me whole beside the longest standing line @${width}`, async ({
