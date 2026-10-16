@@ -309,7 +309,7 @@ Credentials remain outside Git and chat. This document contains no key, shared s
 
 The private agent is `restricted-private-agent`.
 The recorded branch is `restricted-agent-branch`.
-These identifiers establish intended ownership, not deployed runtime binding.
+These role labels record intended ownership. They do not establish deployed runtime binding.
 
 The existing 14 October 06:18:32 UTC readback returned HTTP 200 for that exact target.
 It recorded voice recording disabled, retention `-1`, zero-retention mode enabled, and transcript or PII deletion disabled.
@@ -477,8 +477,8 @@ Merge and deploy remain separate decisions. The recorded captain away date is 20
 
 ## Evidence index
 
-Local evidence is retained outside the repository. The full paths below are valid on the original machine.
-Another machine needs the actual authorised evidence transfer. Missing local files must not become inferred passes.
+Local evidence is retained outside the repository. The role labels below replace private paths and operational identifiers.
+Another machine needs an authorised evidence transfer with the actual locations. Missing local files must not become inferred passes.
 
 The review directory is:
 
