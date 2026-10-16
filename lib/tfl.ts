@@ -172,7 +172,15 @@ export type LastTrainResult = {
   nearestPubs?: NearestPub[];
   /** True when station context came from bundled static data, not live TfL. */
   staticFallback?: boolean;
+  /**
+   * How `decision.walkMinutesEstimate` was measured: along the streets
+   * (lib/stationWalkAccess, Zone 1 and 1 km around it) or the straight line everywhere else.
+   */
+  walkBasis?: WalkBasis;
 };
+
+/** How a walk to the station was measured. */
+export type WalkBasis = "street" | "straight";
 
 // --- Last Pint decision (user stories 19, 21, 23, 24) ---------------------
 //
