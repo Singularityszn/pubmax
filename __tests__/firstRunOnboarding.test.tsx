@@ -29,14 +29,20 @@ vi.mock("@/lib/nativePlatform", () => ({
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
 import { NATIVE_FIRST_RUN_PATCH_KEY, NATIVE_FIRST_RUN_STEP_KEY } from "@/lib/nativeFirstRun";
-import { ONBOARDING_STEPS, onboardingPlanHref, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
+import {
+  ONBOARDING_STEPS,
+  onboardingPlanHref,
+  readBudgetChoice,
+  readPlannerHandoff,
+  type PlannerHandoff,
+} from "@/lib/onboardingFlow";
 import { readHistoryStep } from "@/lib/useStepHistory";
 import { decideEntry, readEntryContext } from "@/lib/entryDecision";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
 // "Plan my night" leaves the app router for a document load; the spy stands in.
-const openPlanner = vi.fn();
+const openPlanner = vi.fn<(handoff: PlannerHandoff) => void>();
 
 // Pubs around Soho (51.5136, -0.1365), cheapest first by price. Three sit inside
 // the walkable ring so the answer is not widened.
@@ -782,6 +788,43 @@ describe("first-run handoff to the planner", () => {
     for (const storage of [window.localStorage, window.sessionStorage]) {
       expect(JSON.stringify(Object.entries(storage))).not.toMatch(/51\.6162|-0\.132117/);
     }
+  });
+
+  // The tab's copy is optional restoration. A refused write must not lose the
+  // reader's choice, and an older copy must never stand in for it.
+  it.each([
+    { prior: false },
+    { prior: true },
+  ])("opens the planner on this click's choices when the tab refuses the handoff: %j", async ({ prior }) => {
+    const handoffKey = "pubmax:onboarding:planner-handoff:v1";
+    const older = JSON.stringify({ nightArea: "clapham", patch: null, budget: "five", at: Date.now() });
+    if (prior) window.sessionStorage.setItem(handoffKey, older);
+    const setItem = Storage.prototype.setItem;
+    const refuse = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+      if (this === window.sessionStorage && key === handoffKey) {
+        throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+      }
+      setItem.call(this, key, value);
+    });
+    try {
+      await reachLocation();
+      await tap("Pick a London patch instead");
+      await tap("Soho");
+      await settle();
+      await tap("That looks right");
+      await tap("Fox");
+      await tap("Plan my night");
+      await historySettles();
+    } finally {
+      refuse.mockRestore();
+    }
+
+    expect(window.sessionStorage.getItem(handoffKey)).toBe(prior ? older : null);
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(openPlanner).toHaveBeenCalledWith({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "six" });
+    const href = new URL(onboardingPlanHref(openPlanner.mock.calls[0][0]), "http://localhost");
+    expect(href.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
+    expect(href.searchParams.get("from")).toBe("onboarding");
   });
 
 });
