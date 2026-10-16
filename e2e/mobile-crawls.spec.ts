@@ -60,7 +60,7 @@ test.describe("mobile Crawls surfaces", () => {
     const response = await page.goto("/crawls");
     expect(response?.status()).toBe(200);
 
-    await expect(page.getByRole("heading", { name: "Pub stories mapped into walks." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "London pub crawl routes" })).toBeVisible();
 
     // List-discipline pass: the old repeated full-card grid is now ONE
     // featured card (with the route thumb + plan CTA) plus compact,
