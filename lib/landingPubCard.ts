@@ -35,7 +35,7 @@ import {
 } from "@/lib/priceHistory";
 import { priceMovementLine } from "@/lib/priceMovementLine";
 import type { PriceStanding } from "@/lib/priceTier";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { Venue } from "@/lib/venues";
 
@@ -111,7 +111,11 @@ export function buildLandingPubCard(
   const now = opts.now ?? Date.now();
   const history = groupPriceHistoryByVenue(parsePriceHistory(rawHistory, now));
   const candidates = venues.filter(
-    (venue) => typeof venue.cheapestPrice === "number" && venue.cheapestPrice > 0 && history.has(venue.id),
+    (venue) =>
+      isPublicRankablePub(venue) &&
+      typeof venue.cheapestPrice === "number" &&
+      venue.cheapestPrice > 0 &&
+      history.has(venue.id),
   );
   if (candidates.length === 0) return null;
 
@@ -197,7 +201,7 @@ export function buildLandingAnchorRail(
     .filter(
       (venue) =>
         venue.id !== anchor.id &&
-        isPubVenueKind(venue.kind) &&
+        isPublicRankablePub(venue) &&
         venue.primaryBorough === anchor.area &&
         typeof venue.cheapestPrice === "number" &&
         venue.cheapestPrice > 0,
