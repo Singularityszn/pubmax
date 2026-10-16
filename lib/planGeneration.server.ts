@@ -28,6 +28,7 @@ import {
 	PLAN_FOOD_ITEM,
 	PLAN_FOOD_SUBJECT,
 	PLAN_PRICE_AMOUNT,
+	PLAN_UNTYPED_ITEM_WORD,
 	PLAN_VENUE_AMENITY,
 	PLAN_VENUE_ITEM_LIMIT_PREFIX,
 	planPriceAmounts,
@@ -265,14 +266,15 @@ function pricedDrinkIncludesMeal(beforeDrink: string, explicitFoodIntent: boolea
 		}
 		nextItemStart = item.index;
 	}
-	return explicitFoodIntent && /(?:\b(?:and|plus)|[+&])\s*(?:(?:an?|one|two)\s+)?$/i.test(beforeDrink);
+	return explicitFoodIntent
+		&& new RegExp(String.raw`\b${PLAN_UNTYPED_ITEM_WORD}\s*(?:\b(?:and|plus)|[+&])\s*(?:(?:an?|one|two)\s+)?$`, "i").test(beforeDrink);
 }
 
 function pricedDrinkListIncludesMeal(afterDrink: string, explicitFoodIntent: boolean): boolean {
-	const item = String.raw`(?:${PLAN_FOOD_SUBJECT}|${explicitFoodIntent ? String.raw`\w+` : PLAN_DRINK_ITEM})`;
+	const item = String.raw`(?:${PLAN_FOOD_SUBJECT}|${explicitFoodIntent ? PLAN_UNTYPED_ITEM_WORD : PLAN_DRINK_ITEM})`;
 	const list = new RegExp(String.raw`^(?:${PLAN_ITEM_LIST_JOIN}${item}\b)+`, "i")
 		.exec(afterDrink)?.[0] ?? "";
-	if (!/\b(?:and|plus)\b|[+&]/i.test(list)) return false;
+	if (!/\b(?:and|plus)\b|[+&]/i.test(list) || /^[\s,]*(?:afterwards|later)\b/i.test(afterDrink.slice(list.length))) return false;
 	return explicitFoodIntent
 		? list.split(/\W+/).some((word) => word && !new RegExp(String.raw`^(?:${PLAN_DRINK_ITEM}|and|plus|an?|one|two)$`, "i").test(word))
 		: new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "i").test(list);
@@ -304,7 +306,11 @@ function hasMealPriceConstraint(value: string, explicitFoodIntent = false): bool
 				return pricedDrinkListIncludesMeal(after.slice(price.drink.afterEnd ?? 0), explicitFoodIntent);
 			}
 			if (foodAfterPrice.test(after)) return true;
-			const budgetClause = before.split(/,(?!\d)/).at(-1) ?? "";
+			const drinkClause = prices.filter((other) => other.drink && other.end <= price.index).at(-1);
+			const clauses = before.slice(drinkClause ? drinkClause.end + (drinkClause.drink?.afterEnd ?? 0) : 0).split(/,(?!\d)/);
+			const budgetClause = drinkClause && clauses.length === 1
+				? (clauses[0] ?? "").replace(/^\s*(?:\b(?:and|plus)\b|[+&])/i, "")
+				: clauses.at(-1) ?? "";
 			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
 				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
 			if (price.routeBudget === "explicit"

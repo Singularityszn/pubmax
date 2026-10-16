@@ -933,6 +933,37 @@ describe("POST /api/plans/generate", () => {
     expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ...["soup", "a soup", "pasta", "tacos", "a taco", "burritos", "a burrito"].flatMap((food) => [
+      `${food} under £10`, `£10 for ${food}`, `${food} and a pint under £10`,
+      `£10 for a pint and ${food}`, `pints under £5 and ${food} under £10`,
+    ]).flatMap((phrase) => [
+      { query: `One pub in Soho, ${phrase}`, context: { stopCount: 1 } },
+      { query: "One pub in Soho", context: { stopCount: 1, foodNeeds: [phrase] } },
+    ]),
+    ...[
+      "pints under £5 and pizza afterwards under £10", "pints under £5 and a £10 pizza afterwards",
+      "pints under £5 and soup later for £10", "pints under £5 & tacos later under £10",
+    ].flatMap((phrase) => [
+      { query: `3 pubs in Clapham, ${phrase}` },
+      ...(phrase.length <= 40 ? [{ query: "3 pubs in Clapham", context: { foodNeeds: [phrase] } }] : []),
+    ]),
+  ])("keeps explicitly priced meal subjects ahead of drink and route budgets: %j", async (input) => {
+    const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }));
+    expect({ preparation: "response" in prepared ? prepared.response.status : 200, post: response.status })
+      .toEqual({ preparation: 422, post: 422 });
+    if (!("response" in prepared)) throw new Error("Expected meal limitation");
+    expect(await prepared.response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(await response.json()).toMatchObject({ code: "MEAL_CONSTRAINTS_UNSUPPORTED" });
+    expect(isLimitedMock.mock.calls.some(([key]) => key === paidSpendBudgetKey("plan-generate"))).toBe(false);
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
+  });
+
   it.each(["pub lunch", "pub meal", "pub food", "pub burger", "bar lunch", "bar meal", "bar food", "bar burger"].flatMap((subject) => [
     `under £20 for a ${subject}`,
     `pubs under£20 for a ${subject}`,
@@ -1086,6 +1117,31 @@ describe("POST /api/plans/generate", () => {
       query: `3 pubs in Clapham, pub route budget of£20 for drinks at pubs serving ${food}`,
       total: 2000, ceiling: null,
     })),
+    ...[" and ", " plus ", " & ", "&"].flatMap((join) => ["afterwards", "later"].flatMap((qualifier) =>
+      ["pizza", "a pizza", "fish and chips", "soup", "tacos"].map((food) => `pints under£5${join}${food} ${qualifier}`)))
+      .concat(["£5 for a pint and pizza afterwards", "£5 pints and a burrito later", "pints under£5 and pasta afterwards"])
+      .flatMap((phrase) => [
+        { query: `3 pubs in Clapham, ${phrase}`, total: null, ceiling: 500 },
+        { query: `3 pubs in Clapham, ${phrase}, under£20 per person`, total: 2000, ceiling: 500 },
+        ...(phrase.length <= 40 ? [
+          { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] }, total: null, ceiling: 500 },
+          { query: "3 pubs in Clapham", context: { foodNeeds: [phrase, "pub route budget of£20"] }, total: 2000, ceiling: 500 },
+        ] : []),
+      ]),
+    ...[
+      "pints under£5 and pub route budget£20", "pints under£5 & route total£20",
+      "pints under£5 plus pub budget of£20", "pub route budget£20 and pints under£5",
+      "pints under£5 and under£20 per person", "under£20 per person and pints under£5",
+    ].flatMap((phrase) => [
+      { query: `3 pubs in Clapham, ${phrase}`, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [phrase] }, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: ["pizza", phrase] }, total: 2000, ceiling: 500 },
+    ]),
+    ...["soup", "pasta", "tacos", "a burrito"].flatMap((food) => [
+      { query: `3 pubs in Clapham with ${food} afterwards, under £20 per person`, total: 2000, ceiling: null },
+      { query: `3 pubs in Clapham, pints under£5, under£20 per person, ${food} later`, total: 2000, ceiling: 500 },
+      { query: "3 pubs in Clapham", context: { foodNeeds: [food, "pints under£5", "pub route budget of£20"] }, total: 2000, ceiling: 500 },
+    ]),
   ])("keeps price subjects separate from venue food preferences: %j", async ({ total, ceiling, ...input }) => {
     const now = Date.parse("2026-10-15T12:00:00Z");
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);

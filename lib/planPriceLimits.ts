@@ -1,7 +1,7 @@
 export const PLAN_PRICE_AMOUNT = String.raw`(?:£\s*(\d+(?:[.,]\d{1,2})?)(?!\d|[.,]\d)|(\d+(?:[.,]\d{1,2})?)\s*(?:pounds?|quid)\b)`;
 const LIMIT = String.raw`(?:under|below|up to|less than|max(?:imum)?)`;
 export const PLAN_DRINK_ITEM = String.raw`(?:pints?|drinks?|beers?)`;
-const MEASURED_SERVING = String.raw`\d+(?:[.,]\d+)?\s*[a-z]+`;
+const MEASURED_SERVING = String.raw`(?<!£\s*|[\d.,])\d+(?:[.,]\d+)?\s*[a-z]+`;
 const DRINK_CONTAINER = String.raw`(?:bottles?|cans?|glass(?:es)?|shots?|jugs?|litres?|packs?|pitchers?|steins?|six-packs?)`;
 const SERVING_QUANTITY = String.raw`(?:an?|the|each|one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|double|triple|several|few|dozen|\d+(?:/\d+)?)`;
 const SERVING_PREFIX = String.raw`(?:(?:${MEASURED_SERVING}|bottled|canned|${SERVING_QUANTITY})[ -]+(?:of\s+)?|${SERVING_QUANTITY}\s*[x×]\s*)`;
@@ -12,7 +12,7 @@ const PLAN_PRICE_SUBJECT_BOUNDARY = String.raw`\b(?:with|per|each|afterwards|lat
 const FOOD_SERVING_MEASURE = String.raw`(?:(?:about|around|approximately|roughly|circa|almost|nearly|at least|at most|more than|less than|over|under|up to)\s+)?\d+(?:[.,]\d+)?\s*(?:mg|g|grams?|kg|kilograms?|ml|millilitres?|cl|centilitres?|l|litres?|oz|ounces?|lb|lbs)`;
 const FOOD_SERVING_PREFIX = new RegExp(String.raw`(?:^|\b|${PLAN_PRICE_AMOUNT})\s*(?:for\s+)?(?:${SERVING_QUANTITY}|${FOOD_SERVING_MEASURE})[ -]+(?:(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:${DRINK_NOUN}|pubs?|bars?|stops?|venues?)\b))(?:${FOOD_SERVING_MEASURE}|(?!${FOOD_SERVING_MEASURE}(?:[ -]|$))[a-z0-9]+(?:/\d+)?)[ -]+)*$`, "i");
 const FOOD_SERVING_NOUN = String.raw`servings?(?:[ -]+(?!(?:${LOCATION_START}|per|each|afterwards|later|and|plus|priced|cost(?:s|ing)?|${LIMIT}|${DRINK_NOUN}|pubs?|bars?|stops?|venues?)\b|${PLAN_PRICE_AMOUNT})[a-z0-9]+(?:/\d+)?)*`;
-export const PLAN_FOOD_ITEM = String.raw`(?:${FOOD_SERVING_NOUN}|meals?|slices?|portions?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies))`;
+export const PLAN_FOOD_ITEM = String.raw`(?:${FOOD_SERVING_NOUN}|meals?|slices?|portions?|lunch|dinner|breakfast|dish(?:es)?|food|eat|pizzas?|burgers?|kebabs?|chips|(?:Sunday\s+)?roasts?|steaks?|sandwich(?:es)?|salads?|curr(?:y|ies)|soups?|pastas?|tacos?|burritos?)`;
 const CONTENTS_WORD = String.raw`(?!(?:and|plus|for|under|below|up|less|than|max(?:imum)?|priced|cost(?:s|ing)?)\b|${PLAN_PRICE_SUBJECT_BOUNDARY})[a-z]+`;
 const DRINK_SUBJECT = String.raw`(?:${SERVING_PREFIX})*${DRINK_NOUN}(?:\s+of\s+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?)(?:[ -]+(?:${MEASURED_SERVING}|${CONTENTS_WORD}|\d+(?:/\d+)?))*)?(?:\s+(?:${MEASURED_SERVING}|${DRINK_CONTAINER}))?`;
 const VENUE_ITEM = String.raw`(?:${DRINK_SUBJECT}|${PLAN_FOOD_ITEM})`;
@@ -26,6 +26,7 @@ const ROUTE_BUDGET_PREFIX = new RegExp(String.raw`\bbudget(?:\s+of)?(?:\s+${LIMI
 const ROUTE_LIMIT_PREFIX = new RegExp(String.raw`\b${LIMIT}\s*$`, "i");
 
 export const PLAN_FOOD_SUBJECT = String.raw`(?:each\s+)?(?:(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serves|for|priced|cost(?:s|ing)?|${LIMIT})\b))[^,£;!?])*\b${PLAN_FOOD_ITEM}\b`;
+export const PLAN_UNTYPED_ITEM_WORD = String.raw`(?!(?:${PLAN_PRICE_SUBJECT_BOUNDARY}|\b(?:serves|for|priced|cost(?:s|ing)?|${LIMIT}|and|plus|an?|one|two|pubs?|bars?|stops?|venues?|crawl|route|budget|total|person|people)\b))[a-z]+`;
 const LOCATION_LIST = String.raw`(?:\b(?:and|plus)\b|[+&])\s*(?:${PLAN_FOOD_SUBJECT}|${DRINK_SUBJECT}\b)`;
 const LOCATION_MODIFIER = new RegExp(String.raw`^(?:\b(?:with|serving|serves)\s+${PLAN_FOOD_SUBJECT}\b|(?!${PLAN_PRICE_AMOUNT}|[,;.!?]|${LOCATION_LIST}|\b(?:${LIMIT}|priced|cost(?:s|ing)?|for)\b)[\s\S])*`, "i");
 const VENUE_NAME_WORD = String.raw`[A-Z][a-z][a-zA-Z'’]*`;
