@@ -19,7 +19,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import registry from "@/data/freshness_registry.json";
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
@@ -33,6 +33,7 @@ import {
 } from "@/lib/freshness";
 import { resolveDatasetStamp, resolveDatasetStampWithOverlay } from "@/lib/freshnessArtifact";
 import { freshnessArtifactIncludes } from "@/lib/freshnessTracing.mjs";
+import { notifyFreshnessFindings } from "@/lib/freshnessNotify";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ARTIFACT = "public/data/row_expiry_lane.json";
@@ -202,5 +203,20 @@ describe("late_food_evidence", () => {
     const after = await evaluateFreshness({ now: new Date("2026-08-17T20:00:00Z"), registry: reg });
     expect(defined(before.results[0]).status).not.toBe("stale");
     expect(defined(after.results[0]).status).toBe("stale");
+  });
+});
+
+describe("the stale alert names both causes", () => {
+  it("does not call an expired-rows finding a budget breach", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = evaluateDataset(lane(), "2026-07-27T12:00:00.000Z", new Date("2026-08-17T20:00:00Z"), null, {
+      rows: 20,
+      latestExpiresAt: "2026-08-16T22:30:00.000Z",
+    });
+    notifyFreshnessFindings([result], []);
+    const lines = errorSpy.mock.calls.map((call) => call.map(String).join(" ")).join("\n");
+    expect(lines).toContain("every row past its own expiry");
+    expect(lines).not.toContain("breaching freshness budget");
+    errorSpy.mockRestore();
   });
 });

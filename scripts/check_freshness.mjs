@@ -491,7 +491,7 @@ async function main() {
     // Two findings, reported apart. Stale means the data is old; unresolved means
     // the age could not be measured and says nothing about the data itself.
     if (hardStale.length) {
-      console.log("  STALE (the data is over budget):");
+      console.log("  STALE (over budget, or every row past its own expiry):");
       for (const r of hardStale) console.log(`    ✗ ${r.id}: ${r.detail}`);
     }
     if (advisoryStale.length) {

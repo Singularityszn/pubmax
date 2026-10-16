@@ -97,7 +97,8 @@ export interface FreshnessRegistry {
  *    A feed DECLARED `class: "snapshot"` with no budget at all is reported here
  *    from the moment it is dated: nothing may lawfully advance it, so its
  *    collection day is the whole claim.
- *  - stale     — a budget breach (owner-visible; never a build break).
+ *  - stale     — a budget breach, or a `rowExpiry` dataset whose every row has
+ *                passed its own expiry (owner-visible; never a build break).
  *  - untracked — intentionally not budgeted (static / episodic / user-cadence).
  *  - unknown   — expected a stamp but couldn't resolve one (missing/broken file).
  *  - unmeasured — served per request from somewhere this spine cannot read, so
