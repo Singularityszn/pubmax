@@ -3,6 +3,7 @@ import type { AreaNewsEntry, KeenablePage, KeenableResult } from "./lib/keenable
 export type AreaNewsSnapshot = {
   version: 1;
   generatedAt: string;
+  latestObservedAt?: string | null;
   entries: AreaNewsEntry[];
   [key: string]: unknown;
 };
@@ -12,6 +13,7 @@ export const AREA_NEWS_DATASET_COMMENT: string;
 export function areaNewsRefreshQueries(now?: number | string): string[];
 export function parseArgs(argv: string[]): { maxResults?: number; maxCandidates?: number };
 
+export function latestObservedAt(entries: readonly { observedAt?: unknown }[]): string | null;
 export function readAreaNewsDataset(path?: string): AreaNewsSnapshot;
 export function writeAreaNewsDataset(snapshot: AreaNewsSnapshot, path?: string): void;
 export function refreshAreaNews(input?: {
