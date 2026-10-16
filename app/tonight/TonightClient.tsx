@@ -569,7 +569,7 @@ export default function TonightClient({
   );
   const secondaryLanes = (
     <>
-      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />
+      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
       {/* The music lane is dated by the MUSIC feed, never by the freshest thing
           on the page: the deals feed is rebuilt far more often, and borrowing
           its date would claim gigs were confirmed on a day nobody looked. */}
@@ -690,9 +690,9 @@ export default function TonightClient({
               const barePrice = whatsOnBarePriceGbp(row);
               // A deal carries an exact window and a listing date, so it says
               // when it closes and how old the listing is. Both read off the row.
-              const dealEnds = row.kind === "deal" ? dealEndsCaption(row) : null;
+              const dealEnds = row.kind === "deal" ? dealEndsCaption(row, renderedAt) : null;
               const dealListingAge =
-                row.kind === "deal" ? dealListingAgeCaption(row) : null;
+                row.kind === "deal" ? dealListingAgeCaption(row, renderedAt) : null;
               const RowInner = (
                 <>
                   <div className="tonightRowMeta">
@@ -918,6 +918,7 @@ export default function TonightClient({
       <aside className="tonightContext" aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary
+            now={renderedAt}
             facets={displayedFacets}
             rows={summaryRows}
             totalCount={grouped.length}

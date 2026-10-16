@@ -1,4 +1,8 @@
-import { createElement } from "react";
+// @vitest-environment jsdom
+
+import { act, createElement } from "react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -79,4 +83,47 @@ describe("Tonight's completed server document", () => {
     expect(lede).not.toContain("Chain offer");
     expect(lede).not.toContain("Ticket platform show");
   });
+  it("keeps a held deal's age on the server clock during hydration", () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(NOW + 2 * 60 * 60_000);
+    try {
+      const html = documentFor({ ...whatsOn, rows: [{
+        ...independent, kind: "deal", title: "Friday deal",
+        observedAt: new Date(NOW - (21 * 24 - 1) * 60 * 60_000).toISOString(),
+      }] });
+      expect(html).toContain("Listed 2 weeks ago");
+      expect(html).not.toContain("Listed 3 weeks ago");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("hydrates a held deal across an age boundary without changing its date copy", async () => {
+    const initialListings = { whatsOn: { ...whatsOn, rows: [{
+      ...independent, kind: "deal" as const, title: "Friday deal",
+      observedAt: new Date(NOW - (21 * 24 - 1) * 60 * 60_000).toISOString(),
+    }] }, out, renderedAt: NOW };
+    const element = createElement(TonightClient, { initialListings });
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(element);
+    document.body.append(container);
+    const errors: string[] = [];
+    const clock = vi.spyOn(Date, "now").mockReturnValue(NOW + 2 * 60 * 60_000);
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", () => new Promise(() => {}));
+    let root: Root | undefined;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, element, { onRecoverableError: (error) => errors.push(String(error)) });
+      });
+      expect(container.textContent).toContain("Listed 2 weeks ago");
+      expect(container.textContent).not.toContain("Listed 3 weeks ago");
+      expect(errors).toEqual([]);
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      clock.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
 });
