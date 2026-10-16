@@ -1783,6 +1783,10 @@ for (const viewport of VIEWPORTS) {
     expect(answered?.status()).toBe(200);
     await expect(page.locator(".nmnCard").first()).toBeVisible();
     await expect(page.locator(".nmnPatchTier")).toBeVisible();
+    // The collected line waits on the price-trust read, which lands after the
+    // cards: without this the measurement can find no line and fail for the
+    // wrong reason.
+    await expect(page.locator(".nmnPriceCollected").first()).toBeVisible();
     await expectTextClearOfCreateAction(page, [
       ".nmnListCaption",
       ".nmnPriceCollected",

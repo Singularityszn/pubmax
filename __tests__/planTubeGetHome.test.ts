@@ -23,7 +23,6 @@ import {
   selectPlanGenerationCandidates,
   type ScoredPlanCandidate,
 } from "@/lib/planGenerationSelection.server";
-import { routeTransportConstraints } from "@/lib/planGetHome";
 import {
   selectAnchoredGroundedPlanRoute,
   selectGroundedPlanRoute,
@@ -83,16 +82,40 @@ function scoredCandidate(id: string, ordinal: number): ScoredPlanCandidate {
 }
 
 describe("reading a way home out of a plan request", () => {
-  it("reads the sprint request as a tube way home", () => {
+  it("reads the sprint request as a tube way home, so no route rule survives it", () => {
     const { context } = inferNightContext(SPRINT_REQUEST, NOW);
     expect(context.nightArea).toBe("piccadilly-soho");
-    expect(context.transportConstraints).toEqual(["tube"]);
+    expect(context.transportConstraints).toEqual([]);
   });
 
   it("matches tube as a whole word only, never inside YouTube", () => {
     expect(inferNightContext("pints in Soho after a YouTube shoot", NOW).context.transportConstraints).toEqual([]);
     expect(inferNightContext("tubeless bike, pints in Soho", NOW).context.transportConstraints).toEqual([]);
-    expect(inferNightContext("pints in Soho, back on the Tube", NOW).context.transportConstraints).toEqual(["tube"]);
+  });
+
+  // ONLY A WAY HOME IS DROPPED. Reading every "tube" as a way home turned a
+  // stated route rule into silence: "near a tube station" took the legacy
+  // candidate slice with no tube-proximity filtering, and the answer named no
+  // missed need either.
+  it("keeps a tube that is not a way home as a route rule", () => {
+    for (const query of [
+      "cheap pints near a tube station in Soho for 4",
+      "step-free tube access, pints in Soho",
+      "a pub by the tube in Soho",
+    ]) {
+      expect(inferNightContext(query, NOW).context.transportConstraints, query).toEqual(["tube"]);
+    }
+  });
+
+  it("reads a way home in either order, and close variants of it", () => {
+    for (const query of [
+      "cheap pints in Soho for 4, then home by tube",
+      "pints in Soho, we will get the tube home",
+      "pints in Soho then take the tube back home",
+      "pints in Soho, home on the last tube",
+    ]) {
+      expect(inferNightContext(query, NOW).context.transportConstraints, query).toEqual([]);
+    }
   });
 
   // A tube way home must never take a stated walk rule out of the record: the
@@ -103,13 +126,7 @@ describe("reading a way home out of a plan request", () => {
       "cheap pints in Soho for 4, we want to walk between them and get the tube home",
       NOW,
     );
-    expect(context.transportConstraints).toEqual(["tube", "walking"]);
-    expect(routeTransportConstraints(context.transportConstraints)).toEqual(["walking"]);
-  });
-
-  it("splits a way home from the route rules", () => {
-    expect(routeTransportConstraints(["tube", "walking"])).toEqual(["walking"]);
-    expect(routeTransportConstraints(["tube"])).toEqual([]);
+    expect(context.transportConstraints).toEqual(["walking"]);
   });
 });
 
@@ -117,18 +134,21 @@ describe("a tube way home never removes a pub from the route", () => {
   const candidates = ["a", "b", "c", "d"].map(routeCandidate);
 
   it("still builds the route", () => {
-    const result = selectGroundedPlanRoute(candidates, constraints(["tube"]));
+    const { context } = inferNightContext(SPRINT_REQUEST, NOW);
+    const result = selectGroundedPlanRoute(candidates, constraints(context.transportConstraints));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.stops).toHaveLength(3);
   });
 
   it("still builds an anchored route", () => {
-    const result = selectAnchoredGroundedPlanRoute(candidates, constraints(["tube"]), "a");
+    const { context } = inferNightContext(SPRINT_REQUEST, NOW);
+    const result = selectAnchoredGroundedPlanRoute(candidates, constraints(context.transportConstraints), "a");
     expect(result).toMatchObject({ ok: true, outcome: "route" });
   });
 
-  it("keeps every other transport word a route rule that fails closed", () => {
-    expect(selectGroundedPlanRoute(candidates, constraints(["tube", "walking"])).ok).toBe(false);
+  it("keeps every transport word that IS a route rule failing closed", () => {
+    expect(selectGroundedPlanRoute(candidates, constraints(["tube"])).ok).toBe(false);
+    expect(selectGroundedPlanRoute(candidates, constraints(["walking"])).ok).toBe(false);
   });
 
   it("still fails the route closed on the walk rule the same sentence states", async () => {
@@ -136,6 +156,17 @@ describe("a tube way home never removes a pub from the route", () => {
       "cheap pints in Soho for 4, we want to walk between them and get the tube home",
       NOW,
     );
+    const result = await selectPlanGenerationCandidates(
+      [0, 1, 2, 3].map((ordinal) => scoredCandidate(`soho-${ordinal}`, ordinal)),
+      context as NightContext,
+      null,
+      NOW.getTime(),
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("still fails the route closed on a tube that is a route rule", async () => {
+    const { context } = inferNightContext("cheap pints near a tube station in Soho for 4", NOW);
     const result = await selectPlanGenerationCandidates(
       [0, 1, 2, 3].map((ordinal) => scoredCandidate(`soho-${ordinal}`, ordinal)),
       context as NightContext,
@@ -158,12 +189,11 @@ describe("a tube way home never removes a pub from the route", () => {
   });
 });
 
-describe("a tube way home names no missed need of its own", () => {
-  const { context } = inferNightContext(SPRINT_REQUEST, NOW);
-
-  it("names a need only when a route rule really is unevidenced", () => {
-    const gaps = (transportConstraints: string[]) => planGenerationEvidenceGaps({
-      context: { ...context, transportConstraints } as NightContext,
+describe("the need a plan missed is still named", () => {
+  function gapsFor(query: string): string[] {
+    const { context } = inferNightContext(query, NOW);
+    return planGenerationEvidenceGaps({
+      context: context as NightContext,
       accessibilityEnforced: false,
       hasDatedWindow: false,
       allOpeningListed: false,
@@ -172,10 +202,16 @@ describe("a tube way home names no missed need of its own", () => {
       hasTonightEvidence: false,
       hasWeatherEvidence: false,
     }).contextEvidenceGaps;
-    // A way home costs the plan no confidence: it is checked against the live
-    // last service during the night, which the Get home ending already says.
-    expect(gaps(["tube"])).toEqual([]);
-    // A route rule between stops still has no evidence behind it.
-    expect(gaps(["walking"])).toContain("per_venue_transport");
+  }
+
+  it("costs a way home no confidence, because the route honoured every rule", () => {
+    expect(gapsFor(SPRINT_REQUEST)).toEqual([]);
+  });
+
+  it("names per_venue_transport for a tube the route could not honour", () => {
+    expect(gapsFor("cheap pints near a tube station in Soho for 4"))
+      .toContain("per_venue_transport");
+    expect(gapsFor("pints in Soho within walking distance"))
+      .toContain("per_venue_transport");
   });
 });
