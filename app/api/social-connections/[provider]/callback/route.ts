@@ -1,7 +1,11 @@
 import { publicApiError } from "@/lib/apiError";
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import { isSocialOAuthProvider } from "@/lib/socialConnections";
-import { completeSocialOAuth } from "@/lib/socialOAuth";
+import {
+  completeSocialOAuth,
+  SOCIAL_OAUTH_BROWSER_COOKIE,
+  socialOAuthBrowserNonceFromCookieHeader,
+} from "@/lib/socialOAuth";
 import { providerCapability } from "@/lib/socialProviderCapabilities";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { siteOrigin } from "@/lib/siteUrl";
@@ -13,6 +17,22 @@ import {
 } from "@/lib/socialLaunch";
 
 assertServerEnv();
+
+/**
+ * The end of a flow this browser started: the start's nonce cookie has done its
+ * one job (binding the state to this browser), so it is cleared whatever the
+ * outcome.
+ */
+function finishFlow(destination: URL): Response {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: destination.toString(),
+      "Set-Cookie": `${SOCIAL_OAUTH_BROWSER_COOKIE}=; Path=/api/social-connections; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+    },
+  });
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ provider: string }> }): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
@@ -40,10 +60,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   if (!code || !state || requestUrl.searchParams.has("error")) {
     destination.searchParams.set("socialConnection", provider);
     destination.searchParams.set("status", "cancelled");
-    return Response.redirect(destination, 303);
+    return finishFlow(destination);
   }
   try {
-    const completed = await completeSocialOAuth({ provider, code, state });
+    // A state is only answered to the browser that started it, so a callback
+    // link forwarded to somebody else links nothing.
+    const browserNonce = socialOAuthBrowserNonceFromCookieHeader(request.headers.get("cookie"));
+    const completed = await completeSocialOAuth({ provider, code, state, browserNonce });
     await socialConnectionStore().saveOAuth(completed.ownerId, completed.connection);
     destination.searchParams.set("socialConnection", provider);
     destination.searchParams.set("status", "connected");
@@ -51,5 +74,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
     destination.searchParams.set("socialConnection", provider);
     destination.searchParams.set("status", "failed");
   }
-  return Response.redirect(destination, 303);
+  return finishFlow(destination);
 }

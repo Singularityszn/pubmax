@@ -263,6 +263,15 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     if (thread === null) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
+    // Reporting stays open under the freeze, but it is still a write, so it
+    // takes a budget of its own rather than the send budget. It is spent only
+    // once the participation read has answered, so a failed read writes nothing.
+    const reportKey = `msg-report:${handle}:${hashIp(clientIp(request))}`;
+    if (await isLimited(reportKey, reportKey, SEND_LIMIT, SEND_WINDOW_MS)) {
+      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
+        retryable: true,
+      });
+    }
     const flagged = await store.report(id, messageId, handle);
     return jsonNoStore({ flagged }, { status: 200 });
   }

@@ -41,6 +41,9 @@ import { readString } from "@/lib/textClean";
 
 assertServerEnv();
 
+/** A moderator clears a queue a tap at a time, so this is per minute and wide. */
+const MODERATION_WRITE_LIMIT = 60;
+
 function forbidden(): Response {
   return publicApiError("Not authorised.", "FORBIDDEN", 403);
 }
@@ -64,6 +67,16 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   if (!isModerator(request)) return forbidden();
+
+  // Behind the gate and still metered: a leaked token is one address, not an
+  // unmetered loop over trust reconciliation. Its own key, so polling the queue
+  // spends nothing here.
+  const ipKey = hashIp(clientIp(request));
+  const writeKey = `admin-prices-write:${ipKey}`;
+  if (await isLimited(writeKey, writeKey, MODERATION_WRITE_LIMIT)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
