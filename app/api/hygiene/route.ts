@@ -1,4 +1,10 @@
-// GET /api/hygiene?name=<venue name>&postcode=<postcode or address>
+// GET /api/hygiene?venueId=<venue id>&name=<venue name>&postcode=<postcode or address>
+//
+// TWO LANES, EXACT FIRST. A venue whose OSM object carries an `fhrs:id` is
+// answered from the committed packs (lib/fsaHygienePack.server.ts) as `fact`,
+// with the FSA's source, licence and both dates: an exact identity, no upstream
+// call. Only a venue the packs say nothing about falls back to the live
+// name-and-postcode match below, answered as `rating`.
 //
 // Server-side proxy for the FSA Food Hygiene Rating Scheme (FHRS). The client
 // NEVER calls the upstream directly (requirement 1) — this route holds the
@@ -14,6 +20,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveHygieneRating } from "@/lib/foodHygiene";
+import { packHygieneForVenue } from "@/lib/fsaHygienePack.server";
 import { isHygieneLimited } from "@/lib/foodHygieneRateLimit";
 import { withRouteTiming } from "@/lib/routeObservability";
 
@@ -22,6 +29,7 @@ export const maxDuration = 15;
 
 const MAX_NAME_LEN = 160;
 const MAX_POSTCODE_LEN = 400; // may be a full free-text address; postcode is extracted.
+const VENUE_ID = /^venue-[a-z0-9-]{1,80}$/;
 
 export const GET = withRouteTiming("hygiene", getHandler);
 
@@ -36,6 +44,10 @@ async function getHandler(request: Request): Promise<Response> {
   }
 
   const params = new URL(request.url).searchParams;
+  const venueId = params.get("venueId")?.trim() ?? "";
+  const fact = VENUE_ID.test(venueId) ? await packHygieneForVenue(venueId) : null;
+  if (fact) return jsonNoStore({ rating: null, fact });
+
   const name = params.get("name")?.trim() ?? "";
   const postcode = params.get("postcode")?.trim() ?? params.get("address")?.trim() ?? "";
 
