@@ -263,6 +263,21 @@ export default function VisitReportPanel({
   );
 }
 
+// A signed-out reader has no draft, so every field reads as untouched.
+function visitDraftFields(
+  draft: VisitReportDraft | null,
+  latest: string,
+): VisitReportDraft {
+  return {
+    visitedAt: draft?.visitedAt ?? latest,
+    busyness: draft?.busyness ?? null,
+    noise: draft?.noise ?? null,
+    seating: draft?.seating ?? null,
+    serviceWait: draft?.serviceWait ?? null,
+    note: draft?.note ?? "",
+  };
+}
+
 function VenueVisitReports({
   venueId,
   venueName,
@@ -307,12 +322,8 @@ function VenueVisitReports({
     sameAccountAuth(openAuth, composerAuth),
     composerAuth?.userId ?? null,
   );
-  const visitedAt = draft?.visitedAt ?? latest;
-  const busyness = draft?.busyness ?? null;
-  const noise = draft?.noise ?? null;
-  const seating = draft?.seating ?? null;
-  const serviceWait = draft?.serviceWait ?? null;
-  const note = draft?.note ?? "";
+  const { visitedAt, busyness, noise, seating, serviceWait, note } =
+    visitDraftFields(draft, latest);
 
   useEffect(() => {
     if (!active) return;

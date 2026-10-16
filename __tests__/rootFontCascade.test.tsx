@@ -2,7 +2,15 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, createElement, StrictMode } from "react";
+import {
+  act,
+  Children,
+  createElement,
+  isValidElement,
+  StrictMode,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import postcss from "postcss";
@@ -44,20 +52,44 @@ function globalFontRules(): string {
   return `:root{${declarations.join(";")}}`;
 }
 
+type LayoutElement = ReactElement<{ children?: ReactNode }>;
+
+function findElement(node: ReactNode, matches: (element: LayoutElement) => boolean): LayoutElement | undefined {
+  for (const child of Children.toArray(node)) {
+    if (!isValidElement<{ children?: ReactNode }>(child)) continue;
+    if (matches(child)) return child;
+    const found = findElement(child.props.children, matches);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 it("uses matched fallbacks before hydration and restores both complete generated families", async () => {
   const layout = await RootLayout({ children: createElement("main", null, "Choose a pub") });
+  // The layout's own head font rule and theme initializer, as it renders them.
+  const head = findElement(layout, (element) => element.type === "head");
+  const fontRule = Children.toArray(head?.props.children).find(
+    (child): child is LayoutElement => isValidElement(child) && child.type === "style",
+  );
+  const themeAttribute = findElement(layout, (element) => element.type === ThemeAttribute);
+  if (!fontRule || !themeAttribute) throw new Error("The layout must render its head font rule and ThemeAttribute.");
+  // ThemeAttribute removes exactly the temporary values the document carries.
+  expect(themeAttribute.props).toEqual({ initialFontFallbacks: layout.props.style });
   // Keep the real document attributes. Providers do not own the font cascade,
   // so render only its real theme initializer and representative page content.
   const shell = createElement(layout.type, layout.props,
-    createElement("head", null, createElement("style", null,
-      globalFontRules() +
-      ".display-variable{--font-display:'Space Grotesk', 'Space Grotesk Fallback'}" +
-      ".body-variable{--font-body:'Inter', 'Inter Fallback'}",
-    )),
+    // Production order: the layout imports next/font before root-shell.css, so
+    // the generated variable classes precede the equally specific :root rules.
+    createElement("head", null,
+      fontRule,
+      createElement("style", null,
+        ".display-variable{--font-display:'Space Grotesk', 'Space Grotesk Fallback'}" +
+        ".body-variable{--font-body:'Inter', 'Inter Fallback'}" +
+        globalFontRules(),
+      ),
+    ),
     createElement("body", null,
-      createElement(StrictMode, null, createElement(ThemeAttribute, {
-        initialFontFallbacks: layout.props.style,
-      })),
+      createElement(StrictMode, null, themeAttribute),
       createElement("main", null, "Choose a pub"),
     ),
   );

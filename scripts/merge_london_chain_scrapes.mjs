@@ -476,6 +476,127 @@ function hasReliablePoundPrices(markdown) {
   return pounds.length >= 3;
 }
 
+/**
+ * Young's garden pubs by host: the scraped guide rows first, then any pub the
+ * archived or fresh guide markdown names. A later source fills a missing name.
+ */
+function youngsGardenPubs(archivedYoungs) {
+  const gardenRaw = loadJson(join(CHAINS_DIR, "youngs", "garden_pubs_raw.json"));
+  const gardenByHost = new Map();
+  for (const row of gardenRaw) {
+    if (!row?.url) continue;
+    const host = youngsHostname(row.url);
+    if (!host) continue;
+    const existing = gardenByHost.get(host) ?? {
+      url: row.url.split("/garden")[0].replace(/\/+$/, "") || row.url,
+      region: row.region,
+      sourcePage: row.sourcePage,
+      name: "",
+    };
+    if (
+      row.name &&
+      !/^explore/i.test(row.name) &&
+      row.name.length < 80 &&
+      !/best pub gardens|for those looking|burger shack/i.test(row.name)
+    ) {
+      existing.name = row.name;
+    }
+    if (row.region) existing.region = row.region;
+    gardenByHost.set(host, existing);
+  }
+
+  const youngsMdFiles = [
+    ...archivedYoungs.map((f) => join(CHAINS_DIR, "youngs", "raw", f)),
+    ...readdirSync(FIRECRAWL_DIR)
+      .filter((f) => f.startsWith("youngs.co.uk-best-pub-gardens"))
+      .map((f) => join(FIRECRAWL_DIR, f)),
+  ];
+  for (const file of [...new Set(youngsMdFiles)]) {
+    if (!existsSync(file)) continue;
+    const pubs = parseYoungsGardenMarkdown(
+      readFileSync(file, "utf8"),
+      file.split(/[\\/]/).pop(),
+    );
+    for (const pub of pubs) {
+      const host = youngsHostname(pub.url);
+      if (!host) continue;
+      const existing = gardenByHost.get(host) ?? {
+        url: pub.url,
+        region: undefined,
+        sourcePage: pub.sourcePage,
+        name: pub.name,
+      };
+      if (pub.name) existing.name = pub.name;
+      if (pub.sourcePage) existing.sourcePage = pub.sourcePage;
+      gardenByHost.set(host, existing);
+    }
+  }
+  return gardenByHost;
+}
+
+const EATING_EUROPE_PUBS = [
+  { name: "The Mayflower", aliases: ["mayflower"], postcode: "SE16 4NF" },
+  { name: "Lord Wargrave", aliases: ["wargrave"], postcode: "W1H 5HE" },
+  {
+    name: "Ye Old Mitre",
+    aliases: ["ye olde mitre", "ye old mitre", "olde mitre"],
+    postcode: "EC1N 6SJ",
+  },
+  { name: "The Albion", aliases: ["the albion"], postcode: "N1 1HW" },
+  { name: "The Spaniards Inn", aliases: ["spaniards"], postcode: "NW3 7JJ" },
+  { name: "The Ship Soho", aliases: ["ship soho"], postcode: "W1F 0TT" },
+  { name: "The Grenadier", aliases: ["grenadier"], postcode: "SW1X 7NR" },
+];
+
+/** Eating Europe is editorial only: a match links heritage, never a price. */
+function matchEatingEurope(dataset) {
+  const matched = [];
+  const unmatched = [];
+  for (const pub of EATING_EUROPE_PUBS) {
+    const pc = pub.postcode.toLowerCase().replace(/\s+/g, "");
+    let hit = null;
+    for (const venue of dataset) {
+      const addr = (venue.address ?? "").toLowerCase().replace(/\s+/g, "");
+      if (pc && addr.includes(pc)) {
+        hit = venue;
+        break;
+      }
+    }
+    if (!hit && pub.name === "The Grenadier") {
+      hit =
+        dataset.find((v) => /grenadier/i.test(v.name) && /wilton|sw1x/i.test(v.address)) ?? null;
+    }
+    if (!hit) {
+      for (const venue of dataset) {
+        const nameL = venue.name.toLowerCase();
+        if (!pub.aliases.some((a) => nameL.includes(a))) continue;
+        if (!/\blondon\b|\bec\d|\bw\d|\bsw\d|\bse\d|\bn\d|\be\d|\bnw\d/i.test(venue.address)) {
+          continue;
+        }
+        // Ambiguous common names require postcode (already tried).
+        if (["the albion", "ship soho", "ye olde mitre", "ye old mitre", "olde mitre"].some((a) =>
+          pub.aliases.includes(a),
+        )) {
+          continue;
+        }
+        hit = venue;
+        break;
+      }
+    }
+    if (hit) {
+      matched.push({
+        name: pub.name,
+        venueId: hit.venueId,
+        venueKey: hit.venueKey,
+        matchedName: hit.name,
+      });
+    } else {
+      unmatched.push({ name: pub.name, postcode: pub.postcode });
+    }
+  }
+  return { matched, unmatched };
+}
+
 function main() {
   const archived = {
     youngs: archiveMarkdown([/^youngs\.co\.uk-/], join(CHAINS_DIR, "youngs", "raw")),
@@ -564,56 +685,7 @@ function main() {
     }
   }
 
-  const gardenRaw = loadJson(join(CHAINS_DIR, "youngs", "garden_pubs_raw.json"));
-  const gardenByHost = new Map();
-  for (const row of gardenRaw) {
-    if (!row?.url) continue;
-    const host = youngsHostname(row.url);
-    if (!host) continue;
-    const existing = gardenByHost.get(host) ?? {
-      url: row.url.split("/garden")[0].replace(/\/+$/, "") || row.url,
-      region: row.region,
-      sourcePage: row.sourcePage,
-      name: "",
-    };
-    if (
-      row.name &&
-      !/^explore/i.test(row.name) &&
-      row.name.length < 80 &&
-      !/best pub gardens|for those looking|burger shack/i.test(row.name)
-    ) {
-      existing.name = row.name;
-    }
-    if (row.region) existing.region = row.region;
-    gardenByHost.set(host, existing);
-  }
-
-  const youngsMdFiles = [
-    ...archived.youngs.map((f) => join(CHAINS_DIR, "youngs", "raw", f)),
-    ...readdirSync(FIRECRAWL_DIR)
-      .filter((f) => f.startsWith("youngs.co.uk-best-pub-gardens"))
-      .map((f) => join(FIRECRAWL_DIR, f)),
-  ];
-  for (const file of [...new Set(youngsMdFiles)]) {
-    if (!existsSync(file)) continue;
-    const pubs = parseYoungsGardenMarkdown(
-      readFileSync(file, "utf8"),
-      file.split(/[\\/]/).pop(),
-    );
-    for (const pub of pubs) {
-      const host = youngsHostname(pub.url);
-      if (!host) continue;
-      const existing = gardenByHost.get(host) ?? {
-        url: pub.url,
-        region: undefined,
-        sourcePage: pub.sourcePage,
-        name: pub.name,
-      };
-      if (pub.name) existing.name = pub.name;
-      if (pub.sourcePage) existing.sourcePage = pub.sourcePage;
-      gardenByHost.set(host, existing);
-    }
-  }
+  const gardenByHost = youngsGardenPubs(archived.youngs);
 
   const youngsMatched = [];
   const youngsUnmatched = [];
@@ -671,63 +743,7 @@ function main() {
   }
 
   const eeMd = join(FIRECRAWL_DIR, "eatingeurope.com-blog-londons-pubs.md");
-  const eePubs = [
-    { name: "The Mayflower", aliases: ["mayflower"], postcode: "SE16 4NF" },
-    { name: "Lord Wargrave", aliases: ["wargrave"], postcode: "W1H 5HE" },
-    {
-      name: "Ye Old Mitre",
-      aliases: ["ye olde mitre", "ye old mitre", "olde mitre"],
-      postcode: "EC1N 6SJ",
-    },
-    { name: "The Albion", aliases: ["the albion"], postcode: "N1 1HW" },
-    { name: "The Spaniards Inn", aliases: ["spaniards"], postcode: "NW3 7JJ" },
-    { name: "The Ship Soho", aliases: ["ship soho"], postcode: "W1F 0TT" },
-    { name: "The Grenadier", aliases: ["grenadier"], postcode: "SW1X 7NR" },
-  ];
-  const eeMatched = [];
-  const eeUnmatched = [];
-  for (const pub of eePubs) {
-    const pc = pub.postcode.toLowerCase().replace(/\s+/g, "");
-    let hit = null;
-    for (const venue of dataset) {
-      const addr = (venue.address ?? "").toLowerCase().replace(/\s+/g, "");
-      if (pc && addr.includes(pc)) {
-        hit = venue;
-        break;
-      }
-    }
-    if (!hit && pub.name === "The Grenadier") {
-      hit =
-        dataset.find((v) => /grenadier/i.test(v.name) && /wilton|sw1x/i.test(v.address)) ?? null;
-    }
-    if (!hit) {
-      for (const venue of dataset) {
-        const nameL = venue.name.toLowerCase();
-        if (!pub.aliases.some((a) => nameL.includes(a))) continue;
-        if (!/\blondon\b|\bec\d|\bw\d|\bsw\d|\bse\d|\bn\d|\be\d|\bnw\d/i.test(venue.address)) {
-          continue;
-        }
-        // Ambiguous common names require postcode (already tried).
-        if (["the albion", "ship soho", "ye olde mitre", "ye old mitre", "olde mitre"].some((a) =>
-          pub.aliases.includes(a),
-        )) {
-          continue;
-        }
-        hit = venue;
-        break;
-      }
-    }
-    if (hit) {
-      eeMatched.push({
-        name: pub.name,
-        venueId: hit.venueId,
-        venueKey: hit.venueKey,
-        matchedName: hit.name,
-      });
-    } else {
-      eeUnmatched.push({ name: pub.name, postcode: pub.postcode });
-    }
-  }
+  const { matched: eeMatched, unmatched: eeUnmatched } = matchEatingEurope(dataset);
 
   const existing = existsSync(ENRICHMENT_PATH)
     ? loadJson(ENRICHMENT_PATH)

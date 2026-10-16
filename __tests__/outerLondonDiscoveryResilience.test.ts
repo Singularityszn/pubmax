@@ -250,6 +250,55 @@ describe("outer London optional discovery failures", () => {
     );
   });
 
+  it("writes the priced row, a dated drink file and the merged latest file outside a dry run", () => {
+    const root = makeFixture();
+    const earlier = {
+      venueKey: "earlier-venue",
+      drinkName: "Earlier Bitter",
+      category: "beer",
+      priceGbp: 5.1,
+      source: { label: "Earlier", url: "https://earlier.example/", licence: "fixture" },
+      observedAt: "2026-01-01T00:00:00.000Z",
+    };
+    write(root, "public/data/drink_price_updates/latest.json", `${JSON.stringify({ version: 1, updates: [earlier] })}\n`);
+    const script = realpathSync(join(root, "scripts/harvest_outer_london_prices.mjs"));
+    const run = spawnSync(
+      process.execPath,
+      [script, "--limit", "1", "--budget", "2", "--log", "data/osm/test-log.json"],
+      { cwd: root, encoding: "utf8", env: { ...process.env, TEST_PRICE_MODE: "priced" } },
+    );
+
+    expect(run.status, run.stderr).toBe(0);
+    const written = JSON.parse(readFileSync(join(root, "data/osm/test-log.json"), "utf8"));
+    expect(written.summary).toMatchObject({ requestsUsed: 1, priced: 1, independentsSwept: 1 });
+    expect(written.log[0]).toEqual(expect.objectContaining({
+      pub: "First Independent",
+      result: "priced",
+      cheapestPint: 6.2,
+      drink: "House Lager",
+      categories: ["beer"],
+      sourceUrl: "https://first-independent.example/",
+      requests: 1,
+    }));
+    const [row, untouched] = JSON.parse(readFileSync(join(root, "public/data/pint_prices_app_dataset.json"), "utf8"));
+    expect(row).toMatchObject({
+      price_gbp: 6.2,
+      pint_name: "House Lager",
+      price_text: "£6.20",
+      pub_url: "https://first-independent.example/",
+      constructed_pub_url: "https://first-independent.example/",
+    });
+    expect(row.data_quality_notes).toContain("|price:first_party_web|https://first-independent.example/|observed=");
+    expect(untouched).toMatchObject({ pub_name: "Second Independent", price_gbp: null });
+    const latest = JSON.parse(readFileSync(join(root, "public/data/drink_price_updates/latest.json"), "utf8"));
+    expect(latest.updates.map((update: { drinkName: string }) => update.drinkName).sort()).toEqual(["Earlier Bitter", "House Lager"]);
+    const stamp = String(written.summary.generatedAt).slice(0, 10).replace(/-/g, "");
+    const dated = JSON.parse(readFileSync(join(root, `public/data/drink_price_updates/prices_${stamp}.json`), "utf8"));
+    expect(dated).toEqual(latest);
+    expect(run.stdout).toContain("Merged 1 drink rows into latest.json (total 2)");
+    expect(run.stdout).toContain("Wrote per-venue log to ");
+  });
+
   it("does not fetch a refused host or ask robots about it", () => {
     const root = makeFixture();
     write(

@@ -243,6 +243,41 @@ describe("Plan Completion", () => {
     expect(await completion.json()).toEqual({ completion: null });
   });
 
+  it("answers each store refusal with its own public error", async () => {
+    // One plan for every case: creation is rate limited and Date.now is pinned.
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const complete = vi.spyOn(planStore(), "complete");
+    const cases = [
+      ["forbidden", 403, { error: "Only the Plan host can complete this Plan.", code: "PLAN_COMPLETION_FORBIDDEN", retryable: false }],
+      ["conflict", 409, { error: "That route has changed. Refresh and try again.", code: "PLAN_ROUTE_CONFLICT", retryable: true }],
+      ["arrival_required", 400, { error: "Mark at least one route stop as arrived before completing this Plan.", code: "PLAN_ARRIVAL_REQUIRED", retryable: false }],
+      ["error", 503, { error: "Plan completion is temporarily unavailable.", code: "PLAN_COMPLETION_UNAVAILABLE", retryable: true }],
+      ["not_found", 404, { error: "Could not complete this Plan.", code: "PLAN_NOT_FOUND", retryable: false }],
+      ["invalid", 400, { error: "Could not complete this Plan.", code: "PLAN_COMPLETION_INVALID", retryable: false }],
+      ["full", 400, { error: "Could not complete this Plan.", code: "PLAN_COMPLETION_INVALID", retryable: false }],
+      ["account_conflict", 400, { error: "Could not complete this Plan.", code: "PLAN_COMPLETION_INVALID", retryable: false }],
+    ] as const;
+    for (const [error, status, body] of cases) {
+      complete.mockResolvedValueOnce({ ok: false, error });
+      const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${created.memberToken}` },
+        body: JSON.stringify({
+          expectedRouteRevision: 1,
+          ending: "get_home",
+          endingSelection: {
+            kind: "get_home",
+            optionId: "transport:nearest-station",
+            evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+          },
+        }),
+      }), ctx(id));
+      expect({ error, status: response.status, body: await response.json() }).toEqual({ error, status, body });
+    }
+    expect(complete).toHaveBeenCalledTimes(cases.length);
+  });
+
   it("rejects a stale route revision without recording a partial ending action or completion", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;

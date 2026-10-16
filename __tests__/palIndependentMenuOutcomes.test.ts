@@ -134,7 +134,7 @@ it.each(["keyless", "configured", "stored"])("preserves menu success and honest 
   const result = await mixedAnswer(`${eventClauses[0][1]} and ${menuClause}`, boundary);
   expect(result.toolsUsed).toEqual(["whats_on", "venue_drinks"]);
   expect(result.cards).toHaveLength(1);
-  expect(result.cards[0].menuEvidence?.itemName).toBe("Mixed Olives");
+  expect(result.cards.map((card) => card.menuEvidence?.itemName)).toEqual(["Mixed Olives"]);
   expect(result.answer).toContain("couldn't load sourced listings");
   expect(result.answer).toContain("Mixed Olives at The New Inn: £5.00");
 });

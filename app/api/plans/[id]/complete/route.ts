@@ -3,7 +3,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { cleanEndingSelection, isPlanId, type CrawlEnding, type PlanCompletionDTO, type PlanState } from "@/lib/plan";
-import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore } from "@/lib/planStore";
+import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
 import { CREW_NIGHT_MIN_PARTICIPANTS } from "@/lib/crew";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
@@ -60,6 +60,22 @@ function verifiedCompletionResponse(
   }
 }
 
+const COMPLETION_INVALID = { message: "Could not complete this Plan.", code: "PLAN_COMPLETION_INVALID", status: 400, retryable: false };
+
+// One public answer per store refusal. Every refusal not named here is invalid.
+const COMPLETION_REFUSALS: Partial<Record<PlanWriteError, typeof COMPLETION_INVALID>> = {
+  forbidden: { message: "Only the Plan host can complete this Plan.", code: "PLAN_COMPLETION_FORBIDDEN", status: 403, retryable: false },
+  conflict: { message: "That route has changed. Refresh and try again.", code: "PLAN_ROUTE_CONFLICT", status: 409, retryable: true },
+  arrival_required: { message: "Mark at least one route stop as arrived before completing this Plan.", code: "PLAN_ARRIVAL_REQUIRED", status: 400, retryable: false },
+  error: { message: "Plan completion is temporarily unavailable.", code: "PLAN_COMPLETION_UNAVAILABLE", status: 503, retryable: true },
+  not_found: { ...COMPLETION_INVALID, code: "PLAN_NOT_FOUND", status: 404 },
+};
+
+function completionRefusal(error: PlanWriteError): Response {
+  const { message, code, status, retryable } = COMPLETION_REFUSALS[error] ?? COMPLETION_INVALID;
+  return publicApiError(message, code, status, { retryable });
+}
+
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
@@ -112,11 +128,6 @@ export async function POST(request: Request, context: Context): Promise<Response
     ...(terminalVenueId ? { terminalVenueId } : {}),
     endingSelection: canonicalSelection,
   });
-  if (!result.ok) return publicApiError(
-    result.error === "forbidden" ? "Only the Plan host can complete this Plan." : result.error === "conflict" ? "That route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion is temporarily unavailable." : "Could not complete this Plan.",
-    result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : result.error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
-    result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
-    { retryable: result.error === "error" || result.error === "conflict" },
-  );
+  if (!result.ok) return completionRefusal(result.error);
   return verifiedCompletionResponse(result.plan, result.completion, result.created, result.created ? 201 : 200);
 }

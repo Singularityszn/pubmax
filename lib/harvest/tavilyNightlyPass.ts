@@ -1144,6 +1144,52 @@ async function robotsAllowedUrls(urls: readonly string[], robots: RobotsChecker)
   return out;
 }
 
+type ListedPage = { url: string; title?: string; text: string; boundSnippet?: boolean };
+
+/** The bound site's own search snippet stands in when no extract read it. */
+function pushBoundSnippet(
+  pages: ListedPage[],
+  website: string | null,
+  permitted: ReadonlySet<string>,
+  hits: readonly SearchHit[],
+): void {
+  if (!website || !permitted.has(website)) return;
+  if (pages.some((page) => sameListedUrl(page.url, website))) return;
+  const hit = hits.find((row) => sameListedUrl(row.url, website));
+  pushListedPage(pages, website, hit?.content, hit?.title, true);
+}
+
+/**
+ * Whether tonight's read of this venue counts as seen. A stored read counts
+ * when it extracted text or had nothing to extract. A search that returned
+ * results but bound no site counts too, unless a refused url stated the venue.
+ */
+function venueRead(read: {
+  venue: NightlyVenue;
+  website: string | null;
+  evidence: VenueEvidence;
+  pages: readonly ListedPage[];
+  urls: readonly string[];
+  search: unknown;
+  searched: ReadonlyArray<{ url: string; title?: string; text: string }>;
+  permitted: ReadonlySet<string>;
+}): boolean {
+  const { venue, website, evidence, pages, urls, search, searched, permitted } = read;
+  const stored = Boolean(evidence.website) || evidence.excerpts.length > 0 || evidence.drinks.length > 0;
+  const extractedText = pages.some((page) => !page.boundSnippet);
+  const returnedResults = Array.isArray((search as { results?: unknown }).results)
+    ? (search as { results: unknown[] }).results.length
+    : 0;
+  const refusedBinding = searched.some((page) => !permitted.has(page.url) && resultStatesVenue({
+    url: page.url,
+    title: page.title,
+    content: page.text,
+    description: page.title,
+  }, venue));
+  const unboundSearch = !website && returnedResults > 0 && !refusedBinding;
+  return ((extractedText || urls.length === 0) && stored) || unboundSearch;
+}
+
 export async function runNightlyPass(input: {
   venues: readonly NightlyVenue[];
   cursor: NightlyCursor;
@@ -1226,33 +1272,13 @@ export async function runNightlyPass(input: {
         }
       }
     }
-    if (
-      website
-      && permitted.has(website)
-      && (urls.length === 0 || extractAttempted)
-      && !pages.some((page) => sameListedUrl(page.url, website))
-    ) {
-      const hit = hits.find((row) => sameListedUrl(row.url, website));
-      pushListedPage(pages, website, hit?.content, hit?.title, true);
-    }
+    if (urls.length === 0 || extractAttempted) pushBoundSnippet(pages, website, permitted, hits);
     const candidates = website
       ? []
       : [...new Set(hits.filter((hit) => isOperatorHost(hit.url)).map((hit) => hit.url))];
     const evidence = evidenceFor(venue, today, website, pages, candidates);
     queue = mergeQueue(queue, [evidence]);
-    const stored = Boolean(evidence.website) || evidence.excerpts.length > 0 || evidence.drinks.length > 0;
-    const extractedText = pages.some((page) => !page.boundSnippet);
-    const returnedResults = Array.isArray((search as { results?: unknown }).results)
-      ? (search as { results: unknown[] }).results.length
-      : 0;
-    const refusedBinding = searched.some((page) => !permitted.has(page.url) && resultStatesVenue({
-      url: page.url,
-      title: page.title,
-      content: page.text,
-      description: page.title,
-    }, venue));
-    const unboundSearch = !website && returnedResults > 0 && !refusedBinding;
-    if (((extractedText || urls.length === 0) && stored) || unboundSearch) {
+    if (venueRead({ venue, website, evidence, pages, urls, search, searched, permitted })) {
       cursor = advanceCursor(cursor, [venue.id], today);
     }
     if (input.persist) await input.persist({ queue, cursor });

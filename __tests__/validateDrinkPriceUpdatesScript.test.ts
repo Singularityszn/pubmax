@@ -699,6 +699,152 @@ describe("validate-data.mjs slim venue index validation", () => {
     expect(stdout).toContain("belongs to another cell");
   });
 
+  type SlimShardEntry = { id: string; core: boolean; count: number; url: string; bbox: number[] };
+  type SlimPayload = { revision: string; rows: Array<Record<string, unknown>> };
+  const slimDataPath = (scriptsDir: string, file: string) => join(scriptsDir, "..", "public", "data", file);
+  const readSlimJson = <T,>(scriptsDir: string, file: string): T =>
+    JSON.parse(readFileSync(slimDataPath(scriptsDir, file), "utf8")) as T;
+  // The error lines the slim shard check printed, in the order it found them.
+  const slimShardErrors = (stdout: string) => {
+    const lines = stdout.split("\n");
+    const start = lines.findIndex((line) => line.startsWith("FAIL public/data/venues_slim shards:"));
+    if (start < 0) return [];
+    const errors: string[] = [];
+    for (const line of lines.slice(start + 1)) {
+      if (!line.startsWith("    - ")) break;
+      errors.push(line.slice(6));
+    }
+    return errors;
+  };
+  const firstOuterShard = (scriptsDir: string, minimum: number) => {
+    const manifest = readSlimJson<{ shards: SlimShardEntry[] }>(scriptsDir, "venues_slim.manifest.json");
+    const shard = manifest.shards.find((entry) => !entry.core && entry.count >= minimum);
+    if (!shard) throw new Error(`fixture has no spatial shard with ${minimum} rows`);
+    return shard;
+  };
+
+  it("reports the shipped shard plan, eager bytes and total bytes in one PASS line", () => {
+    const scriptsDir = setupScratch({});
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(
+      /PASS public\/data\/venues_slim shards: \d+ shard\(s\), eager \d+\.\d KB \/ \d+ KB, total \d+\.\d KB \/ \d+ KB, 0 error\(s\)/,
+    );
+  });
+
+  it("names every broken shard row, then the rows and ids the union lost", () => {
+    const scriptsDir = setupScratch({});
+    const shard = firstOuterShard(scriptsDir, 7);
+    const shardFile = shard.url.replace(/^\/data\//, "");
+    const payload = readSlimJson<SlimPayload>(scriptsDir, shardFile);
+    const ids = payload.rows.map((row) => String(row.id));
+    payload.rows[0] = { ...payload.rows[0], name: "" };
+    payload.rows[1] = { ...payload.rows[1], lat: "north" };
+    payload.rows[2] = { ...payload.rows[2], borough: 5 };
+    payload.rows[3] = { ...payload.rows[3], cheapestPrice: -1 };
+    payload.rows[4] = { ...payload.rows[4], zone: 12 };
+    payload.rows[5] = "not a row" as unknown as Record<string, unknown>;
+    payload.rows[6] = { ...payload.rows[6], id: "" };
+    writeScratchFile(slimDataPath(scriptsDir, shardFile), JSON.stringify(payload), "utf8");
+    const monolith = readSlimJson<SlimPayload>(scriptsDir, "venues_slim.json").rows.map((row) => String(row.id));
+    const firstLost = monolith.find((id) => id === ids[5] || id === ids[6]);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    const at = (message: string) => `shard "${shard.id}": ${message}`;
+    expect(slimShardErrors(stdout)).toEqual([
+      at(`row "${ids[0]}" is missing a name`),
+      at(`row "${ids[0]}" differs from monolith`),
+      at(`row "${ids[1]}" has invalid coordinates`),
+      at(`row "${ids[1]}" differs from monolith`),
+      at(`row "${ids[2]}" has invalid borough`),
+      at(`row "${ids[2]}" differs from monolith`),
+      at(`row "${ids[3]}" has invalid cheapestPrice`),
+      at(`row "${ids[3]}" differs from monolith`),
+      at(`row "${ids[4]}" has invalid zone`),
+      at(`row "${ids[4]}" differs from monolith`),
+      at("a row is not an object"),
+      at("a row is missing an id"),
+      at(`expected row "${ids[5]}" is missing`),
+      at(`expected row "${ids[6]}" is missing`),
+      `shard union has ${monolith.length - 2} ids, monolith has ${monolith.length}`,
+      `id "${firstLost}" is in venues_slim.json but no shard`,
+    ]);
+    expect(stdout).toMatch(/FAIL public\/data\/venues_slim shards: .*, 16 error\(s\)/);
+  });
+
+  it("names a manifest entry that disagrees with the rebuilt plan, and a body whose row count differs", () => {
+    const scriptsDir = setupScratch({});
+    const shard = firstOuterShard(scriptsDir, 1);
+    const manifest = readSlimJson<{ shards: SlimShardEntry[] }>(scriptsDir, "venues_slim.manifest.json");
+    const entry = manifest.shards.find((candidate) => candidate.id === shard.id)!;
+    entry.url = "/data/elsewhere.json";
+    entry.count += 1;
+    entry.core = true;
+    entry.bbox = [0, 0, 0, 0];
+    writeScratchFile(slimDataPath(scriptsDir, "venues_slim.manifest.json"), JSON.stringify(manifest), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    const at = (message: string) => `shard "${shard.id}": ${message}`;
+    expect(slimShardErrors(stdout)).toEqual([
+      at(`url "/data/elsewhere.json" !== expected "${shard.url}"`),
+      at(`count ${shard.count + 1} !== expected ${shard.count}`),
+      at("core flag mismatch"),
+      at(`bbox [0,0,0,0] !== expected ${JSON.stringify(shard.bbox)}`),
+    ]);
+  });
+
+  it("names a shard the manifest dropped and the ids only that shard carried", () => {
+    const scriptsDir = setupScratch({});
+    const shard = firstOuterShard(scriptsDir, 1);
+    const manifest = readSlimJson<{ shards: SlimShardEntry[] }>(scriptsDir, "venues_slim.manifest.json");
+    const shipped = manifest.shards.length;
+    manifest.shards = manifest.shards.filter((candidate) => candidate.id !== shard.id);
+    writeScratchFile(slimDataPath(scriptsDir, "venues_slim.manifest.json"), JSON.stringify(manifest), "utf8");
+    const monolith = readSlimJson<SlimPayload>(scriptsDir, "venues_slim.json").rows.map((row) => String(row.id));
+    const dropped = new Set(readSlimJson<SlimPayload>(scriptsDir, shard.url.replace(/^\/data\//, "")).rows.map((row) => String(row.id)));
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(slimShardErrors(stdout)).toEqual([
+      `manifest lists ${shipped - 1} shard(s), expected ${shipped}`,
+      `manifest is missing shard "${shard.id}"`,
+      `shard union has ${monolith.length - dropped.size} ids, monolith has ${monolith.length}`,
+      `id "${monolith.find((id) => dropped.has(id))}" is in venues_slim.json but no shard`,
+    ]);
+    expect(stdout).toMatch(new RegExp(`FAIL public/data/venues_slim shards: ${shipped - 1} shard\\(s\\)`));
+  });
+
+  it("names a manifest that lost its revision or its spatial schema before checking any body", () => {
+    const scriptsDir = setupScratch({});
+    const manifest = readSlimJson<{ revision: string; grid?: unknown }>(scriptsDir, "venues_slim.manifest.json");
+    const revision = manifest.revision;
+    writeScratchFile(
+      slimDataPath(scriptsDir, "venues_slim.manifest.json"),
+      JSON.stringify({ ...manifest, revision: " " }),
+      "utf8",
+    );
+    const blank = runValidate(scriptsDir);
+    expect(blank.code).toBe(1);
+    expect(slimShardErrors(blank.stdout).slice(0, 3)).toEqual([
+      "manifest must carry a non-empty revision",
+      `manifest revision   !== monolith revision ${revision}`,
+      expect.stringMatching(/^shard ".+": body has invalid spatial payload revision$/),
+    ]);
+    expect(blank.stdout).toMatch(/- \.\.\.and \d+ more/);
+
+    const withoutGrid = { ...manifest };
+    delete withoutGrid.grid;
+    writeScratchFile(slimDataPath(scriptsDir, "venues_slim.manifest.json"), JSON.stringify(withoutGrid), "utf8");
+    const flat = runValidate(scriptsDir);
+    expect(flat.code).toBe(1);
+    expect(slimShardErrors(flat.stdout)[0]).toBe("manifest must use the spatial shard schema");
+  });
+
   it("FAILS when a shard row keeps its id but changes content", () => {
     const scriptsDir = setupScratch({});
     const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");

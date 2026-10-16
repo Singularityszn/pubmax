@@ -259,11 +259,11 @@ for (const { width, height } of [
     await expect(drink).toHaveAttribute("aria-expanded", "false");
     await expectSoleDesktopDrawer(page, "venue");
 
-    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await page.getByRole("button", { name: /^Close (?:pub|venue) detail$/ }).click();
     await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
     await selectFirstToolbarVenue(page, "Blackfriar");
     await expectSoleDesktopDrawer(page, "venue");
-    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await page.getByRole("button", { name: /^Close (?:pub|venue) detail$/ }).click();
     await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
   });
 }

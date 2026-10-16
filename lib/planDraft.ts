@@ -103,6 +103,42 @@ function canonicalTimestamp(value: unknown): { value: string; time: number } | n
   return { value, time };
 }
 
+function parseAcceptedArea(area: unknown): PlanningIntentArea | null | undefined {
+  if (area === null) return null;
+  if (!isRecord(area)) return undefined;
+  const nightPatch = hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch"
+    && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id);
+  const borough = hasExactKeys(area, ["kind", "name"]) && area.kind === "borough"
+    && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name);
+  return nightPatch || borough ? area as PlanningIntentArea : undefined;
+}
+
+/**
+ * Null refuses the whole draft. An empty result keeps the draft without an
+ * anchor, which is what the legacy shape (no expiry) has always meant.
+ */
+function parseAcceptedAnchor(
+  anchor: unknown,
+): { acceptedAnchor?: NonNullable<StoredPlanDraft["acceptedAnchor"]> } | null {
+  if (!isRecord(anchor)) return null;
+  if (hasExactKeys(anchor, LEGACY_ACCEPTED_ANCHOR_KEYS)) return {};
+  if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
+  const venueId = boundedText(anchor.venueId, 200);
+  const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
+    ? anchor.source as PlanningIntentSource
+    : null;
+  const cityId = anchor.cityId === null
+    ? null
+    : typeof anchor.cityId === "string" && Object.hasOwn(CITIES, anchor.cityId)
+      ? anchor.cityId as CityId
+      : undefined;
+  const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
+  const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
+  const acceptedArea = parseAcceptedArea(anchor.acceptedArea);
+  if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
+  return { acceptedAnchor: { venueId, source, cityId, acceptedArea, startsAt, expiresAt } };
+}
+
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
   if (
     !isRecord(value)
@@ -126,49 +162,15 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     return { key: index + 1, venueId, venueName };
   });
   if (stops.some((stop) => stop === null)) return null;
-  let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
-  if (value.acceptedAnchor !== undefined) {
-    const anchor = value.acceptedAnchor;
-    if (!isRecord(anchor)) return null;
-    if (hasExactKeys(anchor, LEGACY_ACCEPTED_ANCHOR_KEYS)) {
-      return {
-        title,
-        creatorName,
-        startTime,
-        conciergeQuery,
-        stops: stops as StoredPlanDraft["stops"],
-      };
-    }
-    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
-    const venueId = boundedText(anchor.venueId, 200);
-    const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
-      ? anchor.source as PlanningIntentSource
-      : null;
-    const cityId = anchor.cityId === null
-      ? null
-      : typeof anchor.cityId === "string" && Object.hasOwn(CITIES, anchor.cityId)
-        ? anchor.cityId as CityId
-        : undefined;
-    const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
-    const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
-    const area = anchor.acceptedArea;
-    const acceptedArea = area === null
-      ? null
-      : isRecord(area)
-        && ((hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch" && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id))
-          || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
-          ? area as PlanningIntentArea
-          : undefined;
-    if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
-    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt };
-  }
+  const anchor = value.acceptedAnchor === undefined ? {} : parseAcceptedAnchor(value.acceptedAnchor);
+  if (!anchor) return null;
   return {
     title,
     creatorName,
     startTime,
     conciergeQuery,
     stops: stops as StoredPlanDraft["stops"],
-    ...(acceptedAnchor ? { acceptedAnchor } : {}),
+    ...anchor,
   };
 }
 

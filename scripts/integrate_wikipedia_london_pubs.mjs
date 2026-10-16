@@ -382,6 +382,29 @@ function makeDatasetRow({ name, lat, lng, borough, description, wikipediaUrl, se
   };
 }
 
+function heritageFact(summary, pub, extract) {
+  return {
+    source: summary.source === "wikidata" ? "wikidata" : "wikipedia",
+    fact: extract,
+    sourceRef: summary.pageUrl || pub.url,
+  };
+}
+
+/** Mark a matched row as listed, filling only a description or link it lacks. */
+function annotateMatchedRow(row, extract, wikiUrl) {
+  if (!String(row.source_datasets ?? "").includes("wikipedia_london_list")) {
+    row.source_datasets = row.source_datasets
+      ? `${row.source_datasets}|wikipedia_london_list`
+      : "wikipedia_london_list";
+  }
+  if (!row.description?.trim()) row.description = extract;
+  if (!row.comment?.includes("wikipedia.org")) {
+    row.comment = row.comment
+      ? `${row.comment} | Wikipedia: ${wikiUrl}`
+      : `Wikipedia: ${wikiUrl}`;
+  }
+}
+
 async function main() {
   const { dryRun, heritageOnly, skipFetch, limit } = parseArgs(process.argv.slice(2));
   const seed = loadJson(SEED_PATH, null);
@@ -444,11 +467,7 @@ async function main() {
       if (matchKey) {
         const row = indexes.rowsByKey.get(matchKey);
         const norm = normaliseVenueName(row.pub_name);
-        const fact = {
-          source: summary.source === "wikidata" ? "wikidata" : "wikipedia",
-          fact: extract,
-          sourceRef: summary.pageUrl || pub.url,
-        };
+        const fact = heritageFact(summary, pub, extract);
         const existing = heritageCache[norm] ?? [];
         if (!existing.some((f) => f.fact === fact.fact)) {
           heritageCache[norm] = [...existing, fact];
@@ -456,18 +475,7 @@ async function main() {
           if (!dryRun) await writeSupabase(norm, [fact]);
         }
 
-        const wikiUrl = summary.pageUrl || pub.url;
-        if (!String(row.source_datasets ?? "").includes("wikipedia_london_list")) {
-          row.source_datasets = row.source_datasets
-            ? `${row.source_datasets}|wikipedia_london_list`
-            : "wikipedia_london_list";
-        }
-        if (!row.description?.trim()) row.description = extract;
-        if (!row.comment?.includes("wikipedia.org")) {
-          row.comment = row.comment
-            ? `${row.comment} | Wikipedia: ${wikiUrl}`
-            : `Wikipedia: ${wikiUrl}`;
-        }
+        annotateMatchedRow(row, extract, fact.sourceRef);
 
         report.matched += 1;
         report.matches.push({
@@ -524,14 +532,7 @@ async function main() {
       indexes.nameToKeys.set(normName, nameList);
 
       const norm = normaliseVenueName(displayName);
-      heritageCache[norm] = [
-        ...(heritageCache[norm] ?? []),
-        {
-          source: summary.source === "wikidata" ? "wikidata" : "wikipedia",
-          fact: extract,
-          sourceRef: summary.pageUrl || pub.url,
-        },
-      ];
+      heritageCache[norm] = [...(heritageCache[norm] ?? []), heritageFact(summary, pub, extract)];
 
       report.venuesAdded += 1;
       report.additions.push({

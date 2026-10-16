@@ -229,6 +229,42 @@ export function isPartnerFixturePage(url: string): boolean {
   return page.hostname.replace(/^www\./, "") === "greeneking.co.uk" && /\/sports\/fixtures\/?$/.test(page.pathname);
 }
 
+/**
+ * The one start clock a card states for this pub, or the reason it cannot be
+ * listed. The checks run in this order, and the first refusal is the reason.
+ */
+function cardStartClock(
+  card: ReturnType<typeof listingCards>[number],
+  lines: string[],
+  pubName: string,
+  now: number,
+): { clock: string } | { reason: string } {
+  if (/^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\(\d+\)$/i.test(card.title)) {
+    return { reason: "incomplete-fixture" };
+  }
+  const otherVenue = /\bat (the [\p{L} '&-]+?)(?:[🎤🎭]|$)/iu.exec(card.title)?.[1];
+  const venueWords = (value: string) => value.toLowerCase().replace(/\bthe\b/g, "").replace(/[^a-z0-9]/g, "");
+  if (otherVenue && venueWords(otherVenue) !== venueWords(pubName)) return { reason: "other-venue" };
+  const dates = lines.map((line) => resolveEventDate(line, now)).filter((date) => date.ok);
+  if (new Set(dates.map((date) => JSON.stringify(date.date))).size > 1) return { reason: "conflicting-dates" };
+  if (/every other|fortnight|alternate|monthly|first |last |second |third |fourth /i.test(card.text)) {
+    return { reason: "unsupported-recurrence" };
+  }
+  if (/\bdoors\b|sign[- ]?ups?/i.test(card.text) && !/\bstarts?\b|\bbegins?\b|\bkick[- ]?off\b/i.test(card.text)) {
+    return { reason: "doors-only" };
+  }
+  if (/\b(?:UTC|GMT|BST|CET|EST|PST)\b|\d{2}:\d{2}\s*[+-]\d{2}:\d{2}/i.test(card.text)) {
+    return { reason: "explicit-timezone" };
+  }
+  const starts = [...card.text.matchAll(/\b(?:starts?|begins?|kick[- ]?off)\s*(?:at|:)?\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\b/gi)]
+    .map((match) => resolveEventClock(match[1]!)).filter((clock) => clock !== null);
+  const clocks = [...card.text.matchAll(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)\b|\b\d{1,2}:\d{2}\b/gi)]
+    .map((match) => resolveEventClock(match[0])).filter((clock) => clock !== null);
+  const clock = starts.length === 1 ? starts[0] : starts.length === 0 && new Set(clocks).size === 1 ? clocks[0] : null;
+  if (!clock) return { reason: clocks.length ? "ambiguous-time" : "no-time" };
+  return { clock };
+}
+
 /** Parse the existing listing and hours shapes from one fresh own-site read. */
 export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: string, observedAt: string, asOf = observedAt) {
   const now = Date.parse(observedAt);
@@ -246,42 +282,12 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
     const named = lines.find((line) => line.length <= 80 && eventKindFrom(line));
     const kind = named ? eventKindFrom(named) : null;
     if (!kind) continue;
-    if (/^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\(\d+\)$/i.test(card.title)) {
-      drops.push({ title: card.title, reason: "incomplete-fixture" });
+    const read = cardStartClock(card, lines, pub.name, now);
+    if ("reason" in read) {
+      drops.push({ title: card.title, reason: read.reason });
       continue;
     }
-    const otherVenue = /\bat (the [\p{L} '&-]+?)(?:[🎤🎭]|$)/iu.exec(card.title)?.[1];
-    const venueWords = (value: string) => value.toLowerCase().replace(/\bthe\b/g, "").replace(/[^a-z0-9]/g, "");
-    if (otherVenue && venueWords(otherVenue) !== venueWords(pub.name)) {
-      drops.push({ title: card.title, reason: "other-venue" });
-      continue;
-    }
-    const dates = lines.map((line) => resolveEventDate(line, now)).filter((date) => date.ok);
-    if (new Set(dates.map((date) => JSON.stringify(date.date))).size > 1) {
-      drops.push({ title: card.title, reason: "conflicting-dates" });
-      continue;
-    }
-    if (/every other|fortnight|alternate|monthly|first |last |second |third |fourth /i.test(card.text)) {
-      drops.push({ title: card.title, reason: "unsupported-recurrence" });
-      continue;
-    }
-    if (/\bdoors\b|sign[- ]?ups?/i.test(card.text) && !/\bstarts?\b|\bbegins?\b|\bkick[- ]?off\b/i.test(card.text)) {
-      drops.push({ title: card.title, reason: "doors-only" });
-      continue;
-    }
-    if (/\b(?:UTC|GMT|BST|CET|EST|PST)\b|\d{2}:\d{2}\s*[+-]\d{2}:\d{2}/i.test(card.text)) {
-      drops.push({ title: card.title, reason: "explicit-timezone" });
-      continue;
-    }
-    const starts = [...card.text.matchAll(/\b(?:starts?|begins?|kick[- ]?off)\s*(?:at|:)?\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\b/gi)]
-      .map((match) => resolveEventClock(match[1]!)).filter((clock) => clock !== null);
-    const clocks = [...card.text.matchAll(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)\b|\b\d{1,2}:\d{2}\b/gi)]
-      .map((match) => resolveEventClock(match[0])).filter((clock) => clock !== null);
-    const clock = starts.length === 1 ? starts[0] : starts.length === 0 && new Set(clocks).size === 1 ? clocks[0] : null;
-    if (!clock) {
-      drops.push({ title: card.title, reason: clocks.length ? "ambiguous-time" : "no-time" });
-      continue;
-    }
+    const { clock } = read;
     // Plural weekday headings and explicit "every/each" statements name weekly slots.
     const clauses = lines.flatMap((line) => line.split(/(?<=[.!?])\s+(?=[A-Z])/));
     if (!clockStatesKind(clauses, clock, kind, card.title)) {

@@ -51,6 +51,20 @@ describe("London pub own-site harvest", () => {
     expect(result.rows).toEqual([]);
   });
 
+  it.each([
+    ["other-venue", "## Open Mic Night at The Prince Albert\nEvery Tuesday at 8pm\n"],
+    ["conflicting-dates", "## Live music\nThursday 8 October 2026\nFriday 9 October 2026 at 8pm\n"],
+    ["unsupported-recurrence", "## Quiz night\nEvery other Tuesday at 8pm\n"],
+    ["doors-only", "## Live band\nEvery Friday, doors at 7pm\n"],
+    ["explicit-timezone", "## Live band\nEvery Friday at 20:00 BST\n"],
+    ["ambiguous-time", "## Live band\nEvery Friday 7pm or 9pm\n"],
+    ["no-time", "## Live band\nEvery Friday night\n"],
+  ])("names the %s reason a card cannot be listed", (reason, markdown) => {
+    const result = readPubWhatsOn(pub, markdown, pub.website, observedAt);
+    expect(result.rows).toEqual([]);
+    expect(result.drops.map((drop) => drop.reason)).toEqual([reason]);
+  });
+
   it("uses a stated start time instead of the earlier doors time", () => {
     const result = readPubWhatsOn(pub, "## Live band\nFriday 9 October 2026\nDoors 7pm. Starts at 8pm.\n", pub.website, observedAt);
     expect(result.rows).toMatchObject([{ startsAt: "2026-10-09T20:00:00+01:00" }]);

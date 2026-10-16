@@ -299,6 +299,11 @@ export default async function RootLayout({
       style={initialFontFallbacks as CSSProperties}
     >
       <head>
+        {/* ThemeAttribute removes the inline fallbacks after hydration. The
+            next/font variable classes then tie on specificity with the system
+            stacks :root sets in app/globals.css, which loads later and wins.
+            :root:root outranks both and still yields to the inline fallbacks. */}
+        <style nonce={nonce}>{`:root:root{--font-display:${displayFace.style.fontFamily};--font-body:${bodySans.style.fontFamily};}`}</style>
         <noscript>
           <style nonce={nonce}>{`html{--font-display:${displayFace.style.fontFamily} !important;--font-body:${bodySans.style.fontFamily} !important;}`}</style>
         </noscript>

@@ -1629,6 +1629,203 @@ function validateCityVenuePacks() {
   return { ok, count: venues };
 }
 
+// Rebuild the expected plan from the monolith and compare structurally.
+// Version 2 is location-first: every row is in a geographic cell, with one
+// central compatibility core file. Version 1 remains accepted for city and
+// older fixtures that still use borough shards.
+function expectedSlimShardPlan(full, manifest) {
+  const expectedRowsByShard = new Map();
+  if (manifest?.grid) {
+    const grid = manifest.grid;
+    const cells = classifySpatialShards(full, grid);
+    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
+    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
+    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
+    return {
+      expectedCore: cells.get(coreId)?.venues ?? [],
+      expectedManifest: buildSpatialShardManifest(cells, grid, coreId),
+      expectedRowsByShard,
+    };
+  }
+  const { core, outer } = classifySlimShards(full);
+  expectedRowsByShard.set("core", core);
+  for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
+  return {
+    expectedCore: core,
+    expectedManifest: buildShardManifest({ core, outer }),
+    expectedRowsByShard,
+  };
+}
+
+function checkSlimManifestHeader(manifest, fullRevision, expectedManifest, errs) {
+  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
+    errs.add("manifest must use the spatial shard schema");
+  }
+  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
+    errs.add("manifest must carry a non-empty revision");
+  }
+  if (manifest?.revision !== fullRevision) {
+    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
+  }
+
+  if (manifest.version !== expectedManifest.version) {
+    errs.add(
+      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
+    );
+  }
+}
+
+function checkSlimShardEntry(got, exp, errs) {
+  if (got.url !== exp.url)
+    errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
+  if (got.count !== exp.count) {
+    errs.add(
+      `shard "${exp.id}": count ${got.count} !== expected ${exp.count}`,
+    );
+  }
+  if (got.core !== exp.core)
+    errs.add(`shard "${exp.id}": core flag mismatch`);
+  if (
+    !Array.isArray(got.bbox) ||
+    got.bbox.length !== 4 ||
+    got.bbox.some((n, i) => n !== exp.bbox[i])
+  ) {
+    errs.add(
+      `shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`,
+    );
+  }
+}
+
+/**
+ * The shard body and its rows, or null when it could not be read or parsed. A
+ * body is recorded for the per-shard budget as soon as it is read, before it
+ * parses. A body from another revision reads as no rows.
+ */
+function readSlimShardBody(exp, readBody, manifestRevision, shardRawById, errs) {
+  try {
+    const raw = readBody();
+    shardRawById.set(exp.id, raw);
+    const payload = JSON.parse(raw);
+    if (
+      !payload ||
+      Array.isArray(payload) ||
+      typeof payload.revision !== "string" ||
+      payload.revision !== manifestRevision ||
+      !Array.isArray(payload.rows)
+    ) {
+      errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
+      return { raw, rows: [] };
+    }
+    return { raw, rows: payload.rows };
+  } catch (e) {
+    errs.add(`shard "${exp.id}": could not read body (${e.message})`);
+    return null;
+  }
+}
+
+/** Every row in one shard is valid, belongs to this cell, and matches the monolith. */
+function checkSlimShardRows(exp, rows, expectedRows, allIds, errs) {
+  if (!Array.isArray(rows) || rows.length !== exp.count) {
+    errs.add(
+      `shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`,
+    );
+    return;
+  }
+  const expectedIds = new Set(expectedRows.map((row) => row?.id));
+  const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
+  const shardIds = new Set();
+  for (const r of rows) {
+    if (!r || typeof r !== "object") {
+      errs.add(`shard "${exp.id}": a row is not an object`);
+      continue;
+    }
+    if (typeof r.id !== "string" || r.id.length === 0) {
+      errs.add(`shard "${exp.id}": a row is missing an id`);
+      continue;
+    }
+    if (typeof r.name !== "string" || r.name.length === 0) {
+      errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
+    }
+    if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
+    }
+    if (typeof r.borough !== "string") {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
+    }
+    if (
+      r.cheapestPrice !== null &&
+      (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
+    ) {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
+    }
+    if (
+      r.zone !== undefined &&
+      (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
+    ) {
+      errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
+    }
+    if (!expectedIds.has(r.id)) {
+      errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
+    }
+    const expectedRow = expectedById.get(r.id);
+    if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
+      errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
+    }
+    shardIds.add(r.id);
+    if (allIds.has(r.id))
+      errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
+    allIds.add(r.id);
+  }
+  for (const id of expectedIds) {
+    if (!shardIds.has(id)) {
+      errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
+    }
+  }
+}
+
+// The union of all shards must be exactly the monolith — no venue lost or
+// duplicated by the split.
+function checkSlimShardUnion(full, allIds, coreRows, expectedCore, errs) {
+  const fullIds = new Set(full.map((v) => v && v.id).filter(Boolean));
+  if (allIds.size !== fullIds.size) {
+    errs.add(
+      `shard union has ${allIds.size} ids, monolith has ${fullIds.size}`,
+    );
+  }
+  for (const id of fullIds) {
+    if (!allIds.has(id)) {
+      errs.add(`id "${id}" is in venues_slim.json but no shard`);
+      break;
+    }
+  }
+  if (coreRows.length !== expectedCore.length) {
+    errs.add(
+      `core shard has ${coreRows.length} venues, expected ${expectedCore.length}`,
+    );
+  }
+}
+
+// Budgets — the whole point of this cycle.
+function checkSlimShardBudgets({ eagerBytes, totalBytes, shards, shardRawById }, errs) {
+  if (eagerBytes >= SLIM_EAGER_BUDGET_BYTES) {
+    errs.add(
+      `eager first-paint ${(eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+  for (const exp of shards) {
+    const raw = shardRawById.get(exp.id);
+    if (raw === undefined) continue;
+    if (Buffer.byteLength(raw) >= 150 * 1024) {
+      errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
+    }
+  }
+  if (totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
+    errs.add(
+      `total shard payload ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+}
+
 // venues_slim shards - the map's first-paint payload is split into a manifest
 // plus geographic cells, with the central cell also exposed as the compatibility
 // core. This validator recomputes the expected split from the canonical
@@ -1677,44 +1874,8 @@ function validateSlimShards() {
     return { ok: false, count: 0 };
   }
 
-  // Rebuild the expected plan from the monolith and compare structurally.
-  // Version 2 is location-first: every row is in a geographic cell, with one
-  // central compatibility core file. Version 1 remains accepted for city and
-  // older fixtures that still use borough shards.
-  let expectedCore;
-  let expectedManifest;
-  const expectedRowsByShard = new Map();
-  if (manifest?.grid) {
-    const grid = manifest.grid;
-    const cells = classifySpatialShards(full, grid);
-    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
-    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
-    expectedCore = cells.get(coreId)?.venues ?? [];
-    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
-    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
-  } else {
-    const { core, outer } = classifySlimShards(full);
-    expectedCore = core;
-    expectedManifest = buildShardManifest({ core, outer });
-    expectedRowsByShard.set("core", core);
-    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
-  }
-
-  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
-    errs.add("manifest must use the spatial shard schema");
-  }
-  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
-    errs.add("manifest must carry a non-empty revision");
-  }
-  if (manifest?.revision !== fullRevision) {
-    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
-  }
-
-  if (manifest.version !== expectedManifest.version) {
-    errs.add(
-      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
-    );
-  }
+  const { expectedCore, expectedManifest, expectedRowsByShard } = expectedSlimShardPlan(full, manifest);
+  checkSlimManifestHeader(manifest, fullRevision, expectedManifest, errs);
   const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
   if (shipShards.length !== expectedManifest.shards.length) {
     errs.add(
@@ -1733,147 +1894,25 @@ function validateSlimShards() {
       errs.add(`manifest is missing shard "${exp.id}"`);
       continue;
     }
-    if (got.url !== exp.url)
-      errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
-    if (got.count !== exp.count) {
-      errs.add(
-        `shard "${exp.id}": count ${got.count} !== expected ${exp.count}`,
-      );
-    }
-    if (got.core !== exp.core)
-      errs.add(`shard "${exp.id}": core flag mismatch`);
-    if (
-      !Array.isArray(got.bbox) ||
-      got.bbox.length !== 4 ||
-      got.bbox.some((n, i) => n !== exp.bbox[i])
-    ) {
-      errs.add(
-        `shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`,
-      );
-    }
+    checkSlimShardEntry(got, exp, errs);
 
     // Read the shard body, count its bytes, and fold its ids into the union.
-    let rows;
-    try {
-      const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
-      shardRawById.set(exp.id, raw);
-      const payload = JSON.parse(raw);
-      if (
-        !payload ||
-        Array.isArray(payload) ||
-        typeof payload.revision !== "string" ||
-        payload.revision !== manifest.revision ||
-        !Array.isArray(payload.rows)
-      ) {
-        errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
-        rows = [];
-      } else {
-        rows = payload.rows;
-      }
-      const bytes = Buffer.byteLength(raw);
-      totalBytes += bytes;
-      if (exp.core) eagerBytes += bytes;
-    } catch (e) {
-      errs.add(`shard "${exp.id}": could not read body (${e.message})`);
-      continue;
-    }
-    if (!Array.isArray(rows) || rows.length !== exp.count) {
-      errs.add(
-        `shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`,
-      );
-      continue;
-    }
-    const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
-    const expectedIds = new Set(expectedRows.map((row) => row?.id));
-    const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
-    const shardIds = new Set();
-    for (const r of rows) {
-      if (!r || typeof r !== "object") {
-        errs.add(`shard "${exp.id}": a row is not an object`);
-        continue;
-      }
-      if (typeof r.id !== "string" || r.id.length === 0) {
-        errs.add(`shard "${exp.id}": a row is missing an id`);
-        continue;
-      }
-      if (typeof r.name !== "string" || r.name.length === 0) {
-        errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
-      }
-      if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
-      }
-      if (typeof r.borough !== "string") {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
-      }
-      if (
-        r.cheapestPrice !== null &&
-        (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
-      ) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
-      }
-      if (
-        r.zone !== undefined &&
-        (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
-      ) {
-        errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
-      }
-      if (!expectedIds.has(r.id)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
-      }
-      const expectedRow = expectedById.get(r.id);
-      if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
-        errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
-      }
-      shardIds.add(r.id);
-      if (allIds.has(r.id))
-        errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
-      allIds.add(r.id);
-    }
-    for (const id of expectedIds) {
-      if (!shardIds.has(id)) {
-        errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
-      }
-    }
+    const body = readSlimShardBody(
+      exp,
+      () => (exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url))),
+      manifest.revision,
+      shardRawById,
+      errs,
+    );
+    if (!body) continue;
+    const bytes = Buffer.byteLength(body.raw);
+    totalBytes += bytes;
+    if (exp.core) eagerBytes += bytes;
+    checkSlimShardRows(exp, body.rows, expectedRowsByShard.get(exp.id) ?? [], allIds, errs);
   }
 
-  // The union of all shards must be exactly the monolith — no venue lost or
-  // duplicated by the split.
-  const fullIds = new Set(full.map((v) => v && v.id).filter(Boolean));
-  if (allIds.size !== fullIds.size) {
-    errs.add(
-      `shard union has ${allIds.size} ids, monolith has ${fullIds.size}`,
-    );
-  }
-  for (const id of fullIds) {
-    if (!allIds.has(id)) {
-      errs.add(`id "${id}" is in venues_slim.json but no shard`);
-      break;
-    }
-  }
-  if (coreRows.length !== expectedCore.length) {
-    errs.add(
-      `core shard has ${coreRows.length} venues, expected ${expectedCore.length}`,
-    );
-  }
-
-  // Budgets — the whole point of this cycle.
-  if (eagerBytes >= SLIM_EAGER_BUDGET_BYTES) {
-    errs.add(
-      `eager first-paint ${(eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
-    );
-  }
-  for (const exp of expectedManifest.shards) {
-    const raw = shardRawById.get(exp.id);
-    if (raw === undefined) continue;
-    if (Buffer.byteLength(raw) >= 150 * 1024) {
-      errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
-    }
-  }
-  if (totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
-    errs.add(
-      `total shard payload ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
-    );
-  }
+  checkSlimShardUnion(full, allIds, coreRows, expectedCore, errs);
+  checkSlimShardBudgets({ eagerBytes, totalBytes, shards: expectedManifest.shards, shardRawById }, errs);
 
   const ok = errs.count === 0;
   console.log(

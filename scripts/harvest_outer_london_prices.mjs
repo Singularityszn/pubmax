@@ -558,23 +558,8 @@ function main() {
         continue;
       }
 
-      const validatedPints = validated
-        .filter((v) => v.category === "beer")
-        .filter((v) => v.priceGbp >= MIN_PINT && v.priceGbp <= MAX_PINT)
-        .toSorted((a, b) => a.priceGbp - b.priceGbp);
-      const cheapestPint = validatedPints[0] ?? null;
+      const pricedVenue = pricedVenueEntry(row, validated, pageUrl, observedAt, observedDate);
       priced += 1;
-
-      if (cheapestPint) {
-        row.price_gbp = cheapestPint.priceGbp;
-        row.pint_name = cheapestPint.drinkName;
-        row.price_text = `£${cheapestPint.priceGbp.toFixed(2)}`;
-        row.pub_url = pageUrl;
-        row.constructed_pub_url = pageUrl;
-        row.comment = `${row.comment} Draught pint price from first-party site ${pageUrl}, observed ${observedDate}.`;
-        row.data_quality_notes = `${row.data_quality_notes}|price:first_party_web|${pageUrl}|observed=${observedDate}`;
-        row.scraped_at_values = observedAt;
-      }
 
       const venueKey = venueGroupingKey(row);
       for (const v of validated) {
@@ -588,22 +573,8 @@ function main() {
         });
       }
 
-      const categories = [...new Set(validated.map((v) => v.category))].sort();
-      log.push({
-        ...rec,
-        result: "priced",
-        cheapestPint: cheapestPint?.priceGbp ?? null,
-        drink: cheapestPint?.drinkName ?? validated[0]?.drinkName,
-        categories,
-        allDrinks: validated,
-        sourceUrl: pageUrl,
-        observedAt,
-        requests: venueRequests,
-      });
-      const headline = cheapestPint
-        ? `£${cheapestPint.priceGbp.toFixed(2)} ${cheapestPint.drinkName}`
-        : `${validated.length} drink row(s) (${categories.join(", ")})`;
-      console.log(`  PRICED ${row.pub_name} (${row.primary_borough}): ${headline}`);
+      log.push({ ...rec, ...pricedVenue.entry, requests: venueRequests });
+      console.log(`  PRICED ${row.pub_name} (${row.primary_borough}): ${pricedVenue.headline}`);
     }
 
     // --- write outputs -------------------------------------------------------
@@ -617,42 +588,85 @@ function main() {
       priced,
     };
     console.log("\nSUMMARY", JSON.stringify(summary, null, 2));
-
-    if (dryRun) {
-      console.log("[dry-run] not writing dataset / updates.");
-      writeFileSync(LOG_PATH, `${JSON.stringify({ summary, log }, null, 2)}\n`);
-      console.log(`Wrote log to ${LOG_PATH}`);
-      return;
-    }
-
-    writeFileSync(APP_PATH, `${JSON.stringify(app)}\n`);
-    console.log(`Updated ${APP_PATH} (${priced} rows priced)`);
-
-    if (drinkUpdates.length) {
-      mkdirSync(DRINK_UPDATES_DIR, { recursive: true });
-      let existing = [];
-      if (existsSync(LATEST_PATH)) {
-        try {
-          const raw = JSON.parse(readFileSync(LATEST_PATH, "utf8"));
-          existing = Array.isArray(raw) ? raw : raw.updates || [];
-        } catch {
-          existing = [];
-        }
-      }
-      // De-dupe on venue, normalised drink identity, and publisher. A current
-      // source may add or remove the redundant trailing word "pint" without
-      // creating two current observations for one drink.
-      const merged = mergeDrinkUpdates(existing, drinkUpdates);
-      const stamp = observedDate.replace(/-/g, "");
-      const payload = { version: 1, generatedAt: observedAt, updates: merged };
-      writeFileSync(join(DRINK_UPDATES_DIR, `prices_${stamp}.json`), `${JSON.stringify(payload, null, 2)}\n`);
-      writeFileSync(LATEST_PATH, `${JSON.stringify(payload, null, 2)}\n`);
-      console.log(`Merged ${drinkUpdates.length} drink rows into latest.json (total ${merged.length})`);
-    }
-
-    writeFileSync(LOG_PATH, `${JSON.stringify({ summary, log }, null, 2)}\n`);
-    console.log(`Wrote per-venue log to ${LOG_PATH}`);
+    writeHarvestOutputs({ summary, log, dryRun, app, priced, drinkUpdates, observedAt, observedDate });
   })();
+}
+
+/**
+ * Stamp the cheapest validated pint onto its dataset row and word the venue's
+ * priced log entry. A venue priced only off-pint keeps its row unpriced.
+ */
+function pricedVenueEntry(row, validated, pageUrl, observedAt, observedDate) {
+  const validatedPints = validated
+    .filter((v) => v.category === "beer")
+    .filter((v) => v.priceGbp >= MIN_PINT && v.priceGbp <= MAX_PINT)
+    .toSorted((a, b) => a.priceGbp - b.priceGbp);
+  const cheapestPint = validatedPints[0] ?? null;
+
+  if (cheapestPint) {
+    row.price_gbp = cheapestPint.priceGbp;
+    row.pint_name = cheapestPint.drinkName;
+    row.price_text = `£${cheapestPint.priceGbp.toFixed(2)}`;
+    row.pub_url = pageUrl;
+    row.constructed_pub_url = pageUrl;
+    row.comment = `${row.comment} Draught pint price from first-party site ${pageUrl}, observed ${observedDate}.`;
+    row.data_quality_notes = `${row.data_quality_notes}|price:first_party_web|${pageUrl}|observed=${observedDate}`;
+    row.scraped_at_values = observedAt;
+  }
+
+  const categories = [...new Set(validated.map((v) => v.category))].sort();
+  return {
+    entry: {
+      result: "priced",
+      cheapestPint: cheapestPint?.priceGbp ?? null,
+      drink: cheapestPint?.drinkName ?? validated[0]?.drinkName,
+      categories,
+      allDrinks: validated,
+      sourceUrl: pageUrl,
+      observedAt,
+    },
+    headline: cheapestPint
+      ? `£${cheapestPint.priceGbp.toFixed(2)} ${cheapestPint.drinkName}`
+      : `${validated.length} drink row(s) (${categories.join(", ")})`,
+  };
+}
+
+/** A dry run writes the log alone. A real run also writes the dataset and drink files. */
+function writeHarvestOutputs({ summary, log, dryRun, app, priced, drinkUpdates, observedAt, observedDate }) {
+  if (dryRun) {
+    console.log("[dry-run] not writing dataset / updates.");
+    writeFileSync(LOG_PATH, `${JSON.stringify({ summary, log }, null, 2)}\n`);
+    console.log(`Wrote log to ${LOG_PATH}`);
+    return;
+  }
+
+  writeFileSync(APP_PATH, `${JSON.stringify(app)}\n`);
+  console.log(`Updated ${APP_PATH} (${priced} rows priced)`);
+
+  if (drinkUpdates.length) {
+    mkdirSync(DRINK_UPDATES_DIR, { recursive: true });
+    let existing = [];
+    if (existsSync(LATEST_PATH)) {
+      try {
+        const raw = JSON.parse(readFileSync(LATEST_PATH, "utf8"));
+        existing = Array.isArray(raw) ? raw : raw.updates || [];
+      } catch {
+        existing = [];
+      }
+    }
+    // De-dupe on venue, normalised drink identity, and publisher. A current
+    // source may add or remove the redundant trailing word "pint" without
+    // creating two current observations for one drink.
+    const merged = mergeDrinkUpdates(existing, drinkUpdates);
+    const stamp = observedDate.replace(/-/g, "");
+    const payload = { version: 1, generatedAt: observedAt, updates: merged };
+    writeFileSync(join(DRINK_UPDATES_DIR, `prices_${stamp}.json`), `${JSON.stringify(payload, null, 2)}\n`);
+    writeFileSync(LATEST_PATH, `${JSON.stringify(payload, null, 2)}\n`);
+    console.log(`Merged ${drinkUpdates.length} drink rows into latest.json (total ${merged.length})`);
+  }
+
+  writeFileSync(LOG_PATH, `${JSON.stringify({ summary, log }, null, 2)}\n`);
+  console.log(`Wrote per-venue log to ${LOG_PATH}`);
 }
 
 if (process.argv[1] === MODULE_PATH) {

@@ -298,6 +298,30 @@ describe("login page", () => {
     expect(html).not.toContain("Sign in or create your account");
   });
 
+  it("offers the link resume and another account when the returning email is unknown", () => {
+    authState.current.welcomeBack = { maskedEmail: null };
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toMatch(/<button type="button"[^>]*>Email me a sign-in link<\/button>/);
+    expect(html).toMatch(/<button type="button"[^>]*>Use a different account<\/button>/);
+    expect(html).not.toContain("Continue as");
+    expect(html).not.toContain("Continue to the map");
+  });
+
+  it("gives a signed-in reader the map and profile doors and no resume tap", () => {
+    authState.current.user = { email: "person@example.test" };
+    authState.current.welcomeBack = { maskedEmail: "p***@example.test" };
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toMatch(/<a href="\/map"[^>]*>Continue to the map<\/a>/);
+    expect(html).toMatch(/<a href="\/u\/you"[^>]*>Your profile<\/a>/);
+    expect(html).not.toContain("Continue as");
+    expect(html).not.toContain("Use a different account");
+
+    authState.current.loading = true;
+    const resolving = renderToStaticMarkup(createElement(LoginPage));
+    expect(resolving).not.toContain("Continue to the map");
+    expect(resolving).not.toContain("Your profile");
+  });
+
   it("keeps phone sign-in as a /login link and desktop as a disclosure", () => {
     const button = readFileSync(
       join(process.cwd(), "components/auth/SignInButton.tsx"),
