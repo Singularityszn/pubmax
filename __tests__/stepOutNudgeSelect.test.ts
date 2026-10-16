@@ -82,7 +82,7 @@ describe("selectOwedStepOutNudge", () => {
     const payload = await selectOwedStepOutNudge(ACTOR, ACCOUNT, NOW, deps);
     expect(payload?.kind).toBe("wanted_nearby");
     expect(payload?.body).toMatch(/The Near/);
-    expect(payload?.body).toMatch(/you-ish/);
+    expect(payload?.body).toMatch(/on your list to try/);
   });
 
   it("falls through to Soft Plan when Wanted is not nearby", async () => {

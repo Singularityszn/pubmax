@@ -51,10 +51,10 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toBeVisible();
     await expect(nav).toHaveCSS("opacity", "1");
 
-    // On a phone the planner opens from the map's own Describe the outing
+    // On a phone the planner opens from the map's own Plan a pub crawl
     // action; More map controls holds layers only. The button is server-painted,
     // so retry the tap until the sheet answers (e2e/AGENTS.md).
-    const describe = page.getByRole("button", { name: "Describe the outing" });
+    const describe = page.getByRole("button", { name: "Plan a pub crawl" });
     const shell = page.locator(".appShell");
     await expect(async () => {
       if (!/planning-open/.test((await shell.getAttribute("class")) ?? "")) {
@@ -165,6 +165,6 @@ test.describe("mobile bottom-tab navigation", () => {
     await primaryNav(page).getByRole("link", { name: "You", exact: true }).click();
 
     await expect(page).toHaveURL(/\/u\/you$/, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "Make the night yours." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Claim your @handle." })).toBeVisible();
   });
 });

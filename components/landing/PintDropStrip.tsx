@@ -174,7 +174,7 @@ export default function PintDropStrip() {
       {status === "ready" && (
         <ul
           className="dropStripRail"
-          aria-label="Latest community Pint Drops"
+          aria-label="Recent prices from drinkers"
           tabIndex={0}
         >
           {drops.map((d) => (
