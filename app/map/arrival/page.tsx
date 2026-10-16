@@ -5,8 +5,7 @@ import PubMaxingShell from "@/components/PubMaxingShell";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import { pintShareCardVenue } from "@/lib/pintShare";
-import { pintShareMetadata } from "@/lib/pintShare.server";
+import { pintShareCardVenue, pintShareMetadata } from "@/lib/pintShare";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import {
   UK_NATIONAL_BROWSE_COPY,
@@ -109,15 +108,14 @@ export async function generateMetadata({
       },
     };
   }
-  // A "Share this pint" link: the pub's own card, read from the dataset.
+  // A "Share this pint" link: the pub's own card, which the card route reads.
   const pintVenue = pintShareCardVenue(
     firstSearchParam(sp?.card),
     firstSearchParam(sp?.sel),
   );
-  const pintMetadata = pintVenue ? await pintShareMetadata(pintVenue) : null;
-  if (pintMetadata) {
+  if (pintVenue) {
     return {
-      ...pintMetadata,
+      ...pintShareMetadata(pintVenue),
       alternates: { canonical: "/map" },
       robots: { index: false, follow: true },
     };

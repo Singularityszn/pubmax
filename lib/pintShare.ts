@@ -22,7 +22,7 @@
 //
 // Pure and client-safe: no React, no fs, no store.
 
-import type { Route } from "next";
+import type { Metadata, Route } from "next";
 
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
@@ -119,4 +119,36 @@ export function pintShareCardVenue(
   if (clean(card).toLowerCase() !== PINT_SHARE_CARD_VALUE) return null;
   const id = clean(sel);
   return id || null;
+}
+
+const PINT_SHARE_TITLE = "A listed pint on the PUBMAXX map";
+const PINT_SHARE_DESCRIPTION =
+  "The price, the pub and who listed it when. Open it on the PUBMAXX map.";
+
+/**
+ * The `/map` document's metadata for a pint share link. It reads NOTHING: the
+ * words name no figure, and the card (`/api/pint-card`) is the one place the
+ * pint is read and drawn, so the per-request map document carries no venue
+ * pack into its function (`__tests__/mapPlaceTracing.test.ts`).
+ */
+export function pintShareMetadata(venueId: string): Metadata {
+  const url = pintShareUrl(venueId);
+  const image = pintShareCardImageUrl(venueId);
+  return {
+    title: PINT_SHARE_TITLE,
+    description: PINT_SHARE_DESCRIPTION,
+    openGraph: {
+      title: PINT_SHARE_TITLE,
+      description: PINT_SHARE_DESCRIPTION,
+      type: "website",
+      url,
+      images: [{ url: image, width: 1200, height: 630, alt: PINT_SHARE_TITLE }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: PINT_SHARE_TITLE,
+      description: PINT_SHARE_DESCRIPTION,
+      images: [image],
+    },
+  };
 }

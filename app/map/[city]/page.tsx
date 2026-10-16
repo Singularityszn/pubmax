@@ -12,8 +12,7 @@ import {
   firstSearchParam,
   stopCountFromPubsParam,
 } from "@/lib/cityShare";
-import { pintShareCardVenue } from "@/lib/pintShare";
-import { pintShareMetadata } from "@/lib/pintShare.server";
+import { pintShareCardVenue, pintShareMetadata } from "@/lib/pintShare";
 
 type CityMapPageProps = {
   params: Promise<{ city: string }>;
@@ -32,8 +31,7 @@ export async function generateMetadata({ params, searchParams }: CityMapPageProp
   const canonical = cityId === "london" ? "/map" : `/map/${cityId}`;
   // A "Share this pint" link previews that pub's listed pint (lib/pintShare.ts).
   const pintVenue = pintShareCardVenue(firstSearchParam(sp?.card), firstSearchParam(sp?.sel));
-  const pintMetadata = pintVenue ? await pintShareMetadata(pintVenue) : null;
-  if (pintMetadata) return { ...pintMetadata, alternates: { canonical } };
+  if (pintVenue) return { ...pintShareMetadata(pintVenue), alternates: { canonical } };
   const band = firstSearchParam(sp?.band);
   const crawl = firstSearchParam(sp?.crawl);
   const stopCount = stopCountFromPubsParam(firstSearchParam(sp?.pubs));

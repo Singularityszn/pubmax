@@ -17,7 +17,8 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 import { GET } from "@/app/api/pint-card/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { pintShareMetadata, resolvePintShare } from "@/lib/pintShare.server";
+import { pintShareMetadata } from "@/lib/pintShare";
+import { resolvePintShare } from "@/lib/pintShare.server";
 
 const READ = "2026-10-02T10:00:00.000Z";
 
@@ -81,32 +82,15 @@ describe("resolvePintShare", () => {
 });
 
 describe("pintShareMetadata", () => {
-  it("previews the pub's own card and states the price with its source", async () => {
-    lookupVenueDetail.mockResolvedValue({ status: "found", venue: pub() });
-    const metadata = await pintShareMetadata("venue-crosse-keys");
-    expect(metadata?.title).toBe("The Crosse Keys, City of London");
-    expect(metadata?.description).toBe(
-      "£2.99 a pint at The Crosse Keys (listed by Pint Prices, 2 Oct).",
-    );
-    expect(metadata?.openGraph).toMatchObject({
+  it("previews the pub's own card and reads nothing to say so", () => {
+    const metadata = pintShareMetadata("venue-crosse-keys");
+    expect(lookupVenueDetail).not.toHaveBeenCalled();
+    expect(metadata.openGraph).toMatchObject({
       url: "/map?sel=venue-crosse-keys&card=pint",
       images: [{ url: "/api/pint-card?venue=venue-crosse-keys", width: 1200, height: 630 }],
     });
-  });
-
-  it("names the pub with no figure when the price cannot carry its source", async () => {
-    lookupVenueDetail.mockResolvedValue({
-      status: "found",
-      venue: pub({ prices: [{ price_gbp: 2.99, pub_url: "", scraped_at_values: READ }] }),
-    });
-    const metadata = await pintShareMetadata("venue-crosse-keys");
-    expect(metadata?.description).toBe("The Crosse Keys on the PUBMAXX pub map.");
-    expect(String(metadata?.description)).not.toContain("£");
-  });
-
-  it("leaves the plain map card in place for an id that names no pub", async () => {
-    lookupVenueDetail.mockResolvedValue({ status: "missing" });
-    expect(await pintShareMetadata("venue-gone")).toBeNull();
+    // The words carry no figure: the card is the one place the pint is drawn.
+    expect(JSON.stringify(metadata)).not.toMatch(/£\d/);
   });
 });
 
