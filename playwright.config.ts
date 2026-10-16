@@ -173,6 +173,7 @@ export default defineConfig({
         // (and without its blocked service worker) before the GL project runs it.
         "**/map-console-health.spec.ts",
         "**/map-credits.spec.ts",
+        "**/map-opening-preview.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
@@ -297,6 +298,9 @@ export default defineConfig({
         "**/map-gl.spec.ts",
         // Two-finger rotate and tilt against a real MapLibre canvas.
         "**/map-gestures.spec.ts",
+        // The document's opening prices held to the engine's own first frame:
+        // a real camera and a real painted-pin probe to compare against.
+        "**/map-opening-preview.spec.ts",
         // The opening turn and the first-visit card's grip on the pins: both
         // read a real camera and a real painted-pin probe.
         "**/map-arrival-turn.spec.ts",

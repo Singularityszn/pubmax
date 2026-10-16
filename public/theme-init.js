@@ -196,3 +196,21 @@
     document.documentElement.dataset.splash = "on";
   } catch {}
 })();
+
+// The opening prices on /map (lib/mapOpeningPreview.ts). The prerendered map
+// document carries the discs its first frame will draw, and they may only show
+// where that first frame is the one they were drawn for: a COLD FIRST VISIT
+// (no first-pins mark, the same flag that keeps the map on its eager cell),
+// at /map with no query (a query names another view), with no remembered
+// opening location (which would move the camera). Decided here, before paint,
+// so the preview never flashes on a visit it does not belong to. Keep the keys
+// in sync with lib/performanceMarks.ts (FIRST_PINS_SEEN_KEY) and
+// lib/mapOpeningLocation.ts (its STORAGE_KEY).
+(function () {
+  try {
+    if (window.location.pathname !== "/map" || window.location.search) return;
+    if (localStorage.getItem("pubmax:first-pins-seen:v1") === "1") return;
+    if (localStorage.getItem("pubmax:map-opening-location:v1")) return;
+    document.documentElement.dataset.mapPreview = "on";
+  } catch {}
+})();
