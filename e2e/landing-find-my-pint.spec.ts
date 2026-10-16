@@ -37,7 +37,7 @@ test("landing nav speaks the app's vocabulary and the footer keeps Social", asyn
   await openLanding(page, { width: 1440, height: 900 });
 
   const nav = page.getByRole("navigation", { name: "Landing navigation" });
-  await expect(nav.getByRole("link")).toHaveText(["Tonight", "Map", "Places", "Out", "Plan", "You"]);
+  await expect(nav.getByRole("link")).toHaveText(["Map", "Tonight", "Plan", "You"]);
   await expect(nav.locator('a[href^="/social"], a[href^="/moment"]')).toHaveCount(0);
 
   const footerSocial = page

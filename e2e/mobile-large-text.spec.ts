@@ -6,7 +6,7 @@ import { installNativeShell } from "./helpers/nativeShell";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const CORE_ROUTES = [
-  "/tonight", "/places", "/out", "/plan", "/u/qa_android",
+  "/tonight", "/places", "/plan", "/u/qa_android",
   "/map", "/near", "/wall", "/pal/chat", "/moment",
 ] as const;
 
@@ -277,8 +277,11 @@ for (const platform of ["android", "ios"] as const) {
       const screenshot = testInfo.outputPath("signed-out-header.png");
       await header.screenshot({ path: screenshot });
       await testInfo.attach("signed-out header", { path: screenshot, contentType: "image/png" });
+      // Signed out, the bell and messages are not drawn (nothing is behind
+      // them) and the theme lives in More and on You, so sign-in is the one
+      // icon left in the compact header.
       const icons = header.locator(".siteNavBell svg:visible, .themeToggle svg:visible, .authCompactTrigger svg:visible");
-      await expect(icons).toHaveCount(4);
+      await expect(icons).toHaveCount(1);
       for (const size of await icons.evaluateAll((elements) => elements.map((element) => {
         const box = element.getBoundingClientRect();
         return { width: box.width, height: box.height };
@@ -343,7 +346,9 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await page.goto("/places");
   await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
   const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .themeToggle:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
-  await expect(controls).toHaveCount(10);
+  // Signed in: bell, messages and the account control up top, and the four
+  // dock doors. The theme left the header for More and the You page.
+  await expect(controls).toHaveCount(7);
   for (const box of await controls.evaluateAll((elements) => elements.map((element) => {
     const box = element.getBoundingClientRect();
     return { width: box.width, height: box.height };
