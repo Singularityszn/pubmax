@@ -6,6 +6,7 @@ import {
   MIN_PLAN_STOP_COUNT,
   normalizePlanStopCount,
 } from "@/lib/planStopCount";
+import { routeTransportConstraints } from "@/lib/planGetHome";
 import type { PlanAccessibilityNeed } from "@/lib/planIntake";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
 import type {
@@ -496,7 +497,7 @@ export function selectGroundedPlanRoute<T>(
 ): GroundedPlanRouteSelection<T> {
   const target = planStopCount(constraints.stopCount);
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
-  if (constraints.transportConstraints.length > 0) {
+  if (routeTransportConstraints(constraints.transportConstraints).length > 0) {
     return { ok: false, eligibleCandidateCount: 0, rejected };
   }
   const routeEligible = routeEligibleCandidates(candidates, constraints, rejected);
@@ -580,7 +581,7 @@ export function selectAnchoredGroundedPlanRoute<T>(
     anchor: anchorStop,
     reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
   };
-  if (constraints.transportConstraints.length > 0) return insufficient;
+  if (routeTransportConstraints(constraints.transportConstraints).length > 0) return insufficient;
 
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
   const companions = routeEligibleCandidates(candidates, constraints, rejected)

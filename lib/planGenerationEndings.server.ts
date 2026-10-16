@@ -6,6 +6,7 @@ import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import type { NightContext } from "@/lib/nightPlanning";
 import { buildPlanEndingRecommendations } from "@/lib/planEndings";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
+import { getHomeTransport } from "@/lib/planGetHome";
 
 type Candidate = { venue: ConciergeVenue };
 
@@ -42,6 +43,7 @@ export function planGenerationEndings(input: {
   return buildPlanEndingRecommendations({
     daypart: input.context.daypart,
     foodRequested: input.context.foodNeeds.length > 0,
+    getHomeRequested: getHomeTransport(input.context.transportConstraints).length > 0,
     transportAnchor: input.transportAnchor,
     lateFood: rankedLateFood,
     extensions,

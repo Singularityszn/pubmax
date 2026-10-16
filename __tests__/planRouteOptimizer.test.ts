@@ -170,12 +170,12 @@ describe("selectGroundedPlanRoute", () => {
     expect(openingScheduleReads).toBe(candidates.length);
   });
 
-  it("fails closed for requested transport constraints without matching evidence", () => {
+  it("fails closed for requested route transport constraints without matching evidence", () => {
     const candidates = [candidate("a"), candidate("b"), candidate("c")];
 
     expect(selectGroundedPlanRoute(
       candidates,
-      constraints({ transportConstraints: ["tube"] }),
+      constraints({ transportConstraints: ["walking"] }),
     ).ok).toBe(false);
     expect(selectGroundedPlanRoute(candidates, constraints()).ok).toBe(true);
   });

@@ -317,7 +317,7 @@ describe("hard evidence fences", () => {
   it("returns selection failure for unsupported context transport with no intake", async () => {
     const context = {
       ...reconcilePlanContext("Camden", null, null, NOW).context,
-      transportConstraints: ["tube"],
+      transportConstraints: ["walking"],
     };
 
     await expect(selectPlanGenerationCandidates(

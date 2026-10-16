@@ -10,6 +10,7 @@ import {
   type PlanAccessibilityNeed,
 } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
+import { routeTransportConstraints } from "@/lib/planGetHome";
 import { DEFAULT_PLAN_STOP_COUNT, normalizePlanStopCount } from "@/lib/planStopCount";
 import {
   planAccessEvidenceForVenue,
@@ -132,7 +133,7 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const hasContextHardConstraint = accessibilityNeeds.length > 0
     || context.budgetLimitPence !== null
-    || context.transportConstraints.length > 0
+    || routeTransportConstraints(context.transportConstraints).length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
   if (!intake && !hasContextHardConstraint) {
     return { ok: true, legacy: true, chosen: candidates.slice(0, normalizePlanStopCount(context.stopCount)) };

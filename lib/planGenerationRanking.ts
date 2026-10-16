@@ -4,6 +4,7 @@ import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
+import { getHomeTransport, routeTransportConstraints } from "@/lib/planGetHome";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -186,7 +187,9 @@ function missingPlanContextEvidence(
 ): string[] {
   const missing: string[] = [];
   if (context.accessibility.length > 0 && !answered.accessibilityEnforced) missing.push("venue_accessibility");
-  if (context.transportConstraints.length > 0) missing.push("per_venue_transport");
+  if (routeTransportConstraints(context.transportConstraints).length > 0) missing.push("per_venue_transport");
+  // A way home is checked against the last service during the night, not now.
+  if (getHomeTransport(context.transportConstraints).length > 0) missing.push("last_service");
   if (context.zeroProof && !answered.allZeroProofConfirmed) missing.push("zero_proof_options");
   if (context.foodNeeds.some((need) => ["kebab", "halal", "vegan", "vegetarian"].includes(need))) {
     missing.push("food_terminal_specificity");

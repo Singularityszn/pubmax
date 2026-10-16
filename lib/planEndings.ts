@@ -49,12 +49,15 @@ function extensionOption(extension: GroundedPlanExtension): PlanEndingOption {
 export function buildPlanEndingRecommendations({
   daypart,
   foodRequested,
+  getHomeRequested = false,
   transportAnchor,
   lateFood,
   extensions,
 }: {
   daypart: Daypart;
   foodRequested: boolean;
+  /** The reader named a way home ("then home by tube"). */
+  getHomeRequested?: boolean;
   transportAnchor: string;
   lateFood: readonly LateFoodTerminal[];
   extensions: readonly GroundedPlanExtension[];
@@ -62,7 +65,7 @@ export function buildPlanEndingRecommendations({
   const foodOptions = shortlistFoodHandoffs(lateFood).map(foodOption);
   const extensionOptions = extensions.slice(0, 2).map(extensionOption);
   const preferred = foodRequested && foodOptions.length > 0 ? "food" : "get_home";
-  const urgentHome = daypart === "get_home" || daypart === "late_night";
+  const urgentHome = getHomeRequested || daypart === "get_home" || daypart === "late_night";
 
   return [
     {
