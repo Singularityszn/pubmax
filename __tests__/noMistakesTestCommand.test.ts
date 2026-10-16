@@ -6,6 +6,12 @@
 // plain shell baseline with no agent cap, so the evidence agent that follows
 // never has to walk the suite itself.
 //
+// Since 16 October 2026 that command is CHANGE-SCOPED (`verify:no-mistakes:changed`,
+// scripts/verify-changed.mjs): the full unit suite runs once, in the CI unit
+// shards, and the local step falls back to the full `npm run verify` only when
+// the change touches a shared foundation. __tests__/verifyChanged.test.ts pins
+// the plan; this file pins how the pipeline reaches it.
+//
 // THREE facts about the tool shape this fence. (1) A run worktree holds tracked
 // files only, so `node_modules` is absent until `commands.prepare` installs it.
 // (2) no-mistakes reads `commands.*` ONLY from the `origin/main` copy of the
@@ -28,6 +34,7 @@ import { requireDataRevision } from "@/lib/dataRevision.mjs";
 
 import { POSTGRES_BACKED_SUITES, SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
 import { WITHOUT_POSTGRES, coverageRuns } from "../scripts/run-coverage.mjs";
+import { checkSteps } from "../scripts/verify-changed.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
@@ -71,12 +78,34 @@ describe("the no-mistakes repository test command", () => {
     expect(prepare.trim().split(/\s+/).slice(0, 2)).toEqual(["npm", "ci"]);
   });
 
-  it("runs the pre-push merge bar", () => {
-    expect(splitTestCommand().command).toBe("npm run verify:no-mistakes");
+  it("runs the change-scoped checks, not the whole suite a second time", () => {
+    expect(splitTestCommand().command).toBe("npm run verify:no-mistakes:changed");
+    const expanded = expand(splitTestCommand().command, packageScripts());
+    expect(expanded).toContain("node scripts/verify-changed.mjs");
+    expect(expanded).not.toContain("node scripts/run-coverage.mjs");
   });
 
-  it("reaches the unit suite and never the browser suite", () => {
-    const expanded = expand(splitTestCommand().command, packageScripts());
+  it("falls back to the pre-push merge bar, which reaches the unit suite and never the browser suite", () => {
+    const fallback = checkSteps({
+      full: "package.json is a shared foundation",
+      lint: [],
+      typecheck: [],
+      tests: [],
+      rls: false,
+      validateData: false,
+      dbTypes: false,
+      e2eSkips: false,
+      chatgptMap: false,
+    });
+    expect(fallback.map((step) => [step.command, ...step.args].join(" "))).toEqual(["npm run verify"]);
+    // The full fallback runs inside the same wrapper, so verify:no-mistakes stays its twin.
+    expect(packageScripts()["verify:no-mistakes"]).toBe(
+      defined(packageScripts()["verify:no-mistakes:changed"]).replace(
+        "node scripts/verify-changed.mjs",
+        "npm run verify",
+      ),
+    );
+    const expanded = expand("npm run verify", packageScripts());
 
     expect(expanded).toContain("node scripts/run-coverage.mjs");
     const [unit] = coverageRuns([]);
