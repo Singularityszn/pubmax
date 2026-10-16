@@ -442,7 +442,7 @@ describe("the Overview chip", () => {
     expect(PINT_TRUST_LINE["aged-out"]).toBe(AGED_PRICE_LINE);
     expect(renderOverview([drop()])).toContain(PROVISIONAL_PRICE_LINE);
     expect(renderOverview([drop({ createdAt: daysAgo(90) })])).toContain(AGED_PRICE_LINE);
-    expect(renderOverview(corroboratedPair())).toContain("Latest Pint Drop price");
+    expect(renderOverview(corroboratedPair())).toContain("Latest price from a drinker");
   });
 
   it("words the absence only when there is no public drop at all", () => {

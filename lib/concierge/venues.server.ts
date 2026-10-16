@@ -6,6 +6,7 @@ import path from "node:path";
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 
 type SlimRow = Record<string, unknown>;
 
@@ -44,7 +45,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
 
   return {
     id: row.id,
-    name: row.name,
+    name: displayVenueName(row.name),
+    ...venueSourceNameField(row.name),
     area: row.borough,
     lat: row.lat,
     lng: row.lng,

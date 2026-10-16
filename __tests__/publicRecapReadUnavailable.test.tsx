@@ -425,7 +425,7 @@ describe("the public recap page words a failed read as ours", () => {
     seedPublishedStory();
     store.answers.set("night_moments", { data: null, error: OUTAGE });
     const metadata = await generateMetadata({ params: Promise.resolve({ storyId: STORY_ID }) });
-    expect(metadata.title).toBe("Recap · PUBMAXXING");
+    expect(metadata.title).toBe("Recap");
     expect(metadata.robots).toEqual({ index: false });
     expect(JSON.stringify(metadata)).not.toContain("Friday orbit");
   });

@@ -211,18 +211,18 @@
 
 .venueTab.active {
   color: var(--ink);
-  /* A faint brass wash on the raised active tab so the selected section reads as
-     "lit" rather than only underlined — the candle-lit guidebook idiom. Brass is
-     the one accent, so this stays a wash, not a fill; the underline + weight are
-     the real active cue (colour is never the sole affordance, WCAG 1.4.1). */
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  /* The selected section reads in ink: the neutral selected wash, an ink
+     underline and the weight below (colour is never the sole affordance, WCAG
+     1.4.1). A selection is not an action, so it wears no coral
+     (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+  background: var(--state-selected-surface);
   border-color: var(--line);
-  border-bottom-color: var(--brass);
+  border-bottom-color: var(--state-selected-border);
 }
 
 /* A hair of warmth under a hovered inactive tab — a hint the strip is alive. */
 .venueTab:not(.active):hover {
-  background: color-mix(in srgb, var(--brass) 6%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 /* Visible keyboard focus on tabs. The outline sits INSIDE the tab: an offset
@@ -858,15 +858,15 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 .venueTab:hover,
 .venueTab:not(.active):hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-/* Selection is the fill. Coral appears as a 2px underline only, so it marks
-   the tab without becoming the loudest object on the pub's own sheet
-   (DESIGN.md, The One Accent Rule). */
+/* Selection is the fill and a 2px INK underline, so it marks the tab without
+   borrowing the coral of the sheet's one painted primary (docs/DESIGN_SYSTEM.md
+   "Coral is spent twice"). */
 .venueTab.active {
   background: var(--panel-raised);
-  box-shadow: inset 0 -2px 0 var(--brass);
+  box-shadow: inset 0 -2px 0 var(--state-selected-ink);
   color: var(--ink);
   font-weight: 800;
 }

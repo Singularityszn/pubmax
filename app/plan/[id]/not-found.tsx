@@ -13,7 +13,7 @@ import "../plan.css";
 // explainer, and one route on — start your own night.
 
 export const metadata: Metadata = {
-  title: "Plan · PUBMAXXING",
+  title: "Plan",
   robots: { index: false, follow: false },
 };
 

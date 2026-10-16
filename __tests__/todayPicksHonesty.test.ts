@@ -80,7 +80,7 @@ describe("Today picks card honesty", () => {
   it("offers the sourced pub suggestions from Tonight when no events are listed", () => {
     const ready = renderToday("ready", [PUB_SUGGESTION]);
     expect(ready).toContain("Top picks for tonight.");
-    expect(ready).toContain("Pubs people are talking about");
+    expect(ready).toContain("Pubs Londoners keep recommending");
     expect(ready).toContain("The Devonshire");
     expect(ready).toContain('href="https://example.com/pub"');
     expect(ready).toContain("Fixture publisher");

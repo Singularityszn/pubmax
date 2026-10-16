@@ -632,12 +632,13 @@ describe("no surface puts the raw accent back on a light word", () => {
       expect(start, `${selector} still exists in ${file}`).toBeGreaterThan(-1);
       const block = css.slice(start);
       const declaration = block.slice(0, block.indexOf("}"));
-      // The accent's ink, or the page's own ink: either is a word that is
-      // not the raw coral.
+      // The accent's ink, the page's own ink or its muted ink: each is a word
+      // that is not the raw coral. A kicker is a label and takes the muted ink
+      // (docs/DESIGN_SYSTEM.md "Coral is spent twice").
       expect(
         declaration,
-        `${selector} in ${file} paints its text with var(--color-accent-ink) or var(--color-text)`,
-      ).toMatch(/color:\s*var\(--color-(?:accent-ink|text)\)/);
+        `${selector} in ${file} paints its text with var(--color-accent-ink), var(--color-text) or var(--color-text-muted)`,
+      ).toMatch(/color:\s*var\(--color-(?:accent-ink|text|text-muted)\)/);
     });
   }
 

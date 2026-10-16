@@ -70,7 +70,7 @@ test.describe("signed-in journeys", () => {
 
   test("Pub Pal answers a text request with a plan and venue cards", async () => {
     await page.goto("/pal/chat");
-    const input = page.getByRole("textbox", { name: "Describe the outing" });
+    const input = page.getByRole("textbox", { name: "Where, how many, what budget" });
     const ask = page.getByRole("button", { name: "Ask" });
     // The composer is painted on the server. Retry the tap until React owns it
     // (e2e/AGENTS.md: a lone click is not a wait for hydration).
@@ -122,7 +122,7 @@ test.describe("signed-in journeys", () => {
   test("creates a Plan and locks it in", async () => {
     await page.goto("/plan");
     await expect(describeFirstQuery(page)).toBeEditable();
-    // Retry the tap only until it sends the request: once it lands, "Sort it"
+    // Retry the tap only until it sends the request: once it lands, "Plan it"
     // gives way to the route, so a slow answer must be waited for, not re-tapped.
     await expect(async () => {
       await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");

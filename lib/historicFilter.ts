@@ -6,6 +6,7 @@
 // records loaded by lib/historic — it never fabricates a field. The citation
 // helpers below derive a link + label strictly from the data's own sourceRefs.
 
+import type { HeritageFact } from "@/lib/heritage";
 import type { HistoricPub, HistoricVenueStatus } from "@/lib/historic";
 
 type HistoricSort = "oldest" | "az" | "borough";
@@ -102,6 +103,107 @@ export function citationHref(pub: HistoricPub): string | null {
   if (wiki?.sourceRef) return wiki.sourceRef;
   const any = pub.facts.find((f) => f.sourceRef);
   return any?.sourceRef ?? null;
+}
+
+// THE RECORD SAYS EACH THING ONCE. A pub's cited facts arrive from several
+// sources that often describe the same thing: Prospect of Whitby carried the
+// Wikipedia lead (which is already the page's intro), a seed line saying the
+// same date, and a Wikidata one-liner. The record drops a fact that repeats the
+// intro, and of two facts where one is substantially contained in the other it
+// keeps the fuller one. "Contained" is a normalised substring, or at least
+// RECORD_TOKEN_CONTAINMENT of the shorter fact's content words (lightly
+// stemmed, stop words out) appearing in the longer one. Nothing is reworded:
+// a kept fact is printed verbatim with its own source.
+const RECORD_TOKEN_CONTAINMENT = 0.8;
+
+const RECORD_STOP_WORDS = new Set([
+  "the", "and", "for", "with", "from", "that", "this", "was", "were", "has", "had",
+  "its", "one", "are", "but", "not", "into", "onto", "upon", "also", "which", "who",
+  "around", "about", "near", "than", "then", "there", "their", "his", "her", "been",
+]);
+
+function normaliseRecordText(text: string): string {
+  return text
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function stemRecordToken(token: string): string {
+  let stem = token;
+  for (const suffix of ["ing", "ed", "es", "ly", "s"]) {
+    if (stem.endsWith(suffix) && stem.length - suffix.length >= 3) {
+      stem = stem.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return stem.length > 3 && stem.endsWith("e") ? stem.slice(0, -1) : stem;
+}
+
+function recordTokens(text: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const word of normaliseRecordText(text).split(" ")) {
+    if (word.length < 3 || RECORD_STOP_WORDS.has(word)) continue;
+    tokens.add(stemRecordToken(word));
+  }
+  return tokens;
+}
+
+/** True when `inner` says nothing `outer` does not already say. */
+export function recordTextContainedIn(inner: string, outer: string): boolean {
+  const a = normaliseRecordText(inner);
+  const b = normaliseRecordText(outer);
+  if (!a || !b) return false;
+  if (b.includes(a)) return true;
+  const innerTokens = recordTokens(inner);
+  if (innerTokens.size === 0) return false;
+  const outerTokens = recordTokens(outer);
+  let shared = 0;
+  for (const token of innerTokens) if (outerTokens.has(token)) shared += 1;
+  return shared / innerTokens.size >= RECORD_TOKEN_CONTAINMENT;
+}
+
+export type HistoricRecord = {
+  /** The facts the record prints, in their original order. */
+  facts: HeritageFact[];
+  /**
+   * The cited fact the intro repeats, so its source can still be named once
+   * the duplicate leaves the list. Null when no fact repeats the intro.
+   */
+  introSource: HeritageFact | null;
+};
+
+/** The pub's record with the intro and near-duplicate facts taken out. */
+export function historicRecord(pub: Pick<HistoricPub, "hook" | "facts">): HistoricRecord {
+  const hook = pub.hook?.trim() ?? "";
+  const hookText = normaliseRecordText(hook);
+  let introSource: HeritageFact | null = null;
+  const candidates: { fact: HeritageFact; index: number }[] = [];
+  for (const [index, fact] of pub.facts.entries()) {
+    if (!hook || !recordTextContainedIn(fact.fact, hook)) {
+      candidates.push({ fact, index });
+      continue;
+    }
+    // The fact that IS the intro names its source, ahead of one it contains.
+    const isIntro = normaliseRecordText(fact.fact) === hookText;
+    if (!introSource || (isIntro && normaliseRecordText(introSource.fact) !== hookText)) {
+      introSource = fact;
+    }
+  }
+
+  // Fuller facts first, so a short fact is measured against the longer one
+  // that may already say it; the survivors go back into the record's order.
+  const kept: { fact: HeritageFact; index: number }[] = [];
+  for (const candidate of [...candidates].sort(
+    (left, right) => right.fact.fact.length - left.fact.fact.length || left.index - right.index,
+  )) {
+    if (kept.some((other) => recordTextContainedIn(candidate.fact.fact, other.fact.fact))) continue;
+    kept.push(candidate);
+  }
+  kept.sort((left, right) => left.index - right.index);
+  return { facts: kept.map((entry) => entry.fact), introSource };
 }
 
 // A short, honest label for a citation link, derived from its host rather than

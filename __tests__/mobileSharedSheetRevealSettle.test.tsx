@@ -64,7 +64,7 @@ it("keeps the expanded sheet and typing focus when Android opens and closes the 
   try {
     await act(async () => root.render(
       <MobileSharedSheet kind="planner" title="Plan an outing" onClose={() => {}}>
-        <input aria-label="Describe the outing" />
+        <input aria-label="Where, how many, what budget" />
       </MobileSharedSheet>,
     ));
     await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));

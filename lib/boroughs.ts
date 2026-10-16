@@ -1,4 +1,5 @@
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
 import type { Venue } from "@/lib/venues";
 
@@ -108,7 +109,7 @@ export function listBoroughs(venues: Venue[]): BoroughSummary[] {
     const entry = byKey.get(slug) ?? { name, pubCount: 0, cheapestGbp: null };
     entry.pubCount += 1;
     const price = venue.cheapestPrice;
-    if (typeof price === "number") {
+    if (typeof price === "number" && !isNonPublicVenueName(venue.name)) {
       entry.cheapestGbp =
         entry.cheapestGbp === null ? price : Math.min(entry.cheapestGbp, price);
     }
@@ -118,6 +119,15 @@ export function listBoroughs(venues: Venue[]): BoroughSummary[] {
   return Array.from(byKey.entries())
     .map(([slug, entry]) => ({ slug, ...entry }))
     .sort((a, b) => b.pubCount - a.pubCount || a.name.localeCompare(b.name));
+}
+
+// A members' or students' bar keeps its row on the borough page but is never
+// ranked by price, so it sits with the unpriced pubs at the foot
+// (lib/venueKindFilters.ts, `isNonPublicVenueName`).
+function rankablePrice(venue: Venue): number {
+  return !isNonPublicVenueName(venue.name)
+    ? venue.cheapestPrice ?? Number.POSITIVE_INFINITY
+    : Number.POSITIVE_INFINITY;
 }
 
 // The venues in one borough, cheapest-first. `slug` is matched through
@@ -134,8 +144,8 @@ export function pubsInBorough(venues: Venue[], slug: string): Venue[] {
       return name !== null && slugifyBorough(name) === target;
     })
     .sort((a, b) => {
-      const left = a.cheapestPrice ?? Number.POSITIVE_INFINITY;
-      const right = b.cheapestPrice ?? Number.POSITIVE_INFINITY;
+      const left = rankablePrice(a);
+      const right = rankablePrice(b);
       return left - right || a.name.localeCompare(b.name);
     });
 }

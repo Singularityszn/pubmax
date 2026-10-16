@@ -131,20 +131,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!name) {
     return {
-      title: "Borough · PUBMAXXING",
+      title: "Borough",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `The cheapest pints and best pubs in ${name} · PUBMAXXING`;
+  const title = `The cheapest pints and best pubs in ${name} · PUBMAXX`;
   const pubs = pubsInBorough(venues, slug);
   const cheapest = pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice;
   const description =
     typeof cheapest === "number"
       ? `${pubs.length} pubs in ${name}, ranked cheapest-first. Pints from ${formatPrice(
           cheapest,
-        )}. Plan a crawl through the area on PUBMAXXING.`
-      : `${pubs.length} pubs in ${name} on the map. Plan a crawl through the area on PUBMAXXING.`;
+        )}. Plan a crawl through the area on PUBMAXX.`
+      : `${pubs.length} pubs in ${name} on the map. Plan a crawl through the area on PUBMAXX.`;
 
   return {
     title,
