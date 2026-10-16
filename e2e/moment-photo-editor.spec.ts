@@ -54,8 +54,21 @@ const MOMENT_URL = process.env.PW_MOMENT_BASE_URL
   ? `${process.env.PW_MOMENT_BASE_URL}/moment`
   : "/moment";
 
+// The picker a person reaches: the file input, named by its label. A bare
+// `input[type="file"]` also counts DOM the reader cannot reach. When an update
+// reaches /moment's streamed Suspense boundary before React's runtime reveals
+// it, React renders the composer again on the client. The server's copy then
+// waits in a `<div hidden>` segment until the runtime's next reveal removes
+// it, so for a moment the page holds two #moment-photo-file inputs, and only
+// one is in the accessibility tree. "Add a photo" is also the phone-width
+// answer, which only the hydrated composer gives, so a pick is never dropped
+// on markup React has not attached to yet.
+function photoPicker(page: Page): Locator {
+  return page.getByRole("button", { name: /^Add a photo/ });
+}
+
 async function attachPhoto(page: Page): Promise<void> {
-  await page.locator('input[type="file"]').setInputFiles({
+  await photoPicker(page).setInputFiles({
     name: "night.png",
     mimeType: "image/png",
     buffer: PHOTO,
@@ -71,11 +84,21 @@ test.describe("Moment photo editor with the sign-in nudge armed", () => {
     await seedMomentGuest(page);
     // The first photo arms the "Own your memories" nudge, which then waits out
     // an 8 s first-paint grace or the first tap. Hold the page's clock so only
-    // the Edit tap can end that grace, however slow the runner is.
+    // the Edit tap can end that grace.
+    //
+    // Hold it only once the page has loaded the way a reader's does. React's
+    // inline runtime reveals each streamed Suspense segment on a timer ($RC,
+    // then requestAnimationFrame or setTimeout, then $RV). A clock paused
+    // before navigation froze every reveal, so the hidden server copy of the
+    // composer (see photoPicker) never left the page. Let time run until the
+    // hydrated picker shows and the last hidden copy is gone, then stop it.
+    // The grace began when the page mounted, a moment ago.
     const start = Date.now();
     await page.clock.install({ time: start });
-    await page.clock.pauseAt(start + 5_000);
     await page.goto(MOMENT_URL);
+    await expect(photoPicker(page)).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toHaveCount(1);
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1_000);
     await attachPhoto(page);
     // The draft save that arms the nudge is debounced by 300 ms.
     await page.clock.runFor(1_000);
