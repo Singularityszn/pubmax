@@ -417,7 +417,7 @@ async function assertMapFirstVisitPhoneNoticeLayout(
   const credit = await panel(page, "map credit", ".maplibregl-ctrl-bottom-right");
   const planAction = await panel(
     page,
-    "Describe the outing",
+    "Plan a pub crawl",
     ".mobilePlanActivation",
   );
 
@@ -532,7 +532,7 @@ async function measureSurfaceAssertions(
             "mobile map topbar",
             panels.some((candidate) => candidate.name === "bottom card")
               ? "bottom card"
-              : "Describe the outing",
+              : "Plan a pub crawl",
           ]
         : ["desktop map navigation", "desktop map toolbar"];
     const stack = names
@@ -786,7 +786,7 @@ async function captureSurface(
     panel(page, "mobile map chrome", ".mobileMapChrome"),
     panel(page, "mobile map topbar", ".mobileMapTopbar"),
     panel(page, "Tonight Arc panel", ".tonightArcChips"),
-    panel(page, "Describe the outing", ".mobilePlanActivation"),
+    panel(page, "Plan a pub crawl", ".mobilePlanActivation"),
     panel(page, "bottom card", ".mapPeek"),
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),

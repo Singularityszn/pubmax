@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// The Plan result reads as a route. After "Sort it" the first thing on the page
+// The Plan result reads as a route. After "Plan it" the first thing on the page
 // is a heading, ONE summary line, the stops as cards with the walk between
 // them, and the settings behind "Tune details". There is no field to type a
 // venue name into: a stop is a venue record, not a string.
@@ -44,8 +44,8 @@ async function sortARoute(page: Page): Promise<void> {
   });
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
-  await page.getByRole("textbox", { name: "Describe the outing" }).fill("Quiet in Clapham for 4");
-  await page.getByRole("button", { name: "Sort it", exact: true }).click();
+  await page.getByRole("textbox", { name: "Where, how many, what budget" }).fill("Quiet in Clapham for 4");
+  await page.getByRole("button", { name: "Plan it", exact: true }).click();
   await expect(page.getByTestId("plan-route-summary")).toBeVisible({ timeout: 30_000 });
 }
 
@@ -71,7 +71,7 @@ test.describe("the Plan result is a route", () => {
     await expect(page.getByText(/^Pub list refreshed /)).toBeVisible();
     // The settings are not in front of the answer.
     await expect(page.locator(".planComposer__context")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Sort it again" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Plan it again" })).toHaveCount(0);
   });
 
   test("Tune details holds the settings, and closes on Escape", async ({ page }) => {
@@ -80,9 +80,9 @@ test.describe("the Plan result is a route", () => {
     const sheet = page.getByRole("dialog", { name: "Tune details" });
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
-    await expect(sheet.getByRole("button", { name: "Sort it again" })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Plan it again" })).toBeVisible();
     // 16px inputs: iOS zooms the page into anything smaller.
-    const size = await sheet.getByRole("textbox", { name: "Describe the outing" }).evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    const size = await sheet.getByRole("textbox", { name: "Where, how many, what budget" }).evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
     expect(size).toBeGreaterThanOrEqual(16);
     await page.keyboard.press("Escape");
     await expect(sheet).toHaveCount(0);
@@ -147,16 +147,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       await expect(sheet).toBeHidden();
     });
 
-    test("Sort it again closes the sheet and leaves focus on the new route's status", async ({ page }) => {
+    test("Plan it again closes the sheet and leaves focus on the new route's status", async ({ page }) => {
       await sortARoute(page);
       await page.getByRole("button", { name: "Tune details" }).click();
       const sheet = page.getByRole("dialog", { name: "Tune details" });
-      await sheet.getByRole("button", { name: "Sort it again" }).click();
+      await sheet.getByRole("button", { name: "Plan it again" }).click();
       await expect(sheet).toBeHidden();
       await expect(page.locator("#plan-route-status")).toBeFocused();
     });
 
-    test("while Sort it again is in flight, focus stays on the busy button inside the sheet", async ({ page }) => {
+    test("while Plan it again is in flight, focus stays on the busy button inside the sheet", async ({ page }) => {
       await sortARoute(page);
       let answer: () => void = () => undefined;
       const answered = new Promise<void>((resolve) => { answer = resolve; });
@@ -166,7 +166,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       });
       await page.getByRole("button", { name: "Tune details" }).click();
       const sheet = page.getByRole("dialog", { name: "Tune details" });
-      await sheet.getByRole("button", { name: "Sort it again" }).click();
+      await sheet.getByRole("button", { name: "Plan it again" }).click();
       // The browser drops focus from a disabled control at its next rendering
       // update, so the check waits two frames for that to have happened.
       await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));

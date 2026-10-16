@@ -108,7 +108,7 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--brass) 70%, var(--ink));
+  color: var(--color-text-muted);
 }
 
 .mapConciergeAskClose {

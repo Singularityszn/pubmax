@@ -59,6 +59,9 @@ import {
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
+import SharePintButton from "@/components/share/SharePintButton";
+import { nearTopPintShare } from "@/lib/venuePintShare";
+import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
 import Screen from "@/components/ui/screen";
 
 import "./nearMeNow.css";
@@ -1117,6 +1120,14 @@ export function NearMeCardList({
   /** `/near` only. Embedded map answers omit this and keep their compact rows. */
   priceTrust?: NearPriceTrustView;
 }) {
+  const topShare = nearTopPintShare(cards, priceTrust);
+  // THE PRICE ANSWER HAS LANDED: the top card wears a sourced, dated price.
+  // The install ask waits for this (lib/priceAnswerMoment.ts). A mark, never a
+  // beacon.
+  const answered = topShare !== null;
+  useEffect(() => {
+    if (answered) markPriceAnswerMoment("near-answer");
+  }, [answered]);
   if (cards.length === 0) return null;
   const collectedLabel =
     priceTrust && priceTrust !== "loading"
@@ -1126,8 +1137,10 @@ export function NearMeCardList({
     <>
     <p className="nmnListCaption">{NEAR_ME_PRICE_CAPTION}</p>
     <ul className="nmnList">
-      {cards.map((card) =>
-        onAccept ? (
+      {cards.map((card, index) => {
+        // One share moment on the page: the top answer's own pint.
+        const share = index === 0 && topShare?.venueId === card.id ? topShare : null;
+        return onAccept ? (
           <li key={card.id} className="nmnCardRow">
             <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
@@ -1140,15 +1153,17 @@ export function NearMeCardList({
             >
               Keep for tonight
             </button>
+            {share ? <SharePintButton share={share} className="nmnSharePint" /> : null}
           </li>
         ) : (
           <li key={card.id}>
             <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
               <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
+            {share ? <SharePintButton share={share} className="nmnSharePint" /> : null}
           </li>
-        ),
-      )}
+        );
+      })}
     </ul>
     {collectedLabel ? <p className="nmnPriceCollected">{collectedLabel}</p> : null}
     </>

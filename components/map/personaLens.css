@@ -223,7 +223,7 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .personaLensCardClose {

@@ -9,6 +9,7 @@ import { join } from "node:path";
 
 import { UK_PUB_SEARCH_INDEX_FILE } from "@/lib/ukPubSearchIndexFile.mjs";
 import { ukBaseIdFor } from "@/lib/ukBasePubs";
+import { displayVenueName } from "@/lib/venueDisplay";
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 import { VERIFIED_CLOSED_OSM_REFS } from "@/lib/verifiedClosedPubs";
 
@@ -128,7 +129,7 @@ export function searchUkNationalPubs(
 
   const hits = scored.slice(0, limit).map(({ row }) => ({
     id: ukBaseIdFor(row.osmRef),
-    name: row.name,
+    name: displayVenueName(row.name),
     address: row.address,
     lat: row.lat,
     lng: row.lng,

@@ -204,7 +204,7 @@ async function openPhonePlanner(page: Page, search = "drink=wine") {
   const response = await page.goto(`/map?${search}`);
   expect(response?.status()).toBe(200);
   const intent = page.locator(".mapDrawer.left .mobilePlannerIntent");
-  const toggle = page.getByRole("button", { name: "Describe the outing", exact: true });
+  const toggle = page.getByRole("button", { name: "Plan a pub crawl", exact: true });
   await expect(async () => {
     if (!(await intent.isVisible())) await toggle.click();
     await expect(intent).toBeVisible({ timeout: 1_000 });
@@ -223,7 +223,7 @@ const phoneRequests = [
 for (const scenario of phoneRequests) {
   test(`phone generation respects ${scenario.name}`, async ({ page }, testInfo) => {
     const intent = await openPhonePlanner(page);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(scenario.query);
     if (scenario.alcoholFree) {
       const control = intent.getByRole("button", { name: "Alcohol-free", exact: true });
       await control.click();
@@ -280,7 +280,7 @@ test("phone planner refuses an unsupported Gin brand before requesting a generic
 
 test("generated Gin replaces the previous Wine map context", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page);
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Gin in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Gin in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -339,7 +339,7 @@ for (const scenario of [
 ] as const) {
   test(`generated Soft drinks respects ${scenario.name}`, async ({ page }, testInfo) => {
     const intent = await openPhonePlanner(page, scenario.search);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(scenario.query);
     if (scenario.alcoholFree) {
       const control = intent.getByRole("button", { name: "Alcohol-free", exact: true });
       await control.click();
@@ -381,7 +381,7 @@ for (const scenario of [
 
 test("generated Soft drinks shares ordered stops and exports its drink", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page);
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soft drinks in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Soft drinks in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -441,7 +441,7 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
 
 test("generated Alcohol-free replaces the previous Gin refinement", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Alcohol-free in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Alcohol-free in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -478,7 +478,7 @@ test("generated Alcohol-free replaces the previous Gin refinement", async ({ pag
 
 test("generated Beer clears the previous Gin brand and style", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith&sub=gin-london-dry&alt=mocktail");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Beer in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Beer in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -508,7 +508,7 @@ test("generated Beer clears the previous Gin brand and style", async ({ page }, 
 
 test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }) => {
   const intent = await openPhonePlanner(page);
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Cocktails in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Cocktails in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -599,7 +599,7 @@ test("phone planner refuses a Top shelf Beer default before requesting a generic
     }
   });
   const intent = await openPhonePlanner(page, "drink=beer&topshelf=1");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Soho");
   await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
   await expect(intent.getByRole("alert")).toContainText(
     "The planner cannot match Top shelf beer yet. Turn off Top shelf on the map, or name a different drink.",
@@ -609,7 +609,7 @@ test("phone planner refuses a Top shelf Beer default before requesting a generic
 
 test("phone generation from the No-alcohol view stays zero-proof", async ({ page }) => {
   const intent = await openPhonePlanner(page, "experience=no-alcohol");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -636,7 +636,7 @@ for (const generated of [
   test(`generated ${generated.category} keeps the saved favourite pint`, async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("pubmax:favoritePint:v1", "estrella"));
     const intent = await openPhonePlanner(page);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(generated.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(generated.query);
     const generatedResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
     );
@@ -708,7 +708,7 @@ for (const scenario of [
       },
     );
     const intent = await openPhonePlanner(page);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(scenario.query);
     const generatedResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
     );

@@ -129,7 +129,7 @@ export default function SaveForNightButton({
       {door && active ? (
         <ContributionGateDoor
           status={door}
-          subject="keep a Wanted list"
+          subject="keep a list of pubs to try"
           onAsserted={tap}
         />
       ) : null}
