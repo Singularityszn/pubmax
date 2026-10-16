@@ -311,8 +311,8 @@
       "pack": true,
       "stamp": {
         "kind": "literal",
-        "value": "2026-07-18T00:00:00Z",
-        "consumedBy": "Regenerated when scripts/build_historic_index.mjs runs after heritage_cache.json or pint_prices_app_dataset.json changes. `pack: true` opens the file in both freshness readers, so a missing, unreadable or empty index is its own audit finding rather than a literal stamp reading as fresh."
+        "value": "2026-10-16T00:00:00Z",
+        "consumedBy": "Regenerated when scripts/build_historic_index.mjs runs after heritage_cache.json or pint_prices_app_dataset.json changes, and re-run before the 2160h budget lapses even when neither input moved. The stamp is the day the generator last ran, so a rebuild that reproduces the file byte for byte still advances it (2026-10-16 was one). `pack: true` opens the file in both freshness readers, so a missing, unreadable or empty index is its own audit finding rather than a literal stamp reading as fresh."
       },
       "cadence": "episodic — node scripts/build_historic_index.mjs",
       "stalenessBudgetHours": 2160,
