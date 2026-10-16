@@ -110,6 +110,8 @@ import {
   tonightProvenanceCredits,
   tonightWhatsOnObservedAt,
 } from "@/lib/tonightOutListings";
+import type { LoadWhatsOnResult } from "@/lib/whatsOnStore";
+import type { TonightOutAnswer } from "@/lib/tonightOutListings";
 import type { HypedPub } from "@/lib/hypedPubs";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
 import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
@@ -216,7 +218,13 @@ export default function TonightClient({
   mapSelectableVenueIds,
   hypedPubs,
   cheapPints,
+  initialListings,
 }: {
+  initialListings?: {
+    whatsOn: LoadWhatsOnResult | null;
+    out: TonightOutAnswer;
+    renderedAt: number;
+  };
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
   /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
@@ -266,17 +274,36 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
+  const liveWhatsOn = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
     { pubOnly: true },
   );
-  const {
-    body: outBody,
-    failed: outFailed,
-    pending: outPending,
-    retry: retryOut,
-  } = useOutListings("tonight");
+  const liveOut = useOutListings("tonight");
+  const [initial, setInitial] = useState(initialListings ?? null);
+  // Keep the public server answer through hydration. Once both browser reads
+  // settle, their answers own the page, including failures and later retries.
+  useEffect(() => {
+    if (liveWhatsOn.status === "idle" || liveOut.pending) return;
+    void Promise.resolve().then(() => setInitial(null));
+  }, [liveWhatsOn.status, liveOut.pending]);
+  const rows = initial ? initial.whatsOn?.rows ?? [] : liveWhatsOn.rows;
+  const status = initial
+    ? initial.whatsOn?.readStatus === "ready"
+      ? rows.length > 0 ? "ready" : "empty"
+      : "error"
+    : liveWhatsOn.status;
+  const sourceFreshnessKind = initial
+    ? initial.whatsOn?.sourceFreshnessKind ?? "unknown"
+    : liveWhatsOn.sourceFreshnessKind;
+  const kindObservedAt = initial
+    ? initial.whatsOn?.kindObservedAt ?? {}
+    : liveWhatsOn.kindObservedAt;
+  const { retry } = liveWhatsOn;
+  const { retry: retryOut } = liveOut;
+  const outBody = initial ? initial.out.body : liveOut.body;
+  const outFailed = initial ? initial.out.failed : liveOut.failed;
+  const outPending = initial ? initial.out.pending : liveOut.pending;
   const selectableVenueIds = useMemo(
     () => {
       if (mapSelectableVenueIds === undefined) return undefined;
@@ -302,13 +329,14 @@ export default function TonightClient({
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
-    const now = Date.now();
+    const now = initial?.renderedAt ?? Date.now();
     return tonightLedeComposition(rows, outAnswer, paintStatus, now, selectableVenueIds);
-  }, [rows, paintStatus, outAnswer, selectableVenueIds]);
+  }, [rows, paintStatus, outAnswer, selectableVenueIds, initial]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
   const retryListings = useCallback(() => {
+    setInitial(null);
     if (retryWhatsOnLane) retry();
     if (retryOutLane) retryOut();
   }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
@@ -433,8 +461,9 @@ export default function TonightClient({
         renderedGroups: grouped,
         outEvents,
         kindObservedAt,
+        now: initial?.renderedAt,
       }),
-    [grouped, outEvents, kindObservedAt],
+    [grouped, outEvents, kindObservedAt, initial],
   );
   const checked = freshnessLabel(sourceFreshnessKind, whatsOnObservedAt);
   // The ordering claim rides the What's-On credit, so it is only made when

@@ -88,9 +88,12 @@ export function todayPicksLaneReport(
 }
 
 /** Bundled plus live What's-On for tonight — same spine as /api/whats-on. */
-export async function loadTodayWhatsOnAnswer(now: number): Promise<LoadWhatsOnResult | null> {
+export async function loadTodayWhatsOnAnswer(
+  now: number,
+  options: { pubOnly?: boolean; limit?: number } = {},
+): Promise<LoadWhatsOnResult | null> {
   try {
-    return await loadWhatsOn({ window: "tonight" }, { now });
+    return await loadWhatsOn({ window: "tonight", ...options }, { now });
   } catch (err) {
     console.warn(
       "[today] whats-on read failed; picks degraded:",
