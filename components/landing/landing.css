@@ -122,14 +122,19 @@ body:has(.lp) {
    the grid starts under the nav rather than floating at the vertical centre.
    Both grids share one column template, so the rail lines up under the
    answer. The head's third row is the flexible one, so the answer's height
-   never opens the gap between the kicker and the heading. */
+   never opens the gap between the kicker and the heading.
+
+   Beneath the head, the pub card takes the left column under the copy and
+   the rail the right one under the picture. Both used to stack in the right
+   column, so the left sat empty for some 700px under four lines of copy
+   while the page ran on down the right. DOM order (the phone order) is
+   untouched: this is grid areas only, never `order`. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
       "head head"
-      ". card"
-      ". rail";
+      "card rail";
     column-gap: clamp(28px, 4vw, 56px);
     row-gap: var(--space-4);
     align-content: start;
@@ -427,7 +432,11 @@ a.lpPubPint:hover { color: var(--ink); }
 /* Desktop width: prose sections and the drops rail use the wide token instead
    of leaving a single narrow column floating in 1920px of paper. */
 @media (min-width: 1024px) {
-  .lpWorth {
+  /* The split is for a heading beside its copy. The section carries no
+     kicker or h2 today (it is one sentence and a link), and with the split
+     always on, that sentence sat alone in the right column beside an empty
+     left one. Without a heading it reads as one block from the gutter. */
+  .lpWorth:has(> h2) {
     display: grid;
     grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
     column-gap: clamp(40px, 5vw, 72px);
