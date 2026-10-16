@@ -1,19 +1,18 @@
 // The public contributor leaderboard.
 //
-// ONE ANSWER FOR EVERYBODY: the board reads no session and no caller, so a
-// ready board is held at the edge for a minute, and the unbounded leaderboard
-// RPC behind it runs at most once a minute per edge region rather than once
-// per page view. A degraded board is never held: it says "we could not
-// check", and the next request should check again.
+// NEVER HELD AT THE EDGE: the board is moderation state as much as it is a
+// ranking. A contributor banned, withdrawn or suspended a minute ago must leave
+// it on the next read, and an edge copy would keep their handle, avatar and
+// counts public until it expired (`jsonCached` is for bundled data only).
 //
-// A per-address budget sits in front of it all, the same one the founders
-// wall spends, because a cache miss is still a full ranking read.
+// A per-address budget sits in front of it instead, the same one the founders
+// wall spends, because every answer is a full ranking read.
 //
 // Avatars are a garnish. If the avatar lookup throws, the board still answers,
 // without them, instead of a bare 500.
 
 import { publicApiError } from "@/lib/apiError";
-import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
+import { jsonNoStore } from "@/lib/apiResponses";
 import {
   enrichContributorBoard,
   readContributorLeaderboard,
@@ -27,8 +26,6 @@ export const dynamic = "force-dynamic";
 
 const READ_LIMIT = 60;
 const READ_WINDOW_MS = 60_000;
-const BOARD_EDGE_MAX_AGE_SECONDS = 60;
-const BOARD_STALE_WHILE_REVALIDATE_SECONDS = 300;
 
 export async function GET(request: Request): Promise<Response> {
   const limiterKey = `contributors:${hashIp(clientIp(request))}`;
@@ -49,10 +46,5 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  if (answer.status !== "ready") return jsonNoStore(answer, { status: 200 });
-  return jsonCached(answer, {
-    status: 200,
-    sMaxAge: BOARD_EDGE_MAX_AGE_SECONDS,
-    staleWhileRevalidate: BOARD_STALE_WHILE_REVALIDATE_SECONDS,
-  });
+  return jsonNoStore(answer, { status: 200 });
 }

@@ -143,13 +143,13 @@ describe("GET /api/contributors", () => {
     });
   });
 
-  it("holds a ready board at the edge briefly, one answer for everybody", async () => {
+  it("never holds a ready board at the edge, so a withdrawn contributor leaves it on the next read", async () => {
     boardState.board = { ...READY_BOARD, entries: [...READY_BOARD.entries] };
     const response = await GET();
     expect(response.status).toBe(200);
     const cacheControl = response.headers.get("Cache-Control") ?? "";
-    expect(cacheControl).toContain("public");
-    expect(cacheControl).toContain("s-maxage=60");
+    expect(cacheControl).toContain("no-store");
+    expect(cacheControl).not.toContain("s-maxage");
     expect(await response.json()).toMatchObject({ status: "ready", entries: [{ handle: "sam" }] });
   });
 
