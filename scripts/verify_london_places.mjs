@@ -30,7 +30,7 @@ import { fileURLToPath } from "node:url";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 
 import { londonVenueIdFor } from "../lib/londonVenueShards.ts";
-import { parseOsmOpeningHours } from "../lib/nearDesk.ts";
+import { parseOsmOpeningHours } from "../lib/osmOpeningHours.ts";
 import {
   PLACE_DETAILS_ENTERPRISE_FREE_MONTHLY,
   PLACE_DETAILS_ENTERPRISE_USD_PER_THOUSAND,

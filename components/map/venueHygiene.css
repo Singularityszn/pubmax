@@ -58,3 +58,23 @@ a.venueHygiene:focus-visible {
   color: var(--color-text-muted);
   font-size: 0.72rem;
 }
+
+/* The chip is two lines: the rating with the month it was awarded, then who
+   published it and when PUBMAXX read it. A fact on this sheet carries its
+   source and its date where the reader can see them, not only in a tooltip. */
+.venueHygieneBody {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.venueHygieneHead {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.venueHygieneProvenance {
+  overflow-wrap: anywhere;
+}

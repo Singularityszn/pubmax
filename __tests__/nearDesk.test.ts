@@ -13,7 +13,6 @@ import {
   deskWifiCaption,
   isDeskEligible,
   laptopFromOsm,
-  parseOsmOpeningHours,
   parseNearModeParam,
   rankDeskNearMe,
   resolveNearMode,
@@ -21,6 +20,7 @@ import {
   wifiFromOsm,
   type DeskPoint,
 } from "@/lib/nearDesk";
+import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
 import { evaluateOpenState } from "@/lib/busyness";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import type { VenueKind } from "@/lib/venues";

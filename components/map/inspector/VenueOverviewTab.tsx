@@ -78,6 +78,7 @@ import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenuePlacesDetails from "@/components/map/VenuePlacesDetails";
 import VenueSiteDetails from "@/components/map/VenueSiteDetails";
+import VenueOsmDetails from "@/components/map/VenueOsmDetails";
 import VenueBuzz from "@/components/map/VenueBuzz";
 import VenueAwardBadge from "@/components/areanews/VenueAwardBadge";
 import VenueHygiene from "@/components/map/VenueHygiene";
@@ -106,6 +107,7 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
+import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
@@ -924,6 +926,8 @@ export default function VenueOverviewTab({
   revealRecordLate?: boolean;
   now?: number;
 }) {
+  // The phone portal sheet hands down its footer slot; desktop has none.
+  const phoneSheet = useSheetFooterSlot() !== null;
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
@@ -1229,6 +1233,7 @@ export default function VenueOverviewTab({
       />
       <VenuePlacesDetails venue={venue} links />
       <VenueSiteDetails venue={venue} />
+      <VenueOsmDetails facts={venue.osmFacts} />
       <CityPlaceStrip
         venueId={venue.id}
         venueName={venue.name}
@@ -1276,7 +1281,9 @@ export default function VenueOverviewTab({
         now={now}
         readOnly
       />
-      {mode === "build" && isPubVenue(venue) ? (
+      {/* Desktop only: on a phone the peek's ONE plan door owns the crawl
+          toggle (lib/venuePlanDoor.ts), and this would be a second. */}
+      {mode === "build" && isPubVenue(venue) && !phoneSheet ? (
         <button
           className="addStopBtn"
           aria-pressed={inCrawl}
