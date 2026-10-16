@@ -17,13 +17,13 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import AccountMenu from "@/components/auth/AccountMenu";
+import ClerkAccountSlot from "@/components/auth/ClerkAccountSlot";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
@@ -42,17 +42,6 @@ import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
 } from "@/lib/authFocus";
-
-const ClerkAccountControls = dynamic(
-  () => import("@/components/auth/ClerkAccountControls"),
-  {
-    loading: () => (
-      <div className="clerkAccount clerkAccountLoading" hidden aria-hidden="true">
-        Clerk account controls
-      </div>
-    ),
-  },
-);
 
 /** Phone band: full-page /login instead of the nav popover. */
 const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
@@ -403,7 +392,7 @@ export default function SignInButton({
                 deviceAccounts={deviceAccounts}
                 onSwitchAccount={switchAccount}
                 addAccountHref={addAccountHref}
-                extraControls={clerkSessionAvailable ? <ClerkAccountControls /> : null}
+                extraControls={clerkSessionAvailable ? <ClerkAccountSlot /> : null}
               />
             ) : null}
           </div>
@@ -427,7 +416,7 @@ export default function SignInButton({
         >
           Sign out
         </button>
-        {clerkSessionAvailable ? <ClerkAccountControls /> : null}
+        {clerkSessionAvailable ? <ClerkAccountSlot /> : null}
       </div>
     );
   }

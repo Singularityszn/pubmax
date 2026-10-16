@@ -212,6 +212,17 @@ describe("/api/identity/onboarding", () => {
     });
   });
 
+  it("spends a budget on a details save, like every other write", async () => {
+    authState.userId = "user-1";
+    await POST(request("POST", { handle: "night_person", dateOfBirth: "1990-01-01" }));
+    let last: Response | null = null;
+    for (let i = 0; i < 21; i += 1) {
+      last = await PATCH(request("PATCH", { fullName: `Name ${i}` }));
+    }
+    expect(last?.status).toBe(429);
+    expect((await last!.json()).code).toBe("RATE_LIMITED");
+  });
+
   it("round-trips a saved name back through GET", async () => {
     // Defect 3: the founder must see the name land and read back through the
     // app's own read path (private_account_identities.full_name).

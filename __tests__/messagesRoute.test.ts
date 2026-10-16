@@ -364,6 +364,20 @@ describe("POST /api/messages/[id] — send + report gating", () => {
     expect(leak.status).toBe(404);
   });
 
+  it("spends a budget on reporting, like every other write", async () => {
+    const id = await seed();
+    asUser("user-sam");
+    const thread = await (await getThread(id, "handle=sam")).json();
+    const messageId = thread.messages[0].id;
+
+    let last: Response | null = null;
+    for (let i = 0; i < 21; i += 1) {
+      last = await postThread(id, { action: "report", handle: "sam", messageId });
+    }
+    expect(last?.status).toBe(429);
+    expect((await last!.json()).code).toBe("RATE_LIMITED");
+  });
+
   it("does not let a participant flag a message from another conversation", async () => {
     const firstId = await seed();
     asUser("user-jen");

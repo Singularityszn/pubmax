@@ -30,7 +30,7 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { isModerator } from "@/lib/adminAuth";
 import { accountIsAdult } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
-import { publicApiError } from "@/lib/apiError";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
 import {
@@ -74,6 +74,7 @@ import {
   type VenuePhotoCrosspost,
 } from "@/lib/venuePhotos";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
+import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 assertServerEnv();
 
@@ -81,6 +82,8 @@ assertServerEnv();
 const UPLOAD_LIMIT = 12;
 const UPLOAD_WINDOW_MS = 60 * 60 * 1000;
 const REPORT_PER_ACTOR_LIMIT = 1;
+/** Clearing out your own wall is a burst of taps, but it is still a write. */
+const DELETE_LIMIT = 30;
 
 function photoError(error: unknown): Response {
   if (error instanceof VenuePhotoError) {
@@ -136,6 +139,12 @@ async function deleteOwnPhoto(request: Request, body: Record<string, unknown>): 
   const contributor = await resolveContributionIdentity(request);
   if (!contributor.ok) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+  const deleteKey = `venue-photo-delete:${hashActor(contributor.actor)}`;
+  if (await isLimited(deleteKey, deleteKey, DELETE_LIMIT)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
   }
   const id = readString(body.id);
   if (!id) return publicApiError("Photo not found.", "NOT_FOUND", 404);
@@ -300,7 +309,6 @@ export async function POST(request: Request): Promise<Response> {
   if (!validation.ok) {
     return publicApiError(validation.error, "INVALID_PHOTO", 400);
   }
-  const submission = validation.value;
 
   // Every upload costs a safety scan, so the budget fails CLOSED: a limiter we
   // cannot reach refuses rather than handing the provider bill to whoever asks.
@@ -314,6 +322,15 @@ export async function POST(request: Request): Promise<Response> {
       retryable: true,
     });
   }
+
+  // The format check above says the id LOOKS like a venue; the shared resolver
+  // says it IS one. A photo is stored, capped and served under the canonical
+  // id, or it lands on a wall no venue sheet ever reads.
+  const target = await resolveWritableVenueId(validation.value.venueId);
+  if (!target.ok) {
+    return publicApiErrorFromStatus(target.error, target.status);
+  }
+  const submission = { ...validation.value, venueId: target.venueId };
 
   const store = venuePhotoStore();
   const profileId = contributor.actor.replace(/^profile:/, "");

@@ -225,6 +225,18 @@ describe("the wall's order and its pages", () => {
     expect(parseVenuePhotoCursor("not-a-date|id")).toBeNull();
   });
 
+  it("refuses a cursor whose id is not a uuid, since it lands in a uuid filter (LIB-S7)", () => {
+    const at = "2026-08-09T18:00:00.000Z";
+    expect(parseVenuePhotoCursor(`${at}|id`)).toBeNull();
+    expect(parseVenuePhotoCursor(`${at}|not-a-uuid`)).toBeNull();
+    expect(parseVenuePhotoCursor(`${at}|11111111-1111-4111-8111-111111111111,id.gt.0`)).toBeNull();
+    expect(parseVenuePhotoCursor(`${at}|11111111-1111-4111-8111-11111111111)`)).toBeNull();
+    expect(parseVenuePhotoCursor(`${at}|11111111-1111-4111-8111-111111111111`)).toEqual({
+      createdAt: at,
+      id: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+
   it("takes strictly older rows, so a page boundary never repeats a tile", () => {
     const cursor = { createdAt: "2026-08-09T18:00:00.000Z", id: "bbb" };
     expect(isBeforeVenuePhotoCursor(photo({ id: "aaa" }), cursor)).toBe(true);

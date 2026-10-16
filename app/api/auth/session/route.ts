@@ -23,11 +23,9 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
-  AUTH_RESUME_COOKIE,
-  AUTH_RESUME_MAX_AGE_SECONDS,
   authResumeCookieFromHeader,
+  authResumeSetCookie,
   decodeAuthResumeCookie,
-  encodeAuthResumeCookie,
   inheritedResumeEmail,
   isPlausibleRefreshToken,
   maskEmail,
@@ -64,13 +62,7 @@ function cookiePayload(request: Request): AuthResumeCookiePayload | null {
 
 function setCookieHeaders(payload: AuthResumeCookiePayload | null): Headers {
   const headers = new Headers();
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const value = payload ? encodeURIComponent(encodeAuthResumeCookie(payload)) : "";
-  const maxAge = payload ? AUTH_RESUME_MAX_AGE_SECONDS : 0;
-  headers.append(
-    "Set-Cookie",
-    `${AUTH_RESUME_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
-  );
+  headers.append("Set-Cookie", authResumeSetCookie(payload));
   return headers;
 }
 

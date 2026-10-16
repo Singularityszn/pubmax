@@ -159,8 +159,6 @@ const config: KnipConfig = {
     "scripts/landing/build-landing-map.mjs",
     "scripts/landing/build-landing-photos.mjs",
     "scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs",
-    "scripts/whatson/quizRefresh.mjs",
-    "scripts/whatson/scrape_greene_king_sport.mjs",
 
     // Audit CLIs whose source text or output shape a fence test reads.
     "scripts/ui-ux-axe-audit.mjs",

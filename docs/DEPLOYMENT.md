@@ -390,7 +390,7 @@ A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite f
 
 `npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint and compares by migration NAME, never by version, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names only the ledger holds are listed and are not a failure. It needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
 
-The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
+The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one; otherwise npx runs the exact version pinned in `scripts/lib/vercelCli.mjs`, never `latest`). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
 
 ### Uptime monitor
 
@@ -402,7 +402,7 @@ The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The r
 
 Set `PUBMAX_ALERT_WEBHOOK_URL` to an https Discord or Slack incoming-webhook URL, in the Vercel Production environment and as a GitHub repository secret of the same name. Treat it as a credential. With it unset, nothing is sent and nothing is logged about the missing value.
 
-The app posts every error-level `log()` event, `paid_spend.budget_spent`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. A `log()` post carries the event name, level, time and deployment id only. Its fields and error text stay in the runtime log, so no account id, handle or object key reaches the webhook. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow and posts the run link when one fails. A new scheduled workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
+The app posts every error-level `log()` event, `paid_spend.budget_spent`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. A `log()` post carries the event name, level, time and deployment id only. Its fields and error text stay in the runtime log, so no account id, handle or object key reaches the webhook. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow, and every workflow a production `deployment_status` starts (Production smoke, API performance), and posts the run link when one fails. A new scheduled or `deployment_status` workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
 
 ### A preview built with production values, in one command
 
@@ -449,9 +449,11 @@ Platform-owned names (`VERCEL_*`, `TURBO_*`, `NX_*`) are never carried either.
 `VERCEL_ENV` is the reason: `proxy.ts` and `app/robots.ts` both key indexability
 on it, so a preview that called itself production would be indexable.
 
-**Never `--prod`, never `--prebuilt`.** The command refuses both. `--prod`
-promotes; `--prebuilt` uploads a macOS build, whose sharp binaries are
-darwin-only and answer 500 on every route that imports them.
+**Never `--prod`, never `--target`, never `--prebuilt`.** The command refuses
+all three. `--prod` promotes, and `--target production` (or `--target=…`, or
+`-t`) is the same production deploy by another name, one that would skip every
+check `npm run release:prod` runs; `--prebuilt` uploads a macOS build, whose
+sharp binaries are darwin-only and answer 500 on every route that imports them.
 
 Four failures in the earlier three-command recipe are fixed at their sources,
 so this command works from a clean worktree:

@@ -17,6 +17,7 @@ import {
   areaCandidatesInText,
   areaVerbatimInText,
   defaultKnownAreas,
+  extractExplicitBudget,
   groupSizeCandidatesInText,
   intentFromJudgment,
   isConciergeProbability,
@@ -503,5 +504,42 @@ describe("recorded concierge intent fixtures", () => {
     const quietDinner = recorded.cases.find((row) => row.id === "quiet-food-chiswick");
     expect(cheapBrixton?.moods.balanced).toBeLessThan(CONCIERGE_MOOD_NOUL_THRESHOLD);
     expect(quietDinner?.moods.quiet).toBeGreaterThanOrEqual(CONCIERGE_MOOD_NOUL_THRESHOLD);
+  });
+});
+
+describe("extractExplicitBudget needs money, not just a cap word (LIB-D4)", () => {
+  it.each([
+    "pubs under 10 minutes walk",
+    "crawl up to 8 of us",
+    "max 4 pubs in Camden",
+    "for 6 people, max 3 hours",
+    "below 2 stops",
+    "under 2 km from Bank",
+    "max 5 mates",
+    "under £10 mins away",
+  ])("reads no budget from %j", (text) => {
+    expect(extractExplicitBudget(text)).toBeUndefined();
+  });
+
+  it.each([
+    ["Quiet near Bank under £7", 7],
+    ["Lively garden in Soho, max £5", 5],
+    ["Pints in Soho up to £6.50", 6.5],
+    ["Garden in Soho for 6 under £7", 7],
+    ["somewhere under 7 quid", 7],
+    ["below 6 pounds a pint", 6],
+    ["max 6 a pint in Camden", 6],
+    ["up to 6.50 per pint", 6.5],
+    ["£6 or less please", 6],
+    ["£6 max", 6],
+    ["6 quid max", 6],
+    ["4 of us, under £7, max 3 pubs", 7],
+  ])("reads the budget in %j", (text, expected) => {
+    expect(extractExplicitBudget(text)).toBe(expected);
+  });
+
+  it("keeps a group of eight out of the pint budget in the parsed intent", async () => {
+    const parsed = await parseConciergeIntent("Crawl in Camden up to 8 of us", { skipModel: true });
+    expect(parsed.intent.maxPintPrice).toBeUndefined();
   });
 });

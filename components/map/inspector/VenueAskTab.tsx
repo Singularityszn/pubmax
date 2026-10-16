@@ -11,7 +11,10 @@ import type { Venue } from "@/lib/venues";
 export default function VenueAskSection({ venue }: { venue: Venue }) {
   return (
     <div id="venueSection-ask" className="venueAskSection">
+      {/* Keyed by venue: a heritage answer still in flight for the last pub
+          must never paint under this one. */}
       <LandlordPanel
+        key={venue.id}
         venueId={venue.id}
         venueName={venue.name}
         venueKind={venue.kind}

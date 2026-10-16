@@ -44,6 +44,13 @@ export type OptimisticSpillRetryPayload = {
   vibeTags: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  /**
+   * True when a photo was attached but its local preview could not be kept:
+   * a `blob:` URL is never written to storage (it dies with the document), so
+   * the persisted payload says a photo is missing rather than retrying
+   * without it.
+   */
+  photoNotKept?: true;
   leaveByIso?: string;
   lastTrainDecision?: LastPintDecisionKind;
 };
@@ -192,11 +199,14 @@ export function markOptimisticSpillRetrying(
   });
 }
 
+const PHOTO_PREVIEW_GONE =
+  "Photo preview is no longer available. Open the composer and attach it again.";
+
 async function resolveBlobPreview(url: string): Promise<Blob> {
   const response = await fetch(url);
   if (!response.ok) {
     discardBody(response);
-    throw new Error("Photo preview is no longer available. Open the composer and attach it again.");
+    throw new Error(PHOTO_PREVIEW_GONE);
   }
   return response.blob();
 }
@@ -218,6 +228,8 @@ export async function buildOptimisticSpillRetryFormData(
   payload: OptimisticSpillRetryPayload,
   resolvePhotoPreview: ResolvePhotoPreview = resolveBlobPreview,
 ): Promise<FormData> {
+  // A photo the drinker attached is never silently dropped from a retry.
+  if (payload.photoNotKept) throw new Error(PHOTO_PREVIEW_GONE);
   const body = new FormData();
   body.set("venueId", payload.venueId);
   body.set("handle", payload.handle);
@@ -263,12 +275,41 @@ function isStoredOptimisticSpill(value: unknown): value is StoredOptimisticSpill
   );
 }
 
+// A LOCAL PREVIEW NEVER REACHES STORAGE. A `blob:` URL belongs to the document
+// that minted it and to the hook that revokes it, so a copy in localStorage is
+// a broken image after a reload (or after the map revokes it). Both doors strip
+// it: the write so nothing new lands, the read so an entry written before this
+// rule cannot render one.
+function isBlobUrl(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("blob:");
+}
+
+function withoutBlobPreviews(entry: StoredOptimisticSpill): StoredOptimisticSpill {
+  const drop = { ...entry.drop } as PintDropDTO & { receiptPhotoUrl?: string | null };
+  if (isBlobUrl(drop.pintPhotoUrl)) drop.pintPhotoUrl = null;
+  if (isBlobUrl(drop.venuePhotoUrl)) drop.venuePhotoUrl = null;
+  if (isBlobUrl(drop.receiptPhotoUrl)) drop.receiptPhotoUrl = null;
+  if (!entry.retry) return { ...entry, drop };
+  const retry = { ...entry.retry };
+  if (isBlobUrl(retry.pintPhotoUrl)) {
+    retry.pintPhotoUrl = null;
+    retry.photoNotKept = true;
+  }
+  if (isBlobUrl(retry.venuePhotoUrl)) {
+    retry.venuePhotoUrl = null;
+    retry.photoNotKept = true;
+  }
+  return { ...entry, drop, retry };
+}
+
 export function readOptimisticSpills(storage: StorageLike): StoredOptimisticSpill[] {
   try {
     const raw = storage.getItem(OPTIMISTIC_SPILL_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter(isStoredOptimisticSpill) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter(isStoredOptimisticSpill).map(withoutBlobPreviews)
+      : [];
   } catch {
     return [];
   }
@@ -283,7 +324,7 @@ export function writeOptimisticSpills(
       storage.removeItem(OPTIMISTIC_SPILL_STORAGE_KEY);
       return;
     }
-    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(entries.slice(0, 10)));
+    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(entries.slice(0, 10).map(withoutBlobPreviews)));
   } catch {
     // Storage can be full or disabled; the in-memory submit path still proceeds.
   }

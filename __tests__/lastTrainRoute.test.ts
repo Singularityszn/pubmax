@@ -89,6 +89,162 @@ afterEach(() => {
   else process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
 });
 
+function mockMultiLineResponses(
+  lines: { id: string; name: string; journeys: { hour: string; minute: string }[] }[],
+  scheduleName: string,
+): void {
+  global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    const json = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    if (url.includes("/StopPoint?")) {
+      return json({
+        stopPoints: [
+          {
+            id: "940GZZLUOXC",
+            commonName: "Oxford Circus",
+            distance: 0,
+            lat: 51.5,
+            lon: -0.12,
+            lines: lines.map(({ id, name }) => ({ id, name })),
+          },
+        ],
+      });
+    }
+    for (const line of lines) {
+      if (url.includes(`/Line/${line.id}/Timetable/`)) {
+        return json({
+          timetable: {
+            routes: [
+              {
+                schedules: line.journeys.map((lastJourney) => ({
+                  name: scheduleName,
+                  lastJourney,
+                })),
+              },
+            ],
+          },
+        });
+      }
+    }
+    if (url.includes("/Arrivals")) return json([]);
+    if (url.includes("/Status")) {
+      return json(
+        lines.map(({ id, name }) => ({
+          id,
+          name,
+          lineStatuses: [{ statusSeverityDescription: "Good Service" }],
+        })),
+      );
+    }
+    return new Response("not found", { status: 404 });
+  });
+}
+
+describe("GET /api/last-train service-day frame", () => {
+  it("lists the upcoming 00:28 at 00:20, not three trains that have already left", async () => {
+    vi.useFakeTimers();
+    // Saturday 00:20 Europe/London (BST): Friday night's service.
+    vi.setSystemTime(new Date("2026-07-10T23:20:00.000Z"));
+    mockMultiLineResponses(
+      [
+        {
+          id: "victoria",
+          name: "Victoria",
+          journeys: [
+            { hour: "22", minute: "30" },
+            { hour: "23", minute: "45" },
+            { hour: "24", minute: "15" },
+            { hour: "24", minute: "28" },
+          ],
+        },
+      ],
+      "Friday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.41" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.departures).toEqual([
+      expect.objectContaining({ lineId: "victoria", times: ["00:28"], live: false }),
+    ]);
+  });
+
+  it("drops a line whose timetabled trains have all left", async () => {
+    vi.useFakeTimers();
+    // Saturday 01:30 Europe/London (BST).
+    vi.setSystemTime(new Date("2026-07-11T00:30:00.000Z"));
+    mockMultiLineResponses(
+      [
+        {
+          id: "victoria",
+          name: "Victoria",
+          journeys: [
+            { hour: "23", minute: "45" },
+            { hour: "24", minute: "28" },
+          ],
+        },
+      ],
+      "Friday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12&scope=stable", {
+        headers: { "x-forwarded-for": "198.51.100.42" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.trains).toHaveLength(1);
+    expect(body.departures).toEqual([]);
+  });
+
+  it("orders last trains by service time, so 23:50 comes before 00:15", async () => {
+    vi.useFakeTimers();
+    // Friday 22:00 Europe/London (BST).
+    vi.setSystemTime(new Date("2026-07-10T21:00:00.000Z"));
+    mockMultiLineResponses(
+      [
+        { id: "victoria", name: "Victoria", journeys: [{ hour: "24", minute: "15" }] },
+        { id: "central", name: "Central", journeys: [{ hour: "23", minute: "50" }] },
+      ],
+      "Friday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.43" },
+      }),
+    );
+    const body = await res.json();
+    expect(body.trains.map((t: { clock: string }) => t.clock)).toEqual(["23:50", "00:15"]);
+  });
+
+  it("never lets a stable answer outlive the 04:00 service-day rollover", async () => {
+    vi.useFakeTimers();
+    // Sunday 03:59:30 Europe/London (BST): Saturday's service ends at 04:00.
+    vi.setSystemTime(new Date("2026-07-12T02:59:30.000Z"));
+    mockMultiLineResponses(
+      [{ id: "victoria", name: "Victoria", journeys: [{ hour: "24", minute: "28" }] }],
+      "Saturday",
+    );
+
+    const res = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12&scope=stable", {
+        headers: { "x-forwarded-for": "198.51.100.44" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).trains).toHaveLength(1);
+    expect(res.headers.get("cache-control")).toBe("public, s-maxage=30");
+  });
+});
+
 describe("GET /api/last-train", () => {
   it("400s when lat/lng are missing or invalid", async () => {
     const res = await GET(new Request("http://localhost/api/last-train"));
@@ -366,7 +522,10 @@ describe("GET /api/last-train", () => {
       expect.objectContaining({ lineId: "victoria", live: false }),
     ]);
     expect(prefetchedBody.decision).toBeUndefined();
-    expect(prefetched.headers.get("cache-control")).toContain("s-maxage=3600");
+    // Time-relative departures and a service-day timetable: short shared cache.
+    expect(prefetched.headers.get("cache-control")).toBe(
+      "public, s-maxage=60, stale-while-revalidate=60",
+    );
     let calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
     expect(calls.some((url) => url.includes("/Arrivals"))).toBe(false);
     expect(calls.some((url) => url.includes("/Status"))).toBe(false);
