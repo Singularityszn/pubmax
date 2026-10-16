@@ -470,10 +470,17 @@ function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
 // right for dev/demo; production refuses it at the route.
+export const memoryPintDropPairWriter = {
+  create(drop: PintDrop): PintDropDTO {
+    addPintDrop(drop);
+    return toDTO(drop);
+  },
+};
+
 export const memoryPintDropStore: PintDropStore = {
   async create(drop) {
-    addPintDrop(drop); // photos ignored: there is no Storage without Supabase
-    return toDTO(drop);
+    // Photos are ignored: there is no Storage without Supabase.
+    return memoryPintDropPairWriter.create(drop);
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
     const rows = venueId

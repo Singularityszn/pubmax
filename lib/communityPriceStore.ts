@@ -847,105 +847,113 @@ function priceContributionRecord(
   };
 }
 
+/** Synchronous memory write used by the keyless one-tap transaction. */
+export function submitMemoryCommunityPriceSync(
+  input: CommunityPriceWrite,
+  now: number = Date.now(),
+): CommunityPriceWriteResult {
+  const key = normalize(input);
+  if (!key) return { price: null };
+  const roundSource = cleanRoundPriceSource(input.roundSource);
+  const stored: StoredPrice = {
+    ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+    id: randomUUID(),
+    actor: input.actor ?? null,
+    contributorHandle: normalizeHandle(input.contributorHandle) || null,
+    roundSource,
+    hidden: false,
+    reportCount: 0,
+  };
+  const rows = venues.get(key.venueId) ?? [];
+  if (roundSource) {
+    if (!stored.actor) return { price: null };
+    const sourceStatus = roundPriceSourceStatus(
+      roundSource,
+      stored.actor,
+      stored.venueId,
+      stored.drinkCategory,
+    );
+    if (sourceStatus === "promoted") {
+      const owned = rows.find(
+        (row) =>
+          row.actor === stored.actor &&
+          row.drinkCategory === stored.drinkCategory &&
+          sameRoundPriceSource(row.roundSource, roundSource),
+      );
+      return owned
+        ? { price: published(owned), sourceBecameOwner: true }
+        : { price: null };
+    }
+    if (sourceStatus !== "ready") return { price: null };
+  }
+  // One live observation per (venue, category, actor): a contributor correcting
+  // its own entry replaces it rather than stacking a second row, so one
+  // person can't weight a venue's community price twice.
+  const isOwnEarlier = (row: StoredPrice) =>
+    row.drinkCategory === stored.drinkCategory &&
+    row.actor !== null &&
+    row.actor === stored.actor;
+  const replaced = rows.find(isOwnEarlier);
+  if (replaced && replaced.submittedAt > stored.submittedAt) {
+    const sourceBecameOwner = sameRoundPriceSource(
+      replaced.roundSource,
+      roundSource,
+    );
+    if (roundSource && stored.actor) {
+      if (sourceBecameOwner) {
+        markRoundPriceSourcePromoted(roundSource, stored.actor);
+      } else {
+        markRoundPriceSourceSuperseded(roundSource, stored.actor);
+      }
+    }
+    return {
+      price: published(replaced),
+      ...(roundSource ? { sourceBecameOwner } : {}),
+    };
+  }
+  const kept = rows.filter((row) => !isOwnEarlier(row));
+  // Moderation survives the correction. The durable backend's upsert writes
+  // only the price columns, so `hidden_at` and the report metadata stay put
+  // there; the memory backend has to carry them across deliberately, or a
+  // hidden submitter could wash their price simply by logging it again -
+  // and the two backends would disagree about whether that works.
+  if (replaced) {
+    if (
+      replaced.roundSource &&
+      !sameRoundPriceSource(replaced.roundSource, roundSource) &&
+      replaced.actor
+    ) {
+      markRoundPriceSourceSuperseded(
+        replaced.roundSource,
+        replaced.actor,
+      );
+    }
+    stored.hidden = replaced.hidden;
+    stored.reportCount = replaced.reportCount;
+    stored.reportedAt = replaced.reportedAt;
+    stored.reportReason = replaced.reportReason;
+    stored.moderatorNote = replaced.moderatorNote;
+    stored.moderatedAt = replaced.moderatedAt;
+    stored.reporters = replaced.reporters;
+    // Keeping the id keeps a moderator's outstanding queue entry pointing at
+    // a row that still exists, exactly as the durable upsert does.
+    stored.id = replaced.id;
+  }
+  kept.push(stored);
+  venues.set(key.venueId, kept);
+  if (roundSource && stored.actor) {
+    markRoundPriceSourcePromoted(roundSource, stored.actor);
+  }
+  evictIfNeeded();
+  return {
+    price: published(stored),
+    ...(roundSource ? { sourceBecameOwner: true } : {}),
+  };
+}
+
 export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
-    const key = normalize(input);
-    if (!key) return { price: null };
-    const roundSource = cleanRoundPriceSource(input.roundSource);
-    const stored: StoredPrice = {
-      ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
-      id: randomUUID(),
-      actor: input.actor ?? null,
-      contributorHandle: normalizeHandle(input.contributorHandle) || null,
-      roundSource,
-      hidden: false,
-      reportCount: 0,
-    };
-    const rows = venues.get(key.venueId) ?? [];
-    if (roundSource) {
-      if (!stored.actor) return { price: null };
-      const sourceStatus = roundPriceSourceStatus(
-        roundSource,
-        stored.actor,
-        stored.venueId,
-        stored.drinkCategory,
-      );
-      if (sourceStatus === "promoted") {
-        const owned = rows.find(
-          (row) =>
-            row.actor === stored.actor &&
-            row.drinkCategory === stored.drinkCategory &&
-            sameRoundPriceSource(row.roundSource, roundSource),
-        );
-        return owned
-          ? { price: published(owned), sourceBecameOwner: true }
-          : { price: null };
-      }
-      if (sourceStatus !== "ready") return { price: null };
-    }
-    // One live observation per (venue, category, actor): a contributor correcting
-    // its own entry replaces it rather than stacking a second row, so one
-    // person can't weight a venue's community price twice.
-    const isOwnEarlier = (row: StoredPrice) =>
-      row.drinkCategory === stored.drinkCategory &&
-      row.actor !== null &&
-      row.actor === stored.actor;
-    const replaced = rows.find(isOwnEarlier);
-    if (replaced && replaced.submittedAt > stored.submittedAt) {
-      const sourceBecameOwner = sameRoundPriceSource(
-        replaced.roundSource,
-        roundSource,
-      );
-      if (roundSource && stored.actor) {
-        if (sourceBecameOwner) {
-          markRoundPriceSourcePromoted(roundSource, stored.actor);
-        } else {
-          markRoundPriceSourceSuperseded(roundSource, stored.actor);
-        }
-      }
-      return {
-        price: published(replaced),
-        ...(roundSource ? { sourceBecameOwner } : {}),
-      };
-    }
-    const kept = rows.filter((row) => !isOwnEarlier(row));
-    // Moderation survives the correction. The durable backend's upsert writes
-    // only the price columns, so `hidden_at` and the report metadata stay put
-    // there; the memory backend has to carry them across deliberately, or a
-    // hidden submitter could wash their price simply by logging it again -
-    // and the two backends would disagree about whether that works.
-    if (replaced) {
-      if (
-        replaced.roundSource &&
-        !sameRoundPriceSource(replaced.roundSource, roundSource) &&
-        replaced.actor
-      ) {
-        markRoundPriceSourceSuperseded(
-          replaced.roundSource,
-          replaced.actor,
-        );
-      }
-      stored.hidden = replaced.hidden;
-      stored.reportCount = replaced.reportCount;
-      stored.reportedAt = replaced.reportedAt;
-      stored.reportReason = replaced.reportReason;
-      stored.moderatorNote = replaced.moderatorNote;
-      stored.moderatedAt = replaced.moderatedAt;
-      stored.reporters = replaced.reporters;
-      // Keeping the id keeps a moderator's outstanding queue entry pointing at
-      // a row that still exists, exactly as the durable upsert does.
-      stored.id = replaced.id;
-    }
-    kept.push(stored);
-    venues.set(key.venueId, kept);
-    if (roundSource && stored.actor) {
-      markRoundPriceSourcePromoted(roundSource, stored.actor);
-    }
-    evictIfNeeded();
-    return {
-      price: published(stored),
-      ...(roundSource ? { sourceBecameOwner: true } : {}),
-    };
+    return submitMemoryCommunityPriceSync(input, now);
   },
 
   async submitSignal(input, now = Date.now()) {
@@ -1138,6 +1146,46 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return { status: "ready", records };
   },
 };
+
+function cloneStoredPrice(row: StoredPrice): StoredPrice {
+  return {
+    ...row,
+    roundSource: row.roundSource ? { ...row.roundSource } : null,
+    reporters: row.reporters ? new Set(row.reporters) : undefined,
+  };
+}
+
+/** Capture a compare-and-restore rollback for one keyless paired write. */
+export function captureMemoryCommunityPricePairingRollback(
+  input: CommunityPriceWrite,
+): (saved: CommunityPrice) => boolean {
+  const key = normalize(input);
+  const actor = input.actor ?? null;
+  if (!key || actor === null) return () => false;
+  const ownsKey = (row: StoredPrice) =>
+    row.drinkCategory === key.drinkCategory && row.actor === actor;
+  const previous = (venues.get(key.venueId) ?? []).find(ownsKey);
+  const snapshot = previous ? cloneStoredPrice(previous) : null;
+
+  return (saved) => {
+    if (!saved.id) return false;
+    const rows = venues.get(key.venueId) ?? [];
+    const current = rows.find(ownsKey);
+    if (
+      !current ||
+      current.id !== saved.id ||
+      current.priceGbp !== saved.priceGbp ||
+      current.submittedAt !== saved.submittedAt
+    ) {
+      return false;
+    }
+    const restored = rows.filter((row) => !ownsKey(row));
+    if (snapshot) restored.push(cloneStoredPrice(snapshot));
+    if (restored.length > 0) venues.set(key.venueId, restored);
+    else venues.delete(key.venueId);
+    return true;
+  };
+}
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({

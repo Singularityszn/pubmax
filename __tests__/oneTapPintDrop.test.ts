@@ -3,41 +3,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { submitCategoryLabel } from "@/lib/communityPrice";
 import {
   __resetCommunityPrices,
-  moderateCommunityPrice,
   readCommunityPrices,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
-import {
-  revertOneTapCommunityPricePairing,
-  writeOneTapPintDrop,
-} from "@/lib/oneTapPintDrop.server";
+import { writeOneTapPricePair } from "@/lib/oneTapPintDrop.server";
 import { __resetPintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
+import { memoryPintDropPairWriter } from "@/lib/pintDropsStore";
 
-vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
-  return {
-    ...actual,
-    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
-  };
-});
-
-beforeEach(async () => {
+beforeEach(() => {
+  vi.restoreAllMocks();
   __resetCommunityPrices();
   __resetPintDrops();
-  vi.mocked(moderateCommunityPrice).mockReset();
-  const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>(
-    "@/lib/communityPriceStore",
-  );
-  vi.mocked(moderateCommunityPrice).mockImplementation(actual.moderateCommunityPrice);
 });
 
-describe("writeOneTapPintDrop", () => {
-  it("creates a visible visit report for a priced pint", async () => {
-    const outcome = await writeOneTapPintDrop({
+describe("writeOneTapPricePair", () => {
+  it("creates a visible Pint Drop for a priced pint", async () => {
+    const outcome = await writeOneTapPricePair({
       venueId: "venue-xjf3n0",
       handle: "karan",
       drinkCategory: "beer",
       priceGbp: 4.2,
+      actor: "profile:test",
     });
 
     expect(outcome).toMatchObject({ ok: true });
@@ -52,12 +38,46 @@ describe("writeOneTapPintDrop", () => {
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
   });
 
-  it("binds one-tap price authority to the verified account, not the handle", async () => {
-    const outcome = await writeOneTapPintDrop({
+  it("creates the Community Price and Pint Drop as one pair", async () => {
+    const outcome = await writeOneTapPricePair({
       venueId: "venue-xjf3n0",
       handle: "karan",
       drinkCategory: "beer",
       priceGbp: 4.2,
+      actor: "profile:test",
+      verifiedAccountId: "account-a",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, price: { priceGbp: 4.2 } });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
+  });
+
+  it("removes the memory Community Price when its Pint Drop fails", async () => {
+    vi.spyOn(memoryPintDropPairWriter, "create").mockImplementationOnce(() => {
+      throw new Error("forced Pint Drop failure");
+    });
+
+    const outcome = await writeOneTapPricePair({
+      venueId: "venue-xjf3n0",
+      handle: "karan",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "profile:test",
+    });
+
+    expect(outcome).toMatchObject({ ok: false, kind: "storage" });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(0);
+  });
+
+  it("binds one-tap price authority to the verified account, not the handle", async () => {
+    const outcome = await writeOneTapPricePair({
+      venueId: "venue-xjf3n0",
+      handle: "karan",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "profile:test",
       verifiedAccountId: "account-a",
     });
 
@@ -67,71 +87,97 @@ describe("writeOneTapPintDrop", () => {
     expect(outcome.drop.authorityKey).not.toContain("account-a");
   });
 
-  it("hides a community price when pairing revert runs", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
-    });
-    expect(price?.id).toBeTruthy();
-    expect(await readCommunityPrices(venueId)).toHaveLength(1);
-
-    expect(await revertOneTapCommunityPricePairing(price!.id)).toBe(true);
-    expect(await readCommunityPrices(venueId)).toEqual([]);
-  });
-
-  it("retries hide when moderate returns false once", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
-    });
-    const actual = await vi.importActual<typeof import("@/lib/communityPriceStore")>(
-      "@/lib/communityPriceStore",
-    );
-    vi.mocked(moderateCommunityPrice)
-      .mockResolvedValueOnce(false)
-      .mockImplementation(actual.moderateCommunityPrice);
-
-    expect(await revertOneTapCommunityPricePairing(price!.id)).toBe(true);
-    expect(vi.mocked(moderateCommunityPrice)).toHaveBeenCalledTimes(2);
-    expect(await readCommunityPrices(venueId)).toEqual([]);
-  });
-
-  it("returns false when hide never lands", async () => {
-    const venueId = "venue-xjf3n0";
-    const { price } = await submitCommunityPrice({
-      venueId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "profile:test",
-      contributorHandle: "karan",
-    });
-    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
-
-    expect(await revertOneTapCommunityPricePairing(price!.id)).toBe(false);
-    expect(vi.mocked(moderateCommunityPrice)).toHaveBeenCalledTimes(2);
-    expect(await readCommunityPrices(venueId)).toHaveLength(1);
-  });
-
   it("creates a matching Pint Drop for each accepted price observation", async () => {
     const input = {
       venueId: "venue-xjf3n0",
       handle: "karan",
       drinkCategory: "beer" as const,
       priceGbp: 4.2,
+      actor: "profile:test",
     };
-    const first = await writeOneTapPintDrop(input);
+    const first = await writeOneTapPricePair(input);
     expect(first).toMatchObject({ ok: true });
 
-    const second = await writeOneTapPintDrop({ ...input, priceGbp: 4.5 });
+    const second = await writeOneTapPricePair({ ...input, priceGbp: 4.5 });
     expect(second).toMatchObject({ ok: true });
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(2);
+  });
+
+  it("uses the stored memory price when an older observation loses ownership", async () => {
+    await submitCommunityPrice({
+      venueId: "venue-xjf3n0",
+      drinkCategory: "beer",
+      priceGbp: 5.1,
+      actor: "profile:test",
+      contributorHandle: "karan",
+    }, Date.now() + 60_000);
+
+    const outcome = await writeOneTapPricePair({
+      venueId: "venue-xjf3n0",
+      handle: "karan",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "profile:test",
+    });
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      price: { priceGbp: 5.1 },
+      drop: { priceGbp: 5.1 },
+    });
+  });
+
+  it("preserves an existing memory price when the paired Pint Drop fails", async () => {
+    await submitCommunityPrice({
+      venueId: "venue-xjf3n0",
+      drinkCategory: "beer",
+      priceGbp: 5.1,
+      actor: "profile:test",
+      contributorHandle: "karan",
+    }, Date.now() + 60_000);
+    vi.spyOn(memoryPintDropPairWriter, "create").mockImplementationOnce(() => {
+      throw new Error("forced Pint Drop failure");
+    });
+
+    const outcome = await writeOneTapPricePair({
+      venueId: "venue-xjf3n0",
+      handle: "karan",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "profile:test",
+    });
+
+    expect(outcome).toMatchObject({ ok: false, kind: "storage" });
+    expect(await readCommunityPrices("venue-xjf3n0")).toMatchObject([
+      { priceGbp: 5.1 },
+    ]);
+  });
+
+  it("keeps an equal concurrent memory pair when the other write fails", async () => {
+    const create = memoryPintDropPairWriter.create.bind(memoryPintDropPairWriter);
+    vi.spyOn(memoryPintDropPairWriter, "create")
+      .mockImplementationOnce(() => {
+        throw new Error("forced Pint Drop failure");
+      })
+      .mockImplementation(create);
+    const input = {
+      venueId: "venue-xjf3n0",
+      handle: "karan",
+      drinkCategory: "beer" as const,
+      priceGbp: 4.2,
+      actor: "profile:test",
+    };
+
+    const [failed, saved] = await Promise.all([
+      writeOneTapPricePair(input),
+      writeOneTapPricePair(input),
+    ]);
+
+    expect(failed).toMatchObject({ ok: false, kind: "storage" });
+    expect(saved).toMatchObject({ ok: true, price: { priceGbp: 4.2 } });
+    expect(await readCommunityPrices("venue-xjf3n0")).toMatchObject([
+      { priceGbp: 4.2 },
+    ]);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
   });
 });
