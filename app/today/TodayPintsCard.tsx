@@ -134,7 +134,7 @@ export default function TodayPintsCard({ index }: Props) {
           Change area
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link href="/price-pulse" className={TODAY_TEXT_BUTTON_CLASS}>
+        <Link prefetch={false} href="/price-pulse" className={TODAY_TEXT_BUTTON_CLASS}>
           Price Pulse
           <ArrowRight size={14} aria-hidden="true" />
         </Link>

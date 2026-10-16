@@ -100,7 +100,7 @@ export default function MapKey({
         {/* What people are SAYING about prices lives on its own page, one tap
             away. It is a door, never a layer: a Price Pulse figure has no
             price authority and never paints a pin (lib/pricePulse.ts). */}
-        <Link href="/price-pulse" className="mapKeyPulseLink">
+        <Link prefetch={false} href="/price-pulse" className="mapKeyPulseLink">
           What people are saying about prices
         </Link>
       </section>

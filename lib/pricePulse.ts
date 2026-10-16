@@ -228,12 +228,22 @@ export function parsePricePulseEdition(raw: unknown): PricePulseParseResult {
   }
   const items: PricePulseItem[] = [];
   const ids = new Set<string>();
+  const windowKnown = isCalendarDay(file.windowStart) && isCalendarDay(file.windowEnd);
   if (Array.isArray(file.items)) {
     file.items.forEach((rawItem, index) => {
       const item = parseItem(rawItem, index, errors);
       if (!item) return;
       if (ids.has(item.id)) errors.push(`items[${index}].id repeats ${item.id}`);
       ids.add(item.id);
+      // The page says what the edition covers, so a line dated outside that
+      // window would contradict it.
+      if (
+        windowKnown &&
+        (item.source.publishedOn < (file.windowStart as string) ||
+          item.source.publishedOn > (file.windowEnd as string))
+      ) {
+        errors.push(`items[${index}].source.publishedOn is outside the edition window`);
+      }
       items.push(item);
     });
   }

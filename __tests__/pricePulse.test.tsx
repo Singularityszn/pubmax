@@ -176,6 +176,19 @@ describe("Price Pulse: the parser refuses a bad line", () => {
     }
   });
 
+  it("refuses a line dated outside the window the edition says it covers", () => {
+    for (const publishedOn of ["2026-09-14", "2026-10-16"]) {
+      const outside = item({ source: { label: "Metro", url: "https://metro.co.uk/x", publishedOn } });
+      expect(errorsOf(edition({ items: [outside] }))).toContain(
+        "items[0].source.publishedOn is outside the edition window",
+      );
+    }
+    for (const publishedOn of ["2026-09-15", "2026-10-15"]) {
+      const edge = item({ source: { label: "Metro", url: "https://metro.co.uk/x", publishedOn } });
+      expect(errorsOf(edition({ items: [edge] }))).toEqual([]);
+    }
+  });
+
   it("refuses a username anywhere in the prose", () => {
     for (const said of [
       "u/drtchockk said £8.90 near Liverpool Street.",
@@ -455,7 +468,9 @@ describe("Price Pulse: the doors in", () => {
   });
 
   it("/today's pint card links to it", () => {
-    expect(readFileSync(join(ROOT, "app/today/TodayPintsCard.tsx"), "utf8")).toContain('href="/price-pulse"');
+    const card = readFileSync(join(ROOT, "app/today/TodayPintsCard.tsx"), "utf8");
+    // Warmed on intent, never on sight: /today's own budget pays for nothing.
+    expect(card).toContain('<Link prefetch={false} href="/price-pulse"');
   });
 
   it("the sitemap dates it by its newest approval", () => {
