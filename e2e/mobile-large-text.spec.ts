@@ -4,7 +4,7 @@ import { NATIVE_FIRST_RUN_HANDOFF_KEY } from "@/lib/nativeFirstRun";
 
 import { installNativeShell } from "./helpers/nativeShell";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const CORE_ROUTES = [
   "/tonight", "/places", "/out", "/plan", "/u/qa_android",
@@ -40,7 +40,7 @@ for (const scale of [1.3, 1.5, 2]) {
     }));
     await page.goto("/map");
     await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
-    const badges = page.locator(".mobileMapTflButton .mobileMapCornerBadge");
+    const badges = (await mobileMapShellControl(page, "tfl")).locator(".mobileMapCornerBadge");
     await expect(badges).toHaveCount(1);
     for (const badge of await badges.all()) await expect(badge).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
@@ -353,8 +353,8 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
     expect(box.height).toBeGreaterThanOrEqual(48);
   }
   await page.goto("/map");
-  const filters = page.locator(".mobileMapTopbar").getByRole("button", { name: /^Filters/ });
-  await expect(filters).toBeVisible({ timeout: 60_000 });
+  const filters = await mobileMapShellControl(page, "filters", 60_000);
+  await expect(filters).toBeVisible();
   await expect(async () => {
     const box = await filters.boundingBox();
     expect(box!.width).toBeGreaterThanOrEqual(48);

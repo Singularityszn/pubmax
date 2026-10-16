@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -187,7 +187,7 @@ async function openPhoneMap(
   await expect(
     page.getByRole("group", { name: "Venue types" }),
   ).toHaveCount(0);
-  await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
+  await expect(await mobileMapShellControl(page, "nearMe")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Describe the outing" }),
   ).toBeVisible();
@@ -632,10 +632,9 @@ for (const viewport of VIEWPORTS) {
     page,
   }) => {
     await openPhoneMap(page, viewport);
-    const topbar = page.locator(".mobileMapTopbar");
     await tapRenderedCentre(
       page,
-      topbar.getByRole("button", { name: /^Filters/ }),
+      await mobileMapShellControl(page, "filters"),
       viewport.width,
       "Filters",
     );
@@ -677,7 +676,7 @@ for (const viewport of VIEWPORTS) {
 
     // Near me before Search: MapEdgeControls unmount while search owns the
     // overlay, and Back from the layers sheet restores search when it was open.
-    const nearMe = page.locator(".mobileMapLocateFab");
+    const nearMe = await mobileMapShellControl(page, "nearMe");
     await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
     await expect(nearMe).toHaveAttribute("aria-label", /^Nearby \d+$/, {
       timeout: 20_000,
@@ -686,7 +685,7 @@ for (const viewport of VIEWPORTS) {
       await dismissSheet(page);
     }
 
-    const search = topbar.getByRole("button", { name: "Search the map" });
+    const search = await mobileMapShellControl(page, "search");
     await tapRenderedCentre(page, search, viewport.width, "Search");
     const searchField = page.getByRole("combobox", { name: "Search pubs" });
     await expect(searchField).toBeVisible();
@@ -694,14 +693,14 @@ for (const viewport of VIEWPORTS) {
     await expect(searchField).toHaveCount(0);
     await expect(search).toHaveAttribute("aria-expanded", "false");
 
-    const more = topbar.getByRole("button", { name: "More map controls" });
+    const more = await mobileMapShellControl(page, "more");
     await tapRenderedCentre(page, more, viewport.width, "More map controls");
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
 
-    const filters = topbar.getByRole("button", { name: /^Filters/ });
+    const filters = await mobileMapShellControl(page, "filters");
     await tapRenderedCentre(page, filters, viewport.width, "Filters");
     const sheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
@@ -772,9 +771,8 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
     "the place name is not truncated at 320px",
   ).toBeLessThanOrEqual(areaFit.clientWidth);
 
-  const filters = topbar.getByRole("button", {
-    name: "Filters: drinks active",
-  });
+  const filters = await mobileMapShellControl(page, "filters");
+  await expect(filters).toHaveAccessibleName("Filters: drinks active");
   await expect(filters.locator(".mobileMapTopbarBadge")).toHaveText("1");
   await tapRenderedCentre(
     page,
@@ -789,7 +787,7 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   ).toHaveCount(1);
   await dismissSheet(page);
 
-  const nearMe = page.getByRole("button", { name: "Near me" });
+  const nearMe = await mobileMapShellControl(page, "nearMe");
   await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
   await expect(page.getByRole("button", { name: /^Nearby \d+$/ })).toBeVisible({
     timeout: 20_000,
@@ -883,9 +881,7 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   await openPhoneMap(page, viewport, "no-preference");
   await page.waitForTimeout(500);
 
-  const filters = page
-    .locator(".mobileMapTopbar")
-    .getByRole("button", { name: /^Filters/ });
+  const filters = await mobileMapShellControl(page, "filters");
   await tapRenderedCentre(page, filters, viewport.width, "Filters");
   const filtersSheet = page.locator(
     '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
