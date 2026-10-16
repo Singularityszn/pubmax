@@ -10,6 +10,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
 import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
@@ -312,6 +313,9 @@ export default function UnverifiedPubSheet({
           base pins like this one, so the row lives on this sheet as well as on
           the curated Overview, and renders nothing for every other pub. */}
       <VenueSpoonsValueRow venueId={pub.id} visible={!drinkLensCategory} />
+      {/* The FSA's rating for this OSM pub, through its own fhrs:id tag when it
+          carries one (lib/fsaHygienePack.ts). Renders nothing otherwise. */}
+      <VenueHygiene venueId={pub.id} venueName={pub.name} address={pub.address} />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
