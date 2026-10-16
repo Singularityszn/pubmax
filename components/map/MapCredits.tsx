@@ -1,3 +1,4 @@
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { OSM_ATTRIBUTION, type BasemapProvider } from "@/components/map/canvas/tokens";
 
 /**
@@ -45,6 +46,9 @@ export default function MapCredits({ provider, basemap = "openfreemap" }: {
           </a>
         </p>
       )}
+      <p>
+        <DataCreditsLink>Every source and its licence</DataCreditsLink>
+      </p>
     </section>
   );
 }

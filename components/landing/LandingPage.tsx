@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
@@ -204,6 +205,7 @@ export default function LandingPage({
           <nav className="lpFooterSmallPrint" aria-label="Small print">
             <Link prefetch={false} href="/privacy">Privacy</Link>
             <Link prefetch={false} href="/terms">Terms of use</Link>
+            <DataCreditsLink />
             <a href={CONTACT_MAILTO}>Contact</a>
           </nav>
           <p className="lpFooterCredit">© 2026 PUBMAXX / Karan Manoharan</p>

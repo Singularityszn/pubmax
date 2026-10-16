@@ -14,6 +14,7 @@ import { ShieldCheck } from "lucide-react";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { discardBody } from "@/lib/responseBody";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import "./venueHygiene.css";
 
@@ -114,18 +115,21 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
   const title = rated ? `${base}, rated ${rated}` : base;
 
   return (
-    <a
-      className="venueHygiene"
-      href={`https://ratings.food.gov.uk/business/${rating.fhrsid}`}
-      target="_blank"
-      rel="noreferrer noopener"
-      title={title}
-      aria-label={title}
-    >
-      <ShieldCheck size={14} aria-hidden="true" />
-      <span className="venueHygieneLabel">Food hygiene</span>
-      <span className="venueHygieneScore">{rating.ratingValue}</span>
-      <span className="venueHygieneSource">FSA</span>
-    </a>
+    <>
+      <a
+        className="venueHygiene"
+        href={`https://ratings.food.gov.uk/business/${rating.fhrsid}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        title={title}
+        aria-label={title}
+      >
+        <ShieldCheck size={14} aria-hidden="true" />
+        <span className="venueHygieneLabel">Food hygiene</span>
+        <span className="venueHygieneScore">{rating.ratingValue}</span>
+        <span className="venueHygieneSource">FSA</span>
+      </a>
+      <DataCreditsLink className="venueHygieneCredits" />
+    </>
   );
 }
