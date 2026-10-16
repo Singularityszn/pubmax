@@ -39,9 +39,10 @@ export default function DataCreditsPage() {
         <p className="legalEyebrow">Small print</p>
         <h1 className="legalTitle">Where our data comes from</h1>
         <p className="legalLede">
-          Most of what you see on PUBMAXX is other people&rsquo;s open data, and
-          the prices are what drinkers logged. Every outside source is below,
-          with the licence we use it under and the credit it asks for.
+          Most of what you see on PUBMAXX is other people&rsquo;s open data. A
+          price is either what a drinker logged or what a pub&rsquo;s own menu
+          states. Every outside source is below, with the licence we use it
+          under and the credit it asks for.
         </p>
       </header>
 
@@ -50,9 +51,10 @@ export default function DataCreditsPage() {
         <p className="legalBody">
           The PUBMAXX code is ours. The data below is not: it belongs to its
           publishers and is used under the licence named beside it. A fact on a
-          pub&rsquo;s sheet names its source and the day we read it. Where a
-          source says nothing about a pub, the sheet says nothing either. We
-          never read a missing value as a &ldquo;no&rdquo;.
+          pub&rsquo;s sheet names its source. The hygiene rating, the listed
+          building and the Wikidata history also name the day we read them.
+          Where a source says nothing about a pub, the sheet says nothing
+          either. We never read a missing value as a &ldquo;no&rdquo;.
         </p>
         <p className="legalBody">
           OpenStreetMap data is &copy; OpenStreetMap contributors and available
@@ -85,10 +87,16 @@ export default function DataCreditsPage() {
                   ) : (
                     "Used under the publisher's own terms."
                   )}
-                  {" · "}
-                  <a href={credit.sourceUrl} className="legalLink">
-                    Source
-                  </a>
+                  {credit.sourceUrl ? (
+                    <>
+                      {" · "}
+                      <a href={credit.sourceUrl} className="legalLink">
+                        Source
+                      </a>
+                    </>
+                  ) : (
+                    " Each price links the page it was read from."
+                  )}
                 </p>
               </dd>
             </div>

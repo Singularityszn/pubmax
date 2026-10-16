@@ -21,6 +21,7 @@ import sitemap from "@/app/sitemap";
 import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
 import MapCredits from "@/components/map/MapCredits";
 import VenueHygiene from "@/components/map/VenueHygiene";
+import CoffeePilotSheet from "@/components/map/CoffeePilotSheet";
 import DeskDataCredit from "@/components/nearme/DeskDataCredit";
 import { creditForPack, DATA_CREDITS, DATA_CREDITS_PATH } from "@/lib/dataCredits";
 import { READ_PHASE_DELAY_MS } from "@/lib/useStaggeredRead";
@@ -101,8 +102,24 @@ describe("the credits table", () => {
     expect(byId.get("tfl")?.attribution).toBe("Powered by TfL Open Data");
     expect(new Set(DATA_CREDITS.map((credit) => credit.id)).size).toBe(DATA_CREDITS.length);
     for (const credit of DATA_CREDITS) {
-      expect(credit.sourceUrl, credit.id).toMatch(/^https:\/\//);
+      if (credit.sourceUrl !== null) expect(credit.sourceUrl, credit.id).toMatch(/^https:\/\//);
       if (credit.licence) expect(credit.licence.url, credit.id).toMatch(/^https:\/\//);
+    }
+  });
+});
+
+describe("the published menu prices", () => {
+  it("are credited to the menus they were read from, never to drinkers", () => {
+    const { updates } = JSON.parse(readFileSync(join(process.cwd(), "public/data/drink_price_updates/latest.json"), "utf8")) as {
+      updates: { source: { label: string; licence: string } }[];
+    };
+    const ids = new Set(DATA_CREDITS.map((credit) => credit.id));
+    const published = updates.filter((row) => !/demo/i.test(row.source.label));
+    expect(published.length).toBeGreaterThan(0);
+    for (const { source } of published) {
+      // Every published row is a pub's or a chain's own menu.
+      expect(source.licence, source.label).toMatch(/first-party publisher/);
+      expect(ids.has(/^Greene King/.test(source.label) ? "greene-king-menus" : "pub-menus"), source.label).toBe(true);
     }
   });
 });
@@ -120,7 +137,8 @@ describe("/credits", () => {
       expect(row?.querySelector("dt")?.textContent).toBe(credit.name);
       expect(row?.textContent).toContain(credit.attribution);
       const hrefs = [...(row?.querySelectorAll("a") ?? [])].map((link) => link.getAttribute("href"));
-      expect(hrefs).toContain(credit.sourceUrl);
+      if (credit.sourceUrl) expect(hrefs).toContain(credit.sourceUrl);
+      else expect(row?.textContent).toContain("Each price links the page it was read from.");
       if (credit.licence) expect(hrefs).toContain(credit.licence.url);
       else expect(row?.textContent).toContain("Used under the publisher's own terms.");
     }
@@ -144,6 +162,13 @@ describe("the surfaces that print a credit link to /credits", () => {
     ["the phone map credits", () => renderToStaticMarkup(createElement(MapCredits, { provider: "openfreemap" }))],
     ["the place-index credit", () => renderToStaticMarkup(createElement(PlaceIndexCredit, { className: "x" }))],
     ["the desk credit", () => renderToStaticMarkup(createElement(DeskDataCredit))],
+    [
+      "the coffee pilot sheet",
+      () =>
+        renderToStaticMarkup(
+          createElement(CoffeePilotSheet, { cafe: { id: "c1", name: "A Cafe", address: "", lat: 51.52, lng: -0.08, prices: [] } }),
+        ),
+    ],
   ])("%s", (_label, render) => {
     expect(creditLinks(render())).toHaveLength(1);
   });

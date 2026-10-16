@@ -11,6 +11,7 @@ import { OutOpenPlanCard } from "@/components/out/OutOpenPlanCard";
 import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import EditorialRail from "@/components/out/EditorialRail";
 import { useOutListings } from "@/components/out/useOutListings";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -353,6 +354,10 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           </p>
         </section>
       ) : null}
+      <p className="outPlansFoot">
+        Each listing names the service it came from.{" "}
+        <DataCreditsLink className="outPlansFootLink" />
+      </p>
       </Screen>
     </main>
   );

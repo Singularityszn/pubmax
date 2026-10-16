@@ -15,6 +15,7 @@ import {
   venueStatusBadge,
 } from "@/lib/historicFilter";
 import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 // One notable pub's cited heritage story, with the record already loaded. The
 // page (page.tsx) reads the dataset and hands the record here; this component
@@ -143,7 +144,7 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
         </section>
 
         <footer className="hdProvenance">
-          Cited from Wikipedia and Wikidata. Never invented.
+          Cited from Wikipedia and Wikidata. Never invented. <DataCreditsLink />
         </footer>
       </Screen>
     </>

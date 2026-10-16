@@ -20,7 +20,8 @@ export type DataCredit = {
   id: string;
   /** Who publishes it. */
   name: string;
-  sourceUrl: string;
+  /** The publisher's page, or null where every row names its own publisher's page. */
+  sourceUrl: string | null;
   /** Null where the data is used under the publisher's own terms rather than an open licence. */
   licence: DataLicence | null;
   /** The credit line, word for word where the publisher asks for exact words. */
@@ -175,6 +176,24 @@ export const DATA_CREDITS: readonly DataCredit[] = [
     licence: null,
     attribution: "Oliver Clegg's SpoonMe report, credited and linked wherever its ranking is printed. It states no licence.",
     usedFor: "The Spoons value ranking, which is SpoonMe's reading of Wetherspoon menus, never ours.",
+    packMarks: [],
+  },
+  {
+    id: "greene-king-menus",
+    name: "Greene King pub menus",
+    sourceUrl: "https://www.greeneking.co.uk/",
+    licence: null,
+    attribution: "Each price names the Greene King menu it was read from and the day it was read.",
+    usedFor: "Listed drink prices at Greene King pubs, read from the chain's own menus. They are the publisher's prices, never a drinker's log.",
+    packMarks: [],
+  },
+  {
+    id: "pub-menus",
+    name: "Pubs' own websites",
+    sourceUrl: null,
+    licence: null,
+    attribution: "Each price names the pub's own page it was read from and the day it was read.",
+    usedFor: "Listed drink prices a pub publishes on its own website, read and credited to that page. They are the pub's prices, never a drinker's log.",
     packMarks: [],
   },
 ];
