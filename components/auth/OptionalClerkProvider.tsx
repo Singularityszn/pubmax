@@ -14,7 +14,6 @@ type OptionalClerkProviderProps = {
 
 type ConfiguredClerkTreeProps = {
   appearance?: ComponentProps<typeof ClerkProvider>["appearance"];
-  children: ReactNode;
 };
 
 type ConfiguredClerkTreeComponent = (props: ConfiguredClerkTreeProps) => React.JSX.Element;
@@ -23,6 +22,12 @@ type ConfiguredClerkTreeComponent = (props: ConfiguredClerkTreeProps) => React.J
  * Loads Clerk after first paint. Children and AuthProvider are never behind
  * React.lazy/Suspense, so cold opens keep map, nav and tab bar visible while the
  * optional Clerk chunk downloads.
+ *
+ * The Clerk tree mounts as a SIBLING after the children and never wraps them.
+ * Wrapping would change the element type above the product when the chunk
+ * lands, and React would remount the whole app (map, WebGL, tab bar, mount
+ * fetches, typed input). Clerk-dependent controls reach the product through
+ * ClerkAccountSlot portals instead.
  */
 export default function OptionalClerkProvider({
   appearance,
@@ -41,15 +46,10 @@ export default function OptionalClerkProvider({
     };
   }, []);
 
-  const product = ClerkTree ? (
-    <ClerkTree appearance={appearance}>{children}</ClerkTree>
-  ) : (
-    children
-  );
-
   return (
     <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
-      {product}
+      {children}
+      {ClerkTree ? <ClerkTree appearance={appearance} /> : null}
     </AuthProvider>
   );
 }
