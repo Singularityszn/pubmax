@@ -106,8 +106,8 @@ export default function CrawlsPageClient({ pack, encodedStory }: {
     ? curatedCrawls.filter((crawl) => activePackCrawlIds.has(crawl.id))
     : curatedCrawls;
 
-  // Read ?s= from the live search params so client navigations stay in sync.
-  // decode never throws, so a garbage param falls through to the empty state.
+  // The server supplies ?s= again on navigation. Invalid values fall through
+  // to the directory because decodeCrawlStory never throws.
   const story = useMemo<CrawlStory | null>(
     () => decodeCrawlStory(encodedStory),
     [encodedStory],

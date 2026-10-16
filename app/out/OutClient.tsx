@@ -61,10 +61,8 @@ function OutListingCount({ count, lead }: { count: number; lead: ReturnType<type
 }
 
 export default function OutClient({ day, initialAnswer }: { day: OutDayWindow; initialAnswer?: HeldOutAnswer }) {
-  // Out follows the city Places set. The server snapshot is null, so the first
-  // paint asks for London and the browser's own answer takes over after mount:
-  // this page is CDN-eligible by way of nothing personal being in its document,
-  // and a city read at render time would put a stranger's choice in it.
+  // The preferred-city server snapshot stays null so hydration matches the
+  // public London seed. The browser's stored choice takes over after mount.
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
