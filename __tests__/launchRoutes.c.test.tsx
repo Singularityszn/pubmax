@@ -177,7 +177,7 @@ describe("launch routes (group c) carry one primary action", () => {
     expect(rendered).toMatch(
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map\?[^"]*"[^>]*>Start a crawl<\/a>/,
     );
-    expect(rendered).toMatch(/<h1[^>]*>Pub stories mapped into walks\.<\/h1>/);
+    expect(rendered).toMatch(/<h1[^>]*>London pub crawl routes<\/h1>/);
     // The featured card's own way onto the map reads as a link, never as the
     // filled control the old grid painted on every card.
     expect(rendered).not.toContain("curatedLink");

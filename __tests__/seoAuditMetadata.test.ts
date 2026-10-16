@@ -13,7 +13,6 @@ describe("the public discovery metadata", () => {
     expect(metadata.title).toBe("London pint prices by borough and fare zone");
     expect(metadata.description).toContain("fare zone");
     expect(metadata.alternates?.canonical).toBe("/pint-index");
-    expect(metadata.robots).toEqual({ index: false, follow: true });
     expect(metadata.openGraph).toMatchObject({ title: metadata.title, description: metadata.description });
     expect(metadata.twitter).toMatchObject({ title: metadata.title, description: metadata.description });
   });

@@ -30,7 +30,7 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
-import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
+import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
@@ -118,7 +118,7 @@ import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
-import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { EMPTY_KIND_OBSERVED_AT, whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
   laneKindFacets,
@@ -212,6 +212,46 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   },
 ];
 
+const EMPTY_SERVER_ROWS: WhatsOnRow[] = [];
+
+function initialWhatsOnView(answer: LoadWhatsOnResult | null): Pick<
+  WhatsOnTonight, "rows" | "status" | "sourceFreshnessKind" | "kindObservedAt"
+> {
+  const rows = answer?.rows ?? EMPTY_SERVER_ROWS;
+  return {
+    rows,
+    status: answer?.readStatus === "ready" ? rows.length > 0 ? "ready" : "empty" : "error",
+    sourceFreshnessKind: answer?.sourceFreshnessKind ?? "unknown",
+    kindObservedAt: answer?.kindObservedAt ?? EMPTY_KIND_OBSERVED_AT,
+  };
+}
+
+type InitialListings = {
+  whatsOn: LoadWhatsOnResult | null;
+  out: TonightOutAnswer;
+  renderedAt: number;
+};
+
+function useInitialListings(
+  seed: InitialListings | undefined,
+  liveWhatsOn: WhatsOnTonight,
+  liveOut: ReturnType<typeof useOutListings>,
+) {
+  const [initial, setInitial] = useState(seed ?? null);
+  // Both browser reads replace the public server answer, including failures.
+  useEffect(() => {
+    if (liveWhatsOn.status === "idle" || liveOut.pending) return;
+    void Promise.resolve().then(() => setInitial(null));
+  }, [liveWhatsOn.status, liveOut.pending]);
+  const clearInitial = useCallback(() => setInitial(null), []);
+  return {
+    whatsOn: initial ? initialWhatsOnView(initial.whatsOn) : liveWhatsOn,
+    out: initial?.out ?? liveOut,
+    renderedAt: initial?.renderedAt,
+    clearInitial,
+  };
+}
+
 export default function TonightClient({
   quietPint = null,
   softPlansWindow = false,
@@ -220,11 +260,7 @@ export default function TonightClient({
   cheapPints,
   initialListings,
 }: {
-  initialListings?: {
-    whatsOn: LoadWhatsOnResult | null;
-    out: TonightOutAnswer;
-    renderedAt: number;
-  };
+  initialListings?: InitialListings;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
   /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
@@ -280,30 +316,12 @@ export default function TonightClient({
     { pubOnly: true },
   );
   const liveOut = useOutListings("tonight");
-  const [initial, setInitial] = useState(initialListings ?? null);
-  // Keep the public server answer through hydration. Once both browser reads
-  // settle, their answers own the page, including failures and later retries.
-  useEffect(() => {
-    if (liveWhatsOn.status === "idle" || liveOut.pending) return;
-    void Promise.resolve().then(() => setInitial(null));
-  }, [liveWhatsOn.status, liveOut.pending]);
-  const rows = initial ? initial.whatsOn?.rows ?? [] : liveWhatsOn.rows;
-  const status = initial
-    ? initial.whatsOn?.readStatus === "ready"
-      ? rows.length > 0 ? "ready" : "empty"
-      : "error"
-    : liveWhatsOn.status;
-  const sourceFreshnessKind = initial
-    ? initial.whatsOn?.sourceFreshnessKind ?? "unknown"
-    : liveWhatsOn.sourceFreshnessKind;
-  const kindObservedAt = initial
-    ? initial.whatsOn?.kindObservedAt ?? {}
-    : liveWhatsOn.kindObservedAt;
+  const initialAnswer = useInitialListings(initialListings, liveWhatsOn, liveOut);
+  const { rows, status, sourceFreshnessKind, kindObservedAt } = initialAnswer.whatsOn;
+  const { renderedAt, clearInitial } = initialAnswer;
   const { retry } = liveWhatsOn;
   const { retry: retryOut } = liveOut;
-  const outBody = initial ? initial.out.body : liveOut.body;
-  const outFailed = initial ? initial.out.failed : liveOut.failed;
-  const outPending = initial ? initial.out.pending : liveOut.pending;
+  const { body: outBody, failed: outFailed, pending: outPending } = initialAnswer.out;
   const selectableVenueIds = useMemo(
     () => {
       if (mapSelectableVenueIds === undefined) return undefined;
@@ -329,17 +347,17 @@ export default function TonightClient({
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
-    const now = initial?.renderedAt ?? Date.now();
+    const now = renderedAt ?? Date.now();
     return tonightLedeComposition(rows, outAnswer, paintStatus, now, selectableVenueIds);
-  }, [rows, paintStatus, outAnswer, selectableVenueIds, initial]);
+  }, [rows, paintStatus, outAnswer, selectableVenueIds, renderedAt]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
   const retryListings = useCallback(() => {
-    setInitial(null);
+    clearInitial();
     if (retryWhatsOnLane) retry();
     if (retryOutLane) retryOut();
-  }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
+  }, [retryWhatsOnLane, retryOutLane, retry, retryOut, clearInitial]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
@@ -461,9 +479,9 @@ export default function TonightClient({
         renderedGroups: grouped,
         outEvents,
         kindObservedAt,
-        now: initial?.renderedAt,
+        now: renderedAt,
       }),
-    [grouped, outEvents, kindObservedAt, initial],
+    [grouped, outEvents, kindObservedAt, renderedAt],
   );
   const checked = freshnessLabel(sourceFreshnessKind, whatsOnObservedAt);
   // The ordering claim rides the What's-On credit, so it is only made when
