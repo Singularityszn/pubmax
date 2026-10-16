@@ -287,30 +287,35 @@ function hasIndependentRouteBudgetClause(value: string, budgetClause: string, af
 			|| (/\bserves\b/i.test(value) && /^\s*(?:,|$)/.test(after)));
 }
 
+function routeBudgetClause(before: string, prices: ReturnType<typeof planPriceAmounts>, priceIndex: number): string {
+	const drinkClause = prices.filter((other) => other.drink && other.end <= priceIndex).at(-1);
+	const clauses = before.slice(drinkClause ? drinkClause.end + (drinkClause.drink?.afterEnd ?? 0) : 0).split(/,(?!\d)/);
+	return drinkClause && clauses.length === 1
+		? (clauses[0] ?? "").replace(/^\s*(?:\b(?:and|plus)\b|[+&])/i, "")
+		: clauses.at(-1) ?? "";
+}
+
 /** Bind each amount before exempting drink rates or a pub-route budget. */
 function hasMealPriceConstraint(value: string, explicitFoodIntent = false): boolean {
 	return planPriceSubjectText(value).split(/[;!?]|\.(?!\d)/).some((value) => {
 		const foodItems = [...value.matchAll(new RegExp(String.raw`\b${PLAN_FOOD_ITEM}\b`, "gi"))]
 			.filter((item) => !isGenericFoodAmenity(value, item));
 		if (!foodItems.length && !explicitFoodIntent) return false;
-		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?!(?:with|and|plus|per|each|afterwards|later)\b)${PLAN_FOOD_SUBJECT}`, "i");
+		const foodAfterPrice = new RegExp(String.raw`^\s*(?:for\s+)?(?!\s|[+&]|(?:with|and|plus|per|each|afterwards|later)\b)${PLAN_FOOD_SUBJECT}`, "i");
 		const prices = planPriceAmounts(value);
 		return prices.some((price) => {
 			const before = value.slice(0, price.index);
 			const after = value.slice(price.end);
 			if (price.drink?.perServing) return false;
 			if (price.drink) {
-				if (foodAfterPrice.test(after)) return true;
+				const afterDrink = after.slice(price.drink.afterEnd ?? 0);
+				if (foodAfterPrice.test(afterDrink)) return true;
 				if (price.drink.beforeStart !== null
 					&& pricedDrinkIncludesMeal(before.slice(0, price.drink.beforeStart), explicitFoodIntent)) return true;
-				return pricedDrinkListIncludesMeal(after.slice(price.drink.afterEnd ?? 0), explicitFoodIntent);
+				return pricedDrinkListIncludesMeal(afterDrink, explicitFoodIntent);
 			}
 			if (foodAfterPrice.test(after)) return true;
-			const drinkClause = prices.filter((other) => other.drink && other.end <= price.index).at(-1);
-			const clauses = before.slice(drinkClause ? drinkClause.end + (drinkClause.drink?.afterEnd ?? 0) : 0).split(/,(?!\d)/);
-			const budgetClause = drinkClause && clauses.length === 1
-				? (clauses[0] ?? "").replace(/^\s*(?:\b(?:and|plus)\b|[+&])/i, "")
-				: clauses.at(-1) ?? "";
+			const budgetClause = routeBudgetClause(before, prices, price.index);
 			if (/\b(?:pubs?|bars?|stops?|crawl|route)\b/i.test(budgetClause)
 				&& /\b(?:and|with)\s+(?:a\s+)?budget(?:\s+of)?\s*$/i.test(budgetClause)) return false;
 			if (price.routeBudget === "explicit"

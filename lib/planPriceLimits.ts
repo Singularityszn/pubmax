@@ -1,7 +1,7 @@
 export const PLAN_PRICE_AMOUNT = String.raw`(?:£\s*(\d+(?:[.,]\d{1,2})?)(?!\d|[.,]\d)|(\d+(?:[.,]\d{1,2})?)\s*(?:pounds?|quid)\b)`;
 const LIMIT = String.raw`(?:under|below|up to|less than|max(?:imum)?)`;
 export const PLAN_DRINK_ITEM = String.raw`(?:pints?|drinks?|beers?)`;
-const MEASURED_SERVING = String.raw`(?<!£\s*|[\d.,])\d+(?:[.,]\d+)?\s*[a-z]+`;
+const MEASURED_SERVING = String.raw`\d+(?:[.,]\d+)?\s*[a-z]+`;
 const DRINK_CONTAINER = String.raw`(?:bottles?|cans?|glass(?:es)?|shots?|jugs?|litres?|packs?|pitchers?|steins?|six-packs?)`;
 const SERVING_QUANTITY = String.raw`(?:an?|the|each|one|two|three|four|five|six|seven|eight|nine|ten|half|quarter|double|triple|several|few|dozen|\d+(?:/\d+)?)`;
 const SERVING_PREFIX = String.raw`(?:(?:${MEASURED_SERVING}|bottled|canned|${SERVING_QUANTITY})[ -]+(?:of\s+)?|${SERVING_QUANTITY}\s*[x×]\s*)`;
@@ -93,12 +93,13 @@ export function planPriceAmounts(query: string): Array<{
   } | null;
 }> {
   query = planPriceSubjectText(query);
+  const amountsMasked = query.replace(new RegExp(PLAN_PRICE_AMOUNT, "gi"), (amount: string) => "£".repeat(amount.length));
   return [...query.matchAll(new RegExp(PLAN_PRICE_AMOUNT, "gi"))].map((amount) => {
     const end = amount.index + amount[0].length;
     const before = query.slice(0, amount.index);
     const after = query.slice(end);
     const explicitRouteBudget = EXPLICIT_ROUTE_BUDGET.test(before);
-    const beforeDrink = PLAN_DRINK_BEFORE_PRICE.exec(before);
+    const beforeDrink = PLAN_DRINK_BEFORE_PRICE.exec(amountsMasked.slice(0, amount.index));
     const afterDrink = PLAN_DRINK_AFTER_PRICE.exec(after);
     return {
       index: amount.index,
