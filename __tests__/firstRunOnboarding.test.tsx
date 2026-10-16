@@ -822,7 +822,9 @@ describe("first-run handoff to the planner", () => {
     expect(window.sessionStorage.getItem(handoffKey)).toBe(prior ? older : null);
     expect(openPlanner).toHaveBeenCalledOnce();
     expect(openPlanner).toHaveBeenCalledWith({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "six" });
-    const href = new URL(onboardingPlanHref(openPlanner.mock.calls[0][0]), "http://localhost");
+    const firstCall = openPlanner.mock.calls[0];
+    if (!firstCall) throw new Error("The planner did not receive the onboarding choices.");
+    const href = new URL(onboardingPlanHref(firstCall[0]), "http://localhost");
     expect(href.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
     expect(href.searchParams.get("from")).toBe("onboarding");
   });
