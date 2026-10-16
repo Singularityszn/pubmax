@@ -58,6 +58,7 @@ export type LandingRailRow = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   priceGbp: number;
   /** Walking minutes from the reader, present only under a location fix. */
   walkMinutes?: number;
