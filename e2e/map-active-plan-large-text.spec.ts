@@ -50,21 +50,14 @@ for (const platform of ["ios", "android"] as const) {
             }));
           }
         }, { theme, state, id, startTime });
-        await page.goto("/map");
+        // A picked stop is a crawl being built. The phone sheet's one plan
+        // button only adds to a crawl already in progress (with none it hands
+        // the pub to Plan), so the picked state arrives on the map's own share
+        // URL for a one-stop crawl.
+        await page.goto(state === "picked" ? `/map?mode=build&pubs=${venues[0]!.id}` : "/map");
         const card = page.locator(".mapPeek");
         const door = card.locator(".mobilePlanActivation.isActive");
         await expect(card).toHaveAttribute("data-state", "answer", { timeout: 60_000 });
-        if (state === "picked") {
-          await card.locator(".mapPeekAnswer").click();
-          const venue = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-          await expect(venue).toBeVisible();
-          const pick = venue.locator(".mobileVenuePeekSummary button");
-          await expect(pick).toHaveText("Plan stop");
-          await pick.click();
-          await expect(pick).toHaveText("In plan");
-          await venue.locator(".surfaceNavHome").click();
-          await expect(venue).toHaveCount(0);
-        }
         await expect(door.locator("strong")).toHaveText(state === "active" ? "3-stop plan" : "1 stop picked");
         await expect(door.locator("small")).toHaveText(state === "active" ? "Edit route" : "Add stops");
         await page.evaluate(() => document.fonts.ready);

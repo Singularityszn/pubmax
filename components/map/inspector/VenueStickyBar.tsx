@@ -36,16 +36,18 @@ export default function VenueStickyBar({
   const footerSlot = useSheetFooterSlot();
   const pubVenue = isPubVenue(venue);
   // NO PRIMARY IN THIS BAR. The one painted price action is the Overview's
-  // price door (lib/pintTrust.ts, `overviewPriceDoor`), and on a phone the peek
-  // strip's "Plan stop" is the one painted plan action, so "Make it Stop 1"
-  // rides here as a ghost beside Crawl and Share. "Add price" used to sit here
-  // as a second painted price door and is folded into the Overview's one.
+  // price door (lib/pintTrust.ts, `overviewPriceDoor`). On a phone the peek
+  // strip's button is the ONE plan action ("Make it Stop 1", or "Plan stop"
+  // while a crawl is being built), so the ghost here stands down wherever the
+  // peek strip shows (venueSheet.css): two plan doors on one phone sheet was a
+  // choice nobody could read (UX sprint, 15 Oct 2026). "Add price" used to sit here as a second painted price door and is
+  // folded into the Overview's one.
   const bar = (
     <div className="venueSheetStickyBar" role="toolbar" aria-label="Venue actions">
       {pubVenue && onAcceptStop1 ? (
         <button
           type="button"
-          className="venueSheetStickyGhost"
+          className="venueSheetStickyGhost venueSheetStickyStop1"
           onClick={onAcceptStop1}
           aria-label={`Make ${venue.name} Stop 1`}
         >

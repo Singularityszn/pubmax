@@ -666,6 +666,13 @@
    the sheet's visible bottom edge. The legacy 641–768 inline drawer keeps the sticky bar rules above
    (`:not(.mobileSharedSheet)`); this only touches the ≤640 portal footer. */
 @media (max-width: 640px) {
+  /* The peek strip's one plan button owns "Make it Stop 1" on a phone, at the
+     same breakpoint that shows the strip (mobileMapShell.css), so the bar's
+     ghost stands down here rather than offer the same plan door twice. */
+  .venueSheetStickyBar .venueSheetStickyStop1 {
+    display: none;
+  }
+
   .mobileSharedSheetFooter .venueSheetStickyBar {
     position: static;
     margin: 0;

@@ -5854,9 +5854,11 @@ export default function PubMap({
   ) : null;
 
   /* The peek row: the price this lens can vouch for, the walk from the reader's
-     own point, and the crawl toggle. Adding a pub to the crawl you are building
-     is a different capability from "Make it Stop 1", which starts one plan around
-     one accepted pub, so the peek carries three columns. */
+     own point, and the ONE plan action. Two coral-weight plan doors on one sheet
+     ("Plan stop" here, "Make it Stop 1" in the bar below) cost the reader a
+     choice they could not read (UX sprint, 15 Oct 2026). The one button follows
+     the night: with no crawl being built it is "Make it Stop 1", which hands the
+     pub to Plan; once a crawl is being built it adds to that crawl. */
   function renderVenuePeekSummary(selectedVenue: Venue) {
     const selectedLensPrice = activeLensPrices?.get(selectedVenue.id) ?? null;
     // THE PEEK ASKS THE ONE PRECEDENCE. It used to test `cheapestPrice` itself
@@ -5933,17 +5935,24 @@ export default function PubMap({
           </strong>
           <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
         </span>
-        {/* Adding a pub to the crawl you are building is a different capability
-            from "Make it Stop 1", which starts one plan around one accepted
-            pub. Keeping both is why the peek has three columns. */}
         {selectedVenueIsPub ? (
-          <button
-            type="button"
-            aria-pressed={builtIds.includes(selectedVenue.id)}
-            onClick={() => toggleBuiltStop(selectedVenue.id)}
-          >
-            {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
-          </button>
+          builtIds.length > 0 ? (
+            <button
+              type="button"
+              aria-pressed={builtIds.includes(selectedVenue.id)}
+              onClick={() => toggleBuiltStop(selectedVenue.id)}
+            >
+              {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={acceptStop1}
+              aria-label={`Make ${selectedVenue.name} Stop 1`}
+            >
+              Make it Stop 1
+            </button>
+          )
         ) : null}
       </div>
     );

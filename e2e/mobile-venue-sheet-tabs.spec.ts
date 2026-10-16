@@ -129,8 +129,9 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   await expect(toolbar).toHaveAttribute("aria-label", "Venue actions");
   await expectInViewport(toolbar, "Venue actions toolbar", page);
 
+  // A control that stands down by CSS has no box and is not a command.
   const actions = await toolbar.locator("button").evaluateAll((buttons) =>
-    buttons.map((button) => {
+    buttons.filter((button) => button.getClientRects().length > 0).map((button) => {
       const rect = button.getBoundingClientRect();
       return {
         name: button.getAttribute("aria-label") ?? button.textContent?.trim() ?? "unnamed action",
@@ -143,13 +144,15 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   // The toolbar carries no price action: the Overview's one price door owns
-  // that (lib/pintTrust.ts, `overviewPriceDoor`). "Make <venue> Stop 1" rides
-  // as a ghost when acceptance is offered; this spec covers the tab strip's
-  // touch scrolling, so it asserts the commands the strip must keep reachable.
+  // that (lib/pintTrust.ts, `overviewPriceDoor`). On a phone it carries no
+  // plan door either: the peek strip's one button owns "Make <venue> Stop 1"
+  // (UX sprint, 15 Oct 2026). This spec covers the tab strip's touch
+  // scrolling, so it asserts the commands the strip must keep reachable.
   expect(actions.map((action) => action.name)).toEqual(
     expect.arrayContaining(["Crawl", "Share Arnos Arms"]),
   );
   expect(actions.map((action) => action.name)).not.toContain("Add a price at Arnos Arms");
+  expect(actions.map((action) => action.name)).not.toContain("Make Arnos Arms Stop 1");
 
   for (const action of actions) {
     expect(action.width, `${action.name} width should be at least 44px`).toBeGreaterThanOrEqual(44);
