@@ -1,6 +1,6 @@
 import type { Route } from "next";
 
-export type PrimaryNavKey = "now" | "map" | "places" | "out" | "plan" | "you";
+export type PrimaryNavKey = "map" | "now" | "plan" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
@@ -10,33 +10,32 @@ export type PrimaryNavItem = {
 };
 
 /**
- * The six durable destinations in the PUBMAXX shell, and the ONE vocabulary for
- * every bar that names them: the phone dock, the desktop SiteNav and the landing
- * bar all render this list, so their labels cannot drift apart again.
+ * The FOUR durable destinations in the PUBMAXX shell, and the ONE vocabulary
+ * for every bar that names them: the phone dock, the desktop SiteNav and the
+ * landing bar all render this list, so their labels cannot drift apart again.
  *
- * The row follows the loop: find (Tonight, Map, Places, Out), plan (Plan), and
- * You. Social and Moment are not front doors. Social answers a stranger with
- * "Sign in to use Social.", so it lives in the desktop More menu and on the You
- * hub; Moment is a compose action, never a location, and is modelled separately
- * below.
+ * Product owner, Oct 2026 UX audit: six tabs were two doors too many, so the
+ * row is a four-door loop, in this order. Map finds the pint (the answer the
+ * product exists to give), Tonight says what is worth going out for, Plan turns
+ * that into a route, and You keeps what the night left behind. Social and
+ * Moment are not front doors. Social answers a stranger with "Sign in to use
+ * Social.", so it lives in the desktop More menu and on the You hub; Moment is
+ * a compose action, never a location, and is modelled separately below.
+ *
+ * Two former tabs folded into the four. Out IS Tonight now: /out 308s to
+ * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
+ * listings. Places is no longer a destination: the city picker still lives at
+ * /places, reached from the map's own city chip and the footer's "Pick your
+ * city", because choosing a city is a setting a reader makes once, not a place
+ * they go back to every night. Neither /out nor /places lights a tab.
  *
  * The `now` key reads "Tonight" and opens /tonight at every hour, so the word
  * and the page always agree. The daytime door is the page's own Day | Tonight
  * segment. Map stays canonical /map.
- *
- * Places sits beside Map because the two answer the same question in opposite
- * order: Map opens ONE city, and Places is where a reader chooses WHICH. It is a
- * destination rather than a control inside Map, because the city it sets is read
- * by Out and Near as well, so it was never the map's own setting to own.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
-  { key: "now", href: "/tonight", label: "Tonight", match: ["/tonight"] },
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
-  // The picker's retired address, /choose-city, is NOT in the match set: it has
-  // no page any more and 308s at the edge (proxy.ts), so no client is ever on
-  // that pathname.
-  { key: "places", href: "/places", label: "Places", match: ["/places"] },
-  { key: "out", href: "/out", label: "Out", match: ["/out"] },
+  { key: "now", href: "/tonight", label: "Tonight", match: ["/tonight"] },
   // Plan owns the composer and a shared plan at /plan/[id].
   { key: "plan", href: "/plan", label: "Plan", match: ["/plan"] },
   // You owns the profile surfaces under /u only. /pal (Pub Pal, the AI

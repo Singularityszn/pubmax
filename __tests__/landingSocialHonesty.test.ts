@@ -7,6 +7,7 @@ vi.mock("next/dynamic", () => ({
   default: () => () => null,
 }));
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ prefetch: () => Promise.resolve() }),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));

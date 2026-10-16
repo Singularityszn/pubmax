@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CREATE_FAB_ACTIONS,
   createFabMenuVisible,
+  createFabTitle,
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
@@ -31,6 +32,16 @@ describe("what the create action offers", () => {
       "price",
       "plan",
     ]);
+  });
+
+  it("says what the disc creates in its title, read off the same rows", () => {
+    // UX audit, Oct 2026: a bare coral + did not say what it makes. The name
+    // stays "Create"; the title is the longer answer.
+    expect(createFabTitle(CREATE_FAB_ACTIONS)).toBe(
+      "Post a moment, log a price or start a plan",
+    );
+    expect(createFabTitle([{ label: "Log a price" }])).toBe("Log a price");
+    expect(createFabTitle([])).toBe("");
   });
 
   it("sends each row to its own destination", () => {

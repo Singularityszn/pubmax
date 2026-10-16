@@ -84,11 +84,11 @@ test.describe("mobile bottom-tab navigation", () => {
   test("Create logs a price in the city chosen from Places", async ({ page }) => {
     test.slow();
     await installDeterministicMapBasemap(page);
-    await page.goto("/places");
-    await page.getByRole("link", { name: /Manchester/ }).click();
-    await expect(page).toHaveURL(/\/places\?city=manchester$/);
+    // Manchester is no longer a row on the list (it has no listed prices), so
+    // its panel is reached by its own address.
+    await page.goto("/places?city=manchester");
     await page.getByTestId("places-set-city").click();
-    await expect(page.getByText("The map, Out and Near now open on Manchester.")).toBeVisible();
+    await expect(page.getByText("The map and Near now open on Manchester.")).toBeVisible();
 
     const create = page.getByRole("button", { name: "Create", exact: true });
     await create.click();
@@ -121,14 +121,24 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
   });
 
-  test("Out tab routes to /out", async ({ page }) => {
+  test("the dock is four doors in loop order, and Out is Tonight", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Out", exact: true }).click();
+    const tabs = primaryNav(page).locator(".mobileTab");
+    await expect(tabs).toHaveCount(4);
+    expect(
+      await tabs.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label"))),
+    ).toEqual(["Map", "Tonight", "Plan", "You"]);
+    await expect(primaryNav(page).getByRole("link", { name: "Out", exact: true })).toHaveCount(0);
+    await expect(primaryNav(page).getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
 
-    await expect(page).toHaveURL(/\/out$/);
-    await expect(page.getByTestId("out-screen")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1, name: "What’s on tonight." })).toBeVisible();
+    // An old /out link lands on Tonight, which lights the Tonight tab.
+    await page.goto("/out");
+    await expect(page).toHaveURL(/\/tonight$/);
+    await expect(page.getByTestId("tonight-screen")).toBeVisible();
+    await expect(
+      primaryNav(page).getByRole("link", { name: "Tonight", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   test("create action opens Moment with the live return path", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER.
 //
@@ -394,6 +394,14 @@ for (const viewport of WIDTHS) {
   });
 }
 
+// Places is not a nav door any more (Oct 2026): a pointer reaches the picker
+// from the map's own city chip, whose list ends in "Search a UK town".
+async function openPlacesFromMapChip(page: Page) {
+  await page.locator(".citySwitcherTrigger:visible").first().click();
+  await page.getByRole("link", { name: "Search a UK town", exact: true }).click();
+  await expect(page).toHaveURL(/\/places$/);
+}
+
 test("consent refreshes after a Places city selection and pointer return from Map", async ({ page }) => {
   test.setTimeout(90_000);
   const beacons = await prepareUnanswered(page, { width: 768, height: 1024 });
@@ -416,9 +424,7 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await expect.poll(() => page.evaluate(() =>
     window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBeNull();
 
-  await page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Places", exact: true }).click();
-  await expect(page).toHaveURL(/\/places$/);
+  await openPlacesFromMapChip(page);
   await expect(prompt).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => page.evaluate(() =>
     window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBe("analytics-consent");
@@ -428,9 +434,7 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await page.getByRole("navigation", { name: "Site navigation", exact: true })
     .getByRole("link", { name: "Map", exact: true }).click();
   await expect(page).toHaveURL(/\/map(?:\?|$)/);
-  await page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Places", exact: true }).click();
-  await expect(page).toHaveURL(/\/places$/);
+  await openPlacesFromMapChip(page);
   await expect(prompt).toHaveCount(0);
   await expect.poll(() => page.evaluate(() =>
     window.localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");

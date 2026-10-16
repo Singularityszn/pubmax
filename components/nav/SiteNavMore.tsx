@@ -1,8 +1,9 @@
 "use client";
 
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
-// not in the primary Tonight/Map/Places/Out/Plan/You row. Social lives here
-// rather than in that row: it is not a front door. Desktop ≥641 only -
+// not in the primary Map/Tonight/Plan/You row. Social lives here rather than
+// in that row: it is not a front door. SiteNav adds one action row of its own,
+// the light/dark theme, which left the header for this menu. Desktop ≥641 only -
 // CSS hides this entire control on phones so the compact bar stays unchanged.
 // Link and action items share one implementation. Esc closes; ArrowUp/Down
 // move focus.

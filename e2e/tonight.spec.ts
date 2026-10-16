@@ -304,13 +304,13 @@ test("the first-run dock leads with the loop and no tab asks a stranger to sign 
 
   const dock = page.getByRole("navigation", { name: "Primary" });
   const tabs = dock.getByRole("link");
-  await expect(tabs).toHaveText(["Tonight", "Map", "Places", "Out", "Plan", "You"]);
+  await expect(tabs).toHaveText(["Map", "Tonight", "Plan", "You"]);
   await expect(dock.locator('a[href^="/social"], a[href^="/moment"]')).toHaveCount(0);
 
   const hrefs = await tabs.evaluateAll((links) =>
     links.map((link) => link.getAttribute("href") ?? ""),
   );
-  expect(hrefs).toHaveLength(6);
+  expect(hrefs).toHaveLength(4);
   for (const href of hrefs) {
     const response = await page.goto(href, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${href} answers`).toBeLessThan(400);

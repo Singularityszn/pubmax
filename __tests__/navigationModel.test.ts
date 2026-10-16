@@ -8,15 +8,12 @@ import {
   primaryNavKeyForPath,
   safeMomentReturnTo,
 } from "@/components/nav/navigationModel";
-import { defined } from "@/__tests__/helpers/defined";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps six destinations on the loop and models Moment separately", () => {
+  it("keeps four destinations on the loop and models Moment separately", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
-      "Tonight",
       "Map",
-      "Places",
-      "Out",
+      "Tonight",
       "Plan",
       "You",
     ]);
@@ -25,14 +22,15 @@ describe("PUBMAXX primary navigation", () => {
     const keys: string[] = PRIMARY_NAV_ITEMS.map(({ key }) => key);
     expect(keys).not.toContain("social");
     expect(keys).not.toContain("moment");
+    // Out folded into Tonight, and Places is a setting, not a door.
+    expect(keys).not.toContain("out");
+    expect(keys).not.toContain("places");
   });
 
   it("sends every destination to its own shell", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
-      "/tonight",
       "/map",
-      "/places",
-      "/out",
+      "/tonight",
       "/plan",
       "/u/you",
     ]);
@@ -58,14 +56,13 @@ describe("PUBMAXX primary navigation", () => {
     expect(primaryNavKeyForPath("/moment")).toBeUndefined();
   });
 
-  it("lights Places for the tab, and claims no address the picker has left", () => {
-    const places = PRIMARY_NAV_ITEMS.find((item) => item.key === "places");
-    expect(places?.match).toEqual(["/places"]);
-    expect(primaryNavKeyForPath("/places")).toBe("places");
-    expect(primaryNavKeyForPath(defined("/places?city=manchester".split("?")[0]))).toBe("places");
-    // /choose-city has no page and 308s at the edge, so no client is on it.
+  it("claims no tab for the city picker or the folded Out address", () => {
+    // /places is reached from the map's city chip and the footer; it is a
+    // setting, so it lights no door. /out 308s to /tonight at the edge and
+    // /choose-city 308s to /places, so no client is on either pathname.
+    expect(primaryNavKeyForPath("/places")).toBeUndefined();
+    expect(primaryNavKeyForPath("/out")).toBeUndefined();
     expect(primaryNavKeyForPath("/choose-city")).toBeUndefined();
-    // Map and Places are separate destinations: neither may claim the other.
     expect(primaryNavKeyForPath("/map")).toBe("map");
     expect(primaryNavKeyForPath("/map/manchester")).toBe("map");
   });

@@ -46,14 +46,18 @@ export const commands: Command[] = [
     group: "Navigate",
     run: (ctx) => ctx.navigate("/tonight"),
   },
+  // Places is not a tab any more (the map's city chip and the footer reach
+  // it), but a reader who types "city" still deserves the picker.
   {
     id: "nav-places",
-    label: "Places",
+    label: "Pick your city",
     hint: "/places",
-    keywords: ["cities", "city", "choose city", "areas", "where"],
+    keywords: ["places", "cities", "city", "choose city", "areas", "where"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/places"),
   },
+  // Out folded into Tonight (/out 308s there), so the old word still finds
+  // the listings, at their new address.
   {
     id: "nav-near",
     label: "Near",
