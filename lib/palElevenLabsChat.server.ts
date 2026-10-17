@@ -12,7 +12,7 @@ import {
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { log } from "@/lib/log";
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
@@ -198,8 +198,11 @@ export async function runPalElevenLabsChatTurn(
   const unsupported = unsupportedPriceComparison(query);
   if (unsupported || recordedDrinkComparison(query)) {
     const result = await runAsk({ query, cityId, skipModel: true });
-    if (!unsupported && prior.conversationId) {
-      await registerPubPalToolTurn(prior.conversationId, {
+    // A first answer from the records opens no provider session, so it gets a
+    // local thread: the follow-up reads this turn back instead of starting blind.
+    const threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
+    if (threadId) {
+      await registerPubPalToolTurn(threadId, {
         query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
         cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
       });
@@ -209,7 +212,7 @@ export async function runPalElevenLabsChatTurn(
       message: result.answer,
       cards: result.cards,
       proposals: result.proposals,
-      conversationId: !unsupported ? prior.conversationId ?? "" : "",
+      conversationId: threadId,
       toolsUsed: result.toolsUsed,
     };
   }

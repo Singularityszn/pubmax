@@ -13,6 +13,7 @@ import { POST as webhook } from "@/app/api/pub-pal/tools/[toolName]/route";
 import { GET as venue } from "@/app/api/venue/[id]/route";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
 import { registerPubPalToolTurn, readOwnedPubPalToolTurn, __resetPubPalToolTurnStore } from "@/lib/pubPalToolTurnStore";
+import { isPalLocalThreadId } from "@/lib/pubPalConversationId";
 import { routeAskDeterministically, resolveAskPriceIntent } from "@/lib/ask/router";
 import { NAMED_MENU_PRICE_REQUESTS, JOURNEY_ENDPOINT_REQUESTS } from "./fixtures/askPriceSubjects";
 import { runAskTool } from "@/lib/ask/tools";
@@ -595,6 +596,28 @@ it("intercepts configured menu queries without calling the provider", async () =
   vi.stubGlobal("fetch", fetcher);
   const result = await runPalElevenLabsChatTurn({ query: "Price of Mixed Olives at The New Inn", cityId: "london", ownerId: "menu-owner" });
   expect(result).toMatchObject({ ok: true, cards: expect.arrayContaining([expect.objectContaining({ price: 5 })]) });
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("gives a first configured menu answer a thread its follow-up reads back", async () => {
+  vi.stubEnv("ELEVENLABS_API_KEY", "offline-test-key");
+  vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "offline-agent");
+  const fetcher = vi.fn(() => { throw new Error("No provider request permitted"); });
+  vi.stubGlobal("fetch", fetcher);
+  const first = "Price of Mixed Olives at The New Inn";
+  const opened = await runPalElevenLabsChatTurn({ query: first, cityId: "london", ownerId: "menu-owner" });
+  expect(opened.ok).toBe(true);
+  const threadId = opened.ok ? opened.conversationId : "";
+  expect(isPalLocalThreadId(threadId)).toBe(true);
+  expect(await readOwnedPubPalToolTurn(threadId, "another-owner")).toBeNull();
+
+  const followUp = "Mixed Olives calories and price at The New Inn";
+  const next = await runPalElevenLabsChatTurn({ query: followUp, cityId: "london", ownerId: "menu-owner", threadId });
+  expect(next).toMatchObject({ ok: true, conversationId: threadId });
+  expect(await readOwnedPubPalToolTurn(threadId, "menu-owner")).toMatchObject({
+    query: followUp,
+    turns: [{ role: "user", content: first }],
+  });
   expect(fetcher).not.toHaveBeenCalled();
 });
 

@@ -225,7 +225,12 @@ describe("runPalElevenLabsChatTurn", () => {
   it.each(NAMED_QUALIFIED_PRICE_REQUESTS.filter(({ query }) => /this evening|now|later/.test(query)))("accepts named time-qualified prices in configured chat: $query", async ({ query, tool }) => {
     const outcome = await runPalElevenLabsChatTurn({ query, ownerId: "11111111-1111-4111-8111-111111111111" });
     if (tool === "venue_drinks") {
-      expect(outcome).toMatchObject({ ok: true, conversationId: "", toolsUsed: ["venue_drinks"] });
+      // A first answer from the records still opens a local thread the follow-up reads.
+      expect(outcome).toMatchObject({ ok: true, conversationId: expect.stringMatching(/^conv_pal[A-Za-z0-9]{32}$/), toolsUsed: ["venue_drinks"] });
+      expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
+        outcome.ok ? outcome.conversationId : "",
+        expect.objectContaining({ query }),
+      );
       expect(wsState.socketsOpened).toBe(0);
       expect(fetch).not.toHaveBeenCalled();
     } else {
@@ -372,13 +377,17 @@ describe("runPalElevenLabsChatTurn", () => {
       ok: true,
       cards: [],
       proposals: [],
-      conversationId: "",
+      conversationId: expect.stringMatching(/^conv_pal[A-Za-z0-9]{32}$/),
       toolsUsed: ["venue_drinks"],
     });
     expect(outcome.ok && outcome.message).toMatch(/listed pub/i);
     expect(fetch).not.toHaveBeenCalled();
     expect(wsState.socketsOpened).toBe(0);
-    expect(storeMocks.registerPubPalToolTurn).not.toHaveBeenCalled();
+    // The clarifying answer keeps its thread, so naming the pub next continues it.
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
+      outcome.ok ? outcome.conversationId : "",
+      expect.objectContaining({ query: "Price of Coke at The Eagle" }),
+    );
   });
 
   it.each([
