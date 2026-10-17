@@ -42,11 +42,12 @@ vi.mock("next/navigation", () => ({
 import PlanComposer from "@/components/plan/PlanComposer";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 
-// PlanComposer paints its form on the server and MOUNTS IT AGAIN once
-// hydrated, so the state initialisers read the recovered drafts. Whatever the
-// server-painted form held is thrown away. On a slow load the night-mode
-// browser spec typed its query into that form, lost it at the remount and
-// tapped Plan it on an empty field (5 Oct 2026). That form now takes no input.
+// PlanComposer paints its form on the server and, when hydration finds a
+// draft or an ask to recover, MOUNTS IT AGAIN so the state initialisers read
+// them. Whatever the server-painted form held is then thrown away. On a slow
+// load the night-mode browser spec typed its query into that form, lost it at
+// the remount and tapped Plan it on an empty field (5 Oct 2026). That form now
+// takes no input until it is live.
 
 let host: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -151,5 +152,47 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     const generate = fetchMock.mock.calls.find(([url]) => String(url) === "/api/plans/generate");
     expect(generate).toBeDefined();
     expect(String(generate![1]?.body)).toContain("Quiet in Clapham for 4");
+  });
+});
+
+// A remount rebuilds every node of the composer, which a phone pays for twice:
+// a second full render, and a fresh paint the browser scores as the page's
+// largest. With nothing to recover the server's form is the form a remount
+// would build, so it is kept and goes live where it stands.
+describe("PlanComposer's hydration remount", () => {
+  async function hydrateAt(search: string) {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async () => new Response("{}", { status: 503 })));
+    window.history.replaceState(null, "", `/plan${search}`);
+    // Drafts an earlier test left behind are exactly what a remount recovers.
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    host = document.createElement("div");
+    host.innerHTML = renderToString(createElement(PlanComposer));
+    document.body.append(host);
+    const painted = host.querySelector("#plan-composer");
+    await act(async () => {
+      root = hydrateRoot(host!, createElement(PlanComposer));
+    });
+    return { painted, live: host.querySelector("#plan-composer") };
+  }
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps the server-painted form when there is nothing to recover", async () => {
+    const { painted, live } = await hydrateAt("");
+
+    expect(painted).not.toBeNull();
+    expect(live).toBe(painted);
+    expect(field().readOnly).toBe(false);
+  });
+
+  it("still mounts the form again when the address carries an ask", async () => {
+    const { painted, live } = await hydrateAt("?query=Quiet%20in%20Clapham%20for%204");
+
+    expect(painted).not.toBeNull();
+    expect(live).not.toBe(painted);
   });
 });

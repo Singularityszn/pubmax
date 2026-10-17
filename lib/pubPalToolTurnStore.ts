@@ -285,6 +285,10 @@ type ToolTurnRow = {
   expires_at: string;
 };
 
+// The purge runs on the /api/cron/purge-pub-pal-turns minute and nowhere else.
+// Every read already refuses an expired row, so a DELETE in front of each write
+// was a round trip on every Pub Pal turn and every tool append that changed
+// nothing a reader could see.
 async function purgeExpiredRows(): Promise<void> {
   const { error } = await requireSupabaseAdmin()
     .from("pub_pal_tool_turns")
@@ -401,7 +405,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.bind(conversationId, ownerId, cityId),
         }),
       run: async () => {
-        await purgeExpiredRows();
         const existing = claimedTurn(await lookupStoredRow(conversationId));
         if (existing && existing.ownerId !== ownerId) throw new PubPalToolTurnAccessError();
         if (existing) {
@@ -437,7 +440,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.register(conversationId, input),
         }),
       run: async () => {
-        await purgeExpiredRows();
         const existing = claimedTurn(await lookupStoredRow(conversationId));
         if (existing && existing.ownerId !== input.ownerId) throw new PubPalToolTurnAccessError();
         await writeStoredRow(conversationId, mergeOwned(existing, input, Date.now()));
@@ -513,7 +515,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           onProduction: async () => false,
         }),
       run: async () => {
-        await purgeExpiredRows();
         return updateOwnedRow(conversationId, ownerId, (existing) => {
           existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
         });
@@ -534,7 +535,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           onProduction: async () => false,
         }),
       run: async () => {
-        await purgeExpiredRows();
         return updateOwnedRow(conversationId, ownerId, (existing) => {
           existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
           if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();

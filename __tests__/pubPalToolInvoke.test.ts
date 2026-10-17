@@ -548,10 +548,13 @@ describe("propose_plan over the Pal webhook", () => {
       conversationId,
     });
 
-    expect(result).toMatchObject({ ok: true, fenced: true });
+    expect(result).toMatchObject({ ok: true, fenced: true, cards: [], proposals: [] });
     const turn = await readPubPalToolTurn(conversationId);
     expect(turn?.toolsUsed).toEqual(["propose_plan"]);
     expect(turn?.hints).toEqual([result.answerHint]);
+    // The plan tool runs beside the fence, and a fenced turn keeps none of it.
+    expect(turn?.cards).toEqual([]);
+    expect(turn?.proposals).toEqual([]);
   });
 
   it("still returns the get-home register when the store write fails", async () => {
