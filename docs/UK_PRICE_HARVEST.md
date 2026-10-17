@@ -90,6 +90,22 @@ The lane reads the per-pub menu page of every chain the source table allows,
 one page per pub, and the source row names the brand hosts that chain publishes
 the same menu on.
 
+`--pub-sites` points the same browser at a pub's OWN website instead:
+
+```
+npm run harvest:uk-prices-rendered -- --pub-sites --only tapeast.co.uk,lvls.london
+```
+
+The site is the snapshot `website` the document lane reads, permitted by the same
+rule (`scripts/harvest/uk-prices/pubSites.mjs`), and only a site serving exactly
+one pub is rendered, because a price on an estate's home page belongs to no one
+pub. The lane renders the home page, then up to three of that page's own drinks
+links, asking robots before each. A drink stated on several pages keeps its
+cheapest page, as in the document lane. Where the environment reaches the web
+through a proxy, the lane hands the renderer `HTTPS_PROXY`, since wigolo strips
+proxy variables from its browser and takes a proxy only through its own
+settings.
+
 ## Lane three: the scan
 
 `scripts/harvest/uk-prices/ocr.mjs`. A pub that photographed its drinks list

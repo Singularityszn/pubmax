@@ -92,6 +92,7 @@ import {
   applyMenuEnrichmentSeeds,
   venueCoordsFromSlim,
 } from "./londonScope.mjs";
+import { THIRD_PARTY_SITE_HOSTS } from "./pubSites.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
@@ -271,11 +272,8 @@ function candidateHosts({ londonOnly = false } = {}) {
     }
     const host = hostOf(normalised);
     if (!host) continue;
-    // A social page is not a pub's own site: it is a third party with its own
-    // permission question this crawl has not asked.
-    if (/(facebook|instagram|twitter|x\.com|tripadvisor|yelp|google|linktr\.ee|wixsite|whatpub)/i.test(host)) {
-      continue;
-    }
+    // A social page is not a pub's own site (THIRD_PARTY_SITE_HOSTS).
+    if (THIRD_PARTY_SITE_HOSTS.test(host)) continue;
     const entry = byHost.get(host) ?? { host, origin: null, pubs: [] };
     if (!entry.origin) {
       try {
