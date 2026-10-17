@@ -57,10 +57,10 @@
         "kind": "field",
         "pointer": "generatedAt"
       },
-      "cadence": "none: a closed lane. The 3 MB pack still ships and is still read; nothing writes it.",
+      "cadence": "none yet: a closed lane with a producer that has not published. The 3 MB pack still ships and is still read.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None, and `retired: true` is now what says so rather than a sentence a reader had to reach the end of. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, scripts/firecrawl_greene_king_prices.mjs writes the DRINK pack beside it (its mapSectionToCategory returns null for every food section on purpose), and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay. `harvested by hand` was the last claim standing here and nobody harvests it: every row in the pack carries the same single import, which was never repeated. A 1440h budget was a promise nobody could keep before that: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). The pack keeps serving and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live. Writing a generator is a separate captain decision, not a budget or a status change.",
-      "gate": "No writer, which is a stronger fact than a missing key: FIRECRAWL_API_KEY alone buys nothing while no script in the tree turns a permitted Greene King menu into a food row. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
+      "refreshWorkflow": "npm run harvest:uk-food reads London pubs' own food menus (first party only, sourcePolicy, live robots per path, redirect landing re-asked) and npm run build:food-price-updates publishes the reviewed rows into public/data/food_price_updates/ (runbook docs/UK_FOOD_HARVEST.md). The lane stays `retired: true` until that first reviewed publish lands, because a producer that has not yet run has refreshed nothing, and the PR that lands it moves this entry off retired and gives it a staleness budget. What ships today is the single earlier Greene King import, which was never repeated; lib/priceUpdates.server.ts only reads it, and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live.",
+      "gate": "A producer exists and has not published: the harvest needs network access to the pubs' own hosts and, for pages that only show a menu in a browser, BROWSERBASE_API_KEY. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
     },
     {
       "id": "night_signals",
@@ -320,13 +320,12 @@
       "class": "episodic",
       "artifact": "public/data/heritage_listings.json",
       "stamp": {
-        "kind": "literal",
-        "value": "2026-07-18T00:00:00Z",
-        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically. lib/heritageListings.ts resolves this stamp and the venue sheet prints it beside every listed fact as the day the NHLE was read"
+        "kind": "field",
+        "pointer": "$retrievedAt"
       },
-      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. A regenerated pack carries $retrievedAt, the day the NHLE was read; point this stamp at it ({\"kind\": \"field\", \"pointer\": \"$retrievedAt\"}) in the same commit.",
+      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. The NHLE point layer refreshes daily upstream but statutory listing status changes rarely. The stamp is the pack's own $retrievedAt, the day the NHLE was read; lib/heritageListings.ts resolves it and the venue sheet prints it beside every listed fact.",
       "stalenessBudgetHours": 8760,
-      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
+      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Every live read goes through the historic-england-nhle row in lib/harvest/sourcePolicy.ts. Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     },
     {
@@ -356,8 +355,22 @@
       },
       "cadence": "episodic — re-derived from the committed UK Overpass snapshot whenever data/osm/uk/raw is refreshed",
       "stalenessBudgetHours": 4320,
-      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) registers its own row in the commit that first writes it.",
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) is its own row, wikidata_history.",
       "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: Wikidata's statements are their own CC0 pack."
+    },
+    {
+      "id": "wikidata_history",
+      "label": "Wikidata history statements for OSM-linked London pubs (CC0 pack)",
+      "class": "episodic",
+      "artifact": "public/data/wikidata_history/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
+      "cadence": "episodic — re-read from the Wikidata Query Service whenever osm_wikidata_links is re-derived, or when the statements are wanted fresher. The stamp is the day the query service was read.",
+      "stalenessBudgetHours": 4320,
+      "refreshWorkflow": "manual (npm run build:wikidata-history). Every read goes through the wikidata-query-service row in lib/harvest/sourcePolicy.ts; a failed batch writes nothing.",
+      "gate": "none (keyless SPARQL endpoint; Wikidata CC0 1.0; a descriptive User-Agent per the Wikimedia User-Agent Policy)"
     },
     {
       "id": "osm_pub_facts",

@@ -43,6 +43,22 @@ prose you did not touch.
   AGENTS.md "Working in this tree".
 - If a conflict cannot be resolved confidently, stop and report instead of guessing.
 
+## Handing off to the captain's local Codex
+
+Some steps only work on the captain's machine. Supabase's connector holds a destructive statement
+(`DROP`, `REVOKE`, `DELETE`) for an approval a cloud session cannot show, so the call times out.
+`npm run release:prod` needs `VERCEL_TOKEN` and `SUPABASE_ACCESS_TOKEN`. The `exit 0` Ignored Build
+Step on the `chengdu` Vercel project skips every Git and API build. When a cloud session hits one:
+
+1. Stop at the blocker. Never reword SQL or route around an approval gate to get past it.
+2. Push your work, then open an issue labelled `ready-for-agent` that a fresh agent can act on alone:
+   the state you checked (commits, project and database IDs), the steps in order, the check that
+   proves each step, and what is out of scope.
+3. Send the captain the issue link. The captain hands it to Codex on the Mac Studio, which has the
+   local credentials.
+4. Do not tag `@codex` on GitHub, because that calls the cloud Codex app, not the local one. Once the
+   issue is handed off, leave those steps to Codex rather than running them in parallel.
+
 ## Completing a task
 
 1. Keep the changes limited to the assigned task.

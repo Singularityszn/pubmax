@@ -63,6 +63,10 @@ const state = vi.hoisted(() => ({
   socialActionStatus: 200,
   socialActionGate: null as Promise<void> | null,
   socialActionBodies: [] as unknown[],
+  pintDropReportedResponses: [] as Array<{
+    gate: Promise<void> | null;
+    drops: unknown[];
+  }>,
 }));
 
 let host: HTMLDivElement;
@@ -139,6 +143,13 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
     return jsonResponse({ notes: [] });
   }
   if (url.pathname.startsWith("/api/pint-drops")) {
+    const status = url.searchParams.get("status");
+    state.fetchEvents.push(`pint-drops:${status}`);
+    const queuedResponse = status === "reported" ? state.pintDropReportedResponses.shift() : undefined;
+    if (queuedResponse) {
+      const response = () => jsonResponse({ drops: queuedResponse.drops });
+      return queuedResponse.gate ? queuedResponse.gate.then(response) : response();
+    }
     return state.pintDropsFail ? jsonResponse({ error: "unavailable" }, 503) : jsonResponse({ drops: [] });
   }
   if (url.pathname === "/api/admin/community-prices") return jsonResponse({ prices: [] });
@@ -200,6 +211,7 @@ beforeEach(() => {
   state.socialActionStatus = 200;
   state.socialActionGate = null;
   state.socialActionBodies = [];
+  state.pintDropReportedResponses = [];
   vi.stubGlobal("fetch", vi.fn(responseFor));
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -396,6 +408,72 @@ describe("Admin Social post moderation queue", () => {
       await Promise.resolve();
     });
     expect(host.textContent).toContain("Retry response.");
+  });
+
+  // The full load writes Pint Drop, comment, visit-report, photo, avatar and
+  // message state after its awaits, and only the Social lane carries the
+  // generation guard. A second load that starts once the first is past its
+  // session check would race it, and whichever answered last would win those
+  // lanes (#1313). The disabled control does not close that window: React has
+  // not committed `disabled` when a second event lands in the same task, so the
+  // second event is dispatched to the handler directly. The load is serialised
+  // at entry, so the second event joins the load already running.
+  it("never starts a second full load while one is in flight", async () => {
+    await loadAdmin();
+    const olderDrop = {
+      id: "drop-older",
+      venueId: "venue-pineapple",
+      handle: "olderanswer",
+      drink: "Lager",
+      priceGbp: 6.2,
+      passedDownNote: "",
+      era: "now",
+      status: "reported",
+      pintPhotoUrl: null,
+      venuePhotoUrl: null,
+    };
+    let releaseOlder = () => {};
+    const olderGate = new Promise<void>((resolve) => {
+      releaseOlder = resolve;
+    });
+    state.pintDropReportedResponses = [
+      { gate: olderGate, drops: [olderDrop] },
+      { gate: null, drops: [{ ...olderDrop, id: "drop-newer", handle: "neweranswer" }] },
+    ];
+    state.fetchEvents = [];
+    const load = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+      button.textContent?.includes("Load reported drops"),
+    );
+    expect(load).toBeTruthy();
+
+    await act(async () => {
+      load!.click();
+      for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    });
+    expect(state.fetchEvents.filter((event) => event === "pint-drops:reported")).toHaveLength(1);
+
+    const propsKey = Object.getOwnPropertyNames(load).find((key) =>
+      key.startsWith("__reactProps$"),
+    );
+    const onClick = (load as unknown as Record<string, { onClick?: () => void } | undefined>)[
+      propsKey!
+    ]?.onClick;
+    expect(onClick).toBeTruthy();
+    await act(async () => {
+      onClick!();
+      for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    });
+    expect(state.fetchEvents.filter((event) => event === "pint-drops:reported")).toHaveLength(1);
+
+    await act(async () => {
+      releaseOlder();
+      await olderGate;
+      for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    });
+    expect(state.fetchEvents.filter((event) => event === "pint-drops:reported")).toHaveLength(1);
+    expect(host.textContent).toContain("olderanswer");
+    expect(load!.disabled).toBe(false);
+    expect(load!.textContent).toBe("Load reported drops");
   });
 
   it("re-enters an expired Social session without retaining the raw token", async () => {
