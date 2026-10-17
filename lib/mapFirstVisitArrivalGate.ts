@@ -9,7 +9,7 @@
 // This module imports nothing, so the root shell pays for exactly that.
 
 /** The event every arrival change fires, for the consent prompt to re-read. */
-export const MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT = "pubmax:map-first-visit-arrival";
+const MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT = "pubmax:map-first-visit-arrival";
 
 export function notifyMapFirstVisitArrivalChange(): void {
   if (typeof window === "undefined") return;
