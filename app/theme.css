@@ -261,15 +261,6 @@ html[data-theme="dark"] .mobileTabList {
     0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-/* At night the well is a darker recess, not a lighter slab: pressed ink reads
-   as shadow on a near-black rail. */
-html[data-theme="dark"] .mobileTabHighlight {
-  background: color-mix(in srgb, var(--ink-deep) 55%, var(--panel-raised));
-  box-shadow:
-    inset 0 1.5px 3px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
-}
-
 /* Desktop nav pill: neutral structural edge in dark (globals gives it a 30%
    coral-mixed border for the warm light look; on near-black that reads as a
    muddy coral leak). The active link keeps its brass fill — that is the one

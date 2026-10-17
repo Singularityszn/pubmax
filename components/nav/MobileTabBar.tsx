@@ -236,7 +236,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
               >
                 <span className="mobileTabIcon" aria-hidden="true">
                   <Icon
-                    size={20}
+                    size={15}
                     strokeWidth={active ? 2.25 : 1.75}
                     fill="none"
                   />
