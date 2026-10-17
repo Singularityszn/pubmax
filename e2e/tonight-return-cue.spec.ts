@@ -106,14 +106,43 @@ async function pinRevealCount(page: Page): Promise<number> {
   );
 }
 
-// The ready painted map, by the contract waitForLoadedMap in
-// e2e/screenshots.spec.ts holds every map shot to: the wrap alone shows while
-// the shell still says "Loading London pubs", so a map shot also needs the
-// pin-reveal lifecycle, at least one painted pub mark, no loading or fallback
-// shell and a visible GL canvas.
-async function waitForLoadedMap(page: Page): Promise<void> {
-  await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20_000 });
+/** The reason on the newest pin-reveal, or null before the first one. */
+async function latestPinRevealReason(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const trace = (
+      window as typeof window & {
+        __pubmaxPinRevealTrace?: Array<{ reason: string; generation: number }>;
+      }
+    ).__pubmaxPinRevealTrace;
+    return trace && trace.length > 0 ? trace[trace.length - 1]!.reason : null;
+  });
+}
+
+// The map has RENDERED, read without asking whether a pointer could reach it.
+//
+// The painted-pin probe answers only marks a tap would land on (its third gate
+// in components/map/canvas/paintedPinProbe.ts drops a mark under any app
+// chrome), so with the selected pub's sheet or drawer and its backdrop up it
+// may answer none over a fully painted map. These signals are the product's
+// own and none of them reads pointer reachability:
+//   - the live canvas wrap (PubMapCanvas's, the one carrying data-route-stops)
+//     is visible and has venues handed to it, and no loading, failing or
+//     unavailable wrap (those carry data-map-canvas) is left;
+//   - the newest pin-reveal names a painted gate ("tiles", "pins" or "idle"),
+//     which pinRevealCoordinator.ts sends only after its basemap-painted and
+//     pins-paintable checks pass, and on a phone its composite-frame wait;
+//     "timeout" is its ceiling lapsing and keeps this gate red;
+//   - no loading shell, no fallback, and a visible GL canvas with a real size.
+async function expectRenderedMap(page: Page): Promise<void> {
+  const liveWrap = page.locator(".mapCanvasWrap[data-route-stops]");
+  await expect(liveWrap).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapCanvasWrap[data-map-canvas]")).toHaveCount(0);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+  await expect
+    .poll(() => liveWrap.evaluate((node) => Number(node.getAttribute("data-venue-count"))), {
+      message: "map render gate requires venues handed to the live canvas",
+    })
+    .toBeGreaterThan(0);
   await expect
     .poll(() => pinRevealCount(page), {
       message: "map visual gate requires the pin-reveal lifecycle",
@@ -121,15 +150,66 @@ async function waitForLoadedMap(page: Page): Promise<void> {
     })
     .toBeGreaterThan(0);
   await expect
+    .poll(() => latestPinRevealReason(page), {
+      message: "map render gate requires a painted pin-reveal, not the ceiling's timeout",
+      timeout: 60_000,
+    })
+    .toMatch(/^(tiles|pins|idle)$/);
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
+  await expect(page.getByText("Loading London pubs")).toHaveCount(0);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  const canvas = page.locator(".maplibreMap canvas, .maplibregl-canvas").first();
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  expect(box && box.width > 0 && box.height > 0).toBe(true);
+}
+
+// Read-only context for the selected state, attached and never asserted: how
+// many marks the tap probe can reach, and what sits on top at the canvas's
+// centre. It records why the tap probe can answer none under the selected
+// pub's surface; it is not a readiness signal.
+async function attachHitContext(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  const context = await page.evaluate(() => {
+    const probe = (
+      window as typeof window & {
+        __pubmaxPaintedMapTapPoints?: () => Array<{ kind: string }>;
+      }
+    ).__pubmaxPaintedMapTapPoints;
+    const canvas = document.querySelector(".maplibreMap canvas, .maplibregl-canvas");
+    const rect = canvas?.getBoundingClientRect();
+    const top = rect
+      ? document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      : null;
+    return {
+      reachableMarks: probe ? probe().length : null,
+      centreTopIsCanvas: Boolean(canvas && top === canvas),
+      centreTop: top
+        ? {
+            tag: top.tagName.toLowerCase(),
+            className: typeof top.className === "string" ? top.className : "",
+            ariaLabel: top.getAttribute("aria-label"),
+          }
+        : null,
+    };
+  });
+  await testInfo.attach(name, {
+    body: JSON.stringify(context, null, 2),
+    contentType: "application/json",
+  });
+}
+
+// The ready painted map, by the contract waitForLoadedMap in
+// e2e/screenshots.spec.ts holds every map shot to, for a map nothing covers:
+// everything expectRenderedMap reads, and at least one painted pub mark a tap
+// would reach.
+async function waitForLoadedMap(page: Page): Promise<void> {
+  await expectRenderedMap(page);
+  await expect
     .poll(() => paintedMapMarkCount(page), {
       message: "map visual gate requires at least one tappable painted pub mark",
       timeout: 60_000,
     })
     .toBeGreaterThan(0);
-  await expect(page.locator(".mapLoading")).toHaveCount(0);
-  await expect(page.getByText("Loading London pubs")).toHaveCount(0);
-  await expect(page.locator(".mapFallback")).toHaveCount(0);
-  await expect(page.locator(".maplibreMap canvas, .maplibregl-canvas").first()).toBeVisible();
 }
 
 // Kept beside the run's results and attached to its report, so the parent run
@@ -221,7 +301,11 @@ for (const viewport of VIEWPORTS) for (const theme of THEMES) {
         desktopVenueDrawer(page).getByRole("heading", { name: COMMUNITY_SHEET_FIXTURE_VENUE_NAME }),
       ).toBeInViewport({ timeout: 30_000 });
     }
-    await waitForLoadedMap(page);
+    // The selected pub's surface covers the map, so this state proves the map
+    // rendered by signals that do not need a tap to reach it; the strict
+    // tappable-mark gate runs on the uncovered map after the first Back.
+    await expectRenderedMap(page);
+    await attachHitContext(page, testInfo, stage("2-map-selected-hit-context"));
     await expectTheme(page, theme);
     expect(await savedBytes(page)).toBe(SAVED_RAW);
     await shot(page, testInfo, stage("2-map-selected-princess-louise"));
