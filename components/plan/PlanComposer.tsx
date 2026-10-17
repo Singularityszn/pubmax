@@ -38,6 +38,7 @@ import {
 } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX, creatorNameFromAccount } from "@/lib/crew";
+import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -1484,6 +1485,17 @@ function PlanComposerForm({
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
+  // The name typed for an earlier plan on this device, so it is asked for once.
+  // It waits for identity too: an account change clears it
+  // (DEVICE_IDENTITY_LOCAL_KEYS), and reading before that would offer the
+  // previous person's name. Declared after the account seed, so an account
+  // name wins and this fills only what that left empty.
+  const deviceCreatorNameSeededRef = useRef(false);
+  useEffect(() => {
+    if (!identityResolved || deviceCreatorNameSeededRef.current) return;
+    deviceCreatorNameSeededRef.current = true;
+    setCreatorName((current) => current.trim() ? current : readRememberedPlanHostName(safeLocalStorage()) || current);
+  }, [identityResolved]);
   useEffect(() => {
     if (!canPersist) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
@@ -1576,6 +1588,22 @@ function PlanComposerForm({
   // holds the description, context and templates. Name and start-time fields
   // stay below the cards for locking the plan.
   const resultMode = composerVisible && routeSorted && stops.length > 0;
+  // A result with no host name seats "Your name" in the pinned Lock bar, so the
+  // one thing Lock still needs sits beside it rather than screens below. The
+  // seat is chosen when the result appears and kept, so the field never jumps
+  // away from a caret mid-word.
+  const [nameInLockBar, setNameInLockBar] = useState(() => resultMode && !creatorName.trim());
+  const [nameSeatResultMode, setNameSeatResultMode] = useState(resultMode);
+  if (resultMode !== nameSeatResultMode) {
+    setNameSeatResultMode(resultMode);
+    setNameInLockBar(resultMode && !creatorName.trim());
+  }
+  const nameField = (
+    <div className="planComposer__field">
+      <label htmlFor="plan-name">Your name</label>
+      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Shown on the invite" />
+    </div>
+  );
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
   // row instead of falling through to the neutral label.
@@ -2278,6 +2306,7 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
+      rememberPlanHostName(safeLocalStorage(), creatorName);
       clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
@@ -2520,10 +2549,7 @@ function PlanComposerForm({
         <label htmlFor="plan-title">Name the night</label>
         <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
       </div>
-      <div className="planComposer__field">
-        <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
-      </div>
+      {nameInLockBar ? null : nameField}
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
         <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
@@ -2701,7 +2727,8 @@ function PlanComposerForm({
           line that qualifies it, so the two can never separate. The create
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
-      <div className="planComposer__lock">
+      <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
+        {nameInLockBar ? nameField : null}
         <button
           className="planComposer__submit"
           type="submit"
