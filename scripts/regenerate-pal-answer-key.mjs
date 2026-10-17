@@ -2,7 +2,7 @@
 // Rebuild data-derived fields in answer-key.json from evals/pal/answerKeyResolver.ts
 // (committed venue, price and What's-On data at the pinned `now`). Does not call
 // runAsk or runAskTool. Hand-authored routing and answerIncludes stay in PAL_EVAL_ROUTING
-// and the existing key; regenerate overwrites generated fields only.
+// and the existing key. Declared resolver constraints override legacy key text.
 import { readFileSync, writeFileSync } from "node:fs";
 
 import { resolveFullAnswerKeyEntry } from "../evals/pal/answerKeyResolver.ts";
@@ -18,7 +18,7 @@ const nowMs = Date.parse(now);
 for (const c of cases) {
   const resolved = await resolveFullAnswerKeyEntry(c, { now: nowMs, cityId: c.cityId ?? "london" });
   const handAuthored = Object.fromEntries(
-    Object.entries(previous[c.id] ?? {}).filter(([key]) => HAND_AUTHORED_KEYS.includes(key)),
+    Object.entries(previous[c.id] ?? {}).filter(([key]) => HAND_AUTHORED_KEYS.includes(key) && resolved[key] === undefined),
   );
   if (previous[c.id]?.minCards !== undefined && resolved.expectEmpty) emptied.push(c.id);
   answerKey[c.id] = { ...resolved, ...handAuthored };

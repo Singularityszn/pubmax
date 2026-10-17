@@ -34,6 +34,7 @@ import {
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
+import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
@@ -887,6 +888,7 @@ async function main() {
     // aging price as aging (lib/priceTier.ts `priceAgeFor`). Absent when no row
     // carrying the figure records a read: such a price cannot claim to be fresh.
     const priceObservedAt = cheapestPriceReadDay(prices, cheapestPrice);
+    const { priceSource } = legacyCheapestPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
     const locality = groupRows
       .map((row) => String(row.locality ?? "").trim())
@@ -905,6 +907,7 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
+      ...(priceSource ? { priceSource } : {}),
       ...(priceObservedAt ? { priceObservedAt } : {}),
       borough: String(first.primary_borough || ""),
       locality: locality ?? "",

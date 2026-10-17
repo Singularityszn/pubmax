@@ -15,8 +15,14 @@ const SECRET_ID = "live-secret-id";
 // Stands in for ElevenLabs. It serves the live agent and tools from a fixture
 // file and records every call that is not a GET, which --check must never make.
 const MOCK_FETCH = `
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 const live = JSON.parse(readFileSync(process.env.PUBPAL_LIVE_FIXTURE, "utf8"));
+function merge(stored, patch) {
+  if (patch === null || typeof patch !== "object" || Array.isArray(patch)) return patch;
+  const result = { ...stored };
+  for (const [key, value] of Object.entries(patch)) result[key] = merge(stored?.[key], value);
+  return result;
+}
 globalThis.fetch = async (url, init = {}) => {
   const method = init.method ?? "GET";
   const text = String(url);
@@ -24,10 +30,21 @@ globalThis.fetch = async (url, init = {}) => {
   if (method !== "GET") {
     // Record identities and settings only. Secret payloads never enter proof.
     const entry = { method, url: text, tool_ids: body.conversation_config?.agent?.prompt?.tool_ids,
+      agent_config: body.conversation_config ? { conversation_config: body.conversation_config, platform_settings: body.platform_settings } : undefined,
       tool_config: body.tool_config ? { ...body.tool_config, api_schema: {
         ...body.tool_config.api_schema, request_headers: "redacted" } } : undefined };
     appendFileSync(process.env.PUBPAL_WRITES_LOG, JSON.stringify(entry) + "\\n");
     if (!live.allowWrites) return new Response("write refused", { status: 500 });
+    if (method === "PATCH" && text.includes("/convai/agents/")) {
+      const updated = merge(live.agent, body);
+      const prompt = updated.conversation_config.agent.prompt;
+      if (live.reasoningContract && prompt.llm === live.reasoningContract.llm && prompt.reasoning_effort !== live.reasoningContract.reasoning_effort) {
+        return Response.json({ detail: { code: "invalid_parameters", field: "agent.prompt", message: "Reasoning effort is not supported for this LLM" } }, { status: 400 });
+      }
+      live.agent = updated;
+      writeFileSync(process.env.PUBPAL_LIVE_FIXTURE, JSON.stringify(live));
+      return Response.json(updated);
+    }
     if (text.includes("/convai/secrets")) return Response.json({ secret_id: "live-secret-id" });
     if (text.endsWith("/convai/tools")) return Response.json({ id: "created:" + body.tool_config.name });
     if (text.endsWith("/agents/create")) return Response.json({ agent_id: "agent_created" });
@@ -100,7 +117,8 @@ function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets
   return { agent, tools, secrets };
 }
 
-function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean }, update = false, baseUrl = BASE_URL) {
+function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean;
+  reasoningContract?: { llm: "gemini-2.5-flash-lite"; reasoning_effort: null } }, update = false, baseUrl = BASE_URL) {
   const directory = scratch();
   writeFileSync(path.join(directory, "live.json"), JSON.stringify(live));
   writeFileSync(path.join(directory, "mock-fetch.mjs"), MOCK_FETCH);
@@ -122,10 +140,44 @@ function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?
       },
     },
   );
-  return { ...result, output: `${result.stdout}${result.stderr}`, writes: readFileSync(writes, "utf8") };
+  return { ...result, output: `${result.stdout}${result.stderr}`, writes: readFileSync(writes, "utf8"), live: JSON.parse(readFileSync(path.join(directory, "live.json"), "utf8")) };
 }
 
 describe("pubpal:agent --check", () => {
+  it("clears model-specific reasoning through the executable update and read-only check", () => {
+    const live = matchingLive();
+    const toolIds = [...live.agent.conversation_config.agent.prompt.tool_ids];
+    live.agent.conversation_config.agent.prompt.llm = "gemini-3.1-flash-lite";
+    live.agent.conversation_config.agent.prompt.reasoning_effort = "minimal";
+    live.agent.conversation_config.agent.first_message = "Existing greeting";
+    live.agent.conversation_config.agent.language = "en";
+    live.agent.conversation_config.tts = { voice_id: "existing-voice" };
+    live.agent.platform_settings.overrides.conversation_config_override.tts.speed = true;
+    const contract = { llm: "gemini-2.5-flash-lite", reasoning_effort: null } as const;
+    const drift = check({ ...live, reasoningContract: contract });
+    expect(drift.status).toBe(1);
+    expect(drift.writes).toBe("");
+    const updated = check({ ...live, allowWrites: true, reasoningContract: contract }, true);
+    expect(updated.status, updated.output).toBe(0);
+    expect(drift.output).toContain("conversation_config.agent.prompt.reasoning_effort");
+    expect(updated.live.agent.conversation_config.agent.prompt).toMatchObject({ ...contract, tool_ids: toolIds });
+    expect(toolIds).toHaveLength(16);
+    expect(updated.live.agent.conversation_config.agent).toMatchObject({ first_message: "Existing greeting", language: "en" });
+    expect(updated.live.agent.conversation_config.tts).toEqual({ voice_id: "existing-voice" });
+    expect(updated.live.agent.conversation_config.conversation.max_duration_seconds).toBe(180);
+    expect(updated.live.agent.platform_settings.auth).toEqual({ enable_auth: true, allowlist: [] });
+    expect(updated.live.agent.platform_settings.privacy).toEqual({ record_voice: false, retention_days: -1, delete_transcript_and_pii: true, zero_retention_mode: true });
+    expect(updated.live.agent.platform_settings.overrides.conversation_config_override).toEqual({ agent: { prompt: { prompt: false }, first_message: true }, tts: { voice_id: true, speed: true }, conversation: { text_only: true } });
+    const receipt = check(updated.live);
+    expect(receipt.status, receipt.output).toBe(0);
+    expect(receipt.writes).toBe("");
+    updated.live.agent.platform_settings.privacy.delete_transcript_and_pii = false;
+    const privacyDrift = check(updated.live);
+    expect(privacyDrift.status).toBe(1);
+    expect(privacyDrift.output).toContain("platform_settings.privacy.delete_transcript_and_pii");
+    expect(privacyDrift.writes).toBe("");
+  });
+
   it.each([
     [BASE_URL, "https://pubpal-test.ngrok.app"],
     ["https://pubpal-test.ngrok.app", BASE_URL],
@@ -322,6 +374,7 @@ describe("pubpal:agent --check", () => {
     const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
     expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(16);
     expect(writes.find((row) => row.url.endsWith("/agents/create")).tool_ids).toHaveLength(16);
+    expect(writes.find((row) => row.url.endsWith("/agents/create")).agent_config.conversation_config.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash-lite", reasoning_effort: null });
     expect(result.output).not.toContain(SECRET);
     expect(result.writes).not.toContain(SECRET);
   });

@@ -520,6 +520,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
+  const editToggleRef = useRef<HTMLButtonElement>(null);
+  const wasEditingRef = useRef(false);
+  useEffect(() => {
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = editing;
+    if (wasEditing && !editing) editToggleRef.current?.focus({ preventScroll: true });
+  }, [editing]);
   // Post-save confirmation shown back in view mode; clears itself shortly.
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -1138,6 +1145,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         </Link>
       ) : null}
       <button
+        ref={editToggleRef}
         type="button"
         className="profileEditToggle"
         data-primary-action=""

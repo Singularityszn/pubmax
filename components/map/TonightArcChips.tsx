@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  offeredVenueKinds,
   toggleVenueKind,
   type CuratedVenueKind,
   type VenueKindVisibility,
@@ -45,12 +46,8 @@ export default function TonightArcChips({
   variant?: "popover" | "sheet";
   onChange: (next: VenueKindVisibility) => void;
 }) {
-  const chips =
-    experienceLens === "food"
-      ? CHIPS.filter(
-          (chip) => chip.kind === "food" || chip.kind === "restaurant",
-        )
-      : CHIPS;
+  const offeredKinds = offeredVenueKinds(experienceLens);
+  const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind));
   return (
     <div
       className={
@@ -87,7 +84,7 @@ export default function TonightArcChips({
                 </span>
               ) : null}
               <span className="tonightArcChipLabel">
-                {experienceLens === "no-alcohol" && chip.kind === "pub"
+                {experienceLens !== "all" && chip.kind === "pub"
                   ? "Pubs"
                   : chip.label}
               </span>
