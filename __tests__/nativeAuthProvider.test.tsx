@@ -125,7 +125,10 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
 
   it.each([null, "android"] as const)("keeps the canonical flow on %s", async (platform) => {
     h.platform = platform;
-    await act(async () => { expect(await actions.signInWithGoogle()).toEqual({ error: null }); });
+    // The web page itself leaves for the provider; Android hands off to the system browser and stays.
+    await act(async () => {
+      expect(await actions.signInWithGoogle()).toEqual(platform === "android" ? { error: null } : { error: null, navigating: true });
+    });
     expect(h.canonicalOAuth).toHaveBeenCalledOnce();
     expect(h.nativeOAuth).not.toHaveBeenCalled();
     expect(h.authenticate).not.toHaveBeenCalled();
@@ -220,6 +223,14 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     await act(async () => { expect((await actions.signInWithGoogle()).error).toMatch(/could not be completed/); });
     expect(h.setSession).not.toHaveBeenCalled();
     expect(container.textContent).toBe("signed-out");
+  });
+
+  // A provider sign-in sends no link, so its failure may not blame one.
+  it("does not blame an email link when the provider sheet closes or fails", async () => {
+    h.authenticate.mockRejectedValue(new Error("Sign-in was cancelled or could not be completed."));
+    let result!: Awaited<ReturnType<AuthContextValue["signInWithGoogle"]>>;
+    await act(async () => { result = await actions.signInWithGoogle(); });
+    expect(result).toEqual({ error: "Sign-in was cancelled or could not be completed. Try again." });
   });
 
   it("preserves a restored account that arrives before the native exchange finishes", async () => {

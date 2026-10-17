@@ -25,7 +25,7 @@ import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import AccountMenu from "@/components/auth/AccountMenu";
 import ClerkAccountSlot from "@/components/auth/ClerkAccountSlot";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
-import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
+import { hasSocialAuthProviders, type AuthStartResult } from "@/lib/authProviderAvailability";
 import { readProviderAccountSignal, providerHasAnswered } from "@/lib/authProviderRevision";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
@@ -293,7 +293,7 @@ export default function SignInButton({
 
   const onProviderSignIn = useCallback(async (
     provider: "google" | "apple" | "microsoft",
-    start: (next?: string) => Promise<{ error: string | null }>,
+    start: (next?: string) => Promise<AuthStartResult>,
   ) => {
     const operation = Symbol();
     const accountSignal = readProviderAccountSignal();
@@ -302,13 +302,17 @@ export default function SignInButton({
     trackEvent("sign_in_initiated", { provider });
     setBusy(provider);
     setError(null);
+    // While the page leaves for the provider the controls stay busy; a
+    // back-forward cache restore releases them.
+    let navigating = false;
     try {
-      const { error: signInError } = await start();
+      const { error: signInError, navigating: leaving } = await start();
+      navigating = leaving === true && !signInError;
       if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
     } catch {
       if (ownsOperation() && !accountSignal.aborted) setError("Sign-in could not be started. Try again.");
     } finally {
-      if (ownsOperation()) {
+      if (ownsOperation() && !navigating) {
         operationRef.current = null;
         setBusy(null);
       }

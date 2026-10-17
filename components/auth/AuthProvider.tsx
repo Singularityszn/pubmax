@@ -64,6 +64,7 @@ import {
   guardSocialAuthProvider,
   loadSocialAuthProviders,
   NO_SOCIAL_AUTH_PROVIDERS,
+  type AuthStartResult,
   type SocialAuthProviderAvailability,
 } from "@/lib/authProviderAvailability";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
@@ -149,6 +150,8 @@ const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
 const AUTH_STATE_UNCONFIRMED_MESSAGE = "Your sign-in state could not be confirmed. Try again.";
 const AUTH_START_CANCELLED_MESSAGE = "Sign-in was cancelled. Try again.";
+// The native sheet reports a closed sheet and a provider failure the same way.
+const AUTH_PROVIDER_INCOMPLETE_MESSAGE = "Sign-in was cancelled or could not be completed. Try again.";
 
 function signedInAsMessage(user: User): string {
   const address = authCallbackConfirmationLabel({
@@ -965,9 +968,10 @@ export function AuthProvider({
       callback: result.captured.attempt,
       request: (input, init) => authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
       current: ownsAccount,
+      // The return URL is not this page, so only the push target is cleaned;
+      // rewriting this entry would pair its router state with another URL.
       replaceUrl: (cleanUrl) => {
         returnUrl = safeAuthNext(cleanUrl, window.location.origin);
-        window.history.replaceState(window.history.state, "", returnUrl);
       },
     });
     void referralClaimed.catch(() => {}).then(() =>
@@ -979,7 +983,7 @@ export function AuthProvider({
     }).catch(() => {});
   }, [router]);
 
-  const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<{ error: string | null } | { useExistingOAuth: true }> => {
+  const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<AuthStartResult | { useExistingOAuth: true }> => {
     await cancelPendingNativeAuth();
     const ticket = nativeAuthLifetime.current.begin();
     const supabase = await ensureSupabaseBrowser().catch(() => null);
@@ -1007,7 +1011,7 @@ export function AuthProvider({
     if (!await nativeAuthSessionAvailable()) return { error: "Update the iPhone app to use Google, Apple or Microsoft sign-in." };
     if (!ticket.current()) return { error: null };
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     if (!ticket.current()) {
       releaseBrowserAuthAttempt(attempt.id);
@@ -1033,7 +1037,7 @@ export function AuthProvider({
       if (nativeAuthAttempt.current === attempt.id) nativeAuthAttempt.current = null;
     }
     if (!ticket.current()) return { error: null };
-    if (!completed) return { error: AUTH_CALLBACK_ERROR_MESSAGE };
+    if (!completed) return { error: AUTH_PROVIDER_INCOMPLETE_MESSAGE };
     finishNativeSignIn(completed, ticket.current);
     return { error: null };
   }, [cancelPendingNativeAuth, finishNativeSignIn]);
@@ -1149,7 +1153,8 @@ export function AuthProvider({
   // On the web supabase-js navigates before this handoff runs.
   const handOffToSystemBrowser = useCallback(
     async (systemBrowser: boolean, url: string | null | undefined, attemptId: string) => {
-      if (!systemBrowser) return { error: null };
+      // supabase-js has already started this page's redirect to the provider.
+      if (!systemBrowser) return { error: null, navigating: true };
       if (!url) {
         releaseBrowserAuthAttempt(attemptId);
         return { error: "Sign-in could not be started. Try again." };
@@ -1158,19 +1163,19 @@ export function AuthProvider({
       if (outcome === "opened") return { error: null };
       // No system browser to hand to: take the web's own path.
       window.location.assign(url);
-      return { error: null };
+      return { error: null, navigating: true };
     },
     [],
   );
 
-  const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     if (nativePlatform() === "ios") {
       const native = await startNativeIOSOAuth("google", next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
@@ -1199,14 +1204,14 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     if (nativePlatform() === "ios") {
       const native = await startNativeIOSOAuth("apple", next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
@@ -1233,14 +1238,14 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseMicrosoftOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const startSupabaseMicrosoftOAuth = useCallback(async (next?: string): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     if (nativePlatform() === "ios") {
       const native = await startNativeIOSOAuth("azure", next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
-    if ("navigationStarted" in attempt) return { error: null };
+    if ("navigationStarted" in attempt) return { error: null, navigating: true };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
@@ -1268,7 +1273,7 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const signInWithGoogle = useCallback(async (next?: string): Promise<AuthStartResult> => {
     const guarded = await guardSocialAuthProvider(
       "google",
       () => startSupabaseGoogleOAuth(next),
@@ -1278,7 +1283,7 @@ export function AuthProvider({
     return guarded.result;
   }, [startSupabaseGoogleOAuth]);
 
-  const signInWithApple = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const signInWithApple = useCallback(async (next?: string): Promise<AuthStartResult> => {
     const guarded = await guardSocialAuthProvider(
       "apple",
       () => startSupabaseAppleOAuth(next),
@@ -1288,7 +1293,7 @@ export function AuthProvider({
     return guarded.result;
   }, [startSupabaseAppleOAuth]);
 
-  const signInWithMicrosoft = useCallback(async (next?: string): Promise<{ error: string | null }> => {
+  const signInWithMicrosoft = useCallback(async (next?: string): Promise<AuthStartResult> => {
     const guarded = await guardSocialAuthProvider(
       "microsoft",
       () => startSupabaseMicrosoftOAuth(next),

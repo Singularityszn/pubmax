@@ -504,6 +504,20 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/map#invite=kept"));
   });
 
+  // The return URL is not the page the reader is on, so cleaning its referral
+  // fragment must not rewrite this page's history entry before the push.
+  it("leaves the current history entry alone when a warm return consumes a referral", async () => {
+    const referral = "validReferralCode123456789";
+    window.history.replaceState(null, "", "/map#referral=" + referral + "&invite=kept");
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("sent"); });
+    window.history.replaceState({ page: "login" }, "", "/login");
+    await openApp(await emailCallback());
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/map#invite=kept"));
+    expect(h.referralBodies).toHaveLength(1);
+    expect(`${window.location.pathname}${window.location.hash}`).toBe("/login");
+    expect(window.history.state).toEqual({ page: "login" });
+  });
+
   it("keeps the signed-in Add account email path implicit", async () => {
     window.history.replaceState(null, "", "/login?add=1");
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });

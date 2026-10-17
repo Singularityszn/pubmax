@@ -7,6 +7,7 @@ import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import type { ProviderAuthState } from "@/lib/authProviderRevision";
 import {
   NO_SOCIAL_AUTH_PROVIDERS,
+  type AuthStartResult,
   type SocialAuthProviderAvailability,
 } from "@/lib/authProviderAvailability";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
@@ -35,11 +36,11 @@ export type AuthContextValue = {
   /** False only while that first settings read is still in flight. */
   socialProvidersResolved: boolean;
   /** Start the Google OAuth redirect. No-op (returns an error) when unconfigured. */
-  signInWithGoogle: (next?: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: (next?: string) => Promise<AuthStartResult>;
   /** Start the Apple OAuth redirect. No-op when unconfigured. */
-  signInWithApple: (next?: string) => Promise<{ error: string | null }>;
+  signInWithApple: (next?: string) => Promise<AuthStartResult>;
   /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
-  signInWithMicrosoft: (next?: string) => Promise<{ error: string | null }>;
+  signInWithMicrosoft: (next?: string) => Promise<AuthStartResult>;
   /** Send a passwordless email link with normalized, non-enumerating feedback. */
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
   /**
