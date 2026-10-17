@@ -11,7 +11,6 @@ import type { SavedPub } from "@/lib/savedPubs";
 import {
   TONIGHT_RETURN_CUE_SOURCE_LINE,
   tonightReturnCue,
-  tonightReturnCueLabel,
 } from "@/lib/tonightReturnCue";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -82,7 +81,7 @@ describe("tonightReturnCue", () => {
     expect(tonightReturnCue([save("", "Want to Visit", "2026-10-01T20:00:00.000Z")], openable)).toBeNull();
   });
 
-  it("links the newest openable save and counts a pub in two lists once", () => {
+  it("links the newest openable save across every list", () => {
     const cue = tonightReturnCue(
       [
         save("venue-a", "Want to Visit", "2026-10-01T20:00:00.000Z"),
@@ -92,12 +91,7 @@ describe("tonightReturnCue", () => {
       ],
       openable,
     );
-    expect(cue).toEqual({ href: venueMapUrl("venue-b"), pubCount: 2 });
-  });
-
-  it("says singular for one pub and latest for several", () => {
-    expect(tonightReturnCueLabel(1)).toBe("Open your saved pub on the map");
-    expect(tonightReturnCueLabel(3)).toBe("Open your latest save on the map");
+    expect(cue).toEqual({ href: venueMapUrl("venue-b") });
   });
 });
 
@@ -180,6 +174,71 @@ describe("<TonightReturnCue />", () => {
     if (raw !== null) window.localStorage.setItem(STORAGE_KEY, raw);
     await mount(new Set(["venue-a"]));
     expect(container.innerHTML).toBe("");
+  });
+
+  const valid = save("venue-a", "Want to Visit", "2026-10-01T20:00:00.000Z");
+  const corruptSaves: Array<[string, unknown[]]> = [
+    ["a save with no date", [{ venueId: "venue-a", listType: "Want to Visit" }]],
+    ["a save dated with a number", [{ venueId: "venue-a", listType: "Want to Visit", savedAt: 1759348800000 }]],
+    ["a save dated with an empty string", [{ venueId: "venue-a", listType: "Want to Visit", savedAt: "" }]],
+    ["a save dated not-a-date", [{ venueId: "venue-a", listType: "Want to Visit", savedAt: "not-a-date" }]],
+    ["a valid save beside one with no date", [valid, { venueId: "venue-b", listType: "Cheap Pint" }]],
+    ["a valid save beside one dated with a number", [valid, { venueId: "venue-b", listType: "Cheap Pint", savedAt: 0 }]],
+    [
+      "a valid save beside one dated not-a-date",
+      [valid, { venueId: "venue-b", listType: "Cheap Pint", savedAt: "not-a-date" }],
+    ],
+    ["a valid save beside a null record", [valid, null]],
+    ["a valid save beside a bare string", [valid, "venue-b"]],
+    ["a valid save beside a record with no list", [valid, { venueId: "venue-b", savedAt: "2026-10-02T20:00:00.000Z" }]],
+    [
+      "a valid save beside a record with a numeric list",
+      [valid, { venueId: "venue-b", listType: 3, savedAt: "2026-10-02T20:00:00.000Z" }],
+    ],
+    [
+      "a valid save beside a record with an empty list",
+      [valid, { venueId: "venue-b", listType: "", savedAt: "2026-10-02T20:00:00.000Z" }],
+    ],
+    [
+      "a valid save beside a record with an overlong list",
+      [valid, { venueId: "venue-b", listType: "x".repeat(61), savedAt: "2026-10-02T20:00:00.000Z" }],
+    ],
+    [
+      "a valid save beside a record with a numeric id",
+      [valid, { venueId: 7, listType: "Cheap Pint", savedAt: "2026-10-02T20:00:00.000Z" }],
+    ],
+  ];
+
+  it.each(corruptSaves)("stays quiet, and writes nothing back, when storage holds %s", async (_label, records) => {
+    const raw = JSON.stringify(records);
+    window.localStorage.setItem(STORAGE_KEY, raw);
+    const owner = setItemOwner(window.localStorage);
+    const setItem = vi.spyOn(owner, "setItem");
+    const removeItem = vi.spyOn(owner, "removeItem");
+
+    await mount(new Set(["venue-a", "venue-b"]));
+
+    expect(container.innerHTML).toBe("");
+    expect(setItem).not.toHaveBeenCalled();
+    expect(removeItem).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe(raw);
+  });
+
+  it("links the newest of several saved pubs with the one fixed line, whatever order they are stored in", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        save("venue-a", "Want to Visit", "2026-10-01T20:00:00.000Z"),
+        save("venue-b", "Cheap Pint", "2026-10-03T20:00:00.000Z"),
+        save("venue-a", "Date night", "2026-10-02T20:00:00.000Z"),
+      ]),
+    );
+    await mount(new Set(["venue-a", "venue-b"]));
+
+    const links = container.querySelectorAll('[data-testid="tonight-return-cue"] a');
+    expect(links).toHaveLength(1);
+    expect(links[0]!.getAttribute("href")).toBe(venueMapUrl("venue-b"));
+    expect(links[0]!.textContent).toBe("Open your saved pub on the map");
   });
 
   it("stays quiet when the browser blocks site data", async () => {

@@ -9,10 +9,12 @@
 
 import type { Route } from "next";
 
-import type { SavedPub } from "@/lib/savedPubs";
+import { isListType } from "@/lib/savedPubs";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export const TONIGHT_RETURN_CUE_TITLE = "Your saved pubs";
+
+export const TONIGHT_RETURN_CUE_LABEL = "Open your saved pub on the map";
 
 /** Where the saves were read from. True for every reader, signed in or not. */
 export const TONIGHT_RETURN_CUE_SOURCE_LINE =
@@ -20,36 +22,28 @@ export const TONIGHT_RETURN_CUE_SOURCE_LINE =
 
 export type TonightReturnCue = {
   href: Route;
-  /** Distinct saved pubs the map can open. Never a list or row count. */
-  pubCount: number;
 };
-
-export function tonightReturnCueLabel(pubCount: number): string {
-  return pubCount > 1 ? "Open your latest save on the map" : "Open your saved pub on the map";
-}
 
 /**
  * The cue, or null when there is nothing honest to say. Null when the map's
  * openable ids are unknown, because a link we cannot vouch for is worse than
- * no link. A pub saved to several lists counts once, under its newest save.
+ * no link.
  */
 export function tonightReturnCue(
-  saved: readonly SavedPub[],
+  records: unknown,
   selectableVenueIds: ReadonlySet<string> | null | undefined,
 ): TonightReturnCue | null {
-  if (!selectableVenueIds) return null;
-  const newestByVenue = new Map<string, string>();
-  for (const entry of saved) {
-    if (!entry.venueId || !selectableVenueIds.has(entry.venueId)) continue;
-    const held = newestByVenue.get(entry.venueId);
-    if (held === undefined || entry.savedAt > held) {
-      newestByVenue.set(entry.venueId, entry.savedAt);
+  if (!selectableVenueIds || !Array.isArray(records)) return null;
+  let latest: { venueId: string; savedAt: number } | null = null;
+  for (const record of records) {
+    if (!record || typeof record !== "object") return null;
+    const { venueId, listType, savedAt } = record as Record<string, unknown>;
+    if (typeof venueId !== "string" || !venueId || !isListType(listType)) return null;
+    const at = typeof savedAt === "string" ? Date.parse(savedAt) : Number.NaN;
+    if (Number.isNaN(at)) return null;
+    if (selectableVenueIds.has(venueId) && (!latest || at > latest.savedAt)) {
+      latest = { venueId, savedAt: at };
     }
   }
-  let latest: { venueId: string; savedAt: string } | null = null;
-  for (const [venueId, savedAt] of newestByVenue) {
-    if (!latest || savedAt > latest.savedAt) latest = { venueId, savedAt };
-  }
-  if (!latest) return null;
-  return { href: venueMapUrl(latest.venueId), pubCount: newestByVenue.size };
+  return latest ? { href: venueMapUrl(latest.venueId) } : null;
 }

@@ -24,14 +24,24 @@ const VIEWPORTS = [
 const THEMES = ["light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
 
-const SAVED_RAW = JSON.stringify([
-  {
-    venueId: COMMUNITY_SHEET_FIXTURE_VENUE_ID,
-    listType: "Private list label",
-    note: "Private note text",
-    savedAt: "2026-10-01T20:00:00.000Z",
-  },
-]);
+const PRINCESS_LOUISE_SAVE = {
+  venueId: COMMUNITY_SHEET_FIXTURE_VENUE_ID,
+  listType: "Private list label",
+  note: "Private note text",
+  savedAt: "2026-10-01T20:00:00.000Z",
+};
+// An older save under The Blackfriar's superseded id, which the map serves
+// under its current id.
+const BLACKFRIAR_ALIAS_ID = "venue-1sw9ofl";
+const BLACKFRIAR_ID = "venue-eltcmh";
+const BLACKFRIAR_NAME = "The Blackfriar";
+const BLACKFRIAR_ALIAS_SAVE = {
+  venueId: BLACKFRIAR_ALIAS_ID,
+  listType: "Want to Visit",
+  note: "Older private note",
+  savedAt: "2026-09-20T20:00:00.000Z",
+};
+const SAVED_RAW = JSON.stringify([PRINCESS_LOUISE_SAVE, BLACKFRIAR_ALIAS_SAVE]);
 
 // The theme is the reader's stored choice, the key public/theme-init.js reads
 // before paint (the e2e/screenshots.spec.ts setTheme idiom). It is not the
@@ -256,6 +266,10 @@ for (const viewport of VIEWPORTS) for (const theme of THEMES) {
     await expect(cue).not.toContainText("Private list label");
     await expect(cue).not.toContainText("Private note text");
     await expect(cue).not.toContainText(COMMUNITY_SHEET_FIXTURE_VENUE_ID);
+    await expect(cue).not.toContainText("Want to Visit");
+    await expect(cue).not.toContainText("Older private note");
+    await expect(cue).not.toContainText(BLACKFRIAR_ALIAS_ID);
+    await expect(cue).not.toContainText(BLACKFRIAR_ID);
 
     const link = cue.getByRole("link", { name: "Open your saved pub on the map" });
     await expect(link).toHaveAttribute("href", COMMUNITY_SHEET_FIXTURE_MAP_PATH);
@@ -361,6 +375,72 @@ for (const [label, raw] of [
     await expect(page.getByTestId("tonight-return-cue")).toHaveCount(0);
   });
 }
+
+const CORRUPT_SAVES: ReadonlyArray<readonly [string, readonly unknown[]]> = [
+  ["a save with no date", [{ venueId: COMMUNITY_SHEET_FIXTURE_VENUE_ID, listType: "Want to Visit" }]],
+  [
+    "a save dated with a number",
+    [{ venueId: COMMUNITY_SHEET_FIXTURE_VENUE_ID, listType: "Want to Visit", savedAt: 1759348800000 }],
+  ],
+  [
+    "a save dated not-a-date",
+    [{ venueId: COMMUNITY_SHEET_FIXTURE_VENUE_ID, listType: "Want to Visit", savedAt: "not-a-date" }],
+  ],
+  ["a valid save beside one with no date", [PRINCESS_LOUISE_SAVE, { venueId: BLACKFRIAR_ID, listType: "Want to Visit" }]],
+  ["a valid save beside a null record", [PRINCESS_LOUISE_SAVE, null]],
+];
+
+for (const [label, records] of CORRUPT_SAVES) {
+  test(`Tonight shows no return cue, and rewrites nothing, with ${label}`, async ({ page }) => {
+    const raw = JSON.stringify(records);
+    await seed(page, raw);
+    await settled(page);
+    await expect(page.getByTestId("tonight-return-cue")).toHaveCount(0);
+    expect(await savedBytes(page)).toBe(raw);
+  });
+}
+
+async function storedSaves(page: Page): Promise<unknown> {
+  const raw = await savedBytes(page);
+  return raw === null ? null : JSON.parse(raw);
+}
+
+test("the map holds a save under a superseded id as saved, and an explicit press removes and restores it", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await seed(page, SAVED_RAW);
+  const response = await page.goto(`/map?sel=${BLACKFRIAR_ID}`, { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  await expectSoleDesktopDrawer(page, "venue");
+  const drawer = desktopVenueDrawer(page);
+  await expect(drawer.getByRole("heading", { name: BLACKFRIAR_NAME })).toBeInViewport({ timeout: 30_000 });
+  await expectRenderedMap(page);
+  expect(await savedBytes(page)).toBe(SAVED_RAW);
+
+  const picker = drawer.getByRole("region", { name: "Save this venue to a list" });
+  await expect(async () => {
+    await drawer.getByRole("button", { name: `Save ${BLACKFRIAR_NAME} to a list` }).click();
+    await expect(picker).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const wantToVisit = picker.getByRole("button", { name: /^✓?Want to Visit$/ });
+  await expect(wantToVisit).toHaveAttribute("aria-pressed", "true");
+  expect(await savedBytes(page)).toBe(SAVED_RAW);
+
+  await wantToVisit.click();
+  await expect(wantToVisit).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => storedSaves(page)).toEqual([PRINCESS_LOUISE_SAVE]);
+
+  await wantToVisit.click();
+  await expect(wantToVisit).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() => storedSaves(page))
+    .toEqual([
+      PRINCESS_LOUISE_SAVE,
+      expect.objectContaining({ venueId: BLACKFRIAR_ID, listType: "Want to Visit" }),
+    ]);
+});
 
 test("with scripts off, Tonight renders and paints no return cue over real saves", async ({
   browser,

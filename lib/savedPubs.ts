@@ -17,6 +17,7 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 import { cleanText } from "@/lib/textClean";
 import type { VenueKind } from "@/lib/venues";
 import { authedFetch } from "@/lib/authedFetch";
+import { loadVenueAliasMap } from "@/lib/venueAliasMap";
 
 // A list is now free text (built-in suggestion OR a custom name).
 export type ListType = string;
@@ -112,20 +113,13 @@ export function cleanListType(value: unknown): ListType {
   return cleanText(value, MAX_LIST_TYPE);
 }
 
-function isListType(value: unknown): value is ListType {
+export function isListType(value: unknown): value is ListType {
   return typeof value === "string" && value.length > 0 && value.length <= MAX_LIST_TYPE;
 }
 
 // Parse defensively: bad JSON, a non-array, or malformed rows never throw —
 // they yield a clean, valid list. Unknown list types are dropped.
-function parse(raw: string | null): SavedPub[] {
-  if (!raw) return [];
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return [];
-  }
+function parse(data: unknown): SavedPub[] {
   if (!Array.isArray(data)) return [];
   const out: SavedPub[] = [];
   for (const item of data) {
@@ -147,13 +141,18 @@ function parse(raw: string | null): SavedPub[] {
   return out;
 }
 
-export function getSaved(): SavedPub[] {
-  if (!hasStorage()) return [];
+export function readSavedRecords(): unknown {
+  if (!hasStorage()) return null;
   try {
-    return parse(window.localStorage.getItem(STORAGE_KEY));
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return [];
+    return null;
   }
+}
+
+export function getSaved(): SavedPub[] {
+  return parse(readSavedRecords());
 }
 
 function write(list: SavedPub[]): void {
@@ -169,12 +168,14 @@ function write(list: SavedPub[]): void {
 // otherwise it is added (with an optional note). Returns the new full list so
 // callers can update React state from the handler's return value without a
 // second read.
-function toggleSave(
+async function toggleSave(
   venueId: string,
   listType: ListType,
   note?: string,
   venueKind?: VenueKind,
-): SavedPub[] {
+): Promise<SavedPub[]> {
+  const aliases = await loadVenueAliasMap();
+  const canonical = (id: string) => aliases.get(id) ?? id;
   const current = getSaved();
   const cleanedListType = cleanListType(listType);
   if (
@@ -183,8 +184,10 @@ function toggleSave(
   ) {
     return current;
   }
-  const next = isSaved(current, venueId, cleanedListType)
-    ? removeSaved(current, venueId, cleanedListType)
+  const held = (entry: SavedPub) =>
+    entry.listType === cleanedListType && canonical(entry.venueId) === canonical(venueId);
+  const next = current.some(held)
+    ? current.filter((entry) => !held(entry))
     : upsertSaved(current, {
         venueId,
         listType: cleanedListType,
@@ -214,14 +217,13 @@ export function canonicalizeSaved(
   return next;
 }
 
-/** Rewrite this device's saves under their venues' current ids. Returns the list held. */
 export function canonicalizeStoredSaved(canonical: (venueId: string) => string): SavedPub[] {
-  const current = getSaved();
-  const next = canonicalizeSaved(current, canonical);
-  if (next.length !== current.length || next.some((entry, index) => entry !== current[index])) {
-    write(next);
-  }
-  return next;
+  return canonicalizeSaved(getSaved(), canonical);
+}
+
+export async function readCanonicalSaved(): Promise<SavedPub[]> {
+  const aliases = await loadVenueAliasMap();
+  return canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
 }
 
 // Read + group in one call for the profile view.
@@ -415,7 +417,7 @@ export async function toggleSaveDurable(
     return null;
   }
   // Always keep the local store in sync so a signed-out reload still shows saves.
-  toggleSave(venueId, cleanedListType, note, venueKind);
+  await toggleSave(venueId, cleanedListType, note, venueKind);
   const h = handle.trim();
   if (!h) return null;
   try {

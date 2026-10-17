@@ -9,7 +9,9 @@ import {
   cleanListType,
   fetchSavedForHandle,
   getSaved,
+  readCanonicalSaved,
   toggleSaveDurable,
+  type SavedPub,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
 import {
@@ -43,8 +45,11 @@ function savedToast(listType: string, handle: string): string {
 
 /** The lists this venue is in right now, from the server's fresh answer when
  * there is one and this device's own store when there is not. */
-function listsHolding(venueId: string, durable: readonly SavedPubDTO[] | null): string[] {
-  const rows = durable ?? getSaved();
+function listsHolding(
+  venueId: string,
+  read: readonly Pick<SavedPub, "venueId" | "listType">[] | null,
+): string[] {
+  const rows = read ?? getSaved();
   return rows.filter((row) => row.venueId === venueId).map((row) => row.listType);
 }
 
@@ -61,8 +66,9 @@ function afterPress(
   listType: string,
   wanted: boolean,
   durable: readonly SavedPubDTO[] | null,
+  local: readonly SavedPub[],
 ): string[] | null {
-  if (!signedIn) return listsHolding(venueId, null);
+  if (!signedIn) return listsHolding(venueId, local);
   if (!durable) return null;
   const held = durable.some((row) => row.venueId === venueId && row.listType === listType);
   if (held !== wanted) return null;
@@ -109,7 +115,7 @@ export default function SaveToListControl({
   // device's copy may be missing a save made elsewhere, and a press judged
   // against it would report a removal that worked as a failure.
   const [serverVenueId, setServerVenueId] = useState<string | null>(null);
-  const ready = identityResolved && (!handle || serverVenueId === venueId);
+  const ready = identityResolved && serverVenueId === venueId;
   // The inspector reuses this control as it moves from pub to pub, so the
   // membership it holds belongs to ONE venue. A new venue starts from this
   // device's own answer for it (adjust-state-during-render, the repo idiom),
@@ -154,8 +160,14 @@ export default function SaveToListControl({
   // fail-soft to just the built-ins).
   const loadLists = useCallback(async () => {
     const h = handle.trim();
-    if (!h) return;
     const read = ++membershipRead.current;
+    if (!h) {
+      const local = await readCanonicalSaved();
+      if (membershipRead.current !== read) return;
+      setSavedIn(listsHolding(venueId, local));
+      setServerVenueId(venueId);
+      return;
+    }
     try {
       const res = await authedFetch(
         `/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`,
@@ -215,7 +227,15 @@ export default function SaveToListControl({
         announce(
           venueId,
           listType,
-          afterPress(Boolean(handle), savedIn, venueId, listType, wanted, durable),
+          afterPress(
+            Boolean(handle),
+            savedIn,
+            venueId,
+            listType,
+            wanted,
+            durable,
+            await readCanonicalSaved(),
+          ),
         );
       } finally {
         setBusy(false);
@@ -263,6 +283,7 @@ export default function SaveToListControl({
             name,
             true,
             await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
+            await readCanonicalSaved(),
           );
       setNewName("");
       announce(venueId, name, held);
