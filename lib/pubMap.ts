@@ -832,7 +832,13 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
     loadedCityId: resumeSeed ? cityId : null,
     resumeViewport: resumeSeed?.viewport ?? null,
     selectedVenueId: seed.selectedVenueId || "",
-    filters: restoredSession?.filters ?? seed.filters,
+    // The search comes from the address alone (`?q=`), never from a saved
+    // session. A remembered "Hatton" on a bare /map narrowed the priced pins to
+    // its few matches, so the map opened with no prices on it and a stale word
+    // in the field. Every other saved filter still comes back.
+    filters: restoredSession?.filters
+      ? { ...restoredSession.filters, query: seed.filters.query }
+      : seed.filters,
     landmarkId: seed.landmarkId ?? "",
     nightArea: restoredSession?.nightArea ?? null,
     plannerOpen:
