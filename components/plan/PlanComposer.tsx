@@ -138,8 +138,8 @@ const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
 });
 const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultProvenance"), {
   ssr: false,
-  // One quiet line, held in place so the strip under it does not move.
-  loading: () => <p className="planResult__provenance" aria-hidden="true">&nbsp;</p>,
+  // It sits inside the fine-print line, held in place so the strip under it does not move.
+  loading: () => <span aria-hidden="true">&nbsp;</span>,
 });
 const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
@@ -2619,12 +2619,19 @@ function PlanComposerForm({
       </div>
       <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
       {routeStatusLine}
-      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
-        <p className="planResult__provenance">One pint per person at each stop. Meal prices are not verified.</p>
-      )}
-      <PlanResultProvenance />
       {routeStaleNotice}
     </section>
+  );
+  // THE STOPS COME FIRST. The fine print and the map strip used to sit between
+  // the summary and the pubs, so on a phone the first stop started below the
+  // fold. They now follow the stops, and the two caveats read as one line.
+  const resultFinePrint = (
+    <p className="planResult__provenance">
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
+      )}
+      <PlanResultProvenance />
+    </p>
   );
 
   return (
@@ -2664,8 +2671,9 @@ function PlanComposerForm({
           {resultMode ? (
             <>
               {resultHeader}
-              {resultStrip}
               {stopsBlock}
+              {resultFinePrint}
+              {resultStrip}
               {fieldsBlock}
               {coverageBlock}
               {tuneOpen ? null : (
