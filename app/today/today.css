@@ -11,14 +11,13 @@
      the tab bar, the home indicator and the create action's lane
      (components/nav/mobileNav.css), so a second tab-bar reserve here left an
      88px empty block under the foot. */
-  /* A FLAT top, never the safe-area inset: SiteNav is this page's first child
-     and the bar already adds env(safe-area-inset-top) through
+  /* NO top, never the safe-area inset: SiteNav is this page's first child and
+     the bar pays its whole top offset itself through
      .siteNavBar:not(.siteNavBarFloating){margin-top}, so adding it here again
      doubled the clock's clearance inside the native shells and the installed
      PWA (59px twice on an iPhone 17 Pro) while an ordinary browser, where
-     env() is 0, never showed it. 10px + the bar's own inset lands the bar on
-     the same rect /tonight and the map use. */
-  padding: 10px var(--page-gutter) 24px;
+     env() is 0, never showed it. */
+  padding: 0 var(--page-gutter) 24px;
   color: var(--ink);
 }
 
