@@ -12,8 +12,11 @@ type WorkflowStep = {
   env?: Record<string, string>;
 };
 type WorkflowJob = {
+  name?: string;
   if?: string;
-  env?: Record<string, string>;
+  needs?: string[];
+  "runs-on"?: string;
+  env?: Record<string, string | number>;
   steps: WorkflowStep[];
   strategy?: { matrix?: { shard?: number[] } };
 };
@@ -22,6 +25,15 @@ type Workflow = {
   env?: Record<string, string>;
   jobs: Record<string, WorkflowJob>;
 };
+
+// The layout pins are three named jobs that share one step list, not a matrix.
+const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
+// Run unless the classifier succeeded and said docs or data. A failed
+// classifier must run the layout pins, not skip them: a skipped check counts
+// as passed for branch protection, so skipping would let a code change merge
+// without them (fail closed).
+const LAYOUT_PIN_IF =
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -82,7 +94,8 @@ describe("browser CI policy", () => {
 
     expect(Object.keys(workflow.jobs)).toEqual([
       "law-pins",
-      "layout-pins",
+      "change-scope",
+      ...LAYOUT_PIN_JOBS,
       "full-suite",
     ]);
     const envKeys = [
@@ -101,17 +114,25 @@ describe("browser CI policy", () => {
     }
   });
 
-  it("runs the layout-pinning browser specs on every pull request, in three shards", () => {
-    const workflow = readFileSync(workflowPath, "utf8");
-    const layoutPinsJob = (parse(workflow) as Workflow).jobs["layout-pins"];
-    if (!layoutPinsJob) throw new Error("e2e workflow has no layout-pins job");
-    const shards = layoutPinsJob.strategy?.matrix?.shard;
-    expect(shards).toEqual([1, 2, 3]);
-    expect(layoutPinsJob.if).toBeUndefined();
+  it("runs the layout-pinning browser specs on every code pull request, in three named shards", () => {
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    const layoutJobs = LAYOUT_PIN_JOBS.map((id) => defined(jobs[id], id));
+    layoutJobs.forEach((job, index) => {
+      // A fixed name, so a job skipped for a docs change still reports under
+      // the check name branch protection waits for.
+      expect(job.name).toBe(`Browser layout pins (${index + 1}/3)`);
+      expect(job.strategy).toBeUndefined();
+      expect(job.env?.LAYOUT_SHARD).toBe(index + 1);
+      expect(job.needs).toEqual(["change-scope"]);
+      expect(job.if).toBe(LAYOUT_PIN_IF);
+      // One step list for all three, so the shards cannot drift apart.
+      expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
+    });
+    const layoutPinsJob = defined(layoutJobs[0]);
     const [testStep, ...extraTestSteps] = playwrightSteps(layoutPinsJob);
     expect(extraTestSteps).toEqual([]);
     const run = runWords(defined(testStep, "layout-pins Playwright step").run);
-    expect(run).toContain(`--shard=\${{ matrix.shard }}/${shards?.length}`);
+    expect(run).toContain(`--shard=\${{ env.LAYOUT_SHARD }}/${LAYOUT_PIN_JOBS.length}`);
     expect(run).toContain("--workers=1");
     // These specs alone now hold layout once pinned by source-text unit tests.
     for (const spec of [
@@ -142,7 +163,7 @@ describe("browser CI policy", () => {
     // Playwright ORs its file filters, so a renamed spec would drop out silently.
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", "layout-pins"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS]) {
       const specs = playwrightSteps(defined(jobs[jobName])).flatMap((step) =>
         runWords(step.run).filter((word) => word.startsWith("e2e/")),
       );
@@ -156,7 +177,7 @@ describe("browser CI policy", () => {
   it("installs Chromium and its system dependencies before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", "layout-pins", "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
       const steps = defined(jobs[jobName]).steps;
       const install = steps.findIndex((step) =>
         step.run?.split("\n").some((line) => {
@@ -183,7 +204,7 @@ describe("browser CI policy", () => {
   it("chooses a runner-specific Playwright port before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", "layout-pins", "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
       const steps = defined(jobs[jobName]).steps;
       const portStep = steps.findIndex(
         (step) => step.uses === "./.github/actions/pubmax-playwright-port",
@@ -203,7 +224,7 @@ describe("browser CI policy", () => {
   it("gives each production browser build enough heap", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", "layout-pins", "full-suite"]) {
+    for (const jobName of ["law-pins", ...LAYOUT_PIN_JOBS, "full-suite"]) {
       const steps = playwrightSteps(defined(jobs[jobName]));
       expect(steps.length, jobName).toBeGreaterThan(0);
       for (const step of steps) {
