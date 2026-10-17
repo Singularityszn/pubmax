@@ -446,11 +446,11 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     access: {
       allowed: true,
       evidence:
-        "Owner decision, 16 Oct 2026. Wikidata's structured data is published under CC0 1.0. Wikimedia operators ask query-service clients to send a descriptive User-Agent and to back off on HTTP 429 (Wikimedia Phabricator tickets read through a search index). NOT read live: the query service's user manual and the Wikimedia User-Agent policy, because the registering environment's network refused both hosts. Re-read them on the first networked run of npm run build:wikidata-history.",
-      checkedOn: OPEN_DATA_CHECKED_ON,
+        "Owner decision, 16 Oct 2026. Read live on 17 Oct 2026, before the first networked run of npm run build:wikidata-history. Wikidata:Data access says all of Wikidata's data is CC0 and asks clients to follow the User-Agent policy. The Wikidata Query Service user manual (mediawiki.org) sets a hard 60-second query deadline; allows one client (User-Agent plus IP) 60 seconds of processing time each 60 seconds, 30 error queries a minute and 5 parallel queries per IP; answers a client over those limits with HTTP 429 and a Retry-After header; may temporarily ban a client that keeps asking through 429s; and may block one that breaks the User-Agent policy. The Wikimedia Foundation User-Agent Policy asks scripts for a descriptive User-Agent with contact information (a website or an email address), and says generic or browser-copied agents may be blocked.",
+      checkedOn: "2026-10-17",
     },
     notes:
-      "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent, and a 429 or 5xx retried with a doubling wait because the service does not reliably send Retry-After.",
+      "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent naming a contact URL, and a 429 or 5xx retried a bounded number of times after the service's Retry-After, or after a doubling wait when it sends none.",
   },
 ];
 
