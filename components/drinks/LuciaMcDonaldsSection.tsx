@@ -41,6 +41,9 @@ function standingLine(row: LuciaMcDonaldsRow): string | null {
 export default function LuciaMcDonaldsSection({ section }: { section: Section }) {
   const note = statusLine(section);
   const agreed = section.rows.filter((row) => row.standing.kind === "agreed").length;
+  // Only a complete read may say what is ABSENT. A partial or failed read can
+  // still show the figures it found, never "none yet" or "No price yet".
+  const complete = section.status === "ready";
   return (
     <section
       className="softDrinksWater__mcdonalds"
@@ -54,7 +57,9 @@ export default function LuciaMcDonaldsSection({ section }: { section: Section })
         McDonald&rsquo;s publishes no prices for its restaurants, so these are what
         people paid, logged with the bill.{" "}
         {section.rows.length > 0
-          ? `${section.rows.length} London McDonald’s on our map, ${agreed === 0 ? "none yet" : agreed} with a price two drinkers agree on.`
+          ? complete
+            ? `${section.rows.length} London McDonald’s on our map, ${agreed === 0 ? "none yet" : agreed} with a price two drinkers agree on.`
+            : `${section.rows.length} London McDonald’s on our map.`
           : null}
       </p>
       {note ? <p className="softDrinksWater__sectionNote">{note}</p> : null}
@@ -83,9 +88,9 @@ export default function LuciaMcDonaldsSection({ section }: { section: Section })
                   {line ? <span className="softDrinksWater__meta">{line}</span> : null}
                   {row.standing.kind === "agreed" ? null : (
                     <p className="softDrinksWater__door">
-                      {row.standing.kind === "none" ? "No price yet, " : null}
+                      {complete && row.standing.kind === "none" ? "No price yet, " : null}
                       <Link href={logHref} prefetch={false} onClick={logClick}>
-                        {row.standing.kind === "none" ? "add one" : "Add a price"}
+                        {complete && row.standing.kind === "none" ? "add one" : "Add a price"}
                       </Link>
                     </p>
                   )}

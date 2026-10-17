@@ -183,5 +183,18 @@ describe("the Lucia McDonald's list", () => {
       );
     });
     expect(container.textContent).toContain("We could not check the prices logged here just now.");
+    // A failed or partial read claims no absence, in the lede or on a row.
+    expect(container.textContent).not.toContain("none yet");
+    expect(container.textContent).not.toContain("No price yet");
+    expect(container.textContent).toContain("Add a price");
+  });
+
+  it("claims no absence on a partial read either", async () => {
+    await act(async () => {
+      root.render(createElement(LuciaMcDonaldsSection, { section: { status: "partial", rows } }));
+    });
+    expect(container.textContent).toContain("Some logged prices may be missing from this list.");
+    expect(container.textContent).not.toMatch(/none yet|No price yet|with a price two drinkers agree on/);
+    expect(container.querySelector(".priceBadge")?.textContent).toBe("£1.79");
   });
 });
