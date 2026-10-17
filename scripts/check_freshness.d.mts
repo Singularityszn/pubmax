@@ -32,5 +32,9 @@ export function formatFreshnessTable(results: FreshnessResult[]): string;
 
 export function freshnessGateFailed(
   results: FreshnessResult[],
-  options?: { requireStore?: boolean },
+  options?: { requireStore?: boolean; now?: Date },
 ): boolean;
+
+export const TEMPORARY_ADVISORY_UNTIL: Readonly<Record<string, string>>;
+
+export function isAdvisoryStale(id: string, now?: Date): boolean;
