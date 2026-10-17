@@ -92,9 +92,14 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
 // segment, so `/historic` (it reads search params) and `/borough` stay on the
 // nonce, and so does every deeper path such as an `opengraph-image` route.
 //
-// `/ledger/[id]` is NOT here and may not join on these terms: its document
-// resolves a viewer from the `Authorization` header to gate Family Table
-// content. That route needs its own decision first.
+// `/ledger/[id]` joined on 2026-10-17 (option a, captain's call): 2,214
+// sitemap URLs. Its document used to resolve a viewer from the `Authorization`
+// header for the Family Table, and it read the Pint Drop store. Neither is in
+// the document any more: it carries only the pub's bundled facts and curated
+// story line, and the logbook, the drop-derived story lines and the Family
+// Table come from GET /api/ledger/[id] after load, per request and never
+// cached. So no drinker's words sit in a cached copy, and a hidden, withdrawn
+// or erased drop leaves the page as soon as the store stops returning it.
 //
 // `__tests__/cdnCachedDocuments.test.ts` holds each pattern to the page file
 // at the same path under app/, which must declare `force-static`.
@@ -104,6 +109,7 @@ export const CDN_CACHED_DOCUMENT_ROUTES: ReadonlySet<string> = new Set([
   "/landmark/[id]",
   "/drink/[slug]",
   "/area/[slug]/drink/[brand]",
+  "/ledger/[id]",
 ]);
 
 /** True when `pathname` fills `pattern` segment for segment. */
