@@ -391,7 +391,13 @@ export function drinkLabelFromPriceContext(
     if (at >= start) start = at + sep.length;
   }
 
-  const raw = context.slice(start, priceAt).replace(/\s+/g, " ").trim();
+  // A price list printed inline ("Cans (Coke £3.30, Coke Zero £3, ...)") leaves
+  // the list's own separator in front of every item after the first.
+  const raw = context
+    .slice(start, priceAt)
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[,;:•·]+\s*/, "");
   if (!raw) return null;
   return normalizeHarvestDrinkLabel(raw);
 }

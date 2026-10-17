@@ -227,6 +227,17 @@ describe("what a page states", () => {
     expect(drinkLabelFromPriceContext("Coke Zero £2.50", "£2.50")).toBe("Coke Zero");
   });
 
+  it("drops an inline price list's separator from the front of each later item", () => {
+    // Printed on https://jollycoopers.co.uk/menu, read 2026-10-17.
+    const line = "Cans (Coke £3.30, Coke Zero £3, Fanta Orange Zero £3, Sprite Zero £3)";
+    const at = (needle: string) => line.indexOf(needle) + needle.length + 1;
+    expect(drinkLabelFromPriceContext(line, "£3", at("Coke Zero"))).toBe("Coke Zero");
+    expect(drinkLabelFromPriceContext(line, "£3", at("Sprite Zero"))).toBe("Sprite Zero");
+    // A comma inside a name is the name, not a separator.
+    expect(drinkLabelFromPriceContext("Coca Cola,Diet Coke,Schweppes Lemonade £3.85", "£3.85"))
+      .toBe("Coca Cola,Diet Coke,Schweppes Lemonade");
+  });
+
   it("reads a priced juice beside wine as a soft drink, without losing the wine", () => {
     // Synthetic menu using the printed Frobishers item in the committed source
     // ledger. No live page was fetched for this regression.
