@@ -17,7 +17,17 @@ import "server-only";
 // pint price may only come from a pub kind. A crowd occupancy reading is about
 // seats, and the venue sheet offers it on every kind, so that lane does not
 // narrow.
+//
+// `resolvePriceVenueId` is the price lane's door, and it admits ONE thing
+// beyond a pub: a London fast-food counter (`venue-osm-…`, kind `food`), for a
+// Coke Zero or Diet Coke price and nothing else (lib/londonFoodPlaces.ts owns
+// that rule). The counter must be in the London food pack, so an id is never
+// accepted on its shape.
 
+import type { DrinkCategory } from "@/lib/drinks";
+import { lookupLondonFoodPlace } from "@/lib/londonFoodIndex.server";
+import { foodPlacePriceRefusal } from "@/lib/londonFoodPlaces";
+import { isLondonVenueId } from "@/lib/londonVenueShards";
 import { currentUkBaseId, getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
@@ -60,4 +70,28 @@ export async function resolveWritableVenueId(
     return { ok: false, status: 400, error: UNKNOWN_VENUE };
   }
   return { ok: true, venueId: venueLookup.canonicalId };
+}
+
+/**
+ * The venue a community PRICE may be written against. A pub, as
+ * `resolveWritableVenueId` with `pubsOnly` answers it, or a London fast-food
+ * counter the food pack holds, for the one lane a counter takes.
+ */
+export async function resolvePriceVenueId(
+  venueId: string,
+  lane: { drinkCategory: DrinkCategory; drinkSubtype: unknown },
+): Promise<VenueWriteTarget> {
+  if (!isLondonVenueId(venueId)) {
+    return resolveWritableVenueId(venueId, { pubsOnly: true });
+  }
+  const lookup = await lookupLondonFoodPlace(venueId);
+  if (lookup.status === "unavailable") {
+    return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
+  }
+  if (lookup.status === "missing") {
+    return { ok: false, status: 400, error: UNKNOWN_VENUE };
+  }
+  const refusal = foodPlacePriceRefusal(lane);
+  if (refusal) return { ok: false, status: 400, error: refusal };
+  return { ok: true, venueId: lookup.place.id };
 }
