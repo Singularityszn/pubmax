@@ -112,10 +112,8 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
 
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
-  // The token check is a GoTrue round trip that never rejects and spends
-  // nothing, so on a keyed deploy it travels beside the rate-limit read instead
-  // of after it. Its answer is still only read once the limiter has passed.
-  const ownerIdRead = palVoiceConfigured() ? callerUserId(request) : null;
+  // The limiter answers before anything else is asked: the token check is a
+  // GoTrue round trip, and a refused request must not reach the auth backend.
   if (
     await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
       failClosed: true,
@@ -144,7 +142,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Voice is optional. Keyless deploys still answer from the same grounded
   // tools as /api/ask, and they never call OpenRouter.
-  if (!ownerIdRead) {
+  if (!palVoiceConfigured()) {
     try {
       const turns = normaliseTurns(record.turns);
       const social = socialTurnKind(query);
@@ -201,7 +199,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  const ownerId = await ownerIdRead;
+  const ownerId = await callerUserId(request);
   if (!ownerId) {
     return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
   }
