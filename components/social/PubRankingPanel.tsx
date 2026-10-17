@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -110,7 +111,7 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
             <li key={row.venueId}>
               <span className="pubRanking__place" aria-hidden="true">{index + 1}</span>
               <span className="pubRanking__what">
-                <Link prefetch={false} href={`/pubs/${encodeURIComponent(row.venueId)}`} className="pubRanking__name">
+                <Link prefetch={false} href={`/pubs/${encodeURIComponent(row.venueId)}` as Route} className="pubRanking__name">
                   {row.venueName ?? "A pub you ranked"}
                 </Link>
                 {row.note ? <span className="pubRanking__note">{row.note}</span> : null}
