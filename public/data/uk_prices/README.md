@@ -34,6 +34,13 @@ printed drink name (`scripts/build_uk_price_bundle.mjs` via `lib/bundleDrinkFiel
 When a lane only states a category, both fields stay absent. `drinkSubtype` is
 never guessed without a label that classifies.
 
+`lat`, `lng` and `londonBorough` are optional and come together. Only a listed
+`venue-uk-` row with a `drinkSubtype` carries them, stamped from the ledger
+row's own point, and only when that point lies in a London borough. A base pub
+has no curated record to place it, so this is how a London subtype view (the
+Lucia 🐐 lens on `/soft-drinks-and-water`) can rank it beside curated pubs. The
+builder never places a curated row, and never places a pub outside London.
+
 `servingSize` is optional source-stated serving text on listed rows, carried
 through from the producing lane. An absent field means unknown size. `Btl`
 records a bottle label without inventing its volume. The builder and runtime

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
@@ -21,6 +22,7 @@ import {
 import { findSubtype } from "@/lib/drinkSubtypes";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import type { PricedLandingRow } from "@/lib/pricedLanding";
+import { isUkBaseId } from "@/lib/ukBasePubs";
 import { formatPrice } from "@/lib/venues";
 
 import "./drinkSubtypePricedView.css";
@@ -47,6 +49,13 @@ function publisherRow(
     priceGbp: row.observed.priceGbp,
     publisher: row.observed.publisher,
   };
+}
+
+// A base pub has no ledger page; its pin on the map is where it opens.
+function venueHref(venueId: string): Route {
+  return isUkBaseId(venueId)
+    ? (`/map?sel=${encodeURIComponent(venueId)}` as Route)
+    : (`/ledger/${encodeURIComponent(venueId)}` as Route);
 }
 
 // "Still water" reads "still water" mid-sentence; a label that capitalises a
@@ -161,7 +170,7 @@ export default function DrinkSubtypePricedView({
               return (
                 <li className="softDrinksWater__row" key={row.venueId}>
                   <div>
-                    <Link className="softDrinksWater__venue" href={`/ledger/${encodeURIComponent(row.venueId)}`}>
+                    <Link className="softDrinksWater__venue" href={venueHref(row.venueId)}>
                       {row.venueName}
                     </Link>
                     <span className="softDrinksWater__borough">{row.borough}</span>

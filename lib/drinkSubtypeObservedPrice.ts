@@ -18,6 +18,7 @@ import {
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/drinks";
 import type { PricedLandingPublisher } from "@/lib/pricedLanding";
 import { authoritativeBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
+import { isUkBaseId, UNNAMED_PUB_LABEL } from "@/lib/ukBasePubs";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -212,15 +213,56 @@ export function selectObservedSubtypePriceForVenue(
       }
     }
   }
-  for (const row of authoritativeBundleRows(bundleRows)) {
-    for (const member of members) {
-      const hit = observedFromBundleRow(row, member);
-      if (hit) candidates.push(hit);
-    }
-  }
+  candidates.push(...observedFromBundleRows(bundleRows, members));
 
   if (candidates.length === 0) return null;
   return candidates.sort(compareObservedSubtypePrices)[0] ?? null;
+}
+
+function observedFromBundleRows(
+  bundleRows: readonly UkPriceBundleRow[],
+  members: readonly DrinkSubtype[],
+): ObservedSubtypePrice[] {
+  const hits: ObservedSubtypePrice[] = [];
+  for (const row of authoritativeBundleRows(bundleRows)) {
+    for (const member of members) {
+      const hit = observedFromBundleRow(row, member);
+      if (hit) hits.push(hit);
+    }
+  }
+  return hits;
+}
+
+// A London pub that exists only in the UK base layer, priced by its own menu.
+// It has no curated record, so it joins the view only through a bundle row that
+// states its London place, and only once it has a figure: an unpriced base pub
+// is never listed, because the base layer holds every pub in the country.
+function basePubSubtypeRows(
+  bundleByVenue: SubtypeBundleRowsByVenue,
+  subtype: DrinkSubtype,
+): SubtypePricedVenueRow[] {
+  const members = drinkSubtypeMembers(subtype);
+  const rows: SubtypePricedVenueRow[] = [];
+  for (const [venueId, bundleRows] of bundleByVenue) {
+    if (!isUkBaseId(venueId)) continue;
+    const placed = bundleRows.find(
+      (row) => row.londonBorough && typeof row.lat === "number" && typeof row.lng === "number",
+    );
+    if (!placed) continue;
+    const venueName = placed.name ?? UNNAMED_PUB_LABEL;
+    if (!isPublicRankablePub({ name: venueName })) continue;
+    const observed = observedFromBundleRows(bundleRows, members).sort(compareObservedSubtypePrices)[0];
+    if (!observed) continue;
+    rows.push({
+      venueId,
+      venueName,
+      borough: placed.londonBorough ?? "",
+      latitude: placed.lat ?? 0,
+      longitude: placed.lng ?? 0,
+      observed,
+    });
+  }
+  return rows;
 }
 
 function compareObservedSubtypePrices(
@@ -280,6 +322,7 @@ export function buildSubtypePricedVenueRows(
       observed,
     });
   }
+  rows.push(...basePubSubtypeRows(bundleByVenue, subtype));
 
   return rows.sort(compareSubtypePricedVenueRows).slice(0, limit);
 }
@@ -290,7 +333,9 @@ export function countObservedSubtypePrices(
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
   bundleByVenue: SubtypeBundleRowsByVenue = NO_BUNDLE_ROWS,
 ): number {
-  let count = 0;
+  const subtype = findSubtype(subtypeId);
+  if (!subtype) return 0;
+  let count = basePubSubtypeRows(bundleByVenue, subtype).length;
   for (const venue of venues) {
     if (!isPublicRankablePub(venue)) continue;
     if (

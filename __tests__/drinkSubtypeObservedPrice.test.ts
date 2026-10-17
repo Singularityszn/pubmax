@@ -323,6 +323,75 @@ describe("UK price bundle lane", () => {
   });
 });
 
+describe("London pubs that exist only in the UK base layer", () => {
+  function baseRow(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
+    return {
+      venueId: "venue-uk-w211942078",
+      name: "The Talbot",
+      category: "soft-drink",
+      priceGbp: 2.3,
+      lane: "site-harvest",
+      standing: "listed",
+      sourceUrl: "https://thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+      publisher: "thetalbotbrockley.co.uk",
+      observedAt: "2026-10-17T12:30:00.000Z",
+      basis: null,
+      sampleSize: null,
+      drinkLabel: "Diet Coke 200ml",
+      drinkSubtype: "soft-drink-diet-coke",
+      lat: 51.4648,
+      lng: -0.0337,
+      londonBorough: "Lewisham",
+      ...overrides,
+    };
+  }
+
+  it("ranks and counts a placed, priced base pub, keyed by its base id", () => {
+    const byVenue = new Map([["venue-uk-w211942078", [baseRow()]]]);
+    const rows = buildSubtypePricedVenueRows([], "soft-drink-lucia-special", [], undefined, byVenue);
+    expect(rows).toEqual([
+      {
+        venueId: "venue-uk-w211942078",
+        venueName: "The Talbot",
+        borough: "Lewisham",
+        latitude: 51.4648,
+        longitude: -0.0337,
+        observed: {
+          drinkLabel: "Diet Coke 200ml",
+          priceGbp: 2.3,
+          observedAt: "2026-10-17T12:30:00.000Z",
+          publisher: {
+            label: "thetalbotbrockley.co.uk",
+            url: "https://thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+          },
+          lane: "site-harvest",
+        },
+      },
+    ]);
+    expect(countObservedSubtypePrices([], "soft-drink-lucia-special", [], byVenue)).toBe(1);
+  });
+
+  it("ranks a base pub beside a curated one by price", () => {
+    const curated = makeVenue([makePrice("Coke Zero", 2.5)]);
+    const byVenue = new Map([["venue-uk-w211942078", [baseRow()]]]);
+    const rows = buildSubtypePricedVenueRows([curated], "soft-drink-lucia-special", [], undefined, byVenue);
+    expect(rows.map((row) => [row.venueId, row.observed?.priceGbp])).toEqual([
+      ["venue-uk-w211942078", 2.3],
+      ["venue-test-1", 2.5],
+    ]);
+  });
+
+  it("never lists a base pub with no London place, no matching drink or a curated id", () => {
+    const byVenue = new Map<string, UkPriceBundleRow[]>([
+      ["venue-uk-n1", [baseRow({ venueId: "venue-uk-n1", lat: undefined, lng: undefined, londonBorough: undefined })]],
+      ["venue-uk-n2", [baseRow({ venueId: "venue-uk-n2", drinkLabel: "Pepsi Max", drinkSubtype: "soft-drink-pepsi-max" })]],
+      ["venue-curated-1", [baseRow({ venueId: "venue-curated-1" })]],
+    ]);
+    expect(buildSubtypePricedVenueRows([], "soft-drink-lucia-special", [], undefined, byVenue)).toEqual([]);
+    expect(countObservedSubtypePrices([], "soft-drink-lucia-special", [], byVenue)).toBe(0);
+  });
+});
+
 describe("live bundle counts (PR reporting)", () => {
   it("reports how many pubs carry each launch subtype today", async () => {
     const { getPricedVenues, resetVenuePriceIndexForTests } = await import(
