@@ -16,6 +16,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 | Event | Properties |
 | --- | --- |
 | `plan_started` | _(none)_ |
+| `plan_one_tap` | `outcome` (`remembered`, `located`, `no-location`, `out-of-range`) |
 | `stop_added` | `surface` (`map`, `plan`, `round`) |
 | `crawl_locked` | `stops` (integer 1–10) |
 | `route_opened` | `surface` (`map`, `plan`) |

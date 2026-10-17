@@ -678,6 +678,13 @@
 }
 .planDescribeFirst__chip:hover,
 .planDescribeFirst__chip:focus-visible { border-color: var(--state-selected-border); color: var(--state-selected-ink); outline: none; }
+/* One tap to a route sits straight under the actions, the way on for a reader
+   who will not type. It is a chip, not a second primary: coral stays on the
+   one submit (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+.planDescribeFirst__oneTap { margin: var(--space-2) 0 0; display: grid; justify-items: start; gap: 6px; }
+.planDescribeFirst__chip--oneTap { display: inline-flex; align-items: center; gap: 8px; }
+.planDescribeFirst__chip[aria-busy="true"] { cursor: progress; color: var(--muted); }
+.planDescribeFirst__oneTapNote { margin: 0; max-width: 34rem; color: var(--muted); font-size: 0.875rem; font-weight: 700; }
 /* The Culture Crawl example sits in the same row as the pub nights, in the same
    neutral outline, because a suggestion is never a second primary action and
    coral is spent on the one primary (docs/DESIGN_SYSTEM.md "Coral is spent
@@ -1482,6 +1489,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     grid-column: 2;
     grid-row: 4;
     margin-top: 0;
+  }
+
+  .planDescribeFirst__oneTap {
+    grid-column: 2;
+    grid-row: 5;
   }
 
   .planDescribeFirst__chips {
