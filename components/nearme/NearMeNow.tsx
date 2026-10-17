@@ -5,7 +5,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { samePathWithQuery } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { NearAnswerSource } from "@/lib/analyticsEvents";
@@ -1035,6 +1035,13 @@ function NearMeAreaAnswer({
 /** The one caption for the whole list. It heads the list; it never rides a row. */
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
+/**
+ * What tapping a row does, said on the row. A first-time reader saw a price
+ * and a name with nothing saying the row opens the pub, and on /near the only
+ * worded control beside it was Keep for tonight.
+ */
+export const NEAR_ME_VIEW_LABEL = "View pub";
+
 function collectedPriceLabel(): string {
   return NEAR_PRICE_TRUST_CAPTION;
 }
@@ -1088,6 +1095,13 @@ function NearMeCardBody({
         >
           {formatPrice(card.cheapestPrice)}
         </PriceBadge>
+        {/* A quiet cue under the price, never a second button: the whole row is
+            the browse tap, so this only names it. Keep for tonight stays the one
+            bordered control beside it. */}
+        <span className="nmnCardView">
+          {NEAR_ME_VIEW_LABEL}
+          <ChevronRight size={13} aria-hidden="true" />
+        </span>
       </span>
     </>
   );
