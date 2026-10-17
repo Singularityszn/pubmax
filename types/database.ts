@@ -5656,6 +5656,125 @@ export type Database = {
         };
         Relationships: [];
       };
+      venue_submission_files: {
+        Row: {
+          id: string;
+          submission_id: string;
+          owner_user_id: string;
+          object_key: string;
+          kind: string;
+          content_type: string;
+          byte_size: number;
+          sha256: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          submission_id: string;
+          owner_user_id: string;
+          object_key: string;
+          kind: string;
+          content_type: string;
+          byte_size: number;
+          sha256: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          submission_id?: string;
+          owner_user_id?: string;
+          object_key?: string;
+          kind?: string;
+          content_type?: string;
+          byte_size?: number;
+          sha256?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_submission_files_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_submission_files_submission_id_fkey";
+            columns: ["submission_id"];
+            isOneToOne: false;
+            referencedRelation: "venue_submissions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      venue_submissions: {
+        Row: {
+          id: string;
+          owner_user_id: string;
+          name: string;
+          address: string;
+          postcode: string;
+          latitude: number | null;
+          longitude: number | null;
+          website: string;
+          menu_url: string;
+          opening_hours: string;
+          note: string;
+          prices: Json;
+          status: string;
+          duplicate_of_venue_id: string | null;
+          reviewer_note: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_user_id: string;
+          name: string;
+          address: string;
+          postcode?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          website?: string;
+          menu_url?: string;
+          opening_hours?: string;
+          note?: string;
+          prices?: Json;
+          status?: string;
+          duplicate_of_venue_id?: string | null;
+          reviewer_note?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_user_id?: string;
+          name?: string;
+          address?: string;
+          postcode?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          website?: string;
+          menu_url?: string;
+          opening_hours?: string;
+          note?: string;
+          prices?: Json;
+          status?: string;
+          duplicate_of_venue_id?: string | null;
+          reviewer_note?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_submissions_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       walk_route_legs: {
         Row: {
           leg_key: string;

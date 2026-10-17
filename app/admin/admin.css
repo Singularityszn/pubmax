@@ -80,6 +80,12 @@
   filter: brightness(1.05);
 }
 
+/* A lane filter that is on: the outline is the choice, so the fill steps back. */
+.admin-btn[aria-pressed="true"] {
+  background: transparent;
+  color: var(--ink);
+}
+
 .admin-btn:disabled {
   cursor: wait;
   opacity: 0.68;

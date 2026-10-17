@@ -196,7 +196,8 @@ describe("mutating API surface certification", () => {
     // 153: plus POST /api/pub-pal/chat, tool-turn, and tools/[toolName] (#Pal ElevenLabs brain).
     // 152: less POST /api/pub-pal/llm, the unused Custom LLM bridge.
     // 153: plus POST /api/diary, the private Diary (Phase 1).
-    expect(mutationHandlers).toHaveLength(153);
+    // 155: plus POST /api/venue-submissions and POST /api/admin/venue-submissions (Add a pub).
+    expect(mutationHandlers).toHaveLength(155);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

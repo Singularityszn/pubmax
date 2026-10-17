@@ -36,6 +36,7 @@ import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
+import type { VenueSubmissionFileKind, VenueSubmissionPublicFields } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
 /** The export document's version, bumped when a field changes meaning. */
@@ -233,6 +234,11 @@ export type AccountExportConversation = {
   messages: AccountExportMessage[];
 };
 
+/** A pub the account added. The owner and the stored file keys stay out: the file is the account's, the key is ours. */
+export type AccountExportVenueSubmission = VenueSubmissionPublicFields & {
+  files: { kind: VenueSubmissionFileKind; byteSize: number; createdAt: string }[];
+};
+
 export type AccountExportLane<T> = {
   status: AccountExportLaneStatus;
   /** True when the lane cap bit, so `items` is a window rather than the whole. */
@@ -268,6 +274,8 @@ export type AccountExport = {
   wanted: AccountExportLane<WantedDTO>;
   /** The account's own diary: private visits, each with its day and optional half-star rating. */
   diary: AccountExportLane<DiaryEntryDTO>;
+  /** Pubs the account added, with their prices and what each menu file was. */
+  venueSubmissions: AccountExportLane<AccountExportVenueSubmission>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -291,6 +299,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "savedPubs",
   "wanted",
   "diary",
+  "venueSubmissions",
   "socialLinks",
   "nightProfile",
   "messages",

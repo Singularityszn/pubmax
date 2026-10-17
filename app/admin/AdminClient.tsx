@@ -35,6 +35,7 @@ import {
 } from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
 import AdminSessionEntry from "./AdminSessionEntry";
+import VenueSubmissionModeration, { type AdminRequest } from "./VenueSubmissionModeration";
 
 import "./admin.css";
 
@@ -181,7 +182,7 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
   };
 }
 
-type AdminTab = "moderation" | "import" | "operators";
+type AdminTab = "moderation" | "import" | "operators" | "pubs";
 
 // Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
 type OperatorClaimRow = {
@@ -674,6 +675,15 @@ export default function AdminClient() {
     }
     return { kind: "response", response: await request() };
   }, [ensureAdminSession]);
+
+  // The added-pubs lane asks through the same session door as every queue here;
+  // null is a session that could not be reopened.
+  const adminRequest = useCallback<AdminRequest>(async (path, init) => {
+    const session = await ensureAdminSession();
+    if (session.status !== "open") return null;
+    const result = await retryWithFreshSession(() => fetch(path, { ...SESSION_FETCH, ...init }));
+    return result.kind === "response" ? result.response : null;
+  }, [ensureAdminSession, retryWithFreshSession]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);
@@ -1684,6 +1694,15 @@ export default function AdminClient() {
         >
           Operators
         </button>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "pubs" ? "admin-tab active" : "admin-tab"}
+          aria-selected={tab === "pubs"}
+          onClick={() => setTab("pubs")}
+        >
+          Added pubs
+        </button>
       </div>
 
       {tab === "moderation" ? (
@@ -2424,6 +2443,8 @@ export default function AdminClient() {
             )}
           </div>
         </>
+      ) : tab === "pubs" ? (
+        <VenueSubmissionModeration request={adminRequest} />
       ) : (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>

@@ -28,21 +28,23 @@ const USER = "u0000000-0000-4000-8000-000000000001";
 const PROFILE = "p0000000-0000-4000-8000-000000000002";
 
 describe("ownedObjectFolders", () => {
-  it("names every profile image slot's folder and the Moment folder, without a trailing slash", () => {
+  it("names every profile image slot's folder, the Moment folder and the menu folder, without a trailing slash", () => {
     const folders = ownedObjectFolders({ userId: USER, profileId: PROFILE });
 
     for (const slot of Object.values(PROFILE_IMAGE_SLOT_SPECS)) {
       expect(folders).toContain(`${slot.prefix}/${PROFILE}`);
     }
     expect(folders).toContain(`night-moments/${USER}`);
+    expect(folders).toContain(`venue-submissions/${USER}`);
     expect(folders.every((folder) => !folder.endsWith("/"))).toBe(true);
-    // Two slots plus the Moment folder: a slot added to the table joins here.
-    expect(folders).toHaveLength(Object.keys(PROFILE_IMAGE_SLOT_SPECS).length + 1);
+    // The slots plus the Moment and menu folders: a slot added to the table joins here.
+    expect(folders).toHaveLength(Object.keys(PROFILE_IMAGE_SLOT_SPECS).length + 2);
   });
 
-  it("keeps the Moment folder for an account that never claimed a handle", () => {
+  it("keeps the Moment and menu folders for an account that never claimed a handle", () => {
     expect(ownedObjectFolders({ userId: USER, profileId: null })).toEqual([
       `night-moments/${USER}`,
+      `venue-submissions/${USER}`,
     ]);
   });
 
