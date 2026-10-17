@@ -21,7 +21,8 @@
 // holds the policy each path answers; this file holds the page files behind it.
 //
 // Captain decisions: 2026-08-09 (`/` and `/map`), 2026-09-05 ("Widen": the
-// other logged-out pages, `/tonight`, `/today`, `/near`). Task
+// other logged-out pages, `/tonight`, `/today`, `/near`), 2026-10-17 (`/plan`
+// and `/pal`). Task
 // vercel-f2-seo-cdn (2026-10-15) added the public SEO route shapes in
 // CDN_CACHED_DOCUMENT_ROUTES, whose patterns are the app/ directory paths.
 

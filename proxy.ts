@@ -66,12 +66,20 @@ const CANONICAL_HOST = "pubmaxxing.com";
 // 'unsafe-inline' and no nonce, and the identity/social/admin routes carry a
 // fresh nonce and no 'unsafe-inline'. `__tests__/cdnCachedDocuments.test.ts`
 // holds every listed path to a page file that declares `force-static`.
+//
+// Product decision 2026-10-17 widened it to `/plan` and `/pal`, on the same
+// terms: neither document reads the session, a cookie, a header or a search
+// param, and both fetch everything personal (drafts, the Pal, memories) in the
+// browser after load. `/plan/[id]` and `/pal/chat` are other paths and keep
+// the nonce.
 export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
   "/",
   "/map",
   "/tonight",
   "/today",
   "/near",
+  "/plan",
+  "/pal",
 ]);
 
 // THE SAME TRADE FOR THE PUBLIC SEO DETAIL PAGES (task vercel-f2-seo-cdn,
