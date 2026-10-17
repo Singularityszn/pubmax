@@ -4,7 +4,7 @@ import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import Screen from "@/components/ui/screen";
 import WantedPlanChips from "@/components/wanted/WantedPlanChips";
-import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
+import { CULTURE_CRAWL_CHIPS } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
@@ -18,6 +18,16 @@ import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount"
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
+
+/**
+ * THREE EXAMPLES, NOT ELEVEN. The field is the way in; examples only show what
+ * to type. Two pub nights and one Culture Crawl, in one row, all from the closed
+ * sets (the full lists still serve `?occasion=` links and Tonight).
+ */
+export const DESCRIBE_FIRST_SHOWN_EXAMPLES: readonly { key: string; label: string; query: string; culture: boolean }[] = [
+  ...DESCRIBE_FIRST_CHIPS.slice(0, 2).map((query) => ({ key: query, label: query, query, culture: false })),
+  ...CULTURE_CRAWL_CHIPS.slice(0, 1).map((chip) => ({ key: chip.id, label: chip.label, query: chip.query, culture: true })),
+];
 
 export default function PlanDescribeFirst({
   onSubmit,
@@ -203,32 +213,16 @@ export default function PlanDescribeFirst({
         }}
       />
       <WantedPlanChips ready={ready} onPick={submitChip} />
-      <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
-        <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
-        <div className="planDescribeFirst__cultureChips">
-          {CULTURE_CRAWL_CHIPS.map((chip) => (
-            <button
-              key={chip.id}
-              type="button"
-              className="planDescribeFirst__chip planDescribeFirst__chip--culture"
-              aria-disabled={ready ? undefined : true}
-              onClick={() => submitChip(chip.query)}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-      </div>
       <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
-        {DESCRIBE_FIRST_CHIPS.map((chip) => (
+        {DESCRIBE_FIRST_SHOWN_EXAMPLES.map((example) => (
           <button
-            key={chip}
+            key={example.key}
             type="button"
-            className="planDescribeFirst__chip"
+            className={example.culture ? "planDescribeFirst__chip planDescribeFirst__chip--culture" : "planDescribeFirst__chip"}
             aria-disabled={ready ? undefined : true}
-            onClick={() => submitChip(chip)}
+            onClick={() => submitChip(example.query)}
           >
-            {chip}
+            {example.label}
           </button>
         ))}
       </div>
