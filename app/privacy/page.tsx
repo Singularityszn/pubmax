@@ -730,9 +730,10 @@ export default function PrivacyPage() {
               provider that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). With Pub Pal, the memories you confirmed for your
-              Pal (up to eight short preferences, such as a drink you like or
-              an access need) go with each chat or voice call too, so it can
-              use them. So does a short read of your taste that we work out
+              Pal go with each chat or voice call too, so it can use them: up
+              to eight short preferences, such as a drink you like or an access
+              need, picked for what you just asked, or up to twenty-four when
+              you ask what your Pal knows about you. So does a short read of your taste that we work out
               from what you logged yourself: your usual patches, the pubs you
               go back to or rated, what you drink, what you usually pay for a
               pint, the vibes you tag and the pubs you saved. Our server keeps

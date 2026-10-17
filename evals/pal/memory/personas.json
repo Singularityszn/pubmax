@@ -667,7 +667,7 @@
     },
     {
       "id": "long-memory",
-      "summary": "Eleven confirmed memories. Today only the newest eight reach the model, so the oldest three are stretch facts: the gap this eval is here to close.",
+      "summary": "Eleven confirmed memories, more than one turn carries. Recall picks by the ask, so every probe's facts must reach the model, the oldest included. A turn with no ask carries the pinned kinds and the newest, so the oldest three stay stretch facts there.",
       "userId": "e0000000-0000-4000-8000-000000000006",
       "handle": "evallongmemory",
       "pal": {

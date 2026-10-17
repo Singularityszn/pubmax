@@ -41,13 +41,18 @@ as leaks too, so one person's memory reaching another fails the suite.
 | Must recall | Must facts that reached the model, typed and voice | Must be 1 |
 | Leaks | Values that reached the model and must not have | Must be 0 |
 | Stretch recall | Stretch facts that reached the model | Tracked. Goes up as memory improves |
-| Probes answerable | Probes whose facts all reached the model | Tracked |
+| Probes answerable | Probes whose facts all reached the model, with the context built for that probe's ask | Must be every probe |
 | Context size | Characters of personal context per typed turn | Tracked. Cost and latency |
 
-Today stretch recall is 0: recall sends the newest eight confirmed memories
-(`PAL_RECALL_MEMORY_LIMIT`), so `long-memory`'s three oldest never reach the
-model. When recall picks memories by relevance instead, move those facts to
-`must` and update `__tests__/palMemoryEval.test.ts`, which pins the gap.
+Recall picks memories by the ask (`lib/palMemoryRelevance.ts`), so each
+probe is judged against the context built for its own words, and every probe
+must be answerable: that is part of the gate. Persona-level facts are judged
+against a turn with no ask, which carries the access needs, the corrections
+and the newest eight. That is why `long-memory`'s three oldest memories stay
+`stretch` there, while its probes reach them.
+
+The first run of this eval, with recall sending the newest eight, had 14 of 17
+probes answerable. Ranking by the ask took it to 17 of 17.
 
 ### Commands
 

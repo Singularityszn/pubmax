@@ -186,7 +186,7 @@ export async function runPalElevenLabsChatTurn(
 
   // Read from the signed-in owner's own Pal and logs, never from the request
   // body, beside the signed-URL request so neither waits on the other. Neither rejects.
-  const memoriesRead = readConfirmedPalMemories(input.ownerId);
+  const memoriesRead = readConfirmedPalMemories(input.ownerId, query);
   const tasteRead = readPalTaste(input.ownerId);
 
   const session = await fetchPalSignedConversation({ apiKey, agentId });

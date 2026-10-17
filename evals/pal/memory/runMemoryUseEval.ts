@@ -149,9 +149,10 @@ export async function runPalMemoryUseEval(options: RunPalMemoryUseEvalOptions): 
   return withSeededPalMemorySuite(root, async ({ suite, now, nameOf }) => {
     const probes: PalMemoryProbeUse[] = [];
     for (const persona of suite.personas) {
-      const context = await personaContext(persona, now);
       const foreign = foreignValues(persona, suite, nameOf);
       for (const probe of persona.probes) {
+        // What production sends for these words, since recall ranks by the ask.
+        const context = await personaContext(persona, now, probe.ask);
         let reply: PalMemoryReply;
         try {
           reply = await options.responder({ ownerId: persona.userId, ask: probe.ask });

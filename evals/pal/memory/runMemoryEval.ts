@@ -222,9 +222,14 @@ export async function withSeededPalMemorySuite<T>(
   }
 }
 
-/** The personal context typed chat sends for this persona, through the production readers. */
-export async function personaContext(persona: PalMemoryPersona, now: number): Promise<string[]> {
-  const [memories, taste] = await Promise.all([readConfirmedPalMemories(persona.userId), readPalTaste(persona.userId, now)]);
+/**
+ * The personal context typed chat sends for this persona, through the
+ * production readers. Recall ranks memories against the ask, so a probe is
+ * judged against the context built for its own words. No ask is a turn with
+ * nothing to rank by.
+ */
+export async function personaContext(persona: PalMemoryPersona, now: number, ask = ""): Promise<string[]> {
+  const [memories, taste] = await Promise.all([readConfirmedPalMemories(persona.userId, ask), readPalTaste(persona.userId, now)]);
   return palPersonalContext(memories, taste);
 }
 
@@ -269,15 +274,19 @@ export async function runPalMemoryEval(options: RunPalMemoryEvalOptions = {}): P
         { name: "recall_ok", pass: recall.result.ok, detail: recall.result.answerHint.slice(0, 120) },
       ]);
       const factById = new Map(persona.facts.map((fact) => [fact.id, fact]));
-      const probes = persona.probes.map((probe) => {
+      const probes: PalMemoryPersonaResult["probes"] = [];
+      for (const probe of persona.probes) {
+        const probeContext = await personaContext(persona, now, probe.ask);
         const missing = probe.needs.filter((id) => {
           const fact = factById.get(id);
           if (!fact) throw new Error(`Probe "${probe.ask}" in ${persona.id} needs unknown fact ${id}.`);
-          return !found(context, fact.value, fact.line);
+          return !found(probeContext, fact.value, fact.line);
         });
-        return { ask: probe.ask, answerable: missing.length === 0, missing };
-      });
-      results.push({ id: persona.id, pass: typed.pass && voice.pass, typed, voice, probes, context });
+        probes.push({ ask: probe.ask, answerable: missing.length === 0, missing });
+      }
+      // Recall ranks by the ask, so every probe's facts must reach the model.
+      const probesAnswered = probes.every((probe) => probe.answerable);
+      results.push({ id: persona.id, pass: typed.pass && voice.pass && probesAnswered, typed, voice, probes, context });
     }
 
     const surfaces = results.flatMap((result) => [result.typed, result.voice]);

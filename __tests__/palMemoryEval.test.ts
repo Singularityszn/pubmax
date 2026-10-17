@@ -34,13 +34,15 @@ describe("Pal memory eval (retrieval layer)", () => {
     expect(networkCalls).toEqual([]);
   });
 
-  it("measures the gap it exists to close: the oldest memories past the recall cap are not yet remembered", async () => {
+  it("reaches every probe's facts, the oldest memories included, while a turn with no ask still carries only the newest", async () => {
     const scoreboard = await runPalMemoryEval();
     const longMemory = scoreboard.personas.find((persona) => persona.id === "long-memory");
-    // When memory recall stops capping at the newest eight, this moves to 3 and
-    // the stretch facts become must facts in personas.json.
+    // Recall ranks by the ask: wine finds the sulphite allergy, getting home
+    // finds the Northern line, "everything" finds all eleven.
+    expect(longMemory?.probes.every((probe) => probe.answerable)).toBe(true);
+    expect(scoreboard.totals.probesAnswerable).toBe(scoreboard.totals.probes);
+    // With nothing to rank by, the oldest three stay out of a turn's context.
     expect(longMemory?.typed).toMatchObject({ stretchFound: 0, stretchTotal: 3 });
-    expect(scoreboard.totals.probesAnswerable).toBeLessThan(scoreboard.totals.probes);
   });
 
   it("refuses to seed a durable store", async () => {

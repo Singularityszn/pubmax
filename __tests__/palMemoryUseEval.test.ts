@@ -23,7 +23,7 @@ const ok = (reply: string) => ({ ok: true, reply, latencyMs: 900, toolsUsed: [] 
 const honestResponder: PalMemoryResponder = async ({ ownerId, ask }) => {
   const persona = defined(suite.personas.find((candidate) => candidate.userId === ownerId));
   const probe = probeOf(persona, ask);
-  const context = await personaContext(persona, Date.parse(suite.now));
+  const context = await personaContext(persona, Date.parse(suite.now), ask);
   const known = probe.needs
     .map((id) => defined(persona.facts.find((fact) => fact.id === id)))
     .filter((fact) => factInContext(context, fact))
@@ -33,7 +33,7 @@ const honestResponder: PalMemoryResponder = async ({ ownerId, ask }) => {
 };
 
 describe("Pal memory eval, use layer", () => {
-  it("passes a Pal that uses only what it was given, and lays the one gap on retrieval", async () => {
+  it("passes a Pal that uses only what it was given, with nothing left for retrieval to miss", async () => {
     const scoreboard = await runPalMemoryUseEval({ responder: honestResponder, responderName: "honest" });
 
     expect(scoreboard.totals).toMatchObject({
@@ -41,12 +41,32 @@ describe("Pal memory eval, use layer", () => {
       falseMemories: 0,
       failedTurns: 0,
       blamedOnModel: 0,
-      blamedOnRetrieval: 1,
+      blamedOnRetrieval: 0,
+      useRate: 1,
     });
     expect(scoreboard.totals.modePassed).toBe(scoreboard.totals.modeChecks);
-    const gap = defined(scoreboard.probes.find((probe) => probe.blame === "retrieval"));
-    expect(gap).toMatchObject({ persona: "long-memory", ask: "Fancy a glass of wine somewhere?", answerable: false });
-    expect(scoreboard.totals.useRate).toBeLessThan(1);
+  });
+
+  it("lays a miss on retrieval when the fact never reached the model, and on the model when it did", () => {
+    const longMemory = personaById("long-memory");
+    const probe = probeOf(longMemory, "Fancy a glass of wine somewhere?");
+    const reply = ok("Try a bar near you.");
+
+    const neverSent = gradePalMemoryReply({ persona: longMemory, probe, reply, context: ["- Drinks: Drinks cask bitter"], foreign: [] });
+    expect(neverSent).toMatchObject({ pass: false, answerable: false, blame: "retrieval" });
+
+    const ignored = gradePalMemoryReply({
+      persona: longMemory,
+      probe,
+      reply: ok("Try a natural wine bar near you."),
+      context: ["- Drinks: Allergic to sulphites, so no wine"],
+      foreign: [],
+    });
+    // "wine" is an alias, so the reply counts as using it; a reply that never
+    // touches the fact is the model's miss.
+    expect(ignored.used).toEqual(["long-03"]);
+    const silent = gradePalMemoryReply({ persona: longMemory, probe, reply, context: ["- Drinks: Allergic to sulphites, so no wine"], foreign: [] });
+    expect(silent).toMatchObject({ pass: false, answerable: true, blame: "model" });
   });
 
   it("calls a claim about a newcomer a false memory, and lets a plain question through", () => {

@@ -19,6 +19,9 @@ function printFailures(scoreboard) {
       ...persona.voice.checks.map((c) => ({ ...c, surface: "voice" })),
     ].filter((c) => !c.pass);
     for (const check of failed) console.error(`${persona.id} ${check.surface} ${check.name}: ${check.detail}`);
+    for (const probe of persona.probes.filter((p) => !p.answerable)) {
+      console.error(`${persona.id} probe "${probe.ask}" is missing ${probe.missing.join(", ")}`);
+    }
   }
 }
 

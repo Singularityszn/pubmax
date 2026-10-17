@@ -29,7 +29,15 @@ had to say it again every night.
    exists only once the person taps Confirm, which posts to
    `POST /api/pub-pal/memories`. It is typed chat only, because voice shows no
    card, so it refuses in a voice call and claims no card.
-5. **Map Ask is unchanged.** `POST /api/ask` keeps in-thread memory only, as
+5. **Recall picks by the ask, not by age** (amended 17 October 2026). A turn
+   carries up to eight memories (`PAL_RECALL_MEMORY_LIMIT`): access needs and
+   corrections always, then the ones the person's own words are about, then
+   the newest. An ask about the person themselves carries up to twenty-four.
+   The ranking is `lib/palMemoryRelevance.ts`, pure and in process, so it
+   costs a turn no time. Before this, recall sent the newest eight, and the
+   memory eval (`evals/pal/memory`) showed the oldest never reached the model
+   however much the ask was about them.
+6. **Map Ask is unchanged.** `POST /api/ask` keeps in-thread memory only, as
    ADR 0014 decision 7 states.
 
 ## Consequences
