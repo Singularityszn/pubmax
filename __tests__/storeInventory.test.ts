@@ -175,6 +175,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/socialPostReviewStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostVideoStore.ts": { class: "policy-heavy", selector: "selectStore" },
+  "lib/socialPubRankingStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/stepOutNudgeStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venueOperatorsStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/venuePhotoStore.ts": { class: "policy-heavy", selector: "selectStore" },

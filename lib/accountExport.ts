@@ -131,6 +131,14 @@ export type AccountExportSocialPost = {
   editedAt: string | null;
 };
 
+/** One pub in the account's own compared order (migration 0185). */
+export type AccountExportPubRanking = {
+  venueId: string;
+  band: string;
+  place: number;
+  score: number;
+};
+
 /** One crowd reading this account gave for a pub. */
 export type AccountExportCrowdReport = {
   id: string;
@@ -274,6 +282,8 @@ export type AccountExport = {
   wanted: AccountExportLane<WantedDTO>;
   /** The account's own diary: private visits, each with its day and optional half-star rating. */
   diary: AccountExportLane<DiaryEntryDTO>;
+  /** The account's own pub order, built by comparing pubs: band, place and the 0-10 it derives. */
+  pubRankings: AccountExportLane<AccountExportPubRanking>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -297,6 +307,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "savedPubs",
   "wanted",
   "diary",
+  "pubRankings",
   "socialLinks",
   "nightProfile",
   "messages",

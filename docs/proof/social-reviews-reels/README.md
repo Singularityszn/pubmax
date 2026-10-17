@@ -30,3 +30,15 @@ Added with the friends' ranking and multi-photo posts:
 Measured in that run: the carousel held 3 slides, read "1 / 3", and moved to
 "2 / 3" on a swipe (phone) and on Next (desktop); the ranking switch loaded 3
 rows under "Your lot's pubs".
+
+Added with "which did you prefer?":
+
+| File | What it shows |
+| --- | --- |
+| `compare-panel-light.webp` | Yours in compared order: place, band and the 0-10 each derives, with Rank a pub. |
+| `compare-question-light.webp` | The question sheet on a phone: the new pub against the middle of the band, and Too close to call. |
+| `compare-done-dark.webp` | The result on desktop: #3 and 8.4, Loved it, and the list behind it already moved. |
+
+Measured in that run: with four pubs in Loved it, placing The Black Friar
+between The Lamb and The Crown & Anchor took two questions and landed #3 of
+five; the dialog closed and the panel re-read the order.

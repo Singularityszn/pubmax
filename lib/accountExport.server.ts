@@ -51,6 +51,7 @@ import {
   type AccountExportPintDrop,
   type AccountExportPrice,
   type AccountExportProfile,
+  type AccountExportPubRanking,
   type AccountExportSocialPost,
   type AccountExportWallPhoto,
 } from "@/lib/accountExport";
@@ -91,6 +92,8 @@ import type { VisitReportDTO } from "@/lib/visitReports";
 import { visitReportsStore, type VisitReportReadResult } from "@/lib/visitReportsStore";
 import type { DiaryEntryDTO } from "@/lib/diary";
 import { diaryStore } from "@/lib/diaryStore";
+import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
+import { socialPubRankingEntries, type SocialPubRankingRow } from "@/lib/socialPubRankings";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -148,6 +151,7 @@ export type AccountExportDeps = {
   savedPubs(handle: string): Promise<SavedPubsRead>;
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
   diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
+  pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -270,6 +274,7 @@ function storeDeps(): AccountExportDeps {
     savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
     diary: (userId) => diaryStore().listForOwner(userId),
+    pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -713,6 +718,21 @@ export async function buildAccountExport(
     return { degraded: read.status === "degraded", items: read.entries };
   });
 
+  const pubRankings = await lane<AccountExportPubRanking>(async () => {
+    const { profile } = await owner;
+    if (!profile) return { degraded: false, items: [] };
+    const rows = await deps.pubRankings(profile.id);
+    return {
+      degraded: false,
+      items: socialPubRankingEntries(rows).map((entry) => ({
+        venueId: entry.venueId,
+        band: entry.band,
+        place: entry.place,
+        score: entry.score,
+      })),
+    };
+  });
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -748,6 +768,7 @@ export async function buildAccountExport(
     savedPubs,
     wanted,
     diary,
+    pubRankings,
     socialLinks,
     nightProfile,
     messages,

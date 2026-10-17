@@ -5372,6 +5372,41 @@ export type Database = {
           },
         ];
       };
+      social_pub_rankings: {
+        Row: {
+          author_profile_id: string;
+          venue_id: string;
+          band: string;
+          rank_key: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          author_profile_id: string;
+          venue_id: string;
+          band: string;
+          rank_key: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          author_profile_id?: string;
+          venue_id?: string;
+          band?: string;
+          rank_key?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_pub_rankings_author_profile_id_fkey";
+            columns: ["author_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_quotes: {
         Row: {
           id: string;
@@ -7317,6 +7352,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      place_social_pub_ranking: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_venue_id: string | null;
+          p_band: string | null;
+          p_above_venue_id: string | null;
+          p_below_venue_id: string | null;
+        };
+        Returns: {
+          venue_id: string;
+          band: string;
+          rank_key: number;
+        }[];
+      };
       prepay_pub_pal_voice_grant: {
         Args: {
           p_owner_id: string | null;
@@ -7727,6 +7776,17 @@ export type Database = {
           review_state: string;
         }[];
       };
+      read_social_pub_rankings: {
+        Args: {
+          p_author_profile_id: string | null;
+        };
+        Returns: {
+          venue_id: string;
+          band: string;
+          rank_key: number;
+          updated_at: string;
+        }[];
+      };
       read_social_report_queue: {
         Args: {
           p_actor: string | null;
@@ -7935,6 +7995,13 @@ export type Database = {
           p_author_profile_id: string | null;
           p_expected_mutation_version: number | null;
           p_idempotency_key: string | null;
+        };
+        Returns: boolean;
+      };
+      remove_social_pub_ranking: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_venue_id: string | null;
         };
         Returns: boolean;
       };

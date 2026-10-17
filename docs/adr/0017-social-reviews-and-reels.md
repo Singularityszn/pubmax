@@ -71,6 +71,23 @@ A post carries one photo or one video, never both. A video:
 
 The limits are 100 MB and ten minutes.
 
+### 3a. Which did you prefer?
+
+A person can also build their own order the way Beli does (migration
+`0185`). They put a pub in a band (loved it, it was fine, not for me), then
+answer "which did you prefer?" against pubs already in that band. The
+questions are a binary search in the browser, so a band of n pubs takes
+about log2(n) taps. Only the result is stored: the band and an ordering key.
+The server places the pub between the two neighbours the answers found and
+refuses if they are no longer adjacent, so a second tab cannot interleave a
+wrong order. The 0-10 figure beside each pub comes from its band and place
+on every read (`lib/socialPubRankings.ts`) and is never stored.
+
+Once a person has compared any pub, "Yours" shows this order; until then it
+shows their star scores. Like the star ranking, it is theirs alone: no venue
+rating, price, map or feed reads it, and it rides the account export as its
+own lane.
+
 ### 4. Up to four photos, each screened on its own
 
 The first photo keeps every rule 0074 gave it. Photos 2 to 4 live in
@@ -88,16 +105,15 @@ first, in the same three lanes.
 
 ## Consequences
 
-- Four migrations for the captain to apply: `0181`, `0182`, `0183` and
-  `0184`, each with a rollback. Without them the stores fall back to process memory outside
+- Five migrations for the captain to apply: `0181` to `0185`, each with a
+  rollback. Without them the stores fall back to process memory outside
   production and refuse writes in production, like every other Social store.
 - The video lane adds a moderation queue someone has to watch. Until they do,
   a video stays with its author, which is the safe failure.
 - Signed playback URLs live for two minutes. A copied URL outlives a block or
   an audience change by at most that long; photos keep their stricter
   same-origin byte path.
-- Not built here: head-to-head "which did you prefer" ranking, venue pages
-  assembled from reviews, and booking. Each needs its own decision, and any
+- Not built here: venue pages assembled from reviews, and booking. Each needs its own decision, and any
   aggregate beyond a reader's own lot needs this ADR changed first.
 - Removing a post keeps its extra photos' objects in Storage, as the first
   photo's detach lifecycle does not yet cover them; a sweep of

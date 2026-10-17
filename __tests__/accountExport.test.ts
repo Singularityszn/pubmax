@@ -307,6 +307,10 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     savedPubs: async () => ({ status: "ready" as const, rows: [savedPub] }),
     wanted: async () => ({ status: "ready" as const, wanteds: [wantedRow] }),
     diary: async (userId) => ({ status: "ready" as const, entries: userId === USER ? [diaryRow] : [] }),
+    pubRankings: async () => [
+      { venueId: "venue-2", band: "fine" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
+      { venueId: "venue-1f5ygjb", band: "loved" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
+    ],
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
     prices: async () => ({ observations: [price], degraded: false }),
@@ -446,6 +450,14 @@ describe("buildAccountExport", () => {
     expect(JSON.stringify(document.socialPosts)).not.toContain("not-for-the-file");
   });
 
+  it("carries the account's own compared pub order with the place and score it derives", async () => {
+    const document = await buildAccountExport(USER, fakeDeps(), NOW);
+    expect(document.pubRankings.items).toEqual([
+      { venueId: "venue-1f5ygjb", band: "loved", place: 1, score: 10 },
+      { venueId: "venue-2", band: "fine", place: 2, score: 6.7 },
+    ]);
+  });
+
   it("marks a crowd report a moderator hid as hidden, and still exports it", async () => {
     const document = await buildAccountExport(
       USER,
@@ -501,6 +513,7 @@ describe("buildAccountExport", () => {
         "follows",
         "savedPubs",
         "wanted",
+        "pubRankings",
       ].sort(),
     );
     for (const lane of ["identity", "memories", "crowdReports", "diary", "socialLinks", "nightProfile"] as const) {
@@ -551,6 +564,7 @@ describe("buildAccountExport", () => {
       savedPubs: { savedPubs: async () => ({ status: "unavailable" as const }) },
       wanted: { wanted: async () => ({ status: "degraded" as const, wanteds: [] }) },
       diary: { diary: async () => ({ status: "degraded" as const, entries: [] }) },
+      pubRankings: { pubRankings: async () => { throw new Error("rankings unreadable"); } },
       socialLinks: { socialLinks: async () => { throw new Error("connections unreadable"); } },
       nightProfile: { nightProfile: async () => { throw new Error("night profile unreadable"); } },
       coverPhotos: { coverPhotos: async () => { throw new Error("covers unreadable"); } },
@@ -853,6 +867,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostReviewStore.ts": { lane: "socialPosts" },
   "lib/socialPostStore.ts": { lane: "socialPosts" },
   "lib/socialPostVideoStore.ts": { lane: "socialPosts" },
+  "lib/socialPubRankingStore.ts": { lane: "pubRankings" },
   "lib/stepOutNudgeStore.ts": {
     excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
   },

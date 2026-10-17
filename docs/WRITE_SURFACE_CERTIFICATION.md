@@ -44,6 +44,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/crews/[crewId]/join-requests`
 - `DELETE app/api/social/crews/[crewId]/members/[memberId]`
 - `DELETE app/api/social/interactions`
+- `DELETE app/api/social/rankings`
 - `PATCH app/api/admin/import-notes`
 - `PATCH app/api/crawls/[slug]`
 - `PATCH app/api/profiles/[handle]/covers/[coverId]`
@@ -159,6 +160,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
 - `POST app/api/social/posts/[postId]/photos`
+- `POST app/api/social/rankings`
 - `POST app/api/social/tags`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
@@ -1558,6 +1560,21 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   or 4 that is not already taken.
 - **Moderation:** each photo starts pending and is shown only to its author
   until its own model check approves it, drained by the Social post cron.
+
+### `app/api/social/rankings` - your pubs in your own order (route 99)
+
+- **Route / method:** `POST` and `DELETE app/api/social/rankings/route.ts`
+  (plus a `GET` read).
+- **Authority:** `requireVerifiedSocialActor`; every row is keyed to the
+  stable profile ID, and no call reads or writes another account's list.
+- **Abuse control:** sixty changes an hour per salted profile digest, after the
+  Social freeze.
+- **Validation:** a pub the venue index resolves, one of three bands, and the
+  two neighbours the comparisons landed between. `place_social_pub_ranking`
+  refuses neighbours that are no longer adjacent in that band (409, the
+  browser asks again), so two tabs cannot interleave a wrong order.
+- **Effect:** the person's own order only; no venue rating, price, map layer or
+  feed reads it (ADR 0017).
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

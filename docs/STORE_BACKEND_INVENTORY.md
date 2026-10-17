@@ -89,6 +89,7 @@ silently stale.
 | socialPostReviewStore | factory-eligible, policy-heavy | Own-post, named-venue and half-step score policy. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
+| socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0185). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
@@ -117,7 +118,8 @@ The following stores intentionally stay outside the factory-ready path:
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
   `socialPostReviewStore`,
-  `socialPostStore`, `socialPostVideoStore`, `venueOperatorsStore`,
+  `socialPostStore`, `socialPostVideoStore`, `socialPubRankingStore`,
+  `venueOperatorsStore`,
   `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
   migration, not a claim that the selector is impossible to simplify later.
@@ -220,6 +222,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/socialPostReviewStore.ts",
     "lib/socialPostStore.ts",
     "lib/socialPostVideoStore.ts",
+    "lib/socialPubRankingStore.ts",
     "lib/stepOutNudgeSelect.server.ts",
     "lib/storeBackend.ts",
     "lib/supabase.ts",

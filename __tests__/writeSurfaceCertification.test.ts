@@ -199,7 +199,8 @@ describe("mutating API surface certification", () => {
     // 156: plus POST and PUT for Social video upload intents and POST for the
     // held-video review queue (ADR 0017).
     // 157: plus POST for Social photos 2 to 4.
-    expect(mutationHandlers).toHaveLength(157);
+    // 159: plus POST and DELETE for your pubs in your own order (0185).
+    expect(mutationHandlers).toHaveLength(159);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );
