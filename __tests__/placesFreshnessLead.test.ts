@@ -54,7 +54,7 @@ describe("google_places_content freshness lead", () => {
     expect(await status(firstStale)).toBe("stale");
 
     const rows = Object.values(readPlacesEnrichmentPacks(ROOT)).flatMap(
-      (pack) => (pack as { venues: PlacesEnrichmentRecord[] }).venues,
+      (pack) => pack.venues as unknown as PlacesEnrichmentRecord[],
     );
     const withHours = rows.filter((row) => row.regularOpeningHours);
     expect(withHours.length).toBeGreaterThan(0);
