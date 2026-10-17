@@ -64,6 +64,7 @@ import {
 import {
   filterMapVenues,
   mapFiltersSuspendUkBasePubs,
+  createMemberStabilizer,
   withForcedVenue,
 } from "@/lib/filterMapVenues";
 import {
@@ -3116,15 +3117,20 @@ export default function PubMap({
     }));
     return openNowStatesForVenues(matchVenues, wetherspoonsDirectoryPubs);
   }, [venues, wetherspoonsDirectoryPubs, filters.openNow]);
+  // Held across signal-only changes (createMemberStabilizer): a sheet's own
+  // reads rebuild the signals, but almost never which pins pass.
+  const [stablePipelineVenues] = useState(() => createMemberStabilizer<Venue>());
   const pipelineVenues = useMemo(
     () =>
-      filterMapVenues(
-        venues,
-        effectiveMapFilters,
-        (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
-        (id) => openNowStateById?.get(id) ?? "unknown",
+      stablePipelineVenues(
+        filterMapVenues(
+          venues,
+          effectiveMapFilters,
+          (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+          (id) => openNowStateById?.get(id) ?? "unknown",
+        ),
       ),
-    [effectiveMapFilters, venues, venueSignals, openNowStateById],
+    [effectiveMapFilters, venues, venueSignals, openNowStateById, stablePipelineVenues],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
