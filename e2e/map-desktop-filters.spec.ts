@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 /**
  * PlanAstra item 9, over the map's chrome overload at 768 and 1440.
@@ -228,11 +228,9 @@ test.describe("390x844", () => {
     await expect(page.locator(".mapVenueKindFilterBtn")).toHaveCount(0);
     await expect(page.getByRole("group", { name: "Venue types" })).toHaveCount(0);
 
+    const filters = await mobileMapShellControl(page, "filters");
     await expect(async () => {
-      await page
-        .locator(".mobileMapTopbar")
-        .getByRole("button", { name: /^Filters/ })
-        .click();
+      await filters.click();
       await expect(
         page
           .locator('.mobileSheetPortal[data-sheet-kind="filters"]')

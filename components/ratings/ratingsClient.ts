@@ -12,18 +12,22 @@
 import type { RatingKind, RatingSummary, RatingValue } from "@/lib/ratings";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 const HANDLE_KEY = "pubmax_handle";
 
 export function storedHandle(): string {
-  if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim();
+  return (safeLocalStorage()?.getItem(HANDLE_KEY) ?? "").trim();
 }
 
 export function rememberHandle(handle: string): void {
-  if (typeof window === "undefined") return;
   const clean = handle.trim();
-  if (clean) window.localStorage.setItem(HANDLE_KEY, clean);
+  if (!clean) return;
+  try {
+    safeLocalStorage()?.setItem(HANDLE_KEY, clean);
+  } catch {
+    // A full store costs the remembered handle, never the rating.
+  }
 }
 
 type Waiter = {

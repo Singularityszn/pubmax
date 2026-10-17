@@ -72,6 +72,8 @@ export type AuthAttemptOptions = {
   cryptoProvider?: AuthCrypto | null;
   lockManager?: AuthLockManager | null;
   now?: number;
+  /** Explicit native email restart. Evaluated under the coordinated start's Web Lock. */
+  replacePendingAttemptIfCurrent?: () => boolean;
 };
 
 export type AuthCallbackCaptureOptions = Pick<
@@ -346,9 +348,13 @@ export function beginAuthAttempt(
   }
 
   try {
+    const replacePending = options.replacePendingAttemptIfCurrent?.() ?? false;
+    if (options.replacePendingAttemptIfCurrent && !replacePending) {
+      return { ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE };
+    }
     const active = readActiveAttempt(persistentStorage);
     const tabAttempt = readTabAttempt(tabStorage);
-    if (active && active.expiresAt > now) {
+    if (active && active.expiresAt > now && !replacePending) {
       const sameInitiatingTab = Boolean(
         tabAttempt &&
           tabAttempt.id === active.id &&

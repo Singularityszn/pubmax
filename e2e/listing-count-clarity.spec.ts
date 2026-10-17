@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 test.setTimeout(90_000);
@@ -18,9 +19,7 @@ function listing(index: number) {
 }
 
 async function openTonightLens(page: Page, count: number) {
-  const filters = page.locator(".mobileMapTopbar").getByRole("button", { name: /^Filters/ });
-  await expect(filters).toBeVisible({ timeout: 30_000 });
-  await filters.click();
+  await (await mobileMapShellControl(page, "filters", 30_000)).click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
   const lens = sheet.getByRole("button", { name: `Tonight listings: ${count}`, exact: true });
   await expect(lens).toBeVisible({ timeout: 30_000 });

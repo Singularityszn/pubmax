@@ -313,6 +313,8 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     pintDrops: async () => [drop],
     conversations: async () => ({ conversations: [conversation], status: "ready" as const }),
     messages: async () => thread,
+    handlesForProfile: async () => ["night_owl"],
+    ownMessageIds: async () => null,
     ...overrides,
   };
 }
@@ -913,5 +915,168 @@ describe("every store is a lane or a named exclusion", () => {
       .map(([path]) => path)
       .sort();
     expect(gaps).toEqual([...NAMED_GAPS].sort());
+  });
+});
+
+describe("buildAccountExport reads every handle the account has held (LIB-S5)", () => {
+  // A handle is text stamped on a row when it is written, and a rename never
+  // rewrites an authored row. The export used to read every handle-keyed lane
+  // by the CURRENT handle alone and still label each one `complete`, so a
+  // person who had ever renamed was handed a subject-access file that silently
+  // left out everything they wrote before it.
+  const OLD = "old_owl";
+  const oldDrop = { ...drop, id: "drop-old", handle: OLD } as unknown as PintDropDTO;
+  const oldReport = { ...visitReport, id: "visit-old", handle: OLD } as unknown as VisitReportDTO;
+  const oldCheckIn = { ...checkIn, id: "checkin-old", handle: OLD } as unknown as CheckIn;
+  const oldSave = { ...savedPub, venueId: "venue-xjf3n0", venueName: "The Harp" } as unknown as SavedPubDTO;
+  const oldConversation: ConversationDTO = {
+    id: "conv-old",
+    otherHandle: "jen",
+    lastAt: "2026-08-01T12:05:00.000Z",
+    lastFromMe: true,
+    unread: 0,
+  };
+  const oldThread: MessageDTO[] = [
+    {
+      id: "msg-old-1",
+      conversationId: "conv-old",
+      senderHandle: OLD,
+      body: "written before the rename",
+      createdAt: "2026-08-01T12:00:00.000Z",
+      read: true,
+      flagged: false,
+    },
+    {
+      id: "msg-old-2",
+      conversationId: "conv-old",
+      senderHandle: "jen",
+      body: "jen's own words, not the caller's to export",
+      createdAt: "2026-08-01T12:05:00.000Z",
+      read: true,
+      flagged: false,
+    },
+  ];
+
+  const renamedDeps = (overrides: Partial<AccountExportDeps> = {}): AccountExportDeps =>
+    fakeDeps({
+      handlesForProfile: async (profileId) => (profileId === PROFILE ? ["night_owl", OLD] : []),
+      pintDrops: async (handle) => (handle === OLD ? [oldDrop] : handle === "night_owl" ? [drop] : []),
+      visitReports: async (handle) => ({
+        status: "ready" as const,
+        reports: handle === OLD ? [oldReport] : [visitReport],
+      }),
+      checkIns: async (handle) => (handle === OLD ? [oldCheckIn] : [checkIn]),
+      follows: async (handle) => (handle === OLD ? ["jen", "bobpm"] : ["bobpm"]),
+      savedPubs: async (handle) => ({
+        status: "ready" as const,
+        rows: handle === OLD ? [oldSave, savedPub] : [savedPub],
+      }),
+      conversations: async (handle) => ({
+        conversations: handle === OLD ? [oldConversation, conversation] : [conversation],
+        status: "ready" as const,
+      }),
+      messages: async (conversationId, handle) =>
+        conversationId === "conv-old" ? (handle === OLD ? oldThread : null) : thread,
+      ...overrides,
+    });
+
+  it("exports the rows written under an earlier handle in every handle-keyed lane", async () => {
+    const document = await buildAccountExport(USER, renamedDeps(), NOW);
+
+    expect(document.account.handle).toBe("night_owl");
+    expect(document.pintDrops.items.map((item) => item.id).sort()).toEqual(["drop-1", "drop-old"]);
+    expect(document.visitReports.items.map((item) => item.id).sort()).toEqual(["visit-1", "visit-old"]);
+    expect(document.checkIns.items.map((item) => item.id).sort()).toEqual(["checkin-1", "checkin-old"]);
+    // One follow held under both handles is one follow.
+    expect([...document.follows.items].sort()).toEqual(["bobpm", "jen"]);
+    expect(document.savedPubs.items.map((item) => item.venueId).sort()).toEqual([
+      "venue-1f5ygjb",
+      "venue-xjf3n0",
+    ]);
+    for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
+  });
+
+  it("exports a conversation joined under an earlier handle, with the account's own words only", async () => {
+    const document = await buildAccountExport(USER, renamedDeps(), NOW);
+
+    // conv-1 is listed under both handles and exported once.
+    expect(document.messages.items.map((item) => item.id).sort()).toEqual(["conv-1", "conv-old"]);
+    const old = document.messages.items.find((item) => item.id === "conv-old");
+    expect(old?.messages.map((message) => message.body)).toEqual(["written before the rename"]);
+    expect(JSON.stringify(document)).not.toContain("jen's own words");
+  });
+
+  it("keeps a message the account sent by its profile id, whatever handle text it carries", async () => {
+    const stray: MessageDTO = {
+      id: "msg-stray",
+      conversationId: "conv-1",
+      senderHandle: "handle_nobody_recorded",
+      body: "sent by this account",
+      createdAt: "2026-09-05T12:07:00.000Z",
+      read: true,
+      flagged: false,
+    };
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        messages: async (conversationId, handle) =>
+          conversationId === "conv-old" ? (handle === OLD ? oldThread : null) : [...thread, stray],
+        ownMessageIds: async (profileId, conversationIds) => {
+          expect(profileId).toBe(PROFILE);
+          expect([...conversationIds].sort()).toEqual(["conv-1", "conv-old"]);
+          return new Set(["msg-stray"]);
+        },
+      }),
+      NOW,
+    );
+    const current = document.messages.items.find((item) => item.id === "conv-1");
+    expect(current?.messages.map((message) => message.body)).toContain("sent by this account");
+    expect(JSON.stringify(document)).not.toContain("bob's own words");
+  });
+
+  it("refuses every handle-keyed lane when the handles it held cannot be read", async () => {
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        handlesForProfile: async () => {
+          throw new Error("alias table unreadable");
+        },
+      }),
+      NOW,
+    );
+    expect([...unavailableExportLanes(document)].sort()).toEqual(
+      ["checkIns", "follows", "messages", "pintDrops", "savedPubs", "visitReports"].sort(),
+    );
+  });
+
+  it("refuses the messages lane when the sender read fails, rather than handing over a partial thread", async () => {
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        ownMessageIds: async () => {
+          throw new Error("messages unreadable");
+        },
+      }),
+      NOW,
+    );
+    expect(unavailableExportLanes(document)).toEqual(["messages"]);
+  });
+
+  it("refuses the lane when any one handle's read is degraded", async () => {
+    const document = await buildAccountExport(
+      USER,
+      renamedDeps({
+        visitReports: async (handle) =>
+          handle === OLD
+            ? { status: "degraded" as const, reports: [] }
+            : { status: "ready" as const, reports: [visitReport] },
+        conversations: async (handle) =>
+          handle === OLD
+            ? { conversations: [], status: "degraded" as const }
+            : { conversations: [conversation], status: "ready" as const },
+      }),
+      NOW,
+    );
+    expect([...unavailableExportLanes(document)].sort()).toEqual(["messages", "visitReports"]);
   });
 });

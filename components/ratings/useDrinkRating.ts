@@ -16,7 +16,7 @@
 // Identity is the app's self-asserted handle (localStorage `pubmax_handle`);
 // with none stored, the first rating attempt asks for one inline.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { RatingSummary, RatingValue } from "@/lib/ratings";
 
@@ -51,6 +51,9 @@ export function useDrinkRating(
   const [handle, setHandle] = useState("");
   const [needsHandle, setNeedsHandle] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The last vote the server accepted in this session. A failed save puts the
+  // shown vote back to this, so a vote that never landed never stays on screen.
+  const savedRating = useRef<RatingValue | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,10 +87,14 @@ export function useDrinkRating(
           handle: clean,
           rating: value,
         });
+        savedRating.current = value;
         rememberHandle(clean);
         setNeedsHandle(false);
         setSummary(fresh);
       } catch (err) {
+        // Roll the optimistic vote back, but only while it is still the one
+        // shown: a newer tap that landed meanwhile is not this failure's to undo.
+        setMyRating((current) => (current === value ? savedRating.current : current));
         setError(
           err instanceof Error ? err.message : "Couldn't save your rating just now.",
         );

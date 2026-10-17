@@ -63,4 +63,24 @@ describe("opening schedule interval coverage", () => {
 
     expect(assessment.state).toBe("listed_open");
   });
+
+  it("answers unknown, not closed, when the schedule lists no weekly hours", () => {
+    const assessment = assessOpeningSchedule(schedule([]), {
+      startsAt: "2026-07-20T16:30:00.000Z",
+      endsAt: "2026-07-20T18:00:00.000Z",
+    }, NOW);
+
+    expect(assessment.state).toBe("unknown");
+    expect(assessment.source).toEqual(SOURCE);
+  });
+
+  it("still answers closed when the venue status itself says closed", () => {
+    const closed = { ...schedule([]), venueListedOpen: false };
+    const assessment = assessOpeningSchedule(closed, {
+      startsAt: "2026-07-20T16:30:00.000Z",
+      endsAt: "2026-07-20T18:00:00.000Z",
+    }, NOW);
+
+    expect(assessment.state).toBe("listed_closed");
+  });
 });

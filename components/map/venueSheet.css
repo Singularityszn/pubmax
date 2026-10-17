@@ -1511,6 +1511,21 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   color: var(--tint-ink-info);
 }
 
+/* The way to every source and its licence, under the cited facts. */
+.venueTabPanel .heritageCredits {
+  margin: 4px 0 0;
+}
+
+.venueTabPanel .heritageCredits a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .venueTabPanel .heritageFactCite {
   display: inline-flex;
   align-items: center;
