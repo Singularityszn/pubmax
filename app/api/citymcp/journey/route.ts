@@ -36,9 +36,11 @@ const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 3;
 // F10: the cached GET lanes carry venue-to-venue legs, and their one caller
 // (useCrawlJourneys) reads only duration and modes, which do not move minute
-// to minute. Five minutes at the edge, plus five of stale, caps the oldest
-// answer at ten minutes, as citymcp/status and things-to-do do. Clock times a
-// reader acts on go by the POST lane, which is never cached.
+// to minute. The ages stack: the in-process journey cache (lib/citymcp/
+// client.ts, three minutes) can hand the edge a leg up to three minutes old,
+// the edge holds it five and serves it stale for five more, so the oldest leg
+// a reader can see is thirteen minutes (120 s + 600 s stale allowed fifteen).
+// Clock times a reader acts on go by the POST lane, which is never cached.
 const CACHE_MAX_AGE_S = 300;
 const CACHE_STALE_WHILE_REVALIDATE_S = 300;
 

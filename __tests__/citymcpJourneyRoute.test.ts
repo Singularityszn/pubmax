@@ -117,7 +117,7 @@ describe("GET /api/citymcp/journey", () => {
 
     const res = await GET(new Request(journeyUrl("limit=2")));
     expect(res.status).toBe(200);
-    // F10: a venue-to-venue leg is held five minutes, never older than ten.
+    // F10: a venue-to-venue leg is held five minutes at the edge, five more stale.
     expect(res.headers.get("cache-control")).toBe(
       "public, s-maxage=300, stale-while-revalidate=300",
     );
