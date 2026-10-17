@@ -72,8 +72,8 @@ GSC average position is an aggregate, not a rank.
 
 ## Slices
 
-- **A, titles:** `claude/seo-2126-single-brand-title`. 12 page families stop typing the brand; a TypeScript-AST fence over `app/**` holds the rule.
-- **B, About average:** `claude/seo-2126-about-average-cohort`. The About sentence names its 2,785 readings.
+- **A, titles:** #2239 (`claude/seo-2126-single-brand-title`). 12 page families stop typing the brand; a TypeScript-AST fence over `app/**` holds the rule.
+- **B, About average:** #2241 (`claude/seo-2126-about-average-cohort`). The About sentence names its 2,785 readings.
 
 ## Decisions for the captain
 
