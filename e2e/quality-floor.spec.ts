@@ -24,6 +24,14 @@ import { mobileMapShellControl } from "./helpers/mobileMapShell";
 // leaking as visible text. Re-pinned here on the map surface we exercise.
 const RAW_VENUE_ID = /venue-[a-z0-9]+/;
 
+// The budget for a journey that opens /map. Its own waits do not fit the 30s
+// default: a 20s mount wait, then the map's loading frame, which a canvas that
+// never answers holds for the shell's readiness ceiling (helpers/mobileMapShell.ts).
+// On a slow macOS runner (13 Oct 2026, #2092) /map took most of 30s to come up,
+// so the non-alcoholic test ran out of time mid-toggle and the POI test passed
+// at 28.2s; the toggles themselves settle in under half a second.
+const MAP_JOURNEY_TIMEOUT_MS = 90_000;
+
 // ---------------------------------------------------------------------------
 // Owner-only profile edit — request-level (PRD user story 31).
 //
@@ -159,6 +167,7 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 test("quality floor: the non-alcoholic filter checkbox flips its checked state", async ({
   page,
 }) => {
+  test.setTimeout(MAP_JOURNEY_TIMEOUT_MS);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -207,6 +216,7 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
 test("quality floor: a POI category toggle flips in the coordinated Layers sheet", async ({
   page,
 }) => {
+  test.setTimeout(MAP_JOURNEY_TIMEOUT_MS);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
