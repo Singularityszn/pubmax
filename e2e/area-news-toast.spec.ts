@@ -6,7 +6,7 @@ import { uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs
 test.use(uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL));
 
 const KINGSTON = "Kingston Market Place closed following fire";
-const KINGSTON_ROUTE = "/map?mode=build&pubs=venue-ydvsco%2Cvenue-122zap1";
+const KINGSTON_ROUTE = "/map?mode=build&pubs=venue-6bh8l6%2Cvenue-122zap1";
 
 for (const theme of ["light", "dark"] as const) {
   for (const width of [390, 1440]) {
@@ -117,7 +117,7 @@ for (const theme of ["light", "dark"] as const) {
         return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
       })).toBe(true);
       await stop.click();
-      await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe("venue-ydvsco");
+      await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe("venue-6bh8l6");
       await page.screenshot({ path: `artifacts/area-news-toast/fixture-${width}-${theme}-route-stop.png` });
 
       // A new route visit must not carry Kingston's old place or expanded feed.

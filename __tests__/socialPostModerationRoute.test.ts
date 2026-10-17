@@ -137,6 +137,10 @@ describe("Social post moderation worker", () => {
       needsReview: 0,
       retried: 1,
       terminalErrors: 1,
+      // Photos 2 to 4 are screened on the same pass (0185); none queued here.
+      extraPhotos: { processed: 0, approved: 0, needsReview: 0, retried: 0 },
+      // Videos uploaded and never posted are swept on every pass.
+      expiredVideoUploads: 0,
       backlog: {
         pending: 1,
         strandedTerminal: 1,
@@ -166,6 +170,7 @@ describe("Social post moderation worker", () => {
     expect(await response.json()).toEqual({
       ok: true,
       skipped: "openai_not_configured",
+      expiredVideoUploads: 0,
       backlog: { pending: 1, strandedTerminal: 1, oldestPendingAgeMs: 45 * 60 * 1000 },
       findings: [
         {

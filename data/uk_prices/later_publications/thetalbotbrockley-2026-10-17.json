@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+  "observedAt": "2026-10-17T12:38:01.092Z",
+  "evidence": "% 330ml £5.80 Beavertown Lazercrush IPA 0.5% 330ml £5.50 Erdinger Alcohol-Free Lager 0.5% 500ml £6.00 Guinness 0.0 0.3% 568ml £6.00 SOFTS Coca Cola 200ml £2.30 Diet Coke 200ml £2.30 Fentiman’s Rose Lemonade 275ml £4.00 Fentiman’s Ginger Beer 275ml £3.50 FeverTree Indian Tonic 200ml £2.75 FeverTree Light Tonic 200ml £2.75 FeverTree Elderflower Tonic 200ml £2.75 FeverTree Mediterranean Tonic 200ml £2.75 FeverTree Soda",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "thetalbotbrockley.co.uk",
+      "venueId": "venue-uk-w211942078",
+      "osmId": "way/211942078",
+      "name": "The Talbot",
+      "postcode": "SE4 1QG",
+      "lat": 51.4672607,
+      "lng": -0.0236773,
+      "category": "soft-drink",
+      "priceGbp": 2.3,
+      "drinkLabel": "Diet Coke 200ml",
+      "sourceUrl": "https://www.thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+      "observedAt": "2026-10-17T12:38:01.092Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 57
+    }
+  ]
+}

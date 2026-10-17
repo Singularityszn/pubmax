@@ -37,6 +37,7 @@ scripts/__pycache__/
 test-results/
 playwright-report/
 evals/pal/scoreboard/
+evals/pal/memory/scoreboard/
 evals/askRouterModel/scoreboard/
 artifacts/
 .tmp-evidence/

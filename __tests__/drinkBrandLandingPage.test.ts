@@ -382,17 +382,17 @@ describe("governed drink brand landing page", () => {
     ).resolves.toMatchObject({
       title: "Cheapest Guinness pints in London",
       description:
-        "347 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+        "345 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       alternates: { canonical: "/drink/guinness" },
       openGraph: {
         type: "website",
         url: "/drink/guinness",
         description:
-          "347 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+          "345 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       },
       twitter: {
         description:
-          "347 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+          "345 London pubs with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       },
     });
 

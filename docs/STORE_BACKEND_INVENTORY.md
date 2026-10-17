@@ -85,7 +85,11 @@ silently stale.
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
+| socialPostExtraPhotoStore | factory-eligible, policy-heavy | Photos 2 to 4: owner and first-photo checks, per-photo moderation. |
+| socialPostReviewStore | factory-eligible, policy-heavy | Own-post, named-venue and half-step score policy. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
+| socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
+| socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
@@ -112,8 +116,11 @@ The following stores intentionally stay outside the factory-ready path:
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
-  `roundsStore`, `socialInteractionStore`, `socialPostStore`,
-  `venueOperatorsStore`, `venuePhotoStore`, `visitReportsStore`, and
+  `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
+  `socialPostReviewStore`,
+  `socialPostStore`, `socialPostVideoStore`, `socialPubRankingStore`,
+  `venueOperatorsStore`,
+  `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
   migration, not a claim that the selector is impossible to simplify later.
 
@@ -210,8 +217,12 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/socialInteractionStore.ts",
     "lib/socialOAuth.ts",
     "lib/socialPostCreateRequest.server.ts",
+    "lib/socialPostExtraPhotoStore.ts",
     "lib/socialPostMedia.server.ts",
+    "lib/socialPostReviewStore.ts",
     "lib/socialPostStore.ts",
+    "lib/socialPostVideoStore.ts",
+    "lib/socialPubRankingStore.ts",
     "lib/stepOutNudgeSelect.server.ts",
     "lib/storeBackend.ts",
     "lib/supabase.ts",

@@ -1,0 +1,42 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only lvls.london",
+  "sourceUrl": "https://lvls.london/drink",
+  "sourceObservedAt": "2026-10-17T13:12:07.212Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "lvls.london",
+      "venueId": "venue-uk-n12531850553",
+      "osmId": "node/12531850553",
+      "name": "Lvls",
+      "postcode": "E3 2RX",
+      "lat": 51.5405898,
+      "lng": -0.0208404,
+      "category": "soft-drink",
+      "priceGbp": 4,
+      "drinkLabel": "Fresh Lemonade Pressed lemon, mint, soda",
+      "sourceUrl": "https://lvls.london/drink",
+      "observedAt": "2026-10-17T13:12:07.212Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 112
+    },
+    {
+      "host": "lvls.london",
+      "venueId": "venue-uk-n12531850553",
+      "osmId": "node/12531850553",
+      "name": "Lvls",
+      "postcode": "E3 2RX",
+      "lat": 51.5405898,
+      "lng": -0.0208404,
+      "category": "soft-drink",
+      "priceGbp": 4,
+      "drinkLabel": "SOFT DRINKS Fresh Lemonade Pressed lemon, mint, soda",
+      "sourceUrl": "https://lvls.london/drink",
+      "observedAt": "2026-10-17T13:12:07.212Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 112
+    }
+  ],
+  "withheld": []
+}

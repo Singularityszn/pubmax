@@ -327,6 +327,16 @@
   color: var(--muted);
 }
 
+/* A quiet text door to the pub's own page, under the address. */
+.venuePubPageLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
 /* Respect reduced-motion: none of the above motion is essential. */
 @media (prefers-reduced-motion: reduce) {
   .venueTab {

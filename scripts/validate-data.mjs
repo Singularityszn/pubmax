@@ -2814,6 +2814,20 @@ function validateUkPriceBundle() {
         errs.add(`${where}: drinkSubtype requires drinkLabel on the same row`);
       }
     }
+    // A LONDON BASE PLACE: all three or none, on a listed venue-uk- subtype row.
+    if (row.lat !== undefined || row.lng !== undefined || row.londonBorough !== undefined) {
+      if (!isFiniteNumber(row.lat) || !isFiniteNumber(row.lng)) {
+        errs.add(`${where}: lat and lng must both be numbers when a London place is stated`);
+      } else if (row.lat < 51.25 || row.lat > 51.75 || row.lng < -0.55 || row.lng > 0.35) {
+        errs.add(`${where}: a London place outside London`);
+      }
+      if (typeof row.londonBorough !== "string" || !row.londonBorough.trim()) {
+        errs.add(`${where}: a London place must name its borough`);
+      }
+      if (row.standing !== "listed" || !String(row.venueId).startsWith("venue-uk-") || row.drinkSubtype === undefined) {
+        errs.add(`${where}: only a listed venue-uk- subtype row carries a London place`);
+      }
+    }
   });
 
   const ok = errs.count === 0;

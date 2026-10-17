@@ -2711,7 +2711,7 @@ function PlanComposerForm({
   const resultHeader = (
     <section className="planResult" aria-labelledby="plan-result-title">
       <div className="planResult__top">
-        <h2 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h2>
+        <h1 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h1>
         <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
         </button>

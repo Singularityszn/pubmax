@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 
+import SocialVideoModeration from "./SocialVideoModeration";
 import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
@@ -2048,6 +2049,9 @@ export default function AdminClient() {
               ))}
             </div>
           )}
+
+          {/* ── Social videos held for a person to watch (0183) ───────────── */}
+          <SocialVideoModeration />
 
           {/* ── Pub photo wall queues ─────────────────────────────────────── */}
           <VenuePhotoModeration

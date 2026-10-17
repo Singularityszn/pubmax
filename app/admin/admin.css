@@ -374,3 +374,12 @@
   font-size: 0.82rem;
   color: var(--muted);
 }
+
+.admin-video {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  max-height: 480px;
+  border-radius: 12px;
+  background: var(--panel);
+}
