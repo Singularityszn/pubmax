@@ -156,6 +156,7 @@ test.describe("keyboard: the core loop is operable with no pointer", () => {
     // BESIDE THE VENUE DRAWER IS AN EXEMPT SURFACE"). Anything else is a hole.
     // 40 presses leave room for at least one full cycle, plus the tab bar.
     const names: string[] = [];
+    const navNames: string[] = [];
     for (let step = 0; step < 40; step += 1) {
       await page.keyboard.press("Tab");
       const focus = await readFocus(page);
@@ -170,7 +171,13 @@ test.describe("keyboard: the core loop is operable with no pointer", () => {
         return null;
       });
       expect(owner, `focus escaped the sheet at "${focus.name}"`).not.toBeNull();
+      if (owner === "primary-nav") navNames.push(focus.name);
     }
+    // The exemption is a way out, so the loop must actually take it: a trap
+    // that cycles only inside the sheet would pass every check above.
+    expect(navNames, "Tab reaches the five doors of the exempt primary navigation").toEqual(
+      expect.arrayContaining(["Map", "Tonight", "Plan", "Social", "You"]),
+    );
     // A ring that never repeats is not a ring: the cycle proves it wraps.
     expect(new Set(names).size, "the sheet's focus ring cycles").toBeLessThan(
       names.length,
