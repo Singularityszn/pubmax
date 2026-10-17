@@ -175,7 +175,7 @@ function gradeSurface(
 }
 
 /** Another person's values, minus any this persona legitimately shares. */
-function foreignValues(persona: PalMemoryPersona, suite: PalMemorySuite, nameOf: (id: string) => string): string[] {
+export function foreignValues(persona: PalMemoryPersona, suite: PalMemorySuite, nameOf: (id: string) => string): string[] {
   const own = new Set([
     ...persona.facts.map((fact) => fact.value),
     ...[...persona.diary.map((entry) => entry.venueId), ...persona.drops.map((drop) => drop.venueId), ...persona.saved].map(nameOf),
@@ -192,13 +192,19 @@ function foreignValues(persona: PalMemoryPersona, suite: PalMemorySuite, nameOf:
   return [...values].filter((value) => value && ![...own].some((mine) => mine.includes(value) || value.includes(mine)));
 }
 
-type RunPalMemoryEvalOptions = { root?: string; writeScoreboard?: boolean };
+export type SeededPalMemorySuite = { suite: PalMemorySuite; now: number; nameOf: (venueId: string) => string };
 
-export async function runPalMemoryEval(options: RunPalMemoryEvalOptions = {}): Promise<PalMemoryScoreboard> {
+/**
+ * Seeds every persona into fresh process-memory stores, runs `body`, then
+ * clears them again. Both layers of the eval start here.
+ */
+export async function withSeededPalMemorySuite<T>(
+  root: string,
+  body: (seeded: SeededPalMemorySuite) => Promise<T>,
+): Promise<T> {
   if (isSupabaseConfigured()) {
     throw new Error("The memory eval seeds made-up people and only runs on the process-memory stores. Unset SUPABASE_URL.");
   }
-  const root = options.root ?? process.cwd();
   const suite = loadPalMemorySuite(root);
   const now = Date.parse(suite.now);
   const index = await getVenueIndex();
@@ -207,18 +213,34 @@ export async function runPalMemoryEval(options: RunPalMemoryEvalOptions = {}): P
     if (!name) throw new Error(`The memory eval names ${venueId}, which the venue index does not hold.`);
     return name;
   };
-
   resetStores();
   try {
     for (const persona of suite.personas) await seedPersona(persona, now, nameOf);
+    return await body({ suite, now, nameOf });
+  } finally {
+    resetStores();
+  }
+}
 
+/** The personal context typed chat sends for this persona, through the production readers. */
+export async function personaContext(persona: PalMemoryPersona, now: number): Promise<string[]> {
+  const [memories, taste] = await Promise.all([readConfirmedPalMemories(persona.userId), readPalTaste(persona.userId, now)]);
+  return palPersonalContext(memories, taste);
+}
+
+/** Whether a fact reached the context, in its line when it names one. */
+export function factInContext(context: readonly string[], fact: { value: string; line?: PalMemoryLine }): boolean {
+  return found(context, fact.value, fact.line);
+}
+
+type RunPalMemoryEvalOptions = { root?: string; writeScoreboard?: boolean };
+
+export async function runPalMemoryEval(options: RunPalMemoryEvalOptions = {}): Promise<PalMemoryScoreboard> {
+  const root = options.root ?? process.cwd();
+  return withSeededPalMemorySuite(root, async ({ suite, now, nameOf }) => {
     const results: PalMemoryPersonaResult[] = [];
     for (const [position, persona] of suite.personas.entries()) {
-      const [memories, taste] = await Promise.all([
-        readConfirmedPalMemories(persona.userId),
-        readPalTaste(persona.userId, now),
-      ]);
-      const context = palPersonalContext(memories, taste);
+      const context = await personaContext(persona, now);
 
       const conversationId = `conv_evalmemory${String(position).padStart(4, "0")}`;
       await registerPubPalToolTurn(conversationId, {
@@ -278,9 +300,7 @@ export async function runPalMemoryEval(options: RunPalMemoryEvalOptions = {}): P
     };
     if (options.writeScoreboard) writeScoreboard(root, scoreboard);
     return scoreboard;
-  } finally {
-    resetStores();
-  }
+  });
 }
 
 function writeScoreboard(root: string, scoreboard: PalMemoryScoreboard): void {

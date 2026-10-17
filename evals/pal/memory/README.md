@@ -1,8 +1,9 @@
 # Pal memory eval
 
 How much does Pub Pal remember about the person it is talking to? This suite
-answers that in two layers. The first is built and gates CI. The second is
-the next step and uses the same personas.
+answers that in two layers over the same personas. Layer 1 grades what
+reaches the model and gates CI. Layer 2 grades what the live model does with
+it and runs on demand.
 
 ## Layer 1: retrieval (built, gates CI)
 
@@ -25,7 +26,9 @@ Each persona in `personas.json` carries:
 - `absent`: what must never reach the model, with the reason (a stale
   rating, an opted-out log, a half pulling the pint price).
 - `probes`: a question the person might ask and the facts the Pal needs in
-  front of it to answer from memory.
+  front of it to answer from memory. Layer 2 also reads its `mode` (`answer`
+  or `ask`) and `minUsed`, and each fact's `aliases`, the shorter ways a
+  reply may say it.
 - `exactContext` and `noTasteRead` for the cases that pin the whole context.
 
 Every other persona's non-generic facts, memories and pub names are checked
@@ -62,17 +65,44 @@ and fails loudly when an id goes missing. Prefer pubs no other persona uses.
 Pin every date before `now`. Then check the suite still catches what it
 should: break the behaviour your persona is about and watch it fail.
 
-## Layer 2: use (next)
+## Layer 2: use (built, runs live on demand)
 
-Whether the model actually uses what it was given. It drives the live
-ElevenLabs agent in text mode with each persona seeded, asks each probe, and
-grades the reply:
+What the model does with it. `runMemoryUseEval.ts` seeds the same personas
+and asks every probe through a responder, one fresh conversation per probe,
+so all a reply can know about the person is what the server sends from their
+stores. The live responder is the production typed turn
+(`runPalElevenLabsChatTurn`) against the agent in
+`ELEVENLABS_PUB_PAL_AGENT_ID`. Memory and taste are read locally from the
+seeded stores. Factual tools run on the deployed app the agent's webhooks
+point at, so their cards stay there and the grade reads the reply text.
 
-- **Use rate:** the reply draws on the probe's facts.
-- **False memory:** the reply claims something about the person that was not
-  in the context. This must stay at zero.
-- **Fit:** a quick pick lands in their usual patch and price.
-- **Pick or plan:** questions only when the prompt rule says to ask.
+Each reply is graded on:
+
+| Score | Meaning | Gate |
+| :--- | :--- | :--- |
+| False memories | A sentence that tells the person something about themselves ("you usually", "your local", "last time you") and cites another person's data, an opted-out log or a stale rating, or any such claim when the Pal has nothing on record for them | Must be 0 |
+| Failed turns | A turn that errored or timed out. Counted, never skipped | Must be 0 |
+| Use rate | Needed facts the reply said, by value or alias | Tracked |
+| Answer or ask | `answer` probes get an answer, not only questions. `ask` probes get one to three questions | Tracked |
+| Blame | A miss whose facts reached the model is the model's. One whose facts never did is retrieval's | Tracked |
+| Latency | p50 and p95 per typed turn | Tracked |
+
+A pub named in a pick is never a false memory on its own: it may be a tool
+result. Only a claim about the person counts. The grader is deterministic, so
+it cannot catch every invented memory; every reply is written to the
+scoreboard for a person to read.
+
+### Commands
+
+- `npm run eval:pal:memory:live` runs layer 1, then layer 2 against the live
+  agent, and writes `scoreboard/use-latest.json` and `use-latest.md`. It
+  needs `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, refuses
+  without them and sends nothing, and spends one typed turn per probe. It
+  exits 1 on a false memory or a failed turn.
+- `__tests__/palMemoryUseEval.test.ts` tests the grader with scripted
+  responders in `npm run verify`: an honest Pal passes and its one miss is
+  laid on retrieval, and invented claims, dodged picks and failed turns all
+  fail.
 
 Keeping the two layers apart is the point. When a probe fails in layer 2 but
 was answerable in layer 1, the prompt or model is at fault. When it was not
