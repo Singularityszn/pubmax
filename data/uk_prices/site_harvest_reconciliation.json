@@ -9189,6 +9189,134 @@
         "rowCount": 7602,
         "siteHarvestRows": 3092
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thetalbotbrockley-2026-10-17.json",
+      "sourceEvidenceSha256": "7429552317cf0cbab84e7bbad8acfcb6d3ec5e916a1f97a13b1fd7e3d2d1739f",
+      "sourceUrl": "https://www.thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+      "sourceObservedAt": "2026-10-17T12:38:01.092Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "83482bad50d250361e50303f60c10f9eb978081114eec554484e3d5c26c5eb86",
+        "rowCount": 3114,
+        "rowIdentitySetSha256": "d556a42c19c911f7ff93a9f8ff55f80f0da6893b0eb522f82957dfdbaf639aa0"
+      },
+      "currentBundle": {
+        "rowCount": 7603,
+        "siteHarvestRows": 3093
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/huntersmoonlondon-2026-10-17.json",
+      "sourceEvidenceSha256": "30726ffad19b601dcead6686d4155dc0f98663ae2b5d5f94d304d855cc87d8fe",
+      "sourceUrl": "https://huntersmoonlondon.co.uk/drinks/",
+      "sourceObservedAt": "2026-10-17T12:39:21.246Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "e04f712820d36aa5a840d3ca9467479e282f81d666c406d85e5cb0a8c2296b3d",
+        "rowCount": 3115,
+        "rowIdentitySetSha256": "bfcc28269f7c4c553577a7654ae85176389272cbc039b2f5e05e932d46d9c7d9"
+      },
+      "currentBundle": {
+        "rowCount": 7604,
+        "siteHarvestRows": 3094
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/stonemasonsarms-2026-10-17.json",
+      "sourceEvidenceSha256": "b1341e89d995168876a70d56cafa50c50f6b93d8a0a419f317f82464c21ba146",
+      "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+      "sourceObservedAt": "2026-10-17T12:39:45.068Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "a0f19f13845d9c46df92981a9bbc3a07c908da3e5a0bca5e348ff0c82c224dfa",
+        "rowCount": 3116,
+        "rowIdentitySetSha256": "6c032631dedc4c9cdf988b3301416d36c8b1025ce67b0bcf9b3c29b4e781aa63"
+      },
+      "currentBundle": {
+        "rowCount": 7605,
+        "siteHarvestRows": 3095
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/georgeanddragonacton-2026-10-17.json",
+      "sourceEvidenceSha256": "d32021fb8d3ab80979bf068b20c6828dc4376a1cdbaf768fccd0fd28148afb19",
+      "sourceUrl": "https://georgeanddragonacton.co.uk/drinks-menu",
+      "sourceObservedAt": "2026-10-17T12:40:59.240Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "b769e9593ab917f08ac5228f2d8e1359c48df3116e772ebcf56c4e8f7426c4e5",
+        "rowCount": 3117,
+        "rowIdentitySetSha256": "8b56c914046bc5f78c1ca28008bdfbb6c4ac0c528e78262f2c749fe5f42f6ec0"
+      },
+      "currentBundle": {
+        "rowCount": 7606,
+        "siteHarvestRows": 3096
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/redlionhoxton-2026-10-17.json",
+      "sourceEvidenceSha256": "9e9d7545822fe6eb84c6b764db353265b79d334e11f8980019096b45b75f678e",
+      "sourceUrl": "https://www.redlionhoxton.co.uk/drinks-1",
+      "sourceObservedAt": "2026-10-17T12:43:40.047Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "09106f4f2134123a94724c16a4d891d36c49fd2f3de2e9c14ade7112b7bcefce",
+        "rowCount": 3118,
+        "rowIdentitySetSha256": "3a9c6f808b04814c8edd607044eaf7dc364c2e90865e2390fef364f5534e8202"
+      },
+      "currentBundle": {
+        "rowCount": 7607,
+        "siteHarvestRows": 3097
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thewellshampstead-2026-10-17.json",
+      "sourceEvidenceSha256": "d577c92ae147564e3d912721d18bdfab19874a01adcfc429d7e5804b58567bda",
+      "sourceUrl": "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
+      "sourceObservedAt": "2026-10-17T12:45:20.608Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "fb2ba86b671f4876e5fec9d1fe51a165f6d9b2f8443aaf827734850d3b2e771e",
+        "rowCount": 3120,
+        "rowIdentitySetSha256": "d3a367a20925f77cf8364bfaedd9ced772b6c952e8990b9f694f1d5d08c513a1"
+      },
+      "currentBundle": {
+        "rowCount": 7609,
+        "siteHarvestRows": 3099
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thetallyhopub-2026-10-17.json",
+      "sourceEvidenceSha256": "a88772c49677b8ae1317a69a3a8465c629cf99c5b31af8fb87c7b5c087686972",
+      "sourceUrl": "https://thetallyhopub.co.uk/wp-content/uploads/2025/01/TALLY-HO-Drinks-compressed.pdf",
+      "sourceObservedAt": "2026-10-17T12:46:19.027Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "2b56a09cdbbfc8845a7842f90e92847944548a56a257709eb542871e02046a6e",
+        "rowCount": 3121,
+        "rowIdentitySetSha256": "76377ef4bb32df62c5fa46f2305610e7aee50af280129cae3ea3147d01d9a5f1"
+      },
+      "currentBundle": {
+        "rowCount": 7610,
+        "siteHarvestRows": 3100
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/maltandhopslondon-2026-10-17.json",
+      "sourceEvidenceSha256": "684132c9e8dbb195c802b2ee578f1ad6cd801b1fd47ad7478ca13dfd6cfad177",
+      "sourceUrl": "https://www.maltandhopslondon.co.uk/menu/drinks/",
+      "sourceObservedAt": "2026-10-17T12:46:24.480Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "986b67261c3d0968c61d90ca57c161748be085119e9bdd04e9131e9820fa8676",
+        "rowCount": 3122,
+        "rowIdentitySetSha256": "86936b5e83ade9332da53d68e9ec90ba246ab53b2eb60d56313c354d9a4dc00d"
+      },
+      "currentBundle": {
+        "rowCount": 7611,
+        "siteHarvestRows": 3101
+      }
     }
   ]
 }
