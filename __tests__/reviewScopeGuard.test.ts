@@ -471,10 +471,21 @@ describe("review scope guard", () => {
     ]);
   });
 
+  // The gate exempts `.claude/skills` by path alone, so this pins what the path
+  // must be: a committed symlink to the project skill root, never a regular
+  // file or a link to another tree.
+  it("keeps .claude/skills a symlink to the project skill root", () => {
+    const entry = execFileSync("git", ["ls-files", "-s", "--", ".claude/skills"], { encoding: "utf8" }).trim();
+    const [mode, sha = ""] = entry.split(/\s+/);
+    expect(mode).toBe("120000");
+    expect(execFileSync("git", ["cat-file", "-p", sha], { encoding: "utf8" })).toBe("../.agents/skills");
+  });
+
   it("allows the project skill root and a deleted skill path outside it", () => {
     const report = summarizeReviewScope([
       { path: ".agents/skills/animate/SKILL.md", status: "A" },
       { path: ".agents/skills", status: "M" },
+      { path: ".claude/skills", status: "A" },
       { path: "skills/impeccable/SKILL.md", status: "D" },
       { path: ".cursor/skills/example/SKILL.md", status: "D" },
       { path: "lib/skills/helper.mjs", status: "D" },
@@ -489,12 +500,14 @@ describe("review scope guard", () => {
     const report = summarizeReviewScope([
       { path: "skills/example/SKILL.md", status: "A" },
       { path: ".cursor/skills/example/SKILL.md", status: "M" },
+      { path: ".claude/skills/animate/SKILL.md", status: "A" },
       { path: "lib/skills/helper.mjs", status: "R" },
       { path: ".agents/skills/animate/SKILL.md", status: "A" },
     ]);
 
     expect(report.ok).toBe(false);
     expect(report.forbidden).toEqual([
+      { category: "skill-pack", path: ".claude/skills/animate/SKILL.md" },
       { category: "skill-pack", path: ".cursor/skills/example/SKILL.md" },
       { category: "skill-pack", path: "lib/skills/helper.mjs" },
       { category: "skill-pack", path: "skills/example/SKILL.md" },
