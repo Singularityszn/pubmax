@@ -9541,6 +9541,22 @@
         "rowCount": 7686,
         "siteHarvestRows": 3176
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/jollycoopers-2026-10-17.json",
+      "sourceEvidenceSha256": "49ee004fd36a18e2ffeb342fe62950ea56189c54628d1dac0eaecf24f07bcbe9",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T13:24:55.632Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "e61b156c75d14836dd5a9596b62806f30bc0b2944c475519d0ef8feeae358ebd",
+        "rowCount": 3198,
+        "rowIdentitySetSha256": "1507e4218453429f2f1a7c0659e317a7ba56e41e72065211ff2348b862b00dfb"
+      },
+      "currentBundle": {
+        "rowCount": 7687,
+        "siteHarvestRows": 3177
+      }
     }
   ]
 }
