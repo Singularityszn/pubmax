@@ -134,6 +134,33 @@ type VisitReportDraft = {
   note: string;
 };
 
+// The composer's current values: an account with no draft yet reads as a
+// blank one dated today.
+function composerDraft(
+  draft: VisitReportDraft | null,
+  latest: string,
+): VisitReportDraft {
+  return {
+    visitedAt: draft?.visitedAt ?? latest,
+    busyness: draft?.busyness ?? null,
+    noise: draft?.noise ?? null,
+    seating: draft?.seating ?? null,
+    serviceWait: draft?.serviceWait ?? null,
+    note: draft?.note ?? "",
+  };
+}
+
+/** A visit account needs one observation or a note before it can post. */
+function draftHasObservation(draft: VisitReportDraft): boolean {
+  return (
+    draft.busyness !== null ||
+    draft.noise !== null ||
+    draft.seating !== null ||
+    draft.serviceWait !== null ||
+    draft.note.trim() !== ""
+  );
+}
+
 function visitDayLabel(day: string): string {
   const parsed = new Date(`${day}T12:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return day;
@@ -327,12 +354,9 @@ function VenueVisitReports({
     sameAccountAuth(openAuth, composerAuth),
     composerAuth?.userId ?? null,
   );
-  const visitedAt = draft?.visitedAt ?? latest;
-  const busyness = draft?.busyness ?? null;
-  const noise = draft?.noise ?? null;
-  const seating = draft?.seating ?? null;
-  const serviceWait = draft?.serviceWait ?? null;
-  const note = draft?.note ?? "";
+  const composerFields = composerDraft(draft, latest);
+  const { visitedAt, busyness, noise, seating, serviceWait, note } =
+    composerFields;
 
   useEffect(() => {
     if (!active) return;
@@ -346,13 +370,7 @@ function VenueVisitReports({
       cancelled = true;
     };
   }, [active, venueId]);
-
-  const hasDraft =
-    busyness !== null ||
-    noise !== null ||
-    seating !== null ||
-    serviceWait !== null ||
-    note.trim() !== "";
+  const hasDraft = draftHasObservation(composerFields);
 
   async function submit() {
     if (!draft || !composerAuth) return;
