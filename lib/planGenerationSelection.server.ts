@@ -25,6 +25,7 @@ import {
   type GroundedPlanRouteSelection,
   type SelectedGroundedPlanStop,
 } from "@/lib/planRouteOptimizer";
+import { pubStreetWalkKm } from "@/lib/pubWalkPairs.server";
 
 export type ScoredPlanCandidate = {
   venue: ConciergeVenue;
@@ -149,6 +150,7 @@ function groundedConstraints(
     transportConstraints: context.transportConstraints,
     routeWindow: intake?.routeWindow ?? null,
     now,
+    streetWalkKm: pubStreetWalkKm,
     // Asking for a Spoons crawl is asking for one chain; otherwise one branch each.
     oneStopPerOperator: !context.wetherspoonsPreferred,
   };

@@ -75,6 +75,15 @@ from scipy.spatial import cKDTree
 ROOT = Path(__file__).resolve().parent.parent
 STATIONS_PATH = ROOT / "data" / "tfl_station_zones.json"
 OUT_PATH = ROOT / "data" / "station_walk_access.json"
+VENUES_PATH = ROOT / "public" / "data" / "venues_slim.json"
+PAIRS_OUT_PATH = ROOT / "data" / "pub_walk_pairs.json"
+
+# Crawl legs. The plan optimiser refuses a leg longer than 1.6 km, so every
+# pair of curated pubs inside the area within that straight line gets its
+# street walk, searched to PAIR_SEARCH_M so a long detour is still measured
+# (and then refused by the optimiser) rather than missing from the table.
+PAIR_MAX_STRAIGHT_M = 1_600
+PAIR_SEARCH_M = 4_000
 
 OVERTURE_RELEASE = "2026-09-23.1"
 
@@ -378,6 +387,85 @@ def main() -> int:
             f"entrances: {entrance_tally['joined']} joined to {with_doors}/{len(stations)} stations, "
             f"{entrance_tally['unjoined']} not joined, {entrance_tally['inactive']} inactive"
         )
+    return write_pub_pairs(graph, snap, {key for key, _, _ in keys}, payload["_provenance"])
+
+
+def write_pub_pairs(graph: nx.Graph, snap, area_cells: set[str], provenance: dict) -> int:
+    """Street walks between every pair of curated pubs in the area, for crawl legs."""
+    rows = json.loads(VENUES_PATH.read_text())["rows"]
+    venues = sorted(
+        (
+            r
+            for r in rows
+            if f"{round(r['lat'], 3):.3f},{round(r['lng'], 3):.3f}" in area_cells
+        ),
+        key=lambda r: r["id"],
+    )
+    snapped = []
+    for venue in venues:
+        node, snap_m = snap(venue["lat"], venue["lng"])
+        snapped.append((node, snap_m if snap_m <= MAX_SNAP_M else None))
+
+    pairs: dict[str, list[list[int]]] = {}
+    ratios: list[float] = []
+    count = 0
+    for i, venue in enumerate(venues):
+        node, snap_m = snapped[i]
+        if snap_m is None:
+            continue
+        lengths = None
+        row: list[list[int]] = []
+        for j in range(i + 1, len(venues)):
+            other = venues[j]
+            other_node, other_snap = snapped[j]
+            if other_snap is None:
+                continue
+            straight_m = haversine_m(venue["lat"], venue["lng"], other["lat"], other["lng"])
+            if straight_m > PAIR_MAX_STRAIGHT_M:
+                continue
+            if lengths is None:
+                lengths = nx.single_source_dijkstra_path_length(graph, node, cutoff=PAIR_SEARCH_M, weight="m")
+            path_m = lengths.get(other_node)
+            if path_m is None:
+                continue
+            walk_m = max(snap_m + path_m + other_snap, straight_m)
+            row.append([j, round(walk_m)])
+            if straight_m > 50:
+                ratios.append(walk_m / straight_m)
+        if row:
+            pairs[str(i)] = row
+            count += len(row)
+
+    payload = {
+        "_provenance": {
+            **{k: v for k, v in provenance.items() if k not in ("stations", "entrances")},
+            "venues": "public/data/venues_slim.json (curated pins inside the street-walk area)",
+            "method": (
+                "Street walk between two curated pubs: snap leg + shortest street path + snap "
+                "leg, never below the straight line. Every pair within the straight-line cap; "
+                "a pub more than MAX_SNAP_M from a street has no pairs."
+            ),
+        },
+        "maxStraightMetres": PAIR_MAX_STRAIGHT_M,
+        "venueIds": [v["id"] for v in venues],
+        "pairs": pairs,
+    }
+    head = {k: v for k, v in payload.items() if k not in ("venueIds", "pairs")}
+    text = (
+        json.dumps(head, indent=1, ensure_ascii=False)[:-2]
+        + ',\n "venueIds": '
+        + json.dumps(payload["venueIds"])
+        + ',\n "pairs": {\n'
+        + ",\n".join(f"  {json.dumps(k)}: {json.dumps(v, separators=(',', ':'))}" for k, v in pairs.items())
+        + "\n }\n}\n"
+    )
+    PAIRS_OUT_PATH.write_text(text)
+    median = float(np.median(ratios)) if ratios else float("nan")
+    p90 = float(np.percentile(ratios, 90)) if ratios else float("nan")
+    print(
+        f"wrote {PAIRS_OUT_PATH.relative_to(ROOT)}: {count} pairs across {len(venues)} pubs; "
+        f"street/straight median {median:.2f}, p90 {p90:.2f}"
+    )
     return 0
 
 
