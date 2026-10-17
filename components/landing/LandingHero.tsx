@@ -14,6 +14,7 @@ import type { LegacyPintPrice } from "@/lib/drinks";
 import {
   answerEvidenceFor,
   answerKicker,
+  archiveMovementLine,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
   LANDING_PRIMARY_HREF,
@@ -38,7 +39,7 @@ import {
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
 import { strangerSavingLine, type PintPriceAverages } from "@/lib/pintSavings";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
-import { priceMovementLine } from "@/lib/priceMovementLine";
+import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { discardBody } from "@/lib/responseBody";
@@ -493,10 +494,7 @@ function AnswerCard({
         <>
           <p className="lpPubThen">
             <strong>{formatPrice(answer.then.priceGbp)}</strong> in {answer.then.observedMonth}.{" "}
-            {priceMovementLine(
-              Math.round((answer.priceGbp - answer.then.priceGbp) * 100) / 100,
-              answer.then.years,
-            )}
+            {archiveMovementLine(answer.then, answer.priceGbp) ?? PRICE_NOT_COMPARED_LINE}
           </p>
           <p className="lpPubThenSource">
             <a href={answer.then.source.url} target="_blank" rel="noopener noreferrer">
