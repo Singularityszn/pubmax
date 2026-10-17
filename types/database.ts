@@ -5149,6 +5149,67 @@ export type Database = {
           },
         ];
       };
+      social_post_videos: {
+        Row: {
+          post_id: string;
+          author_profile_id: string;
+          upload_id: string;
+          object_key: string;
+          content_type: string;
+          byte_size: number;
+          duration_seconds: number | null;
+          review_state: string;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          post_id: string;
+          author_profile_id: string;
+          upload_id: string;
+          object_key: string;
+          content_type: string;
+          byte_size: number;
+          duration_seconds?: number | null;
+          review_state?: string;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          post_id?: string;
+          author_profile_id?: string;
+          upload_id?: string;
+          object_key?: string;
+          content_type?: string;
+          byte_size?: number;
+          duration_seconds?: number | null;
+          review_state?: string;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_post_videos_author_profile_id_fkey";
+            columns: ["author_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_videos_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: true;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_videos_upload_id_fkey";
+            columns: ["upload_id"];
+            isOneToOne: true;
+            referencedRelation: "social_video_uploads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_posts: {
         Row: {
           id: string;
@@ -5367,6 +5428,54 @@ export type Database = {
             columns: ["post_id"];
             isOneToOne: false;
             referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_video_uploads: {
+        Row: {
+          id: string;
+          owner_profile_id: string;
+          object_key: string;
+          content_type: string;
+          declared_bytes: number;
+          claimed_post_id: string | null;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_profile_id: string;
+          object_key: string;
+          content_type: string;
+          declared_bytes: number;
+          claimed_post_id?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_profile_id?: string;
+          object_key?: string;
+          content_type?: string;
+          declared_bytes?: number;
+          claimed_post_id?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_video_uploads_claimed_post_id_fkey";
+            columns: ["claimed_post_id"];
+            isOneToOne: false;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_video_uploads_owner_profile_id_fkey";
+            columns: ["owner_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -6359,6 +6468,19 @@ export type Database = {
           updated_at: string;
         }[];
       };
+      attach_social_post_video: {
+        Args: {
+          p_post_id: string | null;
+          p_owner_profile_id: string | null;
+          p_upload_id: string | null;
+          p_byte_size: number | null;
+          p_duration_seconds: number | null;
+        };
+        Returns: {
+          post_id: string;
+          review_state: string;
+        }[];
+      };
       charge_round_price_line: {
         Args: {
           p_actor: string | null;
@@ -6770,6 +6892,17 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      create_social_video_upload: {
+        Args: {
+          p_owner_profile_id: string | null;
+          p_content_type: string | null;
+          p_declared_bytes: number | null;
+        };
+        Returns: {
+          upload_id: string;
+          object_key: string;
+        }[];
+      };
       decide_plan_route_proposal_atomic: {
         Args: {
           p_plan_id: string | null;
@@ -7132,6 +7265,19 @@ export type Database = {
         };
         Returns: Json;
       };
+      read_held_social_post_videos: {
+        Args: {
+          p_limit: number | null;
+        };
+        Returns: {
+          post_id: string;
+          author_profile_id: string;
+          object_key: string;
+          content_type: string;
+          byte_size: number;
+          created_at: string;
+        }[];
+      };
       read_own_social_pub_ranking: {
         Args: {
           p_author_profile_id: string | null;
@@ -7419,6 +7565,19 @@ export type Database = {
           post_id: string;
           proposal_id: string;
           handle: string;
+        }[];
+      };
+      read_social_post_videos: {
+        Args: {
+          p_post_ids: string[] | null;
+          p_viewer_profile_id: string | null;
+        };
+        Returns: {
+          post_id: string;
+          object_key: string;
+          content_type: string;
+          duration_seconds: number;
+          review_state: string;
         }[];
       };
       read_social_report_queue: {
@@ -7760,6 +7919,13 @@ export type Database = {
         Args: {
           p_actor: string | null;
           p_report_id: string | null;
+        };
+        Returns: boolean;
+      };
+      review_social_post_video: {
+        Args: {
+          p_post_id: string | null;
+          p_decision: string | null;
         };
         Returns: boolean;
       };

@@ -3,6 +3,7 @@ import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 import type { SocialPostReview } from "@/lib/socialPostReviews";
+import type { SocialPostVideo } from "@/lib/socialPostVideos";
 
 const SOCIAL_POST_KINDS = ["standard", "feature_request"] as const;
 const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
@@ -61,6 +62,8 @@ export type SocialPostDTO = Omit<
   venueProjected: boolean;
   /** The author's own score for the pub, shown only beside a projected venue. */
   review?: SocialPostReview | null;
+  /** One video, held for review: its author sees it at once, others once approved. */
+  video?: SocialPostVideo | null;
 };
 
 type ValidationErrorCode =

@@ -5,6 +5,7 @@ import {
   type SocialPostFields,
 } from "@/lib/socialPosts";
 import { parseSocialReviewRating } from "@/lib/socialPostReviews";
+import { parseSocialVideoDuration } from "@/lib/socialPostVideos";
 
 type SubmissionErrorCode =
   | "INVALID_POST"
@@ -12,7 +13,8 @@ type SubmissionErrorCode =
   | "FEATURE_REQUEST_BODY_REQUIRED"
   | "PHOTO_ALT_REQUIRED"
   | "INVALID_TAGS"
-  | "INVALID_REVIEW";
+  | "INVALID_REVIEW"
+  | "INVALID_VIDEO";
 
 type SubmissionError = { ok: false; code: SubmissionErrorCode; error: string };
 
@@ -24,6 +26,8 @@ export type SocialCreateSubmission =
       tagHandles: string[];
       /** The author's own score for the pub the post names, or null. */
       reviewRating: number | null;
+      /** An upload intent the author holds, to bind to the new post. */
+      video: { uploadId: string; durationSeconds: number | null } | null;
     }
   | SubmissionError;
 
@@ -39,7 +43,8 @@ export type SocialEditSubmission =
     }
   | SubmissionError;
 
-const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "reviewRating"]);
+const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "reviewRating", "videoUploadId", "videoDurationSeconds"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EDIT_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "removePhoto"]);
 const CREATE_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags", "commentPolicy",
@@ -109,6 +114,9 @@ export function parseSocialCreateSubmission(
   if (!hasPhoto && raw.photoAltText !== undefined) {
     return { ok: false, code: "INVALID_POST", error: "Post details are not valid." };
   }
+  if (raw.videoUploadId !== undefined && raw.videoUploadId !== null && !hasPhoto && !cleanAlt(raw.body)) {
+    return { ok: false, code: "INVALID_VIDEO", error: "Add a caption to your video." };
+  }
   const validation = validateSocialPostCreate(base(raw, CREATE_KEYS), hasPhoto
     ? {
         trustedPhoto: {
@@ -137,7 +145,19 @@ export function parseSocialCreateSubmission(
       return { ok: false, code: "INVALID_REVIEW", error: "Pick the pub you are scoring." };
     }
   }
-  return { ok: true, post, photoAltText, tagHandles, reviewRating };
+  let video: { uploadId: string; durationSeconds: number | null } | null = null;
+  if (raw.videoUploadId !== undefined && raw.videoUploadId !== null) {
+    if (typeof raw.videoUploadId !== "string" || !UUID.test(raw.videoUploadId) || hasPhoto) {
+      return { ok: false, code: "INVALID_VIDEO", error: "A post carries one photo or one video." };
+    }
+    if (!post.body) {
+      return { ok: false, code: "INVALID_VIDEO", error: "Add a caption to your video." };
+    }
+    video = { uploadId: raw.videoUploadId, durationSeconds: parseSocialVideoDuration(raw.videoDurationSeconds) };
+  } else if (raw.videoDurationSeconds !== undefined) {
+    return { ok: false, code: "INVALID_POST", error: "Post details are not valid." };
+  }
+  return { ok: true, post, photoAltText, tagHandles, reviewRating, video };
 }
 
 export function parseSocialEditSubmission(

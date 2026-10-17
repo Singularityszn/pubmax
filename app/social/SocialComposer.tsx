@@ -1,15 +1,22 @@
 "use client";
 
-import { type RefObject, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { nightAreasByCity } from "@/lib/nightAreas";
 import { getCity } from "@/lib/cities";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import { authedActionJson } from "@/lib/authedFetch";
+import { authedActionFetch, authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { SOCIAL_REVIEW_MAX, SOCIAL_REVIEW_MIN, SOCIAL_REVIEW_STEP } from "@/lib/socialPostReviews";
+import {
+  formatSocialVideoDuration,
+  isSocialVideoType,
+  SOCIAL_VIDEO_MAX_BYTES,
+  SOCIAL_VIDEO_MAX_SECONDS,
+  SOCIAL_VIDEO_TYPES,
+} from "@/lib/socialPostVideos";
 import ReviewStars from "@/components/social/ReviewStars";
 
 type VenueChoice = { id: string; name: string; borough: string };
@@ -233,6 +240,133 @@ function ReviewEditor({ draft, onDraft }: { draft: Draft; onDraft: (draft: Draft
   );
 }
 
+/**
+ * One video in place of a photo: a reel, up to ten minutes and 100 MB. It is
+ * shown to its author at once and to everybody else once a person has watched
+ * it, which the hint says before anybody uploads.
+ */
+function VideoEditor({
+  video,
+  previewUrl,
+  duration,
+  onVideo,
+  onDuration,
+}: {
+  video: File | null;
+  previewUrl: string | null;
+  duration: number | null;
+  onVideo: (video: File | null) => void;
+  onDuration: (seconds: number | null) => void;
+}) {
+  const hintId = useId();
+  return (
+    <>
+      <label className="socialPhotoPicker">
+        <span className="socialPhotoCue" aria-hidden="true">+</span>
+        <span>{video ? video.name : "Add video"}</span>
+        <input
+          aria-label="Add video"
+          aria-describedby={hintId}
+          type="file"
+          accept={SOCIAL_VIDEO_TYPES.join(",")}
+          onChange={(event) => onVideo(event.currentTarget.files?.[0] ?? null)}
+        />
+      </label>
+      <p id={hintId} className="socialVideoHint">
+        Up to 10 minutes. You see it straight away; your lot sees it once we have watched it.
+      </p>
+      {previewUrl ? (
+        <figure className="socialComposerVideoPreview">
+          <video
+            src={previewUrl}
+            muted
+            playsInline
+            controls
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              const seconds = event.currentTarget.duration;
+              onDuration(Number.isFinite(seconds) ? seconds : null);
+            }}
+          />
+          {duration !== null ? <figcaption>{formatSocialVideoDuration(duration)}</figcaption> : null}
+        </figure>
+      ) : null}
+      {video ? (
+        <button type="button" className="socialRemovePhoto" onClick={() => onVideo(null)}>Remove video</button>
+      ) : null}
+    </>
+  );
+}
+
+/** Opens the intent, then PUTs the file where it says: Storage, or our own door when keyless. */
+async function uploadSocialVideo(video: File): Promise<string> {
+  const { response, body } = await authedActionJson<{ upload?: { uploadId: string; uploadUrl: string }; error?: string }>(
+    "/api/social/videos/uploads",
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType: video.type, byteSize: video.size }),
+    },
+    { requiresIdentity: true },
+  );
+  if (!response.ok || !body.upload) throw new Error(errorMessageFrom(body, "That video could not start uploading."));
+  const { uploadId, uploadUrl } = body.upload;
+  const sameOrigin = uploadUrl.startsWith("/");
+  const put = sameOrigin
+    ? await authedActionFetch(uploadUrl, { method: "PUT", credentials: "same-origin", headers: { "Content-Type": video.type }, body: video }, { requiresIdentity: true })
+    : await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": video.type }, body: video });
+  if (!put.ok) throw new Error("That video did not finish uploading. Try again.");
+  return uploadId;
+}
+
+/** The video checks a browser can make, then the upload itself. */
+async function prepareVideo(
+  video: File,
+  duration: number | null,
+  caption: string,
+): Promise<{ uploadId: string } | { error: string }> {
+  if (duration !== null && duration > SOCIAL_VIDEO_MAX_SECONDS) return { error: "Videos can be up to 10 minutes. Trim it and try again." };
+  if (!caption.trim()) return { error: "Add a caption to your video." };
+  try {
+    return { uploadId: await uploadSocialVideo(video) };
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "That video did not finish uploading. Try again." };
+  }
+}
+
+/** What only a new post carries: the pub's score and the uploaded video. */
+function newPostExtras(draft: Draft, videoUploadId: string | null, videoDuration: number | null): Record<string, unknown> {
+  return {
+    ...(draft.venueId && draft.kind === "standard" && typeof draft.rating === "number" ? { reviewRating: draft.rating } : {}),
+    ...(videoUploadId ? { videoUploadId } : {}),
+    ...(videoUploadId && videoDuration !== null ? { videoDurationSeconds: Math.round(videoDuration * 100) / 100 } : {}),
+  };
+}
+
+/** Photo or video, never both: picking one puts the other's picker away. */
+function MediaEditors({
+  editing, photoEditor, video, videoPreviewUrl, videoDuration, hasPhoto, onVideo, onDuration,
+}: {
+  editing: boolean;
+  photoEditor: ReactNode;
+  video: File | null;
+  videoPreviewUrl: string | null;
+  videoDuration: number | null;
+  hasPhoto: boolean;
+  onVideo: (video: File | null) => void;
+  onDuration: (seconds: number | null) => void;
+}) {
+  return (
+    <>
+      {video ? null : photoEditor}
+      {!editing && !hasPhoto ? (
+        <VideoEditor video={video} previewUrl={videoPreviewUrl} duration={videoDuration} onVideo={onVideo} onDuration={onDuration} />
+      ) : null}
+    </>
+  );
+}
+
 function PolicyFields({ draft, hasPhoto, onDraft }: { draft: Draft; hasPhoto: boolean; onDraft: (draft: Draft) => void }) {
   return (
     <>
@@ -263,6 +397,9 @@ export default function SocialComposer({
   const [draft, setDraft] = useState(() => initialDraft(post));
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState(post?.mutationVersion ?? 0);
@@ -382,6 +519,30 @@ export default function SocialComposer({
   }, [photo]);
 
   useEffect(() => {
+    const url = video ? URL.createObjectURL(video) : null;
+    void Promise.resolve().then(() => setVideoPreviewUrl(url));
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [video]);
+
+  function chooseVideo(next: File | null) {
+    setVideoDuration(null);
+    if (next && !isSocialVideoType(next.type)) {
+      setFeedbackIsStatus(false);
+      setFeedback("Choose an MP4, MOV or WebM video.");
+      return;
+    }
+    if (next && next.size > SOCIAL_VIDEO_MAX_BYTES) {
+      setFeedbackIsStatus(false);
+      setFeedback("Videos can be up to 100 MB. Trim it and try again.");
+      return;
+    }
+    setFeedback(null);
+    setVideo(next);
+  }
+
+  useEffect(() => {
     if (open) bodyRef.current?.focus();
   }, [open]);
 
@@ -493,6 +654,20 @@ export default function SocialComposer({
     setFeedback(null);
     setFeedbackIsStatus(false);
     setConflict(false);
+    let videoUploadId: string | null = null;
+    if (video && !editing) {
+      setFeedbackIsStatus(true);
+      setFeedback("Uploading your video…");
+      const uploaded = await prepareVideo(video, videoDuration, draft.body);
+      setFeedbackIsStatus(false);
+      if ("error" in uploaded) {
+        setBusy(false);
+        setFeedback(uploaded.error);
+        return;
+      }
+      setFeedback(null);
+      videoUploadId = uploaded.uploadId;
+    }
     const hashtags = draft.hashtags
       .split(/[\s,]+/)
       .map((tag) => tag.replace(/^#/, "").trim())
@@ -515,9 +690,7 @@ export default function SocialComposer({
         ? { tagHandles: draft.tagHandles.split(/[\s,]+/).filter(Boolean) }
         : {}),
       ...(editing && removePhoto && !photo ? { removePhoto: true } : {}),
-      ...(!editing && draft.venueId && draft.kind === "standard" && typeof draft.rating === "number"
-        ? { reviewRating: draft.rating }
-        : {}),
+      ...(editing ? {} : newPostExtras(draft, videoUploadId, videoDuration)),
     };
     const requestBody: BodyInit = photo
       ? (() => {
@@ -569,6 +742,7 @@ export default function SocialComposer({
       setDraft(initialDraft(savedPost));
       if (savedPost) setMutationVersion(savedPost.mutationVersion);
       setPhoto(null);
+      setVideo(null);
       setRemovePhoto(false);
       closeComposer();
       onSaved(result.post);
@@ -683,12 +857,18 @@ export default function SocialComposer({
               />
             </label>
 
-            <PhotoEditor
-              post={basePost} draft={draft} photo={photo} previewSource={previewSource}
-              removePhoto={removePhoto} fileInputRef={fileInputRef} onDraft={setDraft}
-              onPhoto={(nextPhoto) => { setPhoto(nextPhoto); setRemovePhoto(false); }}
-              onClearSelected={clearSelectedPhoto}
-              onToggleExisting={() => setRemovePhoto((value) => !value)}
+            <MediaEditors
+              editing={editing} video={video} videoPreviewUrl={videoPreviewUrl} videoDuration={videoDuration}
+              hasPhoto={Boolean(photo)} onVideo={chooseVideo} onDuration={setVideoDuration}
+              photoEditor={(
+                <PhotoEditor
+                  post={basePost} draft={draft} photo={photo} previewSource={previewSource}
+                  removePhoto={removePhoto} fileInputRef={fileInputRef} onDraft={setDraft}
+                  onPhoto={(nextPhoto) => { setPhoto(nextPhoto); setRemovePhoto(false); }}
+                  onClearSelected={clearSelectedPhoto}
+                  onToggleExisting={() => setRemovePhoto((value) => !value)}
+                />
+              )}
             />
 
             <label>

@@ -1502,14 +1502,18 @@ span.socialPostAvatar {
   min-height: 44px;
 }
 
-.socialReviewEditor__row input[type="range"] {
+.socialComposer .socialReviewEditor__row input[type="range"] {
   flex: 1;
   min-width: 0;
   min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   accent-color: var(--ink);
 }
 
-.socialReviewEditor__row input[data-unscored="true"] {
+.socialComposer .socialReviewEditor__row input[data-unscored="true"] {
   opacity: 0.55;
 }
 
@@ -1637,4 +1641,208 @@ span.socialPostAvatar {
 
 .socialPostCard .socialPostPhoto figcaption {
   margin: 8px 14px 0;
+}
+
+/* A reel in the feed: portrait 4:5 like a photo, the full clip one tap away. */
+.socialPostVideo {
+  position: relative;
+  margin: 0;
+  background: #000;
+}
+
+.socialPostVideo video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 640px;
+  object-fit: cover;
+}
+
+.socialPostVideo__open {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  color: #fff;
+  font: inherit;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.socialPostVideo__held {
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialVideoHint {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialComposerVideoPreview {
+  margin: 8px 0 0;
+}
+
+.socialComposerVideoPreview video {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border-radius: 12px;
+  background: #000;
+}
+
+.socialComposerVideoPreview figcaption {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+}
+
+.socialReelsEntry {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.socialReelsEntry span {
+  font-family: var(--font-data);
+  color: var(--ink-soft);
+}
+
+/* Reels: full screen, one clip per swipe, white type over a scrim. The
+   viewer is always dark, whatever the page theme, because it is a screen
+   of video. */
+.reels {
+  position: fixed;
+  inset: 0;
+  /* Over the tab bar and the create action, under only the splash. */
+  z-index: calc(var(--z-tabbar) + 10);
+  background: #000;
+  color: #fff;
+}
+
+.reels__track {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+}
+
+.reels__slide {
+  position: relative;
+  display: grid;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.reels__slide video {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.reels__caption {
+  grid-area: 1 / 1;
+  align-self: end;
+  display: grid;
+  gap: 4px;
+  max-width: 560px;
+  padding: 48px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, color-mix(in srgb, #000 78%, transparent), transparent);
+}
+
+.reels__handle,
+.reels__place a {
+  color: #fff;
+  font-weight: 700;
+}
+
+.reels__handle {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+}
+
+.reels__place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.reels__place .reviewStars {
+  color: #fff;
+}
+
+.reels__place .reviewStars__empty {
+  color: color-mix(in srgb, #fff 40%, transparent);
+}
+
+.reels__body {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.reels__chrome {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 12px;
+  left: 12px;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.reels__button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 55%, transparent);
+  color: #fff;
+  pointer-events: auto;
+}
+
+.reels__button:focus-visible,
+.socialPostVideo__open:focus-visible,
+.socialReelsEntry:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
 }

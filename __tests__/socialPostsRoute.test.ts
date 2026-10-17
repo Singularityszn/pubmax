@@ -667,3 +667,53 @@ describe("/api/social/posts/[postId]", () => {
     expect(state.calls).toEqual([]);
   });
 });
+
+describe("/api/social/posts reviews and videos", () => {
+  it("attaches the author's own score to a post that names a pub", async () => {
+    const response = await POST(request("/api/social/posts", "POST", {
+      kind: "standard", visibility: "friends", body: "Proper pint", commentPolicy: "open",
+      venueId: "venue-a", reviewRating: 4.5,
+    }));
+    expect(response.status).toBe(201);
+    expect((await response.json()).post.review).toEqual({ rating: 4.5 });
+  });
+
+  it("refuses a score off the scale before anything is stored", async () => {
+    const response = await POST(request("/api/social/posts", "POST", {
+      kind: "standard", visibility: "friends", body: "Proper pint", commentPolicy: "open",
+      venueId: "venue-a", reviewRating: 6,
+    }));
+    expect(response.status).toBe(400);
+    expect(state.calls).toHaveLength(0);
+  });
+
+  it("posts nothing when the video never arrived, and binds a checked one as held", async () => {
+    const { memoryVideoUploadReceiver } = await import("@/lib/socialPostVideoStore");
+    const receiver = memoryVideoUploadReceiver();
+    expect(receiver).not.toBeNull();
+    const ticket = await receiver!.createUpload(actor, "video/mp4", 64);
+    const missing = await POST(request("/api/social/posts", "POST", {
+      kind: "standard", visibility: "friends", body: "Reel", commentPolicy: "open", videoUploadId: ticket.uploadId,
+    }));
+    expect(missing.status).toBe(409);
+    expect(state.calls).toHaveLength(0);
+
+    const notVideo = new Uint8Array(32).fill(0xff);
+    await receiver!.receiveUpload(actor, ticket.uploadId, notVideo);
+    const refused = await POST(request("/api/social/posts", "POST", {
+      kind: "standard", visibility: "friends", body: "Reel", commentPolicy: "open", videoUploadId: ticket.uploadId,
+    }));
+    expect(refused.status).toBe(400);
+    expect(state.calls).toHaveLength(0);
+
+    const second = await receiver!.createUpload(actor, "video/mp4", 64);
+    await receiver!.receiveUpload(actor, second.uploadId, new Uint8Array([0, 0, 0, 0x20, ...Buffer.from("ftypisom"), 0, 0, 2, 0]));
+    const posted = await POST(new Request("http://localhost/api/social/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "test-social-video-post-key" },
+      body: JSON.stringify({ kind: "standard", visibility: "friends", body: "Reel", commentPolicy: "open", videoUploadId: second.uploadId, videoDurationSeconds: 8 }),
+    }));
+    expect(posted.status).toBe(201);
+    expect((await posted.json()).post.video).toMatchObject({ reviewState: "held", durationSeconds: 8, url: "/api/social/videos/post-1" });
+  });
+});

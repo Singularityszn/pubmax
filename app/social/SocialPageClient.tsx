@@ -16,7 +16,9 @@ import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
+import ReelsViewer from "@/components/social/ReelsViewer";
 import ReviewStars from "@/components/social/ReviewStars";
+import SocialPostVideoPlayer from "@/components/social/SocialPostVideoPlayer";
 import SocialPostActions from "@/components/social/SocialPostActions";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
@@ -230,7 +232,7 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, interactive = false }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean }) {
+export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const venueName = exactVenueId ? post.venueName : null;
@@ -238,7 +240,7 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, in
   const when = relativeTime(post.createdAt);
   const placeLine = [venueName, area?.name].filter(Boolean).join(" · ");
   return (
-    <article className="socialPostCard" data-has-media={post.photo ? "true" : undefined}>
+    <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
       <header className="socialPostMeta">
         <HandleAvatar
           handle={post.author.handle}
@@ -273,6 +275,9 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, in
             <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
           ) : null}
         </figure>
+      ) : null}
+      {post.video ? (
+        <SocialPostVideoPlayer video={post.video} caption={post.body} onOpen={onOpenVideo ? () => onOpenVideo(post.id) : undefined} />
       ) : null}
       {interactive ? <SocialPostActions postId={post.id} /> : null}
       {review ? (
@@ -449,6 +454,8 @@ function SocialPageAccountState({
     useState<ActivityLoadState>("idle");
   const [activityItems, setActivityItems] = useState<SocialActivityItem[]>([]);
   const [posts, setPosts] = useState<SocialPostDTO[]>([]);
+  const [reelStart, setReelStart] = useState<string | null>(null);
+  const reelPosts = useMemo(() => posts.filter((post) => post.video), [posts]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [activityRevision, setActivityRevision] = useState(accountRevision);
@@ -979,12 +986,21 @@ function SocialPageAccountState({
                 </div>
               ) : (
                 <div className="socialPostList">
+                  {reelPosts.length > 0 ? (
+                    <button type="button" className="socialReelsEntry" onClick={() => setReelStart(reelPosts[0]!.id)}>
+                      Watch reels <span>{reelPosts.length}</span>
+                    </button>
+                  ) : null}
                   {posts.map((post) => (
                     <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
+                      onOpenVideo={setReelStart}
                       onEdited={(updated) => updated
-                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? { ...updated, review: updated.review ?? item.review } : item)))
+                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id
+                          ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video }
+                          : item)))
                         : setFeedAttempt((value) => value + 1)} />
                   ))}
+                  {reelStart ? <ReelsViewer posts={reelPosts} startPostId={reelStart} onClose={() => setReelStart(null)} /> : null}
                 </div>
               )}
               {feedStatus === "ready" && nextCursor ? (
