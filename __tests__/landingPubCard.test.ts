@@ -104,7 +104,7 @@ function history(rows: Array<{ venueId: string; priceGbp: number; observedOn: st
 }
 
 describe("landing pub card", () => {
-  it("builds the card from the listed price, the publisher and the oldest archive row", () => {
+  it("builds the card from the listed price, the publisher and the oldest archive row, and claims no movement", () => {
     const card = buildLandingPubCard(
       [venue("venue-eltcmh", "The Blackfriar", 6.5)],
       history([
@@ -133,7 +133,9 @@ describe("landing pub card", () => {
         observedOn: "2013-07-14",
         source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
       },
-      movementLine: "Up £2.90 in 13 years.",
+      // The archive row states no drink, serving or terms, so both figures
+      // stand and nothing says the pint went up or down between them.
+      movementLine: null,
       mapHref: "/map?sel=venue-eltcmh",
     });
   });

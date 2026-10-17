@@ -267,6 +267,8 @@ describe("landing archive index", () => {
       observedDay: "14 July 2013",
       years: 13,
       source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
+      // The row states no item, so the build decides no movement for it.
+      movement: null,
     });
   });
 });
