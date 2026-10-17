@@ -45,7 +45,6 @@ import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
-import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
@@ -879,10 +878,6 @@ export default function TonightClient({
             totalCount={grouped.length}
           />
         ) : null}
-
-      {/* The reader's own saved pubs, before the city's. It draws nothing and
-          asks for nothing when nothing is saved (lib/tonightYourPubs.ts). */}
-      <TonightYourPubs />
 
       {/* Real pubs before a mood ask. A night with nothing listed still has
           pubs in it, and a listed price is the one thing this product can put
