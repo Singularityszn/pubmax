@@ -42,10 +42,10 @@
         "kind": "field",
         "pointer": "generatedAt"
       },
-      "cadence": "static snapshot: the rows describe the day they were collected and nothing may lawfully advance them",
+      "cadence": "static snapshot: each row retains its collection date. Bounded reviewed imports add observations without establishing an automatic refresh cadence.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None. Captain ruling 2026-09-05: this lane is a static snapshot. The Drink price refresh workflow is retrieval-only and its ONLY permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file. A staleness budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed. Surfaces name it \"Snapshot from <collection date>\" (lib/dataFreshness.ts formatSnapshotFrom) and claim nothing about currency. Adding a source is a separate captain decision, not a budget change.",
-      "gate": "Only allowlisted first-party source (Wetherspoons) has no per-drink web prices. Never restamp old rows after a zero-row retrieval."
+      "refreshWorkflow": "None for automatic publication. The automatic Drink price refresh workflow is retrieval-only and Wetherspoons publishes no per-drink web prices. Bounded reviewed first-party imports use scripts/refresh_drink_prices.mjs --reviewed-input under the existing allowlist and sourcePolicy fences. They preserve earlier rows and observation dates and do not establish a refresh cadence. Adding a source remains a separate captain decision, not a budget change.",
+      "gate": "Automatic Wetherspoons retrieval has no per-drink web prices. Reviewed imports require exact curated venue and publisher matches, a reviewed input checksum, the captured source PDF, live robots permission, unique serving identities and preserved earlier observations. Never restamp old rows after a zero-row retrieval."
     },
     {
       "id": "food_price_updates",
@@ -57,10 +57,10 @@
         "kind": "field",
         "pointer": "generatedAt"
       },
-      "cadence": "none: a closed lane. The 3 MB pack still ships and is still read; nothing writes it.",
+      "cadence": "none yet: a closed lane with a producer that has not published. The pack still ships and is still read.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None, and `retired: true` is now what says so rather than a sentence a reader had to reach the end of. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, scripts/firecrawl_greene_king_prices.mjs writes the DRINK pack beside it (its mapSectionToCategory returns null for every food section on purpose), and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay. `harvested by hand` was the last claim standing here and nobody harvests it: every row in the pack carries the same single import, which was never repeated. A 1440h budget was a promise nobody could keep before that: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). The pack keeps serving and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live. Writing a generator is a separate captain decision, not a budget or a status change.",
-      "gate": "No writer, which is a stronger fact than a missing key: FIRECRAWL_API_KEY alone buys nothing while no script in the tree turns a permitted Greene King menu into a food row. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
+      "refreshWorkflow": "npm run harvest:uk-food reads London pubs' own food menus (first party only, sourcePolicy, live robots per path, redirect landing re-asked) and npm run build:food-price-updates publishes the reviewed rows into public/data/food_price_updates/ (runbook docs/UK_FOOD_HARVEST.md). The lane stays `retired: true` until that first reviewed publish lands, because a producer that has not yet run has refreshed nothing, and the PR that lands it moves this entry off retired and gives it a staleness budget. What ships today is three reviewed imports, none repeated: the preserved July 2026 Greene King import and the first-party additions captured on 13 October 2026 (42 dishes from The Eagle, 48 from The New Inn and The Narrowboat); lib/priceUpdates.server.ts only reads them, and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live.",
+      "gate": "A producer exists and has not published: the harvest needs network access to the pubs' own hosts and, for pages that only show a menu in a browser, BROWSERBASE_API_KEY. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
     },
     {
       "id": "night_signals",
@@ -240,7 +240,7 @@
       "class": "live",
       "artifact": null,
       "stamp": null,
-      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), which registers its own row when npm run build:fsa-hygiene first writes public/data/fsa_hygiene/london.json.",
+      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), whose own row is fsa_hygiene_london (public/data/fsa_hygiene/london.json, npm run build:fsa-hygiene).",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "live-per-request (app/api/hygiene)",
       "gate": "none (keyless open API; requires the x-api-version: 2 header)"
@@ -258,6 +258,20 @@
       "stalenessBudgetHours": 4320,
       "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-fhrs-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived.",
       "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: the FSA's ratings are their own OGL pack."
+    },
+    {
+      "id": "fsa_hygiene_london",
+      "label": "FSA food hygiene ratings for OSM-linked London pubs (OGL pack)",
+      "class": "episodic",
+      "artifact": "public/data/fsa_hygiene/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
+      "cadence": "episodic — re-read from the FSA FHRS API whenever osm_fhrs_links is re-derived, and often enough that the rating shown is current. The stamp is the day the FSA was read, and the sheet prints it beside every rating, as the FSA terms ask.",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (npm run build:fsa-hygiene). Every read goes through the fsa-fhrs-api row in lib/harvest/sourcePolicy.ts; a failed read writes nothing.",
+      "gate": "none (keyless open API; requires the x-api-version: 2 header; Open Government Licence v3.0)"
     },
     {
       "id": "citymcp",
@@ -320,13 +334,12 @@
       "class": "episodic",
       "artifact": "public/data/heritage_listings.json",
       "stamp": {
-        "kind": "literal",
-        "value": "2026-07-18T00:00:00Z",
-        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically. lib/heritageListings.ts resolves this stamp and the venue sheet prints it beside every listed fact as the day the NHLE was read"
+        "kind": "field",
+        "pointer": "$retrievedAt"
       },
-      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. A regenerated pack carries $retrievedAt, the day the NHLE was read; point this stamp at it ({\"kind\": \"field\", \"pointer\": \"$retrievedAt\"}) in the same commit.",
+      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. The NHLE point layer refreshes daily upstream but statutory listing status changes rarely. The stamp is the pack's own $retrievedAt, the day the NHLE was read; lib/heritageListings.ts resolves it and the venue sheet prints it beside every listed fact.",
       "stalenessBudgetHours": 8760,
-      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
+      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Every live read goes through the historic-england-nhle row in lib/harvest/sourcePolicy.ts. Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     },
     {
@@ -356,8 +369,22 @@
       },
       "cadence": "episodic — re-derived from the committed UK Overpass snapshot whenever data/osm/uk/raw is refreshed",
       "stalenessBudgetHours": 4320,
-      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) registers its own row in the commit that first writes it.",
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) is its own row, wikidata_history.",
       "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: Wikidata's statements are their own CC0 pack."
+    },
+    {
+      "id": "wikidata_history",
+      "label": "Wikidata history statements for OSM-linked London pubs (CC0 pack)",
+      "class": "episodic",
+      "artifact": "public/data/wikidata_history/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
+      "cadence": "episodic — re-read from the Wikidata Query Service whenever osm_wikidata_links is re-derived, or when the statements are wanted fresher. The stamp is the day the query service was read.",
+      "stalenessBudgetHours": 4320,
+      "refreshWorkflow": "manual (npm run build:wikidata-history). Every read goes through the wikidata-query-service row in lib/harvest/sourcePolicy.ts; a failed batch writes nothing.",
+      "gate": "none (keyless SPARQL endpoint; Wikidata CC0 1.0; a descriptive User-Agent per the Wikimedia User-Agent Policy)"
     },
     {
       "id": "osm_pub_facts",
@@ -440,10 +467,10 @@
         "kind": "field",
         "pointer": "observedAt"
       },
-      "cadence": "Manual verified-id push per published pack (London and UK-city hours and contacts, and their extras); each copied field stays shown under its own observedAt and is due for refresh after 30 days",
-      "stalenessBudgetHours": 720,
-      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh [--pack=uk_cities|london_extras|uk_cities_extras]; then --write --exclusive --refresh after shared-key jobs finish; london is the default pack). --refresh starts a new push only once a copied row is over 30 days old and re-requests rows that are missing, failed earlier or were over 30 days old when that push started. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
-      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields and checked daily-quota restoration. The London pack has a USD 85 attempt cap per calendar month across all pushes; the UK-city and both extras packs share one USD 28 task cap that does not reset. The oldest copied row across every published pack dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from every data/places_enrichment*.json pack so the spine never parses a full pack."
+      "cadence": "Manual verified-id push per published pack (London and UK-city hours and contacts, and their extras); each copied field stays shown under its own observedAt, is due for refresh after 16 days, and its hours stop setting open state after 30",
+      "stalenessBudgetHours": 384,
+      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh [--pack=uk_cities|london_extras|uk_cities_extras]; then --write --exclusive --refresh after shared-key jobs finish; london is the default pack). --refresh starts a new push only once a copied row is over 16 days old (PLACES_REFRESH_START_DAYS, two weeks before its hours stop setting open state) and re-requests rows that are missing, failed earlier or were over 16 days old when that push started. Steps: docs/GOOGLE_PLACES_REFRESH_RUNBOOK.md. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
+      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields and checked daily-quota restoration. The London pack has a USD 85 attempt cap per calendar month across all pushes; the UK-city and both extras packs share one USD 28 task cap that does not reset. The oldest copied row across every published pack dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from every data/places_enrichment*.json pack so the spine never parses a full pack. The 384h budget is the 30-day hours window (PLACES_REFRESH_DAYS) less a two-week lead, so the lane reads stale while the oldest row's hours are still served and a paid push has time to fit its cap. The UK-city task cap was fully spent on the 2026-10-04 push, so that pack cannot be refreshed until the cap is raised."
     },
     {
       "id": "parallel_venue_discovery",

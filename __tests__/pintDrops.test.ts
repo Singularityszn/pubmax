@@ -1357,7 +1357,7 @@ describe("durable per-actor report uniqueness", () => {
   });
 });
 
-// docs/ops/HIDE_PINT_DROP_RUNBOOK.md: an operator hides one live drop that
+// docs/HIDE_PINT_DROP_RUNBOOK.md: an operator hides one live drop that
 // nobody has reported. That is the moderator `keep_hidden` action on a VISIBLE
 // row, which the queue tests above only reach after reports.
 describe("operator hide of an unreported Pint Drop (runbook)", () => {

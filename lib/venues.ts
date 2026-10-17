@@ -34,7 +34,11 @@ import {
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
-import { isLivePriceRow, type PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
+import {
+  isCurrentVenueRow,
+  isLivePriceRow,
+  type PriceSuperseded,
+} from "@/lib/priceRowEligibility.mjs";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
   matchesAccessibilityFilters,
@@ -633,8 +637,9 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       return left - right;
     });
     // A superseded row is dated history: it keeps the pub, its id and its story,
-    // and gives nothing the pub served or charged (lib/priceRowEligibility.mjs).
-    const prices = groupRows.filter(isLivePriceRow);
+    // and gives nothing the pub served or charged. An out-of-band row gives no
+    // price but still tells the story (lib/priceRowEligibility.mjs).
+    const prices = groupRows.filter(isCurrentVenueRow);
     const sortedPrices = sortedRows.filter(isLivePriceRow);
     const first = sortedPrices[0] ?? sortedRows[0] ?? groupRows[0];
     const numericPrices = sortedPrices

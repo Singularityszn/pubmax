@@ -2116,7 +2116,9 @@
 .accountHubNightProfileGrid input, .accountHubNightProfileGrid select { width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
 .accountHubNightProfileSave { justify-self: start; }
 .accountHubNightProfileSaved { color: var(--ink-muted); font-size: .85rem; }
-.accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
+/* The heading's 1rem sets the line off above; the same 1rem below keeps it off
+   the Appearance card, which it used to touch. */
+.accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .accountHubSignIn p { margin: 0; max-width: 42rem; }
 @media (max-width: 760px) { .accountHubGrid { grid-template-columns: minmax(0, 1fr); } }
 .accountHubSettings { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
@@ -2473,4 +2475,71 @@
   color: var(--ink-soft);
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* Mute or block: folded shut beside Message, because it is the rare action on
+   somebody else's profile and never the one the header leads with. The summary
+   and every button keep the 44px tap floor. */
+.profilePage .profileMuteBlock {
+  flex-basis: 100%;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.profilePage .profileMuteBlock summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.profilePage .profileMuteBlockBody {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  max-width: 36rem;
+}
+
+.profilePage .profileMuteBlockBody p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.profilePage .profileMuteBlockConfirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.profilePage .profileMuteBlockAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.profilePage .profileMuteBlockAction[data-tone="strong"] {
+  border-color: var(--tint-ink-negative);
+  color: var(--tint-ink-negative);
+}
+
+.profilePage .profileMuteBlockAction:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.profilePage .profileMuteBlockAction:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.profilePage .profileMuteBlockError {
+  color: var(--tint-ink-negative);
 }

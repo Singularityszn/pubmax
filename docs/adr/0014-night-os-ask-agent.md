@@ -30,6 +30,17 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
 2. **Grounded answers** — every card and figure carries provenance; tools never
    invent pint prices. Uncorroborated community rows may appear on the pub’s
    own sheet language only; map-authority claims require corroboration.
+   `lib/ask/router.ts` owns price-subject routing for both HTTP paths.
+   Named menu requests and unsupported price comparisons use deterministic
+   `runAsk` even when a model provider is configured.
+   `runAskTool` applies the original question before speculative model arguments.
+   `venue_drinks` also reads accepted food and drink menu items through
+   `lib/ask/publishedMenu.server.ts`, preserving each field's source and date.
+   Its cards carry optional `menuEvidence`, including recorded servings,
+   calories and dietary labels. Current availability stays unknown.
+   Independent transit and city-status clauses can still answer.
+   The [Pub Pal feature guide](../../README.md#features) owns supported user
+   requests and coverage limits.
 3. **Propose, never apply** - Ask mutates nothing. `propose_map_action` returns
    a proposal the client applies only after an explicit Confirm. `propose_plan`
    returns a draft the client carries to `/plan` behind one "Open in Plan" link
@@ -48,8 +59,8 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
    `POST /api/pub-pal/chat` uses the same keyless `runAsk` tool path as map Ask
    (`skipModel: true`). With both values set, typed chat and voice share one
-   ElevenLabs agent (hosted LLM on the ElevenLabs plan): typed chat over HTTP,
-   voice over WebRTC. Server
+   ElevenLabs agent, subject to the deterministic routing in decision 2.
+   [Pub Pal setup](../PUB_PAL_SETUP.md) owns the session transport details. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
    (`lib/pubPalToolTurnStore.ts`): webhook bodies may carry only a short query

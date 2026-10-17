@@ -1,4 +1,4 @@
-import { resolveElevenLabsVoiceIdForPal } from "@/lib/palElevenLabsVoice";
+import { resolveElevenLabsVoiceForPal, type PalVoiceSelection } from "@/lib/palElevenLabsVoice";
 import type { PubPal } from "@/lib/pubPal";
 
 export {
@@ -13,12 +13,14 @@ export {
 /** Persona reaches voice as the greeting and the voice id. Neither touches the system prompt. */
 export type PalVoiceOverrides = {
   voiceId: string | null;
+  /** Presentation metadata only. Older grants can omit it. */
+  voiceSource?: PalVoiceSelection["voiceSource"];
   firstMessage: string;
 };
 
 export function buildPalVoiceOverrides(pal: PubPal): PalVoiceOverrides {
   return {
-    voiceId: resolveElevenLabsVoiceIdForPal(pal),
+    ...resolveElevenLabsVoiceForPal(pal),
     firstMessage: `Hi, I'm ${pal.name}. What kind of night are you planning?`,
   };
 }

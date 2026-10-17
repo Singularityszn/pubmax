@@ -87,7 +87,7 @@ describe("runAsk against a mock OpenRouter", () => {
   });
 
   it("follows the model through two rounds of tools", async () => {
-    const body = await ask("Cheapest pint near The Lamb and what they pour");
+    const body = await ask("What do they pour at The Lamb");
 
     const requests = modelRequests();
     expect(requests.map((entry) => entry.response.status)).toEqual([200, 200, 200]);
@@ -136,7 +136,7 @@ describe("runAsk against a mock OpenRouter", () => {
   });
 
   it("stops after three rounds and runs at most three calls a round", async () => {
-    const body = await ask("Cheapest pint in Islington, keep checking");
+    const body = await ask("Cheapest pint in Islington");
 
     const requests = modelRequests();
     expect(requests).toHaveLength(3);

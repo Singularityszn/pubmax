@@ -21,7 +21,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { LogIn } from "lucide-react";
 
-import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { useAuth, type SignOutScope } from "@/components/auth/authContext";
 import AccountMenu from "@/components/auth/AccountMenu";
 import ClerkAccountSlot from "@/components/auth/ClerkAccountSlot";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";

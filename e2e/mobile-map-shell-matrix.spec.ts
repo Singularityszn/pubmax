@@ -353,8 +353,8 @@ for (const theme of THEMES) {
 
     for (const [zoom, pitch] of [[10, 0], [12, 22], [14, 40], [16, 50]] as const) {
       // Leave the map before writing its camera. A live map keeps writing both
-      // stores: the session on every camera change, the resume cache 250ms
-      // after one. Its opening turn or a late resume write landing between this
+      // stores: the session on every camera change, the resume cache in idle
+      // time after one. Its opening turn or a late resume write landing between this
       // write and the reopen put the map back at its own camera, not this one.
       await page.goto("/offline.html");
       await page.evaluate(({ nextZoom, nextPitch }) => {
@@ -368,7 +368,7 @@ for (const theme of THEMES) {
         window.localStorage.setItem(key, JSON.stringify(raw));
         // The map writes the same camera to its resume cache (lib/mapResume.ts),
         // and that cache wins on reopen, so both stores carry the camera.
-        const resumeKey = "map-resume:v1:london";
+        const resumeKey = "map-resume:v2:london:view";
         const resume = JSON.parse(window.localStorage.getItem(resumeKey) ?? "null") as Record<string, unknown> | null;
         if (resume) {
           resume.viewport = viewport;

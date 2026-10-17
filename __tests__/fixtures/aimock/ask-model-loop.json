@@ -14,7 +14,7 @@
     },
 
     {
-      "match": { "userMessage": "Cheapest pint near The Lamb and what they pour", "hasToolResult": false },
+      "match": { "userMessage": "What do they pour at The Lamb", "hasToolResult": false },
       "response": {
         "toolCalls": [
           { "id": "pal-two-1", "name": "cheapest_pint_near", "arguments": { "venueName": "The Lamb" } }
@@ -22,7 +22,7 @@
       }
     },
     {
-      "match": { "userMessage": "Cheapest pint near The Lamb and what they pour", "toolCallId": "pal-two-1" },
+      "match": { "userMessage": "What do they pour at The Lamb", "toolCallId": "pal-two-1" },
       "response": {
         "toolCalls": [
           { "id": "pal-two-2", "name": "venue_drinks", "arguments": { "venueName": "The Lamb" } }
@@ -30,7 +30,7 @@
       }
     },
     {
-      "match": { "userMessage": "Cheapest pint near The Lamb and what they pour", "toolCallId": "pal-two-2" },
+      "match": { "userMessage": "What do they pour at The Lamb", "toolCallId": "pal-two-2" },
       "response": { "content": "Prices and the pour list for The Lamb are above." }
     },
 
@@ -67,7 +67,7 @@
     },
 
     {
-      "match": { "userMessage": "Cheapest pint in Islington, keep checking" },
+      "match": { "userMessage": "Cheapest pint in Islington" },
       "response": {
         "toolCalls": [
           { "id": "pal-runaway-1", "name": "cheapest_pint_near", "arguments": { "area": "Islington" } },

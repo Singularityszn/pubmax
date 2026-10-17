@@ -94,7 +94,7 @@ async function mountAvailable(): Promise<void> {
     root?.render(createElement(PubPalVoice));
   });
   await settle();
-  await vi.dynamicImportSettled();
+  await act(async () => { await vi.dynamicImportSettled(); });
   await settle();
   expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
 }
@@ -159,6 +159,138 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
+  it.each(["species", "agent-default"])("discloses the %s fallback without changing provider overrides", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource },
+    }));
+    await mountAvailable();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.querySelector('[role="status"].palVoiceHint')?.textContent).toBe(
+      "Your chosen voice isn't available. Using your Pal's default voice.",
+    );
+    expect(JSON.stringify(defined(voice.startSession.mock.calls[0])[0])).not.toContain("voiceSource");
+  });
+
+  it.each(["selected", "unknown", undefined])("does not claim a fallback for %s selection metadata", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: "voice-selected", firstMessage: "Hi, I'm Ripley.", voiceSource },
+    }));
+    await mountAvailable();
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
+  it("offers writing immediately and leaves a stalled availability probe after eight seconds", async () => {
+    vi.useFakeTimers();
+    const probe = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn(() => probe.promise));
+    await act(async () => { root?.render(createElement(PubPalVoice)); });
+    expect(container.querySelector('a[href="/pal/chat"]')?.textContent).toContain("Ask in writing");
+    await act(async () => { vi.advanceTimersByTime(8_000); });
+    expect(container.textContent).not.toContain("Checking whether voice is on");
+    expect(container.querySelector('a[href="/pal/chat"]')?.textContent).toContain("Ask in writing");
+    probe.resolve(Response.json({ available: true }));
+    await settle();
+    await act(async () => { await vi.dynamicImportSettled(); });
+    expect(container.textContent).not.toContain("Start voice chat");
+  });
+
+  it("ends stalled microphone startup after twenty seconds and preserves writing", async () => {
+    vi.useFakeTimers();
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    await act(async () => { vi.advanceTimersByTime(20_000); });
+    expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
+    expect(container.querySelector('[role="alert"]')?.textContent).toMatch(/too long/i);
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    const stopTrack = vi.fn();
+    permission.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream);
+    await settle();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    await typeAndSend("Quiet pubs in Soho");
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/pal/chat?ask=Quiet+pubs+in+Soho");
+  });
+
+  it("lets the user cancel permission startup and retry before the old permission answers", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise).mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/new", conversationId: "conv_voiceRetry1" }));
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    const cancel = container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]');
+    expect(cancel).not.toBeNull();
+    await act(async () => { cancel?.click(); });
+    expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    await settle();
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    const stopTrack = vi.fn();
+    permission.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream);
+    await settle();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
+  it("aborts a stalled grant, ignores its late response, and releases a late issued grant once", async () => {
+    vi.useFakeTimers();
+    const grant = deferred<Response>();
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockReturnValueOnce(grant.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    await settle();
+    const signal = (defined(requests.authedActionFetch.mock.calls[0])[1] as RequestInit).signal;
+    expect(signal?.aborted).toBe(false);
+    await act(async () => { vi.advanceTimersByTime(20_000); });
+    expect(signal?.aborted).toBe(true);
+    expect(container.querySelector('[role="alert"]')?.textContent).toMatch(/too long/i);
+    grant.resolve(Response.json({ signedUrl: "wss://voice.example/late", conversationId: "conv_voiceLate1" }));
+    await settle();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String((defined(requests.authedActionFetch.mock.calls[1])[1] as RequestInit).body))).toEqual({
+      action: "release", conversationId: "conv_voiceLate1",
+    });
+    unmount();
+    await settle();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("ends a stalled SDK connection and ignores late callbacks after the startup timeout", async () => {
+    vi.useFakeTimers();
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStall1" }));
+    voice.startSession.mockImplementation(() => { voice.status = "connecting"; });
+    // This hook mock has no keyed provider state. Model the fresh provider's
+    // disconnected state when the cancelled SDK startup is replaced.
+    voice.endSession.mockImplementation(() => { voice.status = "disconnected"; });
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    await settle();
+    const session = defined(voice.startSession.mock.calls[0])[0] as { onConnect?: () => void; onDisconnect?: () => void };
+    await act(async () => { vi.advanceTimersByTime(20_000); });
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="alert"]')?.textContent).toMatch(/too long/i);
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    await act(async () => { session.onConnect?.(); session.onDisconnect?.(); });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(analytics.trackEvent).not.toHaveBeenCalledWith("voice_started");
+    await typeAndSend("Quiet pubs in Soho");
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/pal/chat?ask=Quiet+pubs+in+Soho");
+  });
+
   it("does not probe or offer voice while the Pal is muted", async () => {
     const availabilityFetch = vi.fn(async () => Response.json({ available: true }));
     vi.stubGlobal("fetch", availabilityFetch);
@@ -789,7 +921,7 @@ describe("Pub Pal voice controls", () => {
       root?.render(createElement(PubPalVoice, { onStateChange: (state: string) => states.push(state) }));
     });
     await settle();
-    await vi.dynamicImportSettled();
+    await act(async () => { await vi.dynamicImportSettled(); });
     await settle();
 
     await typeAndSend("  Cheapest pint near Old Street?  ");
@@ -837,7 +969,7 @@ describe("Pub Pal voice controls", () => {
       root?.render(createElement(PubPalVoice));
     });
     await settle();
-    await vi.dynamicImportSettled();
+    await act(async () => { await vi.dynamicImportSettled(); });
     await settle();
 
     await typeAndSend("Quiet pubs in Soho");
@@ -855,7 +987,7 @@ describe("Pub Pal voice controls", () => {
       root?.render(createElement(PubPalVoice, { onStateChange: (state: string) => states.push(state) }));
     });
     await settle();
-    await vi.dynamicImportSettled();
+    await act(async () => { await vi.dynamicImportSettled(); });
     await settle();
 
     await typeAndSend("Quiet pubs in Soho");

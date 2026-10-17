@@ -49,7 +49,7 @@ describe("MenuCategoryGrid empty state", () => {
     expect(html).toContain("We don’t have this pub’s drinks yet.");
     expect(html).toContain("Add what you’re drinking");
     expect(html).toContain('href="https://pub.example/menu"');
-    expect(html).toContain("Food opens the pub’s own menu.");
+    expect(html).toContain("Open this pub’s menu or website for what’s on offer.");
     expect(html).not.toContain("Drinks first");
     expect(html).not.toContain("Tap a tile");
 

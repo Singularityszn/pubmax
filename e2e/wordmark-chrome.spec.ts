@@ -106,12 +106,14 @@ for (const view of CASES) {
       await expectUncut();
       releaseScripts();
     }
+    // Hydration replaces the fallback-only value with the complete generated
+    // chain, so the display face leads it again (components/ThemeAttribute.tsx).
     await expect
       .poll(
         () => page.evaluate(() => document.documentElement.style.getPropertyValue("--font-display")),
         { timeout: 45_000 },
       )
-      .toBe("");
+      .toMatch(/^\s*["']?Space Grotesk["']?\s*,/);
     await page.evaluate(async () => {
       // A layout first, so the display face's load has started before
       // fonts.ready is read.

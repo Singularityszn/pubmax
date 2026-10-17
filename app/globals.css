@@ -768,10 +768,20 @@ button {
    drawers that slide in over it (see .mapDrawer). No grid — the map is never
    boxed into a column. */
 .appShell {
-  /* Desktop stacks Tonight arc below nav, then search toolbar. The previous
-     92px offset covered the venue-kind chip rail that starts at 80px. */
-  --map-top-clearance: 159px;
-  --map-overlay-top: 108px;
+  /* THE TOOLBAR DOCKS ONE GAP UNDER THE NAV. The floating nav ends at 76px
+     (12px top, 64px tall), and the toolbar starts 12px below it. This was
+     159px, a band kept for the Tonight arc and the venue-kind chip rail; both
+     left it (the chips are inside Filters, the Tonight chip docks under the
+     toolbar) and the band stood as 83px of map between two cards. The drawers,
+     banners and the desktop rail all read this, so they rise with it. The
+     phone and 641-900 bands set their own values below. */
+  --map-top-clearance: 88px;
+  /* The transient lane (Recenter, a tapped POI's name, "Updating map", the
+     "Drink like" card) sat IN that band at 108px. It now sits one gap under
+     the toolbar's PUBLISHED height, the way the tablet band already places it,
+     so a toolbar grown by an open panel pushes it down rather than covering
+     it. The persona card used to open over the toolbar's left end here. */
+  --map-overlay-top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height, 60px) + 12px);
   --mobile-tab-clearance: calc(58px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
@@ -2767,6 +2777,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   .mapFallback {
     place-content: start center;
     padding-top: calc(var(--mobile-map-chrome-full-h, 118px) + 18px);
+    /* And the bottom: the card scrolls, but its end sat under the bottom card
+       and the tab bar, so Retry could never be scrolled up to where a thumb
+       can reach it. --float-stack-top-plan is the top edge of that stack. */
+    padding-bottom: calc(var(--float-stack-top-plan, 136px) + 18px);
   }
 
   /* Scrolling venue prices and links must clear the floating Create action. */
@@ -3188,20 +3202,23 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  /* A secondary off the text-button row. It was coral words on a coral wash
+     (--brass is 2.5:1 as text on the light panel), a second coral control in
+     the planner beside the map's one primary. */
+  min-height: var(--control-height, 44px);
   margin-bottom: 14px;
-  padding: 0 12px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
-  color: var(--brass);
-  font-weight: 700;
-  font-size: 0.85rem;
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
+  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size, 0.86rem);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .nearbyBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  background: color-mix(in srgb, var(--ink) 5%, var(--control-secondary-surface, var(--panel-raised)));
 }
 
 .nearbyBtn:focus-visible {
