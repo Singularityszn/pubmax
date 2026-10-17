@@ -157,6 +157,8 @@ export type RunAskInput = {
   fetchImpl?: typeof fetch;
   /** Injected clock for the tools that read "tonight" or "now". */
   now?: number;
+  /** Model loop deadline (tests); the loop's own default otherwise. */
+  modelTimeoutMs?: number;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
 };
@@ -189,6 +191,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
       ctx,
       ...(input.traceRoute ? { traceRoute: input.traceRoute } : {}),
       ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+      ...(input.modelTimeoutMs !== undefined ? { timeoutMs: input.modelTimeoutMs } : {}),
     });
     if (modelOutcome && modelOutcome.toolResults.length > 0) {
       toolResults = modelOutcome.toolResults;

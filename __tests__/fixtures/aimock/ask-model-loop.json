@@ -1,0 +1,81 @@
+{
+  "fixtures": [
+    {
+      "match": { "userMessage": "Cheapest pint in Camden tonight", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          { "id": "pal-single-1", "name": "cheapest_pint_near", "arguments": { "area": "Camden" } }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "Cheapest pint in Camden tonight", "toolCallId": "pal-single-1" },
+      "response": { "content": "Here are the cheapest listed pints in Camden." }
+    },
+
+    {
+      "match": { "userMessage": "Cheapest pint near The Lamb and what they pour", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          { "id": "pal-two-1", "name": "cheapest_pint_near", "arguments": { "venueName": "The Lamb" } }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "Cheapest pint near The Lamb and what they pour", "toolCallId": "pal-two-1" },
+      "response": {
+        "toolCalls": [
+          { "id": "pal-two-2", "name": "venue_drinks", "arguments": { "venueName": "The Lamb" } }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "Cheapest pint near The Lamb and what they pour", "toolCallId": "pal-two-2" },
+      "response": { "content": "Prices and the pour list for The Lamb are above." }
+    },
+
+    {
+      "match": { "userMessage": "Somewhere quiet near Bank for 4", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          { "id": "pal-badargs-1", "name": "search_venues", "arguments": "{\"query\": \"quiet near Bank" }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "Somewhere quiet near Bank for 4", "toolCallId": "pal-badargs-1" },
+      "response": { "content": "I could not run that search." }
+    },
+
+    {
+      "match": { "userMessage": "Plan a crawl in Soho for 4", "hasToolResult": false },
+      "response": {
+        "toolCalls": [
+          { "id": "pal-offlist-1", "name": "book_table", "arguments": { "venueName": "The French House", "people": 4 } }
+        ]
+      }
+    },
+    {
+      "match": { "userMessage": "Plan a crawl in Soho for 4", "toolCallId": "pal-offlist-1" },
+      "response": { "content": "I cannot book tables." }
+    },
+
+    {
+      "match": { "userMessage": "Any tube delays right now?" },
+      "response": { "content": "This reply arrives after the loop deadline." },
+      "chaos": { "latencyMs": 2000 }
+    },
+
+    {
+      "match": { "userMessage": "Cheapest pint in Islington, keep checking" },
+      "response": {
+        "toolCalls": [
+          { "id": "pal-runaway-1", "name": "cheapest_pint_near", "arguments": { "area": "Islington" } },
+          { "id": "pal-runaway-2", "name": "cheapest_pint_near", "arguments": { "area": "Islington" } },
+          { "id": "pal-runaway-3", "name": "cheapest_pint_near", "arguments": { "area": "Islington" } },
+          { "id": "pal-runaway-4", "name": "cheapest_pint_near", "arguments": { "area": "Islington" } }
+        ]
+      }
+    }
+  ]
+}
