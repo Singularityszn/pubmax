@@ -243,4 +243,4 @@ returning id, status;
 
 | Date | Drop | Venue | Reason | Done by |
 | --- | --- | --- | --- | --- |
-| Pending | `tester`, Hatton Lager, £4.50, logged 1 Sep 2026, plus its paired community price if step 1 finds one | The Sir Christopher Hatton, 4 Leather Ln, EC1N 7RA (`venue-1vle947`) | Owner asked for it to be hidden, not deleted | Operator, not yet run |
+| 17 Oct 2026 | `e3f592df-0dc3-434e-a6a4-a154e5358bbc`: `tester`, stored drink `Lager` (shown as Hatton Lager), £4.50, logged 1 Sep 2026 17:10 UTC. No confirmation, no reports, no paired community price | The Sir Christopher Hatton, 4 Leather Ln, EC1N 7RA (`venue-1vle947`) | Owner asked for it to be hidden, not deleted | Agent at the captain's request, by the step 3 SQL (no admin token in the session). Checked by the public reads and the stored row |

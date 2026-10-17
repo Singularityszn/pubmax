@@ -35,6 +35,7 @@ import {
   isCommunityVenueSignalKey,
 } from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import AdminSessionEntry from "./AdminSessionEntry";
 
 import "./admin.css";
@@ -183,6 +184,33 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
 }
 
 type AdminTab = "moderation" | "import" | "operators";
+
+const ADMIN_TABS: ReadonlyArray<{ key: AdminTab; label: string }> = [
+  { key: "moderation", label: "Moderation" },
+  { key: "import", label: "Import note" },
+  { key: "operators", label: "Operators" },
+];
+
+function AdminTabs({ tab, onSelect }: { tab: AdminTab; onSelect: (next: AdminTab) => void }) {
+  return (
+    <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+      {ADMIN_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          className={tab === key ? "admin-tab active" : "admin-tab"}
+          aria-selected={tab === key}
+          tabIndex={tab === key ? 0 : -1}
+          onKeyDown={(event) => moveTablistFocus(event)}
+          onClick={() => onSelect(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
 type OperatorClaimRow = {
@@ -1651,41 +1679,14 @@ export default function AdminClient() {
         Back to the map
       </Link>
 
-      <div className="admin-tabs" role="tablist" aria-label="Admin sections">
-        <button
-          type="button"
-          role="tab"
-          className={tab === "moderation" ? "admin-tab active" : "admin-tab"}
-          aria-selected={tab === "moderation"}
-          onClick={() => setTab("moderation")}
-        >
-          Moderation
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={tab === "import" ? "admin-tab active" : "admin-tab"}
-          aria-selected={tab === "import"}
-          onClick={() => {
-            setTab("import");
-            void loadImportNotes();
-          }}
-        >
-          Import note
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={tab === "operators" ? "admin-tab active" : "admin-tab"}
-          aria-selected={tab === "operators"}
-          onClick={() => {
-            setTab("operators");
-            void loadOperators();
-          }}
-        >
-          Operators
-        </button>
-      </div>
+      <AdminTabs
+        tab={tab}
+        onSelect={(next) => {
+          setTab(next);
+          if (next === "import") void loadImportNotes();
+          if (next === "operators") void loadOperators();
+        }}
+      />
 
       {tab === "moderation" ? (
         <div className="admin-bar">

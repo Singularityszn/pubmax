@@ -92,8 +92,10 @@ describe("factBlockSentences", () => {
   it("produces the PRD-shaped extractable prose", () => {
     const stats = pintFactStats(HACKNEY, "Hackney", "hackney");
     const sentences = factBlockSentences(stats, opts);
+    // These fixture pubs carry no price rows, so no read can date the average
+    // (dated averages: __tests__/pintRowReadDates.test.tsx).
     expect(sentences[0]).toBe(
-      "As of July 2026, the average pint in Hackney costs £6.00 across 3 tracked pubs.",
+      "The average pint in Hackney costs £6.00 across 3 tracked pubs. Those prices record no read date.",
     );
     expect(sentences[1]).toBe(
       "The cheapest tracked pint is £5.00 at The Cheap One.",

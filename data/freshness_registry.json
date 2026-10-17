@@ -240,7 +240,7 @@
       "class": "live",
       "artifact": null,
       "stamp": null,
-      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), which registers its own row when npm run build:fsa-hygiene first writes public/data/fsa_hygiene/london.json.",
+      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), whose own row is fsa_hygiene_london (public/data/fsa_hygiene/london.json, npm run build:fsa-hygiene).",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "live-per-request (app/api/hygiene)",
       "gate": "none (keyless open API; requires the x-api-version: 2 header)"
@@ -258,6 +258,20 @@
       "stalenessBudgetHours": 4320,
       "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-fhrs-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived.",
       "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: the FSA's ratings are their own OGL pack."
+    },
+    {
+      "id": "fsa_hygiene_london",
+      "label": "FSA food hygiene ratings for OSM-linked London pubs (OGL pack)",
+      "class": "episodic",
+      "artifact": "public/data/fsa_hygiene/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
+      "cadence": "episodic — re-read from the FSA FHRS API whenever osm_fhrs_links is re-derived, and often enough that the rating shown is current. The stamp is the day the FSA was read, and the sheet prints it beside every rating, as the FSA terms ask.",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (npm run build:fsa-hygiene). Every read goes through the fsa-fhrs-api row in lib/harvest/sourcePolicy.ts; a failed read writes nothing.",
+      "gate": "none (keyless open API; requires the x-api-version: 2 header; Open Government Licence v3.0)"
     },
     {
       "id": "citymcp",
@@ -453,10 +467,10 @@
         "kind": "field",
         "pointer": "observedAt"
       },
-      "cadence": "Manual verified-id push per published pack (London and UK-city hours and contacts, and their extras); each copied field stays shown under its own observedAt and is due for refresh after 30 days",
-      "stalenessBudgetHours": 720,
-      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh [--pack=uk_cities|london_extras|uk_cities_extras]; then --write --exclusive --refresh after shared-key jobs finish; london is the default pack). --refresh starts a new push only once a copied row is over 30 days old and re-requests rows that are missing, failed earlier or were over 30 days old when that push started. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
-      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields and checked daily-quota restoration. The London pack has a USD 85 attempt cap per calendar month across all pushes; the UK-city and both extras packs share one USD 28 task cap that does not reset. The oldest copied row across every published pack dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from every data/places_enrichment*.json pack so the spine never parses a full pack."
+      "cadence": "Manual verified-id push per published pack (London and UK-city hours and contacts, and their extras); each copied field stays shown under its own observedAt, is due for refresh after 16 days, and its hours stop setting open state after 30",
+      "stalenessBudgetHours": 384,
+      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh [--pack=uk_cities|london_extras|uk_cities_extras]; then --write --exclusive --refresh after shared-key jobs finish; london is the default pack). --refresh starts a new push only once a copied row is over 16 days old (PLACES_REFRESH_START_DAYS, two weeks before its hours stop setting open state) and re-requests rows that are missing, failed earlier or were over 16 days old when that push started. Steps: docs/GOOGLE_PLACES_REFRESH_RUNBOOK.md. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
+      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields and checked daily-quota restoration. The London pack has a USD 85 attempt cap per calendar month across all pushes; the UK-city and both extras packs share one USD 28 task cap that does not reset. The oldest copied row across every published pack dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from every data/places_enrichment*.json pack so the spine never parses a full pack. The 384h budget is the 30-day hours window (PLACES_REFRESH_DAYS) less a two-week lead, so the lane reads stale while the oldest row's hours are still served and a paid push has time to fit its cap. The UK-city task cap was fully spent on the 2026-10-04 push, so that pack cannot be refreshed until the cap is raised."
     },
     {
       "id": "parallel_venue_discovery",

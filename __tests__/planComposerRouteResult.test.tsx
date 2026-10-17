@@ -847,3 +847,33 @@ describe("an accepted place the venue index has no name for", () => {
     expect(document.activeElement).toBe(status);
   });
 });
+
+describe("swapping one stop in place", () => {
+  it("swaps to the generator's alternative and leaves the night lockable without a refresh", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const body = url.includes("/api/plans/generate")
+        ? {
+            ...GENERATED,
+            stops: [
+              GENERATED.stops[0],
+              { ...GENERATED.stops[1], estimatedPintPricePence: 520, alternatives: [{ venueId: "venue-c", venueName: "Pub C", estimatedPintPricePence: 480 }] },
+            ],
+          }
+        : [];
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    const swap = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.getAttribute("aria-label") === "Swap stop 2, currently Pub B")!;
+    await act(async () => { swap.click(); });
+    await settle();
+
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop 2 swapped to Pub C.");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector("#plan-lock-hint")?.textContent ?? "").not.toMatch(/Refresh the route/);
+    expect(document.body.textContent).toContain("Pub C");
+  });
+});

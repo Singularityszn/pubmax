@@ -137,6 +137,15 @@ describe("the FSA ratings pack", () => {
       null,
       "Enfield",
     ]);
+    // The FSA's 1901-01-01 placeholder for "no rating day" is no day at all.
+    expect(
+      compactEstablishment({ ...ESTABLISHMENT, RatingValue: "AwaitingInspection", RatingDate: "1901-01-01T00:00:00" }),
+    ).toEqual(["AwaitingInspection", null, "Enfield"]);
+    expect(compactEstablishment({ ...ESTABLISHMENT, RatingValue: "Exempt", RatingDate: "1901-01-01" })).toEqual([
+      "Exempt",
+      null,
+      "Enfield",
+    ]);
     // Scotland's scheme and statuses outside the closed set are not carried.
     expect(compactEstablishment({ ...ESTABLISHMENT, SchemeType: "FHIS", RatingValue: "Pass" })).toBeNull();
     expect(compactEstablishment({ ...ESTABLISHMENT, RatingValue: "AwaitingPublication" })).toBeNull();

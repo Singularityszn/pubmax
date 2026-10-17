@@ -6,6 +6,8 @@
 // re-composition over the same feed cards, not a new surface: it swaps the data
 // source, while /feed owns the active tab and fetching.
 
+import { moveTablistFocus } from "@/components/ui/tabs";
+
 export type SocialTab = "lot" | "nearby" | "london";
 
 const TABS: { id: SocialTab; label: string; hint: string }[] = [
@@ -30,9 +32,11 @@ export default function SocialTabs({
             type="button"
             role="tab"
             aria-selected={selected}
+            tabIndex={selected ? 0 : -1}
             title={tab.hint}
             className={`feedSocialTab${selected ? " isActive" : ""}`}
             onClick={() => onChange(tab.id)}
+            onKeyDown={(event) => moveTablistFocus(event)}
           >
             {tab.label}
           </button>
