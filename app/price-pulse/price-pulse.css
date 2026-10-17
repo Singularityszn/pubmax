@@ -234,14 +234,16 @@
 
 /* ── The floating create action ─────────────────────────────── */
 /* On a phone the + sits over the reading column's bottom-right corner, and
-   every line below the page head passes under it while it scrolls. Each one
-   is a figure, a source or the day it was published (at rest it covered the
-   duty row's GOV.UK source and its date), so the reading column reserves the
-   control's lane, less the page gutter it already sits in, whenever the
-   control is in the document. The page head stays full width: it opens the
-   page and never scrolls down to the control. */
+   at rest it covered the duty row's GOV.UK source line and its date. The
+   split rows and the edition cards are the lists here, so they reserve the
+   control's lane less the page gutter, the shape /tonight's rows take, and
+   hold it whenever the control is in the document. */
 @media (max-width: 640px) {
-  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pricePulsePage > :not(.legalHead) {
-    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pulseSplitRow {
+    padding-right: max(14px, calc(var(--create-fab-lane) - var(--page-gutter)));
+  }
+
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .pulseItem {
+    padding-right: max(16px, calc(var(--create-fab-lane) - var(--page-gutter)));
   }
 }

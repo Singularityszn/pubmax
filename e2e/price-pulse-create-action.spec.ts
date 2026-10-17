@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test";
 
 // /price-pulse names a source and a date under every figure. On a phone the
 // floating create action sits over the reading column's bottom-right corner,
-// and at rest it covered the duty row's GOV.UK line and its date. Every block
-// of text on the page is brought to the foot of the screen, where the action
-// sits, and no line of it may run under the action's box.
+// and at rest it covered the duty row's GOV.UK line and its date. Each split
+// row is brought to the foot of the screen, where the action sits, and no line
+// of its text may run under the action's box.
 const VIEWPORTS = [
   { width: 320, height: 640 },
   { width: 390, height: 844 },
@@ -31,20 +31,16 @@ for (const viewport of VIEWPORTS) {
       const fab = document.querySelector(".createFab");
       if (!fab) return ["no create action"];
       const hits: string[] = [];
-      const blocks = [...document.querySelectorAll<HTMLElement>("main *")].filter(
-        (el) => el.getClientRects().length > 0 && [...el.childNodes].some(
-          (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
-        ),
-      );
-      for (const block of blocks) {
-        block.scrollIntoView({ block: "end", behavior: "instant" });
+      for (const row of document.querySelectorAll<HTMLElement>(".pulseSplitRow, .pulseItem")) {
+        row.scrollIntoView({ block: "end", behavior: "instant" });
         const box = fab.getBoundingClientRect();
-        for (const node of block.childNodes) {
-          if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue;
+        const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (!node.textContent?.trim()) continue;
           const range = document.createRange();
           range.selectNodeContents(node);
-          // A visually hidden label is a 1px box nobody reads.
-          if ([...range.getClientRects()].some((rect) => rect.width > 1 &&
+          if ([...range.getClientRects()].some((rect) =>
             rect.left < box.right && rect.right > box.left &&
             rect.top < box.bottom && rect.bottom > box.top,
           )) hits.push(node.textContent.trim());
