@@ -34,6 +34,8 @@ The only consumer is `components/map/VenuePriceThen.tsx`, the venue sheet's
       "priceGbp": 4.14,
       "observedOn": "2014-03-31",  // calendar DAY, never a timestamp
       "quote": "…but at £4.14 a pint, even more expensive than the station pub.",
+      // optional, and only where the source states all three parts:
+      "item": { "drink": "Doom Bar", "measure": "pint", "terms": "standard" },
       "source": { "label": "…", "url": "https://…", "licence": "…" }
     }
   ]
@@ -65,6 +67,16 @@ for two venue ids ships the same dated fact twice. The only exception is a pub
 the app's own venue index holds under more than one id, which is named with its
 reason in the identity fence in `__tests__/priceHistory.test.ts`.
 
+## Then against now
+
+Both figures always print. A sentence saying the pint went up or down needs
+more: the row's `item` must state the drink, the serving (`pint` or `half`)
+and `"terms": "standard"`, and today's figure must state the same item. A
+row's `drink` and `quote` are words for a reader and never stand in for an
+`item`, and a row without one shows its dated fact with no movement
+(`sameComparisonItem` in `lib/priceHistory.ts`). Never add an `item` the
+source does not state.
+
 ## Where wave one came from
 
 Archived user reviews on `beerintheevening.com`, which carry a per-comment date
@@ -88,8 +100,8 @@ Restate it from the shipped file whenever rows are added or dropped.
 - 183 of those 602 pages (30%) named both a price and a pint, giving 134
   candidate figures across 103 venues.
 - **103 observations across 90 venues, 2012 to 2023**, shipped. **50 of those
-  venues also carry a current price** and so show the full then-and-now
-  comparison; the rest show the historical fact alone.
+  venues also carry a current price** and so show both figures side by side;
+  the rest show the historical fact alone.
 - So of 641 venues attempted, **90 produced usable evidence: a 14% yield.**
 
 Candidates were dropped by hand for hedges ("around £4 a pint"), promotions and

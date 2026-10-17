@@ -19,3 +19,11 @@ export function priceMovementLine(deltaGbp: number, years: number): string {
   const direction = pennies > 0 ? "Up" : "Down";
   return `${direction} ${formatPrice(Math.abs(deltaGbp))} ${span}.`;
 }
+
+/**
+ * Said in place of a movement when two dated figures cannot be shown to be the
+ * same pint at an ordinary price (lib/priceHistory.ts, `sameComparisonItem`).
+ * Both figures still print; only the claim that one thing went up or down is
+ * withheld.
+ */
+export const PRICE_NOT_COMPARED_LINE = "We can't tell it was the same pint, so we don't call it a change.";
