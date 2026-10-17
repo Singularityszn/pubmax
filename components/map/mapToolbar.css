@@ -478,7 +478,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   min-height: 28px;
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px dashed color-mix(in srgb, var(--line) 60%, var(--brass) 40%);
+  border: 1px dashed var(--hairline-strong);
   background: color-mix(in srgb, var(--panel-raised) 70%, transparent);
   color: var(--ink-soft);
   font-size: 0.7rem;
@@ -501,7 +501,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
 .drinkSubtypeChip:hover,
 .drinkSubtypeChip:focus-visible {
-  border-color: var(--brass);
+  border-color: var(--hairline-strong);
   color: var(--ink);
 }
 
@@ -512,21 +512,24 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
 .drinkSubtypeChip.isOn {
   border-style: solid;
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 /* Top shelf cuts across families, so it reads as a distinct affordance
-   rather than one more subtype in the same row. */
+   rather than one more subtype in the same row: a solid outline at rest
+   where the subtypes are dashed. Chosen, it is a selection like any other
+   chip, in ink, never a coral fill (Coral is spent twice). */
 .drinkSubtypeChip.isTopShelf {
   border-style: solid;
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  border-color: var(--hairline-strong);
 }
 
 .drinkSubtypeChip.isTopShelf.isOn {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 /* An open venue drawer is its own map-chrome state (D3). The drawer owns the
