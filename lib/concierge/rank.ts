@@ -35,6 +35,8 @@ type ConciergeContext = {
 export type ConciergeVenue = {
   id: string;
   name: string;
+  /** The dataset's own name when it carries an operator suffix; matched, never shown. */
+  sourceName?: string;
   area: string;
   lat: number;
   lng: number;

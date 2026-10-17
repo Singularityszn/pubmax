@@ -916,6 +916,14 @@ runner, so their ceilings are set in FAMILY with `/about` and `/pubs` the way
 is not comparable to CI's. CI's sweep is the oracle. Take them DOWN at the next
 sweep, never up.
 
+**And `/credits`**, added on 16 October 2026 with the page itself. It is on the
+legal shell, so it takes the same ceilings as `/how-we-estimate`, and it was
+measured before its row was written: on a production build of its branch, five
+samples beside `/privacy`, `/terms` and `/how-we-estimate`, it rendered in
+16 ms, decoded 835 KB of JS over 31 requests and painted its LCP at a median of
+372 ms (worst 412). Like the ten above, those figures came from a laptop under
+the tracked throttle, so CI's sweep is the oracle. Take them down, never up.
+
 ## The pin-ready record on /map
 
 `/map` carries one extra tracked block, `pinReady`. It is not one of the four

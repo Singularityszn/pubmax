@@ -397,3 +397,59 @@ describe("Pub Pal control saving", () => {
     expect(buttonContaining("Voice allowed").getAttribute("aria-pressed")).toBe("false");
   });
 });
+
+describe("Pub Pal when the browser refuses storage", () => {
+  // A full or blocked localStorage costs the cached copy of the Pal, never the
+  // Pal itself or a working toggle: a write that throws must not drop the
+  // server's Pal on load, and must not leave the control lock held.
+  it("still loads the server's Pal and keeps every toggle working", async () => {
+    await act(async () => root?.unmount());
+    const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const timestamp = "2026-10-04T12:00:00.000Z";
+    let pal: PubPal = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerId,
+      name: "Moss",
+      adultAttestedAt: timestamp,
+      appearance: DEFAULT_PAL_DRAFT.appearance,
+      personality: DEFAULT_PAL_DRAFT.personality,
+      voice: DEFAULT_PAL_DRAFT.voice,
+      muted: false,
+      hidden: false,
+      proposalPreferences: { memories: false, routes: true },
+      masteryPoints: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota", "QuotaExceededError");
+    });
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    let patches = 0;
+    transport.request.mockImplementation(async (input, init) => {
+      if (input === "/api/pub-pal" && init?.method === "PATCH") {
+        patches += 1;
+        pal = { ...pal, ...(JSON.parse(String(init.body)) as Partial<PubPal>) };
+        return Response.json({ pal });
+      }
+      if (input === "/api/pub-pal") return Response.json({ pal, adultOnFile: true });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    expect(container.querySelector("#pal-home-title")?.textContent).toBe("Moss");
+
+    await act(async () => buttonContaining("Tap to mute everywhere").click());
+    await settle();
+    expect(buttonContaining("Muted").getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+
+    await act(async () => buttonContaining("Tap to allow voice").click());
+    await settle();
+    expect(patches).toBe(2);
+    expect(buttonContaining("Voice allowed").getAttribute("aria-pressed")).toBe("false");
+  });
+});

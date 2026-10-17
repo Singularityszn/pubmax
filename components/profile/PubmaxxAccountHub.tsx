@@ -776,7 +776,7 @@ export default function PubmaxxAccountHub() {
       <p className="profileSectionKicker createFabLane">Your PUBMAXX</p>
       <h2 className="createFabLane">On this device</h2>
       <div className="accountHubSignIn">
-        <p>With an account you claim a handle, connect profiles and keep private Night Memories. Nothing saved on this device moves to an account until you review it.</p>
+        <p>Nothing saved on this device moves to an account until you review it.</p>
       </div>
       {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
       {/* ONE CONSENT CONTROL ON ANY SCREEN. The signed-out panel used to carry
@@ -784,9 +784,11 @@ export default function PubmaxxAccountHub() {
           met the analytics question twice in one column of copy. The docked
           consent card (components/AnalyticsConsentPrompt.tsx) is the one place
           an undecided reader is asked now, and the settings block stays where
-          a decision can be REVERSED, which needs an account. */}
+          a decision can be REVERSED, which needs an account.
+
+          The weekly nudge is not offered here: it needs an account, and the
+          invitation at the top of the page already names it. */}
       <div className="accountHubGrid">
-        <StepOutNudgePref />
         <AppearancePref />
       </div>
       <AccountLegalRow />

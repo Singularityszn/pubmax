@@ -65,6 +65,9 @@ import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import VenueRecordSummary from "./VenueRecordSummary";
+import SharePintButton from "@/components/share/SharePintButton";
+import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
+import { listedCheapPintShare } from "@/lib/venuePintShare";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
@@ -507,7 +510,7 @@ function VenuePriceSummary({
     return (
       <div className="contributorPrice" {...trustChipAttrs}>
         <span className={chromeRevealClass}>
-          <ClaimBadge kind="contributor" /> Latest Pint Drop price
+          <ClaimBadge kind="contributor" /> Latest price from a drinker
         </span>
         {/* A confirmed price says the figure and its standing in ONE mark, so
             the number is printed once and by the module that owns the words
@@ -612,6 +615,9 @@ function VenuePriceSummary({
   }
 
   if (lane?.lane === "baseline") {
+    // "Share this pint": only a cheap pint listed by a named publisher on a
+    // known day, and only the figure this block prints. Not a price door.
+    const pintShare = listedCheapPintShare(venue, lane, bandArea);
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
@@ -651,6 +657,7 @@ function VenuePriceSummary({
             </>
           )}
         </small>
+        {pintShare ? <SharePintButton share={pintShare} className="venuePintShare" /> : null}
         {door}
       </div>
     );
@@ -672,6 +679,19 @@ function VenuePriceSummary({
   return isPubVenue(venue) ? (
     <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
   ) : null;
+}
+
+/**
+ * THE PRICE ANSWER HAS LANDED when the price block prints a figure somebody
+ * observed. A modelled estimate is nobody's observation, and a split has no one
+ * figure, so neither counts.
+ */
+function overviewPriceAnswered(
+  showsPriceSummary: boolean,
+  lane: VenuePriceLane | null,
+): boolean {
+  if (!showsPriceSummary || !lane || lane.lane === "estimate") return false;
+  return venuePriceLaneObservedGbp(lane) !== null;
 }
 
 /**
@@ -1027,6 +1047,13 @@ export default function VenueOverviewTab({
   );
   const sourcedObserved =
     sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
+
+  // The install ask waits for this (lib/priceAnswerMoment.ts). A mark in
+  // sessionStorage, never a beacon.
+  const priceAnswered = overviewPriceAnswered(showsPriceSummary, priceLane);
+  useEffect(() => {
+    if (priceAnswered) markPriceAnswerMoment("venue-price");
+  }, [priceAnswered]);
 
   const anchorStamp = anchorMonthLabel(venue.anchorObservedAt);
 

@@ -76,9 +76,9 @@ export const commands: Command[] = [
   },
   {
     id: "nav-wall",
-    label: "Drink Wall",
+    label: "Photos",
     hint: "/wall",
-    keywords: ["photos", "pictures", "pub fronts", "gallery", "wall"],
+    keywords: ["photos from drinkers", "pictures", "pub fronts", "gallery", "wall", "drink wall"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/wall"),
   },

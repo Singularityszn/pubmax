@@ -65,7 +65,7 @@ export default function WantedRowManage({ wanted, onChanged, onRemoved }: Props)
   }
 
   async function remove() {
-    if (!window.confirm(`Take ${name} off your Wanted list?`)) return;
+    if (!window.confirm(`Take ${name} off your list?`)) return;
     setBusy("remove");
     setError(null);
     const res = await post({ action: "delete", id: wanted.id });
@@ -145,7 +145,7 @@ export default function WantedRowManage({ wanted, onChanged, onRemoved }: Props)
             className="wantedRow__button"
             onClick={() => void remove()}
             disabled={busy !== null}
-            aria-label={`Remove ${name} from your Wanted list`}
+            aria-label={`Remove ${name} from your pubs to try`}
           >
             {busy === "remove" ? "Removing…" : "Remove"}
           </button>

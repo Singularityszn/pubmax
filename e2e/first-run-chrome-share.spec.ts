@@ -73,7 +73,7 @@ async function firstRouteRecorded(page: Page) {
 
 async function openedPhoneMap(page: Page) {
   await expectMobileMapShellReady(page, 45_000);
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({
     timeout: 45_000,
   });
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });

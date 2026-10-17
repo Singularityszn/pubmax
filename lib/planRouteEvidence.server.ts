@@ -12,6 +12,7 @@ import {
   type PlanPriceEvidence,
 } from "@/lib/planRouteEvidence";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
+import { displayVenueName } from "@/lib/venueDisplay";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import {
   loadWetherspoonsDirectoryPubs,
@@ -74,8 +75,10 @@ export async function planPriceEvidenceForVenues(
   }));
 }
 
+// Keyed like lib/venueAccessibilitySeeds.ts: the name with its operator suffix
+// dropped, so the dataset's spelling and the reader-facing one both land here.
 const ACCESS_SOURCES: Record<string, Partial<Record<"stepFree" | "accessibleToilet", AccessEvidenceSource>>> = {
-  "the ice wharf - jd wetherspoon": {
+  "the ice wharf": {
     stepFree: { label: "J D Wetherspoon: The Ice Wharf", url: "https://www.jdwetherspoon.com/pubs/the-ice-wharf-camden/", observedAt: null },
   },
   "the coronet": {
@@ -85,14 +88,14 @@ const ACCESS_SOURCES: Record<string, Partial<Record<"stepFree" | "accessibleToil
   "the crosse keys": {
     accessibleToilet: { label: "CAMRA: The Crosse Keys", url: "https://camra.org.uk/pubs/crosse-keys-london-156614", observedAt: null },
   },
-  "the brockley barge - jd wetherspoon": {
+  "the brockley barge": {
     accessibleToilet: { label: "AccessAble: The Brockley Barge", url: "https://www.accessable.co.uk/london-borough-of-lewisham/access-guides/the-brockley-barge-jd-wetherspoon", observedAt: null },
   },
 };
 
 export function planAccessEvidenceForVenue(venue: EvidenceVenue): PlanAccessEvidence {
   const facts = getVenueAccessibility(venue.name, venue.area);
-  const sources = ACCESS_SOURCES[venue.name.trim().toLocaleLowerCase("en-GB")] ?? {};
+  const sources = ACCESS_SOURCES[displayVenueName(venue.name).trim().toLocaleLowerCase("en-GB")] ?? {};
   return {
     ...(facts?.stepFree === true && sources.stepFree
       ? { stepFree: { confirmed: true as const, source: sources.stepFree } }

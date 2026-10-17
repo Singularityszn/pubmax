@@ -47,6 +47,7 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { useStepHistory } from "@/lib/useStepHistory";
 
 const STORAGE_KEY = "pubmax_pub_pal_v1";
@@ -137,9 +138,36 @@ function previewSpeech(step: number, draft: PubPalDraft): string {
   }
 }
 
+// The stored Pal is a cached copy. A full or blocked localStorage costs that
+// copy and nothing else: a write that throws must never drop the server's Pal,
+// roll back a saved setting or leave a control lock held.
+function writeStored(key: string, value: unknown): void {
+  try {
+    safeLocalStorage()?.setItem(key, JSON.stringify(value));
+  } catch {
+    // The cache is a convenience; the server holds the truth.
+  }
+}
+
+function removeStored(key: string): void {
+  try {
+    safeLocalStorage()?.removeItem(key);
+  } catch {
+    // As above.
+  }
+}
+
+function readStored(key: string): string | null {
+  try {
+    return safeLocalStorage()?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function readStoredPal(ownerId: string): PubPal | null {
   try {
-    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
+    const value = JSON.parse(readStored(STORAGE_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
     return value?.ownerId === ownerId
       ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: false, routes: true } }
       : null;
@@ -390,7 +418,7 @@ export default function PalExperience() {
         const next = response.ok ? body.pal ?? null : readStoredPal(user.id);
         if (next?.ownerId === ownerId) {
           setActivePlanPalContext({ id: next.id, name: next.name });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          writeStored(STORAGE_KEY, next);
           setPal(next);
           setDraft({
             adultConfirmed: true,
@@ -401,7 +429,7 @@ export default function PalExperience() {
           });
           setPrivacy((current) => ({ ...current, proposeMemories: next.proposalPreferences?.memories === true, visible: !next.hidden, muted: next.muted }));
           setMode("home");
-          const storedPrivacy = localStorage.getItem(`${PRIVACY_KEY}:${user.id}`);
+          const storedPrivacy = readStored(`${PRIVACY_KEY}:${user.id}`);
           if (storedPrivacy) {
             try {
               const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
@@ -502,8 +530,8 @@ export default function PalExperience() {
       const next = body.pal;
       if (activeOwnerRef.current !== ownerId || next.ownerId !== ownerId) return;
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      localStorage.setItem(`${PRIVACY_KEY}:${ownerId}`, JSON.stringify({ proposeMemories: privacy.proposeMemories }));
+      writeStored(STORAGE_KEY, next);
+      writeStored(`${PRIVACY_KEY}:${ownerId}`, { proposeMemories: privacy.proposeMemories });
       setPal(next);
       setActivePlanPalContext({ id: next.id, name: next.name });
       setMode("home");
@@ -527,7 +555,7 @@ export default function PalExperience() {
     setControlSaving(true);
     const optimistic = { ...pal, ...patch, updatedAt: new Date().toISOString() };
     setPal(optimistic);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(optimistic));
+    writeStored(STORAGE_KEY, optimistic);
     try {
       const response = await authedActionFetch("/api/pub-pal", {
         method: "PATCH",
@@ -540,14 +568,14 @@ export default function PalExperience() {
       }
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
+      writeStored(STORAGE_KEY, body.pal);
       setPalAnimationState("celebrating");
       window.setTimeout(() => setPalAnimationState("idle"), 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPalAnimationState("error");
       setPal(pal);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(pal));
+      writeStored(STORAGE_KEY, pal);
       setError(
         offlineOrMessage(cause instanceof Error
             ? cause.message
@@ -572,7 +600,7 @@ export default function PalExperience() {
     const optimistic = { ...pal, proposalPreferences, updatedAt: new Date().toISOString() };
     setPal(optimistic);
     if (kind === "memories") setPrivacy((current) => ({ ...current, proposeMemories: enabled }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(optimistic));
+    writeStored(STORAGE_KEY, optimistic);
     try {
       const response = await authedActionFetch("/api/pub-pal", {
         method: "PATCH",
@@ -583,14 +611,14 @@ export default function PalExperience() {
       if (!response.ok || !body.pal) throw new Error(errorMessageFrom(body, "We couldn't save your suggestion settings."));
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
+      writeStored(STORAGE_KEY, body.pal);
       setPalAnimationState("celebrating");
       window.setTimeout(() => setPalAnimationState("idle"), 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPal(previous);
       setPrivacy((current) => ({ ...current, proposeMemories: previous.proposalPreferences.memories }));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(previous));
+      writeStored(STORAGE_KEY, previous);
       setError(cause instanceof Error ? cause.message : "We couldn't save your suggestion settings.");
       setPalAnimationState("error");
     } finally {
@@ -712,8 +740,8 @@ export default function PalExperience() {
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "We couldn't delete your Pal."));
       if (activeOwnerRef.current !== ownerId) return;
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(`${PRIVACY_KEY}:${ownerId}`);
+      removeStored(STORAGE_KEY);
+      removeStored(`${PRIVACY_KEY}:${ownerId}`);
       setActivePlanPalContext(null);
       setMemories([]);
       setPal(null);

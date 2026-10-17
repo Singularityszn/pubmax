@@ -13,7 +13,7 @@ import {
   planStopCountLockError,
 } from "@/components/plan/PlanComposer";
 
-// F09: "Sort it" on an empty field did nothing visible, and "Lock it in" sat
+// F09: "Sort it" (now "Plan it") on an empty field did nothing visible, and "Lock it in" sat
 // disabled with its required "Your name" field a screen away and no reason.
 
 let host: HTMLDivElement | null = null;
@@ -39,12 +39,12 @@ async function mount(onSubmit = vi.fn()): Promise<{ onSubmit: ReturnType<typeof 
 }
 
 function sortIt(): HTMLButtonElement {
-  const button = [...document.querySelectorAll("button")].find((el) => el.textContent?.trim() === "Sort it");
-  if (!button) throw new Error("Sort it not painted");
+  const button = [...document.querySelectorAll("button")].find((el) => el.textContent?.trim() === "Plan it");
+  if (!button) throw new Error("Plan it not painted");
   return button as HTMLButtonElement;
 }
 
-describe("Sort it on an empty field", () => {
+describe("Plan it on an empty field", () => {
   it("says what to type, marks the field invalid and keeps the caret there", async () => {
     const { onSubmit } = await mount();
     const input = document.getElementById("plan-describe-first-query") as HTMLInputElement;
@@ -54,7 +54,7 @@ describe("Sort it on an empty field", () => {
     await act(async () => sortIt().click());
 
     const alert = document.querySelector("[role=alert]");
-    expect(alert?.textContent).toMatch(/where and who with/i);
+    expect(alert?.textContent).toMatch(/where, how many and what budget/i);
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-describedby")).toBe(alert?.id);
     expect(document.activeElement).toBe(input);

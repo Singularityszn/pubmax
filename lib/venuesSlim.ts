@@ -26,6 +26,7 @@ import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 import {
   EXPECTED_MAP_DATA_REVISION,
@@ -46,7 +47,10 @@ function offlineKeyForPath(path: string): string {
 
 export type SlimVenue = {
   id: string;
+  /** Reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /** The dataset's own name when it differs from `name`; identity and search only. */
+  sourceName?: string;
   lat: number;
   lng: number;
   cheapestPrice: number | null;
@@ -197,7 +201,11 @@ function normalizeRows(data: unknown): SlimVenue[] {
   if (!Array.isArray(data)) return [];
   return data.filter(isValidSlimVenue).map((venue) => ({
     id: venue.id,
-    name: venue.name,
+    name: displayVenueName(venue.name),
+    // A stored payload was normalised once already, so its own sourceName wins.
+    ...(typeof venue.sourceName === "string" && venue.sourceName
+      ? { sourceName: venue.sourceName }
+      : venueSourceNameField(venue.name)),
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,

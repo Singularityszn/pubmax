@@ -326,6 +326,13 @@ export function usePintDrops(
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
+  // EVERY PREVIEW URL THIS HOOK HAS MINTED AND NOT YET REVOKED. A slot's URL
+  // is revoked when the slot is replaced or removed; a URL handed to an
+  // optimistic row (map drop, feed spill) outlives the composer and is revoked
+  // when the server row replaces it. Whatever is still held at unmount goes
+  // then. One set, so nothing is revoked twice and nothing still on screen is
+  // revoked by a sibling slot changing.
+  const livePreviewUrls = useRef(new Set<string>());
   // Ref guard + optimistic removal is the whole "pending state" for reports —
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
@@ -445,6 +452,11 @@ export function usePintDrops(
     receipt: { value: receiptPhoto, set: setReceiptPhoto, input: receiptInputRef },
   } as const;
 
+  function revokePreview(url: string) {
+    if (!livePreviewUrls.current.delete(url)) return;
+    URL.revokeObjectURL(url);
+  }
+
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
     const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
@@ -455,9 +467,11 @@ export function usePintDrops(
       if (inputEl) inputEl.value = "";
       return;
     }
-    if (current) URL.revokeObjectURL(current.previewUrl);
+    if (current) revokePreview(current.previewUrl);
     setDropMsg(null);
-    setSlot({ file, previewUrl: URL.createObjectURL(file) });
+    const previewUrl = URL.createObjectURL(file);
+    livePreviewUrls.current.add(previewUrl);
+    setSlot({ file, previewUrl });
   }
 
   // Toggle a vibe tag on/off. Multi-select, but silently ignores a new
@@ -476,24 +490,23 @@ export function usePintDrops(
     const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     const inputEl = photoSlots[slot].input.current;
-    if (current) URL.revokeObjectURL(current.previewUrl);
+    if (current) revokePreview(current.previewUrl);
     setSlot(null);
     if (inputEl) inputEl.value = "";
   }
 
-  const resetComposer = useCallback(() => {
-    setPintPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
+  // `keepPreviews` is the post: the slots empty, but their URLs now belong to
+  // the optimistic row that is about to render them.
+  const resetComposer = useCallback((options?: { keepPreviews?: boolean }) => {
+    const release = (current: PhotoSlot | null) => {
+      if (current && !options?.keepPreviews && livePreviewUrls.current.delete(current.previewUrl)) {
+        URL.revokeObjectURL(current.previewUrl);
+      }
       return null;
-    });
-    setVenuePhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
-    setReceiptPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    };
+    setPintPhoto(release);
+    setVenuePhoto(release);
+    setReceiptPhoto(release);
     setDropForm({
       price: "",
       drink: "",
@@ -510,14 +523,16 @@ export function usePintDrops(
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
 
-  // Revoke any live preview URLs when the component unmounts.
+  // Revoke every preview URL still held when the component unmounts. Empty
+  // deps on purpose: a cleanup keyed on the slots ran with the previous
+  // closure, so changing ONE slot revoked all three (review finding CMP-2).
   useEffect(() => {
+    const held = livePreviewUrls.current;
     return () => {
-      if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
-      if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
-      if (receiptPhoto) URL.revokeObjectURL(receiptPhoto.previewUrl);
+      for (const url of held) URL.revokeObjectURL(url);
+      held.clear();
     };
-  }, [pintPhoto, venuePhoto, receiptPhoto]);
+  }, []);
 
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
@@ -673,7 +688,11 @@ export function usePintDrops(
         // Storage blocked — handle can be re-entered later.
       }
     }
-    resetComposer();
+    // The previews stay alive for the optimistic row (review finding NEW-1).
+    const handedOffPreviews = [pintPhoto, venuePhoto, receiptPhoto].flatMap((slot) =>
+      slot ? [slot.previewUrl] : [],
+    );
+    resetComposer({ keepPreviews: true });
     setComposerOpen(false);
     setSubmitting(false);
     setDropMsg({
@@ -766,6 +785,8 @@ export function usePintDrops(
         ]);
         return next;
       });
+      // The server row has replaced the optimistic one, so its previews go.
+      handedOffPreviews.forEach(revokePreview);
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.

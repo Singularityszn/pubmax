@@ -255,3 +255,28 @@ describe("both price crawl lanes spend the one rule", () => {
     }
   });
 });
+
+describe("every other harvest lane that follows a redirect spends the same rule", () => {
+  it("asks the landing rule about every fetch or scrape, rather than trusting the asked-for URL", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    // A plain fetch reads `response.url`; a Firecrawl scrape reads the
+    // `landedUrl` lib/harvest/firecrawl.ts carries. Each of these used to
+    // follow the redirect and then read nothing about where it went.
+    const lanes = [
+      { file: "scripts/harvest_chain_menu_prices.mjs", call: "harvestRedirectLanding(url, response.url)" },
+      { file: "scripts/backfill_site_harvest_drink_labels.mjs", call: "harvestRedirectLanding(url, response.url)" },
+      { file: "scripts/refresh_pint_price_observations.mjs", call: "harvestRedirectLanding(url, response.url)" },
+      { file: "scripts/harvest/run.mjs", call: "harvestRedirectLanding(url, page.landedUrl)" },
+    ];
+    for (const { file, call } of lanes) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      expect(source, file).toContain(call);
+    }
+    // run.mjs has four scrapes (the deal page, a venue's home and what's-on
+    // pages, an operator page), and each one reads its landing.
+    const run = readFileSync(join(process.cwd(), "scripts/harvest/run.mjs"), "utf8");
+    expect(run.match(/await client\.scrape\(/g)?.length).toBe(4);
+    expect(run.match(/await scrapeLanding\(/g)?.length).toBe(4);
+  });
+});

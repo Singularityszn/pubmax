@@ -27,7 +27,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   });
   await pinLondonEvening(page);
   await page.goto("/plan");
-  await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
   await expect
     .poll(async () =>
       page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),

@@ -20,6 +20,16 @@
  *     not first-party data. So the timed sport_whats_on.json stays EMPTY with a
  *     meta note; only venue-level attributes go to sport_attributes.json.
  *   - Polite: descriptive UA with a contact address, 1.5s between requests.
+ *   - PERMISSION (2026-10-16; this used to fail open on any robots error): a
+ *     live run fetches only when lib/harvest/sourcePolicy.ts holds an ALLOWED
+ *     row with id GREENE_KING_SPORT_SOURCE_ID. None exists today (the Greene
+ *     King rows that do exist grant deals and menu prices, and a permission is
+ *     as narrow as the decision that granted it), so a live run REFUSES before
+ *     any request, writes nothing and exits non-zero; adding a row is the
+ *     captain's call. With a row, every request goes through
+ *     scripts/lib/permittedHarvestFetch.mjs: the URL must be on the row's own
+ *     host, and robots.txt is read by lib/harvest/robots.ts (a 401, 403,
+ *     challenge page, 5xx or unreachable host refuses; a 404 permits).
  *
  * Usage:
  *   node scripts/whatson/scrape_greene_king_sport.mjs                 # live
@@ -33,7 +43,7 @@
  */
 
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -43,6 +53,12 @@ import {
   greeneKingLondonVenueRecords,
 } from "./greeneKingSportParser.mjs";
 import { CONTACT_EMAIL } from "../../lib/siteContact.mjs";
+import { createRobotsChecker } from "../../lib/harvest/robots.ts";
+import {
+  HarvestRefusal,
+  createPermittedFetch,
+  permittedHarvestSource,
+} from "../lib/permittedHarvestFetch.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const RAW_DIR = join(ROOT, "data", "greene_king", "raw");
@@ -56,34 +72,32 @@ const USER_AGENT =
   `PubmaxxingBot/0.1 (+https://pubmaxxing.com; what's-on data curation; contact ${CONTACT_EMAIL})`;
 const FETCH_DELAY_MS = 1500;
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The lib/harvest/sourcePolicy.ts row a live run needs. It does not exist today. */
+export const GREENE_KING_SPORT_SOURCE_ID = "greene-king-pub-sport";
 
-async function politeFetch(url) {
-  const res = await fetch(url, { headers: { "user-agent": USER_AGENT } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
-  const text = await res.text();
-  await sleep(FETCH_DELAY_MS);
-  return text;
-}
+const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// robots.txt gate for the paths we touch: refuse to run if a Disallow rule for
-// User-agent: * covers the path (first-party or not, we stay polite).
-async function assertRobotsAllows(origin, path) {
-  let body = "";
-  try {
-    body = await politeFetch(`${origin}/robots.txt`);
-  } catch {
-    return; // no robots.txt -> allowed
-  }
-  let applies = false;
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*$/, "").trim();
-    const m = /^(user-agent|disallow)\s*:\s*(.*)$/i.exec(line);
-    if (!m) continue;
-    if (m[1].toLowerCase() === "user-agent") applies = m[2].trim() === "*";
-    else if (applies && m[2] && path.startsWith(m[2]))
-      throw new Error(`${origin}/robots.txt disallows ${path} — refusing to fetch`);
-  }
+/**
+ * The live reader, or a HarvestRefusal before any page is fetched: the policy
+ * row must be allowed, and robots.txt (lib/harvest/robots.ts) must permit the
+ * row's own /pubs/ path.
+ */
+export async function openGreeneKingSportReader({ fetchImpl = fetch, robots, sleep = defaultSleep } = {}) {
+  const permission = permittedHarvestSource(GREENE_KING_SPORT_SOURCE_ID);
+  if (!permission.allowed) throw new HarvestRefusal(permission.message);
+  const permittedFetch = createPermittedFetch({
+    source: permission.source,
+    fetchImpl,
+    robots: robots ?? createRobotsChecker({ fetchImpl }),
+  });
+  await permittedFetch.assertPermitted(new URL("/pubs/", permission.source.url).href);
+  return async function read(url) {
+    const res = await permittedFetch(url, { headers: { "user-agent": USER_AGENT } });
+    if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
+    const text = await res.text();
+    await sleep(FETCH_DELAY_MS);
+    return text;
+  };
 }
 
 // Load the venue identities we already hold (name+address+lat+lng+menuUrl):
@@ -102,7 +116,7 @@ function loadVenues() {
   return [...raw, ...london];
 }
 
-async function resolveSportFlag(record, fromDir) {
+async function resolveSportFlag(record, fromDir, read) {
   const url = pubPageUrlFromMenuUrl(record.menuUrl);
   const slug = url.split("/").filter(Boolean).pop() ?? "";
   let html = "";
@@ -113,7 +127,7 @@ async function resolveSportFlag(record, fromDir) {
   } else {
     console.log(`fetch ${url}`);
     try {
-      html = await politeFetch(url);
+      html = await read(url);
     } catch (err) {
       console.warn(`  fetch failed (${err.message}); flag undetermined`);
       return null;
@@ -127,12 +141,14 @@ async function main() {
   const fromDir = fromDirFlag >= 0 ? process.argv[fromDirFlag + 1] : null;
   const observedAt = new Date().toISOString();
 
-  if (!fromDir) await assertRobotsAllows(ORIGIN, "/pubs/");
+  // Refuses (and writes nothing) before any page request unless the policy row
+  // is allowed and robots permits /pubs/.
+  const read = fromDir ? null : await openGreeneKingSportReader();
 
   const records = loadVenues();
   const venues = [];
   for (const record of records) {
-    const showsSport = await resolveSportFlag(record, fromDir);
+    const showsSport = await resolveSportFlag(record, fromDir, read);
     venues.push({ record, showsSport });
   }
 
@@ -201,7 +217,9 @@ function writeSportPayload(path, payload) {
   writeFileSync(path, body);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err instanceof HarvestRefusal ? err.message : err);
+    process.exit(1);
+  });
+}

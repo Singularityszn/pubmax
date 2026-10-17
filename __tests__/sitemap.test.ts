@@ -28,10 +28,10 @@ import type { MetadataRoute } from "next";
 // is gated (the fixed list in app/sitemap.ts minus /social). Kept here so a
 // change to that list is a conscious test edit. Includes /about (founder story
 // + press kit hub), /founders (the numbered public wall of the first hundred
-// claimed handles), the two legal content pages (/privacy, /terms) linked from
-// the site footer, and /account/delete, the public account-deletion page Play
-// Console holds in its Data safety form and expects to be able to open, and
-// /spoons-value, the national Wetherspoon units-per-tenner ranking, and
+// claimed handles), the two legal content pages (/privacy, /terms), the data
+// credits page (/credits) linked from the site footer, /account/delete, the
+// public account-deletion page Play Console holds in its Data safety form and
+// expects to be able to open, /spoons-value, the national Wetherspoon units-per-tenner ranking, and
 // /price-pulse, the weekly Price Pulse and its "Where your £6 goes" explainer.
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
@@ -40,7 +40,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 16;
+const STATIC_HUB_COUNT = 17;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is

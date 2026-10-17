@@ -20,6 +20,7 @@
 
 import { parseShardManifest, type ShardEntry, type ShardManifest } from "@/lib/slimShards";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
+import { displayVenueName } from "@/lib/venueDisplay";
 
 export const LONDON_VENUE_SHARD_VERSION = 1;
 
@@ -99,7 +100,7 @@ export function parseLondonVenueShard(value: unknown): LondonVenue[] {
     if (!isShardRow(row)) continue;
     venues.push({
       id: londonVenueIdFor(row[0]),
-      name: row[1],
+      name: displayVenueName(row[1]),
       address: row[2],
       lat: row[3],
       lng: row[4],

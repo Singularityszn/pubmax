@@ -505,3 +505,25 @@ describe("moderation survives a submitter's own correction (memory backend)", ()
     expect(await readCommunityPrices("v9", 2_000)).toEqual([]);
   });
 });
+
+describe("POST /api/admin/community-prices budget", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.ADMIN_TOKEN;
+    devGate.open = true;
+  });
+  afterEach(() => __resetCommunityPrices());
+
+  it("spends a per-address budget even behind the moderator gate", async () => {
+    // A leaked token is still one address, and a script with it should not get
+    // an unmetered write loop over trust reconciliation.
+    const ip = { "x-forwarded-for": "198.51.100.62" };
+    let last: Response | null = null;
+    for (let i = 0; i < 61; i += 1) {
+      last = await adminPost({ action: "hide", id: "no-such-id" }, ip);
+    }
+    expect(last?.status).toBe(429);
+    expect((await last!.json()).code).toBe("RATE_LIMITED");
+  });
+});
