@@ -14,9 +14,10 @@ import {
 } from "@/lib/socialPostMedia.server";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
+import { socialPostReviewStore, SocialPostReviewError } from "@/lib/socialPostReviewStore";
 import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
 import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, type SocialVenueResolution } from "@/lib/socialPostVenue.server";
-import { enrichSocialPostAuthors, isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
+import { enrichSocialPostAuthors, isSocialPostArea, type SocialPostDTO, type SocialPostFields } from "@/lib/socialPosts";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
@@ -53,6 +54,17 @@ async function submissionBody(request: Request): Promise<{
   } catch {
     return null;
   }
+}
+
+// A score rides the post only beside a venue the viewer is allowed to see.
+async function withReviews(posts: SocialPostDTO[]): Promise<SocialPostDTO[]> {
+  const scored = posts.filter((post) => post.venueProjected && post.venueId).map((post) => post.id);
+  if (scored.length === 0) return posts;
+  const reviews = await socialPostReviewStore().forPosts(scored);
+  return posts.map((post) => {
+    const review = post.venueProjected ? reviews.get(post.id) : undefined;
+    return review ? { ...post, review } : post;
+  });
 }
 
 function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSocialActor>>, { ok: true }>): Response {
@@ -108,11 +120,11 @@ export async function GET(request: Request): Promise<Response> {
       : new Map();
     return privateJson({
       ...page,
-      posts: await enrichSocialPostAuthors(
+      posts: await withReviews(await enrichSocialPostAuthors(
         await projectSocialVenueNames(page.posts.map((post) => post.photo
           ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
           : post)),
-      ),
+      )),
     });
   } catch (error) {
     return storeError(error);
@@ -198,10 +210,18 @@ export async function POST(request: Request): Promise<Response> {
           requestDigest,
           ...(replayExistingMedia ? { replayExistingMedia: true } : {}),
         });
-    return privateJson({ post: await projectSocialVenueName(post, resolvedVenue) }, { status: 201 });
+    const projected = await projectSocialVenueName(post, resolvedVenue);
+    if (validation.reviewRating !== null && fields.venueId) {
+      const review = await socialPostReviewStore().attach(access.actor, { id: post.id, venueId: fields.venueId }, validation.reviewRating);
+      return privateJson({ post: { ...projected, review } }, { status: 201 });
+    }
+    return privateJson({ post: projected }, { status: 201 });
   } catch (error) {
     if (reserved) {
       await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId, reserved.generation).catch(() => false);
+    }
+    if (error instanceof SocialPostReviewError) {
+      return publicApiError("That score could not be saved. Your post is up without it.", "REVIEW_NOT_SAVED", 409, { headers: { "Cache-Control": "private, no-store" } });
     }
     if (error instanceof SocialPhotoError) {
       const unavailable = error.code === "STORAGE_UNAVAILABLE";

@@ -5000,6 +5000,45 @@ export type Database = {
           },
         ];
       };
+      social_post_reviews: {
+        Row: {
+          post_id: string;
+          author_profile_id: string;
+          rating: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          post_id: string;
+          author_profile_id: string;
+          rating: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          post_id?: string;
+          author_profile_id?: string;
+          rating?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_post_reviews_author_profile_id_fkey";
+            columns: ["author_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_reviews_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: true;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_post_tag_events: {
         Row: {
           id: string;
@@ -6308,6 +6347,18 @@ export type Database = {
         };
         Returns: boolean;
       };
+      attach_social_post_review: {
+        Args: {
+          p_post_id: string | null;
+          p_author_profile_id: string | null;
+          p_rating: number | null;
+        };
+        Returns: {
+          post_id: string;
+          rating: number;
+          updated_at: string;
+        }[];
+      };
       charge_round_price_line: {
         Args: {
           p_actor: string | null;
@@ -7080,6 +7131,18 @@ export type Database = {
           p_accepted_at: string | null;
         };
         Returns: Json;
+      };
+      read_own_social_pub_ranking: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          post_id: string;
+          venue_id: string;
+          rating: number;
+          reviewed_at: string;
+        }[];
       };
       read_private_referral_status: {
         Args: {

@@ -12,9 +12,12 @@ import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
+import PubRankingPanel from "@/components/social/PubRankingPanel";
 import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
+import ReviewStars from "@/components/social/ReviewStars";
+import SocialPostActions from "@/components/social/SocialPostActions";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -227,31 +230,36 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
+export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, interactive = false }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
+  const venueName = exactVenueId ? post.venueName : null;
+  const review = exactVenueId && post.review ? post.review : null;
   const when = relativeTime(post.createdAt);
+  const placeLine = [venueName, area?.name].filter(Boolean).join(" · ");
   return (
-    <article className="socialPostCard">
+    <article className="socialPostCard" data-has-media={post.photo ? "true" : undefined}>
       <header className="socialPostMeta">
         <HandleAvatar
           handle={post.author.handle}
           avatarUrl={post.author.avatarUrl}
           className="socialPostAvatar"
           imageClassName="socialPostAvatar"
-          size={32}
+          size={36}
         />
-        <strong>
-          <Link prefetch={false} href={profilePath(post.author.handle)}>
-            @{post.author.handle}
-          </Link>
-        </strong>
+        <div className="socialPostMeta__who">
+          <strong>
+            <Link prefetch={false} href={profilePath(post.author.handle)}>
+              @{post.author.handle}
+            </Link>
+          </strong>
+          {placeLine ? <span className="socialPostMeta__place">{placeLine}</span> : null}
+        </div>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
       </header>
       {post.kind === "feature_request" ? (
         <p className="socialPostKind">Feature request</p>
       ) : null}
-      <p className="socialPostBody">{post.body}</p>
       {post.photo ? (
         <figure className="socialPostPhoto">
           {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
@@ -266,12 +274,17 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
           ) : null}
         </figure>
       ) : null}
-      {area || exactVenueId ? (
+      {interactive ? <SocialPostActions postId={post.id} /> : null}
+      {review ? (
+        <p className="socialPostReview">
+          <ReviewStars rating={review.rating} label={`@${post.author.handle} scored ${venueName ?? "this pub"} ${review.rating} out of 5`} />
+          {venueName ? <span>{venueName}</span> : null}
+        </p>
+      ) : null}
+      {post.body ? <p className="socialPostBody">{post.body}</p> : null}
+      {exactVenueId ? (
         <p className="socialPostPlace">
-          {area ? <span>{area.name}</span> : null}
-          {exactVenueId ? (
-            <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
-          ) : null}
+          <Link prefetch={false} href={venueMapUrl(exactVenueId)}>Open venue</Link>
         </p>
       ) : null}
       {post.hashtags.length > 0 ? (
@@ -818,6 +831,7 @@ function SocialPageAccountState({
             {/* Crews render their own neutral identity state before the
                 verified gate answers. Protected crew data still stays behind
                 that gate. */}
+            {showViewerCards ? <PubRankingPanel refreshKey={submittedPost?.id ?? ""} /> : null}
             {showViewerCards ? (
               <CrewsPanel viewerHandle={viewerHandle} compact />
             ) : null}
@@ -966,9 +980,9 @@ function SocialPageAccountState({
               ) : (
                 <div className="socialPostList">
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope}
+                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
                       onEdited={(updated) => updated
-                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
+                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? { ...updated, review: updated.review ?? item.review } : item)))
                         : setFeedAttempt((value) => value + 1)} />
                   ))}
                 </div>

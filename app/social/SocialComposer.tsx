@@ -9,6 +9,8 @@ import { authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { SOCIAL_REVIEW_MAX, SOCIAL_REVIEW_MIN, SOCIAL_REVIEW_STEP } from "@/lib/socialPostReviews";
+import ReviewStars from "@/components/social/ReviewStars";
 
 type VenueChoice = { id: string; name: string; borough: string };
 type Draft = {
@@ -22,6 +24,8 @@ type Draft = {
   kind: SocialPostDTO["kind"];
   hashtags: string;
   tagHandles: string;
+  /** The author's own score for the picked pub. Absent on drafts saved before scores. */
+  rating?: number | null;
 };
 type DraftChannelMessage = {
   key?: string;
@@ -49,6 +53,7 @@ function initialDraft(post?: SocialPostDTO): Draft {
     kind: post?.kind ?? "standard",
     hashtags: post?.hashtags.join(" ") ?? "",
     tagHandles: "",
+    rating: null,
   };
 }
 
@@ -69,7 +74,8 @@ function draftHasChanges(
       draft.visibility !== (post?.visibility ?? "friends") ||
       draft.kind !== (post?.kind ?? "standard") ||
       draft.hashtags !== (post?.hashtags.join(" ") ?? "") ||
-      draft.tagHandles !== ""
+      draft.tagHandles !== "" ||
+      (draft.rating ?? null) !== null
   );
 }
 
@@ -185,6 +191,45 @@ function VenueEditor({
         </ul>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Score the pub the post names, the way a review app asks: one slider in half
+ * stars, and a way back to no score. It is the author's own score and nothing
+ * adds it to anybody else's.
+ */
+function ReviewEditor({ draft, onDraft }: { draft: Draft; onDraft: (draft: Draft) => void }) {
+  const rating = draft.rating ?? null;
+  const inputId = useId();
+  return (
+    <div className="socialReviewEditor">
+      <div className="socialReviewEditor__head">
+        <label htmlFor={inputId}>Score {draft.venueName || "this pub"}</label>
+        {rating !== null ? (
+          <button type="button" className="socialReviewEditor__clear" onClick={() => onDraft({ ...draft, rating: null })}>
+            No score
+          </button>
+        ) : null}
+      </div>
+      <div className="socialReviewEditor__row">
+        <input
+          id={inputId}
+          type="range"
+          min={SOCIAL_REVIEW_MIN}
+          max={SOCIAL_REVIEW_MAX}
+          step={SOCIAL_REVIEW_STEP}
+          value={rating ?? 3}
+          aria-valuetext={rating === null ? "No score yet" : `${rating} out of 5`}
+          data-unscored={rating === null ? "true" : undefined}
+          onChange={(event) => onDraft({ ...draft, rating: Number(event.currentTarget.value) })}
+          onPointerUp={(event) => { if (rating === null) onDraft({ ...draft, rating: Number(event.currentTarget.value) }); }}
+        />
+        {rating !== null
+          ? <ReviewStars rating={rating} size={18} />
+          : <span className="socialReviewEditor__hint">Slide to score</span>}
+      </div>
+    </div>
   );
 }
 
@@ -470,6 +515,9 @@ export default function SocialComposer({
         ? { tagHandles: draft.tagHandles.split(/[\s,]+/).filter(Boolean) }
         : {}),
       ...(editing && removePhoto && !photo ? { removePhoto: true } : {}),
+      ...(!editing && draft.venueId && draft.kind === "standard" && typeof draft.rating === "number"
+        ? { reviewRating: draft.rating }
+        : {}),
     };
     const requestBody: BodyInit = photo
       ? (() => {
@@ -671,6 +719,10 @@ export default function SocialComposer({
               onClearResults={() => { setVenueResults([]); setActiveVenueIndex(-1); }}
               onSelect={selectVenue}
             />
+
+            {!editing && draft.venueId && draft.kind === "standard"
+              ? <ReviewEditor draft={draft} onDraft={setDraft} />
+              : null}
 
             <PolicyFields draft={draft} hasPhoto={Boolean(photo)} onDraft={setDraft} />
 

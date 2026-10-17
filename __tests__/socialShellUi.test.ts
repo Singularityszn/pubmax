@@ -239,6 +239,32 @@ describe("verified Social post card", () => {
   });
 });
 
+describe("Social post card, photo-app layout", () => {
+  it("shows the author's own score beside a venue the viewer may see, with the action row in the feed", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, venueName: "The Proof Arms", review: { rating: 4.5 } },
+        interactive: true,
+      }),
+    );
+    expect(html).toContain("The Proof Arms");
+    expect(html).toContain('aria-label="@alice scored The Proof Arms 4.5 out of 5"');
+    expect(html).toContain("Cheers");
+    expect(html).toContain("Comment");
+    expect(html).toContain('aria-label="Report this post"');
+  });
+
+  it("drops the score when the venue is not projected to the viewer", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, venueProjected: false, venueName: "The Proof Arms", review: { rating: 2 } },
+      }),
+    );
+    expect(html).not.toContain("out of 5");
+    expect(html).not.toContain("The Proof Arms");
+  });
+});
+
 describe("desktop Social rail", () => {
   it("preserves layout without policy helper copy", () => {
     const html = renderToStaticMarkup(

@@ -4,13 +4,15 @@ import {
   validateSocialPostEdit,
   type SocialPostFields,
 } from "@/lib/socialPosts";
+import { parseSocialReviewRating } from "@/lib/socialPostReviews";
 
 type SubmissionErrorCode =
   | "INVALID_POST"
   | "INVALID_AREA"
   | "FEATURE_REQUEST_BODY_REQUIRED"
   | "PHOTO_ALT_REQUIRED"
-  | "INVALID_TAGS";
+  | "INVALID_TAGS"
+  | "INVALID_REVIEW";
 
 type SubmissionError = { ok: false; code: SubmissionErrorCode; error: string };
 
@@ -20,6 +22,8 @@ export type SocialCreateSubmission =
       post: Omit<SocialPostFields, "photo">;
       photoAltText: string | null;
       tagHandles: string[];
+      /** The author's own score for the pub the post names, or null. */
+      reviewRating: number | null;
     }
   | SubmissionError;
 
@@ -35,7 +39,7 @@ export type SocialEditSubmission =
     }
   | SubmissionError;
 
-const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles"]);
+const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "reviewRating"]);
 const EDIT_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "removePhoto"]);
 const CREATE_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags", "commentPolicy",
@@ -123,7 +127,17 @@ export function parseSocialCreateSubmission(
     hashtags: validation.value.hashtags,
     commentPolicy: validation.value.commentPolicy,
   };
-  return { ok: true, post, photoAltText, tagHandles };
+  let reviewRating: number | null = null;
+  if (raw.reviewRating !== undefined && raw.reviewRating !== null) {
+    reviewRating = parseSocialReviewRating(raw.reviewRating);
+    if (reviewRating === null) {
+      return { ok: false, code: "INVALID_REVIEW", error: "Score the pub from 1 to 5, in half stars." };
+    }
+    if (!post.venueId || post.kind !== "standard") {
+      return { ok: false, code: "INVALID_REVIEW", error: "Pick the pub you are scoring." };
+    }
+  }
+  return { ok: true, post, photoAltText, tagHandles, reviewRating };
 }
 
 export function parseSocialEditSubmission(
