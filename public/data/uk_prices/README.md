@@ -97,6 +97,11 @@ prefix. Each entry identifies its source evidence file and hash, source URL,
 observation time, added rows, and resulting ledger hashes and bundle counts.
 The Thirsty Bear's retained evidence is in
 [`accepted-prices.json`](../../../data/enrichment/firecrawl/london/accepted-prices.json).
+The 2026-10-17 London named-soft-drink re-read has one evidence file per source
+URL in [`data/uk_prices/later_publications/`](../../../data/uk_prices/later_publications/),
+named by date and URL. Each file names the `harvest:uk-prices` command that read
+the page and holds the soft-drink rows whose ledger key was new. It also lists
+the rows withheld under a reviewed withdrawal reason.
 Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 

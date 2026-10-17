@@ -1,0 +1,205 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only thescolthead.co.uk",
+  "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+  "sourceObservedAt": "2026-10-17T12:42:16.242Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "thescolthead.co.uk",
+      "venueId": "venue-uk-w237999207",
+      "osmId": "way/237999207",
+      "name": "The Scolt Head",
+      "postcode": "N1 4HT",
+      "lat": 51.5433315,
+      "lng": -0.081638,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Cola / Diet Cola / Lemonade / Lime Soda Coke / Diet Coke / Coke Zero",
+      "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+      "observedAt": "2026-10-17T12:42:16.242Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thescolthead.co.uk",
+      "venueId": "venue-uk-w237999207",
+      "osmId": "way/237999207",
+      "name": "The Scolt Head",
+      "postcode": "N1 4HT",
+      "lat": 51.5433315,
+      "lng": -0.081638,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Fentimans Victorian Lemonade",
+      "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+      "observedAt": "2026-10-17T12:42:16.242Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thescolthead.co.uk",
+      "venueId": "venue-uk-w237999207",
+      "osmId": "way/237999207",
+      "name": "The Scolt Head",
+      "postcode": "N1 4HT",
+      "lat": 51.5433315,
+      "lng": -0.081638,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Ginger Beer",
+      "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+      "observedAt": "2026-10-17T12:42:16.242Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thescolthead.co.uk",
+      "venueId": "venue-uk-w237999207",
+      "osmId": "way/237999207",
+      "name": "The Scolt Head",
+      "postcode": "N1 4HT",
+      "lat": 51.5433315,
+      "lng": -0.081638,
+      "category": "soft-drink",
+      "priceGbp": 2,
+      "drinkLabel": "MIXERS Schweppes Ginger Ale",
+      "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+      "observedAt": "2026-10-17T12:42:16.242Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thescolthead.co.uk",
+      "venueId": "venue-uk-w237999207",
+      "osmId": "way/237999207",
+      "name": "The Scolt Head",
+      "postcode": "N1 4HT",
+      "lat": 51.5433315,
+      "lng": -0.081638,
+      "category": "soft-drink",
+      "priceGbp": 2,
+      "drinkLabel": "Pineapple",
+      "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+      "observedAt": "2026-10-17T12:42:16.242Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    }
+  ],
+  "withheld": [
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "thescolthead.co.uk",
+        "venueId": "venue-uk-w237999207",
+        "osmId": "way/237999207",
+        "name": "The Scolt Head",
+        "postcode": "N1 4HT",
+        "lat": 51.5433315,
+        "lng": -0.081638,
+        "category": "soft-drink",
+        "priceGbp": 3,
+        "drinkLabel": ".2 Redbull",
+        "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+        "observedAt": "2026-10-17T12:42:16.242Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    },
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "thescolthead.co.uk",
+        "venueId": "venue-uk-w237999207",
+        "osmId": "way/237999207",
+        "name": "The Scolt Head",
+        "postcode": "N1 4HT",
+        "lat": 51.5433315,
+        "lng": -0.081638,
+        "category": "soft-drink",
+        "priceGbp": 4,
+        "drinkLabel": ".2 Virgin Mary",
+        "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+        "observedAt": "2026-10-17T12:42:16.242Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    },
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "thescolthead.co.uk",
+        "venueId": "venue-uk-w237999207",
+        "osmId": "way/237999207",
+        "name": "The Scolt Head",
+        "postcode": "N1 4HT",
+        "lat": 51.5433315,
+        "lng": -0.081638,
+        "category": "soft-drink",
+        "priceGbp": 3,
+        "drinkLabel": ".3 Juice",
+        "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+        "observedAt": "2026-10-17T12:42:16.242Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    },
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "thescolthead.co.uk",
+        "venueId": "venue-uk-w237999207",
+        "osmId": "way/237999207",
+        "name": "The Scolt Head",
+        "postcode": "N1 4HT",
+        "lat": 51.5433315,
+        "lng": -0.081638,
+        "category": "soft-drink",
+        "priceGbp": 3,
+        "drinkLabel": ".5 Fentimans Ginger Beer",
+        "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+        "observedAt": "2026-10-17T12:42:16.242Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    },
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "thescolthead.co.uk",
+        "venueId": "venue-uk-w237999207",
+        "osmId": "way/237999207",
+        "name": "The Scolt Head",
+        "postcode": "N1 4HT",
+        "lat": 51.5433315,
+        "lng": -0.081638,
+        "category": "soft-drink",
+        "priceGbp": 4,
+        "drinkLabel": ".5 Orange / Apple / Cranberry Pear / Mango Sparkling Water (large)",
+        "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+        "observedAt": "2026-10-17T12:42:16.242Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    },
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "thescolthead.co.uk",
+        "venueId": "venue-uk-w237999207",
+        "osmId": "way/237999207",
+        "name": "The Scolt Head",
+        "postcode": "N1 4HT",
+        "lat": 51.5433315,
+        "lng": -0.081638,
+        "category": "soft-drink",
+        "priceGbp": 3,
+        "drinkLabel": ".5 Orangina",
+        "sourceUrl": "https://www.thescolthead.co.uk/scolt-head/wp-content/uploads/2022/10/TheScoltHead_WineDrinks_0525_mb_02.pdf",
+        "observedAt": "2026-10-17T12:42:16.242Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    }
+  ]
+}
