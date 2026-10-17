@@ -14,7 +14,7 @@ A person with a browser. `reviewedAt` records that someone read the operator's p
 
 ## For each row
 
-1. Open the `sourceUrl` and confirm the page is the operator's own page for that location.
+1. Open the `sourceUrl` and confirm the page is the operator's own page for that location. A tool that reads a page for you must say what it is: it never sends a browser's user agent, and it stops at a host's block page rather than trying another way in.
 2. Check the street address against `address`, and the map pin the page links to against `coordinates`.
 3. Read the opening hours for every day and update both `serviceHoursText` and `weeklyHours`. A closing time after midnight goes on the day the service starts, with `closesNextDay: true`.
 4. Check the `anchor` dish and price on the operator's menu page (`anchor.sourceUrl`), and update `anchor.price` and `anchor.observedAt`.
