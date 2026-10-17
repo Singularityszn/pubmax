@@ -146,7 +146,14 @@ const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), {
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
 
 type RouteRevision = string | number;
-type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+type RouteAlternative = {
+  venueId: string;
+  venueName: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  /** The generator prices alternatives too, so a swap keeps the night's total honest. */
+  estimatedPintPricePence?: number;
+  priceKind?: "listed" | "estimated";
+};
 export type DraftStop = {
   key: number;
   venueId: string;
@@ -180,6 +187,8 @@ export function composerRouteMutation(input: {
   routeStale: boolean;
   /** The same venues in a new order. See the proof rule below. */
   reorder?: boolean;
+  /** One stop swapped to an alternative the generator offered for it. See the proof rule below. */
+  swapToAlternative?: boolean;
 }): ComposerRouteMutation {
   const heldVenueId = input.heldVenueId ?? null;
   if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
@@ -200,6 +209,24 @@ export function composerRouteMutation(input: {
     && new Set(input.currentStops.map((stop) => stop.venueId)).size === input.currentStops.length
     && input.currentStops.every((stop) => input.nextStops.some((next) => next.venueId === stop.venueId));
   if (input.reorder && sameVenueSet && !input.planAnchor) {
+    return {
+      accepted: true,
+      stops: input.nextStops,
+      groundingProof: input.groundingProof,
+      createOperationKey: input.createOperationKey,
+      planAnchor: input.planAnchor,
+      routeStale: input.routeStale,
+    };
+  }
+  // The same V1 proof covers every alternative the generator attached to a stop
+  // (app/api/plans/generate/route.ts grounds it over the stops plus those
+  // alternatives), so swapping to one is still a route the server proved and
+  // the night stays lockable without a refresh. The server re-checks the proof
+  // at Lock and marks the plan ungrounded if it does not cover a stop, so this
+  // can never claim a check that did not happen. An anchored V2 proof binds the
+  // exact route, so for that route a swap is an identity change like any other.
+  if (input.swapToAlternative && input.groundingProof && !input.planAnchor
+    && input.currentStops.length === input.nextStops.length) {
     return {
       accepted: true,
       stops: input.nextStops,
@@ -444,14 +471,27 @@ function routeRevisionFromState(value: unknown): RouteRevision | null {
 
 function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown; selectedDrinkPriceEvidence?: unknown };
+  const row = value as {
+    venueId?: unknown;
+    venueName?: unknown;
+    name?: unknown;
+    selectedDrinkPriceEvidence?: unknown;
+    estimatedPintPricePence?: unknown;
+    priceEvidence?: unknown;
+    priceKind?: unknown;
+  };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
     ? row.venueName.trim()
     : typeof row.name === "string" ? row.name.trim() : "";
   if (!venueId || !venueName) return null;
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
-  return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
+  return {
+    venueId,
+    venueName,
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    ...generatedStopPrice(row),
+  };
 }
 
 function routeAlternatives(value: unknown): RouteAlternative[] {
@@ -492,18 +532,26 @@ function generatedStopTiming(
   const minutes = row.walkingMinutesFromPrevious;
   const walkMinutes = routed && typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0 && minutes <= 600
     ? Math.round(minutes) : null;
+  return {
+    ...(index > 0 && walkMinutes !== null && walkFromVenueId
+      ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
+    ...generatedStopPrice(row),
+  };
+}
+
+/** The pint price the generator gave a stop or an alternative, read defensively. */
+function generatedStopPrice(row: {
+  estimatedPintPricePence?: unknown;
+  priceEvidence?: unknown;
+  priceKind?: unknown;
+}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated" } {
   const pence = row.estimatedPintPricePence;
-  const pricePence = typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 && pence <= 100_000
-    ? pence : null;
+  if (typeof pence !== "number" || !Number.isSafeInteger(pence) || pence <= 0 || pence > 100_000) return {};
   const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
     && (row.priceEvidence as { source?: unknown }).source);
   const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
     : recorded ? "listed" : "estimated";
-  return {
-    ...(index > 0 && walkMinutes !== null && walkFromVenueId
-      ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
-    ...(pricePence !== null ? { estimatedPintPricePence: pricePence, priceKind } : {}),
-  };
+  return { estimatedPintPricePence: pence, priceKind };
 }
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
@@ -573,11 +621,20 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     venueName: next.venueName,
     reason: undefined,
     selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
+    // The walk to and from this stop was measured for the old pub, so it goes;
+    // the price was the generator's for this pub, so it comes with it.
     ...NO_TIMING_OR_PRICE,
+    ...(next.estimatedPintPricePence !== undefined
+      ? { estimatedPintPricePence: next.estimatedPintPricePence, priceKind: next.priceKind } : {}),
     alternatives: [
       ...remaining,
-      { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
-        ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}) },
+      {
+        venueId: stop.venueId,
+        venueName: stop.venueName,
+        ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+        ...(typeof stop.estimatedPintPricePence === "number"
+          ? { estimatedPintPricePence: stop.estimatedPintPricePence, priceKind: stop.priceKind } : {}),
+      },
     ],
   };
 }
@@ -1892,7 +1949,7 @@ function PlanComposerForm({
   function applyStopIdentityMutation(
     nextStops: DraftStop[],
     status: string,
-    options: { reorder?: boolean; settledStatus?: string; release?: boolean } = {},
+    options: { reorder?: boolean; swapToAlternative?: boolean; settledStatus?: string; release?: boolean } = {},
   ): boolean {
     const release = Boolean(options.release && heldVenueId);
     const mutation = composerRouteMutation({
@@ -1904,6 +1961,7 @@ function PlanComposerForm({
       planAnchor,
       routeStale,
       reorder: options.reorder,
+      swapToAlternative: options.swapToAlternative,
     });
     if (!mutation.accepted) {
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
@@ -2038,9 +2096,11 @@ function PlanComposerForm({
       setRouteStatus("No other pub we can vouch for near that stop yet.");
       return;
     }
+    const position = stops.findIndex((stop) => stop.key === key) + 1;
     applyStopIdentityMutation(
       stops.map((stop) => stop.key === key ? next : stop),
-      `Stop ${stops.findIndex((stop) => stop.key === key) + 1} swapped to ${next.venueName}. Refresh the route before locking.`,
+      `Stop ${position} swapped to ${next.venueName}. Refresh the route before locking.`,
+      { swapToAlternative: true, settledStatus: `Stop ${position} swapped to ${next.venueName}.` },
     );
   }
 
