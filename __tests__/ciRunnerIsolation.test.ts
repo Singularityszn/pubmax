@@ -1,16 +1,16 @@
 // A PUBLIC REPO DOES NOT RUN CI ON A PERSONAL MACHINE.
 //
-// Jobs that run Playwright use GitHub-hosted macos-latest. Every other job
-// uses ubuntu-latest. Pull request workflows do not reference the secrets
-// context, so a fork cannot read a repository secret. docs/CI_RUNBOOK.md
-// is the runbook.
+// Every job uses GitHub-hosted ubuntu-latest, except the closed list of
+// Playwright jobs in MACOS_JOBS. Pull request workflows do not reference the
+// secrets context, so a fork cannot read a repository secret.
+// docs/CI_RUNBOOK.md is the runbook.
 //
 //   1. no dependency runs an install script unless the allowlist says so;
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. a Playwright job uses macos-latest, every other job uses ubuntu-latest,
-//      and a pull request workflow has no secrets.
+//   4. only the jobs in MACOS_JOBS use macos-latest, every other job uses
+//      ubuntu-latest, and a pull request workflow has no secrets.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -192,17 +192,42 @@ describe("workflow credentials and pins", () => {
   });
 });
 
+// The free plan runs 5 macOS jobs at once and about 20 Linux jobs, so a job
+// stays on macOS only with a reason. Each one here runs Playwright.
+const MACOS_JOBS: Record<string, string> = {
+  // Proved on macOS glyph widths. On ubuntu-latest (16 Oct 2026) four layout
+  // specs failed on a measured edge and the full suite failed 19 more tests.
+  "e2e.yml / layout-pins": "layout measured on macOS glyph widths",
+  "e2e.yml / full-suite": "layout measured on macOS glyph widths",
+  // Its route budgets are figures measured on macOS. A Linux figure is a
+  // different measurement, not the same ceiling.
+  "performance.yml / performance-budget": "budgets measured on macOS",
+  "performance.yml / ux-lane-performance": "budgets measured on macOS",
+  // One job per production deploy, never on the pull request path.
+  "prod-smoke.yml / smoke": "proved on macOS, one run per deploy",
+};
+
 describe("hosted runners", () => {
-  it("runs Playwright jobs on macos-latest and every other job on ubuntu-latest", () => {
+  it("runs every job on ubuntu-latest except the closed macOS list", () => {
+    const seen: string[] = [];
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
-        const launchesPlaywright = job.steps.some(
-          (step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run),
-        );
-        expect(job["runs-on"], `${file} / ${jobId}`).toBe(
-          launchesPlaywright ? "macos-latest" : "ubuntu-latest",
-        );
+        const where = `${file} / ${jobId}`;
+        if (job["runs-on"] === "macos-latest") seen.push(where);
+        expect(job["runs-on"], where).toBe(where in MACOS_JOBS ? "macos-latest" : "ubuntu-latest");
       }
+    }
+    expect(seen.sort()).toEqual(Object.keys(MACOS_JOBS).sort());
+  });
+
+  it("keeps the macOS list to Playwright jobs", () => {
+    for (const where of Object.keys(MACOS_JOBS)) {
+      const [file, jobId] = where.split(" / ");
+      const job = workflows.find((workflow) => workflow.file === file)?.parsed.jobs[defined(jobId)];
+      expect(
+        job?.steps.some((step) => typeof step.run === "string" && /\bplaywright test\b/.test(step.run)),
+        where,
+      ).toBe(true);
     }
   });
 

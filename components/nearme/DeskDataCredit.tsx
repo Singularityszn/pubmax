@@ -1,7 +1,7 @@
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 /**
- * The ODbL credit a desk answer owes.
+ * The ODbL credit a work-spot answer owes.
  *
  * `/near` renders no map canvas, so `OSM_ATTRIBUTION` (passed to MapLibre as
  * `customAttribution`) never reaches this surface, and every desk card prints
@@ -12,7 +12,7 @@ import DataCreditsLink from "@/components/legal/DataCreditsLink";
 export default function DeskDataCredit() {
   return (
     <p className="ndnSource">
-      Desk data from{" "}
+      Work spot data from{" "}
       <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
         OpenStreetMap contributors
       </a>

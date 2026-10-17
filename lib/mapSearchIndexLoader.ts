@@ -10,12 +10,18 @@ import {
   readSurfaceSnapshot,
   writeSurfaceSnapshot,
 } from "@/lib/surfaceDataCache";
-import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
+import {
+  loadSlimVenuesForCityResult,
+  type SlimVenue,
+  type SlimVenueLoadResult,
+} from "@/lib/venuesSlim";
 import type { Venue } from "@/lib/venues";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 
 // v3: venue names lost their operator suffix and carry `sourceName` for search.
-const SEARCH_INDEX_CACHE_KEY = "map-search-index:v3";
+// v4: a v3 snapshot could hold the current city as only the shards the map had
+// loaded around the opening viewport, so it is not trusted.
+const SEARCH_INDEX_CACHE_KEY = "map-search-index:v4";
 const SEARCH_INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 let cachedIndex: MapSearchIndex | null = null;
@@ -77,25 +83,48 @@ function packFromSlim(cityId: CityId, venues: readonly SlimVenue[]): MapSearchPa
   };
 }
 
-function packFromCurrentVenues(
-  cityId: CityId,
+/**
+ * The map reads only the shards around its viewport, so the venues it holds are
+ * a slice of the city. The index answers for the whole city from its full pack,
+ * and keeps any held venue the pack lacks.
+ */
+function packWithCurrentVenues(
+  pack: MapSearchPack,
   venues: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[],
 ): MapSearchPack {
+  const packIds = new Set(pack.venues.map((venue) => venue.id));
   return {
-    cityId,
-    venues: venues.map((venue) => ({
-      id: venue.id,
-      name: venue.name,
-      ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
-      area: venueAreaLabel(venue),
-    })),
+    cityId: pack.cityId,
+    venues: [
+      ...pack.venues,
+      ...venues
+        .filter((venue) => !packIds.has(venue.id))
+        .map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          ...(venue.sourceName ? { sourceName: venue.sourceName } : {}),
+          area: venueAreaLabel(venue),
+        })),
+    ],
   };
+}
+
+function loadCityPack(cityId: CityId): Promise<SlimVenueLoadResult> {
+  return loadSlimVenuesForCityResult(cityId).catch(() => ({
+    rows: [],
+    status: "unavailable" as const,
+  }));
 }
 
 export type MapSearchIndexLoadOptions = {
   currentCityId?: CityId;
   currentVenues?: readonly Pick<Venue, "id" | "name" | "sourceName" | "primaryBorough" | "locality">[];
 };
+
+/** Whether the index answers for every city, so a caller need not ask again. */
+export function isCompleteMapSearchIndex(index: MapSearchIndex): boolean {
+  return index === cachedIndex;
+}
 
 export function loadMapSearchIndex(
   options: MapSearchIndexLoadOptions = {},
@@ -115,24 +144,29 @@ export function loadMapSearchIndex(
 
   const pending = Promise.all(
     cities.map(async (city) => {
-      if (
-        city.id === options.currentCityId &&
-        options.currentVenues &&
-        options.currentVenues.length > 0
-      ) {
-        return packFromCurrentVenues(city.id, options.currentVenues);
-      }
-      const venues = await loadSlimVenuesForCity(city.id);
-      return packFromSlim(city.id, venues);
+      const result = await loadCityPack(city.id);
+      const pack = packFromSlim(city.id, result.rows);
+      return {
+        complete: result.status === "ready",
+        pack:
+          city.id === options.currentCityId && options.currentVenues
+            ? packWithCurrentVenues(pack, options.currentVenues)
+            : pack,
+      };
     }),
   )
-    .then((packs) => {
+    .then((loaded) => {
       const index = buildMapSearchIndex(
         cities.map((city) => ({ id: city.id, displayName: city.displayName })),
-        packs,
+        loaded.map(({ pack }) => pack),
       );
-      cachedIndex = index;
-      writeSurfaceSnapshot(SEARCH_INDEX_CACHE_KEY, index);
+      // A city whose pack did not load is answered for now and asked for again
+      // on the next search (isCompleteMapSearchIndex is false), never kept as
+      // the session's index.
+      if (loaded.every(({ complete }) => complete)) {
+        cachedIndex = index;
+        writeSurfaceSnapshot(SEARCH_INDEX_CACHE_KEY, index);
+      }
       return index;
     })
     .finally(() => {

@@ -47,7 +47,6 @@ describe("browser CI policy", () => {
     for (const spec of [
       "e2e/smoke.spec.ts",
       "e2e/map-surface-history.spec.ts",
-      "e2e/mobile-map-chrome-fit.spec.ts",
     ]) {
       expect(run).toContain(spec);
     }
@@ -117,6 +116,7 @@ describe("browser CI policy", () => {
     // These specs alone now hold layout once pinned by source-text unit tests.
     for (const spec of [
       "e2e/desktop-map-chrome-fit.spec.ts",
+      "e2e/mobile-map-chrome-fit.spec.ts",
       "e2e/mobile-map-shell-matrix.spec.ts",
       "e2e/ui-consistency-layout.spec.ts",
       "e2e/map-desktop-arrival-chrome.spec.ts",

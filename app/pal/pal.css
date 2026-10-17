@@ -12,12 +12,20 @@
   min-height: 100dvh;
   overflow: hidden;
   padding: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
+  color: var(--pal-paper);
+  font-family: var(--font-body);
+}
+
+/* The Pal surface is the PAGE's background, not the main box's. Painted on the
+   main box, it stopped where the box stopped, and the body's own gradient
+   showed under it on a phone: the clearance the hidden tab bar still reserves
+   read as a seam below Continue (UX sprint, 15 Oct 2026, 390x844 dark). The
+   body paints the canvas, so one surface runs the full height. */
+body:has(.palExperience) {
   background:
     radial-gradient(circle at 76% 22%, color-mix(in srgb, var(--brass) 12%, transparent), transparent 31rem),
     radial-gradient(circle at 18% 86%, color-mix(in srgb, var(--river) 10%, transparent), transparent 26rem),
-    var(--pal-night);
-  color: var(--pal-paper);
-  font-family: var(--font-body);
+    var(--paper);
 }
 
 .palExperience *, .palExperience *::before, .palExperience *::after { box-sizing: border-box; }
@@ -361,7 +369,9 @@
   .palSpeciesGrid .palChoice { min-height: 4.85rem; padding-right: 2.5rem; }
   .palRange { grid-template-columns: 5.2rem 1fr; }
   .palReview { grid-template-columns: 1fr; }
-  .palOnboardingActions { position: relative; bottom: auto; z-index: 2; margin: 1.25rem -1rem 0; padding: .75rem 1rem; border-top: 1px solid var(--pal-line); background: color-mix(in srgb, var(--pal-night) 92%, transparent); backdrop-filter: blur(1.1rem); }
+  /* The bar sits in the flow here, so nothing scrolls under it, and a fill of
+     its own only drew a band across the page surface. */
+  .palOnboardingActions { position: relative; bottom: auto; z-index: 2; margin: 1.25rem -1rem 0; padding: .75rem 1rem; border-top: 1px solid var(--pal-line); }
   .palOnboardingActions > button:not(.palPrimary) { display: none; }
   .palOnboardingActions .palPrimary { width: 100%; }
   .palHomeHero { min-height: auto; padding-top: 1.5rem; }
@@ -394,7 +404,7 @@ body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); l
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .palSpeech, .palOnboardingActions { background: var(--panel-raised); backdrop-filter: none; }
+  .palSpeech { background: var(--panel-raised); backdrop-filter: none; }
   .palPortrait-glass .palPortraitCore { background: var(--panel); backdrop-filter: none; }
 }
 

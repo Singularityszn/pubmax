@@ -46,6 +46,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/inspector/VenueSpoonsValueRow.tsx", fetchCount: 1, reason: "the Spoons value row is an additive lazy read for one pub, edge-cacheable because an imported menu reading is the same for every reader, and it renders nothing rather than wording an absence" },
   { path: "components/map/VenueBuzz.tsx", fetchCount: 1, reason: "buzz is an interactive detail read; the place search beside it moved to the shared lib/cityPlaceSearch.ts" },
   { path: "components/map/VenueHygiene.tsx", fetchCount: 1, reason: "venue hygiene lookup is an additive detail read" },
+  { path: "components/map/VenueListedBuilding.tsx", fetchCount: 1, reason: "the listed-building line is an additive lazy read for one base pub sheet, and it renders nothing rather than wording an absence" },
   { path: "components/map/VenueWeatherRecommendations.tsx", fetchCount: 1, reason: "venue weather recommendations are location and venue interaction reads" },
   { path: "components/map/pubmap/useActivePlanRoute.ts", fetchCount: 1, reason: "active plan state is no-store and mutation-sensitive" },
   { path: "components/map/pubmap/useUkBaseStreaming.ts", fetchCount: 1, reason: "UK base shard streaming is viewport-owned data loading" },
