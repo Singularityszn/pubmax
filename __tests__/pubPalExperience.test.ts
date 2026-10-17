@@ -482,5 +482,14 @@ describe("Pub Pal when the browser refuses storage", () => {
     await settle();
     expect(patches).toBe(2);
     expect(buttonContaining("Voice allowed").getAttribute("aria-pressed")).toBe("false");
+
+    // A Pal saved before the taste key existed reads as on.
+    expect(buttonContaining("Taste read on").getAttribute("aria-pressed")).toBe("true");
+    await act(async () => buttonContaining("Taste read on").click());
+    await settle();
+    expect(patches).toBe(3);
+    expect(pal.proposalPreferences).toEqual({ memories: false, routes: true, taste: false });
+    expect(buttonContaining("Taste read off").getAttribute("aria-pressed")).toBe("false");
+    expect(buttonContaining("Pal won't read your diary, drops or saves")).toBeTruthy();
   });
 });

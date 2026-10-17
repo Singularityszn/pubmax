@@ -14,7 +14,10 @@ export function __resetPubPalStore(): void {
   memories.clear();
 }
 
-const DEFAULT_PROPOSAL_PREFERENCES: PalProposalPreferences = { memories: false, routes: true };
+// Memory proposals are on for a new Pal: the Pal may suggest a fact to
+// remember, and nothing is saved until the person taps Confirm (ADR 0006).
+// A Pal saved with them off keeps them off.
+const DEFAULT_PROPOSAL_PREFERENCES: PalProposalPreferences = { memories: true, routes: true, taste: true };
 export type PubPalStoreResult<T> = { ok: true; value: T } | { ok: false; error: "not_found" | "error" };
 
 function proposalPreferences(value: unknown, fallback: PalProposalPreferences = DEFAULT_PROPOSAL_PREFERENCES): PalProposalPreferences {
@@ -23,6 +26,9 @@ function proposalPreferences(value: unknown, fallback: PalProposalPreferences = 
   return {
     memories: typeof input.memories === "boolean" ? input.memories : fallback.memories,
     routes: typeof input.routes === "boolean" ? input.routes : fallback.routes,
+    // Stored inside the same jsonb, whose check constraint (0033) only pins
+    // memories and routes, so the opt-out needs no migration.
+    taste: typeof input.taste === "boolean" ? input.taste : fallback.taste !== false,
   };
 }
 

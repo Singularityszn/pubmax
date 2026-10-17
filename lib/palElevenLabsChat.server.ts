@@ -10,6 +10,8 @@ import {
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { palTastePreamble, type PalTaste } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { log } from "@/lib/log";
 import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
@@ -79,11 +81,25 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
   return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
 }
 
-/** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
-function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[] | null): string {
+/**
+ * Everything a typed turn tells the agent about the person: their confirmed
+ * memories, then the taste read from their own logs. The memory eval
+ * (evals/pal/memory) grades exactly these lines.
+ */
+export function palPersonalContext(memories: PalRecalledMemory[] | null, taste: PalTaste | null): string[] {
+  return [...palMemoryPreamble(memories), ...palTastePreamble(taste)];
+}
+
+/** The typed turn as the agent reads it: the personal context, the session summary, earlier asks, then the ask itself. */
+function userMessageText(
+  query: string,
+  prior: PriorSession,
+  memories: PalRecalledMemory[] | null,
+  taste: PalTaste | null,
+): string {
   const priorAsks = prior.turns;
   return [
-    ...palMemoryPreamble(memories),
+    ...palPersonalContext(memories, taste),
     ...palSessionSummaryTurn(prior.summary),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
@@ -217,8 +233,10 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
-  const memoriesRead = readConfirmedPalMemories(input.ownerId);
+  // Read from the signed-in owner's own Pal and logs, never from the request
+  // body, beside the signed-URL request so neither waits on the other. Neither rejects.
+  const memoriesRead = readConfirmedPalMemories(input.ownerId, query);
+  const tasteRead = readPalTaste(input.ownerId);
 
   const session = await fetchPalSignedConversation({ apiKey, agentId });
   if (!session.ok) {
@@ -226,7 +244,7 @@ export async function runPalElevenLabsChatTurn(
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
   const signedUrl = session.signedUrl;
-  const memories = await memoriesRead;
+  const [memories, taste] = await Promise.all([memoriesRead, tasteRead]);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -392,7 +410,7 @@ export async function runPalElevenLabsChatTurn(
             });
             userMessageSent = true;
             ws.send(
-              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories) }),
+              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories, taste) }),
             );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" }, "registration");
