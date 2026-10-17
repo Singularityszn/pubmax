@@ -63,6 +63,25 @@
     pointer-events: none;
   }
 
+  /* THE STATUS BAR IS NOT MAP (#1543). The canvas runs to the top of the
+     screen under the iOS status bar by design, and MapLibre places a pin's
+     price anywhere in its viewport, so a "£6.10" sat under the wifi and battery
+     glyphs and read as part of iOS. Camera padding cannot help: it moves the
+     centre, never symbol placement. So the band the system owns is filled
+     with the page, as the landing bar's own band is (components/landing/
+     landing.css). It is exactly env(safe-area-inset-top) tall, measured from
+     the viewport top, so a browser with no inset paints nothing. */
+  .mobileMapChrome::before {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--mobile-map-top));
+    left: calc(-1 * var(--mobile-map-stack-left));
+    right: calc(-1 * var(--mobile-map-stack-right));
+    height: env(safe-area-inset-top, 0px);
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    pointer-events: none;
+  }
+
   /* The coordinator is the only mobile map chrome owner. Desktop keeps the
      mature controls while mobile removes their independently-positioned rows.
      CitySuggestBanner and CityStatusBanner are two of those rows, and the
