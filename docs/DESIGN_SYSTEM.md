@@ -64,6 +64,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
 | Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts` |
 | Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
+| A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
@@ -494,6 +495,34 @@ Two traps this repo has hit:
 
 `__tests__/deBoxSegmentedControl.test.ts` pins the segmented-control half of
 this. Origin: design judgement 2026-08-01, findings 2.4, 2.5, 2.13 and 2.16.
+
+### Tabs
+
+A tab row is a selection, so it follows the two laws above: the selected tab
+reads in ink and the group wears at most one edge. Seven rows ship today: the
+venue sheet's sections, the `Tabs` primitive (`components/ui/tabs.tsx`), the
+sign-in doors, the Social feed axis, the soft-drink chips, the admin sections,
+and the phone tab bar, which is navigation (links with `aria-current`) rather
+than a tablist.
+
+- **Selected.** `--state-selected-surface`, `--state-selected-border` and
+  `--state-selected-ink`, or the raised segment fill every segmented control
+  shares, plus a weight step so colour is never the only cue. Never a coral
+  fill, a coral tint or a category hue.
+- **Keyboard.** The row is ONE tab stop. The selected tab carries
+  `tabIndex={0}` and the rest `-1`; Left and Right move and wrap, Home and End
+  jump to the ends. A hand-rolled row calls `moveTablistFocus` from
+  `components/ui/tabs.tsx` rather than restating the arithmetic. A row whose
+  every choice is a route push or a fetch passes `{ activate: false }`, so the
+  arrows move focus and Enter or Space chooses. With nothing selected, the
+  first tab holds the stop.
+- **Focus.** The accent outline stays (a focus ring is an affordance, not a
+  resting mark), drawn at `outline-offset: -2px` inside a bordered group, and
+  a pill restates its own radius under `:focus-visible`.
+
+`__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`
+and `components/` for the roving index and the key handler, and
+`__tests__/visualDiscipline.test.ts` names each row's selected rule.
 
 ### Sheet material
 

@@ -98,6 +98,10 @@ describe("coral is spent twice", () => {
     ["app/historic/historic.css", '.historicToggle[data-active="true"]'],
     ["app/crawls/crawls.css", ".routePackChip.isActive"],
     ["components/map/venueSheet.css", ".venueTab.active"],
+    // The design-system tab audit (17 Oct 2026): the soft-drink chips wore the
+    // category hue over a coral fallback and the admin sections a coral tint.
+    ["components/drinks/drinkSubtypePricedView.css", ".softDrinksWater__chip.isOn"],
+    ["app/admin/admin.css", ".admin-tab.active"],
   ];
 
   // The Day | Tonight segment and the desktop nav pill took the same step on
