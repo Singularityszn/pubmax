@@ -9,15 +9,14 @@
 // loads, but a web view is not where an iPhone owner expects to type their
 // Apple ID either.
 //
-// So inside the shell the provider page is opened in the SYSTEM browser
-// (SFSafariViewController on iOS, a Chrome Custom Tab on Android) through
-// @capacitor/browser, with supabase-js told to hand the URL back rather than
-// navigate (`skipBrowserRedirect`). The provider then redirects to
-// https://pubmaxxing.com/auth/callback, which is a universal link and an
-// Android App Link (public/.well-known/apple-app-site-association,
-// android/app/src/main/AndroidManifest.xml, lib/nativeDeepLinks.ts hold the
-// three together), so the callback lands back in the shell's own WebView, the
-// one that holds the PKCE verifier supabase-js wrote when the flow began.
+// Android asks @capacitor/browser to open the provider URL and returns through
+// the HTTPS App Link. The canonical browser client deliberately uses implicit
+// auth, which also keeps cross-browser email links working.
+//
+// iPhone provider sign-in uses lib/nativeIOSOAuth.ts instead. Its dedicated
+// PKCE client keeps the verifier in memory, and NativeAuthSessionPlugin owns
+// the fixed custom-scheme callback through ASWebAuthenticationSession. This
+// works with free Xcode signing, which cannot rely on Associated Domains.
 //
 // Off the shell every function here is a no-op, so the web keeps the
 // navigation it always had. The plugin is imported dynamically after the

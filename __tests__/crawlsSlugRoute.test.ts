@@ -150,6 +150,20 @@ describe("DELETE /api/crawls/[slug]", () => {
     expect(await author.json()).toEqual({ author: "victimhandle" });
   });
 
+  it("names nobody behind a draft, exactly like an unknown slug", async () => {
+    const res = await createCrawlStory({
+      title: "Not yet",
+      authorHandle: "drafthost",
+      visibility: "draft",
+      stops: [{ venueId: "venue-a" }],
+    });
+    if (!res) throw new Error("story did not save");
+    const draft = await GET(new Request(`${URL_BASE}/${res.slug}`), params(res.slug));
+    expect(await draft.json()).toEqual({ author: null });
+    const unknown = await GET(new Request(`${URL_BASE}/no-such-crawl`), params("no-such-crawl"));
+    expect(await unknown.json()).toEqual({ author: null });
+  });
+
   it("401s the same handle sent as a query param, not just a body", async () => {
     const slug = await makeStory("victimhandle");
     const res = await DELETE(

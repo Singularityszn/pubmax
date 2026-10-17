@@ -3,6 +3,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { verifyCallerAuth } from "@/lib/authServer";
+import { boundedFormData, boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import {
   removeNightMomentPhoto,
   signedNightMomentPhotoUrl,
@@ -12,6 +13,11 @@ import { PhotoRefusalError } from "@/lib/pintDropsStore";
 import { NIGHT_MEMORY_REFUSED_CODE } from "@/lib/momentPhotoIntake";
 import { addNightMoment, listNightMoments } from "@/lib/nightMemoryStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
+import {
+  UPLOAD_FIELDS_ALLOWANCE_BYTES,
+  UPLOAD_PHOTO_MAX_BYTES,
+  UPLOAD_PHOTO_MAX_LABEL,
+} from "@/lib/uploadBodyLimit";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -55,8 +61,12 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (contentType.includes("multipart/form-data")) {
     let form: FormData;
     try {
-      form = await request.formData();
-    } catch {
+      // One photo and its few fields: nothing past that is buffered.
+      form = await boundedFormData(request, UPLOAD_PHOTO_MAX_BYTES + UPLOAD_FIELDS_ALLOWANCE_BYTES);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        return publicApiError(`Photo must be ${UPLOAD_PHOTO_MAX_LABEL} or smaller.`, "TOO_LARGE", 413);
+      }
       return publicApiError("That photo could not be read.", "INVALID_REQUEST", 400);
     }
     const photo = form.get("photo");
@@ -91,7 +101,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     };
   } else {
     try {
-      body = await request.json();
+      body = await boundedJson(request);
     } catch {
       return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
     }

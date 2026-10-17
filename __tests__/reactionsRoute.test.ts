@@ -195,6 +195,33 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
     expect(emitSpy).not.toHaveBeenCalled();
   });
 
+  it("429s one IP rotating its actor id past the per-IP budget", async () => {
+    // A fresh body actor is a fresh actor budget, so only the per-IP one
+    // bounds this loop. Its own address keeps the other cases untouched.
+    const statuses: number[] = [];
+    for (let i = 0; i < 125; i++) {
+      const res = await POST(
+        new Request(URL_BASE, {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.88" },
+          body: JSON.stringify({ id: "d1", actor: `rotating-${i}`, reaction: "cheers" }),
+        }),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 120).every((status) => status === 200)).toBe(true);
+    expect(statuses.slice(120).every((status) => status === 429)).toBe(true);
+  });
+
+  it("rings the author once per handle, drop and reaction however often it is toggled", async () => {
+    for (let i = 0; i < 4; i++) {
+      await toggle({ id: "d1", actor: "dev-ring", reaction: "cheers", handle: "ringer" });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const rings = emitSpy.mock.calls.filter(([event]) => (event as { actorHandle?: string }).actorHandle === "ringer");
+    expect(rings).toHaveLength(1);
+  });
+
   it("429s once one actor floods past the reaction limit (a fresh actor is unaffected)", async () => {
     // The generous budget is 40 per actor per window; the 41st POST from the
     // SAME actor trips the flood guard. We toggle a valid reaction each time so

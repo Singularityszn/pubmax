@@ -20,7 +20,7 @@ import {
   parsePulledEnvFile,
   refusedFlagReason,
 } from "@/scripts/lib/previewProdEnv.mjs";
-import { vercelCommand } from "@/scripts/lib/vercelCli.mjs";
+import { VERCEL_CLI_VERSION, vercelCommand } from "@/scripts/lib/vercelCli.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 const read = (relative: string) => readFileSync(path.join(ROOT, relative), "utf8");
@@ -132,15 +132,39 @@ describe("the command that makes the preview", () => {
   it("refuses to promote and refuses a macOS prebuilt upload", () => {
     expect(refusedFlagReason(["--prod"])?.flag).toBe("--prod");
     expect(refusedFlagReason(["--prebuilt"])?.reason).toContain("sharp");
-    expect(refusedFlagReason(["--target=preview"])).toBeNull();
     expect(Object.keys(REFUSED_DEPLOY_FLAGS)).toContain("--production");
   });
 
-  it("runs one CLI, resolved in one place", () => {
+  it("refuses a target in every spelling, so it cannot make a production deploy", () => {
+    // `--target production` is a production deploy that skips release:prod.
+    for (const args of [
+      ["--target", "production"],
+      ["--target=production"],
+      ["--target=preview"],
+      ["--yes", "--target", "preview"],
+      ["-t", "production"],
+      ["-t=production"],
+    ]) {
+      expect({ args, flag: refusedFlagReason(args)?.flag }).toEqual({
+        args,
+        flag: args.find((arg) => arg.startsWith("-t") || arg.startsWith("--target"))?.split("=")[0],
+      });
+    }
+    expect(refusedFlagReason(["--target", "production"])?.reason).toContain("release:prod");
+    expect(refusedFlagReason(["--yes", "--force"])).toBeNull();
+    // A forwarded argument is never looked up on Object.prototype.
+    expect(refusedFlagReason(["constructor", "__proto__=1"])).toBeNull();
+  });
+
+  it("runs one CLI, resolved in one place, at an exact version", () => {
+    // release:prod runs this with production credentials, so npx never
+    // resolves `latest`: a pinned semver, raised on purpose.
+    expect(VERCEL_CLI_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
     expect(vercelCommand(["deploy"], {})).toEqual({
       command: "npx",
-      args: ["-y", "vercel@latest", "deploy"],
+      args: ["-y", `vercel@${VERCEL_CLI_VERSION}`, "deploy"],
     });
+    expect(read("scripts/lib/vercelCli.mjs")).not.toContain("vercel@latest");
     expect(vercelCommand(["deploy"], { PUBMAX_VERCEL_BIN: "/usr/local/bin/vercel" })).toEqual({
       command: "/usr/local/bin/vercel",
       args: ["deploy"],

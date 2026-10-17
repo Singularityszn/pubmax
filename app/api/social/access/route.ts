@@ -1,4 +1,5 @@
 import { publicApiError } from "@/lib/apiError";
+import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { resolveSocialAccess } from "@/lib/socialAccessServer";
 import { socialDraftScope } from "@/lib/socialDraftScope.server";
@@ -13,6 +14,10 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
 
 export async function GET(request: Request): Promise<Response> {
   const access = await resolveSocialAccess(request);
+  return withAuthResumeCookie(respond(access), access.resumeCookie);
+}
+
+function respond(access: Awaited<ReturnType<typeof resolveSocialAccess>>): Response {
   if (!access.available) {
     return publicApiError(access.error, access.code, 503, {
       retryable: true,

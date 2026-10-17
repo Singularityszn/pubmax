@@ -201,6 +201,11 @@ export function assessOpeningSchedule(
     return { state: "unknown", source: schedule.source, warning: "The venue's regular opening hours are stale." };
   }
   if (!schedule.venueListedOpen) return { state: "listed_closed", source: schedule.source, warning: null };
+  // A schedule with no weekly rows lists no hours at all, which is not evidence
+  // of a closure: answer unknown, the way lib/openNow.ts reads the same row.
+  if (schedule.ranges.length === 0) {
+    return { state: "unknown", source: schedule.source, warning: "The venue's regular opening hours are not listed." };
+  }
   if (!intervalIsListedOpen(schedule, visit.startsAt, visit.endsAt)) {
     return { state: "listed_closed", source: schedule.source, warning: null };
   }

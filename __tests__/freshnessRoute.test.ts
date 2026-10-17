@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/freshness/route";
 import { SNAPSHOT_AFTER_DAYS } from "@/lib/freshness";
@@ -191,4 +191,20 @@ describe("GET /api/freshness", () => {
     });
   });
 
+  it("names no server path when the registry cannot be read", async () => {
+    const secretRoot = "/srv/deploy-7f3a/secret-root";
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(secretRoot);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const res = await GET();
+      expect(res.status).toBe(200);
+      const raw = await res.text();
+      expect(raw).not.toContain(secretRoot);
+      expect(raw).not.toContain("ENOENT");
+      expect(JSON.parse(raw)).toMatchObject({ error: "registry unavailable", datasets: [] });
+    } finally {
+      cwd.mockRestore();
+      warn.mockRestore();
+    }
+  });
 });

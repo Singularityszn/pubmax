@@ -59,6 +59,19 @@ a.venueHygiene:focus-visible {
   font-size: 0.72rem;
 }
 
+/* The way to every source and its licence, beside the badge rather than inside
+   it, because the badge is already a link to the FSA's own record. */
+.venueHygieneCredits {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 10px 0 0 10px;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* The chip is two lines: the rating with the month it was awarded, then who
    published it and when PUBMAXX read it. A fact on this sheet carries its
    source and its date where the reader can see them, not only in a tooltip. */

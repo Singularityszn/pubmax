@@ -108,4 +108,16 @@ describe("POST /api/admin/comments — moderation", () => {
     const res = await post({ action: "restore", id: "no-such-id" });
     expect(res.status).toBe(404);
   });
+
+  it("spends a per-address budget even behind the moderator gate", async () => {
+    // A leaked token is still one address, and a script with it should not get
+    // an unmetered write loop.
+    const ip = { "x-forwarded-for": "198.51.100.61" };
+    let last: Response | null = null;
+    for (let i = 0; i < 61; i += 1) {
+      last = await post({ action: "restore", id: "no-such-id" }, ip);
+    }
+    expect(last?.status).toBe(429);
+    expect((await last!.json()).code).toBe("RATE_LIMITED");
+  });
 });
