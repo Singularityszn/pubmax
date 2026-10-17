@@ -105,14 +105,22 @@ describe("buildWeatherBrief", () => {
     expect(brief.ruleId).toBe("hard-rain");
   });
 
-  it("still shows a stale-but-real observation, marked Last checked", () => {
-    // Observed 3 days ago with a 12h ttl: long past expiry at NOW.
-    const brief = buildWeatherBrief(snapshot({ ageHours: 72 }), NOW) as WeatherBrief;
+  it("still shows a stale-but-real observation inside the cut-off, marked Last checked", () => {
+    // Observed 20 hours ago with a 12h ttl: past expiry, inside the 30h cut-off,
+    // which is what a normal evening holds between daily refreshes.
+    const brief = buildWeatherBrief(snapshot({ ageHours: 20 }), NOW) as WeatherBrief;
     expect(brief).not.toBeNull();
     expect(brief.stale).toBe(true);
-    expect(brief.checkedLabel).toBe("Last checked 3 days ago");
+    expect(brief.checkedLabel).toBe("Last checked 20 hours ago");
     expect(brief.ruleId).toBeNull();
     expect(brief.verdictLine).toBe("");
+  });
+
+  it("has no reading once the observation is older than the cut-off", () => {
+    // Owner ruling, 17 Oct 2026: /today opened on a reading 44 days old.
+    expect(buildWeatherBrief(snapshot({ ageHours: 31 }), NOW)).toBeNull();
+    expect(buildWeatherBrief(snapshot({ ageHours: 72 }), NOW)).toBeNull();
+    expect(buildWeatherBrief(snapshot({ ageHours: 44 * 24 }), NOW)).toBeNull();
   });
 
   it("reads 25 July 23:00 at 20C and dry as a terrace night from the area's own sunset", () => {

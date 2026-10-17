@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
 import EmptyState from "@/components/ui/empty-state";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import SoftDrinkSubtypeMiniMap from "@/components/drinks/SoftDrinkSubtypeMiniMap";
 import { PricedLandingPublisher } from "@/components/drinks/PricedLandingRows";
 import { trackEvent } from "@/lib/analytics";
@@ -81,6 +82,7 @@ export default function DrinkSubtypePricedView({
     [launchSubtypeIds],
   );
   const active = findSubtype(activeSubtypeId);
+  const anyChipOn = chips.some((subtype) => softDrinksWaterChipSelected(subtype.id, activeSubtypeId));
 
   useEffect(() => {
     if (openedRef.current) return;
@@ -121,15 +123,22 @@ export default function DrinkSubtypePricedView({
           role="tablist"
           aria-label="Drink"
         >
-          {chips.map((subtype) => {
+          {chips.map((subtype, index) => {
             const on = softDrinksWaterChipSelected(subtype.id, activeSubtypeId);
+            // The row is one tab stop. With no chip chosen the first holds it,
+            // or the row could not be reached from the keyboard at all.
+            const stop = on || (index === 0 && !anyChipOn);
             return (
               <button
                 key={subtype.id}
                 type="button"
                 role="tab"
                 aria-selected={on}
+                tabIndex={stop ? 0 : -1}
                 className={on ? "softDrinksWater__chip isOn" : "softDrinksWater__chip"}
+                // Each choice is a route push, so the arrows move focus alone
+                // and Enter or Space chooses.
+                onKeyDown={(event) => moveTablistFocus(event, { activate: false })}
                 onClick={() => {
                   trackEvent("soft_drinks_water_view_opened", { subtype: subtype.id });
                   router.push(

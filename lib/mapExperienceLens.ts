@@ -6,7 +6,7 @@ import {
 } from "@/lib/communityPrice";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
-import type { Filters, Venue } from "@/lib/venues";
+import { venueAmenityStatus, type Filters, type Venue } from "@/lib/venues";
 
 export type MapExperienceLens = "all" | "no-alcohol" | "food";
 
@@ -171,6 +171,16 @@ function isFoodKind(venue: Venue): boolean {
   return venue.kind === "food" || venue.kind === "restaurant";
 }
 
+function hasKnownFoodService(venue: Venue): boolean {
+  const status = venueAmenityStatus(venue).food;
+  if (status === "known-false") return false;
+  return (
+    isFoodKind(venue) ||
+    status === "known-true" ||
+    venue.filterHints?.amenities.food === true
+  );
+}
+
 function hasKnownNoAlcoholService(venue: Venue): boolean {
   return (
     venue.amenities.nonAlcoholic ||
@@ -184,7 +194,9 @@ export function filterVenuesForExperienceLens(
   noAlcoholPrices: ReadonlyMap<string, MapLensPrice>,
 ): Venue[] {
   if (lens === "all") return [...venues];
-  if (lens === "food") return venues.filter(isFoodKind);
+  if (lens === "food") {
+    return venues.filter(hasKnownFoodService);
+  }
   return venues.filter(
     (venue) =>
       isFoodKind(venue) ||
@@ -383,7 +395,7 @@ export function experienceLensSummary(
   if (lens === "all") return "";
   if (lens === "food") {
     if (sourcedFoodPriceCount === 0) {
-      return "Food venues shown. No menu prices we have in this view yet.";
+      return "Food venues shown. Open Menu for dish prices we have.";
     }
     return `${sourcedFoodPriceCount} menu price${
       sourcedFoodPriceCount === 1 ? "" : "s"

@@ -67,6 +67,24 @@ describe("ThemeAttribute", () => {
     expect(root.style.padding).toBe("8px");
   });
 
+  it("writes the complete generated chains over its own fallbacks once hydrated", () => {
+    const root = document.documentElement;
+    root.style.setProperty("--font-display", "'Space Grotesk Fallback'");
+    root.style.setProperty("--font-body", "another-body-owner");
+    mount({
+      initialFontFallbacks: {
+        "--font-display": "'Space Grotesk Fallback'",
+        "--font-body": "'Inter Fallback'",
+      },
+      fontFamilies: {
+        "--font-display": "'Space Grotesk', 'Space Grotesk Fallback'",
+        "--font-body": "'Inter', 'Inter Fallback'",
+      },
+    })();
+    expect(root.style.getPropertyValue("--font-display")).toBe("'Space Grotesk', 'Space Grotesk Fallback'");
+    expect(root.style.getPropertyValue("--font-body")).toBe("another-body-owner");
+  });
+
   it("preserves a font value another owner replaced before mount", () => {
     const root = document.documentElement;
     root.style.setProperty("--font-display", "another-display-owner");

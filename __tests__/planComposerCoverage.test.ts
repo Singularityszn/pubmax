@@ -6,6 +6,7 @@ import {
   composerRouteMutation,
   createdPlanMetadataPatch,
   createdPlanNeedsReadyTransition,
+  crawlLockedTelemetry,
   errorMessageFromBody,
   applyPlanStopCount,
   generatedPlanAnchorFromResponse,
@@ -198,6 +199,56 @@ describe("PlanComposer route mutation authority", () => {
       groundingProof: "signed-proof",
       planAnchor: authority.planAnchor,
       routeStale: false,
+    });
+  });
+
+  describe("a swap to an alternative the generator offered", () => {
+    const unanchored = { ...authority, planAnchor: null };
+    const swapped = current.map((stop, index) => index === 1 ? { ...stop, venueId: "alternative", venueName: "Alternative" } : stop);
+
+    it("keeps the V1 proof and the lock, because the proof covers the alternatives", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        ...unanchored,
+        swapToAlternative: true,
+      })).toMatchObject({
+        accepted: true,
+        stops: swapped,
+        groundingProof: "signed-proof",
+        createOperationKey: "operation-key",
+        routeStale: false,
+      });
+    });
+
+    it("still asks for a refresh on an anchored route, whose proof binds the exact stops", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        heldVenueId: "accepted",
+        ...authority,
+        swapToAlternative: true,
+      })).toMatchObject({ groundingProof: null, createOperationKey: null, routeStale: true });
+    });
+
+    it("still asks for a refresh when there is no proof to keep", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        ...unanchored,
+        groundingProof: null,
+        swapToAlternative: true,
+      })).toMatchObject({ groundingProof: null, routeStale: true });
+    });
+
+    it("never keeps a stale route fresh", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        ...unanchored,
+        routeStale: true,
+        swapToAlternative: true,
+      })).toMatchObject({ routeStale: true });
     });
   });
 
@@ -618,6 +669,17 @@ describe("PlanComposer route preview seam", () => {
     expect(serverPlanCreationAttribution({ created: false, grounded: false })).toEqual({ created: false, grounded: false });
   });
 
+  it("counts the lock for every attributed plan, signed tokens or not", () => {
+    // A plan without an anchor gets no meaningful-action token, so the signed
+    // acceptance events fail closed for it. The lock count must not.
+    expect(crawlLockedTelemetry({ created: true, grounded: false }, 3)).toEqual({ stops: 3 });
+    expect(crawlLockedTelemetry({ created: false, grounded: true, eventTokens: { planAccepted: "", meaningfulCoreAction: "" } }, 4)).toEqual({ stops: 4 });
+    expect(crawlLockedTelemetry({ created: true, grounded: "true" }, 3)).toBeNull();
+    expect(crawlLockedTelemetry({ created: true, grounded: true }, 0)).toBeNull();
+    // Outside the band the sanitizer would drop it anyway; do not send it.
+    expect(crawlLockedTelemetry({ created: true, grounded: true }, 11)).toBeNull();
+  });
+
   it("uses the generator's explicit grounding assertion instead of route revision metadata", () => {
     const stops = routeStopsFromGenerated([
       { venueId: "a", venueName: "A" },
@@ -713,6 +775,27 @@ describe("PlanComposer route preview seam", () => {
       { venueId: "y", venueName: "Y" },
       { venueId: "a", venueName: "A" },
     ]);
+  });
+
+  it("carries the generator's price for the alternative, and keeps the old one for a swap back", () => {
+    const [stop] = routeStopsFromGenerated([{
+      venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceEvidence: { source: "listed" },
+      alternatives: [{ venueId: "b", venueName: "B", estimatedPintPricePence: 395 }],
+    }]);
+    expect(stop?.alternatives[0]).toMatchObject({ venueId: "b", estimatedPintPricePence: 395, priceKind: "estimated" });
+
+    const swapped = swapDraftStop(stop!);
+    expect(swapped).toMatchObject({ venueId: "b", estimatedPintPricePence: 395, priceKind: "estimated" });
+    expect(swapped.alternatives).toContainEqual({ venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceKind: "listed" });
+    expect(swapDraftStop(swapped)).toMatchObject({ venueId: "a", estimatedPintPricePence: 449, priceKind: "listed" });
+  });
+
+  it("leaves a swapped stop unpriced when the generator gave its alternative no price", () => {
+    const swapped = swapDraftStop({
+      key: 1, venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceKind: "listed",
+      alternatives: [{ venueId: "b", venueName: "B" }],
+    });
+    expect(swapped.estimatedPintPricePence).toBeUndefined();
   });
 
   it("skips alternatives already used by another route stop", () => {
