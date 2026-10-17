@@ -16,6 +16,11 @@ export type SoftDrinksWaterViewPayload = {
   subtypeLabel: string;
   rows: SubtypePricedVenueRow[];
   observedCounts: Record<string, number>;
+  /**
+   * True when the UK price bundle could not be read. The listed prices are
+   * missing, not absent, and the view must not word zero as "nobody has one".
+   */
+  listedPricesUnavailable: boolean;
 };
 
 export async function loadSoftDrinksWaterView(
@@ -24,12 +29,13 @@ export async function loadSoftDrinksWaterView(
   const subtype = findSubtype(subtypeId);
   if (!subtype || subtype.category !== "soft-drink") return null;
 
-  const [venues, drinkUpdates, { byVenue: bundleByVenue }] = await Promise.all([
+  const [venues, drinkUpdates, bundle] = await Promise.all([
     loadPintPriceLandingVenues(),
     allDrinkPriceUpdates(),
     ukPriceBundleRowsByVenue(),
   ]);
 
+  const bundleByVenue = bundle.byVenue;
   const observedCounts: Record<string, number> = {};
   const countIds = new Set<string>([...SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS, subtype.id]);
   for (const id of countIds) {
@@ -41,5 +47,6 @@ export async function loadSoftDrinksWaterView(
     subtypeLabel: subtype.longLabel,
     rows: buildSubtypePricedVenueRows(venues, subtype.id, drinkUpdates, undefined, bundleByVenue),
     observedCounts,
+    listedPricesUnavailable: bundle.status === "unavailable",
   };
 }

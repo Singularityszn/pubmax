@@ -1,12 +1,14 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+
+const bundle = vi.hoisted(() => ({ status: "ready" as "ready" | "empty" | "unavailable" }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/pintPriceLandingDataset.server", () => ({ loadPintPriceLandingVenues: async () => [] }));
 vi.mock("@/lib/priceUpdates.server", () => ({ allDrinkPriceUpdates: async () => [] }));
 vi.mock("@/lib/ukPriceBundle.server", () => ({
   ukPriceBundleRowsByVenue: async () => ({
-    status: "ready",
-    byVenue: new Map([
+    status: bundle.status,
+    byVenue: bundle.status === "unavailable" ? new Map() : new Map([
       [
         "outside-london",
         [
@@ -48,4 +50,21 @@ it("opens on the Lucia lens and counts it beside the other launch chips", async 
     "soft-drink-zero-sugar-cola": 0,
     "soft-drink-still-water": 0,
   });
+});
+
+afterEach(() => {
+  bundle.status = "ready";
+});
+
+it("says the listed prices could not be read, rather than that there are none", async () => {
+  bundle.status = "unavailable";
+  const view = await loadSoftDrinksWaterView("soft-drink-lucia-special");
+  expect(view?.listedPricesUnavailable).toBe(true);
+  expect(view?.observedCounts["soft-drink-lucia-special"]).toBe(0);
+});
+
+it("reads an empty bundle as a real answer, not a failed read", async () => {
+  bundle.status = "empty";
+  const view = await loadSoftDrinksWaterView("soft-drink-lucia-special");
+  expect(view?.listedPricesUnavailable).toBe(false);
 });
