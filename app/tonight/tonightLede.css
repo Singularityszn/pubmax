@@ -210,6 +210,7 @@
 }
 
 .tonightHypedPriceFigure {
+  font-family: var(--font-data);
   color: var(--ink);
   font-weight: 700;
 }
@@ -239,6 +240,18 @@
   margin: 4px 0 0;
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+
+/* From 1024px the column is ~700px wide and a recommendation is three short
+   lines, so one card to a row left most of each card empty. Two to a row read
+   as one shelf, the way a feed of places does. A card that opens "Why this
+   pub" grows alone rather than stretching its neighbour. */
+@media (min-width: 1024px) {
+  .tonightHypedList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
 }
 
 /* The folded rows
@@ -325,6 +338,7 @@
 
 .tonightCheapPintsPrice {
   margin-left: auto;
+  font-family: var(--font-data);
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--ink);
@@ -333,8 +347,8 @@
 
 .tonightCheapPintsArrow {
   flex-shrink: 0;
-  color: var(--brass);
-  opacity: 0.85;
+  /* Muted ink, as the row arrows in tonight.css: --brass is under 3:1 here. */
+  color: var(--muted);
 }
 
 .tonightCheapPintsCredit {

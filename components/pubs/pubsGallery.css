@@ -10,9 +10,12 @@
   padding: 20px var(--page-gutter) 96px;
 }
 
+/* Only the space under the bar is this page's. A `margin: 0 auto` here used to
+   reset the bar's own top offset and, on a phone, its side breakout too, so
+   /pubs drew the bar 22px from each edge where every other page draws it 10px
+   (components/nav/siteNav.css owns both). */
 .pubsShell .siteNavBar {
-  margin: 0 auto 20px;
-  max-width: 1100px;
+  margin-bottom: 20px;
 }
 
 .pubsPage {
