@@ -63,6 +63,15 @@ async function readUkPriceBundle(): Promise<UkPriceBundleRead> {
   return pending;
 }
 
+/** Every row the bundle holds, keyed by venue, for a view that ranks many pubs. */
+export async function ukPriceBundleRowsByVenue(): Promise<{
+  status: UkPriceBundleReadStatus;
+  byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>;
+}> {
+  const read = await readUkPriceBundle();
+  return { status: read.status, byVenue: read.byVenue };
+}
+
 /** Every row the bundle holds about one venue, in the order it states them. */
 export async function ukPriceBundleRowsFor(venueId: string): Promise<{
   status: UkPriceBundleReadStatus;

@@ -9,6 +9,7 @@ import {
 import { findSubtype } from "@/lib/drinkSubtypes";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import { allDrinkPriceUpdates } from "@/lib/priceUpdates.server";
+import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
 
 export type SoftDrinksWaterViewPayload = {
   subtypeId: string;
@@ -23,21 +24,22 @@ export async function loadSoftDrinksWaterView(
   const subtype = findSubtype(subtypeId);
   if (!subtype || subtype.category !== "soft-drink") return null;
 
-  const [venues, drinkUpdates] = await Promise.all([
+  const [venues, drinkUpdates, { byVenue: bundleByVenue }] = await Promise.all([
     loadPintPriceLandingVenues(),
     allDrinkPriceUpdates(),
+    ukPriceBundleRowsByVenue(),
   ]);
 
   const observedCounts: Record<string, number> = {};
   const countIds = new Set<string>([...SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS, subtype.id]);
   for (const id of countIds) {
-    observedCounts[id] = countObservedSubtypePrices(venues, id, drinkUpdates);
+    observedCounts[id] = countObservedSubtypePrices(venues, id, drinkUpdates, bundleByVenue);
   }
 
   return {
     subtypeId: subtype.id,
     subtypeLabel: subtype.longLabel,
-    rows: buildSubtypePricedVenueRows(venues, subtype.id, drinkUpdates),
+    rows: buildSubtypePricedVenueRows(venues, subtype.id, drinkUpdates, undefined, bundleByVenue),
     observedCounts,
   };
 }

@@ -27,7 +27,7 @@ import "./drinkSubtypePricedView.css";
 
 export type DrinkSubtypePricedViewProps = {
   title: string;
-  /** Launch chip ids (zero-sugar cola family and still water by default); leaf cola brands stay off the chip row. */
+  /** Launch chip ids (Lucia special, zero-sugar cola and still water by default); leaf cola brands stay off the chip row. */
   launchSubtypeIds: readonly string[];
   activeSubtypeId: string;
   rows: readonly SubtypePricedVenueRow[];
@@ -47,6 +47,12 @@ function publisherRow(
     priceGbp: row.observed.priceGbp,
     publisher: row.observed.publisher,
   };
+}
+
+// "Still water" reads "still water" mid-sentence; a label that capitalises a
+// brand past its first letter ("Coke Zero and Diet Coke") keeps its case.
+function inSentenceLabel(label: string): string {
+  return /[A-Z]/.test(label.slice(1)) ? label : label.toLowerCase();
 }
 
 export default function DrinkSubtypePricedView({
@@ -76,14 +82,14 @@ export default function DrinkSubtypePricedView({
     subtypeId: activeSubtypeId,
     log: true,
   });
-  const activeLabel = active?.longLabel.toLowerCase() ?? "soft drink";
+  const activeLabel = active ? inSentenceLabel(active.longLabel) : "soft drink";
 
   return (
     <div className="softDrinksWater">
       <Screen
         as="section"
         className="softDrinksWater__screen"
-        kicker="Soft drinks"
+        kicker="Non-alcoholic"
         title={title}
         titleId="soft-drinks-water-heading"
         lede={

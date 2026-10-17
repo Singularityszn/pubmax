@@ -1,8 +1,9 @@
 // Observed soft-drink (and any drink) subtype prices: classify labels, rank
 // venues, and never invent a figure the data cannot back.
 //
-// Pure + browser-safe. Community rows stay category-wide; only menu text and
-// attributed drink-price updates can name a subtype.
+// Pure + browser-safe. Community rows stay category-wide; only menu text,
+// attributed drink-price updates and listed site-harvest rows in the UK price
+// bundle can name a subtype. A bundle estimate never can.
 
 import type { Route } from "next";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
@@ -16,22 +17,25 @@ import {
 } from "@/lib/drinkSubtypes";
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/drinks";
 import type { PricedLandingPublisher } from "@/lib/pricedLanding";
+import { authoritativeBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import { venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
+const SOFT_DRINK_LUCIA_SPECIAL_FAMILY_ID = "soft-drink-lucia-special";
 const SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID = "soft-drink-zero-sugar-cola";
 
-/** Launch chips for the Soft drinks and water view; generic component accepts any subtype. */
+/** Launch chips for the Soft drinks and water view; the first is the default lens. */
 export const SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS = [
+  SOFT_DRINK_LUCIA_SPECIAL_FAMILY_ID,
   SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID,
   "soft-drink-still-water",
 ] as const;
 
-/** Subtype lens after folding legacy zero-sugar cola leaf ?sub= values to the family chip. */
+/** Subtype lens after folding legacy cola leaf ?sub= values to their family chip. */
 export function softDrinksWaterSubtypeIdFromParam(sub?: string | null): string {
   const hit = findSubtype(sub?.trim());
   if (!hit || hit.category !== "soft-drink") {
-    return SOFT_DRINK_ZERO_SUGAR_COLA_FAMILY_ID;
+    return SOFT_DRINK_LUCIA_SPECIAL_FAMILY_ID;
   }
   return drinkSubtypeFamilyParentId(hit.id) ?? hit.id;
 }
@@ -79,7 +83,7 @@ export type ObservedSubtypePrice = {
   observedAt: string;
   publisher: PricedLandingPublisher | null;
   /** Which lane carried this row, for tests and debugging only. */
-  lane: "venue-price" | "drink-price-update";
+  lane: "venue-price" | "drink-price-update" | "site-harvest";
 };
 
 export type SubtypePricedVenueRow = {
@@ -139,6 +143,41 @@ function observedFromDrinkUpdate(
   };
 }
 
+// Only the site-harvest lane is read here: the bundle's drink-price-update rows
+// are the same observations `drinkUpdates` already carries, and an estimate is
+// a model, never a price somebody published.
+function observedFromBundleRow(
+  row: UkPriceBundleRow,
+  subtype: DrinkSubtype,
+): ObservedSubtypePrice | null {
+  if (row.lane !== "site-harvest" || row.category !== subtype.category) return null;
+  if (!row.drinkLabel || !row.sourceUrl) return null;
+  if (!drinkLabelMatchesSubtype(row.drinkLabel, subtype)) return null;
+  if (!Number.isFinite(row.priceGbp) || row.priceGbp <= 0) return null;
+  const label = row.publisher ?? bundleSourceHost(row.sourceUrl);
+  if (!label) return null;
+  return {
+    drinkLabel: row.drinkLabel,
+    priceGbp: row.priceGbp,
+    observedAt: row.observedAt,
+    publisher: { label, url: row.sourceUrl },
+    lane: "site-harvest",
+  };
+}
+
+function bundleSourceHost(sourceUrl: string): string | null {
+  try {
+    return new URL(sourceUrl).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Bundle rows a subtype view may read, keyed by venue id. */
+export type SubtypeBundleRowsByVenue = ReadonlyMap<string, readonly UkPriceBundleRow[]>;
+
+const NO_BUNDLE_ROWS: SubtypeBundleRowsByVenue = new Map();
+
 /** Cheapest matching observation for one venue, or null when none exists. */
 function venueDrinkUpdateKey(venue: Venue): string | null {
   const lead = venue.prices[0];
@@ -150,6 +189,7 @@ export function selectObservedSubtypePriceForVenue(
   venue: Venue,
   subtypeId: string,
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
+  bundleRows: readonly UkPriceBundleRow[] = [],
 ): ObservedSubtypePrice | null {
   const subtype = findSubtype(subtypeId);
   if (!subtype) return null;
@@ -170,6 +210,12 @@ export function selectObservedSubtypePriceForVenue(
         const hit = observedFromDrinkUpdate(update, member);
         if (hit) candidates.push(hit);
       }
+    }
+  }
+  for (const row of authoritativeBundleRows(bundleRows)) {
+    for (const member of members) {
+      const hit = observedFromBundleRow(row, member);
+      if (hit) candidates.push(hit);
     }
   }
 
@@ -211,6 +257,7 @@ export function buildSubtypePricedVenueRows(
   subtypeId: string,
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
   limit = 200,
+  bundleByVenue: SubtypeBundleRowsByVenue = NO_BUNDLE_ROWS,
 ): SubtypePricedVenueRow[] {
   const subtype = findSubtype(subtypeId);
   if (!subtype) return [];
@@ -218,7 +265,12 @@ export function buildSubtypePricedVenueRows(
   const rows: SubtypePricedVenueRow[] = [];
   for (const venue of venues) {
     if (!isPublicRankablePub(venue)) continue;
-    const observed = selectObservedSubtypePriceForVenue(venue, subtypeId, drinkUpdates);
+    const observed = selectObservedSubtypePriceForVenue(
+      venue,
+      subtypeId,
+      drinkUpdates,
+      bundleByVenue.get(venue.id),
+    );
     rows.push({
       venueId: venue.id,
       venueName: venue.name,
@@ -236,11 +288,16 @@ export function countObservedSubtypePrices(
   venues: readonly Venue[],
   subtypeId: string,
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
+  bundleByVenue: SubtypeBundleRowsByVenue = NO_BUNDLE_ROWS,
 ): number {
   let count = 0;
   for (const venue of venues) {
     if (!isPublicRankablePub(venue)) continue;
-    if (selectObservedSubtypePriceForVenue(venue, subtypeId, drinkUpdates)) count += 1;
+    if (
+      selectObservedSubtypePriceForVenue(venue, subtypeId, drinkUpdates, bundleByVenue.get(venue.id))
+    ) {
+      count += 1;
+    }
   }
   return count;
 }
