@@ -41,6 +41,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { openDataSourceUrl } from "../lib/harvest/sourcePolicy.ts";
 import { londonBaseVenues } from "./lib/heritageBaseVenues.mjs";
 import {
   bestMatch,
@@ -54,9 +55,9 @@ const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.
 const OUT_PATH = path.join(ROOT, "public", "data", "heritage_listings.json");
 const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 
-const NHLE_FEATURESERVER =
-  "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/" +
-  "National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query";
+// The NHLE FeatureServer's row in lib/harvest/sourcePolicy.ts. THE TABLE OWNS
+// THE HOST: the query URL comes from `openDataSourceUrl`, never from here.
+const NHLE_SOURCE_POLICY_ID = "historic-england-nhle";
 
 // Greater-London bounding box (WGS84). Generous; the matcher's distance gate is
 // what actually prevents cross-region false positives.
@@ -135,7 +136,8 @@ async function fetchListedPoints() {
       resultRecordCount: String(step),
       f: "json",
     });
-    const res = await fetch(`${NHLE_FEATURESERVER}?${params.toString()}`);
+    const url = openDataSourceUrl(NHLE_SOURCE_POLICY_ID, `?${params.toString()}`);
+    const res = await fetch(url.href, { redirect: "error" });
     if (!res.ok) throw new Error(`NHLE fetch failed: HTTP ${res.status}`);
     const body = await res.json();
     if (body.error) throw new Error(`NHLE error: ${JSON.stringify(body.error)}`);

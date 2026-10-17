@@ -320,13 +320,12 @@
       "class": "episodic",
       "artifact": "public/data/heritage_listings.json",
       "stamp": {
-        "kind": "literal",
-        "value": "2026-07-18T00:00:00Z",
-        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically. lib/heritageListings.ts resolves this stamp and the venue sheet prints it beside every listed fact as the day the NHLE was read"
+        "kind": "field",
+        "pointer": "$retrievedAt"
       },
-      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. A regenerated pack carries $retrievedAt, the day the NHLE was read; point this stamp at it ({\"kind\": \"field\", \"pointer\": \"$retrievedAt\"}) in the same commit.",
+      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. The NHLE point layer refreshes daily upstream but statutory listing status changes rarely. The stamp is the pack's own $retrievedAt, the day the NHLE was read; lib/heritageListings.ts resolves it and the venue sheet prints it beside every listed fact.",
       "stalenessBudgetHours": 8760,
-      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
+      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Every live read goes through the historic-england-nhle row in lib/harvest/sourcePolicy.ts. Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     },
     {
