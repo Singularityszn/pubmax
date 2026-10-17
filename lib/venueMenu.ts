@@ -32,10 +32,12 @@ function applyDrinkUpdatesForKeys(
   const keySet = new Set(keys);
   const scoped = updates.filter((u) => keySet.has(u.venueKey));
   if (scoped.length === 0) return base;
-  const remapped = scoped.map((u) =>
-    u.venueKey === canonical ? u : { ...u, venueKey: canonical },
+  // Legacy alias observations retain their established canonical rating refs.
+  // An explicit ID stays bound to the original validated source row.
+  const menuUpdates = scoped.map((u) =>
+    u.venueKey === canonical || u.itemId !== undefined ? u : { ...u, venueKey: canonical },
   );
-  return applyDrinkPriceUpdatesToMenu(canonical, base, remapped);
+  return applyDrinkPriceUpdatesToMenu(canonical, base, menuUpdates, keys);
 }
 
 export function venueMenuForInspector(

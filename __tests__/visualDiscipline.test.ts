@@ -106,6 +106,12 @@ describe("coral is spent twice", () => {
     // Top shelf painted a coral gradient fill with white type.
     ["components/map/mapToolbar.css", ".drinkSubtypeChip.isOn"],
     ["components/map/mapToolbar.css", ".drinkSubtypeChip.isTopShelf.isOn"],
+    // The design-system tab audit (17 Oct 2026): the soft-drink chips wore the
+    // category hue over a coral fallback and the admin sections a coral tint.
+    ["components/drinks/drinkSubtypePricedView.css", ".softDrinksWater__chip.isOn"],
+    ["app/admin/admin.css", ".admin-tab.active"],
+    // The phone tab bar's pressed well (the pressed rail, 17 Oct 2026).
+    ["components/nav/mobileNav.css", ".mobileTabHighlight"],
   ];
 
   // The Day | Tonight segment and the desktop nav pill took the same step on

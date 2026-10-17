@@ -7,6 +7,8 @@ import {
   SocialInteractionStoreError,
   socialInteractionStore,
 } from "@/lib/socialInteractionStore";
+import { normalizeHandle } from "@/lib/handleNormalize";
+import { profileStore } from "@/lib/profileStore";
 import { validIdempotencyKey } from "@/lib/socialInteractions";
 import { hashActor } from "@/lib/supabase";
 
@@ -51,6 +53,30 @@ function page(url: URL): { cursor: string | null; limit: number } | null {
   return Number.isInteger(limit) && limit >= 1 && limit <= 50
     ? { cursor, limit }
     : null;
+}
+
+/**
+ * The account a block or mute is about, named by profile id or by handle. A
+ * profile page knows the handle, so the handle is resolved here rather than
+ * handing the browser a profile id it would only send back.
+ */
+async function targetProfileId(input: Record<string, unknown>): Promise<string> {
+  if ("targetProfileId" in input) {
+    const target = id(input.targetProfileId);
+    if (target) return target;
+  } else if (typeof input.targetHandle === "string") {
+    const handle = normalizeHandle(input.targetHandle);
+    const profile = handle ? await profileStore().getByHandle(handle) : null;
+    if (profile) return profile.id;
+    throw new SocialInteractionStoreError("NOT_FOUND", "Account not found.");
+  }
+  throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose an account.");
+}
+
+function isTargetChange(input: Record<string, unknown>, action: "block" | "mute"): boolean {
+  if (input.action !== action) return false;
+  const keys = Object.keys(input).sort().join(",");
+  return keys === "action,targetProfileId" || keys === "action,targetHandle";
 }
 
 async function verified(request: Request): Promise<{ actor: Actor } | { response: Response }> {
@@ -149,6 +175,13 @@ export async function GET(request: Request): Promise<Response> {
         return privateJson(await socialInteractionStore().featureQueue(access.actor, paging));
       case "report_queue":
         return privateJson(await socialInteractionStore().reportQueue(access.actor, paging));
+      case "relationship": {
+        const target = await targetProfileId({ targetHandle: url.searchParams.get("handle") });
+        if (target === access.actor.profileId) {
+          return publicApiError("That's your own account.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
+        }
+        return privateJson({ relationship: await socialInteractionStore().relationship(access.actor, target) });
+      }
       default:
         return publicApiError("Choose an interaction view.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
     }
@@ -177,10 +210,12 @@ export async function PUT(request: Request): Promise<Response> {
       await socialInteractionStore().setCommentPolicy(access.actor, postId, input.policy as "open" | "friends" | "locked");
       return privateJson({ ok: true });
     }
-    if (input.action === "block" && exactKeys(input, ["action", "targetProfileId"])) {
-      const target = id(input.targetProfileId);
-      if (!target) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Block details are not valid.");
-      await socialInteractionStore().setBlock(access.actor, target, true);
+    if (isTargetChange(input, "block")) {
+      await socialInteractionStore().setBlock(access.actor, await targetProfileId(input), true);
+      return privateJson({ ok: true });
+    }
+    if (isTargetChange(input, "mute")) {
+      await socialInteractionStore().setMute(access.actor, await targetProfileId(input), true);
       return privateJson({ ok: true });
     }
     return publicApiError("Interaction details are not valid.", "INVALID_INTERACTION", 400, { headers: { "Cache-Control": "private, no-store" } });
@@ -201,10 +236,12 @@ export async function DELETE(request: Request): Promise<Response> {
       await socialInteractionStore().setDesired(access.actor, postId, input.kind as "cheer" | "save" | "repost", false);
       return privateJson({ ok: true });
     }
-    if (input.action === "block" && exactKeys(input, ["action", "targetProfileId"])) {
-      const target = id(input.targetProfileId);
-      if (!target) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Block details are not valid.");
-      await socialInteractionStore().setBlock(access.actor, target, false);
+    if (isTargetChange(input, "block")) {
+      await socialInteractionStore().setBlock(access.actor, await targetProfileId(input), false);
+      return privateJson({ ok: true });
+    }
+    if (isTargetChange(input, "mute")) {
+      await socialInteractionStore().setMute(access.actor, await targetProfileId(input), false);
       return privateJson({ ok: true });
     }
     return publicApiError("Interaction details are not valid.", "INVALID_INTERACTION", 400, { headers: { "Cache-Control": "private, no-store" } });

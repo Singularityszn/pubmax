@@ -173,8 +173,8 @@ their own headings: data that is over budget and data whose age could not be
 measured are different findings with different owners. A dataset named in
 `ADVISORY_STALE_IDS` (today `area_news` and `google_places_content`) still reports `stale` but prints
 as an advisory warning and never fails the exit. A dataset in `TEMPORARY_ADVISORY_UNTIL`
-(today `late_food_evidence`, until 2026-11-16 00:00 UTC) warns the same way only until
-its lapse, and from then on a stale finding fails the exit. This is the owner/ad-hoc gate.
+(none today) warns the same way only until its lapse, and from then on a stale finding
+fails the exit. This is the owner/ad-hoc gate.
 Plain Node ESM, dependency-free — it mirrors `lib/freshness.ts`'s tiny rules the
 same way `validate-data.mjs` mirrors the app's row rules.
 

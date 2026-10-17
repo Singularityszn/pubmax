@@ -64,6 +64,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
 | Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts` |
 | Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
+| A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
@@ -342,15 +343,18 @@ token, and `__tests__/loginPage.test.ts` holds both states to 4.5:1.
 
 | Role | Typeface | Variable | Why |
 |---|---|---|---|
-| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` (no external request, no layout shift). |
+| Display | **Space Grotesk** (variable weight, 300–700) | `--font-display` (aliased by `--serif`) | A modern geometric grotesque with a **very large x-height**, chosen for a Gen-Z-native voice. The big x-height keeps capitals and lowercase close in size, so there is little caps-contrast and headlines read confident and current rather than shouty. Its quirky terminals give it character without tipping into gimmick. This **supersedes the earlier Fraunces "field-guide serif"** thesis — the brand is now a display sans, not hand-set serif. Open-licence, self-hosted via `next/font/google` without a browser request to Google. |
 | Body | **Inter** | `--font-body` | Already the app's body face — kept deliberately. Inter is neutral and extremely legible at small UI sizes (panel copy, chip labels), which is exactly what a body face should be: carry the display face's personality without competing for it. |
 | Data | **JetBrains Mono** | `--font-data` | Figures only: prices, dates and times, counts, codes. Never a label, nav or prose (Launch tokens > Monospace is for figures). A monospace gives numerals a "stamped ticket / till receipt" character that Inter's tabular figures don't — it's a deliberate second texture, not just a bolder body font. Paired with `font-variant-numeric: tabular-nums` so columns of numbers align. |
 
 All three are loaded once in `app/layout.tsx` and exposed as CSS variables
 on `<html>`: Space Grotesk and Inter via `next/font/google`, and JetBrains Mono
-via `next/font/local` from its vendored file in `app/_fonts/`. So
-`globals.css`/`theme.css` and any component reading `var(--serif)`, `var(--font-body)`, or `var(--font-data)`
-picks them up automatically — no per-component font imports.
+via `next/font/local` from its vendored file in `app/_fonts/`.
+The display and body variables also receive their generated `style.fontFamily`
+chains inline on `<html>`, preserving their metric-matched fallbacks against theme overrides.
+Components read the shared variables without per-component font imports.
+Cascade coverage is in `__tests__/rootFontCascade.test.tsx` and
+`e2e/root-font-cascade.spec.ts`.
 
 `--serif` is kept as a permanent alias for `--font-display`: every existing
 `h1`/`h2`/`h3`/`.eyebrow`/card-title that already reads `var(--serif)` now
@@ -494,6 +498,46 @@ Two traps this repo has hit:
 
 `__tests__/deBoxSegmentedControl.test.ts` pins the segmented-control half of
 this. Origin: design judgement 2026-08-01, findings 2.4, 2.5, 2.13 and 2.16.
+
+### Tabs
+
+A tab row is a selection, so it follows the two laws above: the selected tab
+reads in ink and the group wears at most one edge. Seven rows ship today: the
+venue sheet's sections, the `Tabs` primitive (`components/ui/tabs.tsx`), the
+sign-in doors, the Social feed axis, the soft-drink chips, the admin sections,
+and the phone tab bar, which is navigation (links with `aria-current`) rather
+than a tablist.
+
+- **Selected.** `--state-selected-surface`, `--state-selected-border` and
+  `--state-selected-ink`, or the raised segment fill every segmented control
+  shares, plus a weight step so colour is never the only cue. Never a coral
+  fill, a coral tint or a category hue.
+- **Keyboard.** The row is ONE tab stop. The selected tab carries
+  `tabIndex={0}` and the rest `-1`; Left and Right move and wrap, Home and End
+  jump to the ends. A hand-rolled row calls `moveTablistFocus` from
+  `components/ui/tabs.tsx` rather than restating the arithmetic. A row whose
+  every choice is a route push or a fetch passes `{ activate: false }`, so the
+  arrows move focus and Enter or Space chooses. With nothing selected, the
+  first tab holds the stop.
+- **Focus.** The accent outline stays (a focus ring is an affordance, not a
+  resting mark), drawn at `outline-offset: -2px` inside a bordered group, and
+  a pill restates its own radius under `:focus-visible`.
+
+**The phone tab bar is the pressed rail.** The dock is a raised mat with one
+hairline and one soft drop, and the page you are on is a WELL pressed into it,
+which glides between tabs: `--state-selected-surface` with a shadow under its
+top lip and a lit lower lip, the glyph sitting one pixel down. At night the
+well is a darker recess (`app/theme.css`), because pressed ink reads as shadow
+on a near-black rail. It is the bar-mat tactility spent on structure, never a
+second stamp: no tilt, no coral at rest. The well's radius is the rail's minus
+`--tab-inset`, so the two curves stay concentric at every width; glyphs are
+20px in a 22px box over the 11px label floor, idle words at 600 and the
+current page at 750. The rail is 54px inside the 64px `--tabbar-h` lane.
+Before and after: `docs/proof/tab-bar-pressed-rail/`.
+
+`__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`
+and `components/` for the roving index and the key handler, and
+`__tests__/visualDiscipline.test.ts` names each row's selected rule.
 
 ### Sheet material
 
