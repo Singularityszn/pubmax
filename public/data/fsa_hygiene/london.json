@@ -6,7 +6,7 @@
  "license": "Open Government Licence v3.0",
  "licenseUrl": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
  "attribution": "Food hygiene ratings from the Food Standards Agency. Contains public sector information licensed under the Open Government Licence v3.0.",
- "retrievedAt": "2026-10-17T13:36:35.429Z",
+ "retrievedAt": "2026-10-17T14:17:17.084Z",
  "counts": {
   "wanted": 2320,
   "returned": 1977,
@@ -273,7 +273,7 @@
   ],
   "41667": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Tower Hamlets"
   ],
   "41745": [
@@ -483,7 +483,7 @@
   ],
   "78922": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Tower Hamlets"
   ],
   "80046": [
@@ -853,7 +853,7 @@
   ],
   "255686": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Lewisham"
   ],
   "266420": [
@@ -1548,7 +1548,7 @@
   ],
   "317344": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Enfield"
   ],
   "317345": [
@@ -1743,7 +1743,7 @@
   ],
   "357174": [
    "Exempt",
-   "1901-01-01",
+   null,
    "Bromley"
   ],
   "357233": [
@@ -5773,7 +5773,7 @@
   ],
   "770185": [
    "Exempt",
-   "1901-01-01",
+   null,
    "Tower Hamlets"
   ],
   "770186": [
@@ -9053,7 +9053,7 @@
   ],
   "1706822": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Lambeth"
   ],
   "1709484": [
@@ -9398,7 +9398,7 @@
   ],
   "1779048": [
    "Exempt",
-   "1901-01-01",
+   null,
    "Elmbridge"
   ],
   "1779067": [
@@ -9453,7 +9453,7 @@
   ],
   "1784219": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Camden"
   ],
   "1784337": [
@@ -9813,7 +9813,7 @@
   ],
   "1927747": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Hammersmith and Fulham"
   ],
   "1928438": [
@@ -9848,7 +9848,7 @@
   ],
   "1941052": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Dartford"
   ],
   "1941385": [
@@ -9858,7 +9858,7 @@
   ],
   "1946232": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Westminster"
   ],
   "1947282": [
@@ -9883,17 +9883,17 @@
   ],
   "1963616": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Kingston-Upon-Thames"
   ],
   "1977107": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Wandsworth"
   ],
   "1977890": [
    "AwaitingInspection",
-   "1901-01-01",
+   null,
    "Islington"
   ],
   "1980871": [
