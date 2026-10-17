@@ -86,8 +86,18 @@ const HEAVY_HREF_HELPERS: ReadonlySet<string> = new Set([
  * `item.venueMapUrl` and `pair.mapHref` are all `/map?sel=…` built one layer up,
  * and `spoonsValueMapHref(row)` is the same thing said as a call. Reading the
  * name is the only way to see either from here.
+ *
+ * The name is read with its underscores dropped, because an exported constant
+ * is spelled in SCREAMING_CASE. `SPOONS_VALUE_MAP_HREF` is `/map?lens=spoons`,
+ * the primary door off /spoons-value, and it is IMPORTED, so no `const` in the
+ * calling file resolves it: read with its underscores, the fence could not see
+ * the one call site finding B5 was about.
  */
 const HEAVY_NAME = /(?:^|[a-z])(?:maphref|mapurl)$/;
+
+function namesMapLink(name: string): boolean {
+  return HEAVY_NAME.test(name.toLowerCase().replace(/_/g, ""));
+}
 
 /**
  * The backlog, and it may only SHRINK.
@@ -214,7 +224,7 @@ function isHeavyHref(node: ts.Node, consts: Map<string, ts.Expression>, seen: Se
       : ts.isIdentifier(node.expression)
         ? node.expression.text
         : "";
-    if (HEAVY_HREF_HELPERS.has(callee) || HEAVY_NAME.test(callee.toLowerCase())) return true;
+    if (HEAVY_HREF_HELPERS.has(callee) || namesMapLink(callee)) return true;
     return node.arguments.some((arg) => isHeavyHref(arg, consts, seen));
   }
   if (ts.isConditionalExpression(node)) {
@@ -227,9 +237,9 @@ function isHeavyHref(node: ts.Node, consts: Map<string, ts.Expression>, seen: Se
     }
     return false;
   }
-  if (ts.isPropertyAccessExpression(node)) return HEAVY_NAME.test(node.name.text.toLowerCase());
+  if (ts.isPropertyAccessExpression(node)) return namesMapLink(node.name.text);
   if (ts.isIdentifier(node)) {
-    if (HEAVY_NAME.test(node.text.toLowerCase())) return true;
+    if (namesMapLink(node.text)) return true;
     if (seen.has(node.text)) return false;
     const bound = consts.get(node.text);
     if (!bound) return false;
@@ -328,6 +338,8 @@ describe("a heavy-route Link is never prefetched on sight", () => {
       "app/borough/[slug]/page.tsx",
       // Astra's live walk, finding B5b: 805 row links and every /crawls door.
       "app/spoons-value/SpoonsValueTable.tsx",
+      // ...and the page's own primary door, an imported SPOONS_VALUE_MAP_HREF.
+      "app/spoons-value/page.tsx",
       "app/crawls/CrawlsPageClient.tsx",
       "app/crawls/[slug]/page.tsx",
       "app/crawls/[slug]/CrawlStoryPoster.tsx",
@@ -383,5 +395,39 @@ describe("a heavy-route Link is never prefetched on sight", () => {
     };
     visit(sf);
     expect(checked).toBe(true);
+  });
+
+  // An exported href constant is spelled in SCREAMING_CASE and arrives by
+  // import, so the file's own `const` table cannot resolve it. Its name is the
+  // only thing this fence can read, underscores and all.
+  it("catches an imported SCREAMING_CASE map-link constant", () => {
+    const sf = ts.createSourceFile(
+      "sample.tsx",
+      [
+        'import Link from "next/link";',
+        'import { SPOONS_VALUE_MAP_HREF, SOME_ROUTE } from "@/lib/x";',
+        "export function Door() {",
+        "  return <><Link href={SPOONS_VALUE_MAP_HREF}>Map</Link><Link href={SOME_ROUTE}>Other</Link></>;",
+        "}",
+      ].join("\n"),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const consts = constBindings(sf);
+    const verdicts: boolean[] = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+        for (const attribute of node.attributes.properties) {
+          if (!ts.isJsxAttribute(attribute)) continue;
+          if (attribute.name.getText() !== "href") continue;
+          const value = attribute.initializer;
+          if (value) verdicts.push(isHeavyHref(value, consts, new Set()));
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    expect(verdicts).toEqual([true, false]);
   });
 });
