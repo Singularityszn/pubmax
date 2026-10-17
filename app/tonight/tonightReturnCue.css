@@ -1,0 +1,29 @@
+/* The way back to a saved pub. A quiet row after tonight's answer: one
+   heading, one link and the line saying where the saves came from. No card,
+   no painted fill, because the screen's one primary is the map action. */
+.tonightReturnCue {
+  margin: var(--space-6) 0 0;
+}
+
+.tonightReturnCueTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.tonightReturnCueLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.tonightReturnCueSource {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
