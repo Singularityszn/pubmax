@@ -215,6 +215,44 @@ export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
   }),
 ]);
 
+// A pub's own website that the source also printed on a namesake across town.
+// Each entry is the one site and the postcode of the pub it belongs to; a row
+// at any other postcode loses the link, so every export (`npm run export:data`
+// runs this pass straight after it) clears it again rather than letting the
+// CSV hand it back. A row with a different site, or none, is left alone.
+export const VERIFIED_BORROWED_WEBSITES = Object.freeze([
+  // The Marquis Cornwallis, 31 Marchmont St. The Bethnal Green Road pub (E2)
+  // carried it.
+  Object.freeze({ site: "themarquiscornwalliswc1.co.uk", ownerPostcode: "WC1N 1AP" }),
+  // Greene King's Goat Tavern, 3a Kensington High Street. The Mayfair Goat
+  // Tavern (W1S) carried it.
+  Object.freeze({ site: "greeneking.co.uk/pubs/greater-london/goat-tavern", ownerPostcode: "W8 5NP" }),
+]);
+
+function normalisedSite(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/[#?].*$/, "")
+    .replace(/\/+$/, "");
+}
+
+function compactPostcode(value) {
+  return String(value ?? "").toUpperCase().replace(/\s+/g, "");
+}
+
+// The row with a borrowed website cleared, or the same row when it keeps its own.
+function withoutBorrowedWebsite(row) {
+  const site = normalisedSite(row.website);
+  if (!site) return row;
+  const entry = VERIFIED_BORROWED_WEBSITES.find((candidate) => candidate.site === site);
+  if (!entry) return row;
+  if (compactPostcode(row.address).includes(compactPostcode(entry.ownerPostcode))) return row;
+  return { ...row, website: "" };
+}
+
 const VERIFIED_CANONICAL_IDS = new Set([
   ...Object.values(VERIFIED_VENUE_ALIASES),
   ...VERIFIED_MISPLACED_RECORDS.map((entry) => entry.to),
@@ -527,10 +565,15 @@ export function canonicalizeDataset(rows, options = {}) {
   // 4. Rewrite only the four identity fields of losing rows; every other field
   //    (price, pint_name, source_datasets, …) is preserved so per-row
   //    provenance stays honest.
+  //    A verified borrowed website is cleared from any row at another pub's
+  //    postcode (VERIFIED_BORROWED_WEBSITES).
+  let borrowedWebsitesCleared = 0;
   const newRows = rows.map((row, idx) => {
     const rw = rewriteByRowIdx.get(idx);
-    if (!rw) return row;
-    return { ...row, ...rw };
+    const rewritten = rw ? { ...row, ...rw } : row;
+    const cleaned = withoutBorrowedWebsite(rewritten);
+    if (cleaned !== rewritten) borrowedWebsitesCleared += 1;
+    return cleaned;
   });
 
   return {
@@ -543,6 +586,7 @@ export function canonicalizeDataset(rows, options = {}) {
       duplicateClusters: clusters.length,
       mergedRecords: Object.keys(aliases).length,
       venueIdentitiesAfter: groupList.length - Object.keys(aliases).length,
+      borrowedWebsitesCleared,
     },
   };
 }

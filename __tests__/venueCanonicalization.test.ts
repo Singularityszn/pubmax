@@ -10,6 +10,7 @@ import {
   postcodeOutward,
   significantNameTokens,
   stableVenueIdFromKey,
+  VERIFIED_BORROWED_WEBSITES,
   venueGroupingKey,
 } from "@/scripts/lib/venueCanonicalization.mjs";
 import {
@@ -266,6 +267,60 @@ describe("canonicalizeDataset — safety guards", () => {
       expect(canonicalizeDataset([withPostcode, pub]).aliases).toEqual({});
       const movedPub = { ...pub, latitude: 51.5265 };
       expect(canonicalizeDataset([misplaced, movedPub]).aliases).toEqual({});
+    });
+  });
+
+  // The CSV the export reads still carries both links, so the pass that runs
+  // straight after every export has to take them off again (Codex on #2187).
+  describe("a verified borrowed website", () => {
+    const owner = makeRow({
+      app_price_id: "app_price_000346",
+      pub_name: "The Marquis Cornwallis",
+      address: "31 Marchmont St, Greater, London WC1N 1AP",
+      latitude: 51.5246, longitude: -0.1247,
+      website: "https://www.themarquiscornwalliswc1.co.uk/",
+    });
+    const namesake = makeRow({
+      app_price_id: "app_price_000780",
+      pub_name: "The Marquis of Cornwallis",
+      address: "304 Bethnal Green Rd, Bethnal Green, London E2 0AG",
+      latitude: 51.5264, longitude: -0.0644607,
+      website: "https://www.themarquiscornwalliswc1.co.uk/#/",
+    });
+
+    it("comes off the namesake and stays on the pub it belongs to", () => {
+      const result = canonicalizeDataset([owner, namesake]);
+      expect(result.rows[0]?.website).toBe(owner.website);
+      expect(result.rows[1]?.website).toBe("");
+      expect(result.stats.borrowedWebsitesCleared).toBe(1);
+      // Every other field of the namesake is its own.
+      expect(result.rows[1]).toEqual({ ...namesake, website: "" });
+    });
+
+    it("clears the Goat Tavern page from Mayfair and keeps it in Kensington", () => {
+      const site = "https://www.greeneking.co.uk/pubs/greater-london/goat-tavern";
+      const kensington = makeRow({ pub_name: "Goat Tavern", address: "3a Kensington High Street, W8 5NP", latitude: 51.5017, longitude: -0.1849, website: site });
+      const mayfair = makeRow({ pub_name: "The Goat Tavern", address: "3 Stafford St, London W1S 4RP", latitude: 51.5079, longitude: -0.1415, website: site });
+      const result = canonicalizeDataset([kensington, mayfair]);
+      expect(result.rows.map((row) => row.website)).toEqual([site, ""]);
+    });
+
+    it("leaves a different site, a near-miss URL and an empty website alone", () => {
+      const ownSite = { ...namesake, website: "https://www.craftunionpubs.com/marquis-of-cornwallis-bethnal-green" };
+      const mayfairOwn = makeRow({ pub_name: "The Goat Tavern", address: "3 Stafford St, London W1S 4RP", website: "https://www.greeneking-pubs.co.uk/pubs/greater-london/goat-tavern-mayfair/" });
+      const none = { ...namesake, website: "" };
+      const result = canonicalizeDataset([ownSite, mayfairOwn, none]);
+      expect(result.rows).toEqual([ownSite, mayfairOwn, none]);
+      expect(result.stats.borrowedWebsitesCleared).toBe(0);
+    });
+
+    it("names each site once, with the one postcode it belongs to", () => {
+      const sites = VERIFIED_BORROWED_WEBSITES.map((entry) => entry.site);
+      expect(new Set(sites).size).toBe(sites.length);
+      for (const entry of VERIFIED_BORROWED_WEBSITES) {
+        expect(entry.site).not.toMatch(/^https?:|^www\.|\/$/);
+        expect(postcodeOutward(entry.ownerPostcode)).not.toBeNull();
+      }
     });
   });
 
