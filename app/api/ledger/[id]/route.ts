@@ -19,7 +19,8 @@ assertServerEnv();
 // anything in production (lib/pintDropViewer.ts).
 //
 // 200 { claims, entries, familyEntries } for a pub we hold, 404 for an id that
-// is not one (or a pub that left the map), 503 for a read we could not run.
+// is not one (or a pub that left the map), 503 for a venue or logbook read we
+// could not run.
 
 export async function GET(
   request: Request,
@@ -37,5 +38,11 @@ export async function GET(
     request,
     new URL(request.url).searchParams.get("viewer"),
   );
-  return jsonNoStore(await readLedgerLog(read.venue.id, read.venue.curation, viewer));
+  try {
+    return jsonNoStore(await readLedgerLog(read.venue.id, read.venue.curation, viewer));
+  } catch {
+    // A Pint Drop store we could not read is an answer we do not have, never
+    // an empty logbook: the same retryable envelope as a venue read that failed.
+    return publicApiError("Ledger unavailable.", "UNAVAILABLE", 503, { retryable: true });
+  }
 }

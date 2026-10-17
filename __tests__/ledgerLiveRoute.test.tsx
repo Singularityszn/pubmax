@@ -23,6 +23,7 @@ import {
 } from "@/lib/accountPublicAccess.server";
 import type { LedgerLog } from "@/lib/ledgerLog.server";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
+import { memoryPintDropStore } from "@/lib/pintDropsStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { defined } from "@/__tests__/helpers/defined";
@@ -67,6 +68,7 @@ async function renderDocument(): Promise<string> {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   __resetMemoryProfileWithdrawals();
   __resetMemoryProfiles();
   __resetPintDrops();
@@ -121,6 +123,15 @@ describe("GET /api/ledger/[id]", () => {
     // (lib/pintDropViewer.ts); production resolves the handle from the JWT.
     const author = JSON.stringify((await readLog("?viewer=grandad_bert")).familyEntries);
     expect(author).toContain("1962");
+  });
+
+  it("answers a retryable 503 in the error envelope when the logbook read fails", async () => {
+    vi.spyOn(memoryPintDropStore, "listLegacyForVenue").mockRejectedValueOnce(
+      new Error("store unreachable"),
+    );
+    const res = await readLedger(venue.id);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
   });
 
   it("answers 404 in the error envelope for an id that is not a pub", async () => {

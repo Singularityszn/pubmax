@@ -28,6 +28,12 @@ type LedgerLiveState =
   | { status: "ready"; log: LedgerLog }
   | { status: "unavailable" };
 
+/** An answer, and the session token it was read for. */
+type LedgerRead =
+  | { status: "loading" }
+  | { status: "ready"; log: LedgerLog; token: string | null }
+  | { status: "unavailable"; token: string | null };
+
 type LedgerLiveValue = { state: LedgerLiveState; reload: () => void };
 
 const LedgerLiveContext = createContext<LedgerLiveValue>({
@@ -52,7 +58,7 @@ export function LedgerLiveProvider({
 }) {
   const { session, loading } = useAuth();
   const accessToken = session?.access_token ?? null;
-  const [state, setState] = useState<LedgerLiveState>({ status: "loading" });
+  const [read, setRead] = useState<LedgerRead>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -68,10 +74,10 @@ export function LedgerLiveProvider({
         return (await res.json()) as LedgerLog;
       })
       .then((log) => {
-        if (!cancelled) setState({ status: "ready", log });
+        if (!cancelled) setRead({ status: "ready", log, token: accessToken });
       })
       .catch(() => {
-        if (!cancelled) setState({ status: "unavailable" });
+        if (!cancelled) setRead({ status: "unavailable", token: accessToken });
       });
     return () => {
       cancelled = true;
@@ -79,9 +85,21 @@ export function LedgerLiveProvider({
   }, [venueId, accessToken, loading, attempt]);
 
   const reload = useCallback(() => {
-    setState({ status: "loading" });
+    setRead({ status: "loading" });
     setAttempt((n) => n + 1);
   }, []);
+
+  // An answer read for another session is never drawn. A ready answer holds
+  // its reader's OWN unredacted Family Table rows, so when the session changes
+  // on this page (sign-out, account switch) they leave the screen in the same
+  // render, not when the next read lands; a slow or hung read would otherwise
+  // show them to whoever now holds the device.
+  const state: LedgerLiveState =
+    read.status === "loading" || read.token !== accessToken
+      ? { status: "loading" }
+      : read.status === "ready"
+        ? { status: "ready", log: read.log }
+        : { status: "unavailable" };
 
   return (
     <LedgerLiveContext.Provider value={{ state, reload }}>{children}</LedgerLiveContext.Provider>
