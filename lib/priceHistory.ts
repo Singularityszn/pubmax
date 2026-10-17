@@ -16,9 +16,9 @@
 //   drink/food price-update overlays.
 //
 //   Mechanically that means this module exports NOTHING shaped like a current
-//   price and is imported by NOTHING on those paths. It has exactly one
-//   consumer: the venue sheet's then-and-now line. __tests__/priceHistory.test.ts
-//   pins both halves — the import fence and the data fence.
+//   price and is imported by NOTHING on those paths. Display consumers are
+//   identified in public/data/price_history/README.md. The regression checks in
+//   __tests__/priceHistory.test.ts cover current-price isolation and the data boundary.
 //
 // The guards below mirror lib/priceUpdates.ts: hand-rolled, drop-the-bad-row,
 // never throw. A historical price with no source URL or no date is not evidence,

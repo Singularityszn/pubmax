@@ -1,10 +1,10 @@
 import { formatPrice } from "@/lib/venues";
 
-// One sentence, said the same way everywhere a then-and-now pair is printed.
+// One sentence for a permitted movement between dated prices.
 //
 // The venue sheet's price history and the Pint Index's national yardstick both
-// end their two figures with this line. They are different price lanes and stay
-// fenced from each other, but a reader meets both, so the sentence itself is
+// use this line after their own comparison policies permit it. These price
+// lanes stay separate, but a reader meets both, so the sentence itself is
 // shared rather than copied: a copy drifts, and two wordings for one idea read
 // as two different claims.
 //
