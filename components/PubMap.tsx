@@ -710,9 +710,8 @@ const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: 
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
 // default on a fresh pick and renders the sheet chrome.
 
-// The set of venue ids this device has saved (any list). Read from the client
-// saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
-// narrow the map/list when the viewer flips "Saved only" on.
+// Read this device's saved venue ids for the "Saved only" filter.
+// readCanonicalSaved() owns alias resolution.
 function readSavedVenueIds(): Promise<Set<string>> {
   return readCanonicalSaved().then((saved) => new Set(saved.map((entry) => entry.venueId)));
 }

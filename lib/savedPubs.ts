@@ -1,11 +1,5 @@
-// Saved-venue LISTS — a demo, localStorage-backed store with a pure core.
-//
-// Saving a venue to a named list (Want to Visit, Cheap Pint, ...) is a DEMO
-// feature: it lives in the browser's localStorage, not a backend, so it
-// survives reloads on one device but nothing more (real per-account saves are a
-// later epic). The persistence is a thin SSR-safe wrapper; all the list logic
-// (dedupe, uniqueness, idempotent toggles) is pure and lives in
-// upsertSaved/removeSaved so it can be unit-tested with no `window`.
+// Saved-venue lists with a pure core and an SSR-safe browser store.
+// The account-backed path and its local fallback are described below.
 
 import type { Route } from "next";
 import { profilePath } from "@/lib/appLink";
@@ -98,7 +92,7 @@ export function groupByList(list: readonly SavedPub[]): Partial<Record<ListType,
 // ── localStorage-backed store (SSR-safe) ─────────────────────────────────────
 // Every entry point guards storage, so importing/calling on the server is safe
 // (getSaved returns [], writers are no-ops). The store is only meaningful in the
-// browser — that's the demo boundary. The localStorage getter itself throws
+// browser. The localStorage getter itself throws
 // SecurityError when site data is blocked, so the check goes through
 // safeLocalStorage rather than reading the property bare.
 function hasStorage(): boolean {
@@ -117,8 +111,9 @@ export function isListType(value: unknown): value is ListType {
   return typeof value === "string" && value.length > 0 && value.length <= MAX_LIST_TYPE;
 }
 
-// Parse defensively: bad JSON, a non-array, or malformed rows never throw —
-// they yield a clean, valid list. Unknown list types are dropped.
+// General store readers keep compatible rows and coerce missing or non-string
+// timestamps to the epoch. Readers that must reject corrupt records use
+// readSavedRecords() before this coercion.
 function parse(data: unknown): SavedPub[] {
   if (!Array.isArray(data)) return [];
   const out: SavedPub[] = [];
@@ -215,6 +210,7 @@ export function canonicalizeSaved(
   return next;
 }
 
+/** Resolve stored aliases in memory. Reading never rewrites saved bytes. */
 export function canonicalizeStoredSaved(canonical: (venueId: string) => string): SavedPub[] {
   return canonicalizeSaved(getSaved(), canonical);
 }
@@ -399,6 +395,8 @@ export async function fetchFollowedListsForHandle(
  * fresh DTO list. With no handle (or on any failure) it updates the local store
  * only and returns null. With no handle the caller reads the local view; with a
  * handle, null means the press is unconfirmed. Never throws.
+ * The local store applies `wanted` (default true), preserving an existing save's
+ * note and timestamp when Save is requested again. The API still toggles.
  */
 export async function toggleSaveDurable(
   handle: string,
