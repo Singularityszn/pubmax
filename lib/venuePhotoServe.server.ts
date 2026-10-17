@@ -4,10 +4,14 @@ import "server-only";
 // bucket. A photo that is pending, flagged into review, hidden by a moderator,
 // or whose author has left is a 404 - never a stale serve.
 //
-// The bytes are cached at the edge because an approved wall photo is immutable:
-// its id is minted per upload and never reused, so a moderator hide is the only
-// thing that changes an answer, and that answer is a 404 the browser is told
-// not to keep.
+// The bytes are cached, briefly. An approved wall photo's id is minted per
+// upload and never reused, so a moderator hide or an author delete is the only
+// thing that changes an answer, and this route answers that with a 404 nobody
+// keeps. But nothing purges a copy the CDN already holds, so a hidden or
+// deleted photo goes on being served from the edge until its shared lifetime
+// runs out. That lifetime IS the takedown time, which is why it is a minute
+// and not a day (a day kept a hidden photo public for up to 24h). Avatars and
+// covers keep their own hour; this ceiling is the walls' alone.
 
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
@@ -29,7 +33,7 @@ import {
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export const VENUE_PHOTO_SERVE_CACHE_CONTROL = "public, max-age=300, s-maxage=86400";
+export const VENUE_PHOTO_SERVE_CACHE_CONTROL = "public, max-age=60, s-maxage=60";
 
 export type VenuePhotoServeDeps = {
   getPhoto: (id: string) => Promise<VenuePhoto | null>;

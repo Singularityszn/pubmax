@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { attachBill } from "./helpers/priceBill";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -258,9 +259,7 @@ test("normal London entry paints UK base pubs and takes a price", async ({
       // On a phone the list sits behind the Layers tab of the Map controls
       // sheet, which opens on its Key tab. A sheet left open on the Key tab
       // covers the map, so every later painted-pin read comes back empty.
-      const more = page.getByRole("button", { name: "More map controls" });
-      await expect(more).toBeVisible({ timeout: 10_000 });
-      await more.click();
+      await (await mobileMapShellControl(page, "more")).click();
       const layersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
       await expect(layersSheet).toBeVisible({ timeout: 10_000 });
       await layersSheet.getByRole("tab", { name: "Layers" }).click();

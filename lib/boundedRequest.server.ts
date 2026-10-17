@@ -22,8 +22,12 @@ export async function boundedBody(request: Request, maxBytes: number): Promise<U
   return body;
 }
 
+export async function boundedText(request: Request, maxBytes: number): Promise<string> {
+  return new TextDecoder().decode(await boundedBody(request, maxBytes));
+}
+
 export async function boundedJson(request: Request, maxBytes = 64 * 1024): Promise<unknown> {
-  return JSON.parse(new TextDecoder().decode(await boundedBody(request, maxBytes)));
+  return JSON.parse(await boundedText(request, maxBytes));
 }
 
 export async function boundedFormData(request: Request, maxBytes: number): Promise<FormData> {

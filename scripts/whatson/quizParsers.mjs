@@ -209,9 +209,24 @@ export function parseQuestionOneVenuesPage(html) {
 }
 
 // "next page" link of the archive, or null on the last page.
-export function parseQuestionOneNextPage(html) {
+//
+// The link is the PAGE's string, not ours, so it is resolved against the page it
+// was read from and followed only when it stays on that page's own host and
+// scheme. A rel=next pointing anywhere else ends the walk rather than carrying
+// the crawl to a host nobody asked permission of.
+export function parseQuestionOneNextPage(html, pageUrl = "https://questionone.com/venues/") {
   const m = /<link rel="next" href="([^"]+)"/.exec(String(html ?? ""));
-  return m ? m[1] : null;
+  if (!m) return null;
+  let base;
+  let next;
+  try {
+    base = new URL(pageUrl);
+    next = new URL(m[1], base);
+  } catch {
+    return null;
+  }
+  if (next.protocol !== base.protocol || next.host !== base.host) return null;
+  return next.href;
 }
 
 const QO_ICON_FIELD_RE =

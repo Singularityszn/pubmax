@@ -34,15 +34,38 @@ function builder(table: string) {
   return chain;
 }
 
+// PostgREST answers at most max-rows (hosted default 1000) per response, with
+// or without a Range, so the fake does too: an unpaged read sees only the head.
+const POSTGREST_MAX_ROWS = 1000;
+function rpcBuilder() {
+  let from = 0;
+  let to = Number.POSITIVE_INFINITY;
+  const chain: Record<string, unknown> = {};
+  chain.order = () => chain;
+  chain.range = (start: number, end: number) => {
+    from = start;
+    to = end;
+    return chain;
+  };
+  chain.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => {
+    const { data, error } = fake.rpc;
+    const answer = Array.isArray(data)
+      ? { data: data.slice(from, Math.min(to + 1, from + POSTGREST_MAX_ROWS)), error }
+      : { data, error };
+    return Promise.resolve(answer).then(resolve, reject);
+  };
+  return chain;
+}
+
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return {
     ...actual,
     isSupabaseConfigured: () => true,
     getSupabaseAdmin: () => ({
-      rpc: async () => {
+      rpc: () => {
         fake.rpcCalls += 1;
-        return fake.rpc;
+        return rpcBuilder();
       },
       from: (table: string) => builder(table),
       auth: {
@@ -179,6 +202,20 @@ describe("withdrawn set before migration 0157 is applied", () => {
     await withdrawnHandles(["karansdad"]);
     expect(fake.rpcCalls).toBe(1);
     expect(fake.getUserByIdCalls).toEqual([]);
+    expect(logged).toEqual([]);
+  });
+
+  it("pages the function past PostgREST's 1000-row cap so a late withdrawal stays hidden", async () => {
+    fake.rpc = {
+      data: Array.from({ length: 1500 }, (_, at) => ({
+        profile_id: `profile-${String(at).padStart(4, "0")}`,
+        handle: `withdrawn_${at}`,
+      })),
+      error: null,
+    };
+    const hidden = await withdrawnHandles(["withdrawn_0", "withdrawn_1499", "alice"]);
+    expect([...hidden].sort()).toEqual(["withdrawn_0", "withdrawn_1499"]);
+    expect(fake.rpcCalls).toBe(2);
     expect(logged).toEqual([]);
   });
 

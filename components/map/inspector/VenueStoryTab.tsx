@@ -8,6 +8,7 @@ import { discardBody } from "@/lib/responseBody";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims } from "@/lib/curation";
 import { heritageSourceLabel } from "@/lib/historicFilter";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { presentableDescription } from "@/lib/slopFilter";
 import type { DropWithPhotos } from "@/components/map/usePintDrops";
@@ -165,6 +166,9 @@ export default function VenueStoryTab({
               </li>
             ))}
           </ul>
+          <p className="heritageCredits">
+            <DataCreditsLink />
+          </p>
         </section>
       ) : null}
       {description ? (

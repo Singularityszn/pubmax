@@ -8,10 +8,11 @@ name: Drink price refresh
 # human review. It NEVER pushes to a protected branch and NEVER scrapes
 # competitor price/review sites (governance hard rule).
 #
-# Today this is a safe no-op: the only allowlisted source (Wetherspoons) has a
-# STUBBED fetcher (fetchFromDrinkSource returns []) until a real parser is
-# implemented against a confirmed-permissible robots.txt/ToS + a stable
-# per-pub parse target. See data/price_sources.json drinkSources[].notes.
+# Today this is a safe no-op: the only source with a fetcher (Wetherspoons) is
+# refused by its lib/harvest/sourcePolicy.ts row (`wetherspoon-menu-prices`,
+# publishes-no-web-price), so the script logs a REFUSED line, makes no request
+# and exits 0. Any future fetch goes through scripts/lib/permittedHarvestFetch.mjs
+# (policy row, permission fence, lib/harvest/robots.ts).
 on:
   schedule:
     # 07:30 UTC every Monday (offset from the pint price retrieval cron, which

@@ -452,6 +452,30 @@ describe("GET /api/auth/providers", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("spends a per-address budget on the uncached recheck, which goes upstream every time", async () => {
+    vi.stubEnv("SUPABASE_URL", "");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        settingsResponse({ google: true, apple: false, azure: false }),
+      ),
+    );
+    const { GET } = await import("@/app/api/auth/providers/route");
+    const fresh = () =>
+      GET(
+        new Request("http://localhost/api/auth/providers?fresh=1", {
+          headers: { "x-forwarded-for": "198.51.100.30" },
+        }),
+      );
+
+    let last: Response | null = null;
+    for (let i = 0; i < 31; i += 1) last = await fresh();
+    expect(last?.status).toBe(429);
+    expect(last?.headers.get("cache-control")).toBe("no-store");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(30);
+  });
+
   it("fails closed and does not cache a missed read", async () => {
     vi.stubGlobal(
       "fetch",
