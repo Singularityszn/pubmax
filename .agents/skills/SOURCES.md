@@ -210,3 +210,9 @@ Anthropic `frontend-design` is installed in the canonical machine-wide skill roo
 ## Maintenance check, 7 Oct 2026
 
 All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Local corrections are recorded in each source section above. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
+
+## Plain-English replies, 17 Oct 2026
+
+### mryll/skills
+
+[mryll/skills](https://github.com/mryll/skills), commit `e0bacd42498b18e4c5472689bd7a0c19bd72da68`, MIT (licence copied into the skill directory). `ste`: Simplified Technical English (ASD-STE100), with a dictionary checker script (`scripts/ste-check.sh`, POSIX shell and gawk, no network access). The root `AGENTS.md` law "Talk to the captain in Simplified Technical English" points here. Agents write their replies in STE style from memory. They run the skill only when the captain asks for a checked rewrite. Unmodified from upstream.

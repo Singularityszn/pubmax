@@ -65,6 +65,8 @@ tree is named here, and this file stays under 12 KB.
   before its command. Use a list for three or more items. Explain a technical
   term in a few words the first time you use it, or do not use it. File paths,
   commands and test names come after the plain summary, never in place of it.
+  When the captain asks for a checked rewrite, follow
+  [`.agents/skills/ste/SKILL.md`](.agents/skills/ste/SKILL.md).
 
 ### Working in this tree
 
