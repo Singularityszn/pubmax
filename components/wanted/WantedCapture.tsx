@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
@@ -8,6 +9,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readContributionDoor, type ContributionDoorStatus } from "@/lib/contributionGateStatus";
 import { cleanText } from "@/lib/textClean";
+import { addPubHref } from "@/lib/venueSubmissions";
 import {
   cleanWantedNote,
   detectSourcePlatform,
@@ -358,6 +360,16 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         >
           Save as still matching
         </button>
+      ) : null}
+      {resolve && resolve.candidates.length === 0 && resolve.query ? (
+        <Link
+          href={addPubHref(resolve.query)}
+          prefetch={false}
+          className="wantedCapture__add"
+          data-testid="wanted-add-pub"
+        >
+          Not on the map? Add the pub
+        </Link>
       ) : null}
       {door ? (
         <ContributionGateDoor

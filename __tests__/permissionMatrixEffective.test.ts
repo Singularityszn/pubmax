@@ -349,6 +349,7 @@ beforeAll(async () => {
     messagePhotoRoute,
     wantedRoute,
     diaryRoute,
+    venueSubmissionsRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
@@ -380,6 +381,7 @@ beforeAll(async () => {
     import("@/app/api/messages/[id]/photo/[messageId]/route"),
     import("@/app/api/wanted/route"),
     import("@/app/api/diary/route"),
+    import("@/app/api/venue-submissions/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
@@ -423,6 +425,8 @@ beforeAll(async () => {
     writeWanted: wantedRoute.POST as unknown as Handler,
     listDiary: diaryRoute.GET as unknown as Handler,
     writeDiary: diaryRoute.POST as unknown as Handler,
+    listVenueSubmissions: venueSubmissionsRoute.GET as unknown as Handler,
+    writeVenueSubmission: venueSubmissionsRoute.POST as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -2036,6 +2040,60 @@ describe("saves: two lanes, two promises", () => {
       await defined(handlers.listDiary)(request("/api/diary", { bearer: BEARER_BOB }), context({})),
     );
     expectNoDisclosure(bobRead, ["Alice diary line"]);
+  });
+
+  it("a pub a drinker adds is theirs alone at the read and the write, and no browser role reaches the table", async () => {
+    const pub = { name: "Matrix Proof Arms", address: "1 Proof Street, London", postcode: "SE1 9AA", confirmNew: true };
+    const seeded = await defined(handlers.writeVenueSubmission)(
+      request("/api/venue-submissions", {
+        bearer: BEARER_ALICE,
+        body: { ...pub, note: "Alice submission line", prices: [{ drinkCategory: "beer", priceGbp: 5.2 }] },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.venue_submissions where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const owner = await readJson<{ submissions?: { name?: string; priceCount?: number }[] }>(
+      await defined(handlers.listVenueSubmissions)(request("/api/venue-submissions", { bearer: BEARER_ALICE }), context({})),
+    );
+    expect(owner.submissions?.some((row) => row.name === "Matrix Proof Arms" && row.priceCount === 1)).toBe(true);
+
+    // The body names no owner: Bob naming Alice writes Bob's own row.
+    const bobWrite = await defined(handlers.writeVenueSubmission)(
+      request("/api/venue-submissions", {
+        bearer: BEARER_BOB,
+        body: { ...pub, name: "Bob Proof Tavern", ownerUserId: ALICE, owner_user_id: ALICE, note: "Bob submission line" },
+      }),
+      context({}),
+    );
+    expect(bobWrite.status, await bobWrite.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.venue_submissions where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const anonymous = await defined(handlers.writeVenueSubmission)(
+      request("/api/venue-submissions", { body: { ...pub, name: "Anon Proof Inn" } }),
+      context({}),
+    );
+    expect(anonymous.status).toBe(401);
+    expect((await defined(handlers.listVenueSubmissions)(request("/api/venue-submissions"), context({}))).status).toBe(401);
+    for (const bearer of [BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
+      const response = await defined(handlers.listVenueSubmissions)(request("/api/venue-submissions", { bearer }), context({}));
+      expectNoDisclosure(await readJson(response), ["Matrix Proof Arms"]);
+    }
+
+    for (const table of ["venue_submissions", "venue_submission_files"]) {
+      expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
+      for (const sub of [ALICE, BOB]) {
+        expect(visibleRows("authenticated", sub, `select count(*) from public.${table}`)).toBe(0);
+        const write = attemptAsRole("authenticated", sub, `delete from public.${table}`);
+        expect(write.ok).toBe(false);
+        expect(write.err).toMatch(/permission denied/i);
+      }
+    }
   });
 
   it("a saved-pub list is PUBLIC to read and gated to write, and the write gate holds", async () => {
