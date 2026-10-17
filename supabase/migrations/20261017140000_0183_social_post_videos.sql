@@ -112,6 +112,13 @@ begin
     raise exception 'Social video post not found';
   end if;
   select * into v_upload from public.social_video_uploads where id = p_upload_id for update;
+  -- A retry of a post whose answer was lost: the same owner asks to attach the
+  -- same upload to the same post again. Answer what is already there rather
+  -- than refusing, so the post route stays idempotent end to end.
+  if found and v_upload.owner_profile_id = p_owner_profile_id and v_upload.claimed_post_id = p_post_id then
+    return query select v.post_id, v.review_state from public.social_post_videos v where v.post_id = p_post_id;
+    return;
+  end if;
   if not found or v_upload.owner_profile_id <> p_owner_profile_id
      or v_upload.claimed_post_id is not null or v_upload.expires_at <= now() then
     raise exception 'Social video upload not found';

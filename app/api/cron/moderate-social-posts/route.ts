@@ -8,6 +8,7 @@ import {
 } from "@/lib/socialPostModeration";
 import { socialPostStore } from "@/lib/socialPostStore";
 import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
+import { socialPostVideoStore } from "@/lib/socialPostVideoStore";
 import {
   isSocialFriendsLaunchEnabled,
   SOCIAL_FRIENDS_LAUNCH_ENV,
@@ -47,6 +48,9 @@ export async function GET(request: Request): Promise<Response> {
       });
     }
     const store = socialPostStore();
+    // Videos uploaded and never posted are removed on every pass, model or no
+    // model: their bytes are the account's, and nothing else will collect them.
+    const expiredVideoUploads = await socialPostVideoStore().sweepExpiredUploads(20);
     if (!isOpenAISocialModerationConfigured()) {
       console.warn(
         "[cron:moderate-social-posts] OPENAI_API_KEY absent: moderation queue skipped.",
@@ -56,6 +60,7 @@ export async function GET(request: Request): Promise<Response> {
       return jsonNoStore({
         ok: true,
         skipped: "openai_not_configured",
+        expiredVideoUploads,
         backlog: skippedBacklog,
         ...skippedFindings,
       });
@@ -69,9 +74,9 @@ export async function GET(request: Request): Promise<Response> {
     const backlog = await store.inspectModerationBacklog();
     const findings = await notifySocialModerationFindings(backlog, result);
     if (result.processed === 0 && backlog.pending === 0) {
-      return jsonNoStore({ ok: true, skipped: "queue_empty", ...result, extraPhotos, backlog, ...findings });
+      return jsonNoStore({ ok: true, skipped: "queue_empty", ...result, extraPhotos, expiredVideoUploads, backlog, ...findings });
     }
-    return jsonNoStore({ ok: true, ...result, extraPhotos, backlog, ...findings });
+    return jsonNoStore({ ok: true, ...result, extraPhotos, expiredVideoUploads, backlog, ...findings });
   } catch (error) {
     console.error("[cron:moderate-social-posts] queue drain failed:", thrownMessage(error));
     return publicApiError("Social post moderation queue is unavailable.", "UNAVAILABLE", 503, {

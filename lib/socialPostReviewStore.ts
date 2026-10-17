@@ -182,6 +182,7 @@ const supabaseSocialPostReviewStore: SocialPostReviewStore = {
       }
       return (data ?? []).map((row) => ({
         postId: String(row.post_id),
+        authorProfileId: String(row.author_profile_id),
         authorHandle: String(row.author_handle),
         rating: Number(row.rating),
         body: String(row.body ?? ""),

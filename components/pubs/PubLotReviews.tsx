@@ -6,9 +6,9 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import ReviewStars from "@/components/social/ReviewStars";
 import { authedFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
-import { formatSocialReviewRating, type SocialLotVenueReview } from "@/lib/socialPostReviews";
+import { formatSocialReviewRating, type PublicSocialLotVenueReview } from "@/lib/socialPostReviews";
 
-type Answer = { reviews: SocialLotVenueReview[]; summary: { average: number; raters: number } | null };
+type Answer = { reviews: PublicSocialLotVenueReview[]; summary: { average: number; raters: number } | null };
 
 function reviewDate(iso: string): string {
   const date = new Date(iso);

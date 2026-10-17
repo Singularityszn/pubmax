@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { lotVenueAverage, type SocialLotVenueReview } from "@/lib/socialPostReviews";
 
-const review = (authorHandle: string, rating: number, createdAt: string): SocialLotVenueReview => ({
+const review = (authorHandle: string, rating: number, createdAt: string, authorProfileId = `profile-${authorHandle}`): SocialLotVenueReview => ({
   postId: `${authorHandle}-${createdAt}`,
+  authorProfileId,
   authorHandle,
   rating,
   body: "",
@@ -18,6 +19,16 @@ describe("your lot's average for one pub", () => {
       review("maya", 4.5, "2026-10-01T00:00:00Z"),
       review("jules", 4, "2026-10-02T00:00:00Z"),
     ])).toEqual({ average: 4.3, raters: 2 });
+  });
+
+  it("counts a friend who renamed once, by account rather than handle", () => {
+    // Codex review on #2186: a post keeps the handle it was written under, so
+    // one friend can appear as two handles. Counting handles inflated the lot.
+    expect(lotVenueAverage([
+      review("maya_old", 2, "2026-09-01T00:00:00Z", "profile-maya"),
+      review("maya", 5, "2026-10-01T00:00:00Z", "profile-maya"),
+      review("jules", 4, "2026-10-02T00:00:00Z"),
+    ])).toEqual({ average: 4.5, raters: 2 });
   });
 
   it("answers nothing when nobody scored it", () => {

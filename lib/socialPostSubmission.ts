@@ -153,7 +153,15 @@ export function parseSocialCreateSubmission(
     if (!post.body) {
       return { ok: false, code: "INVALID_VIDEO", error: "Add a caption to your video." };
     }
-    video = { uploadId: raw.videoUploadId, durationSeconds: parseSocialVideoDuration(raw.videoDurationSeconds) };
+    // The length is what the browser read from the file. A stated length
+    // outside the ten-minute limit is refused rather than dropped; a missing
+    // one is allowed, because some browsers cannot read a .mov's metadata. The
+    // byte cap, checked from the stored object, is the bound that holds either way.
+    const durationSeconds = parseSocialVideoDuration(raw.videoDurationSeconds);
+    if (raw.videoDurationSeconds !== undefined && raw.videoDurationSeconds !== null && durationSeconds === null) {
+      return { ok: false, code: "INVALID_VIDEO", error: "Videos can be up to 10 minutes. Trim it and try again." };
+    }
+    video = { uploadId: raw.videoUploadId, durationSeconds };
   } else if (raw.videoDurationSeconds !== undefined) {
     return { ok: false, code: "INVALID_POST", error: "Post details are not valid." };
   }

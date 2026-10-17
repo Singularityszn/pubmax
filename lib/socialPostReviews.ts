@@ -71,6 +71,12 @@ export type SocialLotRankingEntry = {
 /** One scored post a mutual friend wrote about a pub (migration 0187). */
 export type SocialLotVenueReview = {
   postId: string;
+  /**
+   * Who wrote it, as an identity a rename cannot split: a post's handle is a
+   * snapshot, so one friend can appear under two. Read on the server to count
+   * people; never sent to the browser.
+   */
+  authorProfileId: string;
   authorHandle: string;
   rating: number;
   body: string;
@@ -78,12 +84,15 @@ export type SocialLotVenueReview = {
   createdAt: string;
 };
 
-/** Each friend's newest score for the pub, averaged, to one decimal. */
+/** A review as the browser reads it: everything but the author's account id. */
+export type PublicSocialLotVenueReview = Omit<SocialLotVenueReview, "authorProfileId">;
+
+/** Each friend's newest score for the pub, averaged, to one decimal. A friend is an account, not a handle. */
 export function lotVenueAverage(reviews: readonly SocialLotVenueReview[]): { average: number; raters: number } | null {
   const newest = new Map<string, SocialLotVenueReview>();
   for (const review of reviews) {
-    const held = newest.get(review.authorHandle);
-    if (!held || review.createdAt > held.createdAt) newest.set(review.authorHandle, review);
+    const held = newest.get(review.authorProfileId);
+    if (!held || review.createdAt > held.createdAt) newest.set(review.authorProfileId, review);
   }
   if (newest.size === 0) return null;
   const total = [...newest.values()].reduce((sum, review) => sum + review.rating, 0);

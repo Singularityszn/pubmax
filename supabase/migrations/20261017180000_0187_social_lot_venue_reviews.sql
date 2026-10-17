@@ -21,6 +21,7 @@ create function public.read_lot_venue_social_reviews(
 )
 returns table(
   post_id uuid,
+  author_profile_id uuid,
   author_handle text,
   rating numeric,
   body text,
@@ -33,7 +34,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select post.id, post.author_handle, review.rating, post.body,
+  select post.id, post.author_profile_id, post.author_handle, review.rating, post.body,
     post.photo_media_id, post.photo_alt_text, post.created_at
   from public.social_post_reviews review
   join public.social_posts post on post.id = review.post_id

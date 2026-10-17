@@ -38,7 +38,18 @@ export async function GET(request: Request): Promise<Response> {
         : publicApiError("Choose a pub.", "INVALID_VENUE", 400, { headers: NO_STORE });
     }
     const reviews = await socialPostReviewStore().lotVenueReviews(access.actor, venue.venueId, 20);
-    return Response.json({ reviews, summary: lotVenueAverage(reviews) }, { headers: NO_STORE });
+    // People are counted by account on the server; the browser gets the
+    // reviews without the account ids.
+    const summary = lotVenueAverage(reviews);
+    const shown = reviews.map((review) => ({
+      postId: review.postId,
+      authorHandle: review.authorHandle,
+      rating: review.rating,
+      body: review.body,
+      photo: review.photo,
+      createdAt: review.createdAt,
+    }));
+    return Response.json({ reviews: shown, summary }, { headers: NO_STORE });
   } catch {
     return publicApiError("Your lot's reviews are unavailable right now.", "SOCIAL_REVIEWS_UNAVAILABLE", 503, { retryable: true, headers: NO_STORE });
   }

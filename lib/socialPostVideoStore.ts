@@ -52,6 +52,11 @@ export type SocialPostVideoStore = {
   review(postId: string, decision: Exclude<SocialVideoReviewState, "held">): Promise<boolean>;
   /** Moderator playback: any state. */
   moderatorPlayback(postId: string): Promise<{ redirect: string } | { bytes: Uint8Array; contentType: SocialVideoType } | null>;
+  /**
+   * Remove uploads that expired without a post, bytes and row both, so an
+   * abandoned composer does not keep its file. Answers how many went.
+   */
+  sweepExpiredUploads(limit: number): Promise<number>;
 };
 
 function dto(postId: string, contentType: SocialVideoType, durationSeconds: number | null, reviewState: SocialVideoReviewState): SocialPostVideo {
@@ -95,11 +100,13 @@ export function createMemorySocialPostVideoStore(options: { now?: () => Date } =
     },
     async inspectUpload(actor, uploadId) {
       const upload = uploads.get(uploadId);
-      if (!upload || upload.owner !== actor.profileId || upload.claimedPostId || !upload.bytes) return null;
+      if (!upload || upload.owner !== actor.profileId || !upload.bytes) return null;
       return { byteSize: upload.bytes.byteLength, head: upload.bytes.subarray(0, HEAD_BYTES), contentType: upload.contentType };
     },
     async attach(actor, postId, uploadId, byteSize, durationSeconds) {
       const upload = uploads.get(uploadId);
+      const already = upload && upload.owner === actor.profileId && upload.claimedPostId === postId ? videos.get(postId) : undefined;
+      if (already) return dto(postId, already.contentType, already.durationSeconds, already.reviewState);
       if (!upload || upload.owner !== actor.profileId || upload.claimedPostId || upload.expiresAt <= now().getTime()) {
         throw new SocialPostVideoError("VIDEO_NOT_FOUND", "That video upload has expired. Choose it again.");
       }
@@ -139,6 +146,16 @@ export function createMemorySocialPostVideoStore(options: { now?: () => Date } =
     },
     async moderatorPlayback(postId) {
       return play(videos.get(postId));
+    },
+    async sweepExpiredUploads(limit) {
+      let swept = 0;
+      for (const upload of [...uploads.values()]) {
+        if (swept >= limit) break;
+        if (upload.claimedPostId || upload.expiresAt > now().getTime()) continue;
+        uploads.delete(upload.id);
+        swept += 1;
+      }
+      return swept;
     },
   };
 }
@@ -199,7 +216,9 @@ const supabaseSocialPostVideoStore: SocialPostVideoStore = {
         .eq("owner_profile_id", actor.profileId)
         .maybeSingle();
       if (error) throw error;
-      if (!data || data.claimed_post_id || Date.parse(data.expires_at) <= Date.now()) return null;
+      // A claimed upload is read too, so a retried post can re-attach the
+      // video it already carries; only an unclaimed one can expire.
+      if (!data || (!data.claimed_post_id && Date.parse(data.expires_at) <= Date.now())) return null;
       const signed = await signedPlayback(data.object_key);
       if (!signed) return null;
       // One ranged read: the total size from Content-Range and the leading
@@ -273,6 +292,35 @@ const supabaseSocialPostVideoStore: SocialPostVideoStore = {
       if (error) mapError(error);
       return data === true;
     }, () => memorySocialPostVideoStore.review(postId, decision), true);
+  },
+  async sweepExpiredUploads(limit) {
+    return durableOrMemory(async () => {
+      const admin = requireSupabaseAdmin();
+      // An hour past expiry, so a slow upload that is still being posted is
+      // never pulled out from under its composer.
+      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data, error } = await admin
+        .from("social_video_uploads")
+        .select("id, object_key")
+        .is("claimed_post_id", null)
+        .lt("expires_at", cutoff)
+        .order("expires_at", { ascending: true })
+        .limit(limit);
+      if (error) throw error;
+      const rows = data ?? [];
+      if (rows.length === 0) return 0;
+      // Bytes first: a row whose object is gone is harmless, an object whose
+      // row is gone has nothing left that names it.
+      const removed = await admin.storage.from(STORAGE_BUCKET).remove(rows.map((row) => row.object_key));
+      if (removed.error) throw removed.error;
+      const deleted = await admin
+        .from("social_video_uploads")
+        .delete()
+        .in("id", rows.map((row) => row.id))
+        .is("claimed_post_id", null);
+      if (deleted.error) throw deleted.error;
+      return rows.length;
+    }, () => memorySocialPostVideoStore.sweepExpiredUploads(limit), false);
   },
   async moderatorPlayback(postId) {
     return durableOrMemory(async () => {

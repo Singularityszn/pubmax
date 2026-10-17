@@ -37,6 +37,12 @@ describe("Social video rules", () => {
     expect(parseSocialCreateSubmission({ ...base, body: "", videoUploadId: UPLOAD }, false)).toMatchObject({ ok: false, code: "INVALID_VIDEO" });
     expect(parseSocialCreateSubmission({ ...base, videoUploadId: "not-a-uuid" }, false)).toMatchObject({ ok: false, code: "INVALID_VIDEO" });
     expect(parseSocialCreateSubmission({ ...base, videoDurationSeconds: 12 }, false)).toMatchObject({ ok: false });
+    // A stated length past ten minutes, or a nonsense one, is refused rather
+    // than quietly stored as "unknown" (Codex review on #2186).
+    expect(parseSocialCreateSubmission({ ...base, videoUploadId: UPLOAD, videoDurationSeconds: 601 }, false)).toMatchObject({ ok: false, code: "INVALID_VIDEO" });
+    expect(parseSocialCreateSubmission({ ...base, videoUploadId: UPLOAD, videoDurationSeconds: "12" }, false)).toMatchObject({ ok: false, code: "INVALID_VIDEO" });
+    // No stated length is allowed: some browsers cannot read a .mov's metadata.
+    expect(parseSocialCreateSubmission({ ...base, videoUploadId: UPLOAD }, false)).toMatchObject({ ok: true });
   });
 });
 
@@ -56,6 +62,9 @@ describe("memory Social video store", () => {
     const video = await store.attach(alice, "post-1", ticket.uploadId, mp4.byteLength, 12);
     expect(video).toMatchObject({ url: "/api/social/videos/post-1", reviewState: "held", durationSeconds: 12 });
     await expect(store.attach(alice, "post-2", ticket.uploadId, 10, null)).rejects.toThrow(/expired/);
+    // A retried post that lost its answer gets the same video back (Codex review on #2186).
+    expect(await store.attach(alice, "post-1", ticket.uploadId, mp4.byteLength, 12)).toMatchObject({ url: "/api/social/videos/post-1" });
+    expect((await store.inspectUpload(alice, ticket.uploadId))?.byteSize).toBe(mp4.byteLength);
 
     expect((await store.forPosts(["post-1"], alice)).get("post-1")?.reviewState).toBe("held");
     expect((await store.forPosts(["post-1"], bob)).size).toBe(0);
@@ -66,6 +75,21 @@ describe("memory Social video store", () => {
     expect((await store.forPosts(["post-1"], bob)).get("post-1")?.reviewState).toBe("approved");
     expect(await store.playback("post-1", bob)).toMatchObject({ contentType: "video/mp4" });
     expect(await store.heldQueue(10)).toEqual([]);
+  });
+
+  it("sweeps uploads that expired without a post, and keeps the ones that were posted", async () => {
+    let clock = Date.parse("2026-10-17T12:00:00Z");
+    const store = createMemorySocialPostVideoStore({ now: () => new Date(clock) });
+    const dave = { profileId: "dave" };
+    const abandoned = await store.createUpload(dave, "video/mp4", mp4.byteLength);
+    const posted = await store.createUpload(dave, "video/mp4", mp4.byteLength);
+    await store.receiveUpload(dave, posted.uploadId, mp4);
+    await store.attach(dave, "post-d", posted.uploadId, mp4.byteLength, null);
+    expect(await store.sweepExpiredUploads(10)).toBe(0);
+    clock += 3 * 60 * 60 * 1000;
+    expect(await store.sweepExpiredUploads(10)).toBe(1);
+    expect(await store.receiveUpload(dave, abandoned.uploadId, mp4)).toBe(false);
+    expect(await store.playback("post-d", dave)).toMatchObject({ contentType: "video/mp4" });
   });
 
   it("caps open intents at five per person", async () => {

@@ -90,7 +90,12 @@ describe.skipIf(skipReason !== null)("0183 social post videos", () => {
     expect(db().expectRefusal(attach(ALICE_POST, ALICE, aliceUpload, 5_000_001))).toMatch(/invalid Social video size/);
     expect(db().expectRefusal(attach(ALICE_POST, ALICE, aliceUpload, 100, "601"))).toMatch(/invalid Social video duration/);
     expect(db().sql(attach(ALICE_POST, ALICE, aliceUpload, 4_900_000))).toBe("held");
-    expect(db().expectRefusal(attach(ALICE_POST, ALICE, aliceUpload, 100))).toMatch(/upload not found/);
+    // A retried post re-attaches the same upload to the same post and gets the
+    // video already there, rather than a refusal it could never get past.
+    expect(db().sql(attach(ALICE_POST, ALICE, aliceUpload, 100))).toBe("held");
+    expect(db().sql(asServiceRole(`select count(*) from public.social_post_videos where post_id = '${ALICE_POST}';`))).toBe("1");
+    // Anybody else naming that upload still gets nothing.
+    expect(db().expectRefusal(attach(BOB_POST, BOB, aliceUpload, 100))).toMatch(/upload not found/);
   });
 
   it("refuses an expired intent", () => {

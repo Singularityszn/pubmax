@@ -7493,6 +7493,7 @@ export type Database = {
         };
         Returns: {
           post_id: string;
+          author_profile_id: string;
           author_handle: string;
           rating: number;
           body: string;
