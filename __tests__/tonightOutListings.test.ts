@@ -130,7 +130,7 @@ describe("tonight Out merge", () => {
       venueId: "venue-the-dove",
       placeName: "The Dove",
       source: { label: "The Dove", url: "https://example.com/quiz" },
-      observedAt: "2026-08-16T08:00:00.000Z",
+      observedAt: "2026-08-31T08:00:00.000Z",
     });
     const newer = row({
       id: "quiz-1",
@@ -139,7 +139,7 @@ describe("tonight Out merge", () => {
       venueId: "venue-the-dove",
       placeName: "The Dove",
       source: { label: "The Dove", url: "https://example.com/quiz" },
-      observedAt: "2026-08-16T10:00:00.000Z",
+      observedAt: "2026-08-31T10:00:00.000Z",
     });
     expect(mergeWithFixture([older], [newer]).map((item) => item.title)).toEqual([
       "Quiz (updated)",
@@ -450,13 +450,13 @@ describe("tonight lane split", () => {
       id: "tm-1",
       title: "Playhouse",
       venueId: "venue-soho-theatre",
-      observedAt: "2026-08-16T08:00:00.000Z",
+      observedAt: "2026-08-31T08:00:00.000Z",
     });
     const newer = row({
       id: "tm-1",
       title: "Playhouse",
       venueId: "venue-soho-theatre",
-      observedAt: "2026-08-16T10:00:00.000Z",
+      observedAt: "2026-08-31T10:00:00.000Z",
     });
     const merged = mergeWithFixture([older], [newer]);
     expect(merged).toHaveLength(1);
@@ -472,7 +472,7 @@ describe("tonight provenance credits", () => {
     title: "A Night at the Playhouse",
     venueId: "venue-soho-theatre",
     source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
-    observedAt: "2026-08-16T09:00:00.000Z",
+    observedAt: "2026-08-31T09:00:00.000Z",
   });
 
   it("credits and dates each lane by its own read", () => {
@@ -500,10 +500,10 @@ describe("tonight provenance credits", () => {
       renderedGroups: groupTonightListings(merged, null),
       outEvents: filteredOut.length > 0 ? [outRow] : [],
       whatsOnChecked: "Checked 15 Aug",
-      outObservedAt: { ticketmaster: "2026-08-16T09:00:00.000Z" },
+      outObservedAt: { ticketmaster: "2026-08-31T09:00:00.000Z" },
     });
     expect(credits.whatsOn).toBe("2 listings · Checked 15 Aug · via what’s-on");
-    expect(credits.out).toBe("1 listing via Ticketmaster · Checked 16 Aug");
+    expect(credits.out).toBe("1 listing via Ticketmaster · Checked 31 Aug");
     expect(credits.whatsOnDated && credits.outDated).toBe(true);
   });
 
@@ -517,7 +517,7 @@ describe("tonight provenance credits", () => {
     // Nothing came from What's-On, so that lane claims nothing at all, and the
     // Out line carries the row's OWN stated observation.
     expect(credits.whatsOn).toBeNull();
-    expect(credits.out).toBe("1 listing via Ticketmaster · Checked 16 Aug");
+    expect(credits.out).toBe("1 listing via Ticketmaster · Checked 31 Aug");
   });
 
   it("takes the oldest of the sources one line covers and names them all", () => {

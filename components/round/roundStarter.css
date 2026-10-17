@@ -67,7 +67,13 @@
   font-size: 13px;
 }
 
-/* Primary CTA inside RoundStarter (works on map without importing crawls.css). */
+/* RoundStarter's buttons (works on map without importing crawls.css). The
+   component is embedded beside pages that already own a primary (/crawls,
+   the plan summary, the map planner), so its buttons are secondaries there.
+   Only the route that IS the start door marks its submit
+   [data-primary-action] (RoundStarter's primaryAction prop, /rounds), and only
+   that one takes the coral fill. Painted coral everywhere, /crawls showed two
+   filled buttons, "Start a crawl" and "Start a Round". */
 .roundStarter .crawlPrimaryBtn {
   display: inline-flex;
   align-items: center;
@@ -79,9 +85,15 @@
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  border: 1px solid var(--control-secondary-border);
+}
+
+.roundStarter .crawlPrimaryBtn[data-primary-action] {
   background: var(--brass);
   color: var(--color-on-accent);
-  border: 1px solid var(--brass);
+  border-color: var(--brass);
 }
 
 .roundStarter .crawlPrimaryBtn:hover {

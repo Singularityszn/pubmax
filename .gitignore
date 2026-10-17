@@ -74,7 +74,10 @@ scratch-*.mjs
 !.cursor/mcp.json
 # Project skills live only under .agents/skills/. The machine-wide set is
 # ~/.agents/skills. .cursor/skills/ is not a second project skill root.
-.claude/
+# .claude/skills is the one tracked entry under .claude/: a symlink to
+# ../.agents/skills so Claude Code loads the same skills, never a copy.
+.claude/*
+!.claude/skills
 .mcp.json
 .playwright-mcp/
 skills-lock.json
