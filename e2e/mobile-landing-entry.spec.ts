@@ -77,7 +77,7 @@ test.describe("Tonight is one tap from the mobile home", () => {
       await page.setViewportSize({ width, height });
       await page.goto("/");
 
-      const tonight = page.locator(".lpHero").getByRole("link", { name: "Tonight", exact: true });
+      const tonight = page.locator(".lpHero").getByRole("link", { name: "What's on tonight", exact: true });
       await expect(tonight, `Tonight door at ${width}px`).toBeVisible();
       await expect(tonight).toHaveAttribute("href", "/tonight");
 

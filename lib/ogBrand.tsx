@@ -174,12 +174,14 @@ function WordmarkGlyph({ ink, size }: { ink: string; size: number }) {
   );
 }
 
-// The PUBMAXX wordmark, drawn the way the site header draws it
-// (components/brand/PubmaxxWordmark.tsx): PUBMA, the doubled `××` hero with the
-// second glyph tinted coral, then ING. The proportions are that component's own
+// The PUBMAXX wordmark, drawn the way the site header reads it
+// (components/brand/PubmaxxWordmark.tsx): PUBMA, then the doubled `××` hero
+// with the second glyph tinted coral, so the card says PUBMAXX and never
+// PUBMAXXING (the product's one name since 16 Oct 2026; pubmaxxing.com is only
+// the address, printed in each card's footer). The proportions are that component's own
 // CSS re-expressed in px, because satori reads neither `em` reliably nor the
 // stylesheet: glyph 0.78 of the type size, tracking -0.045, 0.025 between the
-// three parts, 0.005 between the two glyphs, the pair inset 0.015 / 0.03.
+// two parts, 0.005 between the two glyphs, the pair inset 0.015 / 0.03.
 //
 // There is no coral chip and no boxed mark here. The old lockup put an
 // ink-deep X on a coral rounded square, which is the sanctioned plaque tile
@@ -213,7 +215,6 @@ export function Wordmark({ scale = 1 }: { scale?: number }) {
         <WordmarkGlyph ink={OG.ink} size={glyph} />
         <WordmarkGlyph ink={OG.coral} size={glyph} />
       </div>
-      <div style={{ display: "flex" }}>ING</div>
     </div>
   );
 }

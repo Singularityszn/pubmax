@@ -15,6 +15,7 @@ import { ShieldCheck } from "lucide-react";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { discardBody } from "@/lib/responseBody";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import "./venueHygiene.css";
 
@@ -171,23 +172,26 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
   const title = `FSA food hygiene rating ${rating.spoken}${by}${rated ? `, ${rated}` : ""}. ${rating.provenance}.`;
 
   return (
-    <a
-      className="venueHygiene"
-      href={`https://ratings.food.gov.uk/business/${rating.fhrsid}`}
-      target="_blank"
-      rel="noreferrer noopener"
-      title={title}
-      aria-label={title}
-    >
-      <ShieldCheck size={14} aria-hidden="true" />
-      <span className="venueHygieneBody">
-        <span className="venueHygieneHead">
-          <span className="venueHygieneLabel">Food hygiene</span>
-          <span className="venueHygieneScore">{rating.score}</span>
-          {rated ? <span className="venueHygieneSource">rated {rated}</span> : null}
+    <>
+      <a
+        className="venueHygiene"
+        href={`https://ratings.food.gov.uk/business/${rating.fhrsid}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        title={title}
+        aria-label={title}
+      >
+        <ShieldCheck size={14} aria-hidden="true" />
+        <span className="venueHygieneBody">
+          <span className="venueHygieneHead">
+            <span className="venueHygieneLabel">Food hygiene</span>
+            <span className="venueHygieneScore">{rating.score}</span>
+            {rated ? <span className="venueHygieneSource">rated {rated}</span> : null}
+          </span>
+          <span className="venueHygieneSource venueHygieneProvenance">{rating.provenance}</span>
         </span>
-        <span className="venueHygieneSource venueHygieneProvenance">{rating.provenance}</span>
-      </span>
-    </a>
+      </a>
+      <DataCreditsLink className="venueHygieneCredits" />
+    </>
   );
 }

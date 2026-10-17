@@ -19,12 +19,12 @@ test("mobile planner maps and hides its route from the bottom sheet", async ({ p
 
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
 
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
-  await page.getByRole("button", { name: "Describe the outing" }).click();
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
+  await page.getByRole("button", { name: "Plan a pub crawl" }).click();
   const planner = page.locator(".mapDrawer.left");
   await expect(planner).toHaveClass(/open/);
   await expect(planner).toHaveClass(/sheet-half/);
-  await expect(planner.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
+  await expect(planner.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
   await expect(planner.locator(".controlRail")).toHaveCount(0);
   await expect(planner.getByRole("group", { name: "Crawl mode" })).toHaveCount(0);
 

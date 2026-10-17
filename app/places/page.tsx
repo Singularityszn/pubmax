@@ -9,7 +9,7 @@ import "./places.css";
 
 const PAGE_TITLE = "Places";
 const PAGE_DESCRIPTION =
-  "Pick the city PUBMAXXING opens on. Listed pint prices where we have them, the patches inside each city, and the same choice for the map, Out and Near.";
+  "Pick the city PUBMAXX opens on. Listed pint prices where we have them, the patches inside each city, and the same choice for the map and Near.";
 
 // /places is the ONE city list, and the page the canonical names. It used to
 // ship `noindex` while /choose-city carried the canonical and the sitemap row;

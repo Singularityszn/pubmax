@@ -2,19 +2,16 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-import MessagesLink from "@/components/nav/MessagesLink";
-import NotificationBell from "@/components/nav/NotificationBell";
-import ThemeToggle from "@/components/ThemeToggle";
-// Shared nav atoms (bell/messages island) carry their styling in siteNav.css.
-
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
-// and action cluster, so it pulls in those shared styles directly.
-import "@/components/nav/siteNav.css";
+// and renders SiteNav's OWN action cluster (SiteNavActions), so the front door
+// and every app page offer one set of controls. SiteNav's module brings the
+// shared styles with it.
+import { SiteNavActions } from "@/components/nav/SiteNav";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
@@ -24,9 +21,9 @@ import {
   readPreferredCity,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
+import { PRIMARY_NAV_ITEMS, primaryNavLabel } from "@/components/nav/navigationModel";
 import { warmMapRoute } from "@/lib/mapWarmup";
-import { CONTACT_MAILTO } from "@/lib/siteContact";
+import { HELLO_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
@@ -34,18 +31,19 @@ import { socialSurfaceName } from "@/lib/socialLaunch";
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
-import LandingLondonCollage from "./LandingLondonCollage";
 import LandingSavings from "./LandingSavings";
-import PintDropStripLoading from "./PintDropStripLoading";
 import "./landing.css";
 
 function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
 }
 
+// The strip paints nothing while its own code loads: the feed may well be
+// empty, and a grey band that only a later fetch can clear is a placeholder
+// that ships for ever when the chunk or the feed never arrives.
 const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   ssr: false,
-  loading: PintDropStripLoading,
+  loading: () => null,
 });
 
 export default function LandingPage({
@@ -98,13 +96,14 @@ export default function LandingPage({
   return (
     <div className="lp">
       <header className="lpNav">
-        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
           <PubmaxxWordmark />
         </Link>
 
         {/* The app's own primary destinations (PRIMARY_NAV_ITEMS), so the
-            front door and every app page name the product the same way. Social
-            and Moment are not front doors and are not in that list. */}
+            front door and every app page name the product the same way, Social
+            by its launch state. Moment is not a front door and is not in that
+            list. */}
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
           {PRIMARY_NAV_ITEMS.map((item) =>
             item.key === "map" ? (
@@ -113,36 +112,30 @@ export default function LandingPage({
               </Link>
             ) : (
               <Link key={item.key} prefetch={false} href={item.href}>
-                {item.label}
+                {primaryNavLabel(item, socialLabel)}
               </Link>
             ),
           )}
         </nav>
 
-        <div className="lpNavActions">
-          {/* Canonical action island, same order and shape as SiteNav so the
-              front door and the app read as one product. Bell and Messages are
-              anon-safe (plain icon links, badge only when signed-in + unread). */}
-          <NotificationBell />
-          <MessagesLink />
-          <ThemeToggle />
-          <SignInButton compact />
-        </div>
+        {/* The canonical action island itself, not a copy of it: More, compose,
+            the palette hint, the signed-in bell and messages, and sign-in. */}
+        <SiteNavActions className="siteNavActions lpNavActions" />
       </header>
 
       <main id="main">
-        {/* The whole first screen, at every width: brand kicker, the claim, one
-            line under it, the drawing of London, one primary action (Cheapest
-            pints near me), the quiet row of the receipt door and Tonight, then
-            the one real pub and three next-cheapest rows. The DOM order is the
+        {/* The whole first screen, at every width: the claim, the saving line
+            under it, the picture of London, one primary action (Cheapest pints
+            near me), the quiet row of the receipt door and Tonight, then the
+            one real pub and three next-cheapest rows. The DOM order is the
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
-        <LandingHero card={card} archive={archive} rail={rail} />
-
-        <LandingLondonCollage />
+        <LandingHero card={card} archive={archive} rail={rail} averages={averages} />
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
+        {/* The city's saving is the hero's line now; this band carries the
+            signed-in reader's own total, when there is one, and the map. */}
         <section className="lpWorth" aria-label="What it saves you">
           <LandingSavings averages={averages} />
           <Link
@@ -166,7 +159,7 @@ export default function LandingPage({
       <footer className="lpFooter">
         <div className="lpFooterInner">
           <div className="lpFooterBrand">
-            <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+            <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
               <PubmaxxWordmark />
             </Link>
             <p className="lpFooterProvenance">
@@ -199,12 +192,14 @@ export default function LandingPage({
 
         <div className="lpFooterBase">
           {/* Small print rail: the two pages a reader is entitled to find from
-              any page of the site, plus a contact address that actually works.
-              Sits with the over-18 line because that is where legal copy lives. */}
+              any page of the site, plus the brand's general inbox
+              (lib/siteContact.mjs). Sits with the over-18 line because that is
+              where legal copy lives. */}
           <nav className="lpFooterSmallPrint" aria-label="Small print">
             <Link prefetch={false} href="/privacy">Privacy</Link>
             <Link prefetch={false} href="/terms">Terms of use</Link>
-            <a href={CONTACT_MAILTO}>Contact</a>
+            <DataCreditsLink />
+            <a href={HELLO_MAILTO}>Contact</a>
           </nav>
           <p className="lpFooterCredit">© 2026 PUBMAXX / Karan Manoharan</p>
           <p className="lpFooterLegal">

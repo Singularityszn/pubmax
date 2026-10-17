@@ -17,7 +17,7 @@ import { clampOgText } from "@/lib/ogCardText";
 // loadHistoricPubs reads the filesystem via node:fs, which is edge-incompatible).
 
 export const runtime = "nodejs";
-export const alt = "A historic London pub. PUBMAXXING";
+export const alt = "A historic London pub. PUBMAXX";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -156,7 +156,7 @@ export default async function Image({
                   letterSpacing: 0.5,
                 }}
               >
-                PUBMAXXING
+                PUBMAXX
               </div>
             </div>
             <div
@@ -237,7 +237,7 @@ export default async function Image({
               }}
             >
               <div style={{ width: 40, height: 2, background: BRASS, marginRight: 16 }} />
-              Cited from Wikipedia · PUBMAXXING
+              Cited from Wikipedia · PUBMAXX
             </div>
             <div
               style={{

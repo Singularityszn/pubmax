@@ -49,7 +49,7 @@ test("Use this pub sits inside the card on the body's inset with a 44px target",
   });
 
   await page.goto("/pal/chat");
-  await page.getByRole("textbox", { name: /Describe the outing/i }).fill("cheap pint near Soho");
+  await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill("cheap pint near Soho");
   await page.getByRole("button", { name: "Ask" }).click();
 
   const card = page.locator(".palChatCard").first();

@@ -123,7 +123,9 @@ export async function resolveCanonicalIdentity(
   session: Pick<Session, "access_token" | "user"> | null,
   storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request?: AccountBoundRequest,
+  current: () => boolean = () => true,
 ): Promise<CanonicalIdentityResolution> {
+  if (!current()) return { ok: false };
   const auth = captureAccountAuth(expectedUserId, session);
   if (!auth) return { ok: false };
   // The page's own read is shared with every other surface that asks who this
@@ -134,7 +136,8 @@ export async function resolveCanonicalIdentity(
     : await readCurrentIdentity(auth.userId, () =>
         accountBoundFetch(auth, CURRENT_IDENTITY_PATH, {}, fetch),
       );
-  if (!answer.ok) return { ok: false };
+  // A captured account can lose ownership while its remote identity read waits.
+  if (!answer.ok || !current()) return { ok: false };
   const body = answer.body as { handle?: unknown } | null;
   const handle =
     typeof body?.handle === "string" ? normalizeHandle(body.handle) : "";
@@ -168,7 +171,9 @@ export async function handleClaimRouteAfterSignIn(
   landedUrl: string,
   storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request: AccountBoundRequest = fetch,
+  current: () => boolean = () => true,
 ): Promise<string | null> {
+  if (!current()) return null;
   const userId = session?.user?.id;
   if (!userId) return null;
   try {
@@ -194,7 +199,8 @@ export async function handleClaimRouteAfterSignIn(
     session,
     storage,
     request,
+    current,
   ).catch(() => null);
-  if (!resolution?.ok || resolution.identity) return null;
+  if (!current() || !resolution?.ok || resolution.identity) return null;
   return HANDLE_CLAIM_NEXT;
 }

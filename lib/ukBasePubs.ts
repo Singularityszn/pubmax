@@ -34,6 +34,7 @@ import {
   parseShardManifest,
 } from "@/lib/slimShards";
 import { lngLatOf } from "@/lib/geo";
+import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
@@ -77,8 +78,10 @@ export const UNNAMED_PUB_LABEL = "Pub";
 export type UkBasePub = {
   /** `venue-uk-<osm ref>`, e.g. `venue-uk-n251829660`. Stable across refreshes. */
   id: string;
-  /** The OSM name, or UNNAMED_PUB_LABEL when `unnamed` is set. */
+  /** The OSM name (operator suffix dropped, lib/venueDisplay.ts), or UNNAMED_PUB_LABEL when `unnamed` is set. */
   name: string;
+  /** The OSM name as mapped, present only when it carried an operator suffix; search only. */
+  sourceName?: string;
   /**
    * Set only when OSM states a pub with no name. Absent on every named pub, so
    * a named pub's record and its map feature are byte-for-byte what they were.
@@ -144,8 +147,8 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
     const unnamed = row[1].length === 0;
     pubs.push({
       id: ukBaseIdFor(row[0]),
-      name: unnamed ? UNNAMED_PUB_LABEL : row[1],
-      ...(unnamed ? { unnamed: true as const } : {}),
+      name: unnamed ? UNNAMED_PUB_LABEL : displayVenueName(row[1]),
+      ...(unnamed ? { unnamed: true as const } : venueSourceNameField(row[1])),
       address: row[2],
       lat: row[3],
       lng: row[4],

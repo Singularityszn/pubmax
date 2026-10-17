@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// QA journeys, 6 Oct 2026, F09. "Sort it" on an empty box did nothing visible,
+// QA journeys, 6 Oct 2026, F09. "Plan it" on an empty box did nothing visible,
 // and "Lock it in" sat disabled with its required "Your name" field a screen
 // above and no reason given. Both now say what they need.
 
@@ -21,20 +21,20 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 1440, height: 900 },
 ]) {
-  test(`Sort it and Lock it in say what they need at ${viewport.width}px`, async ({ page }) => {
+  test(`Plan it and Lock it in say what they need at ${viewport.width}px`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
     await openHydratedPlan(page);
 
-    const query = page.getByRole("textbox", { name: "Describe the outing" });
-    await page.getByRole("button", { name: "Sort it", exact: true }).click();
-    await expect(page.locator(".planDescribeFirst__empty")).toHaveText(/where and who with/i);
+    const query = page.getByRole("textbox", { name: "Where, how many, what budget" });
+    await page.getByRole("button", { name: "Plan it", exact: true }).click();
+    await expect(page.locator(".planDescribeFirst__empty")).toHaveText(/where, how many and what budget/i);
     await expect(query).toHaveAttribute("aria-invalid", "true");
     await expect(query).toBeFocused();
 
     await query.fill("Quiet in Clapham for 4, not pricey");
     await expect(page.locator(".planDescribeFirst__empty")).toHaveCount(0);
-    await page.getByRole("button", { name: "Sort it", exact: true }).click();
+    await page.getByRole("button", { name: "Plan it", exact: true }).click();
     await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible({
       timeout: HOST_ACTION_BUDGET_MS,
     });

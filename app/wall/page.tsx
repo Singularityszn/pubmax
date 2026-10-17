@@ -4,8 +4,8 @@ import DrinkWall from "@/components/drink-wall/DrinkWall";
 import SiteNav from "@/components/nav/SiteNav";
 
 export const metadata: Metadata = {
-  title: "Drink Wall · PUBMAXXING",
-  description: "Pints, pub fronts and London views from drinkers on PubMaxxing.",
+  title: "Photos from drinkers",
+  description: "Pints, pub fronts and London views from drinkers on PUBMAXX.",
   alternates: { canonical: "/wall" },
 };
 

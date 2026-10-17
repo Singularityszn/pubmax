@@ -69,8 +69,12 @@ describe("signed-out /u/you surface", () => {
     );
 
     expect(surface).toBe("you-invitation");
-    expect(html).toContain("Make the night yours.");
-    expect(html).toContain("Claim your @handle");
+    expect(html).toContain("Claim your @handle.");
+    expect(html).toContain("With a handle you can:");
+    // One invitation and a short list, never a tour of features the reader
+    // does not have yet.
+    expect(html.match(/<li>/g) ?? []).toHaveLength(4);
+    expect(html).not.toMatch(/Wanted|Step Out|Night Memor/);
     expect(html).not.toContain("@you");
     expect(html).not.toContain("Couldn&#x27;t load pints");
     expect(html).not.toContain("profileErrorState");

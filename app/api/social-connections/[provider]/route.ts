@@ -9,7 +9,12 @@ import {
   publicSocialConnection,
   validateSocialLink,
 } from "@/lib/socialConnections";
-import { createSocialOAuthStart, socialProviderAvailability } from "@/lib/socialOAuth";
+import {
+  createSocialOAuthStart,
+  SOCIAL_OAUTH_BROWSER_COOKIE,
+  SOCIAL_OAUTH_STATE_TTL_SECONDS,
+  socialProviderAvailability,
+} from "@/lib/socialOAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { siteOrigin } from "@/lib/siteUrl";
@@ -74,7 +79,19 @@ export async function POST(request: Request, context: Context): Promise<Response
     }
     const origin = siteOrigin(request.url);
     if (!origin) throw new Error("Site URL is invalid.");
-    return jsonNoStore(await createSocialOAuthStart({ ownerId, provider, origin }));
+    const { authorizeUrl, browserNonce } = await createSocialOAuthStart({ ownerId, provider, origin });
+    // The state is keyed on this browser's nonce too (lib/socialOAuth.ts), so
+    // a callback link sent to somebody else finds nothing to finish. Lax is
+    // what lets the cookie ride the provider's top-level redirect back.
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    return jsonNoStore(
+      { authorizeUrl },
+      {
+        headers: {
+          "Set-Cookie": `${SOCIAL_OAUTH_BROWSER_COOKIE}=${browserNonce}; Path=/api/social-connections; HttpOnly; SameSite=Lax; Max-Age=${SOCIAL_OAUTH_STATE_TTL_SECONDS}${secure}`,
+        },
+      },
+    );
   } catch (error) {
     log("error", "social_oauth.start_failed", {
       provider,

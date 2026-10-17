@@ -55,6 +55,18 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
 ] as const;
 
 /**
+ * What the closed control offers, read off the rows it opens, for its title:
+ * "Post a moment, log a price or start a plan". The disc's accessible name
+ * stays "Create"; this is the longer answer to "create what?".
+ */
+export function createFabTitle(actions: readonly Pick<CreateFabAction, "label">[]): string {
+  const [first = "", ...rest] = actions.map((item) => item.label);
+  const tail = rest.map((label) => label.charAt(0).toLowerCase() + label.slice(1));
+  const last = tail.pop();
+  return last === undefined ? first : `${[first, ...tail].join(", ")} or ${last}`;
+}
+
+/**
  * Routes with no use for a compose control.
  *
  * The tab-bar chrome rides EVERY route (`shouldShowMobileTabBar`), and that

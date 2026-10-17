@@ -52,7 +52,10 @@ vi.mock("@/lib/useFocusTrap", async (importOriginal) => ({
   serverStrictModalFocusTrap: () => false,
   subscribeStrictModalFocusTrap: () => () => {},
 }));
-vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
+vi.mock("@/lib/useSocialFriendsLaunch", () => ({
+  useSocialFriendsLaunch: () => true,
+  useSocialSurfaceName: () => "Social",
+}));
 
 import LandingPage from "@/components/landing/LandingPage";
 import MobileTabBar from "@/components/nav/MobileTabBar";

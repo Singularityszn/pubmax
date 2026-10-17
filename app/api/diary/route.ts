@@ -33,6 +33,11 @@ export const runtime = "nodejs";
 
 const CREATE_WINDOW_MS = 60_000;
 
+// An entry id is a uuid column, so anything else is an entry that does not
+// exist. Asked of PostgreSQL it is a 22P02 refusal, which would surface as a
+// retryable 503 logged as an outage; it is a plain 404 instead.
+const DIARY_ENTRY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
   try {
     const parsed = (await request.json()) as unknown;
@@ -71,7 +76,7 @@ async function correctOwnEntry(
   ownerUserId: string,
 ): Promise<Response> {
   const id = readString(body.id);
-  if (!id) return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
+  if (!id || !DIARY_ENTRY_ID.test(id)) return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
 
   const result = validateDiaryEntryEdit({
     visitedOn: body.visitedOn,
@@ -111,7 +116,7 @@ async function removeOwnEntry(
   ownerUserId: string,
 ): Promise<Response> {
   const id = readString(body.id);
-  if (!id) return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
+  if (!id || !DIARY_ENTRY_ID.test(id)) return publicApiError("Diary entry not found.", "NOT_FOUND", 404);
 
   try {
     const removed = await diaryStore().delete(ownerUserId, id);

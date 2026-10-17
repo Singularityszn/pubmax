@@ -180,7 +180,7 @@ describe("Wanted row controls", () => {
     const [, init] = authedActionFetch.mock.calls[0]! as [string, { body: string }];
     expect(JSON.parse(init.body)).toEqual({ action: "delete", id: "wanted-1" });
     expect(container.querySelectorAll("li.wantedRow")).toHaveLength(0);
-    expect(container.textContent).toContain("No open Wanted places yet.");
+    expect(container.textContent).toContain("Nothing on your list yet.");
   });
 
   it("removes a fulfilled row, which has no note to edit", async () => {
@@ -194,7 +194,7 @@ describe("Wanted row controls", () => {
     });
     await settle();
 
-    const fulfilled = container.querySelector("ul[aria-label='Fulfilled Wanted places']")!;
+    const fulfilled = container.querySelector("ul[aria-label='Pubs you made it to']")!;
     expect(fulfilled.textContent).toContain("Done");
     expect([...fulfilled.querySelectorAll("button")].map((b) => b.textContent?.trim())).toEqual(["Remove"]);
 
@@ -205,7 +205,7 @@ describe("Wanted row controls", () => {
 
     const [, init] = authedActionFetch.mock.calls[0]! as [string, { body: string }];
     expect(JSON.parse(init.body)).toEqual({ action: "delete", id: "wanted-1" });
-    expect(container.querySelector("ul[aria-label='Fulfilled Wanted places']")).toBeNull();
+    expect(container.querySelector("ul[aria-label='Pubs you made it to']")).toBeNull();
   });
 
   it("says so, and keeps the row, when the removal fails", async () => {
