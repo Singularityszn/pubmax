@@ -398,6 +398,18 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual([]);
   });
 
+  it("permits heritage listings re-keyed by a dataset merge", () => {
+    const report = summarizeReviewScope([
+      "public/data/pint_prices_app_dataset.json",
+      "public/data/venue_id_aliases.json",
+      "public/data/heritage_listings.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categories.regenerated).toEqual(["public/data/heritage_listings.json"]);
+    expect(report.regeneratedLanes).toEqual(["heritage_listings"]);
+  });
+
   it("permits generated database types when the diff carries a migration", () => {
     const report = summarizeReviewScope([
       "supabase/migrations/20260101000000_example.sql",

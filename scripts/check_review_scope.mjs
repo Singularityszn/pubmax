@@ -181,6 +181,19 @@ export const REGENERATED_LANES = [
     ],
   },
   {
+    // Listings are keyed by the venue id the dataset groups to, so a merge in
+    // the dataset or the alias map re-keys them.
+    id: "heritage_listings",
+    output: /^public\/data\/heritage_listings\.json$/,
+    inputs: [
+      /^scripts\/build_heritage_listings\.mjs$/,
+      /^scripts\/lib\/heritageBaseVenues\.mjs$/,
+      /^scripts\/lib\/heritageMatch\.mjs$/,
+      /^public\/data\/pint_prices_app_dataset\.json$/,
+      /^public\/data\/venue_id_aliases\.json$/,
+    ],
+  },
+  {
     id: "database_types",
     output: /^types\/database\.ts$/,
     inputs: [
