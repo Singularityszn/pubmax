@@ -154,19 +154,23 @@ describe("Could you hear each other, from the visits shown", () => {
       "2026-10-07",
       "2026-10-01",
     ]);
-    expect(rows[0].textContent).toContain("@drinker-a");
-    expect(rows[0].textContent).toContain("Visited 10 Oct 2026");
-    expect(rows[0].textContent).toContain("Band on from nine.");
-    expect(rows[0].textContent).toContain("Noise: loud");
-    expect(rows[1].textContent).toContain("@drinker-b");
-    expect(rows[1].textContent).toContain("Noise: easy to talk");
-    expect(rows[1].textContent).toContain("Crowd: quiet");
-    expect(rows[2].textContent).toContain("@drinker-c");
-    expect(rows[2].textContent).toContain("Quiz night.");
-    expect(rows[2].textContent).not.toContain("Noise:");
-    expect(rows[3].textContent).toContain("@drinker-d");
-    expect(rows[3].textContent).toContain("Noise: had to shout");
-    expect(rows[3].textContent).toContain("Seats: standing");
+    const [first, second, third, fourth] = rows;
+    if (!first || !second || !third || !fourth) {
+      throw new Error("expected four rendered visit accounts");
+    }
+    expect(first.textContent).toContain("@drinker-a");
+    expect(first.textContent).toContain("Visited 10 Oct 2026");
+    expect(first.textContent).toContain("Band on from nine.");
+    expect(first.textContent).toContain("Noise: loud");
+    expect(second.textContent).toContain("@drinker-b");
+    expect(second.textContent).toContain("Noise: easy to talk");
+    expect(second.textContent).toContain("Crowd: quiet");
+    expect(third.textContent).toContain("@drinker-c");
+    expect(third.textContent).toContain("Quiz night.");
+    expect(third.textContent).not.toContain("Noise:");
+    expect(fourth.textContent).toContain("@drinker-d");
+    expect(fourth.textContent).toContain("Noise: had to shout");
+    expect(fourth.textContent).toContain("Seats: standing");
     // The full lane keeps a way to report each original account.
     for (const row of rows) {
       expect(row.querySelector("button")?.textContent).toBe("Report");
