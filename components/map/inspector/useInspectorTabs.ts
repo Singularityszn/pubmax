@@ -48,11 +48,12 @@ export function useInspectorTabs(
   );
 
   function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, current: TabKey) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const index = TABS.findIndex((t) => t.key === current);
     const delta = event.key === "ArrowRight" ? 1 : -1;
-    const next = TABS[(index + delta + TABS.length) % TABS.length];
+    const next =
+      event.key === "Home" ? TABS[0] : event.key === "End" ? TABS[TABS.length - 1] : TABS[(index + delta + TABS.length) % TABS.length];
     if (next) selectTab(next.key);
   }
 

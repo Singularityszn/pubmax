@@ -6,6 +6,7 @@ import {
   type AskPlanDraft,
   type AskProposal,
   type AskTurn,
+  type AskMenuEvidence,
 } from "@/lib/ask/types";
 import { isPubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
@@ -16,6 +17,7 @@ export type AskCard = {
   place: string;
   note: string;
   price: number | null;
+  menuEvidence?: AskMenuEvidence;
 };
 
 export type AskResult =
@@ -59,6 +61,7 @@ function asCards(raw: unknown): AskCard[] {
       place: str(record.place),
       note: str(record.note),
       price: num(record.price),
+      ...(record.menuEvidence && typeof record.menuEvidence === "object" ? { menuEvidence: record.menuEvidence as AskMenuEvidence } : {}),
     };
   });
 }

@@ -109,10 +109,9 @@ function phoneOnlyMapSpec(text: string): boolean {
 
 /**
  * Open PRs that own a phone spec still finding a shell control by bare name.
- * Each entry names its PR and leaves when that PR lands: #2094 owns the food
- * view in map-experience-lens and rewrites the spec around it.
+ * Each entry names its PR and leaves when that PR lands.
  */
-const BARE_NAME_PENDING = new Set(["map-experience-lens.spec.ts"]);
+const BARE_NAME_PENDING = new Set<string>();
 
 describe("e2e phone map shell readiness", () => {
   it("floors the wait at the shell's own readiness ceiling", () => {

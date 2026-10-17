@@ -29,13 +29,20 @@ export type FoodProvenance = {
   observedAt: string;
 };
 
+type FoodCaloriesProvenance = FoodProvenance & { sourceUrl: string };
+
 export type FoodItem = {
   id: string;
   name: string;
   category: FoodCategory;
   priceGbp: number;
+  /** Publisher-stated energy for the menu item, without a health or per-person claim. */
+  caloriesKcal?: number;
+  /** Kept separate when a later price-only observation updates the menu row. */
+  caloriesProvenance?: FoodCaloriesProvenance;
   description?: string;
   dietary?: FoodDietary[];
+  dietaryProvenance?: FoodCaloriesProvenance;
   provenance: FoodProvenance;
   source?: string;
 };

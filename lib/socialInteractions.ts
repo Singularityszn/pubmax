@@ -29,6 +29,12 @@ export type SocialInteractionSummary = {
   repostCount: number;
 };
 
+/** What the viewer has set against one account. Their own choices only. */
+export type SocialRelationship = {
+  blocked: boolean;
+  muted: boolean;
+};
+
 export type SocialCommentDTO = {
   id: string;
   postId: string;

@@ -572,8 +572,11 @@ export default function TodayClient({
         title={shownGreeting.headline}
         titleId="today-title"
         lede={
+          // One string, so the server HTML carries one text node: three JSX
+          // children put React's separators round the period, and a reader of
+          // the stripped document saw "Good morning ." with no name.
           <span data-testid="today-greeting">
-            {shownGreeting.salutation}. {shownGreeting.support}
+            {`${shownGreeting.salutation}. ${shownGreeting.support}`}
           </span>
         }
         primary={

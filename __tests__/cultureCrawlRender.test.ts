@@ -3,28 +3,34 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { DESCRIBE_FIRST_SHOWN_EXAMPLES } from "@/components/plan/PlanDescribeFirst";
 import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
+import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 describe("Culture Crawl on the describe-first entry surface", () => {
   const source = read("components/plan/PlanDescribeFirst.tsx");
 
-  it("renders the chips from the closed set, never a hand-typed copy", () => {
-    expect(source).toContain("CULTURE_CRAWL_CHIPS.map");
+  it("shows three examples in one row: two pub nights and one Culture Crawl", () => {
+    expect(DESCRIBE_FIRST_SHOWN_EXAMPLES).toHaveLength(3);
+    expect(DESCRIBE_FIRST_SHOWN_EXAMPLES.filter((example) => example.culture)).toHaveLength(1);
+    expect(DESCRIBE_FIRST_SHOWN_EXAMPLES.filter((example) => !example.culture).map((example) => example.query))
+      .toEqual(DESCRIBE_FIRST_CHIPS.slice(0, 2));
+    // The lane's own lead line went with its own row; Tonight still prints it.
+    expect(source).not.toContain("CULTURE_CRAWL_MISSION");
+  });
+
+  it("takes the Culture Crawl example from the closed set, never a hand-typed copy", () => {
+    const culture = DESCRIBE_FIRST_SHOWN_EXAMPLES.find((example) => example.culture);
+    expect(CULTURE_CRAWL_CHIPS.map((chip) => chip.id)).toContain(culture?.key);
     // Plan stop-count support routes chip taps through submitChip so the
     // inferred count reaches the composer with the closed query set.
-    expect(source).toContain("onClick={() => submitChip(chip.query)}");
-    expect(source).toContain("{chip.label}");
+    expect(source).toContain("onClick={() => submitChip(example.query)}");
     for (const chip of CULTURE_CRAWL_CHIPS) {
       expect(source).not.toContain(chip.query);
       expect(source).not.toContain(`>${chip.label}<`);
     }
-  });
-
-  it("leads the lane with the mission and keeps the plain examples beside it", () => {
-    expect(source).toContain("CULTURE_CRAWL_MISSION");
-    expect(source).toContain("DESCRIBE_FIRST_CHIPS.map");
     expect(CULTURE_CRAWL_MISSION).not.toMatch(/free/i);
   });
 });

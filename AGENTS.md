@@ -55,6 +55,18 @@ tree is named here, and this file stays under 12 KB.
   See [`scripts/AGENTS.md`](scripts/AGENTS.md).
 - **The captain applies migrations and decides a deploy.** Agents ship SQL and a
   rollback beside it. See [`supabase/AGENTS.md`](supabase/AGENTS.md).
+- **Talk to the captain in Simplified Technical English (ASD-STE100).** Every
+  message to the captain (chat replies, summaries, questions, PR descriptions
+  and PR comments) is written in STE style, for a reader who is not an engineer.
+  Start with what happened and what the captain must do, if anything. One idea
+  in each sentence: 20 words or fewer for an instruction, 25 or fewer for a
+  description. Use the active voice, simple tenses, common words, no
+  contractions, and the same word for the same thing every time. Put a condition
+  before its command. Use a list for three or more items. Explain a technical
+  term in a few words the first time you use it, or do not use it. File paths,
+  commands and test names come after the plain summary, never in place of it.
+  A request for a checked rewrite or an STE compliance check counts as asking
+  for the skill by name: follow [`.agents/skills/ste/SKILL.md`](.agents/skills/ste/SKILL.md).
 
 ### Working in this tree
 

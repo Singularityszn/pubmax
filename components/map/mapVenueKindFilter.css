@@ -130,3 +130,16 @@
   padding-top: 12px;
   border-top: 1px solid var(--hairline, var(--line));
 }
+
+/* Removing the drink lane moves the trigger right. In the narrow toolbar,
+   anchor the panel to the toolbar's bounded edge instead of that moving button. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .mapVenueKindFilter {
+    position: static;
+  }
+
+  .mapVenueKindFilterPanel {
+    left: auto;
+    right: 0;
+  }
+}

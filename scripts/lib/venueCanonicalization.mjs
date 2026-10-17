@@ -194,35 +194,87 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
   return false;
 }
 
-// Each pair was checked by hand and is one pub. Keep the old id resolvable
-// without loosening name matching for other pubs.
-//   - The Blackfriar, 174 Queen Victoria Street. The Wikipedia spelling has no price.
-//   - The Moon on the Square, Feltham TW13 4AU. The Wetherspoon directory geocodes
-//     the shopping centre and OSM the pub door, 177 m apart.
-const VERIFIED_VENUE_ALIASES = {
-  "venue-1sw9ofl": "venue-eltcmh",
-  "venue-g9jxzs": "venue-86sj0g",
-};
-const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
-// A verified pair may sit further apart than the fuzzy radius, never further than this.
-const VERIFIED_ALIAS_MAX_METERS = 250;
+// Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
+// Keep its old id resolvable without loosening name matching for other pubs.
+const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
 
-function isVerifiedPair(a, b) {
-  return VERIFIED_VENUE_ALIASES[a.id] === b.id || VERIFIED_VENUE_ALIASES[b.id] === a.id;
+// A record whose address names only a street, so a street-level geocode put it
+// hundreds of metres off its pub, and whose name is misspelled past what the
+// name matcher forgives. Neither check can see it is the same pub, so each
+// entry is a verified pair of ids. An id hashes the record's name, address and
+// point, so an edit to either record changes its id and stops the merge rather
+// than stretching it to a record nobody checked.
+export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
+  Object.freeze({
+    // "Maruquis of Cornwallis", Bethnal Green Road, about 640 m west of the pub.
+    from: "venue-j71x23",
+    // The Marquis of Cornwallis, 304 Bethnal Green Rd, E2 0AG. OpenStreetMap
+    // way/1059879142 is the only Marquis of Cornwallis on Bethnal Green Road,
+    // and no pub stands at the misplaced point.
+    to: "venue-1eyb3zz",
+  }),
+  Object.freeze({
+    // "The Moon on the Square - JD Wetherspoon", Unit 30, The Centre, Feltham.
+    // The Wetherspoon directory geocodes the shopping centre, 177 m from the pub.
+    from: "venue-g9jxzs",
+    // The Moon on the Square, 30 High Street, Feltham TW13 4AU, at the pub door
+    // in OpenStreetMap. Both records share the postcode.
+    to: "venue-86sj0g",
+  }),
+]);
+
+// A pub's own website that the source also printed on a namesake across town.
+// Each entry is the one site and the postcode of the pub it belongs to; a row
+// at any other postcode loses the link, so every export (`npm run export:data`
+// runs this pass straight after it) clears it again rather than letting the
+// CSV hand it back. A row with a different site, or none, is left alone.
+export const VERIFIED_BORROWED_WEBSITES = Object.freeze([
+  // The Marquis Cornwallis, 31 Marchmont St. The Bethnal Green Road pub (E2)
+  // carried it.
+  Object.freeze({ site: "themarquiscornwalliswc1.co.uk", ownerPostcode: "WC1N 1AP" }),
+  // Greene King's Goat Tavern, 3a Kensington High Street. The Mayfair Goat
+  // Tavern (W1S) carried it.
+  Object.freeze({ site: "greeneking.co.uk/pubs/greater-london/goat-tavern", ownerPostcode: "W8 5NP" }),
+]);
+
+function normalisedSite(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/[#?].*$/, "")
+    .replace(/\/+$/, "");
 }
 
-// A verified alias bypasses name matching and gets a wider, bounded radius, but
-// never the postcode check. Other pairs use the caller's matcher or
-// namesLikelySamePub.
+function compactPostcode(value) {
+  return String(value ?? "").toUpperCase().replace(/\s+/g, "");
+}
+
+// The row with a borrowed website cleared, or the same row when it keeps its own.
+function withoutBorrowedWebsite(row) {
+  const site = normalisedSite(row.website);
+  if (!site) return row;
+  const entry = VERIFIED_BORROWED_WEBSITES.find((candidate) => candidate.site === site);
+  if (!entry) return row;
+  if (compactPostcode(row.address).includes(compactPostcode(entry.ownerPostcode))) return row;
+  return { ...row, website: "" };
+}
+
+const VERIFIED_CANONICAL_IDS = new Set([
+  ...Object.values(VERIFIED_VENUE_ALIASES),
+  ...VERIFIED_MISPLACED_RECORDS.map((entry) => entry.to),
+]);
+
+// A verified alias can bypass name matching, but never distance or postcode
+// checks. Other pairs use the caller's matcher or namesLikelySamePub.
 function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
   if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return false;
-  const verified = isVerifiedPair(a, b);
-  const maxMeters = verified ? Math.max(fuzzyMergeMeters, VERIFIED_ALIAS_MAX_METERS) : fuzzyMergeMeters;
-  if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > maxMeters) return false;
+  if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > fuzzyMergeMeters) return false;
   const pa = postcodeOutward(a.address);
   const pb = postcodeOutward(b.address);
   if (pa && pb && pa !== pb) return false;
-  if (verified) return true;
+  if (VERIFIED_VENUE_ALIASES[a.id] === b.id || VERIFIED_VENUE_ALIASES[b.id] === a.id) return true;
   if (samePubMatch) return samePubMatch(a, b);
   return namesLikelySamePub(a.normName, b.normName);
 }
@@ -357,13 +409,24 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
       }
     }
   }
+}
 
-  // A verified pair can sit outside the grid's neighbouring cells, so try it directly.
-  const byId = new Map(groupList.map((g) => [g.id, g]));
-  for (const [from, to] of Object.entries(VERIFIED_VENUE_ALIASES)) {
-    const a = byId.get(from);
-    const b = byId.get(to);
-    if (a && b) tryFuzzyMerge(a, b);
+// Fold each verified misplaced record into its pub (VERIFIED_MISPLACED_RECORDS).
+// A pair whose records are absent is skipped: once merged, the loser's rows
+// carry the pub's identity, so a later run finds nothing to fold. Mutates
+// `units` in place.
+function unionVerifiedMisplacedRecords(units, groupList) {
+  const groupById = new Map(groupList.map((g) => [g.id, g]));
+  for (const entry of VERIFIED_MISPLACED_RECORDS) {
+    const from = groupById.get(entry.from);
+    const to = groupById.get(entry.to);
+    if (!from || !to) continue;
+    const fromUnit = units.find((u) => u.includes(from));
+    const toUnit = units.find((u) => u.includes(to));
+    if (!fromUnit || !toUnit || fromUnit === toUnit) continue;
+    if (clusterHasPostcodeConflict([...fromUnit, ...toUnit])) continue;
+    units.splice(units.indexOf(fromUnit), 1);
+    toUnit.push(...fromUnit);
   }
 }
 
@@ -475,6 +538,10 @@ export function canonicalizeDataset(rows, options = {}) {
   //     exact pass can't see (see fuzzyUnionUnits).
   fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch);
 
+  // 2c. Verified misplaced records: a street-only geocode and a misspelt name
+  //     that no distance or name check can bridge.
+  unionVerifiedMisplacedRecords(units, groupList);
+
   const clusters = units.filter((u) => u.length > 1);
 
   // 3. Pick the canonical identity per cluster and plan the row rewrites.
@@ -506,10 +573,15 @@ export function canonicalizeDataset(rows, options = {}) {
   // 4. Rewrite only the four identity fields of losing rows; every other field
   //    (price, pint_name, source_datasets, …) is preserved so per-row
   //    provenance stays honest.
+  //    A verified borrowed website is cleared from any row at another pub's
+  //    postcode (VERIFIED_BORROWED_WEBSITES).
+  let borrowedWebsitesCleared = 0;
   const newRows = rows.map((row, idx) => {
     const rw = rewriteByRowIdx.get(idx);
-    if (!rw) return row;
-    return { ...row, ...rw };
+    const rewritten = rw ? { ...row, ...rw } : row;
+    const cleaned = withoutBorrowedWebsite(rewritten);
+    if (cleaned !== rewritten) borrowedWebsitesCleared += 1;
+    return cleaned;
   });
 
   return {
@@ -522,6 +594,7 @@ export function canonicalizeDataset(rows, options = {}) {
       duplicateClusters: clusters.length,
       mergedRecords: Object.keys(aliases).length,
       venueIdentitiesAfter: groupList.length - Object.keys(aliases).length,
+      borrowedWebsitesCleared,
     },
   };
 }
