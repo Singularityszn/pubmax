@@ -48,7 +48,6 @@ import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import TonightYourPubs from "./TonightYourPubs";
-import TonightReturnCue from "./TonightReturnCue";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
@@ -989,10 +988,6 @@ export default function TonightClient({
       </aside>
 
       <div className="tonightAfterPrimary">
-
-      {/* A way back to a pub this browser saved. After the answer, never in
-          the lede, and only for a save the map can open. */}
-      <TonightReturnCue selectableVenueIds={selectableVenueIds} />
 
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when
