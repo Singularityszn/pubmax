@@ -6,6 +6,8 @@ Every row was reviewed on 2026-07-16 and expired on 2026-08-16. Since 17 August 
 
 Until 2026-11-16 00:00 UTC the finding only warns: `late_food_evidence` has a temporary exemption in `TEMPORARY_ADVISORY_UNTIL` (`scripts/check_freshness.mjs`). From that instant it fails the gate again. Delete the entry in the same commit that lands the re-reviewed rows.
 
+Until 2026-11-16 00:00 UTC the finding only warns: `late_food_evidence` has a temporary exemption in `TEMPORARY_ADVISORY_UNTIL` (`scripts/check_freshness.mjs`). From that instant it fails the gate again. Delete the entry in the same commit that lands the re-reviewed rows.
+
 ## Who can do this
 
 A person with a browser. `reviewedAt` records that someone read the operator's page and checked the row against it, so the dates must not be advanced without that review. None of the five operator hosts is in `lib/harvest/sourcePolicy.ts`, so no harvest script may fetch them.
