@@ -27,6 +27,7 @@ export function parseQid(value: unknown): string | null;
 export function buildOsmWikidataLinks(input: {
   chunks: unknown;
   seedPubs: unknown;
+  venueAliases?: Readonly<Record<string, string>>;
   fetchedAt: string;
   box?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
 }): OsmWikidataLinksPack;

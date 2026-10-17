@@ -757,12 +757,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-13wpw9e",
-    "name": "Anchor - Bankside (Southwark)",
+    "venueId": "venue-gv8lwa",
+    "name": "Anchor - Bankside (southwark)",
     "slug": "anchor-bankside-southwark",
     "borough": "Southwark",
-    "lat": 51.5073,
-    "lng": -0.092875,
+    "lat": 51.5072,
+    "lng": -0.0929363,
     "hook": "pub in Bankside, London",
     "facts": [
       {
@@ -1416,12 +1416,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-172mx8n",
-    "name": "Crown & Horseshoes (Enfield)",
+    "venueId": "venue-168ndjw",
+    "name": "Crown & Horseshoes (enfield)",
     "slug": "crown-horseshoes-enfield",
     "borough": "Enfield",
-    "lat": 51.6558,
-    "lng": -0.086924,
+    "lat": 51.6558713,
+    "lng": -0.0869148,
     "hook": "pub in Enfield, London",
     "facts": [
       {
@@ -2231,12 +2231,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-1r0yf7r",
+    "venueId": "venue-6o2vbn",
     "name": "Greene Man",
     "slug": "greene-man",
-    "borough": "Camden",
-    "lat": 51.52373,
-    "lng": -0.14323,
+    "borough": "Waltham Forest",
+    "lat": 51.6251308,
+    "lng": -0.0153264,
     "hook": "public house in London",
     "facts": [
       {
@@ -3450,12 +3450,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-cxy85g",
+    "venueId": "venue-1gy9xkj",
     "name": "Queens, Crouch End",
     "slug": "queens-crouch-end",
     "borough": "Haringey",
-    "lat": 51.581,
-    "lng": -0.121901,
+    "lat": 51.5809825,
+    "lng": -0.1219242,
     "hook": "pub in the London Borough of Haringey, England, UK",
     "facts": [
       {
@@ -4183,12 +4183,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-204w0t",
+    "venueId": "venue-bdf9cy",
     "name": "Temperance Billiard Hall, Fulham",
     "slug": "temperance-billiard-hall-fulham",
     "borough": "Hammersmith and Fulham",
-    "lat": 51.469397,
-    "lng": -0.210544,
+    "lat": 51.4693971,
+    "lng": -0.2104963,
     "hook": "pub in Hammersmith and Fulham, London, England, UK",
     "facts": [
       {
@@ -4920,12 +4920,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-1i9h4wb",
+    "venueId": "venue-x8tw9t",
     "name": "The Cock, Fulham",
     "slug": "the-cock-fulham",
     "borough": "Hammersmith and Fulham",
-    "lat": 51.481325,
-    "lng": -0.19965,
+    "lat": 51.4814,
+    "lng": -0.199515,
     "hook": "pub in Fulham, London",
     "facts": [
       {
@@ -5574,12 +5574,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-74z3rx",
+    "venueId": "venue-1qb9nzj",
     "name": "The Fox",
     "slug": "the-fox",
-    "borough": "Richmond upon Thames",
-    "lat": 51.446658,
-    "lng": -0.327092,
+    "borough": "Enfield",
+    "lat": 51.6205779,
+    "lng": -0.1065963,
     "hook": "pub in Twickenham, London",
     "facts": [
       {
@@ -5620,12 +5620,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-1n7o6gw",
+    "venueId": "venue-1qb9nzj",
     "name": "The Fox, Palmers Green",
     "slug": "the-fox-palmers-green",
     "borough": "Enfield",
-    "lat": 51.620458,
-    "lng": -0.1064957,
+    "lat": 51.6205779,
+    "lng": -0.1065963,
     "hook": "building in United Kingdom",
     "facts": [
       {
@@ -6496,12 +6496,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-g295gw",
+    "venueId": "venue-698bu3",
     "name": "The Old Shades",
     "slug": "the-old-shades",
     "borough": "Westminster",
-    "lat": 51.506489,
-    "lng": -0.126911,
+    "lat": 51.5065,
+    "lng": -0.126974,
     "hook": "pub in Whitehall, London",
     "facts": [
       {
@@ -6542,12 +6542,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-6hsjmi",
+    "venueId": "venue-1b9434y",
     "name": "The Only Running Footman",
     "slug": "the-only-running-footman",
     "borough": "Westminster",
     "lat": 51.5085,
-    "lng": -0.14615,
+    "lng": -0.146145,
     "hook": "pub in London",
     "facts": [
       {
@@ -7966,12 +7966,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-lkjwk4",
+    "venueId": "venue-68ns7y",
     "name": "Ye Olde Mitre",
     "slug": "ye-olde-mitre",
     "borough": "Camden",
     "lat": 51.51844,
-    "lng": -0.107454,
+    "lng": -0.1074,
     "hook": "pub in Holborn, London",
     "facts": [
       {

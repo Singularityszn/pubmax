@@ -13,7 +13,7 @@ const BRAND_SLUG = "guinness";
 // (#1504). The pub count stays a checked figure, because it is the dataset's
 // own answer for this brand and a change to it is a change worth reading.
 const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
-const SUMMARY = `347 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
+const SUMMARY = `345 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
 const TRACKED_PROOF_DIR = "docs/proof/drink-brand-landing";
 type ProofScreenshotName =
   | "guinness-390-light.png"

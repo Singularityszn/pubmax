@@ -202,6 +202,37 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
 const VERIFIED_VENUE_ALIASES = {
   "venue-1sw9ofl": "venue-eltcmh",
   "venue-kkpnq8": "venue-9e93hd",
+  // Verified 2026-10-17 by street address or the pub's own website, each pair
+  // within 33 m. The first three differ only by an apostrophe or a space, which
+  // normalizeVenueIdentityName reads as a word break. The record kept is the one with the full street address and
+  // coordinates, since its name and address are written onto the merged rows;
+  // where both have one, the correctly spelled name is kept.
+  "venue-ydvsco": "venue-6bh8l6", // The King's Tun -> The Kings Tun, Wetherspoon, Kingston
+  "venue-9otpi8": "venue-x49k8g", // O'Neills -> O'Neill's
+  "venue-1g7sv3b": "venue-y78jw5", // Mc Glynn's Bar -> McGlynn's Bar, 70 Willesden Lane NW6
+  "venue-ttu2zy": "venue-l6qdob", // Price Albert -> The Prince Albert, 418 Coldharbour Lane SW9
+  "venue-4lt7c6": "venue-c0r9ym", // Flowes -> Flowers of the Forest, 14 Westminster Bridge Rd SE1
+  "venue-1fudad7": "venue-14alocj", // Richard the First -> Richard I, 52-54 Royal Hill SE10
+  "venue-1gnufko": "venue-16xmzi7", // Ye Olde London City -> Ye Olde London, 42 Ludgate Hill EC4M
+  "venue-oyallt": "venue-cgh71l", // The Alma Newington Green -> The Alma, 59 Newington Green Rd N1
+  "venue-g295gw": "venue-698bu3", // The Old Shades (Wikipedia, borough only) -> 37 Whitehall SW1A
+  "venue-lkjwk4": "venue-68ns7y", // Ye Olde Mitre (Wikipedia, borough only) -> EC1N 6SJ record
+  "venue-1r0yf7r": "venue-s68ndf", // Greene Man (Wikipedia, borough only) -> 383 Euston Road NW1
+  "venue-67akji": "venue-pzbwmw", // Cask -> Cask Pub & Kitchen, 6 Charlwood St SW1V
+  "venue-6hsjmi": "venue-1b9434y", // The Only Running Footman -> The Footman, 5 Charles St W1J
+  "venue-bb2v2w": "venue-1xmac", // The Grapes (Wikipedia) -> The Grapes SW18, 39 Fairfield St
+  "venue-cxy85g": "venue-1gy9xkj", // Queens, Crouch End (Wikipedia) -> The Queens, 26 Tottenham Lane N8
+  "venue-204w0t": "venue-bdf9cy", // Temperance Billiard Hall (Wikipedia) -> The Temperance, 90 Fulham High St
+  "venue-806vol": "venue-mz6byd", // The Ship Soho -> The Ship, 116 Wardour St W1F
+  "venue-1pzhx7d": "venue-qw9l0q", // The Castle Inn, Ealing -> The Castle Inn, 36 St Mary's Rd W5
+  "venue-172mx8n": "venue-168ndjw", // Crown & Horseshoes (Enfield) -> 12-15 Horseshoe Lane EN2
+  "venue-1hq7rkl": "venue-1yiyopd", // Windsor Fenchurch -> The Windsor, 2 New London St EC3R
+  "venue-1hd5y0u": "venue-18x41hr", // Yeh Olde Watling -> Ye Olde Watling, 29 Watling St
+  "venue-w1qzhg": "venue-13z79s7", // Churchills, Clapham -> Churchills, 151 St John's Hill SW11
+  "venue-jlqlve": "venue-hvsgg4", // Cricketers Arms -> Cricketers Enfield, Chase Side Place
+  "venue-13wpw9e": "venue-gv8lwa", // Anchor - Bankside -> Anchor, 34 Park Street SE1
+  "venue-1i9h4wb": "venue-x8tw9t", // The Cock, Fulham (Wikipedia) -> Cock Tavern, 360 North End Rd SW6
+  "venue-1n7o6gw": "venue-1qb9nzj", // The Fox, Palmers Green (Wikipedia) -> The Fox (OSM)
 };
 const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
 

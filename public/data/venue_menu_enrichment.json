@@ -202,12 +202,6 @@
       "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-cock-tavern/book",
       "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
     },
-    "venue-1gnufko": {
-      "source": "greene-king.co.uk",
-      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/menu",
-      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/book",
-      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
-    },
     "venue-eltcmh": {
       "source": "nicholsonspubs.co.uk",
       "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/theblackfriarblackfriarslondon/foodmenu",
@@ -547,25 +541,6 @@
           "label": "Drinks",
           "hint": "Opens the Nicholson's drinks menu",
           "href": "https://www.nicholsonspubs.co.uk/restaurants/london/williamsonstaverngrovelandcourtlondon/drinks"
-        }
-      ]
-    },
-    "venue-1hd5y0u": {
-      "source": "nicholsonspubs.co.uk",
-      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/foodmenu",
-      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/bookings",
-      "categoryTiles": [
-        {
-          "id": "food-1",
-          "label": "Food",
-          "hint": "Opens the Nicholson's food menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/foodmenu"
-        },
-        {
-          "id": "drinks-1",
-          "label": "Drinks",
-          "hint": "Opens the Nicholson's drinks menu",
-          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/drinks"
         }
       ]
     },
@@ -1110,18 +1085,6 @@
         }
       ]
     },
-    "venue-1fudad7": {
-      "source": "youngs.co.uk",
-      "menuUrl": "https://www.richardthefirst.co.uk",
-      "categoryTiles": [
-        {
-          "id": "garden-1",
-          "label": "Pub site",
-          "hint": "Young's beer garden pub — opens the official pub website",
-          "href": "https://www.richardthefirst.co.uk"
-        }
-      ]
-    },
     "venue-1g8dzkx": {
       "source": "youngs.co.uk",
       "menuUrl": "https://www.thedepotpub.co.uk",
@@ -1569,6 +1532,43 @@
           "label": "Pub site",
           "hint": "Young's beer garden pub — opens the official pub website",
           "href": "https://www.theguardhousewoolwich.co.uk"
+        }
+      ]
+    },
+    "venue-16xmzi7": {
+      "source": "greene-king.co.uk",
+      "menuUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/menu",
+      "bookingUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/book",
+      "allergyInfoUrl": "https://www.greeneking.co.uk/allergen-information"
+    },
+    "venue-18x41hr": {
+      "source": "nicholsonspubs.co.uk",
+      "menuUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/foodmenu",
+      "bookingUrl": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/bookings",
+      "categoryTiles": [
+        {
+          "id": "food-1",
+          "label": "Food",
+          "hint": "Opens the Nicholson's food menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/foodmenu"
+        },
+        {
+          "id": "drinks-1",
+          "label": "Drinks",
+          "hint": "Opens the Nicholson's drinks menu",
+          "href": "https://www.nicholsonspubs.co.uk/restaurants/london/yeoldewatlingwatlingstreetlondon/drinks"
+        }
+      ]
+    },
+    "venue-14alocj": {
+      "source": "youngs.co.uk",
+      "menuUrl": "https://www.richardthefirst.co.uk",
+      "categoryTiles": [
+        {
+          "id": "garden-1",
+          "label": "Pub site",
+          "hint": "Young's beer garden pub — opens the official pub website",
+          "href": "https://www.richardthefirst.co.uk"
         }
       ]
     }
