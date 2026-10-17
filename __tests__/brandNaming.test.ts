@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Metadata } from "next";
@@ -45,6 +48,14 @@ describe("brand naming (product decision 16 Oct 2026)", () => {
     // The native shells and the store record keep it until the captain
     // renames them; no web surface may print it (the fences below).
     expect(APP_NAME).toBe("PUBMAXXING");
+  });
+
+  it("names PUBMAXX on the offline page the service worker falls back to", () => {
+    // public/sw.js serves this document when a navigation has no network, so
+    // it is a web surface like any page and keeps no trace of the old name.
+    const offline = readFileSync(path.join(process.cwd(), "public/offline.html"), "utf8");
+    expect(offline).not.toContain(APP_NAME);
+    expect(offline).toContain(`<title>You're offline. ${BRAND_NAME}</title>`);
   });
 
   it("uses the one name in share-card page titles", () => {

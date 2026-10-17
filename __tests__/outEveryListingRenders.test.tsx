@@ -177,6 +177,61 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     expect(container.querySelectorAll('[data-testid="out-listing-row"]')).toHaveLength(1);
   });
 
+  it("keeps the day an old /out link named after the redirect to /tonight", async () => {
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () =>
+      new Response(JSON.stringify(body([unmatchedRow(0)])), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const before = window.location.href;
+    window.history.replaceState(null, "", "/tonight?day=weekend");
+    try {
+      container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(createElement(TonightLaterListings));
+      });
+      await act(async () => {});
+      const chips = [...container.querySelectorAll<HTMLButtonElement>(".outDayChip")];
+      expect(chips.map((chip) => chip.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain("day=weekend");
+
+      // A tap still moves the day.
+      await act(async () => {
+        chips[0]!.click();
+      });
+      await act(async () => {});
+      expect(chips[0]!.getAttribute("aria-pressed")).toBe("true");
+      expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("day=tomorrow");
+    } finally {
+      window.history.replaceState(null, "", before);
+    }
+  });
+
+  it("picks nothing for ?day=tonight, the page itself", async () => {
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>();
+    vi.stubGlobal("fetch", fetchMock);
+    const before = window.location.href;
+    window.history.replaceState(null, "", "/tonight?day=tonight");
+    try {
+      container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(createElement(TonightLaterListings));
+      });
+      const chips = [...container.querySelectorAll<HTMLButtonElement>(".outDayChip")];
+      expect(chips.every((chip) => chip.getAttribute("aria-pressed") === "false")).toBe(true);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState(null, "", before);
+    }
+  });
+
   it("says a running read in one line, never a skeleton", async () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
     container = document.createElement("div");
