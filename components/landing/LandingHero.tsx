@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
-import { slugifyBorough } from "@/lib/boroughs";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import type { LegacyPintPrice } from "@/lib/drinks";
@@ -77,9 +76,10 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 // today and it ends in a sign-in ask, so it is the first QUIET door now and
 // /near is the filled one (lib/landingHero.ts).
 //
-// The pub card under the picture stands on a photograph of London (captain
-// 6 Sep 2026): the pub itself where we hold its picture, else its borough, else
-// the city. Everything the card prints is a fact with its source beside it, and
+// The pub card under the picture stands on the pub's OWN photograph where we
+// hold one, keyed on its venue id, and is a text-and-price card where we hold
+// none: a borough or city view behind a pub's name reads as that pub's front
+// door. Everything the card prints is a fact with its source beside it, and
 // the browser only ever swaps the anchor for a near-you answer built from the
 // same slim index /near ranks. lib/landingImagery.ts owns which picture, whose
 // it is, and the scrim that keeps every line over it inside WCAG AA.
@@ -307,13 +307,11 @@ export default function LandingHero({
     };
   }, [hasCard, locate]);
 
-  // Which picture the card stands on. It follows the ANSWER, so a near-you
-  // swap moves to that pub's own borough rather than keeping the anchor's.
-  const photo = landingPhotoFor(
-    answer
-      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.primaryBorough) }
-      : {},
-  );
+  // Which picture the card stands on: the pub's own, keyed on its venue id,
+  // or none. A borough or city view is never the pub's picture. It follows
+  // the ANSWER, so a near-you swap drops a picture the new pub does not have.
+  const resolved = answer ? landingPhotoFor({ venueId: answer.id }) : null;
+  const photo = resolved?.scope === "pub" ? resolved : null;
   // The one filled action, and it is the same door whether or not a pub card
   // stands behind the document, and the same door for every visitor: /near
   // answers in one tap, and offers the first-run journey there as a chip.
@@ -426,7 +424,8 @@ function AnswerCard({
 }: {
   answer: Answer;
   near: NearState;
-  photo: ResolvedLandingPhoto;
+  /** The pub's own photograph, or null for a text-and-price card. */
+  photo: ResolvedLandingPhoto | null;
 }) {
   const kicker = answerKicker(answer.scope, answer.area);
   const walk = answer.walkMinutes != null ? `${answer.walkMinutes} min walk` : null;
@@ -438,14 +437,16 @@ function AnswerCard({
   const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
     <article
-      className="lpPubCard lpAnswerCard lpPubCard--photo"
+      className={photo ? "lpPubCard lpAnswerCard lpPubCard--photo" : "lpPubCard lpAnswerCard"}
       aria-labelledby="lp-answer-name"
     >
-      <LandingPhoto
-        resolved={photo}
-        sizes={ANSWER_PHOTO_SIZES}
-        preloadMedia={ANSWER_PHOTO_PRELOAD_MEDIA}
-      />
+      {photo ? (
+        <LandingPhoto
+          resolved={photo}
+          sizes={ANSWER_PHOTO_SIZES}
+          preloadMedia={ANSWER_PHOTO_PRELOAD_MEDIA}
+        />
+      ) : null}
       <div className="lpAnswerHead">
         <Kicker>
           {kicker}
@@ -509,7 +510,7 @@ function AnswerCard({
       <p className="lpNearLine" role="status" aria-live="polite">
         {near.kind === "failed" ? near.line : ""}
       </p>
-      <LandingPhotoCredit resolved={photo} className="lpPhotoCredit" />
+      {photo ? <LandingPhotoCredit resolved={photo} className="lpPhotoCredit" /> : null}
     </article>
   );
 }
