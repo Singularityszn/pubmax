@@ -15,9 +15,9 @@
 // The free plan runs only 5 macOS jobs at once, and a job that starts only to
 // skip its steps still holds a macOS runner while it waits. So one Linux job,
 // "Change scope", classifies the diff, and the three layout-pin jobs are
-// skipped whole when it is not code. They are named jobs, not a matrix, so a
-// skipped one reports under its own name, which branch protection counts as
-// passed.
+// skipped whole when it succeeds and says docs or data. They are named jobs,
+// not a matrix, so a skipped one reports under its own name, which branch
+// protection counts as passed. If the classifier fails, they run.
 //
 // The classifier and the named-test step are EXECUTED here, against a
 // stand-in `git` and `npx`, so these are pins on what the steps do, not on
@@ -185,6 +185,12 @@ describe("the change scope", () => {
 // The job that only classifies, for the macOS layout pins to read.
 const SCOPE_JOB = "e2e.yml / change-scope";
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
+// Run unless the classifier succeeded and said docs or data. A failed
+// classifier must run the layout pins, not skip them: a skipped check counts
+// as passed for branch protection, so skipping would let a code change merge
+// without them (fail closed).
+const LAYOUT_PIN_IF =
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
 
 describe("what each scope runs", () => {
   it("gates every step after the classifier, and never a whole job", () => {
@@ -211,7 +217,7 @@ describe("what each scope runs", () => {
     expect(step("ci.yml / lint-and-types", "Typecheck").if).toBe("steps.scope.outputs.scope != 'docs'");
   });
 
-  it("skips the macOS layout pins whole, by fixed name, unless the change is code", () => {
+  it("skips the macOS layout pins whole, by fixed name, only for a classified docs or data change", () => {
     const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed.jobs as Record<
       string,
       Job & { "runs-on"?: string; needs?: string[]; outputs?: Record<string, string>; strategy?: unknown }
@@ -226,7 +232,7 @@ describe("what each scope runs", () => {
       const layout = defined(e2e[id], id);
       expect(layout["runs-on"], id).toBe("macos-latest");
       expect(layout.needs, id).toEqual(["change-scope"]);
-      expect(layout.if, id).toBe("needs.change-scope.outputs.scope == 'code'");
+      expect(layout.if, id).toBe(LAYOUT_PIN_IF);
       // A matrix job skipped whole reports under its unexpanded name.
       expect(layout.strategy, id).toBeUndefined();
       expect(layout.name ?? "", id).not.toContain("${{");

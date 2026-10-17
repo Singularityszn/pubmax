@@ -28,6 +28,12 @@ type Workflow = {
 
 // The layout pins are three named jobs that share one step list, not a matrix.
 const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
+// Run unless the classifier succeeded and said docs or data. A failed
+// classifier must run the layout pins, not skip them: a skipped check counts
+// as passed for branch protection, so skipping would let a code change merge
+// without them (fail closed).
+const LAYOUT_PIN_IF =
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -118,7 +124,7 @@ describe("browser CI policy", () => {
       expect(job.strategy).toBeUndefined();
       expect(job.env?.LAYOUT_SHARD).toBe(index + 1);
       expect(job.needs).toEqual(["change-scope"]);
-      expect(job.if).toBe("needs.change-scope.outputs.scope == 'code'");
+      expect(job.if).toBe(LAYOUT_PIN_IF);
       // One step list for all three, so the shards cannot drift apart.
       expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
     });

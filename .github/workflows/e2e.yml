@@ -140,6 +140,9 @@ jobs:
     # macOS runner. They are three named jobs, not a matrix: a skipped
     # matrix job reports under its unexpanded name, but a skipped named job
     # reports under its own name and counts as passed for branch protection.
+    # The layout jobs fail closed: if this job fails, they run anyway, so a
+    # broken classifier can never turn a code change into a skipped (passed)
+    # layout check.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -183,7 +186,7 @@ jobs:
     # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
     # edge, for example 7px short at 320px.
     needs: [change-scope]
-    if: needs.change-scope.outputs.scope == 'code'
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -299,7 +302,7 @@ jobs:
   layout-pins-2:
     name: Browser layout pins (2/3)
     needs: [change-scope]
-    if: needs.change-scope.outputs.scope == 'code'
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
@@ -309,7 +312,7 @@ jobs:
   layout-pins-3:
     name: Browser layout pins (3/3)
     needs: [change-scope]
-    if: needs.change-scope.outputs.scope == 'code'
+    if: ${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}
     runs-on: macos-latest
     timeout-minutes: 40
     env:
