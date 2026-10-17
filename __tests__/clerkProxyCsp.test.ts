@@ -807,7 +807,7 @@ describe("the proxy export Next.js actually runs", () => {
 
   it("keeps running on ordinary pages", () => {
     expect(
-      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/map" }),
+      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/login" }),
     ).toBe(true);
   });
 

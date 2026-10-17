@@ -6,6 +6,11 @@ import { CHOOSE_CITY_PATH, PLACES_PATH } from "@/lib/cityPickerRoute";
 import { MAP_LIST_PATH, MAP_LIST_SEARCH_PARAM } from "@/lib/mapListRoute";
 import { OUT_PATH, TONIGHT_PATH } from "@/lib/outRoute";
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
+import {
+  CDN_DOCUMENT_INLINE_SCRIPT_SOURCE,
+  buildContentSecurityPolicy,
+  devSupabaseConnectOrigin,
+} from "@/lib/contentSecurityPolicy.mjs";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
 import { supabaseCspOrigins } from "@/lib/supabaseCsp";
@@ -479,123 +484,20 @@ export function securityProxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
 
-  // script-src: NO 'unsafe-inline' (its removal is the entire point of this
-  //   file — and browsers ignore 'unsafe-inline' whenever a nonce is present
-  //   anyway). 'self' covers the external theme-init + the async /_next/static
-  //   chunk bundles; 'nonce-<value>' covers Next's inline RSC bootstrap +
-  //   hydration payload and our own nonce-stamped inline scripts. Local
-  //   `next dev` additionally gets 'unsafe-eval' because React's development
-  //   tooling uses eval for call-stack reconstruction; production never does.
-  //   NB: no 'strict-dynamic' — it would make the browser ignore the 'self'
-  //   source expression, blocking the parser-inserted external theme-init.js;
-  //   Next's chunk loading is happy under plain 'self' + a nonce'd bootstrap.
-  //   The external host is va.vercel-scripts.com for Vercel Analytics.
-  //   Vercel injects its tag itself, so it carries no nonce of ours; the script
-  //   is still consent-gated in the app (`beforeSend` cancels pre-consent
-  //   pageviews — docs/OBSERVABILITY_CERTIFICATION.md), so allowing that origin
-  //   does not widen what may be collected, only what may load.
-  //   Speed Insights loads same-origin `/_vercel/speed-insights/*` (script +
-  //   vitals beacon) under `'self'` in script-src and connect-src; it is also
-  //   consent-gated in the app (`beforeSend` cancels pre-consent vitals).
-  //   Clerk adds its instance Frontend API host (which serves clerk-js), the
-  //   Cloudflare Turnstile challenge host and Clerk's abuse-protection hosts.
-  //   Every one of them is an exact origin derived from the publishable key or
-  //   named in lib/clerkIdentity.ts; NONE of them is 'unsafe-inline', and
-  //   nothing here relaxes the nonce contract above. With no Clerk key set,
-  //   `clerk.script` is empty.
-  // Local development may point NEXT_PUBLIC_SUPABASE_URL at an auth stack on
-  // this machine (`supabase start`, or a stub GoTrue for keyless auth testing);
-  // the `*.supabase.co` allowance never covers that origin, so browser sign-in
-  // silently dies under the CSP. The extra origin joins connect-src only under
-  // `next dev` — production builds never widen.
-  const devSupabaseConnect = (() => {
-    if (!isDev) return "";
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!url) return "";
-    try {
-      const origin = new URL(url).origin;
-      return origin.endsWith(".supabase.co") ? "" : ` ${origin}`;
-    } catch {
-      return "";
-    }
-  })();
-
-  const clerk = clerkCspSources();
-  const supabaseCsp = supabaseCspOrigins();
-  const supabaseImg = supabaseCsp ? ` ${supabaseCsp.https}` : "";
-  const supabaseConnect = supabaseCsp
-    ? ` ${supabaseCsp.https} ${supabaseCsp.wss}`
-    : "";
-  const clerkScript = clerk.script.map((origin) => ` ${origin}`).join("");
-  // On a prerendered document the nonce slot becomes 'unsafe-inline'. What that
-  // costs is exactly this: Next's own inline RSC bootstrap and our two inline
-  // blocks in app/layout.tsx (speculation rules, site JSON-LD) are admitted by
-  // being inline rather than by carrying a secret. Other source expressions
-  // remain unchanged. Both surfaces render no personal data and take no user
-  // input into markup.
-  const inlineScriptSource = cdnCachedDocument
-    ? "'unsafe-inline'"
-    : `'nonce-${nonce}'`;
-  // Voice AudioWorklets are same-origin files under /vendor/elevenlabs, copied
-  // by `npm run dev` and `npm run build` and passed as workletPaths when a session starts.
-  // script-src stays 'self' plus the nonce (or 'unsafe-inline' on the
-  // prerendered documents). data: and blob: are not script sources: a data:
-  // URL would run without a nonce.
-  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
-
-  // frame-src did not exist before Clerk: framing fell through to `child-src
-  // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
-  // abuse protection both render in iframes, so the directive becomes explicit
-  // — and it KEEPS blob: so the fallback's existing permission is preserved
-  // rather than quietly revoked. It stays absent entirely when Clerk is off.
-  const clerkFrameSrc =
-    clerk.frame.length > 0 ? [`frame-src blob: ${clerk.frame.join(" ")}`] : [];
-
-  // The baseline non-script directives below follow the previous static CSP in
-  // next.config.mjs. See that file's history for the per-directive rationale.
-  const contentSecurityPolicy = [
-    "default-src 'self'",
-    scriptSrc,
-    "style-src 'self' 'unsafe-inline'",
-    // img-src is deliberately MINIMAL — a "proxy-or-nothing" guard (image
-    // rights audit U9, docs/IMAGE_RIGHTS_AUDIT_2026-07-21.md). Only origins the
-    // BROWSER loads directly are listed: Wikimedia (landmark stories on the map
-    // + /landmark/[id], via Special:FilePath, whose redirect chain ends on
-    // thumb.wikimedia.org for a sized file and upload.wikimedia.org for the
-    // original; MEASURED 2026-09-05, a width-sized request 302s to
-    // Special:Redirect/file, then 301s to thumb.wikimedia.org, and a host
-    // missing here drew every landmark hero as a broken-image glyph with the
-    // credit bar still under it), the Greene King Sitecore DAM (the 4 food-menu tiles
-    // MenuCategoryGrid renders raw), *.supabase.co (community Pint Drop photos +
-    // user avatars, our own bucket) and *.googleusercontent.com (Google IdP
-    // sign-in/profile avatars). Every OTHER venue photo — the ~439 open-ended
-    // pub-website hosts plus the brand/platform CDNs — is fetched server-side by
-    // /api/image-proxy and re-served same-origin, so it loads under 'self' and
-    // needs no entry here. The brand/platform origins that USED to be listed
-    // (jdwetherspoon, greeneking, staticflickr, tripadvisor, squarespace-cdn,
-    // inapub, wixstatic, whatpub S3, gstatic) were dead — never loaded directly —
-    // and were removed so a future direct hotlink of unlicensed imagery fails
-    // visibly instead of silently shipping. Do NOT re-add a third-party image
-    // host here: route it through /api/image-proxy (and license it) instead.
-    // Clerk adds https://img.clerk.com here, its own account-avatar CDN. It is
-    // a first-party ACCOUNT image, not a third-party venue photo, so the
-    // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
-    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org${supabaseImg} https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
-    "font-src 'self' data: https://tiles.openfreemap.org",
-    // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
-    // its abuse-protection hosts. Supabase's entries stay: both auth systems
-    // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com${supabaseConnect} wss://api.elevenlabs.io https://api.elevenlabs.io${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
-    // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
-    // tile workers and the offline service worker, so it needs no change here.
-    "worker-src 'self' blob:",
-    "child-src blob:",
-    ...clerkFrameSrc,
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "object-src 'none'",
-  ].join("; ");
+  // The policy itself is built in lib/contentSecurityPolicy.mjs, which owns
+  // the per-directive reasoning, so next.config.mjs can ship the SAME policy
+  // for the CDN documents that no longer run this function on the canonical
+  // host (lib/cdnDocumentEdge.mjs). The nonce slot is the only input that
+  // differs: a prerendered document takes 'unsafe-inline' instead.
+  const contentSecurityPolicy = buildContentSecurityPolicy({
+    inlineScriptSource: cdnCachedDocument
+      ? CDN_DOCUMENT_INLINE_SCRIPT_SOURCE
+      : `'nonce-${nonce}'`,
+    isDev,
+    clerk: clerkCspSources(),
+    supabase: supabaseCspOrigins(),
+    devSupabaseConnect: devSupabaseConnectOrigin(process.env, isDev),
+  });
 
   // Forward the nonce to the render: `x-nonce` for our own components
   // (app/layout.tsx et al. read it via next/headers), and the CSP itself on the
@@ -682,6 +584,19 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
+    // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`) are left
+    // out of the general rule below, and their policy ships from next.config.mjs
+    // `headers()`. These entries keep the proxy on the only requests for them it
+    // still acts on: the poster QR landing (`/?src=`) and a /map query that
+    // needs the per-request document twin. lib/cdnDocumentEdge.mjs owns the
+    // rule; `__tests__/cdnDocumentEdge.test.ts` derives these and fails on drift.
+    { source: "/", has: [{ type: "query", key: "src" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "place" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "uk" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "band" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "crawl" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "pubs" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
+    { source: "/map", has: [{ type: "query", key: "card" }], missing: [{ type: "header", key: "next-router-prefetch" }] },
     // The general rule, and the ONE place a request is kept out of this
     // function entirely. Beside the framework's own static prefixes it now
     // excludes every public asset directory: `/data`, the map's packs included,
@@ -692,14 +607,15 @@ export const config = {
     // of public/ and the /pal art, by extension, and ONLY there (a dynamic page
     // such as /u/foo.png must keep its nonce): theme-init.js and
     // map-first-paint-init.js load in <head>, so a cold start here delayed
-    // first paint. Next only reads a matcher it can analyse STATICALLY, so
+    // first paint. The final branches leave out the five CDN documents (see
+    // the query entries above). Next only reads a matcher it can analyse STATICALLY, so
     // the alternation is written out here as a literal;
     // `__tests__/staticAssetPrefixes.test.ts` derives it from
     // lib/staticAssetPrefixes.mjs and fails when the two drift, and the same
     // fence refuses a prefix that collides with an app route.
     {
       source:
-        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$).*)",
+        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$|$|map$|tonight$|today$|near$).*)",
       // Next's router prefetch (an RSC fetch) is kept out. The browser's own
       // `Purpose: prefetch` is NOT: it marks a document prefetch or a
       // speculation-rules prerender, which the reader is then shown, so it
