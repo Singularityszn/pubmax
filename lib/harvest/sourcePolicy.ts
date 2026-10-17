@@ -429,11 +429,11 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     access: {
       allowed: true,
       evidence:
-        "Owner decision, 16 Oct 2026. The FSA publishes FHRS data as open data under the Open Government Licence v3.0, and its API page (food.gov.uk/food-hygiene-rating-scheme-api-version-2, read through a search index) states no sign-up, API key or login is required. NOT read live: the API's BestPractices page and the FSA terms, because the registering environment's network refused both hosts. Re-read them on the first networked run of npm run build:fsa-hygiene.",
-      checkedOn: OPEN_DATA_CHECKED_ON,
+        "Owner decision, 16 Oct 2026. Read live on 17 Oct 2026, before the first networked run of npm run build:fsa-hygiene. The FSA's terms and conditions (food.gov.uk/terms-and-conditions) put its content under the Open Government Licence v3.0 and make the use of food hygiene ratings information subject to the OGL; they remind users that showing an invalid or inaccurate rating may be an offence, so a user must show the current rating or the date the information was updated; and they reserve the FHRS imagery and the FSA logo, which may not be used without permission. The API's BestPractices page (api.ratings.food.gov.uk/Help/BestPractices) asks bulk readers for pages of 200 or fewer, because larger pages are rate-limited and answer HTTP 429; for flow control with a configurable sleep, because throttling limits change; recommends the nightly Open Data files for regular full downloads; and suggests running bulk reads between 01:00 and 06:00, though the same throttle applies all day. The API's FAQs say an over-rate client address gets HTTP 403 and concurrency limits answer HTTP 429, and that the FSA does not publish those limits.",
+      checkedOn: "2026-10-17",
     },
     notes:
-      "Read by scripts/build_fsa_hygiene_pack.mjs into public/data/fsa_hygiene/london.json: pages of 200 or fewer, one request a second, the x-api-version: 2 header, and a 429 or 5xx retried a bounded number of times. The live /api/hygiene route reads the same API per sheet, server-side.",
+      "Read by scripts/build_fsa_hygiene_pack.mjs into public/data/fsa_hygiene/london.json: pages of 200 or fewer, one request a second by default (--delay-ms may slow it, never speed it up), the x-api-version: 2 header, and a 429 or 5xx retried a bounded number of times; a 403 stops the run and writes nothing. The pack shows the day it was read beside every rating, as the FSA terms ask. The live /api/hygiene route reads the same API per sheet, server-side.",
   },
   {
     id: "wikidata-query-service",

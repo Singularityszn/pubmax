@@ -115,8 +115,9 @@ describe("every source is a decision with evidence", () => {
       // An open-data API states facts about businesses it does not own.
       expect(source.firstParty, source.id).toBe(false);
       expect(new URL(source.url).protocol, source.id).toBe("https:");
-      // Each row says what was not read live, so the first networked run knows to.
-      expect(source.access.evidence, source.id).toMatch(/NOT read live/);
+      // Each row says the day its terms were read live, or what was not read
+      // live, so the first networked run knows to.
+      expect(source.access.evidence, source.id).toMatch(/NOT read live|Read live on \d{1,2} [A-Z][a-z]{2} \d{4}/);
     }
     expect(openDataSourceUrl("fsa-fhrs-api", "/Establishments/1").href).toBe(
       "https://api.ratings.food.gov.uk/Establishments/1",
