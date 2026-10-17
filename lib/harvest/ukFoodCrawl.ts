@@ -25,17 +25,15 @@ import type { FoodCategory } from "../food";
 import { categoryFor, pageText, type UkPriceSourceFormat } from "./ukPriceCrawl";
 
 
-const UK_FOOD_DROP_REASONS = [
-  "offer-or-add-on",
-  "several-prices-on-line",
-  "outside-food-band",
-  "no-item-name",
-  "drink-section",
-  "drink-line",
-  "no-food-context",
-  "duplicate-item",
-] as const;
-type UkFoodDropReason = (typeof UK_FOOD_DROP_REASONS)[number];
+type UkFoodDropReason =
+  | "offer-or-add-on"
+  | "several-prices-on-line"
+  | "outside-food-band"
+  | "no-item-name"
+  | "drink-section"
+  | "drink-line"
+  | "no-food-context"
+  | "duplicate-item";
 
 type UkFoodDish = {
   itemName: string;
