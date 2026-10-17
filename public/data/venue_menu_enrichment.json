@@ -1146,18 +1146,6 @@
         }
       ]
     },
-    "venue-kkpnq8": {
-      "source": "youngs.co.uk",
-      "menuUrl": "https://www.theguardhousewoolwich.co.uk",
-      "categoryTiles": [
-        {
-          "id": "garden-1",
-          "label": "Pub site",
-          "hint": "Young's beer garden pub — opens the official pub website",
-          "href": "https://www.theguardhousewoolwich.co.uk"
-        }
-      ]
-    },
     "venue-1drd13s": {
       "source": "youngs.co.uk",
       "menuUrl": "https://www.thecrownlee.co.uk",
