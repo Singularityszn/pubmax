@@ -192,7 +192,9 @@ describe("the London base pubs the join reads", () => {
   });
 
   it("finds a pinned listing for a venue whose kept name lost the listing's name, only on the venue", () => {
-    const [[venueId, listEntry]] = Object.entries(VERIFIED_LISTINGS);
+    const venueId = "venue-698bu3";
+    const listEntry = VERIFIED_LISTINGS[venueId] ?? 0;
+    expect(listEntry).toBe(1267004);
     const point = { listEntry, name: "OLD SHADES PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.5, lng: -0.1 };
     const near = buildListings([{ id: venueId, name: "Unrelated Name", lat: 51.50001, lng: -0.10001 }], [point]);
     expect(near[venueId]).toMatchObject({ listEntry, grade: "II", name: "Old Shades Public House" });
