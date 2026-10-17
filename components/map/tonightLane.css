@@ -12,6 +12,17 @@
   pointer-events: auto;
 }
 
+/* On a desktop the chip docks under the toolbar's PUBLISHED height with a gap,
+   on the toolbar's own left edge. The fixed +60px was the toolbar's height
+   alone, so the chip touched its bottom edge, and it sat at the viewport's
+   12px while the toolbar starts at the centred surface's edge (x 100 at 1440). */
+@media (min-width: 901px) {
+  .tonightLane {
+    top: calc(var(--map-top-clearance, 0px) + var(--map-toolbar-resting-height, 60px) + 10px);
+    left: calc((100vw - var(--desktop-map-surface-width, calc(100vw - 32px))) / 2);
+  }
+}
+
 .appShell.detail-open .tonightLane,
 .appShell.planning-open .tonightLane {
   display: none;
@@ -23,15 +34,13 @@
   min-height: 44px;
   max-width: min(360px, calc(100vw - 24px));
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass) 52%, var(--line));
+  /* Neutral, like every other banner on the map: coral survives there in three
+     places only (the primary, the create disc, the selected pin ring;
+     __tests__/mapCoralEconomy.test.ts), and a coral-washed chip read as a
+     second Plan action beside the toolbar's. */
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--brass) 12%, var(--panel-raised)),
-      color-mix(in srgb, var(--amber) 7%, var(--panel-raised))
-    ),
-    var(--panel-raised);
+  background: var(--panel-raised);
   box-shadow: var(--map-overlay-shadow-tight);
   color: var(--ink);
   backdrop-filter: blur(12px) saturate(1.08);

@@ -98,6 +98,10 @@ describe("coral is spent twice", () => {
     ["app/historic/historic.css", '.historicToggle[data-active="true"]'],
     ["app/crawls/crawls.css", ".routePackChip.isActive"],
     ["components/map/venueSheet.css", ".venueTab.active"],
+    // The /plan wizard's chosen answer painted through --plan-accent, an alias
+    // of --accent-action the CORAL pattern does not name, so it read coral here.
+    ["app/plan/plan.css", '.planIntake__choices button[aria-pressed="true"], .planIntake__numberChoices button[aria-pressed="true"]'],
+    ["components/nearme/nearModeSwitch.css", '.nearModeSwitchTab[aria-checked="true"]'],
     // The design-system tab audit (17 Oct 2026): the soft-drink chips wore the
     // category hue over a coral fallback and the admin sections a coral tint.
     ["components/drinks/drinkSubtypePricedView.css", ".softDrinksWater__chip.isOn"],

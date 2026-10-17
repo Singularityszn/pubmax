@@ -63,6 +63,25 @@
     pointer-events: none;
   }
 
+  /* THE STATUS BAR IS NOT MAP (#1543). The canvas runs to the top of the
+     screen under the iOS status bar by design, and MapLibre places a pin's
+     price anywhere in its viewport, so a "£6.10" sat under the wifi and battery
+     glyphs and read as part of iOS. Camera padding cannot help: it moves the
+     centre, never symbol placement. So the band the system owns is filled
+     with the page, as the landing bar's own band is (components/landing/
+     landing.css). It is exactly env(safe-area-inset-top) tall, measured from
+     the viewport top, so a browser with no inset paints nothing. */
+  .mobileMapChrome::before {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--mobile-map-top));
+    left: calc(-1 * var(--mobile-map-stack-left));
+    right: calc(-1 * var(--mobile-map-stack-right));
+    height: env(safe-area-inset-top, 0px);
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    pointer-events: none;
+  }
+
   /* The coordinator is the only mobile map chrome owner. Desktop keeps the
      mature controls while mobile removes their independently-positioned rows.
      CitySuggestBanner and CityStatusBanner are two of those rows, and the
@@ -1081,6 +1100,26 @@
     padding: 8px 16px 16px;
     scroll-padding-block: 8px 16px;
   }
+  /* THE HEAD TAKES AN EDGE ONLY ONCE THE BODY SCROLLS UNDER IT. Without one, a
+     scrolled venue sheet cut its rows flat against the title (a coral price
+     door read sliced in half), and an always-on rule doubled the body's own
+     first hairline at rest. The body's scroll position drives the line over
+     its first 12px; where scroll timelines are unsupported the head simply
+     stays edgeless, as before. It is a hairline appearing, not motion. */
+  @supports (animation-timeline: scroll()) {
+    .mobileSharedSheet { timeline-scope: --sheet-body; }
+    .mobileSharedSheetBody { scroll-timeline: --sheet-body block; }
+    .mobileSharedSheetHeader {
+      z-index: 1;
+      animation: mobileSheetHeadEdge linear both;
+      animation-timeline: --sheet-body;
+      animation-range: 0 12px;
+    }
+  }
+  @keyframes mobileSheetHeadEdge {
+    from { box-shadow: 0 1px 0 transparent; }
+    to { box-shadow: 0 1px 0 var(--hairline-strong); }
+  }
   /* Venue (right): the footer owns the bottom edge, so the body only
      needs a small gutter separating its content from the command bar (this gutter
      is between content and footer, not the sheet's bottom edge). */
@@ -1272,7 +1311,12 @@
      row is gone (captain 6 Sep 2026), but the hug is the fix at the layout
      primitive either way: the price is the size of the price. */
   .mobileVenuePeekSummary > span > .priceBadge { justify-self: start; }
-  .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
+  /* A figure may break only at a SPACE, and a figure has none: an estimate
+     prints "est. £6.56", two words. Held to one line in the figures face it
+     needed 111px where the figure column yields to 76 on a 320px phone, and
+     ran under "Near me"; it now stacks "est." over the figure instead, and at
+     390 it still fits on one line. "Near me" keeps its own nowrap below. */
+  .mobileVenuePeekSummary strong { white-space: normal; font-family: var(--font-data); font-size: var(--text-md); }
   /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */
   .mobileVenuePeekSummary .mobileVenuePeekNearMe { white-space: nowrap; }
   /* --font-data is the figures face, and this cell prints a figure only when

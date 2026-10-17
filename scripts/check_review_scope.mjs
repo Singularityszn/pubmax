@@ -46,6 +46,9 @@ const CATEGORY_ORDER = [
 
 const SKILL_PACK_PATH = /(?:^|\/)skills(?:\/|$)/;
 const PROJECT_SKILL_ROOT = /^(?:\.agents\/skills)(?:\/|$)/;
+// The one symlink that points Claude Code at the project skill root. Only the
+// link itself matches; a real tree under .claude/skills/ is still a leak.
+const PROJECT_SKILL_LINK = /^\.claude\/skills$/;
 const GENERATED_PATHS = [
   /^(?:data|public\/data)\/generated(?:\/|$)/,
   /^public\/data\/venues_slim[^/]*\.json$/,
@@ -76,8 +79,8 @@ const GENERATED_PATHS = [
  * input it is cut from, which is exactly the case where a reviewer can check
  * the output against something. A lane's permission covers that lane alone.
  * Output nobody in the diff produced stays forbidden. An added or modified
- * skill path outside `.agents/skills/` stays forbidden too; deleting one
- * does not. The human-review count leaves permitted output out because a
+ * skill path outside `.agents/skills/` stays forbidden too, bar the one
+ * `.claude/skills` symlink to that root; deleting one does not. The human-review count leaves permitted output out because a
  * reviewer reads the generator, never 600 machine-written cells.
  *
  * A lane is declared here or it does not exist. Adding one means naming the
@@ -221,7 +224,7 @@ function runtimeDomain(path, category) {
 }
 
 function isSkillPackLeak(path, status = "") {
-  if (PROJECT_SKILL_ROOT.test(path)) return false;
+  if (PROJECT_SKILL_ROOT.test(path) || PROJECT_SKILL_LINK.test(path)) return false;
   if (!SKILL_PACK_PATH.test(path)) return false;
   return !String(status).toUpperCase().startsWith("D");
 }

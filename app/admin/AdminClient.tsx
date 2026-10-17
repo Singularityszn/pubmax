@@ -639,6 +639,7 @@ export default function AdminClient() {
   const [socialPostsReason, setSocialPostsReason] =
     useState<AdminQueueUnavailableReason | null>(null);
   const socialPostsRequestGeneration = useRef(0);
+  const fullLoadInFlight = useRef(false);
   const socialPostsHeadingRef = useRef<HTMLHeadingElement>(null);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
@@ -878,7 +879,16 @@ export default function AdminClient() {
     }
   }, [venueNames.size]);
 
+  // One full load at a time (#1313). Every lane below writes its state after
+  // an await and only the Social lane carries the generation guard, so a
+  // second load started while this one runs would let whichever answered last
+  // win the Pint Drop, comment, visit-report, photo, avatar and message state.
+  // The controls are disabled while loading, but React has not committed that
+  // when a second event lands in the same task, so the gate is here: a second
+  // request while a load runs is that load's request.
   const load = useCallback(async (forceSession = false) => {
+    if (fullLoadInFlight.current) return;
+    fullLoadInFlight.current = true;
     const requestGeneration = ++socialPostsRequestGeneration.current;
     const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;
     setLoading(true);
@@ -1011,7 +1021,10 @@ export default function AdminClient() {
       setDrops([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
-      if (isLatestLoad()) setLoading(false);
+      // This is the only load that can hold the flag, so it always lets go,
+      // even when a Social resume has moved the generation on underneath it.
+      fullLoadInFlight.current = false;
+      setLoading(false);
     }
   }, [
     ensureAdminSession,
