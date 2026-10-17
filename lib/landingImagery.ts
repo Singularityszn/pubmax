@@ -263,8 +263,8 @@ function photoById(id: string | undefined): LandingPhoto | null {
  * The photograph a landing shows, and the question it answered.
  *
  * Order is the rule: the pub itself, then the area it sits in, then its
- * borough, then London. Every argument is optional, so a borough page asks
- * with a borough slug alone and the landing hero asks with all three.
+ * borough, then London. Every argument is optional, so a borough page can
+ * pass only a borough slug.
  */
 export function landingPhotoFor(where: {
   venueId?: string | null;
