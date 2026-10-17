@@ -257,6 +257,29 @@ describe("canonicalizeDataset — safety guards", () => {
     expect(elsewhere.aliases).toEqual({});
   });
 
+  it("joins a verified pair past the fuzzy radius, and only that pair", () => {
+    // Both rows as committed: 52.6 m apart, beyond the 45 m fuzzy radius.
+    const kept = makeRow({
+      pub_name: "The Trafalgar",
+      address: "Park Row, London SE10 9NW",
+      latitude: 51.4841, longitude: -0.0041379, price_gbp: 8.4,
+    });
+    const wikipedia = makeRow({
+      pub_name: "Trafalgar Tavern",
+      address: "Greenwich, Greater London",
+      latitude: 51.484565, longitude: -0.004274, price_gbp: null,
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(kept))).toBe("venue-1lj3hj4");
+    expect(stableVenueIdFromKey(venueGroupingKey(wikipedia))).toBe("venue-1clnw4x");
+    expect(canonicalizeDataset([wikipedia, kept]).aliases).toEqual({ "venue-1clnw4x": "venue-1lj3hj4" });
+    // The same two names at the same distance are not joined for anyone else.
+    const elsewhere = canonicalizeDataset([
+      { ...kept, address: "1 Other Road, London E1 1AA" },
+      { ...wikipedia, address: "1 Other Road, London E1 1AA" },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
   it("does NOT merge same-named pubs with conflicting postcodes (bad coords)", () => {
     // Two "Coach & Horses" mis-geocoded within 100 m but in different postcode
     // areas (Soho W1D vs Rickmansworth WD3) — genuinely distinct pubs.

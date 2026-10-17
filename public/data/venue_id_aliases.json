@@ -2,8 +2,12 @@
   "version": 1,
   "generatedBy": "scripts/canonicalize_venue_dataset.mjs",
   "note": "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
-  "aliasCount": 119,
+  "aliasCount": 123,
   "aliases": {
+    "venue-11mu12n": "venue-o98nz5",
+    "venue-1brmot5": "venue-whwqzo",
+    "venue-1r6x415": "venue-1c7e71q",
+    "venue-1clnw4x": "venue-1lj3hj4",
     "venue-1r0yf7r": "venue-s68ndf",
     "venue-1gnufko": "venue-16xmzi7",
     "venue-13wpw9e": "venue-gv8lwa",
@@ -126,287 +130,45 @@
   },
   "clusters": [
     {
-      "canonicalId": "venue-s68ndf",
-      "canonicalName": "Green Man",
+      "canonicalId": "venue-o98nz5",
+      "canonicalName": "J.J. Moon's - JD Wetherspoon",
       "mergedFrom": [
         {
-          "id": "venue-1r0yf7r",
-          "name": "Greene Man",
+          "id": "venue-11mu12n",
+          "name": "J.J. Moons",
           "rows": 1
         }
       ]
     },
     {
-      "canonicalId": "venue-16xmzi7",
-      "canonicalName": "Ye Olde London",
+      "canonicalId": "venue-whwqzo",
+      "canonicalName": "The Queens Head",
       "mergedFrom": [
         {
-          "id": "venue-1gnufko",
-          "name": "Ye Olde London City",
-          "rows": 5
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-gv8lwa",
-      "canonicalName": "Anchor",
-      "mergedFrom": [
-        {
-          "id": "venue-13wpw9e",
-          "name": "Anchor - Bankside (Southwark)",
+          "id": "venue-1brmot5",
+          "name": "Queens Head Winchmore Hill",
           "rows": 8
         }
       ]
     },
     {
-      "canonicalId": "venue-c0r9ym",
-      "canonicalName": "Flowers of the Forest",
+      "canonicalId": "venue-1c7e71q",
+      "canonicalName": "The Cross Keys",
       "mergedFrom": [
         {
-          "id": "venue-4lt7c6",
-          "name": "Flowes of the Forest",
+          "id": "venue-1r6x415",
+          "name": "The Cross Keys, Hammersmith",
           "rows": 1
         }
       ]
     },
     {
-      "canonicalId": "venue-1yiyopd",
-      "canonicalName": "The Windsor",
+      "canonicalId": "venue-1lj3hj4",
+      "canonicalName": "The Trafalgar",
       "mergedFrom": [
         {
-          "id": "venue-1hq7rkl",
-          "name": "Windsor Fenchurch",
-          "rows": 8
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-18x41hr",
-      "canonicalName": "Ye Olde Watling",
-      "mergedFrom": [
-        {
-          "id": "venue-1hd5y0u",
-          "name": "Yeh Olde Watling",
-          "rows": 2
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-qw9l0q",
-      "canonicalName": "The Castle Inn",
-      "mergedFrom": [
-        {
-          "id": "venue-1pzhx7d",
-          "name": "The Castle Inn, Ealing",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-hvsgg4",
-      "canonicalName": "Cricketers Enfield",
-      "mergedFrom": [
-        {
-          "id": "venue-jlqlve",
-          "name": "Cricketers Arms",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-168ndjw",
-      "canonicalName": "Crown & Horseshoe",
-      "mergedFrom": [
-        {
-          "id": "venue-172mx8n",
-          "name": "Crown & Horseshoes (Enfield)",
-          "rows": 9
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-cgh71l",
-      "canonicalName": "The Alma",
-      "mergedFrom": [
-        {
-          "id": "venue-oyallt",
-          "name": "The Alma Newington Green",
-          "rows": 5
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-6bh8l6",
-      "canonicalName": "The Kings Tun",
-      "mergedFrom": [
-        {
-          "id": "venue-ydvsco",
-          "name": "The King's Tun - JD Wetherspoon",
-          "rows": 10
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-l6qdob",
-      "canonicalName": "The Prince Albert",
-      "mergedFrom": [
-        {
-          "id": "venue-ttu2zy",
-          "name": "Price Albert",
-          "rows": 7
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-x49k8g",
-      "canonicalName": "O’Neill’s",
-      "mergedFrom": [
-        {
-          "id": "venue-9otpi8",
-          "name": "O'Neills",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-13z79s7",
-      "canonicalName": "Churchills",
-      "mergedFrom": [
-        {
-          "id": "venue-w1qzhg",
-          "name": "Churchills, Clapham",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-1xmac",
-      "canonicalName": "The Grapes SW18",
-      "mergedFrom": [
-        {
-          "id": "venue-bb2v2w",
-          "name": "The Grapes",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-pzbwmw",
-      "canonicalName": "Cask Pub & Kitchen",
-      "mergedFrom": [
-        {
-          "id": "venue-67akji",
-          "name": "Cask",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-1b9434y",
-      "canonicalName": "The Footman",
-      "mergedFrom": [
-        {
-          "id": "venue-6hsjmi",
-          "name": "The Only Running Footman",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-698bu3",
-      "canonicalName": "The Old Spades",
-      "mergedFrom": [
-        {
-          "id": "venue-g295gw",
-          "name": "The Old Shades",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-x8tw9t",
-      "canonicalName": "Cock Tavern",
-      "mergedFrom": [
-        {
-          "id": "venue-1i9h4wb",
-          "name": "The Cock, Fulham",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-y78jw5",
-      "canonicalName": "McGlynn’s Bar",
-      "mergedFrom": [
-        {
-          "id": "venue-1g7sv3b",
-          "name": "Mc Glynn's Bar",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-68ns7y",
-      "canonicalName": "Ye Old Mitre",
-      "mergedFrom": [
-        {
-          "id": "venue-lkjwk4",
-          "name": "Ye Olde Mitre",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-mz6byd",
-      "canonicalName": "The Ship",
-      "mergedFrom": [
-        {
-          "id": "venue-806vol",
-          "name": "The Ship Soho",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-14alocj",
-      "canonicalName": "Richard I",
-      "mergedFrom": [
-        {
-          "id": "venue-1fudad7",
-          "name": "Richard the First",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-bdf9cy",
-      "canonicalName": "The Temperance",
-      "mergedFrom": [
-        {
-          "id": "venue-204w0t",
-          "name": "Temperance Billiard Hall, Fulham",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-1qb9nzj",
-      "canonicalName": "The Fox",
-      "mergedFrom": [
-        {
-          "id": "venue-1n7o6gw",
-          "name": "The Fox, Palmers Green",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-1gy9xkj",
-      "canonicalName": "The Queens",
-      "mergedFrom": [
-        {
-          "id": "venue-cxy85g",
-          "name": "Queens, Crouch End",
+          "id": "venue-1clnw4x",
+          "name": "Trafalgar Tavern",
           "rows": 1
         }
       ]

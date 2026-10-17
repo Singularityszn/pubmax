@@ -234,7 +234,25 @@ const VERIFIED_VENUE_ALIASES = {
   "venue-1i9h4wb": "venue-x8tw9t", // The Cock, Fulham (Wikipedia) -> Cock Tavern, 360 North End Rd SW6
   "venue-1n7o6gw": "venue-1qb9nzj", // The Fox, Palmers Green (Wikipedia) -> The Fox (OSM)
 };
-const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
+// Verified 2026-10-17 like the pairs above, but 50-66 m apart, past the fuzzy
+// radius those may bypass. Each is joined by id alone, within
+// VERIFIED_FAR_MERGE_METERS and never across a postcode; no other pair gains
+// any reach.
+const VERIFIED_FAR_VENUE_ALIASES = {
+  "venue-11mu12n": "venue-o98nz5", // J.J. Moons (Tooting Broadway) -> J.J. Moon's, 56a High St SW17
+  "venue-1clnw4x": "venue-1lj3hj4", // Trafalgar Tavern (Wikipedia) -> The Trafalgar, Park Row SE10
+  "venue-1r6x415": "venue-1c7e71q", // The Cross Keys, Hammersmith (Wikipedia) -> 57 Black Lion Lane W6
+  "venue-1brmot5": "venue-whwqzo", // Queens Head Winchmore Hill -> The Queens Head, 41-43 Station Rd N21
+};
+const VERIFIED_FAR_MERGE_METERS = 100;
+// Deliberately NOT merged (2026-10-17): The Millers Well (venue-10paqy, E6 2JX)
+// and its OSM twin The Miller's Well (venue-1i5w333). The twin still carries
+// the Wetherspoon website for a pub the chain left in 2023, so a merge would
+// label it a Wetherspoon again. Merge once an OSM refresh drops that tag.
+const VERIFIED_CANONICAL_IDS = new Set([
+  ...Object.values(VERIFIED_VENUE_ALIASES),
+  ...Object.values(VERIFIED_FAR_VENUE_ALIASES),
+]);
 
 // A verified alias can bypass name matching, but never distance or postcode
 // checks. Other pairs use the caller's matcher or namesLikelySamePub.
@@ -335,6 +353,20 @@ export function mergeAliasMaps(prevAliases, currentAliases) {
 // removing folded units. A naive all-pairs scan is O(units²) and too slow on the
 // full dataset, so candidate pairs come from a spatial grid: the fuzzy radius is
 // tiny, so only groups in the same or an adjacent cell can possibly match.
+function unionVerifiedFarPairs(units, groupList) {
+  const byId = new Map(groupList.map((g) => [g.id, g]));
+  for (const [fromId, toId] of Object.entries(VERIFIED_FAR_VENUE_ALIASES)) {
+    const a = byId.get(fromId);
+    const b = byId.get(toId);
+    if (!a || !b || !looksSamePub(a, b, VERIFIED_FAR_MERGE_METERS)) continue;
+    const ua = units.find((u) => u.includes(a));
+    const ub = units.find((u) => u.includes(b));
+    if (!ua || !ub || ua === ub || clusterHasPostcodeConflict([...ua, ...ub])) continue;
+    units.splice(units.indexOf(ub), 1);
+    ua.push(...ub);
+  }
+}
+
 function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
   const unitOf = new Map(); // group -> its unit array
   for (const u of units) for (const g of u) unitOf.set(g, u);
@@ -488,6 +520,9 @@ export function canonicalizeDataset(rows, options = {}) {
   // 2b. Fuzzy union: fold in coordinate-drift / matching-ish-name duplicates the
   //     exact pass can't see (see fuzzyUnionUnits).
   fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch);
+
+  // 2c. The verified pairs too far apart for the fuzzy grid to ever compare.
+  unionVerifiedFarPairs(units, groupList);
 
   const clusters = units.filter((u) => u.length > 1);
 

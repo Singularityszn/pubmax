@@ -4966,12 +4966,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-1r6x415",
+    "venueId": "venue-1c7e71q",
     "name": "The Cross Keys, Hammersmith",
     "slug": "the-cross-keys-hammersmith",
     "borough": "Hammersmith and Fulham",
-    "lat": 51.492316,
-    "lng": -0.242706,
+    "lat": 51.4918,
+    "lng": -0.242724,
     "hook": "Pub in London, UK",
     "facts": [
       {
@@ -7519,12 +7519,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-1clnw4x",
+    "venueId": "venue-1lj3hj4",
     "name": "Trafalgar Tavern",
     "slug": "trafalgar-tavern",
     "borough": "Greenwich",
-    "lat": 51.484565,
-    "lng": -0.004274,
+    "lat": 51.4841,
+    "lng": -0.0041379,
     "hook": "pub in Greenwich, London",
     "facts": [
       {
