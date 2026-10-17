@@ -14,6 +14,13 @@
 // whatever its file stamp says. A declared path that finds no dated row is
 // unknown, because the audit cannot see what it was told to look at. Both
 // readers reach the same verdict.
+//
+// A PARTLY lapsed row set is named, never hidden. After the 2026-10-17
+// re-review 12 of 20 rows kept their August expiry, lib/lateFood.ts refused
+// them, and the gate still read the dataset fresh. The captain ruled the same
+// day that a partial lapse moves no status: the detail line names the count
+// ("12 of 20 rows past their own expiry") in both readers, and the CLI prints
+// it under its own heading. It fails nothing.
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -67,16 +74,27 @@ function artifact(expiries: string[]) {
 }
 
 describe("readRowExpiry", () => {
+  const now = new Date("2026-08-20T00:00:00Z");
+
   it("walks arrays and object values and keeps the latest parseable expiry", () => {
-    expect(readRowExpiry(PATH, artifact(["2026-08-16T00:00:00Z", "2026-09-01T00:00:00Z"]))).toEqual({
+    expect(readRowExpiry(PATH, artifact(["2026-08-16T00:00:00Z", "2026-09-01T00:00:00Z"]), now)).toEqual({
       rows: 2,
+      expired: 1,
       latestExpiresAt: "2026-09-01T00:00:00Z",
     });
   });
 
+  it("counts a row expiring at the very instant as expired, as lib/lateFood.ts refuses it", () => {
+    expect(readRowExpiry(PATH, artifact(["2026-08-20T00:00:00Z"]), now).expired).toBe(1);
+  });
+
   it("counts no row when the path finds nothing dated", () => {
-    expect(readRowExpiry(PATH, { generatedAt: "x", areas: {} })).toEqual({ rows: 0, latestExpiresAt: null });
-    expect(readRowExpiry(PATH, artifact(["not a date"]))).toEqual({ rows: 0, latestExpiresAt: null });
+    expect(readRowExpiry(PATH, { generatedAt: "x", areas: {} }, now)).toEqual({
+      rows: 0,
+      expired: 0,
+      latestExpiresAt: null,
+    });
+    expect(readRowExpiry(PATH, artifact(["not a date"]), now)).toEqual({ rows: 0, expired: 0, latestExpiresAt: null });
   });
 });
 
@@ -86,6 +104,7 @@ describe("evaluateDataset with rowExpiry", () => {
   it("is stale once every row has expired, even inside the file budget", () => {
     const result = evaluateDataset(lane(), observedAt, new Date("2026-08-17T20:00:00Z"), null, {
       rows: 20,
+      expired: 20,
       latestExpiresAt: "2026-08-16T22:30:00.000Z",
     });
     expect(result.status).toBe("stale");
@@ -96,14 +115,36 @@ describe("evaluateDataset with rowExpiry", () => {
   it("answers from the file budget while any row is still servable", () => {
     const result = evaluateDataset(lane(), observedAt, new Date("2026-08-01T20:00:00Z"), null, {
       rows: 20,
+      expired: 0,
       latestExpiresAt: "2026-08-16T22:30:00.000Z",
     });
     expect(result.status).toBe("fresh");
+    expect(result.detail).not.toContain("past their own expiry");
+  });
+
+  it("names a partial lapse in the detail and keeps the file's own status", () => {
+    const reading = { rows: 20, expired: 12, latestExpiresAt: "2026-11-16T14:03:32.000Z" };
+    const now = new Date("2026-08-01T20:00:00Z");
+    const fresh = evaluateDataset(lane(), observedAt, now, null, reading);
+    expect(fresh.status).toBe("fresh");
+    expect(fresh.detail).toContain("12 of 20 rows past their own expiry");
+    // The note rides every status the file itself can answer.
+    const snapshot = evaluateDataset(lane(), observedAt, new Date("2026-09-10T00:00:00Z"), null, reading);
+    expect(snapshot.status).toBe("snapshot");
+    expect(snapshot.detail).toContain("12 of 20 rows past their own expiry");
+    const overBudget = evaluateDataset(lane({ stalenessBudgetHours: 24 }), observedAt, now, null, reading);
+    expect(overBudget.status).toBe("stale");
+    expect(overBudget.detail).toContain("over the 24h budget");
+    expect(overBudget.detail).toContain("12 of 20 rows past their own expiry");
+    const closed = evaluateDataset(lane({ class: "snapshot", stalenessBudgetHours: null }), observedAt, now, null, reading);
+    expect(closed.status).toBe("snapshot");
+    expect(closed.detail).toContain("12 of 20 rows past their own expiry");
   });
 
   it("is unknown when the declared path finds no dated row", () => {
     const result = evaluateDataset(lane(), observedAt, new Date("2026-08-01T20:00:00Z"), null, {
       rows: 0,
+      expired: 0,
       latestExpiresAt: null,
     });
     expect(result.status).toBe("unknown");
@@ -124,7 +165,7 @@ describe("evaluateDataset with rowExpiry", () => {
     const reg: FreshnessRegistry = { version: 1, datasets: [lane()] };
     const [result] = evaluateRegistry(
       reg,
-      () => ({ observedAt, reason: null, rowExpiry: { rows: 1, latestExpiresAt: "2026-08-16T00:00:00Z" } }),
+      () => ({ observedAt, reason: null, rowExpiry: { rows: 1, expired: 1, latestExpiresAt: "2026-08-16T00:00:00Z" } }),
       new Date("2026-08-17T00:00:00Z"),
     );
     expect(defined(result).status).toBe("stale");
@@ -151,17 +192,20 @@ describe("both readers open and judge the rows", () => {
     ).toBe(true);
   });
 
-  it("the app seam returns the row reading", () => {
-    expect(resolveDatasetStamp(rootDir, lane()).rowExpiry).toEqual({
+  it("the app seam returns the row reading at the caller's clock", () => {
+    const now = new Date("2026-08-12T00:00:00Z");
+    expect(resolveDatasetStamp(rootDir, lane(), undefined, now).rowExpiry).toEqual({
       rows: 2,
+      expired: 1,
       latestExpiresAt: "2026-08-16T22:30:00.000Z",
     });
   });
 
   it("a durable-store overlay replaces the file stamp but keeps the row reading", () => {
-    const resolution = resolveDatasetStampWithOverlay(rootDir, lane(), "2026-08-20T00:00:00Z");
+    const now = new Date("2026-08-12T00:00:00Z");
+    const resolution = resolveDatasetStampWithOverlay(rootDir, lane(), "2026-08-20T00:00:00Z", now);
     expect(resolution.observedAt).toBe("2026-08-20T00:00:00Z");
-    expect(resolution.rowExpiry).toEqual({ rows: 2, latestExpiresAt: "2026-08-16T22:30:00.000Z" });
+    expect(resolution.rowExpiry).toEqual({ rows: 2, expired: 1, latestExpiresAt: "2026-08-16T22:30:00.000Z" });
     expect(resolveDatasetStampWithOverlay(rootDir, lane({ rowExpiry: undefined }), "2026-08-20T00:00:00Z")).toEqual({
       observedAt: "2026-08-20T00:00:00Z",
       reason: null,
@@ -181,6 +225,17 @@ describe("both readers open and judge the rows", () => {
       expect(defined(cli.results[0]).status).toBe(status);
       expect(defined(app[0]).status).toBe(status);
     }
+  });
+
+  it("both readers write the same partial-lapse detail", async () => {
+    const now = new Date("2026-08-12T00:00:00Z");
+    const reg: FreshnessRegistry = { version: 1, datasets: [lane()] };
+    const cli = await evaluateFreshness({ now, rootDir, registry: { version: 1, datasets: [{ ...lane() }] } });
+    const app = evaluateRegistry(reg, (d) => resolveDatasetStamp(rootDir, d, undefined, now), now);
+    expect(defined(app[0]).status).toBe("fresh");
+    expect(defined(app[0]).detail).toContain("1 of 2 rows past their own expiry");
+    expect(defined(cli.results[0]).status).toBe(defined(app[0]).status);
+    expect(defined(cli.results[0]).detail).toBe(defined(app[0]).detail);
   });
 });
 
@@ -210,6 +265,21 @@ describe("late_food_evidence", () => {
     expect(defined(before.results[0]).status).not.toBe("stale");
     expect(defined(after.results[0]).status).toBe("stale");
   });
+
+  it("names every committed row past its expiry while some row is still servable", async () => {
+    const reg = { version: 1, datasets: [{ ...defined(entry) }] };
+    const expiries = Object.values(lateFoodEvidence.areas).flatMap((area) =>
+      area.options.map((option) => Date.parse(option.source.expiresAt)),
+    );
+    const now = new Date(Math.max(...expiries) - 60 * 60 * 1000);
+    const expired = expiries.filter((t) => t <= now.getTime()).length;
+    const { results } = await evaluateFreshness({ now, registry: reg });
+    if (expired === 0) {
+      expect(defined(results[0]).detail).not.toContain("past their own expiry");
+    } else {
+      expect(defined(results[0]).detail).toContain(`${expired} of ${expiries.length} rows past their own expiry`);
+    }
+  });
 });
 
 describe("the stale alert names both causes", () => {
@@ -217,6 +287,7 @@ describe("the stale alert names both causes", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = evaluateDataset(lane(), "2026-07-27T12:00:00.000Z", new Date("2026-08-17T20:00:00Z"), null, {
       rows: 20,
+      expired: 20,
       latestExpiresAt: "2026-08-16T22:30:00.000Z",
     });
     notifyFreshnessFindings([result], []);

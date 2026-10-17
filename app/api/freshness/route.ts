@@ -83,7 +83,7 @@ export async function GET(): Promise<Response> {
       const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
       return resolveStoreStamp(dataset.stamp, read);
     }
-    return resolveDatasetStampWithOverlay(rootDir, dataset, overlay[dataset.id]);
+    return resolveDatasetStampWithOverlay(rootDir, dataset, overlay[dataset.id], now);
   };
   const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
     ...result,
