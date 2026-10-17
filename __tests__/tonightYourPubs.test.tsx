@@ -28,6 +28,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => vie
 vi.mock("@/lib/savedPubs", () => ({
   fetchSavedForHandle: (...args: unknown[]) => fetchSavedForHandle(...args),
   getSaved: () => getSaved(),
+  SAVED_VENUE_FALLBACK_NAME: "A London venue",
 }));
 vi.mock("@/lib/warmVenueDetail", () => ({
   warmVenueDetail: (id: string) => warmVenueDetail(id),
@@ -137,6 +138,51 @@ describe("TonightYourPubs", () => {
     expect(container.querySelector(".tonightYourPubsMore")?.getAttribute("href")).toBe("/u/sam");
     expect(container.textContent).not.toContain("Saved on this device.");
     expect(warmVenueDetail).not.toHaveBeenCalled();
+  });
+
+  it("leaves off an account save the index no longer names, and fills its row", async () => {
+    viewerHandle = "sam";
+    fetchSavedForHandle.mockResolvedValue(
+      ["A London venue", "The Lamb", "The Harp", "The Devonshire", "Ye Olde Mitre"].map((name, index) => ({
+        venueId: `venue-${index}`,
+        venueName: name,
+        venueMapUrl: `/map?sel=venue-${index}`,
+        listType: "Want to Visit",
+        savedAt: `2026-10-0${9 - index}T00:00:00Z`,
+      })),
+    );
+    await mount();
+    const names = [...container.querySelectorAll(".tonightYourPubsName")].map((node) => node.textContent);
+    expect(names).toEqual(["The Lamb", "The Harp", "The Devonshire", "Ye Olde Mitre"]);
+  });
+
+  it("never draws one account's shelf for another", async () => {
+    viewerHandle = "sam";
+    let resolveSecond: (rows: unknown) => void = () => {};
+    fetchSavedForHandle
+      .mockResolvedValueOnce([
+        { venueId: "venue-1", venueName: "Sam's Local", venueMapUrl: "/map?sel=venue-1", listType: "Want to Visit", savedAt: "2026-10-04T00:00:00Z" },
+      ])
+      .mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve; }));
+    await mount();
+    expect(container.textContent).toContain("Sam's Local");
+
+    // The account switches; the new read is still running.
+    viewerHandle = "alex";
+    const { default: TonightYourPubs } = await import("@/app/tonight/TonightYourPubs");
+    await act(async () => {
+      root.render(createElement(TonightYourPubs));
+    });
+    expect(container.textContent).not.toContain("Sam's Local");
+
+    await act(async () => {
+      resolveSecond([
+        { venueId: "venue-2", venueName: "Alex's Local", venueMapUrl: "/map?sel=venue-2", listType: "Want to Visit", savedAt: "2026-10-05T00:00:00Z" },
+      ]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(container.textContent).toContain("Alex's Local");
+    expect(container.textContent).not.toContain("Sam's Local");
   });
 
   it("names this device's saves from venue detail and never shows an id", async () => {
