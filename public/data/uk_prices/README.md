@@ -107,6 +107,10 @@ host joined the lane as a curated London venue's own stated website.
 The curated-website sweep files (Delicio, Harry's Bar, Tapelia, The Northcote,
 Tattoo Bar) also list `notSelected` rows: a label that names no drink, or a
 mixer flavour from a mixer list, which were not published.
+The `-beer-wine` files and the Bunch of Grapes, Curtains Up and Frederick's
+files hold the same sweep's beer and wine rows; a beer the page lists as a
+bottle, can or alcohol-free serve is left out so it cannot read as the pub's
+draught price.
 Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 

@@ -9701,6 +9701,118 @@
         "rowCount": 7731,
         "siteHarvestRows": 3221
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-bunchofgrapesborough-co-uk-foodanddrink.json",
+      "sourceEvidenceSha256": "de4a9f81660dd84191da485a86ca4d07864a19d98c66fb4b6a4739afb1aeb71a",
+      "sourceUrl": "https://www.bunchofgrapesborough.co.uk/foodanddrink",
+      "sourceObservedAt": "2026-10-17T14:09:04.148Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "5bce4322b0ddc2632ff143073cb157ed55718273daeb232320444d6eefbb8ae2",
+        "rowCount": 3253,
+        "rowIdentitySetSha256": "8c8e6882ce0753ac7c5be6f6a6117315fa27d3f34a6f2b9b4156fb9d8a657d8f"
+      },
+      "currentBundle": {
+        "rowCount": 7742,
+        "siteHarvestRows": 3232
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-deliciobexleyheath-co-uk-home-menu-beer-wine.json",
+      "sourceEvidenceSha256": "6304ed536dc4274381707f1d93a67fe3389148cb5143168bdfe52d5ec03b27fd",
+      "sourceUrl": "https://www.deliciobexleyheath.co.uk/Home/Menu",
+      "sourceObservedAt": "2026-10-17T13:47:45.718Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "dced3eeb44de902e6d7eb11d378be5e87a0b479fb60b5bf69835055245ca2e28",
+        "rowCount": 3259,
+        "rowIdentitySetSha256": "6f98c7b53e5f3e691219fe6fae74a9aca9205c31530542e46ed3afaab5ced887"
+      },
+      "currentBundle": {
+        "rowCount": 7748,
+        "siteHarvestRows": 3238
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-harrys-co-uk-pdf-drinks-menu-pdf-beer-wine.json",
+      "sourceEvidenceSha256": "a41d5d6348eb91410b1705ea49e9dec6becc9cbe76aa439f01d11240ee527e5a",
+      "sourceUrl": "http://harrys.co.uk/pdf/drinks_menu.pdf",
+      "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+      "addedRows": 16,
+      "currentLedger": {
+        "sha256": "aa1bc07c3e24242a5e44febd4ecbbf7d6508c419d63e942619c675281a0e3598",
+        "rowCount": 3275,
+        "rowIdentitySetSha256": "a759d6b2ad1b4cedbf8edecf8de98feae3a5e4b6865c21ae5c0a6b88af2145ae"
+      },
+      "currentBundle": {
+        "rowCount": 7764,
+        "siteHarvestRows": 3254
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-tattoo-bar-co-uk-menu-beer-wine.json",
+      "sourceEvidenceSha256": "31fe5f64cf32c4b2577ba851449683a06d2777ad8e82f3aa514364f0ee2dce50",
+      "sourceUrl": "https://tattoo-bar.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T14:11:25.414Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "a02528a50007b0075a48d2f3b085ea7553a3e2ab2ed9204d525d366332a61fe9",
+        "rowCount": 3286,
+        "rowIdentitySetSha256": "3a9bdca42081da986f96ac0ae2ca477097a3082cf46f0df48c5ad83a8fef7489"
+      },
+      "currentBundle": {
+        "rowCount": 7775,
+        "siteHarvestRows": 3265
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thecurtainsup-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "2a521ad1596911baa2cdac481cb23cc9acca88fdb206e35bf413545a96335af4",
+      "sourceUrl": "https://www.thecurtainsup.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T13:56:59.755Z",
+      "addedRows": 11,
+      "currentLedger": {
+        "sha256": "d52320c46e57adb446fe69b1b87aa0edad2ea731f28a36a7f9e2b8f50001ab92",
+        "rowCount": 3297,
+        "rowIdentitySetSha256": "dd900a08d0752d6f7386f6cd2d222fd35cb581aac28378b5aaf16065da0e1aed"
+      },
+      "currentBundle": {
+        "rowCount": 7786,
+        "siteHarvestRows": 3276
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-fredericks-co-uk-drink-wines.json",
+      "sourceEvidenceSha256": "6ff2dcfb88a2d996077f13b59847fdfe9c38d07d9495086bdf54fd30d2b4216b",
+      "sourceUrl": "https://www.fredericks.co.uk/drink/wines/",
+      "sourceObservedAt": "2026-10-17T13:48:23.370Z",
+      "addedRows": 18,
+      "currentLedger": {
+        "sha256": "b365037d1d1b9b7a416da2d96d7bf1a8466dcbd5a000f900a3640b538e39518b",
+        "rowCount": 3315,
+        "rowIdentitySetSha256": "481e146f2bbc80dde8679e1fe636e9fed0f200ebebc688f537de494c2aa46832"
+      },
+      "currentBundle": {
+        "rowCount": 7804,
+        "siteHarvestRows": 3294
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-roofeast-com-food-and-drink-roof-east-bars-beer-wine.json",
+      "sourceEvidenceSha256": "43f82d2e578a7d0e2a2f4ca593c7377cbdbfaf2f91413e277eb4ba22d5c3947b",
+      "sourceUrl": "https://www.roofeast.com/food-and-drink/roof-east-bars",
+      "sourceObservedAt": "2026-10-17T13:27:10.082Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "b68a2becd9073f99e2cca33327f92dc167b57c53f75a41e22594f44e946d70f0",
+        "rowCount": 3319,
+        "rowIdentitySetSha256": "425b05ea24930eacd272f3ff81345458e1bc7988ebeaf517e5411d9b0c9d4bb8"
+      },
+      "currentBundle": {
+        "rowCount": 7808,
+        "siteHarvestRows": 3298
+      }
     }
   ]
 }
