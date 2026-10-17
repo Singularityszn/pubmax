@@ -114,7 +114,7 @@ const relationshipCopy: Record<PubPalPersonality["relationship"], string> = {
 type PrivacyState = PalOnboardingPrivacy;
 
 const DEFAULT_PRIVACY: PrivacyState = {
-  proposeMemories: false,
+  proposeMemories: true,
   visible: true,
   muted: false,
 };
@@ -171,7 +171,7 @@ function readStoredPal(ownerId: string): PubPal | null {
   try {
     const value = JSON.parse(readStored(STORAGE_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
     return value?.ownerId === ownerId
-      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: false, routes: true } }
+      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: true, routes: true } }
       : null;
   } catch {
     return null;
@@ -458,7 +458,7 @@ export default function PalExperience() {
               const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
               setPrivacy((current) => ({
                 ...current,
-                proposeMemories: next.proposalPreferences?.memories ?? parsed.proposeMemories === true,
+                proposeMemories: next.proposalPreferences?.memories ?? parsed.proposeMemories !== false,
                 visible: !next.hidden,
                 muted: next.muted,
               }));
@@ -618,7 +618,7 @@ export default function PalExperience() {
     const lock = { ownerId, requestId: ++controlRequestIdRef.current };
     controlSavingRef.current = lock;
     setControlSaving(true);
-    const previous = { ...pal, proposalPreferences: pal.proposalPreferences ?? { memories: false, routes: true } };
+    const previous = { ...pal, proposalPreferences: pal.proposalPreferences ?? { memories: true, routes: true } };
     const proposalPreferences = { ...previous.proposalPreferences, [kind]: enabled };
     const optimistic = { ...pal, proposalPreferences, updatedAt: new Date().toISOString() };
     setPal(optimistic);
@@ -799,7 +799,7 @@ export default function PalExperience() {
 
   if (mode === "home" && pal && user && pal.ownerId === user.id) {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
-    const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
+    const proposalPreferences = pal.proposalPreferences ?? { memories: true, routes: true };
     const controlsLocked = controlSaving || saving;
     return (
       <main id="main" className="palExperience palHome">

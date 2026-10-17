@@ -143,7 +143,8 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    ask on the server, or one line saying nothing is confirmed, so it does not
    need the tool. A second Pal-only webhook, `propose_memory`, adds a memory card
    to a typed chat for the bound account, only when that Pal has memory
-   proposals on. It refuses in a voice call, where no card can be shown. It
+   proposals on. They are on for a new Pal; a Pal saved with them off keeps
+   them off. It refuses in a voice call, where no card can be shown. It
    saves nothing: the memory exists once the person taps
    Confirm, which posts to `POST /api/pub-pal/memories`. Typed chat also carries
    a rolling session summary turn capped at 300 UTF-8 bytes, label included.

@@ -47,6 +47,17 @@ describe("Pub Pal memory ownership HTTP contract", () => {
     expect((await response.json()).pal.proposalPreferences).toEqual({ memories: false, routes: true, taste: true });
   });
 
+  it("turns memory proposals on for a new Pal that names no setting, and keeps a Pal's own off", async () => {
+    const created = await CREATE_PAL(auth("/api/pub-pal", { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Fresh" }));
+    expect(created.status).toBe(201);
+    expect((await created.json()).pal.proposalPreferences).toEqual({ memories: true, routes: true, taste: true });
+
+    const off = await PATCH_PAL(auth("/api/pub-pal", { proposalPreferences: { memories: false } }, "pal-owner", "PATCH"));
+    expect((await off.json()).pal.proposalPreferences.memories).toBe(false);
+    const touched = await PATCH_PAL(auth("/api/pub-pal", { proposalPreferences: { routes: false } }, "pal-owner", "PATCH"));
+    expect((await touched.json()).pal.proposalPreferences).toMatchObject({ memories: false, routes: false });
+  });
+
   it("lets the owner turn the taste read off and keeps it off across other changes", async () => {
     await createPal();
     const off = await PATCH_PAL(auth("/api/pub-pal", {
