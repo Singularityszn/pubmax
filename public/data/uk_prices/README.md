@@ -104,6 +104,13 @@ the page and holds the soft-drink rows whose ledger key was new. It also lists
 the rows withheld under a reviewed withdrawal reason.
 The Roof East file also quotes the page lines it priced (`pageText`); its
 host joined the lane as a curated London venue's own stated website.
+The curated-website sweep files (Delicio, Harry's Bar, Tapelia, The Northcote,
+Tattoo Bar) also list `notSelected` rows: a label that names no drink, or a
+mixer flavour from a mixer list, which were not published.
+The `-beer-wine` files and the Bunch of Grapes, Curtains Up and Frederick's
+files hold the same sweep's beer and wine rows; a beer the page lists as a
+bottle, can or alcohol-free serve is left out so it cannot read as the pub's
+draught price.
 Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 
@@ -117,6 +124,11 @@ Before keying or publication, `normalizeSiteHarvestLedgerRow` in
 `lib/siteHarvestLedgerCore.ts` splits a trailing wine measure from a legacy name
 when no serving field exists. "Merlot 175ml" and "Merlot" with `175ml` therefore
 share a key; this does not change the observation date.
+It first drops a leading Markdown heading mark (`#` to `######`) from a name.
+That fixes the 284 Greene King rows from the 2026-09-21 rendered read, written
+before the reader treated Markdown as layout. "## Margarita" publishes as
+"Margarita". The ledger lines stay as written, because the reconciliation's
+fingerprints cover them.
 
 The crawl's own findings, including everything it read and found nothing on,
 are in `data/uk_prices/harvest_report.json` and
