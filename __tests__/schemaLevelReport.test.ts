@@ -234,7 +234,9 @@ describe("schema-level report", () => {
   it("reports 0161-0168 missing when later labels were applied under other versions", () => {
     const lines: string[] = [];
     // Every label after the gap is applied, so each one is out of order. A new
-    // migration joins that list rather than breaking the expected output.
+    // migration joins that list rather than breaking the expected output. The
+    // report lists them in apply order, which is file order, not label order:
+    // a renumbered file keeps its timestamp (0188 applies between 0181 and 0182).
     const later = new Set<string>();
     for (const name of listMigrations()) {
       const label = labelOf(name);
@@ -272,7 +274,7 @@ describe("schema-level report", () => {
         "0167",
         "0168",
         "out-of-order:",
-        ...[...later].sort(),
+        ...later,
         "",
       ].join("\n"),
     );
