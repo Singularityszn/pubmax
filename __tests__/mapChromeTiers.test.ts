@@ -85,7 +85,9 @@ describe("buildFiltersChip", () => {
 
 describe("buildTflCorner", () => {
   it("keeps the compact status vocabulary from the old chip", () => {
-    expect(buildTflCorner("clear", 0)).toMatchObject({ statusSuffix: "OK", badge: null });
+    // A clear network is the bare glyph: a visible "OK" the accessible name
+    // never contained failed label-in-name and said nothing on its own.
+    expect(buildTflCorner("clear", 0)).toMatchObject({ statusSuffix: null, badge: null });
     expect(buildTflCorner("unavailable", 0).statusSuffix).toBe("?");
     expect(buildTflCorner("issues", 15)).toMatchObject({ statusSuffix: null });
     expect(buildTflCorner("checking", 0)).toMatchObject({ statusSuffix: null, badge: null });

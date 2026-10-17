@@ -580,7 +580,7 @@
     pointer-events: auto;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
   }
-  /* The status suffix ("OK", "?") rides inside the pill rather than spilling
+  /* The status suffix ("?") rides inside the pill rather than spilling
      past its edge: the icon size is a floor here, not a fixed width. */
   .mobileMapUtilityCorner > .mobileMapTflButton {
     width: auto;

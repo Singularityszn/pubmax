@@ -793,3 +793,19 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 .mapToolbar[data-drawer-lane] .mapSearchSuggestPanel {
   max-width: 100%;
 }
+
+/* The desktop bar is the shared map surface width, and its controls are
+   content-sized, so at 1440 the row ended some 390px short of the bar's own
+   right edge: an empty capsule beside a search field held to 388px. From the
+   width that seats the full desktop row, search takes the spare lane instead
+   (the tablet band below already does). It still shrinks first when a drawer
+   narrows the row, since the open-drawer rules above keep its min-width 0. */
+@media (min-width: 901px) {
+  .mapToolbarSearch {
+    flex: 1 1 auto;
+  }
+
+  .mapToolbarSearch .mapSearchSuggest--toolbar {
+    width: 100%;
+  }
+}

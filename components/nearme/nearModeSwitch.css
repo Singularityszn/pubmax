@@ -13,7 +13,7 @@
   padding: 2px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  background: var(--panel-raised);
+  background: var(--panel);
   box-sizing: border-box;
 }
 
@@ -33,10 +33,14 @@
   cursor: pointer;
 }
 
+/* Selection is the raised fill on the recessed track, with ink over it, as
+   every segmented control reads (__tests__/deBoxSegmentedControl.test.ts and
+   components/nav/nowSegment.css). A coral fill here was a second painted
+   coral beside the page's one primary, "Find my pint". */
 .nearModeSwitchTab[aria-checked="true"] {
-  background: var(--brass);
-  color: var(--color-on-accent);
-  box-shadow: none;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
 }
 
 .nearModeSwitchTab:focus-visible {
