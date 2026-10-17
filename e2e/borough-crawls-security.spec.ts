@@ -130,7 +130,13 @@ test.describe("security headers", () => {
     for (const path of CDN_CACHED_DOCUMENTS) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
-      const html = (await response?.text()) ?? "";
+      // An object rendered as text arrives entity-escaped (&quot;), and a
+      // query string in an attribute arrives with &amp;, so the document is
+      // read with those decoded before any pattern looks at it.
+      const html = ((await response?.text()) ?? "")
+        .replace(/&quot;|&#0*34;|&#x0*22;/gi, '"')
+        .replace(/&#0*39;|&#x0*27;|&apos;/gi, "'")
+        .replace(/&amp;/gi, "&");
       expect(html, path).not.toMatch(/pubmax_handle/);
       expect(html, path).not.toMatch(/"handle":\s*"[^"]+"/);
       // A token VALUE is the leak. The names alone ride in the inline auth
