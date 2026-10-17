@@ -130,23 +130,20 @@ jobs:
           --require-zero-skipped
           --skips-argued e2e/conditional-skips.allowlist.json
 
-  layout-pins:
-    name: Browser layout pins (${{ matrix.shard }}/3)
-    # The browser specs that hold layout and chrome once held by source-text
-    # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
-    # A regex over a stylesheet no longer guards these surfaces, so the specs
-    # that measure them run on every pull request. They are cut into three
-    # shards on separate runners, one worker each, so the law pins above keep
-    # their own clock.
-    # They stay on macos-latest. The specs were proved on macOS glyph widths,
-    # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
-    # edge, for example 7px short at 320px.
-    runs-on: macos-latest
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
+  change-scope:
+    name: Change scope
+    # Decides once, on Linux, whether this change needs the macOS layout
+    # pins. The free plan runs only 5 macOS jobs at once and every pull
+    # request held 3 of them, even a docs-only one whose steps were all
+    # skipped. The layout-pin jobs below read this output and are skipped
+    # whole when it is not "code", so a docs or data pull request starts no
+    # macOS runner. They are three named jobs, not a matrix: a skipped
+    # matrix job reports under its unexpanded name, but a skipped named job
+    # reports under its own name and counts as passed for branch protection.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -155,15 +152,6 @@ jobs:
           # Two commits: the merge and its base, for the change scope below.
           fetch-depth: 2
 
-      # CHANGE SCOPE (docs/CI_RUNBOOK.md, "What a pull request runs"). A pull
-      # request is checked out as its merge commit, whose first parent is the
-      # base, so one diff names every file the merge would change. Only every
-      # changed file being docs (docs/**, *.md) or data (data/**/*.json,
-      # public/data/**) makes it "docs" or "data"; anything else, an empty diff
-      # and every event other than a pull request is "code" and runs in full.
-      # The job always runs and reports, so a required check never waits on a
-      # job that was skipped. Every copy of this step is identical
-      # (__tests__/ciChangeScope.test.ts).
       - name: Classify the change
         id: scope
         env:
@@ -182,8 +170,31 @@ jobs:
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
 
+  layout-pins-1:
+    name: Browser layout pins (1/3)
+    # The browser specs that hold layout and chrome once held by source-text
+    # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
+    # A regex over a stylesheet no longer guards these surfaces, so the specs
+    # that measure them run on every pull request that changes code. They are
+    # cut into three shards on separate runners, one worker each, so the law
+    # pins above keep their own clock. The three jobs share one step list
+    # (the YAML anchor below) and differ only in LAYOUT_SHARD.
+    # They stay on macos-latest. The specs were proved on macOS glyph widths,
+    # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
+    # edge, for example 7px short at 320px.
+    needs: [change-scope]
+    if: needs.change-scope.outputs.scope == 'code'
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      LAYOUT_SHARD: 1
+    steps: &layout-pin-steps
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Setup Node
-        if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -191,27 +202,23 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        if: steps.scope.outputs.scope == 'code'
         run: |
           npm ci
           npm run deps:install-scripts
 
       - name: Install Chromium
-        if: steps.scope.outputs.scope == 'code'
         run: npx playwright install --with-deps chromium
 
       - name: Choose Playwright port
-        if: steps.scope.outputs.scope == 'code'
         uses: ./.github/actions/pubmax-playwright-port
 
       - name: Run layout-pinning journeys
-        if: steps.scope.outputs.scope == 'code'
         env:
           PUBMAX_TRACKED_OUTPUTS: public/data
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
           PW_SKIP_KEYLESS_WEBSERVER: "1"
-          PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-layout-pins-${{ matrix.shard }}.json"
+          PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-layout-pins-${{ env.LAYOUT_SHARD }}.json"
         run: >-
           npx playwright test
           --reporter=list,json
@@ -281,14 +288,33 @@ jobs:
           --project=chromium-gl
           --project=chromium-no-gl
           --workers=1
-          --shard=${{ matrix.shard }}/3
+          --shard=${{ env.LAYOUT_SHARD }}/3
 
       - name: Gate the layout-pinning shard
-        if: steps.scope.outputs.scope == 'code'
         run: >-
-          node scripts/assert-playwright-gate.mjs playwright-layout-pins-${{ matrix.shard }}.json
+          node scripts/assert-playwright-gate.mjs playwright-layout-pins-${{ env.LAYOUT_SHARD }}.json
           --require-zero-skipped
           --skips-argued e2e/conditional-skips.allowlist.json
+
+  layout-pins-2:
+    name: Browser layout pins (2/3)
+    needs: [change-scope]
+    if: needs.change-scope.outputs.scope == 'code'
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      LAYOUT_SHARD: 2
+    steps: *layout-pin-steps
+
+  layout-pins-3:
+    name: Browser layout pins (3/3)
+    needs: [change-scope]
+    if: needs.change-scope.outputs.scope == 'code'
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      LAYOUT_SHARD: 3
+    steps: *layout-pin-steps
 
   full-suite:
     name: Full browser suite (${{ matrix.shard }}/4)

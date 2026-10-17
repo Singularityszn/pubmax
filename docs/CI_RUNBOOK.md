@@ -20,7 +20,8 @@ jobs stay on `macos-latest`, each with a reason in `MACOS_JOBS` in
 
 The repository is public, so both are GitHub's free hosted runners. The free
 plan runs about 20 Linux jobs at once but only 5 macOS jobs. A pull request
-now takes 3 macOS jobs (the layout shards), not 4. The performance
+that changes code takes 3 macOS jobs (the layout shards). A docs or data pull
+request takes none (see "What a pull request runs"). The performance
 sweep once failed to measure itself on a private repository's 2 vCPU
 runner; that is why it is not on the pull-request path. It is not a reason
 to run a public repository's CI on a personal machine.
@@ -151,7 +152,9 @@ A pull request that changes only docs or only data skips the heavy jobs (owner d
 
 The diff runs with `--no-renames`, so a file moved counts under both its old and its new path. A pull request that moves `lib/` code into `docs/` reads as code, not docs.
 
-The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/2)`, and a required `Unit tests (1/2)` would then wait for ever. That is why no job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+The job still starts and reports. Only its steps are skipped, so it shows green under its real name. A matrix job skipped at the job level reports one check under its unexpanded name, `Unit tests (${{ matrix.shard }}/2)`, and a required `Unit tests (1/2)` would then wait for ever. That is why no Linux job is skipped whole. The gated checkouts fetch two commits, the merge and its base. Every copy of the classifier is identical, and `__tests__/ciChangeScope.test.ts` holds them to that and runs them.
+
+The macOS layout pins are the one exception (owner decision, 17 Oct 2026). A job that starts only to skip its steps still holds a runner, and the free plan has only 5 macOS runners. Three layout shards per pull request filled that queue, and docs-only pull requests waited up to 53 minutes for a job that then ran for 1 minute. So in `e2e.yml` one Linux job, `Change scope`, runs the classifier, and `Browser layout pins (1/3)`, `(2/3)` and `(3/3)` are three named jobs that need it and run only when it says `code`. Otherwise they are skipped whole and start no macOS runner. A skipped named job reports under its own name, and branch protection counts a skipped check as passed. The three jobs share one step list through a YAML anchor and differ only in `LAYOUT_SHARD`.
 
 | Check | docs only | data only | code |
 | --- | --- | --- | --- |
@@ -164,7 +167,8 @@ The job still starts and reports. Only its steps are skipped, so it shows green 
 | CI / Freshness release gate | runs | runs | runs |
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
-| Browser tests / layout pins (1-3/3) | green, steps skipped | green, steps skipped | runs |
+| Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
+| Browser tests / layout pins (1-3/3) | skipped, no macOS runner | skipped, no macOS runner | runs |
 | Browser tests / full suite (1-4/4) | not run on pull requests (nightly and dispatch only) | same | same |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | Security CI (zizmor, osv-scanner, Semgrep) | runs | runs | runs |
