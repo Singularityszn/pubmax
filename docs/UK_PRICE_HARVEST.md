@@ -65,7 +65,14 @@ behind a challenge is counted as `blocked-by-challenge` and left alone.
 
 `scripts/harvest/uk-prices/run.mjs`. Candidate hosts are the `website` tags the
 committed UK OSM pub snapshot already carries, grouped by host and crawled
-biggest first. Per host it reads the home page, whatever the host's own
+biggest first. With `--london`, the `website` a curated London venue states in
+`public/data/pint_prices_app_dataset.json` joins them where the snapshot carries
+no such host (`addCuratedLondonWebsiteHosts` in `londonScope.mjs`): it is a page
+the pub stated about itself, so it is derived rather than typed, and its rows
+carry the curated venue's id, name and position. An aggregator
+(`pint-prices.com`), a social page, a host a source-table row names (a chain
+estate has its own lane) and a URL `sourcePolicy` refuses never join, and the
+report counts them under `londonScope.curatedWebsites`. Per host it reads the home page, whatever the host's own
 `robots.txt` names as a sitemap, and the links on the home page that look like a
 drinks list, to a per-host page ceiling. Resumable: `data-harvest/uk_prices/hosts.json`
 records what each host answered, so a rerun continues.
