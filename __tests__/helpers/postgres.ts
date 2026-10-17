@@ -199,6 +199,9 @@ export async function startPostgres(
       };
       server.stdout?.on("data", keep);
       server.stderr?.on("data", keep);
+      // The exit code can land before the pipes hand over their last lines;
+      // "close" waits for both, so the log is whole before it is read.
+      const closed = new Promise<void>((resolve) => server.once("close", () => resolve()));
 
       // The probe asks this cluster's own socket, so a port another cluster
       // holds can never answer for it.
@@ -206,6 +209,7 @@ export async function startPostgres(
       let lostPort = false;
       for (let attempt = 0; attempt < 300; attempt += 1) {
         if (server.exitCode !== null) {
+          await Promise.race([closed, sleep(2_000)]);
           if (boot < 4 && /Address already in use/.test(log)) {
             lostPort = true;
             break;
