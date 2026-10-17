@@ -91,12 +91,15 @@ test("the landing card shows its own pub's photograph, or no photograph at all",
 test.describe("responsive London skyline", () => {
   test.use({ deviceScaleFactor: 2 });
 
-  for (const { viewport, sourceWidth } of [
-    { viewport: { width: 320, height: 568 }, sourceWidth: 1024 },
-    { viewport: { width: 390, height: 844 }, sourceWidth: 1024 },
-    { viewport: { width: 768, height: 1024 }, sourceWidth: 1024 },
-    { viewport: { width: 1150, height: 900 }, sourceWidth: 1024 },
-    { viewport: { width: 1440, height: 900 }, sourceWidth: 1600 },
+  // A phone's photograph spends the height above its tab bar (and, on a short
+  // phone, the consent lane) across the figure's whole width, so its crop may
+  // be wider than 3:2 but never taller. Wider screens keep a 3:2 box.
+  for (const { viewport, sourceWidth, phoneCrop } of [
+    { viewport: { width: 320, height: 568 }, sourceWidth: 1024, phoneCrop: true },
+    { viewport: { width: 390, height: 844 }, sourceWidth: 1024, phoneCrop: true },
+    { viewport: { width: 768, height: 1024 }, sourceWidth: 1024, phoneCrop: false },
+    { viewport: { width: 1150, height: 900 }, sourceWidth: 1024, phoneCrop: false },
+    { viewport: { width: 1440, height: 900 }, sourceWidth: 1600, phoneCrop: false },
   ]) {
     test(`reserves photo space and fetches the right width at ${viewport.width}`, async ({ page }) => {
       const requested = new Set<string>();
@@ -117,7 +120,15 @@ test.describe("responsive London skyline", () => {
       try {
         expect(reserved).not.toBeNull();
         expect(reserved!.width).toBeGreaterThan(0);
-        expect(reserved!.width / reserved!.height).toBeCloseTo(1.5, 2);
+        expect(reserved!.height).toBeGreaterThan(0);
+        if (phoneCrop) {
+          const figure = await page.locator(".lpHero .lpLondonFigure").boundingBox();
+          expect(figure).not.toBeNull();
+          expect(reserved!.width).toBeCloseTo(figure!.width, 0);
+          expect(reserved!.height).toBeLessThanOrEqual((reserved!.width * 2) / 3 + 1);
+        } else {
+          expect(reserved!.width / reserved!.height).toBeCloseTo(1.5, 2);
+        }
         expect(await photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(0);
         expect(before).not.toBeNull();
       } finally {
