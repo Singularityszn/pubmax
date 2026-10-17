@@ -616,8 +616,11 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+  /* A row's icon is wayfinding, not an action: a neutral disc in ink, the way
+     a settings list or a maps app sets its row glyphs. Coral is the page's one
+     primary (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  color: var(--ink-soft);
 }
 
 .tonightSoftPlansLabel {
@@ -629,8 +632,9 @@
 .tonightSoftPlansArrow {
   flex-shrink: 0;
   margin-left: auto;
-  color: var(--brass);
-  opacity: 0.85;
+  /* --brass is under 3:1 on the light panel, too faint for a glyph that says
+     the row goes somewhere. Muted ink reads in both themes. */
+  color: var(--muted);
 }
 
 /* Quiet-pint module — after the listing spine, before thin-night CTAs. Spacing
@@ -695,8 +699,11 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+  /* A row's icon is wayfinding, not an action: a neutral disc in ink, the way
+     a settings list or a maps app sets its row glyphs. Coral is the page's one
+     primary (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  color: var(--ink-soft);
 }
 
 .tonightQuietBody {
@@ -720,8 +727,9 @@
 .tonightQuietArrow {
   flex-shrink: 0;
   margin-left: auto;
-  color: var(--brass);
-  opacity: 0.85;
+  /* --brass is under 3:1 on the light panel, too faint for a glyph that says
+     the row goes somewhere. Muted ink reads in both themes. */
+  color: var(--muted);
 }
 
 /* Entrance — a quiet staggered settle, suppressed under reduced-motion. */

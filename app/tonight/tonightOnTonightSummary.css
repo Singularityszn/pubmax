@@ -100,7 +100,7 @@
   .tonightOnTonightSummaryLink {
     display: inline-flex;
     align-items: center;
-    min-height: 40px;
+    min-height: 44px;
     color: var(--color-accent-ink);
     font-size: 0.82rem;
     font-weight: 650;
