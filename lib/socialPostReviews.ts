@@ -67,3 +67,25 @@ export type SocialLotRankingEntry = {
   raterHandles: string[];
   lastReviewedAt: string;
 };
+
+/** One scored post a mutual friend wrote about a pub (migration 0186). */
+export type SocialLotVenueReview = {
+  postId: string;
+  authorHandle: string;
+  rating: number;
+  body: string;
+  photo: { url: string; altText: string } | null;
+  createdAt: string;
+};
+
+/** Each friend's newest score for the pub, averaged, to one decimal. */
+export function lotVenueAverage(reviews: readonly SocialLotVenueReview[]): { average: number; raters: number } | null {
+  const newest = new Map<string, SocialLotVenueReview>();
+  for (const review of reviews) {
+    const held = newest.get(review.authorHandle);
+    if (!held || review.createdAt > held.createdAt) newest.set(review.authorHandle, review);
+  }
+  if (newest.size === 0) return null;
+  const total = [...newest.values()].reduce((sum, review) => sum + review.rating, 0);
+  return { average: Math.round((total / newest.size) * 10) / 10, raters: newest.size };
+}

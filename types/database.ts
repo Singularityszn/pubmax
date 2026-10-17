@@ -7452,6 +7452,22 @@ export type Database = {
           last_reviewed_at: string;
         }[];
       };
+      read_lot_venue_social_reviews: {
+        Args: {
+          p_viewer_profile_id: string | null;
+          p_venue_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          post_id: string;
+          author_handle: string;
+          rating: number;
+          body: string;
+          photo_media_id: string;
+          photo_alt_text: string;
+          created_at: string;
+        }[];
+      };
       read_own_social_pub_ranking: {
         Args: {
           p_author_profile_id: string | null;

@@ -1,6 +1,12 @@
 import "server-only";
 
-import { rankSocialReviews, type SocialLotRankingEntry, type SocialPostReview, type SocialPubRankingEntry } from "@/lib/socialPostReviews";
+import {
+  rankSocialReviews,
+  type SocialLotRankingEntry,
+  type SocialLotVenueReview,
+  type SocialPostReview,
+  type SocialPubRankingEntry,
+} from "@/lib/socialPostReviews";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 
@@ -22,6 +28,8 @@ export type SocialPostReviewStore = {
   ranking(actor: ReviewActor, limit?: number): Promise<Array<Omit<SocialPubRankingEntry, "venueName">>>;
   /** Your lot's pubs: mutual friends' newest scores averaged, for this reader only. */
   lotRanking(actor: ReviewActor, limit?: number): Promise<Array<Omit<SocialLotRankingEntry, "venueName">>>;
+  /** Your lot's scored posts about one pub, newest first, for this reader only (0186). */
+  lotVenueReviews(actor: ReviewActor, venueId: string, limit?: number): Promise<SocialLotVenueReview[]>;
 };
 
 type MemoryReview = {
@@ -76,6 +84,9 @@ export function createMemorySocialPostReviewStore(options: { now?: () => Date } 
     // Process memory knows scores but not who follows whom or who may read
     // which post, so it answers no lot rather than a wrong one.
     async lotRanking() {
+      return [];
+    },
+    async lotVenueReviews() {
       return [];
     },
   };
@@ -156,6 +167,30 @@ const supabaseSocialPostReviewStore: SocialPostReviewStore = {
         lastReviewedAt: String(row.last_reviewed_at),
       }));
     }, () => memorySocialPostReviewStore.lotRanking(actor, limit), false);
+  },
+  async lotVenueReviews(actor, venueId, limit = 20) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_lot_venue_social_reviews", {
+        p_viewer_profile_id: actor.profileId,
+        p_venue_id: venueId,
+        p_limit: limit,
+      });
+      if (error) {
+        // A deploy that runs ahead of 0186 shows no lot section, not an error.
+        if (error.code === "PGRST202" || /could not find the function/i.test(error.message)) return [];
+        throw error;
+      }
+      return (data ?? []).map((row) => ({
+        postId: String(row.post_id),
+        authorHandle: String(row.author_handle),
+        rating: Number(row.rating),
+        body: String(row.body ?? ""),
+        photo: row.photo_media_id
+          ? { url: `/api/social/media/${row.photo_media_id}`, altText: String(row.photo_alt_text ?? "") }
+          : null,
+        createdAt: String(row.created_at),
+      }));
+    }, () => memorySocialPostReviewStore.lotVenueReviews(actor, venueId, limit), false);
   },
 };
 
