@@ -40,7 +40,28 @@ const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 // area_news is hand-refreshed editorial texture; a late cron must not block verify.
 // google_places_content is a paid manual push whose copied fields stay shown
 // under their own dates, so an overdue refresh is a visible mark, not a red build.
-const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content"]);
+// late_food_evidence is re-reviewed by a person with a browser
+// (docs/LATE_FOOD_EVIDENCE_RUNBOOK.md), and lib/lateFood.ts refuses every
+// expired row at request time, so its expired rows still print here but no
+// commit can clear them.
+const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content", "late_food_evidence"]);
+
+// Temporary exemptions, each with the instant it lapses. Until then the dataset
+// warns like an advisory row; from then on it fails the gate again, so an
+// exemption cannot outlive the reason it was granted.
+// late_food_evidence: every row expired on 2026-08-16 and the re-review is a
+// person's job (docs/LATE_FOOD_EVIDENCE_RUNBOOK.md). Delete this entry in the
+// commit that lands the re-reviewed rows.
+export const TEMPORARY_ADVISORY_UNTIL = Object.freeze({
+  late_food_evidence: "2026-11-16T00:00:00.000Z",
+});
+
+/** True when a stale finding for this dataset warns instead of failing the gate. */
+export function isAdvisoryStale(id, now = new Date()) {
+  if (ADVISORY_STALE_IDS.has(id)) return true;
+  const until = TEMPORARY_ADVISORY_UNTIL[id];
+  return until !== undefined && now.getTime() < Date.parse(until);
+}
 
 // Temporary exemptions, each with the instant it lapses. Until then the dataset
 // warns like an advisory row; from then on it fails the gate again, so an
