@@ -1030,8 +1030,10 @@ export default function TonightClient({
 
         {/* What /out carried before it became a redirect here: the open plans
             and the Drink Wall off the Out read this page already holds, then
-            tomorrow and the weekend, read only when a day is chosen. */}
-        <TonightOpenPlans body={outBody} />
+            tomorrow and the weekend, read only when a day is chosen. Open
+            plans come from the browser read alone: the server seed holds
+            listings only. */}
+        <TonightOpenPlans body={liveOut.body} />
         <TonightLaterListings />
       </aside>
 
