@@ -134,7 +134,8 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await page.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByRole("button", { name: "Withdraw" })).toBeVisible();
   await page.getByRole("button", { name: "Withdraw" }).click();
-  expect(tagActions).toEqual([
+  // The click resolves before its request reaches the route, so wait for it.
+  await expect.poll(() => tagActions).toEqual([
     { proposalId: "tag-1", action: "approve", expectedAudienceRevision: 4 },
     { proposalId: "tag-1", action: "withdraw" },
   ]);
@@ -306,7 +307,7 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan updated");
   await dialog.getByRole("button", { name: "Save" }).click();
-  expect(editPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
+  await expect.poll(() => editPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
 
   await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");

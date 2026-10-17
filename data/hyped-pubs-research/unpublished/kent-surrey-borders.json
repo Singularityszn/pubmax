@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Grasshopper on the Green",
+    "area": "Westerham",
+    "county": "Kent",
+    "venueId": null,
+    "kind": "hidden-gem",
+    "whyLine": "KentOnline reports that regulars Mike and Nicola Vigar have bought this \"beloved\" pub on Westerham green and want to keep its \"old-school\" character for the long term.",
+    "sources": [
+      {
+        "label": "KentOnline",
+        "url": "https://www.kentonline.co.uk/sevenoaks/news/we-re-here-for-the-long-term-regulars-take-on-beloved-ol-345455/",
+        "observedAt": "2026-09-24"
+      }
+    ],
+    "score": 58,
+    "mentions": 2,
+    "note": "On the green, Westerham. Purchase completed 16 Sep 2026, and Mike Vigar has been landlord since Oct 2025. Not a 2026 opening, so filed as hidden-gem. CAMRA listing camra.org.uk/pubs/grasshopper-on-the-green-westerham-128440 (undated). Westerham has no rail station. WebFetch was down, so details come from search snippets only."
+  },
+  {
+    "name": "The Garibaldi",
+    "area": "Redhill",
+    "county": "Surrey",
+    "venueId": null,
+    "kind": "hidden-gem",
+    "whyLine": "Volunteer-run Victorian local whose community group completed buying the freehold in August, a rescue SUSY Radio headlined \"Redhill community saves local pub\".",
+    "sources": [
+      {
+        "label": "SUSY Radio",
+        "url": "https://www.susyradio.com/2026/08/27/redhill-community-saves-local-pub/",
+        "observedAt": "2026-08-27"
+      }
+    ],
+    "score": 62,
+    "mentions": 3,
+    "note": "Run by The Garibaldi Community Pub CIC. A Surrey Live story (getsurrey.co.uk/news/surrey-news/160-year-old-redhill-pubs-34497803, exact date not confirmed so not cited) says the freehold purchase completed on 7 Aug 2026. CAMRA listing camra.org.uk/pubs/garibaldi-redhill-191301 calls it a small single-room Victorian pub. Street address and nearest station were not confirmed. WebFetch was down, so details come from search snippets only."
+  }
+]

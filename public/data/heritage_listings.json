@@ -2,7 +2,7 @@
   "$attribution": "Listed-building data from Historic England's National Heritage List for England (NHLE), © Historic England, licensed under the Open Government Licence v3.0.",
   "$source": "Historic England — National Heritage List for England (NHLE), Listed Building points",
   "$licence": "Open Government Licence v3.0",
-  "$retrievedAt": "2026-10-17T13:39:40.756Z",
+  "$retrievedAt": "2026-10-17T14:17:29.823Z",
   "listings": {
     "venue-106ibh7": {
       "listEntry": 1184658,
@@ -310,7 +310,7 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1422617",
       "distanceM": 2
     },
-    "venue-1clnw4x": {
+    "venue-1lj3hj4": {
       "listEntry": 1078950,
       "grade": "II",
       "listedYear": 1973,
@@ -2110,24 +2110,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1264650",
       "distanceM": 1
     },
-    "venue-uk-n12569588804": {
-      "listEntry": 1358519,
-      "grade": "II",
-      "listedYear": 1983,
-      "name": "The Five Bells Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1358519",
-      "distanceM": 6
-    },
-    "venue-uk-n1275835684": {
-      "listEntry": 1065547,
-      "grade": "II",
-      "listedYear": 1983,
-      "name": "The Mason's Arms Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1065547",
-      "distanceM": 15
-    },
     "venue-uk-n12920922066": {
       "listEntry": 1078290,
       "grade": "II",
@@ -2171,15 +2153,6 @@
       "name": "The George Inn",
       "fact": "Grade I listed inn.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1378357",
-      "distanceM": 2
-    },
-    "venue-uk-n14181043751": {
-      "listEntry": 1385870,
-      "grade": "II",
-      "listedYear": 1998,
-      "name": "Bunch Of Grapes Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1385870",
       "distanceM": 2
     },
     "venue-uk-n14181043758": {
@@ -2263,24 +2236,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1079700",
       "distanceM": 6
     },
-    "venue-uk-n2407449923": {
-      "listEntry": 1358392,
-      "grade": "II",
-      "listedYear": 1974,
-      "name": "The Case Is Altered Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1358392",
-      "distanceM": 2
-    },
-    "venue-uk-n242925249": {
-      "listEntry": 1457610,
-      "grade": "II",
-      "listedYear": 2018,
-      "name": "The Grosvenor Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1457610",
-      "distanceM": 5
-    },
     "venue-uk-n251385770": {
       "listEntry": 1284844,
       "grade": "II",
@@ -2353,24 +2308,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1365749",
       "distanceM": 3
     },
-    "venue-uk-n267432002": {
-      "listEntry": 1357232,
-      "grade": "II",
-      "listedYear": 1983,
-      "name": "St Stephen's Tavern",
-      "fact": "Grade II listed tavern.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1357232",
-      "distanceM": 7
-    },
-    "venue-uk-n26979398": {
-      "listEntry": 1358443,
-      "grade": "II",
-      "listedYear": 1974,
-      "name": "The Queen's Head Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1358443",
-      "distanceM": 8
-    },
     "venue-uk-n271516102": {
       "listEntry": 1246697,
       "grade": "II*",
@@ -2407,15 +2344,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1260706",
       "distanceM": 17
     },
-    "venue-uk-n299308588": {
-      "listEntry": 1292548,
-      "grade": "II",
-      "listedYear": 1994,
-      "name": "The King's Head Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1292548",
-      "distanceM": 15
-    },
     "venue-uk-n300587311": {
       "listEntry": 1101521,
       "grade": "II",
@@ -2424,15 +2352,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1101521",
       "distanceM": 3
-    },
-    "venue-uk-n302172067": {
-      "listEntry": 1358766,
-      "grade": "II",
-      "listedYear": 1980,
-      "name": "George And Dragon Public House And Number 185",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1358766",
-      "distanceM": 4
     },
     "venue-uk-n311153571": {
       "listEntry": 1066937,
@@ -2542,15 +2461,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1299491",
       "distanceM": 7
     },
-    "venue-uk-n475933772": {
-      "listEntry": 1208567,
-      "grade": "II",
-      "listedYear": 1994,
-      "name": "The Castle Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1208567",
-      "distanceM": 6
-    },
     "venue-uk-n49311908": {
       "listEntry": 1357191,
       "grade": "II",
@@ -2596,15 +2506,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1235102",
       "distanceM": 2
     },
-    "venue-uk-n5382875197": {
-      "listEntry": 1358531,
-      "grade": "II",
-      "listedYear": 1979,
-      "name": "The Golden Lion The Golden Lion Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1358531",
-      "distanceM": 4
-    },
     "venue-uk-n597262984": {
       "listEntry": 1358536,
       "grade": "II",
@@ -2641,15 +2542,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1221553",
       "distanceM": 4
     },
-    "venue-uk-n7039548576": {
-      "listEntry": 1357775,
-      "grade": "II",
-      "listedYear": 1973,
-      "name": "The White Swan Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1357775",
-      "distanceM": 8
-    },
     "venue-uk-n739464861": {
       "listEntry": 1377424,
       "grade": "II",
@@ -2685,15 +2577,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1187061",
       "distanceM": 11
-    },
-    "venue-uk-n89125621": {
-      "listEntry": 1359323,
-      "grade": "II",
-      "listedYear": 1973,
-      "name": "The George Inn",
-      "fact": "Grade II listed inn.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1359323",
-      "distanceM": 3
     },
     "venue-uk-n9837045117": {
       "listEntry": 1103610,
@@ -3010,15 +2893,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1085864",
       "distanceM": 5
     },
-    "venue-uk-w155367405": {
-      "listEntry": 1389397,
-      "grade": "II",
-      "listedYear": 2001,
-      "name": "The Griffin Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1389397",
-      "distanceM": 1
-    },
     "venue-uk-w159052524": {
       "listEntry": 1271413,
       "grade": "II",
@@ -3108,15 +2982,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1225242",
       "distanceM": 2
-    },
-    "venue-uk-w204180594": {
-      "listEntry": 1391087,
-      "grade": "II",
-      "listedYear": 2004,
-      "name": "The Ram Inn",
-      "fact": "Grade II listed inn.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1391087",
-      "distanceM": 0
     },
     "venue-uk-w210891582": {
       "listEntry": 1219538,

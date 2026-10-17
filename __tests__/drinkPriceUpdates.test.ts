@@ -313,7 +313,7 @@ describe("drink menu materialisation from updates", () => {
       venueKey,
       [makeDrink()],
       [
-        makeUpdate({ drinkName: "Doom Bar", priceGbp: 4.99 }),
+        makeUpdate({ drinkName: "Doom Bar", priceGbp: 4.99, servingSize: "pint" }),
         makeUpdate({
           drinkName: "Lucky Saint 0.5%",
           priceGbp: 4.6,

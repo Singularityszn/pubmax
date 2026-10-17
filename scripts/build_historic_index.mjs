@@ -163,6 +163,8 @@ export const VENUE_ID_BY_CACHE_KEY = {
   "the old shades": "venue-698bu3",
   "the only running footman": "venue-1b9434y",
   "ye olde mitre": "venue-68ns7y",
+  "the cross keys, hammersmith": "venue-1c7e71q",
+  "trafalgar tavern": "venue-1lj3hj4",
 };
 
 function resolveVenueAlias(venueId, aliases) {

@@ -1,4 +1,6 @@
 import { formatPrice } from "@/lib/venues";
+import { firstHttp } from "@/lib/httpUrl";
+import { formatObservedDate, SNAPSHOT_CAPTION_PREFIX } from "@/lib/dataFreshness";
 import PriceBadge from "@/components/PriceBadge";
 import {
   foodCategoryColor,
@@ -19,17 +21,36 @@ function isDemoProvenance(prov: FoodProvenance): boolean {
   return prov.source === "seed" || prov.source.toLowerCase().includes("demo");
 }
 
-function ProvChip({ prov }: { prov: FoodProvenance }) {
+function ProvChip({ prov, source }: { prov: FoodProvenance; source?: string }) {
   const label = provenanceLabel(prov);
   const kind = isDemoProvenance(prov) ? "demo" : "sourced";
-  return (
-    <span className={`drinkProvChip ${kind}`} title={`${prov.source} · ${prov.licence}`}>
-      {label}
+  const sourceUrl = firstHttp(source);
+  const className = `drinkProvChip ${kind}`;
+  const title = `${prov.source} · ${prov.licence}`;
+  return sourceUrl && kind !== "demo" ? (
+    <a className={className} title={title} href={sourceUrl} target="_blank" rel="noopener noreferrer">{label}</a>
+  ) : (
+    <span className={className} title={title}>
+      {label}{source && kind !== "demo" ? " · Link unavailable" : ""}
     </span>
   );
 }
 
 function FoodRow({ item }: { item: FoodItem }) {
+  const observed = new Date(item.provenance.observedAt);
+  const hasDate = !isDemoProvenance(item.provenance) && Number.isFinite(observed.getTime());
+  const calorieProv = item.caloriesProvenance;
+  const calorieDate = calorieProv ? new Date(calorieProv.observedAt) : null;
+  const hasCalories = typeof item.caloriesKcal === "number" &&
+    Number.isFinite(item.caloriesKcal) && item.caloriesKcal >= 0 &&
+    calorieProv && !isDemoProvenance(calorieProv) &&
+    calorieDate && Number.isFinite(calorieDate.getTime());
+  const calorieSource = firstHttp(calorieProv?.sourceUrl);
+  const sharedObservation = hasCalories && calorieProv && calorieSource &&
+    calorieSource === firstHttp(item.source) &&
+    calorieProv.source === item.provenance.source &&
+    calorieProv.licence === item.provenance.licence &&
+    calorieProv.observedAt === item.provenance.observedAt;
   const dietary =
     item.dietary && item.dietary.length > 0
       ? item.dietary.map((d) => d.replace("-", " ")).join(" · ")
@@ -40,12 +61,31 @@ function FoodRow({ item }: { item: FoodItem }) {
         <span className="drinkName">{item.name}</span>
         {item.description ? <span className="drinkMeta">{item.description}</span> : null}
         {dietary ? <span className="drinkServing">{dietary}</span> : null}
+        {hasCalories && calorieProv && calorieDate ? (
+          <div className="foodCalories drinkMeta">
+            <span>{item.caloriesKcal} kcal on the menu</span>{" "}
+            {!sharedObservation ? <>
+              <ProvChip prov={calorieProv} source={calorieProv.sourceUrl} />
+              <span className="drinkObservationAge">
+                {SNAPSHOT_CAPTION_PREFIX}{" "}
+                <time dateTime={calorieProv.observedAt}>{formatObservedDate(calorieDate)}</time>
+              </span>
+            </> : null}
+          </div>
+        ) : null}
       </div>
       <div className="drinkRowSide">
         <PriceBadge variant="neutral" className="drinkPrice">
           {formatPrice(item.priceGbp)}
         </PriceBadge>
-        <ProvChip prov={item.provenance} />
+        {sharedObservation ? <span className="drinkMeta">Price and calories</span> : null}
+        <ProvChip prov={item.provenance} source={item.source} />
+        {hasDate ? (
+          <span className="drinkObservationAge">
+            {SNAPSHOT_CAPTION_PREFIX}{" "}
+            <time dateTime={item.provenance.observedAt}>{formatObservedDate(observed)}</time>
+          </span>
+        ) : null}
       </div>
     </li>
   );
@@ -83,9 +123,10 @@ function CategorySection({
 export type FoodMenuProps = {
   items: FoodItem[];
   venueName?: string;
+  onBack?: () => void;
 };
 
-export default function FoodMenu({ items, venueName }: FoodMenuProps) {
+export default function FoodMenu({ items, venueName, onBack }: FoodMenuProps) {
   const groups = groupFoodByCategory(items);
 
   if (groups.length === 0) {
@@ -93,7 +134,12 @@ export default function FoodMenu({ items, venueName }: FoodMenuProps) {
   }
 
   return (
-    <div className="drinkMenu" aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
+    <div className="drinkMenu foodMenu" aria-label={venueName ? `Food at ${venueName}` : "Food menu"}>
+      {onBack ? (
+        <button type="button" className="drinkMenuBack" aria-label="Back to menus" onClick={onBack}>
+          ← Menus
+        </button>
+      ) : null}
       <h3 className="drinkCategoryTitle" style={{ marginBottom: 4 }}>
         Food
       </h3>
@@ -106,7 +152,7 @@ export default function FoodMenu({ items, venueName }: FoodMenuProps) {
         />
       ))}
       <p className="drinkMenuFootnote">
-        Every dish shows its source. Prices come from the venue&rsquo;s own published menu, not a live till feed.
+        Menu prices show their source and collection date when recorded. Published menus can change.
       </p>
     </div>
   );

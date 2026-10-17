@@ -20,6 +20,11 @@ const PubPalVoiceSession = dynamic(
         <div className="palVoiceStatus" role="status">
           Warming up voice
         </div>
+        <div className="palVoiceActions">
+          <Link className="palVoiceWriteLink" href="/pal/chat">
+            <Send size={17} aria-hidden="true" /> Ask in writing
+          </Link>
+        </div>
       </div>
     ),
   },
@@ -32,9 +37,10 @@ const PubPalVoiceSession = dynamic(
 // is TRI-STATE: while the answer is still coming the control renders neither
 // claim, because "voice is off" is a statement we must have checked.
 export type PalVoiceAvailability = "asking" | "available" | "unavailable";
+const PAL_VOICE_AVAILABILITY_TIMEOUT_MS = 8_000;
 
 export const PAL_VOICE_UNAVAILABLE_LINE =
-  "Voice isn't switched on here yet. Ask me in writing and you'll get the same answers.";
+  "Voice is unavailable just now. Ask me in writing and you'll get the same answers.";
 const PAL_VOICE_MUTED_LINE =
   "Voice is muted. Ask me in writing or turn voice back on when you want it.";
 
@@ -93,20 +99,33 @@ function useVoiceAvailability(): PalVoiceAvailability {
   const [state, setState] = useState<PalVoiceAvailability>("asking");
   useEffect(() => {
     const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setState("unavailable");
+      controller.abort();
+    }, PAL_VOICE_AVAILABILITY_TIMEOUT_MS);
     void fetch("/api/pub-pal/voice-token", { signal: controller.signal })
       .then(async (response) => {
+        if (controller.signal.aborted) {
+          discardBody(response);
+          return;
+        }
         if (!response.ok) {
           discardBody(response);
           setState("unavailable");
           return;
         }
         const body: unknown = await response.json().catch(() => ({}));
+        if (controller.signal.aborted) return;
         setState(palVoiceAvailabilityFrom(true, body));
       })
       .catch(() => {
         if (!controller.signal.aborted) setState("unavailable");
-      });
-    return () => controller.abort();
+      })
+      .finally(() => window.clearTimeout(timer));
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, []);
   return state;
 }
@@ -121,6 +140,11 @@ function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalA
       <div className="palVoice">
         <div className="palVoiceStatus" role="status">
           Checking whether voice is on
+        </div>
+        <div className="palVoiceActions">
+          <Link className="palVoiceWriteLink" href="/pal/chat">
+            <Send size={17} aria-hidden="true" /> Ask in writing
+          </Link>
         </div>
       </div>
     );

@@ -226,6 +226,10 @@ _Avoid_: Night Memory, automatic activity feed, unreviewed archive
 A verified-adult-authored Social item with text, an optional private Photo, an optional Night Area, an optional exact Venue, and author-selected visibility. It stores a comment policy that no control sets while posts take no comments. It stays out of reads until moderation approves its current revision. Exact Venue is visible only to its author and current Mutuals, and a Social Post never carries venue or price authority.
 _Avoid_: Night Story, Pint Drop, Night Moment, public venue fact, price observation, unmoderated draft
 
+**Mute**:
+One Pubmaxxer&rsquo;s private choice to stop seeing another&rsquo;s Social Posts in their own lanes. It is one-way and the muted account is never told: their follow, their own view and a direct link are untouched. A Block is the two-way version, and neither is a Report. `public.social_mutes`, `components/social/ProfileMuteBlock.tsx`.
+_Avoid_: Shadowban, hide, report, downrank
+
 **Photo Tag Proposal**:
 A request to show another Pubmaxxer&rsquo;s current handle on one Social Post photo. It becomes visible only after that person approves it, and they can withdraw approval later.
 _Avoid_: Face recognition, automatic tag, permanent consent

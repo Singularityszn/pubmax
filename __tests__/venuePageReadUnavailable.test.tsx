@@ -38,6 +38,13 @@ vi.mock("@/lib/venueDetailIndex", async (importOriginal) => {
   };
 });
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+// The Ledger's read-unavailable card is drawn by its error boundary, which
+// reads the reader's own address from the router.
+const ledgerPath = vi.hoisted(() => ({ value: "" }));
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return { ...actual, usePathname: () => ledgerPath.value };
+});
 vi.mock("next/og", () => ({
   ImageResponse: class ImageResponse {
     element: unknown;
@@ -71,6 +78,8 @@ vi.mock("fs", async (importOriginal) => {
 
 import BarTabCard from "@/app/bar-tab/[id]/opengraph-image";
 import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
+import LedgerError from "@/app/ledger/[id]/error";
+import { LEDGER_READ_UNAVAILABLE } from "@/app/ledger/[id]/ledgerReadUnavailable";
 import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
 import { clampOgText } from "@/lib/ogCardText";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
@@ -101,6 +110,19 @@ const mergedCanonical = groupVenuePrices(rows).find(
 async function render(page: (props: { params: Promise<{ id: string }> }) => Promise<unknown>, id: string) {
   const element = await page({ params: Promise.resolve({ id }) });
   return renderToStaticMarkup(createElement(() => element as React.ReactElement));
+}
+
+// The Ledger document is prerendered, so a read we could not run may not be
+// rendered INTO it: the page throws, and Next draws app/ledger/[id]/error.tsx
+// in its place. This stands in for that boundary, and refuses any other error.
+async function LedgerWithBoundary(props: { params: Promise<{ id: string }> }): Promise<unknown> {
+  try {
+    return await LedgerPage(props);
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== LEDGER_READ_UNAVAILABLE) throw error;
+    ledgerPath.value = `/ledger/${encodeURIComponent((await props.params).id)}`;
+    return createElement(LedgerError, { error });
+  }
 }
 
 function visibleText(node: ReactNode): string {
@@ -145,7 +167,7 @@ describe.each([
   },
   {
     surface: "the Ledger",
-    page: LedgerPage,
+    page: LedgerWithBoundary,
     metadata: ledgerMetadata,
     href: `/ledger/${encodeURIComponent(venue.id)}`,
     notFoundLine: "in the ledger",
@@ -233,7 +255,10 @@ describe.each([
     aliases.fail = false;
     const resolved = await render(page, defined(mergedId));
     expect(resolved).not.toContain("We could not load this pub");
-    expect(resolved).toContain(mergedCanonical.name);
+    // Compared as React writes it, so a name with an apostrophe still matches.
+    expect(resolved).toContain(
+      mergedCanonical.name.replace(/&/g, "&amp;").replace(/'/g, "&#x27;").replace(/"/g, "&quot;"),
+    );
   });
 });
 

@@ -269,7 +269,7 @@ function isHalfMeasure(before: string): boolean {
   return !between.includes("£");
 }
 
-const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{2})?)\b/g;
+const PRICE_PATTERN = /£\s?(\d{1,2}(?:\.\d{1,2})?)(?![\da-z]|\.\d)/gi;
 
 // A zero-strength claim in the printed item name beats spirit or cocktail
 // words in its description. Keep the marker close to the name so a 0.0%
@@ -323,6 +323,7 @@ function titleCategory(name: string): DrinkCategory | null {
 
 function itemNameStatesZeroAlcohol(itemName: string): boolean {
   const marker = ZERO_ALCOHOL_MARKER.exec(itemName)
+    ?? /\b0\.0\s+AF\b/i.exec(itemName)
     ?? /\b(?:alcohol[- ]free|non[- ]alcoholic)\b/i.exec(itemName);
   if (!marker || marker.index > ZERO_ALCOHOL_TITLE_MAX_OFFSET) return false;
   const firstComma = itemName.indexOf(",");
@@ -381,7 +382,7 @@ export function drinkLabelFromPriceContext(
 
   const before = context.slice(0, priceAt);
   let start = 0;
-  const priorPrices = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)];
+  const priorPrices = [...before.matchAll(PRICE_PATTERN)];
   const last = priorPrices.at(-1);
   if (last) {
     start = (last.index ?? 0) + last[0].length;
@@ -428,7 +429,7 @@ export function statedWineIdentity(
   for (let i = 0; i < 3; i += 1) {
     const price = i === 0
       ? verbatim
-      : context.slice(candidateAt).match(/^£\s?\d{1,2}(?:\.\d{2})?\b/)?.[0];
+      : context.slice(candidateAt).match(new RegExp(`^(?:${PRICE_PATTERN.source})`, "i"))?.[0];
     if (!price) return null;
     const label = drinkLabelFromPriceContext(context, price, candidateAt);
     const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
@@ -771,6 +772,29 @@ function categoryDecisionFromLabel(
   return decision;
 }
 
+function priceItemIdentity(
+  text: string,
+  at: number,
+  context: string,
+  verbatim: string,
+  priceAtInContext: number,
+): { drinkLabel?: string; decision: ReturnType<typeof categoryDecisionFromLabel> } {
+  const itemName = printedItemName(text, at);
+  if (itemName && /^[*_]+$/.test(itemName.own)) return { decision: "item-name-ambiguous" };
+  const markdownPrice = itemName !== undefined && /[*_]+$/.test(itemName.own);
+  const printedTitle = normalizeHarvestDrinkLabel(
+    itemName?.own.replace(/^[*_]+|[.*_\s]+$/g, "") ?? "",
+  );
+  const drinkLabel = printedTitle && (markdownPrice || titleCategory(printedTitle))
+    ? printedTitle
+    : drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
+  const decision = categoryDecisionFromLabel(drinkLabel, itemName);
+  return {
+    drinkLabel,
+    decision: markdownPrice && !decision ? "no-category-word-nearby" : decision,
+  };
+}
+
 function keylessPriceDropReason(
   category: DrinkCategory,
   priceGbp: number,
@@ -811,9 +835,9 @@ function decideKeylessUkPriceAt(
   if (OFFER_WORDS.test(context)) {
     return { drop: "offer-not-a-menu-price" };
   }
-  const drinkLabel =
-    drinkLabelFromPriceContext(context, verbatim, priceAtInContext) ?? undefined;
-  const decisionFromLabel = categoryDecisionFromLabel(drinkLabel, printedItemName(text, at));
+  const { drinkLabel, decision: decisionFromLabel } = priceItemIdentity(
+    text, at, context, verbatim, priceAtInContext,
+  );
   if (typeof decisionFromLabel === "string") return { drop: decisionFromLabel };
   const statedIdentity = statedWineIdentity(context, verbatim, priceAtInContext);
   const wineIdentity = statedIdentity && (inWineSection || categoryDecisionFor(

@@ -193,6 +193,7 @@ export const REGENERATED_LANES = [
       /^public\/data\/pint_prices_app_dataset\.json$/,
       /^data\/osm\/uk\/uk_osm_pubs\.json$/,
       /^public\/data\/venue_id_aliases\.json$/,
+      /^public\/data\/uk_base\/(?!README\.md$).+/,
     ],
   },
   {

@@ -124,6 +124,20 @@
 
 }
 
+/* 2b. THE READER'S OWN ANSWER HOLDS THE CENTRE SLOT. From 901px the transient
+   lane (a tapped POI's name, "Updating map") sits one gap under the toolbar
+   (--map-overlay-top in app/globals.css), which is the slot the location ask
+   centres in. Both are answers to something the reader just did, so, like an
+   open Tonight panel, they take the slot and the ambient ask yields while they
+   are on screen. Keyed on presence, so dismissing the label hands it back. The
+   status rail sits a row lower and never shared the slot. */
+@media (min-width: 901px) {
+  .mapStage:has(.poiLabelCard) .citySuggestBanner,
+  .mapStage:has(.mapResumeUpdating) .citySuggestBanner {
+    display: none;
+  }
+}
+
 /* 3. An open venue drawer owns the right edge from 1024px up. These banners are
    centred on the whole stage, so their right half read as a ghost strip through
    the sheet. Re-centre them on the map lane that is left, the same way the

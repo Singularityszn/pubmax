@@ -385,8 +385,8 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
-import { canonicalizeStoredSaved, getSaved } from "@/lib/savedPubs";
-import { loadVenueAliasMap, loadVenueAliasMaps } from "@/lib/venueAliasMap";
+import { getSaved, readCanonicalSaved } from "@/lib/savedPubs";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
@@ -408,7 +408,7 @@ import {
   type CityId,
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
-import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
+import { slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import {
   isUkBaseId,
@@ -472,12 +472,13 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
+  createMapResumeWriter,
   isCurrentMapResumeRefresh,
   isPersistableMapResumeViewport,
   type MapResumeLiveLoadStatus,
   readMapResume,
   readMapResumeSync,
-  writeMapResume,
+  scheduleMapResumeWrite,
 } from "@/lib/mapResume";
 import {
   readOpeningMapLocation,
@@ -716,11 +717,10 @@ const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: 
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
 // default on a fresh pick and renders the sheet chrome.
 
-// The set of venue ids this device has saved (any list). Read from the client
-// saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
-// narrow the map/list when the viewer flips "Saved only" on.
-function readSavedVenueIds(): Set<string> {
-  return new Set(getSaved().map((entry) => entry.venueId));
+// Read this device's saved venue ids for the "Saved only" filter.
+// readCanonicalSaved() owns alias resolution.
+function readSavedVenueIds(): Promise<Set<string>> {
+  return readCanonicalSaved().then((saved) => new Set(saved.map((entry) => entry.venueId)));
 }
 
 // SSR-safe read of the current URL query. Kept in one place so the several
@@ -1846,17 +1846,13 @@ export default function PubMap({
   // fine, this is a per-viewer view, not shared state.
   const [savedOnly, setSavedOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(() =>
-    typeof window === "undefined" ? new Set<string>() : readSavedVenueIds(),
+    typeof window === "undefined" ? new Set<string>() : new Set(getSaved().map((entry) => entry.venueId)),
   );
-  // A save this device stored under a venue id that has since been merged or
-  // superseded is rewritten under the id the map serves now, once per page.
   useEffect(() => {
     if (getSaved().length === 0) return;
     let cancelled = false;
-    void loadVenueAliasMap().then((aliases) => {
-      if (cancelled || aliases.size === 0) return;
-      canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
-      setSavedIds(readSavedVenueIds());
+    void readSavedVenueIds().then((ids) => {
+      if (!cancelled) setSavedIds(ids);
     });
     return () => {
       cancelled = true;
@@ -4211,7 +4207,7 @@ export default function PubMap({
   // (event handler, not an effect) so a venue saved elsewhere this session is
   // reflected the moment the filter is turned on — no stale set, no reload.
   const changeSavedOnly = useCallback((next: boolean) => {
-    if (next) setSavedIds(readSavedVenueIds());
+    if (next) void readSavedVenueIds().then(setSavedIds);
     setSavedOnly(next);
   }, []);
 
@@ -4415,7 +4411,7 @@ export default function PubMap({
 
   const resetLogIntentFilters = useCallback(() => {
     setSavedOnly(false);
-    setSavedIds(readSavedVenueIds());
+    void readSavedVenueIds().then(setSavedIds);
     setFilters((current) => ({
       ...seedCrawlState("").filters,
       ...(hasCategoryPriceIntent ? { drinkCategory: current.drinkCategory } : {}),
@@ -5586,6 +5582,7 @@ export default function PubMap({
     });
   }, [activeNightAreaSlug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
+  const [writeMapResume] = useState(() => createMapResumeWriter());
   useEffect(() => {
     if (
       ukPlaceArrival ||
@@ -5597,15 +5594,10 @@ export default function PubMap({
       liveShardLoadStatusRef.current !== "ready" ||
       venueIndexFailed
     ) return;
-    const timer = window.setTimeout(() => {
-      writeMapResume({
-        cityId,
-        viewport: mapViewport,
-        rows: pinsToSlimVenues(slimPins),
-      });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed]);
+    // The snapshot is a speed layer for the next visit, so it waits for idle
+    // time instead of landing beside the next tap's frame.
+    return scheduleMapResumeWrite(() => writeMapResume(cityId, mapViewport, slimPins));
+  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,

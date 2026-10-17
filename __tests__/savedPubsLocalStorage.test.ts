@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   canonicalizeStoredSaved,
@@ -76,5 +76,23 @@ describe("saved pubs when storage is available", () => {
     expect(getSaved()).toEqual([
       expect.objectContaining({ venueId: "venue-1", listType: "Want to Visit" }),
     ]);
+  });
+
+  it("still hands back the well-formed saves beside malformed rows, and writes nothing", () => {
+    const storage = makeMemoryStorage();
+    const raw = JSON.stringify([
+      { venueId: "venue-1", listType: "Want to Visit", savedAt: "2026-10-01T20:00:00.000Z" },
+      null,
+      { venueId: "venue-2", savedAt: "2026-10-02T20:00:00.000Z" },
+    ]);
+    storage.setItem("pubmax:savedPubs:v1", raw);
+    const setItem = vi.spyOn(storage, "setItem");
+    installWindow(storage);
+
+    expect(getSaved()).toEqual([
+      { venueId: "venue-1", listType: "Want to Visit", savedAt: "2026-10-01T20:00:00.000Z" },
+    ]);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(storage.getItem("pubmax:savedPubs:v1")).toBe(raw);
   });
 });
