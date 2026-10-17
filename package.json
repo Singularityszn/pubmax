@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
     "dev": "node scripts/check_node_modules_fresh.mjs && npm run prepare:maplibre-worker && npm run build:places-enrichment && next dev --webpack",
