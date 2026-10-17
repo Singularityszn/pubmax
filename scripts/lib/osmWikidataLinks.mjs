@@ -32,12 +32,14 @@ export function parseQid(value) {
   return /^Q[1-9]\d{0,11}$/.test(trimmed) ? trimmed : null;
 }
 
-function curatedVenueByRef(seedPubs) {
+function curatedVenueByRef(seedPubs, venueAliases = {}) {
   const byRef = new Map();
   const claims = new Map();
   for (const pub of Array.isArray(seedPubs) ? seedPubs : []) {
     if (pub?.curatedRef?.source !== "curated-london-slim") continue;
-    const venueId = pub.curatedRef.id;
+    // canonicalize:venues may have merged the annotated venue into another;
+    // the OSM pub then belongs to the venue that kept it.
+    const venueId = venueAliases[pub.curatedRef.id] ?? pub.curatedRef.id;
     const [type, rawId] = String(pub.osmId ?? "").split("/");
     const ref = compactRef(type, Number(rawId));
     if (!ref || typeof venueId !== "string" || !venueId) continue;
@@ -52,7 +54,7 @@ function curatedVenueByRef(seedPubs) {
  * Every London `amenity=pub` in the raw Overpass chunks that names one
  * Wikidata item no other London pub names, as `[osmRef, qid, curatedVenueId | null]`.
  */
-export function buildOsmWikidataLinks({ chunks, seedPubs, fetchedAt, box = LONDON_BBOX }) {
+export function buildOsmWikidataLinks({ chunks, seedPubs, fetchedAt, box = LONDON_BBOX, venueAliases = {} }) {
   const seen = new Set();
   const tagged = [];
   const counts = { londonPubs: 0, tagged: 0, unreadableTag: 0, brandTag: 0, sharedItem: 0, linked: 0, curatedLinked: 0 };
@@ -84,7 +86,7 @@ export function buildOsmWikidataLinks({ chunks, seedPubs, fetchedAt, box = LONDO
   }
   const namedBy = new Map();
   for (const [, qid] of tagged) namedBy.set(qid, (namedBy.get(qid) ?? 0) + 1);
-  const curated = curatedVenueByRef(seedPubs);
+  const curated = curatedVenueByRef(seedPubs, venueAliases);
   const links = [];
   for (const [ref, qid] of tagged) {
     if ((namedBy.get(qid) ?? 0) > 1) {

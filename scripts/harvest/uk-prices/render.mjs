@@ -5,6 +5,7 @@
 //   npm run harvest:uk-prices-rendered                  # every permitted chain
 //   npm run harvest:uk-prices-rendered -- --limit 50    # bounded run
 //   npm run harvest:uk-prices-rendered -- --only greeneking.co.uk
+//   npm run harvest:uk-prices-rendered -- --pub-sites --only tapeast.co.uk,lvls.london
 //
 // WHY A SECOND LANE. scripts/harvest/uk-prices/run.mjs reads what a page STATES
 // in the document it serves. That is the right default and it is cheap. It also
@@ -31,6 +32,14 @@
 //     page, a drink word beside it, no food word, no offer wording, and a page
 //     that states a list rather than a banner.
 //
+// PUB SITES. `--pub-sites` renders a pub's OWN website instead: the same
+// snapshot `website` the document lane reads, permitted by the same rule
+// (pubSites.mjs), and only where that site serves exactly one pub, so a price on
+// it has no attribution question. It renders the home page, then up to
+// PUB_SITE_MENU_PAGES of the drinks links that page states, each asked of
+// robots first. It exists because a pub whose menu is drawn by script reads as
+// "no price" to the document lane.
+//
 // The renderer is wigolo (AGPL, local, https://github.com/KnockOutEZ/wigolo),
 // adopted on the captain's instruction of 2026-09-04. It is invoked as a plain
 // subprocess and its absence is a SKIP with a reason, never a crash: this lane
@@ -53,7 +62,9 @@ import {
   pageStatesADrinksList,
   readVenueDrinkPrices,
   renderLooksEmpty,
+  siteHarvestPriceKey,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
+import { renderedMenuLinks, singlePubSiteTargets } from "./pubSites.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
@@ -118,6 +129,10 @@ const RENDER_ENV = {
   WIGOLO_STEALTH: "off",
   WIGOLO_CHALLENGE_COMPLETION_MS: "0",
   WIGOLO_USER_AGENT: USER_AGENT,
+  // The renderer strips *_PROXY from its browser's environment and takes a
+  // proxy only through its own settings, so an environment that reaches the
+  // web through one has to say so here or the browser cannot connect at all.
+  ...(process.env.HTTPS_PROXY ? { USE_PROXY: "true", PROXY_URL: process.env.HTTPS_PROXY } : {}),
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -134,6 +149,11 @@ const RESET = flag("--reset");
 const DRY_RUN = flag("--dry-run");
 const LIMIT = Number(option("--limit", Number.POSITIVE_INFINITY));
 const ONLY = option("--only", null);
+/** `--only` names one host or a comma-separated list of them. */
+const ONLY_HOSTS = ONLY
+  ? ONLY.split(",").map((name) => name.trim().toLowerCase()).filter((name) => name.length > 0)
+  : null;
+const PUB_SITES = flag("--pub-sites");
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const RENDERER = option("--renderer", "npx");
 /**
@@ -196,7 +216,20 @@ function renderOnce(url) {
           resolve({ ok: false, reason: "blocked-by-challenge" });
           return;
         }
-        resolve({ ok: true, markdown: String(parsed.markdown ?? ""), status: parsed.http_status ?? null });
+        // A renderer that could not reach the page answers with an error and no
+        // words. That is a failure to record, not a page that states nothing.
+        if (parsed.error && !parsed.markdown) {
+          resolve({ ok: false, reason: "render-failed" });
+          return;
+        }
+        resolve({
+          ok: true,
+          markdown: String(parsed.markdown ?? ""),
+          links: Array.isArray(parsed.links) ? parsed.links : [],
+          status: parsed.http_status ?? null,
+          // The renderer follows redirects and reports where it landed.
+          landedUrl: typeof parsed.url === "string" && parsed.url ? parsed.url : url,
+        });
       } catch {
         resolve({ ok: false, reason: "renderer-answered-nothing" });
       }
@@ -342,8 +375,22 @@ async function main() {
       : `  overlay menu urls: no input at ${path.relative(ROOT, MENU_URL_INPUT)}; run npm run harvest:uk-menu-urls`,
   );
 
+  if (PUB_SITES) {
+    // Pub sites are read INSTEAD of chain and overlay pages, never beside them,
+    // so one run answers one question.
+    targets.length = 0;
+    for (const target of singlePubSiteTargets([...pubsByOsmId.values()], { only: ONLY_HOSTS })) {
+      targets.push({ ...target, kind: "pub-site", menuUrl: target.homeUrl });
+    }
+    console.log(`  pub sites: ${targets.length} single-pub site(s) permitted${ONLY_HOSTS ? ` within --only` : ""}`);
+  }
+
   if (targets.length === 0) {
-    console.log("rendered menu harvest: no permitted chain or overlay page publishes a rendered menu today");
+    console.log(
+      PUB_SITES
+        ? "rendered menu harvest: no permitted single-pub site matches"
+        : "rendered menu harvest: no permitted chain or overlay page publishes a rendered menu today",
+    );
     return;
   }
 
@@ -353,7 +400,7 @@ async function main() {
       : JSON.parse(readFileSync(LEDGER_PATH, "utf8"));
 
   const pending = targets
-    .filter((target) => (ONLY ? target.host.includes(ONLY) : true))
+    .filter((target) => (ONLY_HOSTS ? ONLY_HOSTS.some((name) => target.host.includes(name)) : true))
     .filter((target) => !ledger.pages[target.menuUrl])
     .slice(0, Number.isFinite(LIMIT) ? LIMIT : targets.length);
 
@@ -365,6 +412,119 @@ async function main() {
   let done = 0;
 
   if (!DRY_RUN) mkdirSync(OUT_DIR, { recursive: true });
+
+
+  /**
+   * A REDIRECT IS ASKED ABOUT TOO. Permission was given for the page requested;
+   * a landing on another host, or on a path its robots refuse, was never
+   * permitted, so its words are refused rather than read.
+   */
+  async function landingRefusal(requestedUrl, rendered) {
+    if (rendered.landedUrl === requestedUrl) return null;
+    if (hostOf(rendered.landedUrl) !== hostOf(requestedUrl)) return "redirected-off-site";
+    const decision = await robots(rendered.landedUrl);
+    return decision.allowed ? null : decision.reason;
+  }
+
+  /** One target's priced rows, written the one way both modes write them. */
+  function appendPricedRows(target, priced, linesOnPage) {
+    if (DRY_RUN || priced.length === 0) return;
+    const observedAt = new Date().toISOString();
+    appendFileSync(
+      ROWS_PATH,
+      `${priced
+        .map((row) =>
+          JSON.stringify({
+            host: target.host,
+            venueId: target.venueId,
+            osmId: target.osmId,
+            name: target.name,
+            postcode: target.postcode,
+            lat: target.lat,
+            lng: target.lng,
+            category: row.category,
+            priceGbp: row.priceGbp,
+            ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+            ...(row.servingSize ? { servingSize: row.servingSize } : {}),
+            sourceUrl: row.url ?? target.menuUrl,
+            observedAt,
+            // A per-pub menu page, and a site serving one pub, name exactly
+            // one pub, so this lane never has an attribution question to answer.
+            pubsOnHost: 1,
+            linesOnPage: row.linesOnPage ?? linesOnPage,
+            renderer: "wigolo",
+          }),
+        )
+        .join("\n")}\n`,
+    );
+  }
+
+  /** A chain or overlay target: one named menu page. */
+  async function readMenuPage(target) {
+    const rendered = await render(target.menuUrl);
+    if (rendered.retried) retries += 1;
+    if (!rendered.ok) return rendered.reason;
+    const refused = await landingRefusal(target.menuUrl, rendered);
+    if (refused) return refused;
+    const reading = readVenueDrinkPrices(rendered.markdown);
+    if (!pageStatesADrinksList(reading)) return "menu-states-no-price";
+    appendPricedRows(target, cheapestPerCategory(reading), reading.kept.length);
+    return "priced";
+  }
+
+  /**
+   * A pub's own site: its home page, then the drinks links that page states.
+   * ONE ROW PER DRINK across the site, and the cheapest page wins, as in the
+   * document lane.
+   */
+  async function readPubSite(target) {
+    const home = await render(target.homeUrl);
+    if (home.retried) retries += 1;
+    if (!home.ok) return home.reason;
+    const homeRefused = await landingRefusal(target.homeUrl, home);
+    if (homeRefused) return homeRefused;
+    const pages = [{ url: target.homeUrl, markdown: home.markdown }];
+    // A drinks link that was refused or failed is remembered, so a site whose
+    // only menu could not be read is never recorded as having no menu.
+    let linkFailure = null;
+    for (const link of renderedMenuLinks(home.links, target.homeUrl)) {
+      const decision = await robots(link);
+      if (!decision.allowed) {
+        linkFailure ??= decision.reason;
+        continue;
+      }
+      await sleep(CHAIN_HOST_DELAY_MS);
+      const page = await render(link);
+      if (page.retried) retries += 1;
+      if (!page.ok) {
+        linkFailure ??= page.reason;
+        continue;
+      }
+      const refused = await landingRefusal(link, page);
+      if (refused) {
+        linkFailure ??= refused;
+        continue;
+      }
+      pages.push({ url: link, markdown: page.markdown });
+    }
+    const byKey = new Map();
+    for (const page of pages) {
+      const reading = readVenueDrinkPrices(page.markdown);
+      if (!pageStatesADrinksList(reading)) continue;
+      for (const row of cheapestPerCategory(reading)) {
+        const key = siteHarvestPriceKey(row.category, row.drinkLabel, row.servingSize);
+        const held = byKey.get(key);
+        if (!held || row.priceGbp < held.priceGbp) {
+          byKey.set(key, { ...row, url: page.url, linesOnPage: reading.kept.length });
+        }
+      }
+    }
+    if (byKey.size === 0) {
+      return linkFailure ?? (pages.length > 1 ? "menu-states-no-price" : "no-menu-page-found");
+    }
+    appendPricedRows(target, [...byKey.values()], 0);
+    return "priced";
+  }
 
   async function worker() {
     for (;;) {
@@ -381,50 +541,7 @@ async function main() {
       }
 
       await sleep(CHAIN_HOST_DELAY_MS);
-      const rendered = await render(target.menuUrl);
-      if (rendered.retried) retries += 1;
-      let outcome;
-      if (!rendered.ok) {
-        outcome = rendered.reason;
-      } else {
-        const reading = readVenueDrinkPrices(rendered.markdown);
-        if (!pageStatesADrinksList(reading)) {
-          outcome = "menu-states-no-price";
-        } else {
-          const priced = cheapestPerCategory(reading);
-          outcome = "priced";
-          if (!DRY_RUN) {
-            const observedAt = new Date().toISOString();
-            appendFileSync(
-              ROWS_PATH,
-              `${priced
-                .map((row) =>
-                  JSON.stringify({
-                    host: target.host,
-                    venueId: target.venueId,
-                    osmId: target.osmId,
-                    name: target.name,
-                    postcode: target.postcode,
-                    lat: target.lat,
-                    lng: target.lng,
-                    category: row.category,
-                    priceGbp: row.priceGbp,
-                    ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
-                    ...(row.servingSize ? { servingSize: row.servingSize } : {}),
-                    sourceUrl: target.menuUrl,
-                    observedAt,
-                    // A per-pub menu page names exactly one pub, so this lane
-                    // never has an attribution question to answer.
-                    pubsOnHost: 1,
-                    linesOnPage: reading.kept.length,
-                    renderer: "wigolo",
-                  }),
-                )
-                .join("\n")}\n`,
-            );
-          }
-        }
-      }
+      const outcome = target.kind === "pub-site" ? await readPubSite(target) : await readMenuPage(target);
       ledger.pages[target.menuUrl] = { outcome, checkedAt: new Date().toISOString() };
       outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
       done += 1;
