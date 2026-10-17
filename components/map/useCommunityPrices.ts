@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   freshestCommunityPrice,
@@ -1292,15 +1292,20 @@ export function useCommunityPrices(): CommunityPricesState {
   // never stored, so it can't drift from the per-category lists. The previous
   // answer is kept when nothing a pin carries changed (freshestPintByVenue), so
   // opening a pub with no new pint price does not rebuild every pin.
-  const [freshestByVenueId, setFreshestByVenueId] = useState(() =>
-    freshestPintByVenue(byVenueId),
+  // The previous answer is held in a closure, not in state: a state write
+  // during render made React run the whole map component a second time on
+  // every price read (map-selection-inp).
+  const [freshestFor] = useState(() => {
+    let previous: Map<string, CommunityPrice> | null = null;
+    return (rows: Map<string, CommunityPrice[]>) => {
+      previous = freshestPintByVenue(rows, previous);
+      return previous;
+    };
+  });
+  const freshestByVenueId = useMemo(
+    () => freshestFor(byVenueId),
+    [byVenueId, freshestFor],
   );
-  const [freshestReadFrom, setFreshestReadFrom] = useState(byVenueId);
-  if (freshestReadFrom !== byVenueId) {
-    setFreshestReadFrom(byVenueId);
-    const next = freshestPintByVenue(byVenueId, freshestByVenueId);
-    if (next !== freshestByVenueId) setFreshestByVenueId(next);
-  }
 
   return {
     byVenueId,
