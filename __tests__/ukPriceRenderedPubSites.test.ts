@@ -10,6 +10,8 @@ vi.mock("node:fs", () => ({
     { osmId: "node/2", name: "Fox & Hounds", website: "https://www.craftunionpubs.com/fox" },
     { osmId: "node/3", name: "Little Driver", website: "https://www.craftunionpubs.com/driver" },
     { osmId: "node/4", name: "Tap East", website: "http://www.tapeast.co.uk/" },
+    { osmId: "node/5", name: "Redirected Arms", website: "https://redirectedarms.co.uk/" },
+    { osmId: "node/6", name: "Timeout Tavern", website: "https://timeouttavern.co.uk/" },
   ]),
   mkdirSync: vi.fn(),
   writeFileSync: vi.fn(),
@@ -40,6 +42,24 @@ vi.mock("node:child_process", () => ({
       child.stdout.emit("data", JSON.stringify(
         url === "http://www.tapeast.co.uk/"
           ? { url, markdown: "", links: [], error: "Upstream returned HTTP 405" }
+          // The renderer followed a redirect to an ordering app it was never
+          // permitted to read; the drinks list there must not be read.
+          : url === "https://redirectedarms.co.uk/"
+          ? {
+            url: "https://deliveroo.co.uk/menu/london/redirected-arms",
+            http_status: 200,
+            markdown: `<p>${"Order now. ".repeat(60)}</p>${DRINKS}`,
+            links: [],
+          }
+          : url === "https://timeouttavern.co.uk/"
+          ? {
+            url,
+            http_status: 200,
+            markdown: `<p>${"Welcome to the Timeout Tavern, a pub that serves drinks. ".repeat(30)}</p>`,
+            links: ["https://timeouttavern.co.uk/menu/"],
+          }
+          : url === "https://timeouttavern.co.uk/menu/"
+          ? { url, markdown: "", links: [], error: "net::ERR_TIMED_OUT" }
           : url === "https://kingeddies.co.uk/"
           ? {
             http_status: 200,
@@ -68,6 +88,9 @@ describe("rendered pub sites", () => {
       "http://www.tapeast.co.uk/",
       "https://kingeddies.co.uk/",
       "https://kingeddies.co.uk/home/menu/",
+      "https://redirectedarms.co.uk/",
+      "https://timeouttavern.co.uk/",
+      "https://timeouttavern.co.uk/menu/",
     ]);
     expect(asked.sort()).toEqual(rendered);
 
@@ -77,6 +100,10 @@ describe("rendered pub sites", () => {
     const ledger = JSON.parse(String(defined(ledgerWrites.at(-1))[1])) as { pages: Record<string, { outcome: string }> };
     expect(ledger.pages["http://www.tapeast.co.uk/"]?.outcome).toBe("render-failed");
     expect(ledger.pages["https://kingeddies.co.uk/"]?.outcome).toBe("priced");
+    // A landing on another host is refused, not read under the pub's name.
+    expect(ledger.pages["https://redirectedarms.co.uk/"]?.outcome).toBe("redirected-off-site");
+    // A drinks link that failed is the site's outcome, never "no menu page".
+    expect(ledger.pages["https://timeouttavern.co.uk/"]?.outcome).toBe("render-failed");
 
     const writes = vi.mocked(appendFileSync).mock.calls;
     expect(writes).toHaveLength(1);

@@ -227,6 +227,8 @@ function renderOnce(url) {
           markdown: String(parsed.markdown ?? ""),
           links: Array.isArray(parsed.links) ? parsed.links : [],
           status: parsed.http_status ?? null,
+          // The renderer follows redirects and reports where it landed.
+          landedUrl: typeof parsed.url === "string" && parsed.url ? parsed.url : url,
         });
       } catch {
         resolve({ ok: false, reason: "renderer-answered-nothing" });
@@ -412,6 +414,18 @@ async function main() {
   if (!DRY_RUN) mkdirSync(OUT_DIR, { recursive: true });
 
 
+  /**
+   * A REDIRECT IS ASKED ABOUT TOO. Permission was given for the page requested;
+   * a landing on another host, or on a path its robots refuse, was never
+   * permitted, so its words are refused rather than read.
+   */
+  async function landingRefusal(requestedUrl, rendered) {
+    if (rendered.landedUrl === requestedUrl) return null;
+    if (hostOf(rendered.landedUrl) !== hostOf(requestedUrl)) return "redirected-off-site";
+    const decision = await robots(rendered.landedUrl);
+    return decision.allowed ? null : decision.reason;
+  }
+
   /** One target's priced rows, written the one way both modes write them. */
   function appendPricedRows(target, priced, linesOnPage) {
     if (DRY_RUN || priced.length === 0) return;
@@ -450,6 +464,8 @@ async function main() {
     const rendered = await render(target.menuUrl);
     if (rendered.retried) retries += 1;
     if (!rendered.ok) return rendered.reason;
+    const refused = await landingRefusal(target.menuUrl, rendered);
+    if (refused) return refused;
     const reading = readVenueDrinkPrices(rendered.markdown);
     if (!pageStatesADrinksList(reading)) return "menu-states-no-price";
     appendPricedRows(target, cheapestPerCategory(reading), reading.kept.length);
@@ -465,14 +481,31 @@ async function main() {
     const home = await render(target.homeUrl);
     if (home.retried) retries += 1;
     if (!home.ok) return home.reason;
+    const homeRefused = await landingRefusal(target.homeUrl, home);
+    if (homeRefused) return homeRefused;
     const pages = [{ url: target.homeUrl, markdown: home.markdown }];
+    // A drinks link that was refused or failed is remembered, so a site whose
+    // only menu could not be read is never recorded as having no menu.
+    let linkFailure = null;
     for (const link of renderedMenuLinks(home.links, target.homeUrl)) {
       const decision = await robots(link);
-      if (!decision.allowed) continue;
+      if (!decision.allowed) {
+        linkFailure ??= decision.reason;
+        continue;
+      }
       await sleep(CHAIN_HOST_DELAY_MS);
       const page = await render(link);
       if (page.retried) retries += 1;
-      if (page.ok) pages.push({ url: link, markdown: page.markdown });
+      if (!page.ok) {
+        linkFailure ??= page.reason;
+        continue;
+      }
+      const refused = await landingRefusal(link, page);
+      if (refused) {
+        linkFailure ??= refused;
+        continue;
+      }
+      pages.push({ url: link, markdown: page.markdown });
     }
     const byKey = new Map();
     for (const page of pages) {
@@ -486,7 +519,9 @@ async function main() {
         }
       }
     }
-    if (byKey.size === 0) return pages.length > 1 ? "menu-states-no-price" : "no-menu-page-found";
+    if (byKey.size === 0) {
+      return linkFailure ?? (pages.length > 1 ? "menu-states-no-price" : "no-menu-page-found");
+    }
     appendPricedRows(target, [...byKey.values()], 0);
     return "priced";
   }
