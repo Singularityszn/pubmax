@@ -25,7 +25,13 @@ import {
   serialiseRead,
   VERIFIED_LISTINGS,
 } from "@/scripts/build_heritage_listings.mjs";
-import { baseRowOwners, baseVenueIdFor, LONDON_BOX, londonBaseVenues } from "@/scripts/lib/heritageBaseVenues.mjs";
+import {
+  baseRowOwners,
+  baseVenueIdFor,
+  LONDON_BOX,
+  londonBaseVenues,
+  ownedBaseVenues,
+} from "@/scripts/lib/heritageBaseVenues.mjs";
 import { heritageReadLabel, sanitizeHeritageFacts } from "@/lib/heritageFacts";
 import { resolveObservedAt } from "@/lib/freshness";
 import { getListedBuilding } from "@/lib/heritageListings";
@@ -97,6 +103,57 @@ describe("the London base pubs the join reads", () => {
       return owner !== undefined && owner in pack.listings;
     });
     expect(doubled).toEqual([]);
+  });
+
+  it("tries an owned base pub's own name under its curated owner, only when the owner's name found nothing", () => {
+    const ownedBy = new Map([
+      ["w1", "venue-old-bell"],
+      ["w2", "venue-george"],
+    ]);
+    const ownedBase = ownedBaseVenues(
+      [
+        { osmId: "way/1", amenity: "pub", name: "The Old Bell", lat: 51.5, lng: -0.1 },
+        { osmId: "way/2", amenity: "pub", name: "The George", lat: 51.6, lng: -0.2 },
+        { osmId: "way/3", amenity: "pub", name: "Unowned", lat: 51.5, lng: -0.1 },
+      ],
+      { ownedBy },
+    );
+    expect(ownedBase).toEqual([
+      { id: "venue-old-bell", name: "The Old Bell", lat: 51.5, lng: -0.1 },
+      { id: "venue-george", name: "The George", lat: 51.6, lng: -0.2 },
+    ]);
+    const listings = buildListings(
+      [
+        // A qualifier the matcher refuses, so the owned OSM name is tried.
+        { id: "venue-old-bell", name: "The Old Bell Tavern Fleet Street Nightclub", lat: 51.5, lng: -0.1 },
+        // Its own name matches, so the owned OSM name never overrides it.
+        { id: "venue-george", name: "The George", lat: 51.6, lng: -0.2 },
+      ],
+      [
+        { listEntry: 1064658, name: "THE OLD BELL PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.5, lng: -0.1 },
+        { listEntry: 1000001, name: "THE GEORGE PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.6, lng: -0.2 },
+      ],
+      { ownedBase: [...ownedBase, { id: "venue-george", name: "The Old Bell", lat: 51.5, lng: -0.1 }] },
+    );
+    expect(listings["venue-old-bell"]?.listEntry).toBe(1064658);
+    expect(listings["venue-george"]?.listEntry).toBe(1000001);
+  });
+
+  it("puts each listed building under one venue, bar the pairs still waiting on a merge", () => {
+    const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+    const byEntry = new Map<number, string[]>();
+    for (const [id, listing] of Object.entries(pack.listings) as Array<[string, { listEntry: number }]>) {
+      byEntry.set(listing.listEntry, [...(byEntry.get(listing.listEntry) ?? []), id]);
+    }
+    const doubled = Object.fromEntries([...byEntry].filter(([, ids]) => ids.length > 1));
+    // Group C of Singularityszn/pubmax#2218, one pub held twice in one source.
+    // Each needs a merge decision, not a looser match: two curated rows for The
+    // White Bear, and an OSM node and way for each of the other two.
+    expect(doubled).toEqual({
+      1085864: ["venue-uk-n316951209", "venue-uk-w1499736517"],
+      1204809: ["venue-uk-n213434643", "venue-uk-w1414645898"],
+      1208737: ["venue-1dohqsq", "venue-7c6oel"],
+    });
   });
 
   it("is a few thousand pubs in the committed snapshot", () => {

@@ -22,6 +22,8 @@
 //      (scripts/lib/heritageBaseVenues.mjs), so a listed pub off the curated
 //      map is not left blank. "Owns" is the published uk_base shards' owner
 //      column, the same answer the map uses to hide a base pin.
+//   3c. For a curated venue its own name found nothing for, try the OSM name
+//      of each base pub it owns, keyed under the curated id.
 //   4. Write public/data/heritage_listings.json — ONLY matched pubs, keyed by
 //      venueId, with { listEntry, grade, listedYear, name, fact, url, distanceM },
 //      plus `$retrievedAt`, the day the NHLE was read, which the sheet prints.
@@ -54,7 +56,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { openDataSourceUrl } from "../lib/harvest/sourcePolicy.ts";
-import { baseRowOwners, LONDON_BOX, londonBaseVenues } from "./lib/heritageBaseVenues.mjs";
+import { baseRowOwners, LONDON_BOX, londonBaseVenues, ownedBaseVenues } from "./lib/heritageBaseVenues.mjs";
 import {
   bestMatch,
   buildFactText,
@@ -69,7 +71,7 @@ const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.
 const OUT_PATH = path.join(ROOT, "public", "data", "heritage_listings.json");
 const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const UK_BASE_MANIFEST_PATH = path.join(ROOT, "public", "data", "uk_base", "manifest.json");
-export const NHLE_READ_PATH = path.join(ROOT, "data", "heritage", "nhle_london_points.json");
+const NHLE_READ_PATH = path.join(ROOT, "data", "heritage", "nhle_london_points.json");
 
 // The NHLE FeatureServer's row in lib/harvest/sourcePolicy.ts. THE TABLE OWNS
 // THE HOST: the query URL comes from `openDataSourceUrl`, never from here.
@@ -249,17 +251,19 @@ function verifiedMatch(venue, candidates) {
   return distanceM <= STRONG_MATCH_M ? { listing, distanceM } : null;
 }
 
-export function buildListings(venues, points) {
+// `ownedBase` (ownedBaseVenues) is tried after every venue, and only for an id
+// that has no listing yet, so a curated venue's own name always wins.
+export function buildListings(venues, points, { ownedBase = [] } = {}) {
   const grid = indexPoints(points);
   const listings = {};
-  for (const venue of venues) {
+  for (const venue of [...venues, ...ownedBase]) {
+    if (listings[venue.id]) continue;
     const candidates = candidatesFor(grid, venue.lat, venue.lng);
     const match = bestMatch(venue, candidates) ?? verifiedMatch(venue, candidates);
     if (!match) continue;
     const { listing, distanceM } = match;
     const fact = buildFactText(listing.grade, listing.name);
     if (!fact) continue;
-    // First match wins per venueId (venues are unique by key already).
     listings[venue.id] = {
       listEntry: listing.listEntry,
       grade: String(listing.grade).trim(),
@@ -364,7 +368,9 @@ async function main() {
   const ownedBy = new Map(
     [...baseRowOwners(await londonBaseShards())].filter(([, owner]) => curatedIds.has(owner)),
   );
-  const base = londonBaseVenues((await loadJson(UK_SEED_PATH)).pubs, { ownedBy });
+  const seedPubs = (await loadJson(UK_SEED_PATH)).pubs;
+  const base = londonBaseVenues(seedPubs, { ownedBy });
+  const ownedBase = ownedBaseVenues(seedPubs, { ownedBy });
   const venues = [...curated, ...base];
   process.stderr.write(
     `Grouped ${rows.length} rows into ${curated.length} venues, plus ${base.length} London base pubs ` +
@@ -409,7 +415,8 @@ async function main() {
     listings = {};
     const review = [];
     const grid = indexPoints(points);
-    for (const venue of venues) {
+    for (const venue of [...venues, ...ownedBase]) {
+      if (listings[venue.id]) continue;
       const candidates = candidatesFor(grid, venue.lat, venue.lng);
       const judgedResult = await judgedBestMatch(venue, candidates);
       review.push(...judgedResult.review);
@@ -437,7 +444,7 @@ async function main() {
       `heritage listings: judged pass wrote ${review.length} review-band pair(s) to ${reviewPath}\n`,
     );
   } else {
-    listings = buildListings(venues, points);
+    listings = buildListings(venues, points, { ownedBase });
   }
   const matched = Object.keys(listings).length;
   process.stderr.write(`Matched ${matched} pubs to listed buildings.\n`);

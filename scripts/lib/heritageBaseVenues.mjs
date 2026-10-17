@@ -62,3 +62,26 @@ export function londonBaseVenues(seedPubs, { box = LONDON_BOX, ownedBy = new Map
   }
   return venues;
 }
+
+/**
+ * The other half of ownership: every named London-box pub the base layer gives
+ * to a curated venue, as `{ id: <that venue>, name, lat, lng }`. The join tries
+ * these only for a curated venue its own name found no listing for, so a
+ * listed building OSM names well ("The Old Bell") is not lost behind a curated
+ * name with a qualifier ("The Old Bell Tavern"). The listing is keyed under
+ * the curated id, the pin the map draws.
+ */
+export function ownedBaseVenues(seedPubs, { box = LONDON_BOX, ownedBy = new Map() } = {}) {
+  const venues = [];
+  for (const pub of Array.isArray(seedPubs) ? seedPubs : []) {
+    if (pub?.amenity !== "pub") continue;
+    const name = typeof pub.name === "string" ? pub.name.trim() : "";
+    const { lat, lng } = pub;
+    if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    if (lat < box.minLat || lat > box.maxLat || lng < box.minLng || lng > box.maxLng) continue;
+    const id = baseVenueIdFor(pub.osmId);
+    const owner = id ? ownedBy.get(id.slice("venue-uk-".length)) : undefined;
+    if (owner) venues.push({ id: owner, name, lat, lng });
+  }
+  return venues;
+}
