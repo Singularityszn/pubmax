@@ -303,9 +303,14 @@
 /* Touch target floor. Every other link on this page flows inside a sentence
    and is exempt by WCAG's inline exception, but the press-kit row lays its two
    download links out as their own boxes, side by side, which makes them
-   controls: they painted 24px tall. Coarse pointers only, so the desktop row
-   keeps its measure. e2e/launch-phone-controls.spec.ts measures it. */
-@media (pointer: coarse) {
+   controls: they painted 24px tall. Coarse pointers and phone widths only, so
+   a wide desktop row keeps its measure. The width clause is not redundant: on
+   16 October 2026 the macOS layout-pins shard measured these links at 23px on
+   a 390px touch-emulated load where the pointer query had not matched, and
+   the floor must not hang on that one signal. 559px is the press-kit row's
+   own breakpoint. e2e/launch-phone-controls.spec.ts measures it, and
+   __tests__/aboutPressKitTapFloor.test.ts pins the query. */
+@media (pointer: coarse), (max-width: 559px) {
   .aboutLogoLinks .aboutLink {
     display: inline-flex;
     align-items: center;
