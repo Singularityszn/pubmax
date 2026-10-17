@@ -64,7 +64,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/night/NightCalmLine.tsx", fetchCount: 1, reason: "night calm is an optional live signal" },
   { path: "components/night/NightModeCard.tsx", fetchCount: 6, reason: "night venue data and actions are no-store interactive flows; the plan state itself is the shared read in components/plan/usePlanMemberRead.ts" },
   { path: "components/pintdrop/CommentThread.tsx", fetchCount: 1, reason: "comments are Social interaction reads and mutations" },
-  { path: "components/plan/FairMeetingOrigins.tsx", fetchCount: 1, reason: "the fair meeting comparison reads each candidate pub's public venue record only after an explicit opt-in, no-store and aborted on opt-out, and never sends the private starting areas" },
+  { path: "components/plan/FairMeetingOrigins.tsx", fetchCount: 1, reason: "the fair meeting comparison reads each candidate pub's public venue record only after an explicit opt-in, no-store, aborted on opt-out, a changed stop list, a new plan or member and unmount, and never sends the private starting areas. __tests__/fairMeetingCoarseOrigins.test.tsx renders that lifecycle at the fetch boundary" },
   { path: "components/plan/MatchGroupPrefs.tsx", fetchCount: 3, reason: "shared plan collaboration state is no-store" },
   { path: "components/plan/MobilePlanActivation.tsx", fetchCount: 2, reason: "plan activation is a user action and generation request" },
   { path: "components/plan/NightCrawlMode.tsx", fetchCount: 1, reason: "plan mode state is no-store and mutation-sensitive" },

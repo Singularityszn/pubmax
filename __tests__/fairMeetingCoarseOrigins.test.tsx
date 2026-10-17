@@ -280,3 +280,170 @@ describe("fair meeting from broad starting areas", () => {
     expect(journeyRows()).toEqual([]);
   });
 });
+
+// The comparison's own reads, held open so a test can answer them late.
+// The stub never rejects on abort, so a cancelled read still answers late,
+// the way a slow network can. The component must ignore that answer.
+describe("fair meeting reads follow the comparison's lifecycle", () => {
+  type HeldRead = { url: string; signal: AbortSignal | null; release: () => void };
+  let held: HeldRead[] = [];
+
+  function serveHeld(): void {
+    calls = [];
+    held = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = String(input);
+      calls.push({ url, method: init?.method ?? "GET", body: typeof init?.body === "string" ? init.body : "" });
+      if (/^\/api\/plans\/[^/]+\/collaboration$/.test(url)) {
+        // A second member token belongs to a second member.
+        const token = new Headers(init?.headers).get("authorization") ?? "";
+        const memberId = token.endsWith("token-2") ? "mate-2" : MEMBER_ID;
+        return Promise.resolve(Response.json({ memberId, invites: [], constraints: [], proposals: [], votes: [] }));
+      }
+      if (/^\/api\/plans\/[^/]+\/group-prefs$/.test(url)) return Promise.resolve(Response.json({ prefs: [] }));
+      const venue = /^\/api\/venue\/([^/?]+)$/.exec(url);
+      const coords = venue ? VENUE_COORDS[decodeURIComponent(venue[1] ?? "")] : undefined;
+      return new Promise<Response>((resolve) => {
+        held.push({
+          url,
+          signal: init?.signal ?? null,
+          release: () => resolve(coords ? Response.json({ venue: coords }) : Response.json({ error: "Not found." }, { status: 404 })),
+        });
+      });
+    }));
+  }
+
+  async function renderPanel(next: { planId?: string; memberToken?: string; stops?: PlanStopDTO[] } = {}): Promise<void> {
+    await act(async () => {
+      root.render(createElement(PlanCollaborationPanel, {
+        planId: next.planId ?? PLAN_ID,
+        memberToken: next.memberToken ?? "token",
+        isHost: false,
+        draftStops: next.stops ?? draftStops,
+        routeRevision: null,
+        canPropose: false,
+        onProposalCreated: () => {},
+      }));
+    });
+    await flush();
+  }
+
+  async function answer(reads: readonly HeldRead[]): Promise<void> {
+    await act(async () => {
+      for (const read of reads) read.release();
+    });
+    await flush();
+  }
+
+  function allAborted(reads: readonly HeldRead[]): boolean {
+    return reads.length > 0 && reads.every((read) => read.signal?.aborted === true);
+  }
+
+  it("reads nothing before opt-in and cancels its reads when the member opts out", async () => {
+    serveHeld();
+    await renderPanel();
+    expect(held).toEqual([]);
+
+    await press(COMPARE);
+    await addArea("camden");
+    const inFlight = [...held];
+    expect(inFlight.map((read) => read.url)).toEqual(["/api/venue/venue-a", "/api/venue/venue-b", "/api/venue/venue-c"]);
+    expect(inFlight.some((read) => read.signal?.aborted === true)).toBe(false);
+    expect(host.textContent).toContain("Finding the pubs on this plan.");
+
+    await press(COMPARE);
+    expect(allAborted(inFlight)).toBe(true);
+    await answer(inFlight);
+    expect(journeyRows()).toEqual([]);
+    expect(host.textContent).not.toContain("longest");
+
+    await press(COMPARE);
+    expect(findButton("Remove Camden")).toBeNull();
+    expect(journeyRows()).toEqual([]);
+  });
+
+  it("drops an answer read for a stop list the plan no longer has", async () => {
+    serveHeld();
+    await renderPanel();
+    await press(COMPARE);
+    await addArea("camden");
+    const firstList = [...held];
+
+    await renderPanel({ stops: draftStops.filter((stop) => stop.venueId === "venue-b") });
+    expect(allAborted(firstList)).toBe(true);
+    const secondList = held.slice(firstList.length);
+    expect(secondList.map((read) => read.url)).toEqual(["/api/venue/venue-b"]);
+
+    await answer(firstList);
+    expect(journeyRows()).toEqual([]);
+    expect(host.textContent).toContain("Finding the pubs on this plan.");
+
+    await answer(secondList);
+    expect(journeyRows()).toEqual(["The Northern Tap: longest 7 min, average 7 min"]);
+    expect(findButton("Remove Camden")).not.toBeNull();
+  });
+
+  it("starts again with no area and no live read when the plan or the member changes", async () => {
+    serveHeld();
+    await renderPanel();
+    await press(COMPARE);
+    await addArea("camden");
+    const firstPlanReads = [...held];
+
+    await renderPanel({ planId: "plan-2" });
+    expect(allAborted(firstPlanReads)).toBe(true);
+    expect(button(COMPARE).getAttribute("aria-pressed")).toBe("false");
+    expect(findButton("Remove Camden")).toBeNull();
+    await answer(firstPlanReads);
+    expect(areaPicker()).toBeNull();
+    expect(journeyRows()).toEqual([]);
+
+    await press(COMPARE);
+    await addArea("victoria");
+    const firstMemberReads = held.slice(firstPlanReads.length);
+    expect(firstMemberReads).toHaveLength(3);
+
+    await renderPanel({ planId: "plan-2", memberToken: "token-2" });
+    expect(allAborted(firstMemberReads)).toBe(true);
+    expect(button(COMPARE).getAttribute("aria-pressed")).toBe("false");
+    expect(findButton("Remove Victoria")).toBeNull();
+    await answer(firstMemberReads);
+    expect(areaPicker()).toBeNull();
+    expect(journeyRows()).toEqual([]);
+    for (const call of calls) {
+      expect(call.url).not.toMatch(LEAKED_AREA);
+      expect(call.body).not.toMatch(LEAKED_AREA);
+    }
+  });
+
+  it("cancels its reads when the panel goes away and paints nothing after", async () => {
+    serveHeld();
+    await renderPanel();
+    await press(COMPARE);
+    await addArea("camden");
+    const inFlight = [...held];
+
+    await act(async () => {
+      root.render(createElement("div"));
+    });
+    expect(allAborted(inFlight)).toBe(true);
+    await answer(inFlight);
+    expect(host.textContent).toBe("");
+  });
+
+  it("lists each pub's own figures and ranks no pub over another", async () => {
+    serveHeld();
+    await renderPanel();
+    await press(COMPARE);
+    await addArea("camden");
+    await addArea("victoria");
+    await answer([...held]);
+
+    expect(journeyRows()).toEqual([
+      "The Middle Arms: longest 30 min, average 30 min",
+      "The Northern Tap: longest 53 min, average 30 min",
+      "The Lost Lamb: journey time unknown",
+    ]);
+    expect(host.textContent).not.toMatch(/same average|keeps the longest/i);
+  });
+});

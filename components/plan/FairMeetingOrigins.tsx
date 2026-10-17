@@ -32,11 +32,12 @@ type Point = [number, number];
 
 type StopPoints = ReadonlyMap<string, Point | null>;
 
+/** The located pubs, held with the stop list they were read for. */
+type StopRead = { key: string; points: StopPoints };
+
 type Journey = { longest: number; average: number };
 
 type JourneyRow = { venueId: string; venueName: string; journey: Journey | null };
-
-type KnownRow = JourneyRow & { journey: Journey };
 
 const AREAS: readonly NightArea[] = getNightAreasForCity("london");
 
@@ -95,25 +96,6 @@ function rowText(row: JourneyRow): string {
   return `${row.venueName}: longest ${row.journey.longest} min, average ${row.journey.average} min`;
 }
 
-/** Pubs with the same average can still ask one person to travel much further. */
-function sameAverageNotes(rows: readonly JourneyRow[]): string[] {
-  const groups = new Map<number, KnownRow[]>();
-  for (const row of rows) {
-    if (!row.journey) continue;
-    const known: KnownRow = { ...row, journey: row.journey };
-    groups.set(known.journey.average, [...(groups.get(known.journey.average) ?? []), known]);
-  }
-  const notes: string[] = [];
-  for (const [average, group] of groups) {
-    const sorted = [...group].sort((left, right) => left.journey.longest - right.journey.longest);
-    const first = sorted[0];
-    const last = sorted[sorted.length - 1];
-    if (!first || !last || first.journey.longest === last.journey.longest) continue;
-    notes.push(`Same average of ${average} min. ${first.venueName} keeps the longest journey shortest.`);
-  }
-  return notes;
-}
-
 function ChosenAreas({ areas, onRemove }: { areas: readonly NightArea[]; onRemove: (slug: string) => void }) {
   return (
     <div className="matchGroupPrefs__chips" role="group" aria-label="Chosen starting areas">
@@ -134,16 +116,11 @@ function ChosenAreas({ areas, onRemove }: { areas: readonly NightArea[]; onRemov
 
 function JourneyComparison({ rows }: { rows: readonly JourneyRow[] }) {
   return (
-    <>
-      <ul aria-label="Journey comparison">
-        {rows.map((row, index) => (
-          <li key={`${row.venueId}-${index}`}>{rowText(row)}</li>
-        ))}
-      </ul>
-      {sameAverageNotes(rows).map((note) => (
-        <p key={note} className="matchGroupPrefs__status">{note}</p>
+    <ul aria-label="Journey comparison">
+      {rows.map((row, index) => (
+        <li key={`${row.venueId}-${index}`}>{rowText(row)}</li>
       ))}
-    </>
+    </ul>
   );
 }
 
@@ -151,23 +128,24 @@ export default function FairMeetingOrigins({ stops }: Props) {
   const [enabled, setEnabled] = useState(false);
   const [choice, setChoice] = useState("");
   const [areaSlugs, setAreaSlugs] = useState<string[]>([]);
-  const [points, setPoints] = useState<StopPoints | null>(null);
+  const [read, setRead] = useState<StopRead | null>(null);
   const stopKey = stops.map((stop) => stop.venueId).join("\n");
 
   // Pub locations are read only while the comparison is on. Switching it off,
-  // a changed stop list or an unmount aborts the read, so a late answer can
-  // never paint.
+  // a changed stop list or an unmount aborts the read. An answer is held with
+  // the stop list it was read for, so a late or stale answer never paints.
   useEffect(() => {
     if (!enabled || !stopKey) return;
     const controller = new AbortController();
     void readStopPoints(stopKey.split("\n"), controller.signal).then((next) => {
-      if (!controller.signal.aborted) setPoints(next);
+      if (!controller.signal.aborted) setRead({ key: stopKey, points: next });
     });
     return () => controller.abort();
   }, [enabled, stopKey]);
 
   if (stops.length === 0) return null;
 
+  const points = read?.key === stopKey ? read.points : null;
   const origins = areaSlugs
     .map((slug) => AREAS.find((area) => area.slug === slug))
     .filter((area): area is NightArea => Boolean(area));
@@ -183,7 +161,7 @@ export default function FairMeetingOrigins({ stops }: Props) {
     setEnabled((current) => !current);
     setChoice("");
     setAreaSlugs([]);
-    setPoints(null);
+    setRead(null);
   }
 
   function addArea() {
