@@ -9573,6 +9573,22 @@
         "rowCount": 7689,
         "siteHarvestRows": 3179
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/theguardhousewoolwich-2026-10-17.json",
+      "sourceEvidenceSha256": "2ebac9e7fc4ff73db5512eebd808621055c9025035941193bfdc9c302ccc941f",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 3,
+      "currentLedger": {
+        "sha256": "25eeaa6d5f02822b616bb73a21fbb951a47acf3a3e019be3d53040939d50319a",
+        "rowCount": 3203,
+        "rowIdentitySetSha256": "0dcd11fe00a4cdc19f504f73cb9cc53862016a7cab605b3d36018c043a012405"
+      },
+      "currentBundle": {
+        "rowCount": 7692,
+        "siteHarvestRows": 3182
+      }
     }
   ]
 }
