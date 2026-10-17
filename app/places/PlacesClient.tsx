@@ -279,7 +279,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
             {PLACES_WAITLIST_TITLE}
           </h2>
           <p className="placesSectionLine">
-            <a href={PLACES_WAITLIST_HREF} data-testid="places-waitlist">
+            <a href={PLACES_WAITLIST_HREF} className="placesWaitlistLink" data-testid="places-waitlist">
               {PLACES_WAITLIST_LABEL}
             </a>
           </p>

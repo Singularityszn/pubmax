@@ -43,6 +43,17 @@ test("mobile city chooser keeps choices tappable and opens the selected city map
   // one waitlist line, so a single row is the honest floor.
   expect(result.links.length).toBeGreaterThanOrEqual(1);
   await expect(page.getByTestId("places-waitlist")).toBeVisible();
+  // The waitlist is one of the page's text links, never the browser's own.
+  const waitlist = await page.getByTestId("places-waitlist").evaluate((link) => {
+    const ink = document.createElement("span");
+    ink.style.color = "var(--color-text)";
+    link.parentElement!.append(ink);
+    const expected = getComputedStyle(ink).color;
+    ink.remove();
+    return { color: getComputedStyle(link).color, expected, height: link.getBoundingClientRect().height };
+  });
+  expect(waitlist.color, "the waitlist reads in the page's ink").toBe(waitlist.expected);
+  expect(waitlist.height, "waitlist link height").toBeGreaterThanOrEqual(44);
   for (const link of result.links) {
     expect(link.height, `${link.label} link height`).toBeGreaterThanOrEqual(44);
     expect(link.width, `${link.label} link width`).toBeGreaterThan(44);

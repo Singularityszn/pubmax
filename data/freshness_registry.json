@@ -170,7 +170,8 @@
       "cadence": "episodic — evidenced by hand per Night Area",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (evidence curation)",
-      "gate": "none"
+      "gate": "none",
+      "rowExpiry": "areas.*.options.*.source.expiresAt"
     },
     {
       "id": "pubmaxxing_seed",
@@ -343,6 +344,20 @@
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (node scripts/build_historic_index.mjs)",
       "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
+    },
+    {
+      "id": "osm_wikidata_links",
+      "label": "OSM wikidata links for London pubs (Wikidata history join key)",
+      "class": "episodic",
+      "artifact": "public/data/osm_wikidata/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "fetchedAt"
+      },
+      "cadence": "episodic — re-derived from the committed UK Overpass snapshot whenever data/osm/uk/raw is refreshed",
+      "stalenessBudgetHours": 4320,
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) registers its own row in the commit that first writes it.",
+      "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: Wikidata's statements are their own CC0 pack."
     },
     {
       "id": "osm_pub_facts",

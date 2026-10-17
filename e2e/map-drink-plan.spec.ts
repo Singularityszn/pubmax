@@ -363,7 +363,12 @@ for (const scenario of [
     expect(body.inferredContext.zeroProof).toBe(scenario.zeroProof);
     expect(body.stops).toHaveLength(2);
     const sent = response.request().postDataJSON() as { context: Record<string, unknown> };
-    expect(sent.context.drinkCategory).toBe("soft-drink");
+    // A request that names its drink sends no map drink: the client leaves
+    // the words to the server (mapPlanDrinkDefaultContext in
+    // lib/mapPlanDrinkPresentation.ts), which answered soft-drink above, so a
+    // Wine or Beer map never overrides the drink asked for. Only a
+    // location-only request carries the map's own Soft drinks.
+    expect(sent.context.drinkCategory).toBe(scenario.zeroProof ? undefined : "soft-drink");
     await expect(page).toHaveURL(/[?&]drink=soft-drink(?:&|$)/);
     await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
     await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
@@ -414,6 +419,7 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   const stops = body.stops.map((stop) => stop.venueId).join(",");
   expect(params.get("drink")).toBe("soft-drink");
   expect(params.get("pubs")).toBe(stops);
+  expect(params.get("mode")).toBe("build");
   const landed = page.waitForURL(sharedUrl);
   await shared.click();
   await landed;
@@ -426,7 +432,15 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
   await expect(route.locator(".routeList > li")).toHaveCount(2);
   await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
-  await expect(page).toHaveURL(sharedUrl);
+  // The reopened page may write its query in its own order (mode first), so
+  // the link is read as its path and its sorted parameters, not as one string.
+  // Every parameter still counts: a reopen that dropped mode=build would keep
+  // the stops (seedCrawlState restores them) but quietly switch to suggest.
+  const normalisedLink = (href: string) => {
+    const url = new URL(href);
+    return [url.pathname, ...[...url.searchParams].map(([key, value]) => `${key}=${value}`).sort()];
+  };
+  await expect.poll(() => normalisedLink(page.url())).toEqual(normalisedLink(sharedUrl));
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
@@ -435,6 +449,7 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
   expect(copied.searchParams.get("drink")).toBe("soft-drink");
   expect(copied.searchParams.get("pubs")).toBe(stops);
+  expect(copied.searchParams.get("mode")).toBe("build");
   await expect(page.getByRole("button", { name: "Drink shown on the map: Soft drinks. Choose another drink", exact: true })).toHaveCount(1);
   await testInfo.attach("soft-drink-reopened", { body: await page.screenshot(), contentType: "image/png" });
 });

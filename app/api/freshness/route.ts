@@ -22,7 +22,7 @@ import {
   type StampResolution,
   type StoreRead,
 } from "@/lib/freshness";
-import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
+import { resolveDatasetStampWithOverlay } from "@/lib/freshnessArtifact";
 import {
   resolveDurableFeedStoreReads,
   resolveStoreObservedAt,
@@ -83,9 +83,7 @@ export async function GET(): Promise<Response> {
       const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
       return resolveStoreStamp(dataset.stamp, read);
     }
-    const stored = overlay[dataset.id];
-    if (stored) return { observedAt: stored, reason: null };
-    return resolveDatasetStamp(rootDir, dataset);
+    return resolveDatasetStampWithOverlay(rootDir, dataset, overlay[dataset.id]);
   };
   const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
     ...result,

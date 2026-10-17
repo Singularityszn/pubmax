@@ -26,6 +26,7 @@ import { heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
+import { packWikidataHistoryForVenue } from "@/lib/wikidataHistory.server";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
@@ -160,6 +161,11 @@ export async function retrieveHeritageWithStatus(input: {
       ...(listed.retrievedAt ? { observedAt: listed.retrievedAt } : {}),
     });
   }
+
+  // (0b) Wikidata history, through the pub's own OSM wikidata tag: an exact
+  // item, each statement dated and linked (lib/wikidataHistory.ts). Ahead of
+  // the name-keyed cache, so its exact facts win the de-dupe.
+  if (input.venueId) facts.push(...(await packWikidataHistoryForVenue(input.venueId)));
 
   if (!input.venueId || serverVenueName) {
     // (1) Server facts first — the shipped cache keyed by normalised name.

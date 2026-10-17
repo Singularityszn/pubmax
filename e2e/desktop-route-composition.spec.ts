@@ -1,7 +1,16 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function widthOf(locator: Locator): Promise<number> {
   return locator.evaluate((element) => element.getBoundingClientRect().width);
+}
+
+// We're out paints a "Checking your account." door (role=status, the same
+// `.weAreOutForm` box) while the session is unanswered, then swaps it for the
+// settled door or the form. With browser auth configured, as the E2E server
+// is, measuring the waiting door raced that swap and read a null box. Measure
+// the card the page settles on.
+function settledWeAreOutCard(page: Page): Locator {
+  return page.locator('.weAreOut .weAreOutForm:not([role="status"])');
 }
 
 test.describe("desktop route composition", () => {
@@ -39,7 +48,7 @@ test.describe("desktop route composition", () => {
     await page.goto("/we-are-out");
 
     const explanation = page.locator(".weAreOut .feedHeader");
-    const card = page.locator(".weAreOut .weAreOutForm");
+    const card = settledWeAreOutCard(page);
     await expect(explanation).toBeVisible();
     await expect(card).toBeVisible();
 
@@ -126,7 +135,12 @@ test.describe("phone route composition", () => {
     await page.goto("/today");
     await expect(page.getByTestId("today-tube")).toBeVisible();
 
-    const cards = page.locator(".todayStack .todayCard");
+    // Top picks is a boxed `.todayCard` when events are listed, and the
+    // unboxed `.todayPicksFallback` section when only sourced pub suggestions
+    // remain (its rows are already cards, so it carries no box of its own:
+    // __tests__/todayPicksHonesty.test.ts). Either way it holds its place in
+    // the column, so the order check reads both.
+    const cards = page.locator(".todayStack :is(.todayCard, .todayPicksFallback)");
     const cardIds = await cards.evaluateAll((elements) =>
       elements.map((element) => element.getAttribute("data-testid")),
     );
@@ -151,7 +165,7 @@ test.describe("phone route composition", () => {
     await page.goto("/we-are-out");
 
     const explanation = page.locator(".weAreOut .feedHeader");
-    const card = page.locator(".weAreOut .weAreOutForm");
+    const card = settledWeAreOutCard(page);
     await expect(explanation).toBeVisible();
     await expect(card).toBeVisible();
 

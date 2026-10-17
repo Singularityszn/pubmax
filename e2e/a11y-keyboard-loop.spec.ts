@@ -147,21 +147,37 @@ test.describe("keyboard: the core loop is operable with no pointer", () => {
     await page.goto("/map?sel=venue-xjf3n0");
     await page.waitForTimeout(3_000);
 
-    // The phone sheet is modal, so Tab must stay inside it: a reader must not
-    // fall out onto a map the sheet is covering.
+    // The phone sheet holds focus: a reader must not fall out onto a map the
+    // sheet is covering. Its one way out is the primary navigation. A half or
+    // full shared sheet is not a strict modal, so it drops aria-modal, and
+    // the tab bar carries the focus-trap exemption. Tab from the sheet's last
+    // control reaches the five doors and comes back to the sheet
+    // (docs/rules/components-sheets-chrome-and-navigation.md, "A MAP CONTROL
+    // BESIDE THE VENUE DRAWER IS AN EXEMPT SURFACE"). Anything else is a hole.
+    // 40 presses leave room for at least one full cycle, plus the tab bar.
     const names: string[] = [];
-    for (let step = 0; step < 24; step += 1) {
+    const navNames: string[] = [];
+    for (let step = 0; step < 40; step += 1) {
       await page.keyboard.press("Tab");
       const focus = await readFocus(page);
       if (!focus) continue;
       names.push(focus.name);
-      const insideSheet = await page.evaluate(() => {
+      const owner = await page.evaluate(() => {
         const el = document.activeElement;
         const sheet = document.querySelector(".mobileSharedSheet, [role='dialog']");
-        return !!(el && sheet && sheet.contains(el));
+        if (el && sheet && sheet.contains(el)) return "sheet";
+        const nav = el?.closest("nav[aria-label='Primary'][data-focus-trap-exempt]");
+        if (nav && sheet && !sheet.hasAttribute("aria-modal")) return "primary-nav";
+        return null;
       });
-      expect(insideSheet, `focus escaped the sheet at "${focus.name}"`).toBe(true);
+      expect(owner, `focus escaped the sheet at "${focus.name}"`).not.toBeNull();
+      if (owner === "primary-nav") navNames.push(focus.name);
     }
+    // The exemption is a way out, so the loop must actually take it: a trap
+    // that cycles only inside the sheet would pass every check above.
+    expect(navNames, "Tab reaches the five doors of the exempt primary navigation").toEqual(
+      expect.arrayContaining(["Map", "Tonight", "Plan", "Social", "You"]),
+    );
     // A ring that never repeats is not a ring: the cycle proves it wraps.
     expect(new Set(names).size, "the sheet's focus ring cycles").toBeLessThan(
       names.length,
