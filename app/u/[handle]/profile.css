@@ -2116,7 +2116,9 @@
 .accountHubNightProfileGrid input, .accountHubNightProfileGrid select { width: 100%; min-height: 44px; padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; }
 .accountHubNightProfileSave { justify-self: start; }
 .accountHubNightProfileSaved { color: var(--ink-muted); font-size: .85rem; }
-.accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
+/* The heading's 1rem sets the line off above; the same 1rem below keeps it off
+   the Appearance card, which it used to touch. */
+.accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .accountHubSignIn p { margin: 0; max-width: 42rem; }
 @media (max-width: 760px) { .accountHubGrid { grid-template-columns: minmax(0, 1fr); } }
 .accountHubSettings { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }

@@ -16,7 +16,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: var(--text-2xs);
   font-weight: 740;
 }
 
@@ -61,9 +61,11 @@
   color: var(--sheet-step-accent-strong, var(--sheet-step-accent, var(--state-active-border)));
 }
 
+/* The plan rail marks where you are in the wizard, which is the "you are
+   here" row, not a second coral fill beside the step's Continue. */
 .sheetStepProgress--plan {
-  --sheet-step-accent: var(--plan-accent);
-  --sheet-step-accent-strong: var(--plan-accent-strong);
+  --sheet-step-accent: var(--state-active-border);
+  --sheet-step-accent-strong: var(--state-active-ink);
 }
 
 .sheetStepProgress--map {

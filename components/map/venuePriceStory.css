@@ -39,11 +39,12 @@
   gap: 5px;
 }
 
+/* A label, so sentence case in the body face: caps are for stamps, and the
+   SOURCED chip under it is the stamp. */
 .vpsPriceLabel {
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
   color: var(--ink-soft);
 }
 

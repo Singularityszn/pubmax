@@ -40,8 +40,8 @@ const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 // area_news is hand-refreshed editorial texture; a late cron must not block verify.
 // google_places_content is a paid manual push whose copied fields stay shown
 // under their own dates, so an overdue refresh is a visible mark, not a red build.
-// late_food_evidence is NOT here: its exemption lapses (TEMPORARY_ADVISORY_UNTIL
-// below), and a standing entry would keep it warning past that instant.
+// late_food_evidence is not one of these: its exemption is temporary and lapses
+// (TEMPORARY_ADVISORY_UNTIL below), so listing it here would make it permanent.
 const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content"]);
 
 // Temporary exemptions, each with the instant it lapses. Until then the dataset

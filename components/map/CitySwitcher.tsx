@@ -124,8 +124,12 @@ function CitySwitcherList({
         );
       })}
       <li role="option" aria-selected={false} className="citySwitcherNational">
+        {/* National browse is a /map arrival that renders per request (the
+            document twin), so a prefetch on sight is a real server render
+            (__tests__/linkPrefetchFence.test.ts). */}
         <Link
           href={UK_NATIONAL_MAP_HREF}
+          prefetch={false}
           className="citySwitcherLink citySwitcherNationalLink"
           onClick={() => onClose?.()}
         >

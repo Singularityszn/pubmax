@@ -906,6 +906,36 @@ describe("restoredSessionFrame", () => {
     ).toBe("");
   });
 
+  it("never puts a saved session's search back on a bare /map", () => {
+    // A remembered query narrowed the priced pins to its matches, so a reload
+    // of /map opened on a map with no £ labels and a stale word in the field.
+    const saved = { ...initialFilters, query: "Hatton", maxPrice: 6 } as Filters;
+    const frame = restoredSessionFrame({
+      seed: { ...(seed as object), filters: { ...initialFilters } } as never,
+      restoredSession: { filters: saved },
+      resumeSeed: null,
+      cityId: "london",
+      search: "",
+      shouldOpenPlanningInitially,
+    });
+    expect(frame.filters.query).toBe("");
+    // Every other saved filter still comes back.
+    expect(frame.filters.maxPrice).toBe(6);
+  });
+
+  it("keeps the search the address asks for", () => {
+    expect(
+      restoredSessionFrame({
+        seed,
+        restoredSession: { filters: { ...initialFilters, query: "Hatton" } as Filters },
+        resumeSeed: null,
+        cityId: "london",
+        search: "?q=seeded",
+        shouldOpenPlanningInitially,
+      }).filters.query,
+    ).toBe("seeded");
+  });
+
   it("settles the city only when a resume snapshot supplies its rows", () => {
     expect(
       restoredSessionFrame({

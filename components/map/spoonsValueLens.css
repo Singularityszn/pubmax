@@ -60,7 +60,12 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* The link is a line of text, but its box is the row's 44px: it was 14px
+   tall, under WCAG 2.2's 24px target floor even for a mouse. */
 .spoonsValueLensLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   min-width: 0;
   color: var(--brass-ink, var(--brass));
   font-size: 0.72rem;
