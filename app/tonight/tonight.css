@@ -615,6 +615,12 @@
       calc(var(--create-fab-lane) - var(--page-gutter))
     );
   }
+
+  /* The status line runs to the gutter, and its way back to the map sat
+     under the control at rest (UX sprint, 15 Oct 2026, 390x844). */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightStatus {
+    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
+  }
 }
 
 .tonightSoftPlansIcon {

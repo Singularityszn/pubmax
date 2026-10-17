@@ -85,7 +85,7 @@ function DeskCardList({ cards }: { cards: DeskCard[] }) {
   const rest = cards.slice(1);
   if (rest.length === 0) return null;
   return (
-    <ol className="nmnList" aria-label="More desks nearby">
+    <ol className="nmnList" aria-label="More work spots nearby">
       {rest.map((card) => (
         <li key={card.id}>
           <article className="ndnCard">
@@ -365,7 +365,7 @@ export default function NearDeskNow({
             <h2>{headline}</h2>
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {answer.scope === "widened" ? (
-              <p className="nmnWiden">Not many desks on your doorstep. These are a bit further out.</p>
+              <p className="nmnWiden">Not many work spots on your doorstep. These are a bit further out.</p>
             ) : (
               <p className="nmnSub">Within about a 12-minute walk.</p>
             )}

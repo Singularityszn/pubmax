@@ -272,6 +272,20 @@
   text-decoration: none;
 }
 
+/* The lede's credits door is a phone tap target like every other link in
+   main, so it takes the 44px floor (e2e/phone-tap-targets.spec.ts). Coral as
+   text takes the ink token (docs/DESIGN_SYSTEM.md), never browser blue. */
+.historicCreditsLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  color: var(--color-accent-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .historicCite:hover {
   text-decoration: underline;
 }
