@@ -233,6 +233,14 @@ export function savedByList(): Partial<Record<ListType, SavedPub[]>> {
 // network. The DTO the API returns carries the resolved venue NAME + map url — the
 // profile renders those, never a raw id.
 
+/**
+ * The name a saved pub reads under when nothing can name it. The account store
+ * answers the same words for an id the dataset no longer carries
+ * (lib/savedPubsStore.ts), and a device save the map cannot name takes them too
+ * (lib/savedVenueNames.ts). A list never shows a raw id.
+ */
+export const SAVED_VENUE_FALLBACK_NAME = "A London venue";
+
 // The public DTO shape the API returns (mirrors lib/savedPubsStore.ts SavedPubDTO).
 // Kept here (not imported) so this client module never pulls in the server-only
 // store (which touches `fs` via venueIndex).
@@ -275,7 +283,7 @@ function parseDTOs(data: unknown): SavedPubDTO[] {
         venueName:
           typeof row.venueName === "string" && row.venueName
             ? row.venueName
-            : "A London venue",
+            : SAVED_VENUE_FALLBACK_NAME,
         venueMapUrl:
           typeof row.venueMapUrl === "string" && row.venueMapUrl
             ? // The server builds this field with venueMapUrl().
