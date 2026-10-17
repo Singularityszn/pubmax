@@ -34,10 +34,17 @@ export const FSA_SOURCE = Object.freeze({
  */
 export const FSA_RATING_VALUES = Object.freeze(["0", "1", "2", "3", "4", "5", "Exempt", "AwaitingInspection"]);
 
+/**
+ * The day the FSA writes in RatingDate when it holds none (an establishment
+ * awaiting inspection, or exempt). It is a placeholder, not a rating day.
+ */
+const FSA_NO_RATING_DAY = "1901-01-01";
+
 function isoDay(value) {
   if (typeof value !== "string" || !value) return null;
   const match = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim());
-  return match && Number.isFinite(Date.parse(match[1])) ? match[1] : null;
+  if (!match || match[1] === FSA_NO_RATING_DAY) return null;
+  return Number.isFinite(Date.parse(match[1])) ? match[1] : null;
 }
 
 /**
