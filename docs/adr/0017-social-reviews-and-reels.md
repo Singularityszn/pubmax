@@ -112,7 +112,9 @@ and visit reports. Every line is a fact the venue record already holds, and a
 fact it does not hold prints nothing. The filled action is "Book a table" only
 when the pub publishes a booking page, and it links out to that page: nothing
 is booked or paid for here. Otherwise it opens the pub on the map. "Rank it"
-starts the which-did-you-prefer flow on this pub.
+starts the which-did-you-prefer flow on this pub. The page is reached from a
+post's pub name (like a location tag), a reel's pub name, a row in Your pubs,
+ranked, and "See the full page" on the map's pub sheet.
 
 "Your lot on this pub" (migration `0186`) is the lot ranking narrowed to one
 pub and opened to the posts: mutual friends' scored posts the reader may

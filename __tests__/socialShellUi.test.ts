@@ -206,6 +206,8 @@ describe("verified Social post card", () => {
     expect(html).toContain("#quietpint");
     expect(html).toContain('href="/map?sel=venue-a"');
     expect(html).toContain("Open venue");
+    // The pub's name opens its own page, like a location tag.
+    expect(html).toContain('href="/pubs/venue-a"');
     expect(html).not.toContain("Open pub");
     expect(html).not.toContain("Cheers");
     expect(html).not.toContain("Comment");
@@ -225,6 +227,7 @@ describe("verified Social post card", () => {
     expect(html).toContain("Camden");
     expect(html).not.toContain("Open venue");
     expect(html).not.toContain('href="/map?sel=venue-a"');
+    expect(html).not.toContain('href="/pubs/venue-a"');
   });
 
   it("renders exact Venue context on a public DTO authorised for a mutual friend", () => {

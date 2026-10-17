@@ -244,6 +244,16 @@ html[data-text-scale="large"] .socialPage .screenHead {
   white-space: nowrap;
 }
 
+.socialPostMeta__place a {
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.socialPostMeta__place a:hover {
+  text-decoration: underline;
+}
+
 /* Face and handle sit together on the left and the time on the right. With
    three flex children and space-between the handle used to float to the middle
    of the card. */

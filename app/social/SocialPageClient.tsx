@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
@@ -233,13 +234,24 @@ export function SocialAccessBoundary({
   );
 }
 
+/** Where a post was: the pub, which opens its page, and the area. */
+function PostPlace({ venueId, venueName, areaName }: { venueId: string | null; venueName: string | null; areaName: string | null }) {
+  if (!venueName && !areaName) return null;
+  return (
+    <span className="socialPostMeta__place">
+      {venueId && venueName ? <Link prefetch={false} href={`/pubs/${encodeURIComponent(venueId)}` as Route}>{venueName}</Link> : null}
+      {venueId && venueName && areaName ? " · " : null}
+      {areaName}
+    </span>
+  );
+}
+
 export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const venueName = exactVenueId ? post.venueName : null;
   const review = exactVenueId && post.review ? post.review : null;
   const when = relativeTime(post.createdAt);
-  const placeLine = [venueName, area?.name].filter(Boolean).join(" · ");
   return (
     <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
       <header className="socialPostMeta">
@@ -256,7 +268,7 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, in
               @{post.author.handle}
             </Link>
           </strong>
-          {placeLine ? <span className="socialPostMeta__place">{placeLine}</span> : null}
+          <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
         </div>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
       </header>

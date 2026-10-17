@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -9,7 +10,6 @@ import ReviewStars from "@/components/social/ReviewStars";
 import { profilePath } from "@/lib/appLink";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /**
  * Reels: every video post on the page, full screen, one per swipe. The one in
@@ -78,7 +78,7 @@ export default function ReelsViewer({
               <Link prefetch={false} href={profilePath(post.author.handle)} className="reels__handle">@{post.author.handle}</Link>
               {post.venueProjected && post.venueId ? (
                 <p className="reels__place">
-                  <Link prefetch={false} href={venueMapUrl(post.venueId)}>{post.venueName ?? "Open venue"}</Link>
+                  <Link prefetch={false} href={`/pubs/${encodeURIComponent(post.venueId)}` as Route}>{post.venueName ?? "Open venue"}</Link>
                   {post.review ? <ReviewStars rating={post.review.rating} size={14} /> : null}
                 </p>
               ) : null}
