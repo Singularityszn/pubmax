@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
+import RoundCodeJoin from "@/components/round/RoundCodeJoin";
 import RoundStarter from "@/components/round/RoundStarter";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
@@ -32,9 +33,9 @@ export default function RoundsIndex(): React.JSX.Element {
         titleId="rounds-title"
       >
         <RoundStarter primaryAction />
-        <EmptyState title="Join with a link">
-          A round opens from the link whoever started it sent you
-          (pubmaxxing.com/rounds/…). Got a code? Add it to that link.
+        <EmptyState title="Join with a link" action={<RoundCodeJoin />}>
+          A round opens from the link whoever started it sent you. Got the
+          code instead? Type it here.
         </EmptyState>
       </Screen>
     </main>
