@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   cheapestGlanceLine,
+  cheapestGlanceReceipt,
   countTonightKinds,
   GLANCE_QUIET_EXIT,
   GLANCE_QUIET_LINE,
   tonightGlanceLine,
+  tonightGlanceReceipt,
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -44,19 +46,19 @@ describe("countTonightKinds", () => {
 describe("tonightGlanceLine", () => {
   it("names only non-zero kinds in evening order (quiz, match, gig, deal)", () => {
     expect(tonightGlanceLine({ quiz: 12, music: 5, sport: 3, deal: 31, event: 0 })).toBe(
-      "On across London tonight: 12 pub quizzes, 3 matches on, 5 gigs, 31 deals running.",
+      "In our London listings tonight: 12 pub quizzes, 3 matches on, 5 gigs, 31 deals running.",
     );
   });
 
   it("uses singular forms at exactly one", () => {
     expect(tonightGlanceLine({ quiz: 1, music: 1, sport: 1, deal: 1, event: 1 })).toBe(
-      "On across London tonight: 1 pub quiz, 1 match on, 1 gig, 1 deal running, 1 listed night.",
+      "In our London listings tonight: 1 pub quiz, 1 match on, 1 gig, 1 deal running, 1 listed night.",
     );
   });
 
   it("skips zero kinds entirely", () => {
     expect(tonightGlanceLine({ quiz: 0, music: 0, sport: 2, deal: 0, event: 0 })).toBe(
-      "On across London tonight: 2 matches on.",
+      "In our London listings tonight: 2 matches on.",
     );
   });
 
@@ -71,7 +73,7 @@ describe("tonightGlanceLine", () => {
     ];
     const counts = countTonightKinds(rows);
     expect(counts.event).toBe(2);
-    expect(tonightGlanceLine(counts)).toBe("On across London tonight: 2 listed nights.");
+    expect(tonightGlanceLine(counts)).toBe("In our London listings tonight: 2 listed nights.");
   });
 });
 
@@ -89,7 +91,7 @@ describe("glance voice", () => {
   });
 
   it("quiet night hands the user a real exit", () => {
-    expect(GLANCE_QUIET_LINE).toContain("quiet one");
+    expect(GLANCE_QUIET_LINE).toContain("No listings in this view");
     expect(GLANCE_QUIET_EXIT).toContain("map");
   });
 });
@@ -104,7 +106,7 @@ describe("cheapestGlanceLine", () => {
         { name: "The Three Tuns", cheapestPrice: 2.95, walkMinutes: 11 },
         formatPrice,
       ),
-    ).toBe("Cheapest round Soho: £2.95 at The Three Tuns, about 11 min on foot.");
+    ).toBe("Listed price around Soho: £2.95 at The Three Tuns, about 11 min on foot.");
   });
 
   it("drops the walk clause when minutes are unknown", () => {
@@ -114,7 +116,7 @@ describe("cheapestGlanceLine", () => {
         { name: "The Coach & Horses", cheapestPrice: 5.1, walkMinutes: null },
         formatPrice,
       ),
-    ).toBe("Cheapest round central London: £5.10 at The Coach & Horses.");
+    ).toBe("Listed price around central London: £5.10 at The Coach & Horses.");
   });
 
   it("returns null with no card or a priceless card (renders nothing)", () => {
@@ -137,5 +139,19 @@ describe("cheapestGlanceLine", () => {
       ) ?? "";
     expect(line.includes("—")).toBe(false);
     expect(line.includes("!")).toBe(false);
+  });
+});
+
+
+describe("summary receipt dates", () => {
+  const now = Date.parse("2026-10-13T12:00:00Z");
+  it("never dates a price with an invalid or future read", () => {
+    for (const read of [undefined, "not-a-date", "2026-10-14T12:00:00Z"]) {
+      expect(cheapestGlanceReceipt({ name: "Arms", cheapestPrice: 4, walkMinutes: null, priceObservedAt: read }, now)).toBe("Publisher not recorded. Source read date unknown.");
+    }
+  });
+  it("keeps an aggregate read unknown when any counted row has no usable read", () => {
+    expect(tonightGlanceReceipt([makeRow(), makeRow({ observedAt: "" })], now)).toBe("Sources: Question One. Listing read date unknown.");
+    expect(tonightGlanceReceipt([], now)).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   ACCOUNTS,
+  accessJwt,
   DEVICE_ACCOUNTS_KEY,
   decodeResumeCookie,
   installAuthDoubles,
@@ -27,6 +28,48 @@ import { expectStreamedPageSettled } from "./helpers/streamedPage";
 // real shipped UI, and the durable resume cookie is the REAL route.
 
 const SHOTS = runnerShotDir("pubmax-account-switch");
+
+for (const width of [390, 1440]) {
+  for (const exit of ["switch", "sign-out"] as const) {
+    test(`unclaimed onboarding can ${exit} to the owned account at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const stub = await installAuthDoubles(page);
+      await seedSignedIn(page, "A");
+      await page.goto("/today");
+      await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
+      await stub.signedInAs("B");
+      stub.setServerHandle(null);
+      await page.route("**/api/identity/{handle/current,onboarding}", async (route) => {
+        const bearer = route.request().headers().authorization;
+        const owned = bearer === `Bearer ${accessJwt(ACCOUNTS.A)}` || bearer === "Bearer pubmaxx-e2e-access-token-A";
+        await route.fulfill({ json: { complete: false, handle: owned ? ACCOUNTS.A.handle : null } });
+      });
+      const claims: string[] = [];
+      page.on("request", (request) => {
+        if (request.method() === "POST" && /\/api\/identity\/(?:onboarding|handle\/claim)$/.test(new URL(request.url()).pathname)) claims.push(request.url());
+      });
+      await page.goto("/u/you");
+      const dialog = page.getByRole("dialog", { name: "Let's get you in", exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(`Signed in as ${ACCOUNTS.B.email}`, { exact: true })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Claim handle", exact: true })).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeVisible();
+      if (exit === "switch") {
+        await dialog.getByRole("button", { name: "Switch account", exact: true }).click();
+        await dialog.locator(".authSwitcherRow").filter({ hasText: `@${ACCOUNTS.A.handle}` }).click();
+      } else {
+        await dialog.getByRole("button", { name: "Sign out of this account", exact: true }).click();
+      }
+      await expect(dialog).toHaveCount(0);
+      await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
+      const accounts = await readDeviceAccounts(page);
+      expect(accounts.find((account) => account.userId === ACCOUNTS.A.id)?.handle).toBe(ACCOUNTS.A.handle);
+      expect(claims).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`onboarding-${exit}-${width}.png`) });
+    });
+  }
+}
 
 
 

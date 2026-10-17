@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "15 October 2026";
+const LAST_UPDATED = "17 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -821,7 +821,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Backups:</strong>{" "}data you delete, including a deleted
             account, can remain in our backups for up to 8 weeks before it is
-            removed.
+            removed. We never delete our only complete backup, so if newer
+            backups fail, that one is kept past 8 weeks until a newer backup
+            completes. A failed backup sends us an alert so we can fix it.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account

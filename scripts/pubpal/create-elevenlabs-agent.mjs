@@ -43,6 +43,7 @@ import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 import { agentDrift, formatDrift } from "./agent-drift.mjs";
 import { resolveExistingTools } from "./existing-tools.mjs";
+import { privacyDeleteOnly } from "./privacy-delete-only.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -280,6 +281,7 @@ function agentBody(toolIds) {
         prompt: {
           prompt: systemPrompt(),
           llm: AGENT_CONFIG.llm,
+          reasoning_effort: AGENT_CONFIG.reasoning_effort,
           tool_ids: toolIds,
         },
         first_message: "Hello, I'm your Pub Pal. What kind of night are you planning?",
@@ -423,15 +425,14 @@ function mergeAgentPatch(existingAgent, body) {
 
 /** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
 function agentPatch(currentAgent, toolIds) {
+  const { body } = agentBody(toolIds);
   const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
   conversationConfig.agent = {
     ...(conversationConfig.agent ?? {}),
     prompt: {
       ...(conversationConfig.agent?.prompt ?? {}),
-      prompt: systemPrompt(),
-      llm: AGENT_CONFIG.llm,
+      ...body.conversation_config.agent.prompt,
       custom_llm: null,
-      tool_ids: toolIds,
     },
     first_message:
       conversationConfig.agent?.first_message ??
@@ -446,7 +447,7 @@ function agentPatch(currentAgent, toolIds) {
     client_events: clientEvents(conversationConfig.conversation?.client_events),
   };
   return mergeAgentPatch(currentAgent, {
-    ...agentBody(toolIds).body,
+    ...body,
     conversation_config: conversationConfig,
   });
 }
@@ -493,6 +494,18 @@ async function checkAgent(apiKey, baseUrl) {
 }
 
 async function main() {
+  if (process.argv.includes("--privacy-delete-only")) {
+    if (process.argv.includes("--check") || process.argv.includes("--dry-run")) {
+      fail("--privacy-delete-only cannot be combined with --check or --dry-run.");
+    }
+    await privacyDeleteOnly({
+      agentId: arg("agent-id"),
+      branchId: arg("branch-id"),
+      attestationFile: arg("privacy-attestation"),
+      apiKey: process.env.ELEVENLABS_API_KEY?.trim(),
+    });
+    return;
+  }
   loadDotEnv();
 
   const dryRun = process.argv.includes("--dry-run");

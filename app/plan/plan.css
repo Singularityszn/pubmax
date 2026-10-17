@@ -1540,7 +1540,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   margin-top: var(--space-3);
 }
 .planComposer > .planRouteMiniMap,
-.planComposer > [data-testid="plan-route-strip-pending"] {
+.planComposer > [data-testid="plan-route-strip-pending"],
+.planComposer > .planResult__provenance {
   grid-column: 1 / -1;
 }
 

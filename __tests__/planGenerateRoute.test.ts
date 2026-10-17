@@ -2825,7 +2825,7 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("calculates evidenced food distance from the actual final route stop", async () => {
-    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-16T23:00:00.000Z"));
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T23:00:00.000Z"));
     try {
       const response = await POST(new Request("http://localhost/api/plans/generate", {
         method: "POST",
