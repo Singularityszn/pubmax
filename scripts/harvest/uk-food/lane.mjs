@@ -13,14 +13,18 @@
 //      otherwise be read in full and stamped with the URL we asked for.
 //
 // A PAGE IS READ SERVED FIRST, and rendered only when the served document
-// states no menu, because a browser session costs money and most of a pub
-// site's text is already in its HTML. A page that states fewer dishes than a
-// menu (`pageStatesAFoodMenu`) yields no row, and the ledger says so.
+// answered and states no menu, because a browser session costs money and most
+// of a pub site's text is already in its HTML. A page the site REFUSED (401,
+// 403, 429, ...) or answered with a bot challenge is never rendered: a browser
+// reads what a page shows, it is not a way past a door the site shut. A page
+// that states fewer dishes than a menu (`pageStatesAFoodMenu`) yields no row,
+// and the ledger says so.
 //
 // ATTRIBUTION: a curated pub's own menu URL speaks for that pub. Any other page
 // on a host that serves several pubs must name the pub in its own path
 // (`pageMayPriceThisPub`), or one estate banner becomes hundreds of wrong rows.
 
+import { looksLikeChallengePage } from "../../../lib/harvest/robots.ts";
 import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import { pageMayPriceThisPub } from "../../../lib/harvest/ukPriceCrawl.ts";
 import {
@@ -44,6 +48,8 @@ export const FOOD_HOST_OUTCOMES = [
   "robots-disallowed",
   "robots-unreadable",
   "robots-unreachable",
+  "refused-by-site",
+  "blocked-by-challenge",
   "failed",
   "budget-exhausted",
 ];
@@ -82,83 +88,98 @@ export function groupFoodTargetsByHost(targets) {
   return [...hosts.values()];
 }
 
+/** A status that means the site turned us away, which no browser may get round. */
+const REFUSING_STATUSES = new Set([401, 403, 407, 429, 451]);
+
 /**
- * Read one page: policy, robots, served fetch, landing, then (when the served
- * document states no menu and rendering is on) a rendered fetch and its landing.
+ * The served read of one page, or the reason it stops here. Rendering is never
+ * offered a page the site refused or challenged: a browser session is a way to
+ * read what a page SHOWS, not a way past a door the site shut.
+ */
+async function readServed(url, deps, counters) {
+  let response;
+  try {
+    response = await deps.fetchServed(url);
+  } catch (error) {
+    return { stop: { outcome: "failed", readVia: "served", error: error instanceof Error ? error.message : String(error) } };
+  }
+  const landedAsked = response.url || url;
+  if (!response.ok) {
+    const outcome = REFUSING_STATUSES.has(response.status) ? "refused-by-site" : "failed";
+    return { stop: { outcome, readVia: "served", status: response.status, landedOn: landedAsked } };
+  }
+  const bytes = bytesOf(response.body);
+  if (bytes && /pdf/i.test(response.contentType ?? "")) {
+    const text = await deps.readPdf(bytes);
+    if (text == null) {
+      counters.pdfUnread += 1;
+      return { stop: { outcome: "no-menu-found", readVia: "pdf", unreadablePdf: true } };
+    }
+    return { read: { text, format: "text", landedAsked, readVia: "pdf", links: [], renderable: false } };
+  }
+  const text = typeof response.body === "string" ? response.body : new TextDecoder().decode(bytes ?? new Uint8Array());
+  if (looksLikeChallengePage(text)) {
+    return { stop: { outcome: "blocked-by-challenge", readVia: "served", landedOn: landedAsked } };
+  }
+  return { read: { text, format: "html", landedAsked, readVia: "served", links: htmlLinks(text), renderable: true } };
+}
+
+/** Land, then read: the page a read landed on is asked about before a word of it is kept. */
+function pageFrom(url, robots, read) {
+  const landing = harvestRedirectLanding(url, read.landedAsked);
+  if (landing.outcome === "refused") {
+    return { url, outcome: "refused-by-policy", robots, readVia: read.readVia, landedOn: landing.url };
+  }
+  const reading = readVenueFoodPrices(read.text, read.format);
+  return {
+    url,
+    landedOn: landing.url,
+    outcome: pageStatesAFoodMenu(reading) ? "priced" : "no-menu-found",
+    robots,
+    readVia: read.readVia,
+    reading,
+    links: read.links,
+  };
+}
+
+/**
+ * Read one page: policy, robots, the served document and its landing, then,
+ * when the served page answered and states no menu (or rendering is forced),
+ * a rendered read and ITS landing.
  */
 async function readPage(url, deps, counters) {
   if (!isHarvestableOperatorUrl(url)) return { url, outcome: "refused-by-policy" };
   const robots = await deps.robots(url);
   if (!robots.allowed) return { url, outcome: robots.reason, robots };
+  if (!counters.spend()) return { url, outcome: "budget-exhausted", robots };
 
-  const attempts = deps.renderMode === "always" ? ["rendered"] : deps.renderMode === "never" ? ["served"] : ["served", "rendered"];
-  let last = { url, outcome: "no-menu-found", robots };
-  for (const via of attempts) {
-    if (via === "rendered" && !deps.renderPage) continue;
-    // A browser session costs money, so it has its own cap beside the page budget.
-    if (via === "rendered" && !counters.spendRender()) {
-      counters.renderSkipped += 1;
-      continue;
-    }
-    if (!counters.spend()) return { ...last, outcome: "budget-exhausted" };
-    let text;
-    let format;
-    let landedAsked;
-    let readVia = via;
-    let links = [];
-    try {
-      if (via === "served") {
-        const response = await deps.fetchServed(url);
-        landedAsked = response.url || url;
-        const bytes = bytesOf(response.body);
-        if (bytes && /pdf/i.test(response.contentType ?? "")) {
-          text = await deps.readPdf(bytes);
-          if (text == null) {
-            counters.pdfUnread += 1;
-            last = { url, outcome: "no-menu-found", robots, readVia: "pdf", unreadablePdf: true };
-            break;
-          }
-          format = "text";
-          readVia = "pdf";
-        } else {
-          if (!response.ok) {
-            last = { url, outcome: "failed", robots, readVia, status: response.status };
-            continue;
-          }
-          text = typeof response.body === "string" ? response.body : new TextDecoder().decode(bytes ?? new Uint8Array());
-          format = "html";
-          links = htmlLinks(text);
-        }
-      } else {
-        const rendered = await deps.renderPage(url);
-        landedAsked = rendered.finalUrl || url;
-        text = rendered.markdown;
-        format = "text";
-        links = rendered.links ?? [];
-      }
-    } catch (error) {
-      last = { url, outcome: "failed", robots, readVia, error: error instanceof Error ? error.message : String(error) };
-      continue;
-    }
-
-    const landing = harvestRedirectLanding(url, landedAsked);
-    if (landing.outcome === "refused") {
-      return { url, outcome: "refused-by-policy", robots, readVia, landedOn: landing.url };
-    }
-    const reading = readVenueFoodPrices(text, format);
-    const page = {
-      url,
-      landedOn: landing.url,
-      outcome: pageStatesAFoodMenu(reading) ? "priced" : "no-menu-found",
-      robots,
-      readVia,
-      reading,
-      links,
-    };
-    if (page.outcome === "priced") return page;
-    last = page;
+  const served = await readServed(url, deps, counters);
+  if (served.stop) return { url, robots, ...served.stop };
+  const page = pageFrom(url, robots, served.read);
+  const mode = deps.renderMode ?? "auto";
+  const wantsRender = mode === "always" || (mode === "auto" && page.outcome === "no-menu-found");
+  if (!wantsRender || !served.read.renderable || !deps.renderPage) return page;
+  // A browser session costs money, so it has its own cap beside the page budget.
+  if (!counters.spendRender()) {
+    counters.renderSkipped += 1;
+    return page;
   }
-  return last;
+  if (!counters.spend()) return { ...page, outcome: page.outcome === "priced" ? "priced" : "budget-exhausted" };
+  let rendered;
+  try {
+    rendered = await deps.renderPage(url);
+  } catch (error) {
+    return page.outcome === "priced" ? page : { ...page, outcome: "failed", readVia: "rendered", error: error instanceof Error ? error.message : String(error) };
+  }
+  const renderedPage = pageFrom(url, robots, {
+    text: rendered.markdown,
+    format: "text",
+    landedAsked: rendered.finalUrl || url,
+    readVia: "rendered",
+    links: rendered.links ?? [],
+  });
+  if (renderedPage.outcome === "refused-by-policy") return renderedPage;
+  return renderedPage.outcome === "priced" || page.outcome !== "priced" ? renderedPage : page;
 }
 
 /**
@@ -233,7 +254,7 @@ function attributedRows(entry, pages, observedAt) {
 function hostOutcome(pages, rowCount) {
   if (rowCount > 0) return "priced";
   if (pages.some((page) => page.outcome === "budget-exhausted")) return "budget-exhausted";
-  for (const shared of ["refused-by-policy", "robots-disallowed", "failed"]) {
+  for (const shared of ["refused-by-policy", "robots-disallowed", "refused-by-site", "blocked-by-challenge", "failed"]) {
     if (pages.length > 0 && pages.every((page) => page.outcome === shared)) return shared;
   }
   return "no-menu-found";

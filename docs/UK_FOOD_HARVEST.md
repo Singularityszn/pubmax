@@ -28,7 +28,10 @@ page happens to carry.
    was not configured.
 3. Every host is still asked live: `lib/harvest/sourcePolicy.ts` first, then
    its own `robots.txt` for each path. A refusal is a finding in the ledger,
-   not a gap to work around.
+   not a gap to work around. A page that answers 401, 403, 407, 429 or 451, or
+   serves a bot challenge, is recorded `refused-by-site` or
+   `blocked-by-challenge` and is never sent to Browserbase, whatever `--render`
+   says.
 
 ## Commands
 
@@ -52,7 +55,7 @@ npm run build:food-price-updates
 | `--source curated\|osm\|all` | `all` | which targets to read |
 | `--pages N` | 8000 | page budget for the run, served and rendered together |
 | `--renders N` | 500 | Browserbase sessions the run may open |
-| `--render auto\|never\|always` | `auto` | render only when the served page states no menu |
+| `--render auto\|never\|always` | `auto` | `auto` renders only when the served page answered and states no menu; `always` renders every page that answered |
 | `--hosts N` | all | read at most N hosts |
 | `--only <text>` | none | read only hosts whose name contains the text |
 | `--recheck <outcome,...>` | none | forget those ledger outcomes and ask again |

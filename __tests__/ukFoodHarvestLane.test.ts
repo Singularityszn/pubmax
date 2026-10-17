@@ -163,6 +163,24 @@ describe("harvestFood: rendering", () => {
     expect(hostRow(off, "example-tavern.test").outcome).toBe("no-menu-found");
   });
 
+  it("never renders a page the site refused or challenged, whatever the mode", async () => {
+    const renderPage = vi.fn(async (url: string) => ({ markdown: RENDERED, links: [], finalUrl: url }));
+    const targets = groupFoodTargetsByHost([curatedPub("venue-tavern", menuUrl)]);
+    for (const [served, outcome] of [
+      [{ status: 403, body: "Forbidden" }, "refused-by-site"],
+      [{ status: 429, body: "Too many requests" }, "refused-by-site"],
+      [{ body: "<html><title>Just a moment...</title><div class=cf_chl_opt></div></html>" }, "blocked-by-challenge"],
+    ] as const) {
+      for (const renderMode of ["auto", "always"] as const) {
+        const web = servedWeb({ [menuUrl]: served });
+        const result = await harvestFood(targets, { ...web.deps, renderPage, renderMode });
+        expect(hostRow(result, "example-tavern.test").outcome, `${outcome} ${renderMode}`).toBe(outcome);
+        expect(result.rows).toEqual([]);
+      }
+    }
+    expect(renderPage).not.toHaveBeenCalled();
+  });
+
   it("checks the landing of a rendered page too", async () => {
     const web = servedWeb({ [menuUrl]: { body: shell } });
     const renderPage = vi.fn(async () => ({ markdown: RENDERED, links: [], finalUrl: "http://169.254.169.254/menu" }));
