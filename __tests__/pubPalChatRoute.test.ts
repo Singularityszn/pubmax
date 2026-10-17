@@ -18,6 +18,12 @@ vi.mock("@/lib/authServer", () => ({
   callerUserId: async () => authState.userId,
 }));
 
+const tasteState = vi.hoisted(() => ({ taste: null as unknown }));
+
+vi.mock("@/lib/palTaste.server", () => ({
+  readPalTaste: vi.fn(async () => tasteState.taste),
+}));
+
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
@@ -30,6 +36,7 @@ describe("POST /api/pub-pal/chat", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
     authState.userId = null;
+    tasteState.taste = null;
     vi.mocked(runPalElevenLabsChatTurn).mockReset();
   });
 
@@ -107,6 +114,53 @@ describe("POST /api/pub-pal/chat", () => {
       turns.push({ role: "user", content: query }, { role: "assistant", content: body.answer });
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("picks off a signed-in person's own patch and habits instead of asking, keyless", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    tasteState.taste = {
+      visits: 6,
+      distinctPubs: 3,
+      lastVisit: { name: "The Crown", on: "2026-10-10" },
+      patches: ["Soho"],
+      regulars: [],
+      loved: [],
+      notKeen: [],
+      drinks: [],
+      usualPintGbp: 5.6,
+      vibes: ["quiet pint"],
+      style: null,
+      favouriteNight: null,
+      wishlist: [],
+    };
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "where should I go", cityId: "london" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.toolsUsed).toContain("search_venues");
+  });
+
+  it("still asks a signed-in person with nothing logged, keyless", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "where should I go", cityId: "london" }),
+      }),
+    );
+    expect((await response.json()).answer).toBe("Tell me an area, a mood or a budget and I'll find you a pub.");
   });
 
   it.each(["hi how are you", "hi 👋", "morning", "sup", "hey hey", "hey pubpal", "ok thanks", "pubs"])(

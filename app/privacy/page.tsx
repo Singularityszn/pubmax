@@ -732,7 +732,13 @@ export default function PrivacyPage() {
               configured). With Pub Pal, the memories you confirmed for your
               Pal (up to eight short preferences, such as a drink you like or
               an access need) go with each chat or voice call too, so it can
-              use them. Nothing else about you goes with it. We do not keep
+              use them. So does a short read of your taste that we work out
+              from what you logged yourself: your usual patches, the pubs you
+              go back to or rated, what you drink, what you usually pay for a
+              pint, the vibes you tag and the pubs you saved. Our server keeps
+              that read in memory for two minutes at most and never writes it
+              to a database. Nothing else about you
+              goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that
               runs every minute.

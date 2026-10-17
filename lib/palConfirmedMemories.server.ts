@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { PubPalMemory, PubPalMemoryKind } from "@/lib/pubPal";
+import { palTastePreamble } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { listPalMemoriesResult } from "@/lib/pubPalStore";
 import { readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
 
@@ -104,16 +106,20 @@ export async function recallPalMemoriesForConversation(
     return refuse("Saved memories are unavailable right now.");
   }
   if (!ownerId) return refuse("No saved memories are available in this conversation.");
-  const memories = await readConfirmedPalMemories(ownerId);
+  const [memories, taste] = await Promise.all([readConfirmedPalMemories(ownerId), readPalTaste(ownerId)]);
   if (!memories) return refuse("Saved memories are unavailable right now.");
+  // Voice has no typed preamble, so the taste read rides the recall answer.
+  const tasteLines = palTastePreamble(taste, "third");
+  const tasteHint = tasteLines.length > 0 ? ` ${tasteLines.join(" ")}` : "";
   return {
     result: {
       ok: true,
       tool: PAL_RECALL_MEMORIES_TOOL,
       answerHint:
-        memories.length === 0
+        (memories.length === 0
           ? "The person has not confirmed anything to remember yet."
-          : `The person confirmed these preferences: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Treat them as preferences, never as facts about a pub.`,
+          : `The person confirmed these preferences: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}. Treat them as preferences, never as facts about a pub.`) +
+        tasteHint,
       memories: memories.map(({ kind, value }) => ({ kind, value })),
     },
   };

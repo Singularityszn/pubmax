@@ -150,9 +150,23 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older
    asks and never used as a fact source.
+   Both paths also carry a **taste read** (`lib/palTaste.ts`, read by
+   `lib/palTaste.server.ts`) worked out from what the signed-in person logged
+   themselves: diary visits and ratings, their own pint drops (drink, pint
+   price, vibe tags) and their saved pubs. Typed chat puts it after the
+   memories, in the person's voice; voice gets it inside the `recall_memories`
+   answer. It runs beside the signed-URL request with a 900 ms budget and a
+   two-minute in-process cache, so a turn does not wait on it, and a slow or
+   empty read sends no lines, which the prompt reads as "ask, do not guess".
+   Without ElevenLabs keys, a signed-in ask with no area, mood or budget runs
+   `search_venues` off the read's patch, vibe and usual price instead of
+   asking for one.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
-4. **House prompt**: call tools before any fact, never invent a price, propose
-   then confirm, plain speech on get-home topics.
+4. **House prompt**: talk like a best mate who knows their taste, a quick
+   pick answers at once and a plan asks up to three short questions first,
+   call tools before any fact, never invent a price, propose then confirm,
+   plain speech on get-home topics. A prompt change reaches the live agent only
+   when the captain re-runs `npm run pubpal:agent`.
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.

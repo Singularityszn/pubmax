@@ -1,0 +1,104 @@
+import "server-only";
+
+import { diaryStore } from "@/lib/diaryStore";
+import { measureIsPint } from "@/lib/drinkMeasure";
+import { getNightAreasForCity, type NightArea } from "@/lib/nightAreas";
+import { buildPalTaste, type PalTaste, type PalTastePlace } from "@/lib/palTaste";
+import { londonDayKey } from "@/lib/pintContributions";
+import { pintDropsStore } from "@/lib/pintDropsStore";
+import { profileStore } from "@/lib/profileStore";
+import { savedPubsStore } from "@/lib/savedPubsStore";
+import { getVenueIndex, type VenueRef } from "@/lib/venueIndex";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
+
+/**
+ * The read runs beside the signed-URL request, so a turn only waits on it when
+ * it is slower than that. Past this it answers null and the agent asks instead.
+ */
+const PAL_TASTE_READ_BUDGET_MS = 900;
+const CACHE_TTL_MS = 120_000;
+const CACHE_MAX = 500;
+
+const cache = new Map<string, { at: number; taste: PalTaste | null }>();
+
+function patchOf(venue: VenueRef, areas: readonly NightArea[]): string | null {
+  let best: { area: NightArea; km: number } | null = null;
+  for (const area of areas) {
+    const km = Math.hypot((area.centre.lat - venue.lat) * 111, (area.centre.lng - venue.lng) * 70);
+    if (km <= area.radiusKm && (!best || km < best.km)) best = { area, km };
+  }
+  return best?.area.name ?? (venue.borough || null);
+}
+
+async function readTaste(ownerId: string): Promise<PalTaste | null> {
+  const [handle, diary, index] = await Promise.all([
+    profileStore().getHandleByUserId(ownerId),
+    diaryStore().listForOwner(ownerId),
+    getVenueIndex(),
+  ]);
+  const [drops, saved] = handle
+    ? await Promise.all([
+        pintDropsStore().listVisible(undefined, { handle }, handle, null),
+        savedPubsStore(handle).listSaved({ handle }),
+      ])
+    : [[], []];
+
+  const areas = getNightAreasForCity(DEFAULT_CITY_ID);
+  const places = new Map<string, PalTastePlace | null>();
+  const placeOf = (venueId: string): PalTastePlace | null => {
+    if (!places.has(venueId)) {
+      const venue = index.get(venueId);
+      places.set(venueId, venue ? { name: venue.name, patch: patchOf(venue, areas) } : null);
+    }
+    return places.get(venueId) ?? null;
+  };
+
+  return buildPalTaste({
+    diary: diary.entries.map((entry) => ({
+      venueId: entry.venueId,
+      venueName: entry.venueName,
+      visitedOn: entry.visitedOn,
+      rating: entry.rating,
+    })),
+    drops: drops.map((drop) => ({
+      venueId: drop.venueId,
+      drink: drop.drink,
+      pintPriceGbp: measureIsPint(drop.measure) ? drop.priceGbp : null,
+      vibeTags: drop.vibeTags ?? [],
+      day: londonDayKey(drop.createdAt),
+    })),
+    saved: saved.map((save) => ({ venueId: save.venueId, venueName: save.venueName })),
+    placeOf,
+  });
+}
+
+/**
+ * The signed-in owner's taste read, from their own diary, drops and saves.
+ * Never rejects: a slow or failed read is null, so a turn always answers.
+ */
+export async function readPalTaste(ownerId: string, now = Date.now()): Promise<PalTaste | null> {
+  const hit = cache.get(ownerId);
+  if (hit && now - hit.at < CACHE_TTL_MS) return hit.taste;
+  // A read that misses this turn's budget still lands in the cache, so the
+  // person's next line carries it.
+  const read = readTaste(ownerId).then(
+    (taste) => {
+      if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
+      cache.set(ownerId, { at: now, taste });
+      return taste;
+    },
+    (error: unknown) => {
+      console.warn("pub-pal-taste.read_failed", error instanceof Error ? error.message : String(error));
+      return null;
+    },
+  );
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), PAL_TASTE_READ_BUDGET_MS);
+  });
+  try {
+    return await Promise.race([read, budget]);
+  } finally {
+    clearTimeout(timer);
+  }
+}

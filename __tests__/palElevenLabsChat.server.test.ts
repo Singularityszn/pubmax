@@ -173,6 +173,12 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
 }));
 
+const tasteMocks = vi.hoisted(() => ({
+  readPalTaste: vi.fn<(ownerId: string) => Promise<unknown>>(async () => null),
+}));
+
+vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste }));
+
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "@/lib/pubPalStore";
@@ -197,6 +203,8 @@ describe("runPalElevenLabsChatTurn", () => {
     storeMocks.readOwnedPubPalToolTurn.mockResolvedValue(null);
     fenceMocks.resolvePubPalFenceIntent.mockReset();
     fenceMocks.resolvePubPalFenceIntent.mockResolvedValue({ fenced: false, sobrietyOnly: false });
+    tasteMocks.readPalTaste.mockReset();
+    tasteMocks.readPalTaste.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -348,6 +356,44 @@ describe("runPalElevenLabsChatTurn", () => {
     );
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("Cask ale");
     __resetPubPalStore();
+  });
+
+  it("carries the owner's own taste read after the memories, never in the system prompt", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    tasteMocks.readPalTaste.mockResolvedValue({
+      visits: 5,
+      distinctPubs: 2,
+      lastVisit: { name: "The Crown", on: "2026-10-09" },
+      patches: ["Soho"],
+      regulars: ["The Crown"],
+      loved: [],
+      notKeen: [],
+      drinks: ["Guinness"],
+      usualPintGbp: 5.8,
+      vibes: [],
+      style: "regular",
+      favouriteNight: null,
+      wishlist: [],
+    });
+
+    const outcome = await runPalElevenLabsChatTurn({ query: "somewhere for a pint", ownerId });
+
+    expect(outcome.ok).toBe(true);
+    expect(tasteMocks.readPalTaste).toHaveBeenCalledWith(ownerId);
+    expect(wsState.userMessageText).toBe(
+      [
+        NOTHING_CONFIRMED,
+        "What my own logs say about my taste. It is my history, never a fact about a pub or tonight's price:",
+        "- I have logged 5 visits to 2 pubs, most recently The Crown on 9 Oct.",
+        "- My usual patches: Soho.",
+        "- Pubs I keep going back to: The Crown.",
+        "- What I usually drink: Guinness.",
+        "- I usually pay about £5.80 a pint. That is my habit, not a price at any pub.",
+        "- I stick to a few locals I trust.",
+        "Current user message: somewhere for a pint",
+      ].join("\n"),
+    );
+    expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("Guinness");
   });
 
   it("keeps a fence from a browser-sent earlier ask that never reached the store", async () => {
