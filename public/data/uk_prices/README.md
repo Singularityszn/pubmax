@@ -120,6 +120,11 @@ Before keying or publication, `normalizeSiteHarvestLedgerRow` in
 `lib/siteHarvestLedgerCore.ts` splits a trailing wine measure from a legacy name
 when no serving field exists. "Merlot 175ml" and "Merlot" with `175ml` therefore
 share a key; this does not change the observation date.
+It first drops a leading Markdown heading mark (`#` to `######`) from a name.
+That fixes the 284 Greene King rows from the 2026-09-21 rendered read, written
+before the reader treated Markdown as layout. "## Margarita" publishes as
+"Margarita". The ledger lines stay as written, because the reconciliation's
+fingerprints cover them.
 
 The crawl's own findings, including everything it read and found nothing on,
 are in `data/uk_prices/harvest_report.json` and
