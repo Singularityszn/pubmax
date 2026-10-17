@@ -11,13 +11,17 @@ import {
   type MatePreference,
 } from "@/lib/groupPrefs";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import type { PlanStopDTO } from "@/lib/plan";
 import { discardBody } from "@/lib/responseBody";
+import FairMeetingOrigins from "@/components/plan/FairMeetingOrigins";
 
 type Props = {
   planId: string;
   memberId: string;
   memberToken: string;
   isHost: boolean;
+  /** The plan's candidate pubs, for the private fair meeting comparison. */
+  candidateStops?: readonly PlanStopDTO[];
 };
 
 type DraftPref = {
@@ -48,7 +52,9 @@ const EMPTY_OVERLAP: GroupPrefsOverlap = {
   mustHaveLabels: [],
 };
 
-export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost }: Props) {
+const NO_STOPS: readonly PlanStopDTO[] = [];
+
+export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost, candidateStops = NO_STOPS }: Props) {
   const [draft, setDraft] = useState<DraftPref>({});
   const [prefs, setPrefs] = useState<MatePreference[]>([]);
   const [overlap, setOverlap] = useState<GroupPrefsOverlap>(EMPTY_OVERLAP);
@@ -306,6 +312,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         Crew overlap: {summary || "waiting on mate picks"}. {meta}
       </output>
       {status ? <p className="matchGroupPrefs__status" role="status">{status}</p> : null}
+      {/* Keyed on the plan and member, so a change of either drops every chosen area. */}
+      <FairMeetingOrigins key={`${planId}:${memberId}`} stops={candidateStops} />
     </section>
   );
 }
