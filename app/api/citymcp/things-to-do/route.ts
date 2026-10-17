@@ -31,8 +31,10 @@ const MAX_AREA_LEN = 60;
 // F10: `/map` asks for tonight's list on every load with one fixed URL, off the
 // first-pin path. Five minutes at the edge matches the in-process things_to_do
 // cache (lib/citymcp/client.ts), so a miss no longer re-runs the function for
-// an answer the server would serve unchanged. Five more minutes of stale caps
-// the oldest answer the edge hands out at ten minutes, as citymcp/status does.
+// an answer the server would serve unchanged. The ages stack: the in-process
+// cache can hand the edge an answer up to five minutes old, the edge holds it
+// five more and serves it stale for five after that, so the oldest answer a
+// reader can see is fifteen minutes (120 s + 600 s stale allowed seventeen).
 const CACHE_MAX_AGE_S = 300;
 const CACHE_STALE_WHILE_REVALIDATE_S = 300;
 

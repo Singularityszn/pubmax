@@ -165,7 +165,7 @@ describe("GET /api/citymcp/things-to-do", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("holds tonight's list at the edge for five minutes, never older than ten", async () => {
+  it("holds tonight's list at the edge for five minutes with five of stale", async () => {
     // F10: /map spends this fixed URL on every load, off the first-pin path,
     // and the server's own things_to_do cache already holds it five minutes.
     global.fetch = vi.fn(async () =>
