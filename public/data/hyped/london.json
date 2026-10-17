@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-07T17:14:00.752Z",
+  "generatedAt": "2026-10-17T11:56:28.493Z",
   "city": "london",
   "rows": [
     {
@@ -129,6 +129,36 @@
       "mentions": 15
     },
     {
+      "name": "The Cockpit",
+      "area": "Chislehurst",
+      "venueId": null,
+      "whyLine": "Time Out says this independent \"micropub\" in deepest south London, which still shares its space with Roses Florist, is CAMRA's Greater London Pub of the Year 2026 and now a national finalist.",
+      "sources": [
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        },
+        {
+          "label": "Time Out UK",
+          "url": "https://www.timeout.com/uk/news/four-finalists-camra-national-pub-of-the-year-2026-revealed-101426",
+          "observedAt": "2026-10-14T00:00:00.000Z"
+        },
+        {
+          "label": "Beer Today",
+          "url": "https://beertoday.co.uk/2026/10/14/camra-pub-year-finalists-1026/",
+          "observedAt": "2026-10-14T00:00:00.000Z"
+        },
+        {
+          "label": "CAMRA press release",
+          "url": "https://camra.org.uk/media-centre/press-releases/16-best-pubs-in-the-uk-revealed-ahead-of-bank-holiday-93850",
+          "observedAt": "2026-08-27T00:00:00.000Z"
+        }
+      ],
+      "score": 75,
+      "mentions": 6
+    },
+    {
       "name": "The Seven Stars",
       "area": "Holborn",
       "venueId": "venue-11n82fd",
@@ -154,6 +184,26 @@
       "mentions": 10
     },
     {
+      "name": "The Black Cap",
+      "area": "Camden Town",
+      "venueId": "venue-1jh3vn9",
+      "whyLine": "Londonist calls it \"not so much a new pub as a welcome return\" for one of north London's most celebrated LGBTQ+ pubs, reopened in March 2026 after a community campaign.",
+      "sources": [
+        {
+          "label": "Londonist",
+          "url": "https://londonist.com/london/drink/london-s-best-new-pubs-of-2026",
+          "observedAt": "2026-07-30T00:00:00.000Z"
+        },
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/legendary-camden-lgbtq-pub-the-black-cap-finally-has-an-official-reopening-date-021426",
+          "observedAt": "2026-02-14T00:00:00.000Z"
+        }
+      ],
+      "score": 72,
+      "mentions": 5
+    },
+    {
       "name": "The Churchill Arms",
       "area": "Kensington",
       "venueId": "venue-17h8293",
@@ -177,6 +227,61 @@
       ],
       "score": 71,
       "mentions": 11
+    },
+    {
+      "name": "George & Dragon",
+      "area": "Clerkenwell",
+      "venueId": null,
+      "whyLine": "Londonist made it pub of the week after the former Peasant on St John Street \"regenerated into the George & Dragon\", a ground-floor pub with Island's surf-and-turf dining room upstairs.",
+      "sources": [
+        {
+          "label": "Londonist",
+          "url": "https://londonist.com/london/things-to-do/things-to-do-in-london-this-week-21-27-september-2026",
+          "observedAt": "2026-09-21T00:00:00.000Z"
+        },
+        {
+          "label": "Morning Advertiser",
+          "url": "https://www.morningadvertiser.co.uk/Article/2026/09/01/property-barworks-founder-to-revive-historic-clerkenwell-pub/",
+          "observedAt": "2026-09-01T00:00:00.000Z"
+        },
+        {
+          "label": "Restaurant Online",
+          "url": "https://www.restaurantonline.co.uk/Article/2026/08/19/clerkenwell-pub-the-peasant-to-reopen-as-george-dragon-with-island-restaurant-upstairs/",
+          "observedAt": "2026-08-19T00:00:00.000Z"
+        },
+        {
+          "label": "Harden's",
+          "url": "https://www.hardens.com/uk-london/14-08-2026/carter-brown-shift-island-to-clerkenwell/",
+          "observedAt": "2026-08-14T00:00:00.000Z"
+        },
+        {
+          "label": "Hot Dinners",
+          "url": "https://www.hot-dinners.com/2026081215290/Gastroblog/Latest-news/island-george-and-dragon-pub-opening-london-clerkenwell",
+          "observedAt": "2026-08-12T00:00:00.000Z"
+        }
+      ],
+      "score": 66,
+      "mentions": 7
+    },
+    {
+      "name": "The Dark Horse",
+      "area": "Selhurst",
+      "venueId": null,
+      "whyLine": "London Drinker says the former Royal Standard licensees bought the old Two Brewers and gave it a \"superb refurbishment\", and it is now Croydon's 2026 Pub of the Year and a Greater London regional winner.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/news-and-events-july-2026/",
+          "observedAt": "2026-07-28T00:00:00.000Z"
+        },
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        }
+      ],
+      "score": 65,
+      "mentions": 4
     },
     {
       "name": "The Mayflower",
@@ -254,6 +359,36 @@
       "mentions": 8
     },
     {
+      "name": "The Albatross",
+      "area": "Bank",
+      "venueId": null,
+      "whyLine": "Hardens and the Morning Advertiser report that Wild Group, the team behind Goodman, opened The Albatross on Old Jewry as its first pub, a big seafood-and-Guinness boozer near Bank.",
+      "sources": [
+        {
+          "label": "Harden's",
+          "url": "https://www.hardens.com/uk-london/04-09-2026/wild-group-opens-city-seafood-and-guinness-pub/",
+          "observedAt": "2026-09-04T00:00:00.000Z"
+        },
+        {
+          "label": "Morning Advertiser",
+          "url": "https://www.morningadvertiser.co.uk/Article/2026/09/02/wild-group-open-first-pub-in-london-the-albatross/",
+          "observedAt": "2026-09-02T00:00:00.000Z"
+        },
+        {
+          "label": "Restaurant Online",
+          "url": "https://www.restaurantonline.co.uk/Article/2026/09/22/inside-wild-groups-first-pub-the-albatross/",
+          "observedAt": "2026-09-22T00:00:00.000Z"
+        },
+        {
+          "label": "Hot Dinners",
+          "url": "https://www.hot-dinners.com/2026082415317/Gastroblog/Latest-news/the-albatross-pub-wild-group-old-jewry-city-london",
+          "observedAt": "2026-08-24T00:00:00.000Z"
+        }
+      ],
+      "score": 62,
+      "mentions": 6
+    },
+    {
       "name": "The White Cross",
       "area": "Richmond",
       "venueId": "venue-j7ktuq",
@@ -277,6 +412,31 @@
       ],
       "score": 62,
       "mentions": 6
+    },
+    {
+      "name": "The Hope",
+      "area": "Carshalton",
+      "venueId": null,
+      "whyLine": "CAMRA's London Drinker reports this community-owned local collected Sutton's 2026 Pub of the Year certificate, and Time Out notes it was Greater London's winner in 2025.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/news-and-events-july-2026/",
+          "observedAt": "2026-07-28T00:00:00.000Z"
+        },
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        },
+        {
+          "label": "Inside Croydon",
+          "url": "https://insidecroydon.com/2025/08/21/hope-wins-eternal-carshalton-pub-again-named-londons-best/",
+          "observedAt": "2025-08-21T00:00:00.000Z"
+        }
+      ],
+      "score": 62,
+      "mentions": 4
     },
     {
       "name": "The Roebuck",
@@ -404,6 +564,171 @@
       "mentions": 6
     },
     {
+      "name": "The Horses",
+      "area": "Clerkenwell",
+      "venueId": null,
+      "whyLine": "Hot Dinners says the Public House Group is giving the former Coach & Horses on Ray Street \"the posh pub treatment\" as The Horses, a seafood-leaning pub, and the Good Food Guide has run a first look.",
+      "sources": [
+        {
+          "label": "The Good Food Guide",
+          "url": "https://www.thegoodfoodguide.co.uk/editorial/features/a-first-look-at-the-horses",
+          "observedAt": "2026-09-28T00:00:00.000Z"
+        },
+        {
+          "label": "Hot Dinners",
+          "url": "https://www.hot-dinners.com/2026081015284/Gastroblog/Latest-news/the-horses-clerkenwell-public-house-group-pub-London",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        }
+      ],
+      "score": 58,
+      "mentions": 4
+    },
+    {
+      "name": "Little Green Dragon",
+      "area": "Winchmore Hill",
+      "venueId": "venue-15vkxyn",
+      "whyLine": "Enfield & Barnet CAMRA made this micropub its 2026 Pub of the Year, and Time Out lists it among the 12 regional winners for Greater London's top pub title.",
+      "sources": [
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        },
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/05/27/camra-news-and-events-may-2026/",
+          "observedAt": "2026-05-27T00:00:00.000Z"
+        }
+      ],
+      "score": 58,
+      "mentions": 3
+    },
+    {
+      "name": "The Antelope",
+      "area": "Surbiton",
+      "venueId": "venue-1vzaiwq",
+      "whyLine": "Time Out names the Antelope as the Kingston & Leatherhead regional winner in CAMRA's Greater London Pub of the Year 2026 contest.",
+      "sources": [
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        }
+      ],
+      "score": 58,
+      "mentions": 3
+    },
+    {
+      "name": "Long Haul",
+      "area": "Bexleyheath",
+      "venueId": null,
+      "whyLine": "Time Out lists this Long Lane micropub as the Bexley branch's regional winner among the 12 pubs contesting CAMRA's Greater London Pub of the Year 2026.",
+      "sources": [
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+          "observedAt": "2026-08-10T00:00:00.000Z"
+        }
+      ],
+      "score": 56,
+      "mentions": 2
+    },
+    {
+      "name": "The Tallyman",
+      "area": "Canary Wharf",
+      "venueId": null,
+      "whyLine": "The Morning Advertiser reported a \"new East End pub\" opening in Canary Wharf from the Faber team, which Hot Dinners billed as serving \"pies, pints and fish and chips\".",
+      "sources": [
+        {
+          "label": "Morning Advertiser",
+          "url": "https://www.morningadvertiser.co.uk/Article/2026/09/15/property-new-east-end-pub-opens-in-canary-wharf/",
+          "observedAt": "2026-09-15T00:00:00.000Z"
+        },
+        {
+          "label": "Hot Dinners",
+          "url": "https://www.hot-dinners.com/2026052015074/Gastroblog/Latest-news/tallyman-pub-opening-canary-wharf-london",
+          "observedAt": "2026-05-20T00:00:00.000Z"
+        },
+        {
+          "label": "Restaurant Online",
+          "url": "https://www.restaurantonline.co.uk/Article/2026/05/19/faber-team-to-open-canary-wharf-community-led-pub/",
+          "observedAt": "2026-05-19T00:00:00.000Z"
+        }
+      ],
+      "score": 55,
+      "mentions": 6
+    },
+    {
+      "name": "The Trafalgar",
+      "area": "South Wimbledon",
+      "venueId": null,
+      "whyLine": "The Morning Advertiser reports a community share bid to buy the freehold of the Traf, the South Wimbledon pub campaigners fought to save from demolition.",
+      "sources": [
+        {
+          "label": "Morning Advertiser",
+          "url": "https://www.morningadvertiser.co.uk/Article/2026/09/14/community-bids-to-save-the-trafalgar-pub-in-south-wimbledon/",
+          "observedAt": "2026-09-14T00:00:00.000Z"
+        }
+      ],
+      "score": 55,
+      "mentions": 4
+    },
+    {
+      "name": "Black Horse",
+      "area": "High Barnet",
+      "venueId": null,
+      "whyLine": "The Barnet Society reports three former regulars formed Barnet Community Pubs to rescue the closed pub and were serving drinks a fortnight after getting the keys from Star Pubs.",
+      "sources": [
+        {
+          "label": "The Barnet Society",
+          "url": "https://www.barnetsociety.org.uk/high-barnet-hostelry-the-black-horse-is-welcoming-customers-once-again-after-a-surprise-initiative-to-rescue-threatened-pub/",
+          "observedAt": "2026-06-25T00:00:00.000Z"
+        },
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/pub-news-september-2026/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        }
+      ],
+      "score": 55,
+      "mentions": 3
+    },
+    {
+      "name": "Chesham Arms",
+      "area": "Homerton",
+      "venueId": "venue-dxasie",
+      "whyLine": "A CAMRA London Pubs Group evening along the Mildmay line stopped at this Mehetabel Road local, noting a developer had gutted it and kept it closed from 2012 to 2015.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/an-evening-along-the-mildmay-line/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        },
+        {
+          "label": "Hackney Citizen",
+          "url": "https://www.hackneycitizen.co.uk/2012/12/10/chesham-arms-closed-for-development/",
+          "observedAt": "2012-12-10T00:00:00.000Z"
+        }
+      ],
+      "score": 55,
+      "mentions": 3
+    },
+    {
+      "name": "Camden Road Arms",
+      "area": "Camden Town",
+      "venueId": null,
+      "whyLine": "Time Out reports the Victorian pub opposite Camden Road Overground station reopened on 2 October after a refurbishment and a change of management, having shut when BrewDog sold its venues.",
+      "sources": [
+        {
+          "label": "Time Out London",
+          "url": "https://www.timeout.com/london/news/camden-road-arms-reopening-october-2026-100226",
+          "observedAt": "2026-10-02T00:00:00.000Z"
+        }
+      ],
+      "score": 55,
+      "mentions": 2
+    },
+    {
       "name": "The Prospect of Whitby",
       "area": "Wapping",
       "venueId": "venue-16pnwmm",
@@ -529,6 +854,21 @@
       "mentions": 6
     },
     {
+      "name": "Coronet",
+      "area": "Holloway",
+      "venueId": "venue-60y3sa",
+      "whyLine": "CAMRA's London Drinker lists the Coronet on Holloway Road as reopened in its September 2026 pub update.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/camra-pub-information-update-76/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        }
+      ],
+      "score": 50,
+      "mentions": 5
+    },
+    {
       "name": "The Blues Kitchen",
       "area": "Shoreditch / Brixton",
       "venueId": "venue-1pfnt71",
@@ -552,6 +892,61 @@
       ],
       "score": 50,
       "mentions": 4
+    },
+    {
+      "name": "The Dockhouse",
+      "area": "Brentford",
+      "venueId": null,
+      "whyLine": "Local news site ChiswickW4 billed Hall & Woodhouse's Dockhouse on Workhouse Dock as an \"eagerly awaited waterside pub and restaurant\", with a soft opening held before its public launch in July 2026.",
+      "sources": [
+        {
+          "label": "ChiswickW4 newsletter",
+          "url": "https://chiswickw4.com/info/newsletters/w4260726.htm",
+          "observedAt": "2026-07-26T00:00:00.000Z"
+        },
+        {
+          "label": "BrentfordTW8 (The Dockhouse Prepares to Open its Doors)",
+          "url": "https://new.actonw3.com/page/brentfordtw8/info/ballymore079.htm",
+          "observedAt": "2026-07-24T00:00:00.000Z"
+        }
+      ],
+      "score": 50,
+      "mentions": 4
+    },
+    {
+      "name": "King Edward VII",
+      "area": "Stratford",
+      "venueId": null,
+      "whyLine": "CAMRA's London Drinker lists the Stratford Broadway pub as \"refurbished and reopened in September 2026\", after Newham Voices had described it as run down over a long period.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/pub-news-september-2026/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        },
+        {
+          "label": "Newham Voices",
+          "url": "https://newhamvoices.co.uk/2026/01/11/somethings-brewing-january-2026/",
+          "observedAt": "2026-01-11T00:00:00.000Z"
+        }
+      ],
+      "score": 50,
+      "mentions": 3
+    },
+    {
+      "name": "The Rattlin' Bog",
+      "area": "Brixton",
+      "venueId": null,
+      "whyLine": "Brixton Buzz reported that Paddy's Yard on Coldharbour Lane is being reopened as The Rattlin Bog, an Irish bar that is a sister to the Clapham pub of the same name.",
+      "sources": [
+        {
+          "label": "Brixton Buzz",
+          "url": "https://www.brixtonbuzz.com/2026/07/paddys-yard-in-brixton-to-be-reopened-as-the-rattlin-bog-irish-bar/",
+          "observedAt": "2026-07-08T00:00:00.000Z"
+        }
+      ],
+      "score": 50,
+      "mentions": 3
     },
     {
       "name": "Hackney Church Brew Co",
@@ -604,6 +999,26 @@
       "mentions": 6
     },
     {
+      "name": "London Apprentice",
+      "area": "Isleworth",
+      "venueId": null,
+      "whyLine": "The Grade II* listed riverside pub on Church Street reopened on 10 July 2026 after a six-figure Greene King renovation, according to local news and the Morning Advertiser.",
+      "sources": [
+        {
+          "label": "ChiswickW4 / Brentford TW8 news",
+          "url": "https://new.chiswickw4.com/page/brentfordtw8/info/conlondonapprenticereopens001.htm",
+          "observedAt": "2026-07-15T00:00:00.000Z"
+        },
+        {
+          "label": "Morning Advertiser",
+          "url": "https://www.morningadvertiser.co.uk/Article/2026/09/01/greene-king-invests-15m-to-boost-london-pub-estate/",
+          "observedAt": "2026-09-01T00:00:00.000Z"
+        }
+      ],
+      "score": 48,
+      "mentions": 3
+    },
+    {
       "name": "Talli Queen",
       "area": "Shepherd's Bush",
       "venueId": null,
@@ -631,7 +1046,7 @@
     {
       "name": "Mother Kelly's",
       "area": "Bethnal Green",
-      "venueId": "venue-8ibyvg",
+      "venueId": null,
       "whyLine": "Bethnal Green taproom that r/LondonSocialClub used as its East London craft beer meeting point in August 2026.",
       "sources": [
         {
@@ -702,6 +1117,81 @@
       ],
       "score": 46,
       "mentions": 5
+    },
+    {
+      "name": "Buccaneer",
+      "area": "Stratford",
+      "venueId": "venue-1b4x141",
+      "whyLine": "CAMRA's London Drinker reports the old Britannia on Plaistow Grove \"reopened as Buccaneer after site redevelopment\", with pizza now on the menu.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/camra-pub-information-update-75/",
+          "observedAt": "2026-07-28T00:00:00.000Z"
+        },
+        {
+          "label": "Newham Voices",
+          "url": "https://newhamvoices.co.uk/2026/09/04/somethings-brewing-september-2026/",
+          "observedAt": "2026-09-04T00:00:00.000Z"
+        },
+        {
+          "label": "Newham Voices",
+          "url": "https://newhamvoices.co.uk/2026/02/09/somethings-brewing-february-2026/",
+          "observedAt": "2026-02-09T00:00:00.000Z"
+        }
+      ],
+      "score": 45,
+      "mentions": 4
+    },
+    {
+      "name": "Green House",
+      "area": "West Green",
+      "venueId": null,
+      "whyLine": "CAMRA's London Drinker reports that the former K K McCool's on West Green Road has reopened as Green House after a refurbishment.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/pub-news-september-2026/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        }
+      ],
+      "score": 45,
+      "mentions": 2
+    },
+    {
+      "name": "Joiners Heart",
+      "area": "Hackney Central",
+      "venueId": null,
+      "whyLine": "CAMRA's London Drinker lists Joiners Heart as a new LGBTQIA+ bar in a Bohemia Place railway arch, community-run by the Friends of the Joiners Arms.",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/camra-pub-information-update-76/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        },
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/pub-news-september-2026/",
+          "observedAt": "2026-09-29T00:00:00.000Z"
+        }
+      ],
+      "score": 45,
+      "mentions": 2
+    },
+    {
+      "name": "Soho Theatre Pub",
+      "area": "Walthamstow",
+      "venueId": null,
+      "whyLine": "CAMRA's London Drinker reports the former Collab on Hoe Street reopened in May as the Soho Theatre Pub, \"an adjunct to the nearby theatre\".",
+      "sources": [
+        {
+          "label": "London Drinker (CAMRA)",
+          "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/camra-pub-information-update-75/",
+          "observedAt": "2026-07-28T00:00:00.000Z"
+        }
+      ],
+      "score": 45,
+      "mentions": 2
     },
     {
       "name": "The Grenadier",
@@ -1126,7 +1616,7 @@
     {
       "name": "The Market Porter",
       "area": "Borough",
-      "venueId": null,
+      "venueId": "venue-38ssiy",
       "whyLine": "Borough pub named for its early licence, with u/crypticchris noting it \"lets you drink at 0600-0830 on weekdays\".",
       "sources": [
         {
@@ -1171,7 +1661,7 @@
     {
       "name": "The Auld Shillelagh",
       "area": "Stoke Newington",
-      "venueId": null,
+      "venueId": "venue-1v2k1i3",
       "whyLine": "Stoke Newington Irish pub named in Guinness threads, including the Harp Guide list and u/powertone45's \"I really enjoyed my pints at The Auld Shillelagh\".",
       "sources": [
         {
