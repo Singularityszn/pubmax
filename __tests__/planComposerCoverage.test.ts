@@ -201,6 +201,56 @@ describe("PlanComposer route mutation authority", () => {
     });
   });
 
+  describe("a swap to an alternative the generator offered", () => {
+    const unanchored = { ...authority, planAnchor: null };
+    const swapped = current.map((stop, index) => index === 1 ? { ...stop, venueId: "alternative", venueName: "Alternative" } : stop);
+
+    it("keeps the V1 proof and the lock, because the proof covers the alternatives", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        ...unanchored,
+        swapToAlternative: true,
+      })).toMatchObject({
+        accepted: true,
+        stops: swapped,
+        groundingProof: "signed-proof",
+        createOperationKey: "operation-key",
+        routeStale: false,
+      });
+    });
+
+    it("still asks for a refresh on an anchored route, whose proof binds the exact stops", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        heldVenueId: "accepted",
+        ...authority,
+        swapToAlternative: true,
+      })).toMatchObject({ groundingProof: null, createOperationKey: null, routeStale: true });
+    });
+
+    it("still asks for a refresh when there is no proof to keep", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        ...unanchored,
+        groundingProof: null,
+        swapToAlternative: true,
+      })).toMatchObject({ groundingProof: null, routeStale: true });
+    });
+
+    it("never keeps a stale route fresh", () => {
+      expect(composerRouteMutation({
+        currentStops: current,
+        nextStops: swapped,
+        ...unanchored,
+        routeStale: true,
+        swapToAlternative: true,
+      })).toMatchObject({ routeStale: true });
+    });
+  });
+
   it("keeps authority when only accepted Stop 1 display text changes", () => {
     const nextStops = [{ ...current[0]!, venueName: "Resolved name" }, ...current.slice(1)];
     expect(composerRouteMutation({
@@ -713,6 +763,27 @@ describe("PlanComposer route preview seam", () => {
       { venueId: "y", venueName: "Y" },
       { venueId: "a", venueName: "A" },
     ]);
+  });
+
+  it("carries the generator's price for the alternative, and keeps the old one for a swap back", () => {
+    const [stop] = routeStopsFromGenerated([{
+      venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceEvidence: { source: "listed" },
+      alternatives: [{ venueId: "b", venueName: "B", estimatedPintPricePence: 395 }],
+    }]);
+    expect(stop?.alternatives[0]).toMatchObject({ venueId: "b", estimatedPintPricePence: 395, priceKind: "estimated" });
+
+    const swapped = swapDraftStop(stop!);
+    expect(swapped).toMatchObject({ venueId: "b", estimatedPintPricePence: 395, priceKind: "estimated" });
+    expect(swapped.alternatives).toContainEqual({ venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceKind: "listed" });
+    expect(swapDraftStop(swapped)).toMatchObject({ venueId: "a", estimatedPintPricePence: 449, priceKind: "listed" });
+  });
+
+  it("leaves a swapped stop unpriced when the generator gave its alternative no price", () => {
+    const swapped = swapDraftStop({
+      key: 1, venueId: "a", venueName: "A", estimatedPintPricePence: 449, priceKind: "listed",
+      alternatives: [{ venueId: "b", venueName: "B" }],
+    });
+    expect(swapped.estimatedPintPricePence).toBeUndefined();
   });
 
   it("skips alternatives already used by another route stop", () => {
