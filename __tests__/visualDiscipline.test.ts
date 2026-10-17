@@ -101,6 +101,7 @@ describe("coral is spent twice", () => {
     // The /plan wizard's chosen answer painted through --plan-accent, an alias
     // of --accent-action the CORAL pattern does not name, so it read coral here.
     ["app/plan/plan.css", '.planIntake__choices button[aria-pressed="true"], .planIntake__numberChoices button[aria-pressed="true"]'],
+    ["components/nearme/nearModeSwitch.css", '.nearModeSwitchTab[aria-checked="true"]'],
   ];
 
   // The Day | Tonight segment and the desktop nav pill took the same step on

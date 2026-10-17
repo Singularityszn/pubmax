@@ -85,8 +85,10 @@
   /* Optically centred against the eyebrow's cap height rather than its box. */
   margin-top: 1px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+  /* A card's icon is wayfinding, not an action: a neutral ink disc, as on
+     Tonight's rows. The page's coral is its one primary. */
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  color: var(--ink-soft);
 }
 
 .todayCardEyebrow {
@@ -387,8 +389,8 @@
   position: absolute;
   top: 12px;
   right: 0;
-  color: var(--brass);
-  opacity: 0.85;
+  /* --brass is under 3:1 on the light panel; muted ink reads in both themes. */
+  color: var(--muted);
 }
 
 .todayPickMeta {
