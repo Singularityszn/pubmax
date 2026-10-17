@@ -322,6 +322,15 @@
   }
 }
 
+/* The price's source and date opt in to the compose action's lane, as a price
+   column does (lib/createFabScrollTuck.ts): running prose relies on the
+   control tucking away, but a price's provenance may not sit under it. */
+@media (max-width: 640px) {
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .hdPriceSource {
+    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
+  }
+}
+
 /* The credits link sits inside a sentence, but it is still a thumb target:
    inline-flex keeps it in the line and gives it the 44px the phone tap-target
    pin measures (e2e/phone-tap-targets.spec.ts). */

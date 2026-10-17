@@ -40,7 +40,26 @@ const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 // area_news is hand-refreshed editorial texture; a late cron must not block verify.
 // google_places_content is a paid manual push whose copied fields stay shown
 // under their own dates, so an overdue refresh is a visible mark, not a red build.
+// late_food_evidence is NOT here: its exemption lapses (TEMPORARY_ADVISORY_UNTIL
+// below), and a standing entry would keep it warning past that instant.
 const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content"]);
+
+// Temporary exemptions, each with the instant it lapses. Until then the dataset
+// warns like an advisory row; from then on it fails the gate again, so an
+// exemption cannot outlive the reason it was granted.
+// late_food_evidence: every row expired on 2026-08-16 and the re-review is a
+// person's job (docs/LATE_FOOD_EVIDENCE_RUNBOOK.md). Delete this entry in the
+// commit that lands the re-reviewed rows.
+export const TEMPORARY_ADVISORY_UNTIL = Object.freeze({
+  late_food_evidence: "2026-11-16T00:00:00.000Z",
+});
+
+/** True when a stale finding for this dataset warns instead of failing the gate. */
+export function isAdvisoryStale(id, now = new Date()) {
+  if (ADVISORY_STALE_IDS.has(id)) return true;
+  const until = TEMPORARY_ADVISORY_UNTIL[id];
+  return until !== undefined && now.getTime() < Date.parse(until);
+}
 
 function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -421,9 +440,9 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
   return { results, breached };
 }
 
-export function freshnessGateFailed(results, { requireStore = false } = {}) {
+export function freshnessGateFailed(results, { requireStore = false, now = new Date() } = {}) {
   const stale = results.filter((r) => r.status === "stale");
-  const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
+  const hardStale = stale.filter((r) => !isAdvisoryStale(r.id, now));
   const unknown = results.filter((r) => r.status === "unknown");
   const unmeasurableHere = unknown.filter((r) =>
     /unmeasurable without credentials/.test(r.detail ?? ""),
@@ -479,8 +498,8 @@ async function main() {
   if (artifactOnly) console.log("Scope: candidate artifact-backed feeds. Production store feeds use their own gate.\n");
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
-  const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
-  const advisoryStale = stale.filter((r) => ADVISORY_STALE_IDS.has(r.id));
+  const hardStale = stale.filter((r) => !isAdvisoryStale(r.id));
+  const advisoryStale = stale.filter((r) => isAdvisoryStale(r.id));
   const unknown = results.filter((r) => r.status === "unknown");
   const unmeasured = results.filter((r) => r.status === "unmeasured");
   const retired = results.filter((r) => r.status === "retired");
@@ -496,7 +515,11 @@ async function main() {
     }
     if (advisoryStale.length) {
       console.log("  STALE (advisory only — does not fail this check):");
-      for (const r of advisoryStale) console.log(`    ⚠ ${r.id}: ${r.detail}`);
+      for (const r of advisoryStale) {
+        const until = TEMPORARY_ADVISORY_UNTIL[r.id];
+        const lapse = until ? ` (temporary exemption; fails the gate again from ${until})` : "";
+        console.log(`    ⚠ ${r.id}: ${r.detail}${lapse}`);
+      }
     }
     if (unknown.length) {
       console.log("  UNRESOLVED (the age could not be determined):");
