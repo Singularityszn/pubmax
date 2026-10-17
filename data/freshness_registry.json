@@ -170,7 +170,8 @@
       "cadence": "episodic — evidenced by hand per Night Area",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (evidence curation)",
-      "gate": "none"
+      "gate": "none",
+      "rowExpiry": "areas.*.options.*.source.expiresAt"
     },
     {
       "id": "pubmaxxing_seed",

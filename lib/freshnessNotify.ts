@@ -11,7 +11,9 @@
 // became noise: eleven feeds the audit could not read drowned two feeds that
 // really had gone stale, under a single header claiming all thirteen had breached
 // a budget. So:
-//   • STALE       — the data is old. A refresh job owes us a run. Has a real age.
+//   • STALE       — the data is old, or every row in it has passed its own
+//                   expiry. A refresh owes us a run. Has a real age, and each
+//                   line's detail names which of the two it is.
 //   • UNRESOLVED  — the audit could not determine the age at all. Says NOTHING
 //                   about whether the data is good; the defect is in our reach of
 //                   the artifact, and each line names the artifact and how it
@@ -32,7 +34,7 @@ type StaleFeedNotice = {
 };
 
 export type FreshnessFindings = {
-  /** Feeds whose measured age is over budget. */
+  /** Feeds over their budget, or whose every row has passed its own expiry. */
   stale: StaleFeedNotice[];
   /** Feeds whose age could not be measured. Age is unknown, not fine. */
   unresolved: StaleFeedNotice[];
@@ -89,7 +91,7 @@ export function notifyFreshnessFindings(
   }
 
   logGroup(
-    `${findings.stale.length} feed(s) breaching freshness budget:`,
+    `${findings.stale.length} feed(s) stale (over budget, or every row past its own expiry):`,
     findings.stale,
   );
   logGroup(

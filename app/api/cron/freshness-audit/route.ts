@@ -32,7 +32,7 @@ import {
   type FreshnessResult,
   type StoreRead,
 } from "@/lib/freshness";
-import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
+import { resolveDatasetStampWithOverlay } from "@/lib/freshnessArtifact";
 import {
   resolveDurableFeedStoreReads,
   resolveStoreObservedAt,
@@ -71,11 +71,12 @@ export async function GET(request: Request): Promise<Response> {
       const { observedAt, reason } = resolveStoreStamp(dataset.stamp, read);
       return evaluateDataset(dataset, observedAt, now, reason);
     }
-    const stored = overlay[dataset.id];
-    const { observedAt, reason } = stored
-      ? { observedAt: stored, reason: null }
-      : resolveDatasetStamp(rootDir, dataset);
-    return evaluateDataset(dataset, observedAt, now, reason);
+    const { observedAt, reason, rowExpiry } = resolveDatasetStampWithOverlay(
+      rootDir,
+      dataset,
+      overlay[dataset.id],
+    );
+    return evaluateDataset(dataset, observedAt, now, reason, rowExpiry);
   });
 
   // Two findings, never merged: stale means the data is old, unresolved means we
