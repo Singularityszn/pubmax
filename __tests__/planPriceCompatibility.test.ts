@@ -45,8 +45,10 @@ it("initializes and parses plan prices when RegExp lookbehind is unavailable", a
 it("parses long measurement antecedents without blocking the public price parser", () => {
   const queries = ["1g ", "1 g "].map((measure) =>
     `with one ${measure.repeat(30)}at X serving beer, under£20 per person`);
-  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
-    import { planPriceLimits } from "./lib/planPriceLimits.ts";
+  // The package is CommonJS, so tsx compiles the module to CJS. An ESM import
+  // of it sees named exports only on newer Node 22s; require reads them on all.
+  const result = spawnSync(process.execPath, ["--import", "tsx", "-e", `
+    const { planPriceLimits } = require("./lib/planPriceLimits.ts");
     const queries = JSON.parse(process.argv[1]);
     process.stdout.write(JSON.stringify(queries.map((query) => planPriceLimits(query))));
   `, JSON.stringify(queries)], { encoding: "utf8", timeout: 5000 });
