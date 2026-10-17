@@ -195,7 +195,7 @@ export default function ComparePubFlow({
               </button>
               <span className="comparePub__or" aria-hidden="true">or</span>
               <button type="button" onClick={() => answer("existing")}>
-                <span className="comparePub__label">#{opponent.place} · {formatScore(opponent.score)}</span>
+                <span className="comparePub__figure">#{opponent.place} · {formatScore(opponent.score)}</span>
                 <strong>{opponent.venueName ?? "A pub you ranked"}</strong>
               </button>
             </div>

@@ -2214,6 +2214,13 @@ span.socialPostAvatar {
 
 .comparePub__label {
   color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.comparePub__figure {
+  color: var(--ink-soft);
   font-family: var(--font-data);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
