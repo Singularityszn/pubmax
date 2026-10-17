@@ -30,6 +30,7 @@ import {
   buildClientErrorReport,
   CLIENT_ERROR_MAX_BODY_BYTES,
 } from "@/lib/clientErrorReport";
+import { boundedText } from "@/lib/boundedRequest.server";
 import { isClientErrorLimited } from "@/lib/clientErrorRateLimit";
 
 export const runtime = "nodejs";
@@ -42,8 +43,13 @@ export async function POST(req: Request): Promise<Response> {
   try {
     if (await isClientErrorLimited(req)) return noContent();
 
-    const raw = await req.text();
-    if (raw.length > CLIENT_ERROR_MAX_BODY_BYTES) return noContent();
+    // A bounded read: an oversized POST is dropped at the cap, never buffered.
+    let raw: string;
+    try {
+      raw = await boundedText(req, CLIENT_ERROR_MAX_BODY_BYTES);
+    } catch {
+      return noContent();
+    }
 
     let body: unknown;
     try {

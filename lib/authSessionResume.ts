@@ -84,6 +84,38 @@ export function encodeAuthResumeCookie(payload: AuthResumeCookiePayload): string
   );
 }
 
+/**
+ * The Set-Cookie value that writes the resume cookie, or deletes it given null.
+ * One builder, so `/api/auth/session` and the Social cookie lane in
+ * `lib/socialAccessServer.ts` (which redeems the token for an image request
+ * that carries no bearer) write the same attributes.
+ */
+export function authResumeSetCookie(payload: AuthResumeCookiePayload | null): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const value = payload ? encodeURIComponent(encodeAuthResumeCookie(payload)) : "";
+  const maxAge = payload ? AUTH_RESUME_MAX_AGE_SECONDS : 0;
+  return `${AUTH_RESUME_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+}
+
+/**
+ * Append a resume Set-Cookie value to a finished response, or hand the response
+ * back untouched when there is none. The response is rebuilt rather than
+ * mutated, because a `Response` may carry immutable headers.
+ */
+export function withAuthResumeCookie(
+  response: Response,
+  setCookie: string | undefined,
+): Response {
+  if (!setCookie) return response;
+  const headers = new Headers(response.headers);
+  headers.append("Set-Cookie", setCookie);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 /** Parse a cookie value; anything malformed reads as no payload. */
 export function decodeAuthResumeCookie(
   raw: string | null | undefined,

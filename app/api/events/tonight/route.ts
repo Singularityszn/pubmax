@@ -16,6 +16,7 @@ import { publicApiError } from "@/lib/apiError";
 import { aggregateTonightEvents } from "@/lib/events/provider";
 import { createEventbriteProvider } from "@/lib/events/eventbrite";
 import { isEventsLiveLimited } from "@/lib/eventsLiveRateLimit";
+import { log } from "@/lib/log";
 import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
@@ -67,8 +68,13 @@ async function getHandler(request: Request): Promise<Response> {
     // Defence in depth — aggregateTonightEvents should never throw, but the
     // route still honours the flat { error, rows: [] } contract if it does.
     // Fail-soft stays 200; `rows`/`asOf` ride along as compatibility siblings.
-    const message = err instanceof Error ? err.message : "events request failed";
-    return publicApiError(message, "events_unavailable", 200, {
+    // The thrown message stays in the server log: it can carry a path or an
+    // upstream's wording, and the reader is owed one fixed sentence.
+    log("error", "events_tonight.aggregate_failed", {
+      route: "GET /api/events/tonight",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return publicApiError("events request failed", "events_unavailable", 200, {
       retryable: true,
       compatibilityFields: { rows: [], asOf: new Date(now).toISOString() },
     });

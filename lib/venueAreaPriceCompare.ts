@@ -86,7 +86,11 @@ function resolveZoneIndex(input: VenueAreaPriceCompareInput): ZonePintIndex | nu
 }
 
 function isAboutAverage(priceGbp: number, areaGbp: number): boolean {
-  return Math.abs(priceGbp - areaGbp) <= AREA_PRICE_ABOUT_AVERAGE_GBP;
+  // Compared in whole pence, because a float gap reads 6.40 - 6.10 as
+  // 0.3000000000000007 and calls a 30p gap "not average". A zone median can be
+  // a half-penny, so the gap is rounded rather than the inputs.
+  return Math.round(Math.abs(priceGbp - areaGbp) * 100)
+    <= Math.round(AREA_PRICE_ABOUT_AVERAGE_GBP * 100);
 }
 
 function formatCompareLine(

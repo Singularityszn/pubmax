@@ -15,7 +15,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -83,18 +83,58 @@ describe("MapLibre stays on the map", () => {
 });
 
 describe("the Supabase browser client stays off the critical path", () => {
-  const authClient = readFileSync(join(REPO_ROOT, "lib/authClient.ts"), "utf8");
+  const client = { auth: {} };
+  const createClient = vi.fn(() => client);
+  const loadSdk = vi.fn(() => ({ createClient }));
 
-  it("is reached through a dynamic import, never a static one", () => {
-    expect(authClient).toContain('import("@supabase/supabase-js")');
-    expect(authClient).not.toMatch(
-      /^import \{[^}]*\} from ["']@supabase\/supabase-js["']/m,
-    );
+  beforeEach(() => {
+    vi.resetModules();
+    createClient.mockClear();
+    loadSdk.mockClear();
+    vi.doMock("@supabase/supabase-js", loadSdk);
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
   });
 
-  it("keeps the type-only import type-only", () => {
-    expect(authClient).toContain(
-      'import type { SupabaseClient } from "@supabase/supabase-js"',
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.doUnmock("@supabase/supabase-js");
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it("loads the SDK only on browser demand and reuses the client", async () => {
+    const authClient = await import("@/lib/authClient");
+    expect(authClient.isAuthConfigured()).toBe(true);
+    expect(authClient.nativeSessionInstallationPending(null)).toBe(false);
+    expect(authClient.finishNativeSessionInstallation({
+      access_token: "test-token",
+      refresh_token: "test-refresh",
+      user: { id: "test-owner" },
+    } as Parameters<typeof authClient.finishNativeSessionInstallation>[0])).toBe(false);
+    authClient.discardCancelledNativeSessionInstallation();
+    await expect(authClient.ensureSupabaseBrowser()).resolves.toBeNull();
+    expect(loadSdk).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
+
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    } });
+    const first = authClient.ensureSupabaseBrowser();
+    const concurrent = authClient.ensureSupabaseBrowser();
+    expect(concurrent).toBe(first);
+    expect(await Promise.all([first, concurrent])).toEqual([client, client]);
+    await expect(authClient.ensureSupabaseBrowser()).resolves.toBe(client);
+    expect(authClient.getSupabaseBrowser()).toBe(client);
+    expect(loadSdk).toHaveBeenCalledOnce();
+    expect(createClient).toHaveBeenCalledOnce();
+    expect(createClient).toHaveBeenCalledWith(
+      "https://example.supabase.co", "sb_publishable_test", expect.any(Object),
     );
   });
 });

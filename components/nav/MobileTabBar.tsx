@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Route, CalendarClock, Images } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
 import { warmNavRoute } from "@/lib/mapWarmup";
 import {
@@ -67,6 +68,7 @@ type Tab = {
 };
 
 const warmedTabs = new Set<string>();
+const subscribeHydration = () => () => {};
 
 // Map follows preferred city after mount, with /map as the server fallback.
 // Exported for the tab contract test.
@@ -126,12 +128,20 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     () => null,
   );
   const mapHref = preferredCity ? preferredCityMapHref() : "/map";
-  // You tab: when identity is known, point straight at /u/<handle> instead of
-  // the /u/you sentinel (which client-redirects after mount and doubles the
-  // navigation cost — the cold-tap 846ms prod median). Unknown identity takes
-  // the sentinel: one extra hop beats naming the wrong person.
+  // A confirmed account with a canonical handle goes straight to its profile.
+  // A device handle alone cannot prove that the viewer is signed in. Keep
+  // signed-out and unresolved viewers on /u/you, where the account page owns
+  // the session decision, while preserving the direct signed-in navigation.
   const youHandle = useViewerHandle();
-  const youHref = youHandle ? profilePath(youHandle) : ("/u/you" as NextRoute);
+  const { signedIn } = useViewerSession();
+  // Auth can settle before this Suspense boundary hydrates. Match the server
+  // href on hydration, then publish the live destination on the same anchor.
+  // Otherwise React can retain /u/you despite Link receiving the new props.
+  const youHref = useSyncExternalStore(
+    subscribeHydration,
+    () => signedIn && youHandle ? profilePath(youHandle) : ("/u/you" as NextRoute),
+    () => "/u/you" as NextRoute,
+  );
   // The bar is fixed to the LAYOUT viewport, which no phone browser shrinks for
   // the keyboard, so it floats over whatever is being typed into. lib/softKeyboard.ts
   // owns the rule (a focused text field AND a shrunken visual viewport); here it

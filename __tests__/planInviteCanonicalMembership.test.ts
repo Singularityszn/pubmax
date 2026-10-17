@@ -217,6 +217,10 @@ describe("canonical invite RSVP membership migration", () => {
     expect(rollback).toMatch(/membership_revoked_at is not null[\s\S]+raise exception/i);
     expect(rollback).toContain("create or replace function public._0075_join_plan_idempotent_atomic");
     expect(rollback).toContain("create or replace function public._0075_redeem_plan_invite_idempotent_atomic");
-    expect(rollback).toMatch(/create or replace function public\.rls_is_plan_participant[\s\S]+m\.user_id = \(select auth\.uid\(\)\)[\s\S]+\);/i);
+    // 0124 created the public copy, so its rollback drops it rather than
+    // recreating a SECURITY DEFINER helper no policy reads. The real helper in
+    // pubmax_private is 0075's and 0124 never touched it, so neither does this.
+    expect(rollback).toMatch(/drop function if exists public\.rls_is_plan_participant\(uuid\);/i);
+    expect(rollback).not.toMatch(/create\s+(?:or\s+replace\s+)?function\s+(?:public|pubmax_private)\.rls_is_plan_participant/i);
   });
 });

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import ShareBar from "@/components/share/ShareBar";
 import EmptyState from "@/components/ui/empty-state";
@@ -254,7 +255,7 @@ export default function HistoricPubDetail({
         </section>
 
         <footer className="hdProvenance">
-          Cited from Wikipedia and Wikidata. Never invented.
+          Cited from Wikipedia and Wikidata. Never invented. <DataCreditsLink />
         </footer>
       </Screen>
     </>
