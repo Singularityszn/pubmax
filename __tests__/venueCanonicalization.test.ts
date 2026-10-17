@@ -230,6 +230,42 @@ describe("canonicalizeDataset — safety guards", () => {
     });
     expect(canonicalizeDataset(result.rows).aliases).toEqual({});
   });
+  it("merges the verified Moon on the Square pair 177 m apart into its OSM pin", () => {
+    const spoons = makeRow({
+      pub_name: "The Moon on the Square - JD Wetherspoon",
+      address: "Unit 30, The Centre, Feltham, TW13 4AU",
+      latitude: 51.4452, longitude: -0.411801, price_gbp: 2.43,
+      source_datasets: "borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const osm = makeRow({
+      pub_name: "The Moon on the Square",
+      address: "30, High Street, Feltham, TW13 4AU",
+      latitude: 51.4464358, longitude: -0.4101685, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(spoons))).toBe("venue-g9jxzs");
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-86sj0g");
+    const result = canonicalizeDataset([spoons, { ...spoons, price_gbp: 3.73 }, osm]);
+    expect(result.aliases).toEqual({ "venue-g9jxzs": "venue-86sj0g" });
+    const venues = groupVenuePrices(result.rows);
+    expect(venues).toHaveLength(1);
+    expect(defined(venues[0]).id).toBe("venue-86sj0g");
+    expect(result.rows.map((price) => price.price_gbp)).toEqual([2.43, 3.73, null]);
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+  });
+  it("keeps the wider verified radius to the verified ids", () => {
+    const spoons = makeRow({
+      pub_name: "The Moon on the Square - JD Wetherspoon",
+      address: "Unit 31, The Centre, Feltham, TW13 4AU",
+      latitude: 51.4452, longitude: -0.411801,
+    });
+    const osm = makeRow({
+      pub_name: "The Moon on the Square",
+      address: "30, High Street, Feltham, TW13 4AU",
+      latitude: 51.4464358, longitude: -0.4101685, price_gbp: null,
+    });
+    expect(canonicalizeDataset([spoons, osm]).aliases).toEqual({});
+  });
   it("does NOT merge same-named pubs with conflicting postcodes (bad coords)", () => {
     // Two "Coach & Horses" mis-geocoded within 100 m but in different postcode
     // areas (Soho W1D vs Rickmansworth WD3) — genuinely distinct pubs.

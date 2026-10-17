@@ -194,20 +194,35 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
   return false;
 }
 
-// Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
-// Keep its old id resolvable without loosening name matching for other pubs.
-const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
+// Each pair was checked by hand and is one pub. Keep the old id resolvable
+// without loosening name matching for other pubs.
+//   - The Blackfriar, 174 Queen Victoria Street. The Wikipedia spelling has no price.
+//   - The Moon on the Square, Feltham TW13 4AU. The Wetherspoon directory geocodes
+//     the shopping centre and OSM the pub door, 177 m apart.
+const VERIFIED_VENUE_ALIASES = {
+  "venue-1sw9ofl": "venue-eltcmh",
+  "venue-g9jxzs": "venue-86sj0g",
+};
 const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
+// A verified pair may sit further apart than the fuzzy radius, never further than this.
+const VERIFIED_ALIAS_MAX_METERS = 250;
 
-// A verified alias can bypass name matching, but never distance or postcode
-// checks. Other pairs use the caller's matcher or namesLikelySamePub.
+function isVerifiedPair(a, b) {
+  return VERIFIED_VENUE_ALIASES[a.id] === b.id || VERIFIED_VENUE_ALIASES[b.id] === a.id;
+}
+
+// A verified alias bypasses name matching and gets a wider, bounded radius, but
+// never the postcode check. Other pairs use the caller's matcher or
+// namesLikelySamePub.
 function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
   if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return false;
-  if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > fuzzyMergeMeters) return false;
+  const verified = isVerifiedPair(a, b);
+  const maxMeters = verified ? Math.max(fuzzyMergeMeters, VERIFIED_ALIAS_MAX_METERS) : fuzzyMergeMeters;
+  if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > maxMeters) return false;
   const pa = postcodeOutward(a.address);
   const pb = postcodeOutward(b.address);
   if (pa && pb && pa !== pb) return false;
-  if (VERIFIED_VENUE_ALIASES[a.id] === b.id || VERIFIED_VENUE_ALIASES[b.id] === a.id) return true;
+  if (verified) return true;
   if (samePubMatch) return samePubMatch(a, b);
   return namesLikelySamePub(a.normName, b.normName);
 }
@@ -341,6 +356,14 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
         }
       }
     }
+  }
+
+  // A verified pair can sit outside the grid's neighbouring cells, so try it directly.
+  const byId = new Map(groupList.map((g) => [g.id, g]));
+  for (const [from, to] of Object.entries(VERIFIED_VENUE_ALIASES)) {
+    const a = byId.get(from);
+    const b = byId.get(to);
+    if (a && b) tryFuzzyMerge(a, b);
   }
 }
 
