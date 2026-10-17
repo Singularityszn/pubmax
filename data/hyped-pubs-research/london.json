@@ -1643,15 +1643,20 @@
     "name": "The Rattlin' Bog",
     "area": "Brixton",
     "venueId": null,
-    "whyLine": "Brixton Buzz reported that Paddy's Yard on Coldharbour Lane is being reopened as The Rattlin Bog, an Irish bar that is a sister to the Clapham pub of the same name.",
+    "whyLine": "Brixton Buzz says The Rattlin' Bog Brixton has launched a weekly schedule of live music from Wednesday to Sunday, alongside Sunday roasts and GAA sports.",
     "sources": [
+      {
+        "label": "Brixton Buzz",
+        "url": "https://www.brixtonbuzz.com/2026/09/live-music-sunday-roasts-and-gaa-sports-the-rattlin-bog-brixton-launches-weekly-music-schedule-tonight-weds-9th-september-2026/",
+        "observedAt": "2026-09-09"
+      },
       {
         "label": "Brixton Buzz",
         "url": "https://www.brixtonbuzz.com/2026/07/paddys-yard-in-brixton-to-be-reopened-as-the-rattlin-bog-irish-bar/",
         "observedAt": "2026-07-08"
       }
     ],
-    "score": 50,
+    "score": 55,
     "mentions": 3
   },
   {
@@ -1673,5 +1678,270 @@
     ],
     "score": 50,
     "mentions": 4
+  },
+  {
+    "name": "Hand & Marigold",
+    "area": "Bermondsey",
+    "venueId": null,
+    "whyLine": "CAMRA's London Drinker reports the Hand & Marigold on Bermondsey Street has been named South East London branch Pub of the Year 2026, fulfilling a \"bold statement\" its owner made on opening weekend.",
+    "sources": [
+      {
+        "label": "London Drinker (CAMRA)",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/news-and-events-july-2026/",
+        "observedAt": "2026-07-28"
+      }
+    ],
+    "score": 60,
+    "mentions": 2
+  },
+  {
+    "name": "Crown & Anchor",
+    "area": "Euston",
+    "venueId": null,
+    "whyLine": "North London CAMRA named the Crown & Anchor on Drummond Street its Summer 2026 Pub of the Season, citing its range of beers on tap, the serving team's interest in them and their quality.",
+    "sources": [
+      {
+        "label": "North London CAMRA",
+        "url": "https://northlondon.camra.org.uk/viewnode.php?id=284708",
+        "observedAt": "2026-07-14"
+      }
+    ],
+    "score": 58,
+    "mentions": 2
+  },
+  {
+    "name": "Wenlock Arms",
+    "area": "Hoxton",
+    "venueId": null,
+    "whyLine": "Time Out lists the Wenlock Arms as North London's winner among the 12 Greater London regional winners in CAMRA's 2026 Pub of the Year contest.",
+    "sources": [
+      {
+        "label": "Time Out London",
+        "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+        "observedAt": "2026-08-10"
+      },
+      {
+        "label": "London Drinker (CAMRA)",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/05/27/the-wenlock-wins-again/",
+        "observedAt": "2026-05-27"
+      }
+    ],
+    "score": 70,
+    "mentions": 3
+  },
+  {
+    "name": "Cock Tavern",
+    "area": "Hackney",
+    "venueId": null,
+    "whyLine": "London Drinker reports the Hackney pub won East London & City CAMRA's 2026 Pub of the Year and Cider Pub of the Year, and Time Out lists it among the Greater London regional winners.",
+    "sources": [
+      {
+        "label": "Time Out London",
+        "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+        "observedAt": "2026-08-10"
+      },
+      {
+        "label": "London Drinker (CAMRA)",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/05/27/camra-news-and-events-may-2026/",
+        "observedAt": "2026-05-27"
+      }
+    ],
+    "score": 68,
+    "mentions": 2
+  },
+  {
+    "name": "Leyton Engineer",
+    "area": "Leyton",
+    "venueId": null,
+    "whyLine": "The Waltham Forest Echo reports the High Road pub, in the former Leyton Town Hall, won the Refurbishment category at the CAMRA Pub Design Awards 2026.",
+    "sources": [
+      {
+        "label": "Waltham Forest Echo",
+        "url": "https://walthamforestecho.co.uk/2026/06/26/two-local-boozers-win-at-coveted-pub-design-awards/",
+        "observedAt": "2026-06-26"
+      },
+      {
+        "label": "London Drinker (CAMRA)",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/camra-design-awards-2026/",
+        "observedAt": "2026-07-28"
+      }
+    ],
+    "score": 62,
+    "mentions": 3
+  },
+  {
+    "name": "Lord Southampton",
+    "area": "Kentish Town",
+    "venueId": null,
+    "whyLine": "The Kentish Town pub won the Community Local category at CAMRA's 2026 Pub Design Awards, which are run with Historic England.",
+    "sources": [
+      {
+        "label": "Morning Advertiser",
+        "url": "https://www.morningadvertiser.co.uk/Article/2026/06/23/camra-pub-design-awards-2026-winners-announced/",
+        "observedAt": "2026-06-23"
+      },
+      {
+        "label": "London Drinker (CAMRA)",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/camra-design-awards-2026/",
+        "observedAt": "2026-07-28"
+      }
+    ],
+    "score": 62,
+    "mentions": 3
+  },
+  {
+    "name": "The Black Eel",
+    "area": "Dalston",
+    "venueId": null,
+    "whyLine": "Londonist's best new pubs of 2026 roundup rates the Dalston pub, behind an old pie-and-mash shop front, among the best new openings in recent times, with a games room and large garden.",
+    "sources": [
+      {
+        "label": "Londonist",
+        "url": "https://londonist.com/london/drink/london-s-best-new-pubs-of-2026",
+        "observedAt": "2026-07-30"
+      },
+      {
+        "label": "Hot Dinners",
+        "url": "https://www.hot-dinners.com/2025091614490/Gastroblog/Latest-news/the-black-eel-pub-dalston-kingsland-high-street-london",
+        "observedAt": "2025-09-16"
+      }
+    ],
+    "score": 60,
+    "mentions": 2
+  },
+  {
+    "name": "Ninety One",
+    "area": "Brick Lane",
+    "venueId": null,
+    "whyLine": "Londonist's best new pubs of 2026 roundup includes Ninety One, which opened earlier in 2026 inside the former Brewmaster's House on Brick Lane.",
+    "sources": [
+      {
+        "label": "Londonist",
+        "url": "https://londonist.com/london/drink/london-s-best-new-pubs-of-2026",
+        "observedAt": "2026-07-30"
+      }
+    ],
+    "score": 52,
+    "mentions": 2
+  },
+  {
+    "name": "The George",
+    "area": "Croydon",
+    "venueId": null,
+    "whyLine": "CAMRA says The George reopened on 31 July 2026 after a refurbishment that removed the extra rear bar counter for more seating and added fresh paintwork and a new carpet.",
+    "sources": [
+      {
+        "label": "CAMRA (pub listing)",
+        "url": "https://camra.org.uk/pubs/george-croydon-141462",
+        "observedAt": "2026-07-31"
+      },
+      {
+        "label": "London Drinker (CAMRA) trade news",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/22/trade-news-july-2026/",
+        "observedAt": "2026-07-22"
+      },
+      {
+        "label": "Inside Croydon",
+        "url": "https://insidecroydon.com/2026/05/23/spoons-skips-the-world-cup-with-refurb-at-their-george-pub/amp/",
+        "observedAt": "2026-05-23"
+      }
+    ],
+    "score": 55,
+    "mentions": 4
+  },
+  {
+    "name": "Elephant & Barrel",
+    "area": "Stockwell",
+    "venueId": null,
+    "whyLine": "CAMRA's London Drinker update says the former Royal Oak on Clapham Road was refitted in June as the Elephant & Barrel, the third in London after Fulham and Cricklewood.",
+    "sources": [
+      {
+        "label": "London Drinker (CAMRA) pub information update 75",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/camra-pub-information-update-75/",
+        "observedAt": "2026-07-28"
+      },
+      {
+        "label": "Morning Advertiser",
+        "url": "https://www.morningadvertiser.co.uk/Article/2026/04/07/apprentice-candidate-to-open-third-elephant-barrel-pub-in-stockwell",
+        "observedAt": "2026-04-07"
+      }
+    ],
+    "score": 45,
+    "mentions": 3
+  },
+  {
+    "name": "Black Horse & Harrow",
+    "area": "Catford",
+    "venueId": null,
+    "whyLine": "CAMRA's London pub update says the former Duke of Catford on Rushey Green has reopened under its original name, Black Horse & Harrow, with Fuller's London Pride available.",
+    "sources": [
+      {
+        "label": "London Drinker (CAMRA) pub information update 75",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/07/28/camra-pub-information-update-75/",
+        "observedAt": "2026-07-28"
+      },
+      {
+        "label": "London Region CAMRA, Pub Updates to 12 July 2026",
+        "url": "https://london.camra.org.uk/viewnode.php?id=284616",
+        "observedAt": "2026-07-12"
+      }
+    ],
+    "score": 48,
+    "mentions": 3
+  },
+  {
+    "name": "Shirker's Rest",
+    "area": "New Cross",
+    "venueId": null,
+    "whyLine": "London Drinker names the Shirker's Rest in New Cross as South East London CAMRA's Lewisham area Pub of the Year for 2026, set in a former solicitors' office opposite Goldsmiths.",
+    "sources": [
+      {
+        "label": "London Drinker (CAMRA) news and events",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/news-and-events-september-2026/",
+        "observedAt": "2026-09-29"
+      },
+      {
+        "label": "London Drinker (CAMRA) news and events",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/05/27/camra-news-and-events-may-2026/",
+        "observedAt": "2026-05-27"
+      }
+    ],
+    "score": 62,
+    "mentions": 4
+  },
+  {
+    "name": "Green Goddess",
+    "area": "Blackheath",
+    "venueId": null,
+    "whyLine": "London Drinker names the Green Goddess in Blackheath as South East London CAMRA's Greenwich area Pub of the Year for 2026, and SIBA named it its City Pub of the Year.",
+    "sources": [
+      {
+        "label": "London Drinker (CAMRA) news and events",
+        "url": "https://londondrinker.camra.org.uk/wordpress/index.php/2026/09/29/news-and-events-september-2026/",
+        "observedAt": "2026-09-29"
+      },
+      {
+        "label": "Greenwich Wire",
+        "url": "https://greenwichwire.co.uk/2026/03/19/green-goddess-blackheath-best-pub-bar-siba-beer",
+        "observedAt": "2026-03-19"
+      }
+    ],
+    "score": 65,
+    "mentions": 4
+  },
+  {
+    "name": "The Mitre",
+    "area": "Richmond",
+    "venueId": null,
+    "whyLine": "Time Out's August 2026 report on CAMRA's Greater London Pub of the Year lists the Mitre as the Richmond & Hounslow regional winner for 2026.",
+    "sources": [
+      {
+        "label": "Time Out London",
+        "url": "https://www.timeout.com/london/news/camra-best-pub-2026-cockpit-chislehurst-081026",
+        "observedAt": "2026-08-10"
+      }
+    ],
+    "score": 52,
+    "mentions": 2
   }
 ]
