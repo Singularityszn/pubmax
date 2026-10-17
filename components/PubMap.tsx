@@ -403,7 +403,7 @@ import {
   type CityId,
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
-import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
+import { slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import {
   isUkBaseId,
@@ -466,12 +466,13 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
+  createMapResumeWriter,
   isCurrentMapResumeRefresh,
   isPersistableMapResumeViewport,
   type MapResumeLiveLoadStatus,
   readMapResume,
   readMapResumeSync,
-  writeMapResume,
+  scheduleMapResumeWrite,
 } from "@/lib/mapResume";
 import {
   readOpeningMapLocation,
@@ -5568,6 +5569,7 @@ export default function PubMap({
     });
   }, [activeNightAreaSlug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
+  const [writeMapResume] = useState(() => createMapResumeWriter());
   useEffect(() => {
     if (
       ukPlaceArrival ||
@@ -5579,15 +5581,10 @@ export default function PubMap({
       liveShardLoadStatusRef.current !== "ready" ||
       venueIndexFailed
     ) return;
-    const timer = window.setTimeout(() => {
-      writeMapResume({
-        cityId,
-        viewport: mapViewport,
-        rows: pinsToSlimVenues(slimPins),
-      });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed]);
+    // The snapshot is a speed layer for the next visit, so it waits for idle
+    // time instead of landing beside the next tap's frame.
+    return scheduleMapResumeWrite(() => writeMapResume(cityId, mapViewport, slimPins));
+  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
