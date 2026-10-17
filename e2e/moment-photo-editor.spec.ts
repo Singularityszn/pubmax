@@ -86,19 +86,32 @@ test.describe("Moment photo editor with the sign-in nudge armed", () => {
     // an 8 s first-paint grace or the first tap. Hold the page's clock so only
     // the Edit tap can end that grace.
     //
-    // Hold it only once the page has loaded the way a reader's does. React's
-    // inline runtime reveals each streamed Suspense segment on a timer ($RC,
-    // then requestAnimationFrame or setTimeout, then $RV). A clock paused
-    // before navigation froze every reveal, so the hidden server copy of the
-    // composer (see photoPicker) never left the page. Let time run until the
-    // hydrated picker shows and the last hidden copy is gone, then stop it.
-    // The grace began when the page mounted, a moment ago.
+    // The grace starts when the page mounts, so the clock is held from before
+    // navigation: a slow runner's load and hydration then spend no page time.
+    // React's inline runtime still reveals each streamed Suspense segment on a
+    // timer ($RC, then requestAnimationFrame or setTimeout, then $RV), and a
+    // clock that never moves leaves the hidden server copy of the composer
+    // (see photoPicker) on the page. So step the page's time a frame's worth
+    // per check until the hydrated picker shows and the last hidden copy is
+    // gone. Each step is page time, not wall time, so however slowly the
+    // runner hydrates, the grace has seconds left when the photo goes in.
     const start = Date.now();
     await page.clock.install({ time: start });
+    await page.clock.pauseAt(start + 1_000);
     await page.goto(MOMENT_URL);
-    await expect(photoPicker(page)).toBeVisible();
-    await expect(page.locator('input[type="file"]')).toHaveCount(1);
-    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1_000);
+    await expect
+      .poll(async () => {
+        await page.clock.runFor(50);
+        return (
+          (await photoPicker(page).isVisible()) &&
+          (await page.locator('input[type="file"]').count()) === 1
+        );
+      }, { timeout: 30_000 })
+      .toBe(true);
+    expect(
+      (await page.evaluate(() => Date.now())) - start,
+      "page time spent before the photo, against the nudge's 8 s grace",
+    ).toBeLessThan(5_000);
     await attachPhoto(page);
     // The draft save that arms the nudge is debounced by 300 ms.
     await page.clock.runFor(1_000);
