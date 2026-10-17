@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import type { Metadata } from "next";
+import { appPageTitle } from "@/lib/brandNaming";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -136,7 +137,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `The cheapest pints and best pubs in ${name} · PUBMAXX`;
+  // The layout's template adds the brand to the document title; the share
+  // card is not templated, so it carries the brand itself.
+  const title = `The cheapest pints and best pubs in ${name}`;
+  const cardTitle = appPageTitle(title);
   const pubs = pubsInBorough(venues, slug);
   const cheapest = pubs.find((pub) => typeof pub.cheapestPrice === "number")?.cheapestPrice;
   const description =
@@ -153,8 +157,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // opengraph-image.tsx sits beside this route, so Next auto-attaches the
     // dynamic borough card to both OG and Twitter. summary_large_image makes X
     // render it as the full 1200×630 card rather than a thumbnail.
-    openGraph: { title, description, type: "website", url: `/borough/${slugifyBorough(name)}` },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: {
+      title: cardTitle,
+      description,
+      type: "website",
+      url: `/borough/${slugifyBorough(name)}`,
+    },
+    twitter: { card: "summary_large_image", title: cardTitle, description },
   };
 }
 

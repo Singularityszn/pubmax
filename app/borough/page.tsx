@@ -20,7 +20,7 @@ import "./[slug]/borough.css";
 // Reuses the detail page's stylesheet so both surfaces stay visually identical.
 
 export const metadata: Metadata = {
-  title: "London pubs by borough: PUBMAXX",
+  title: "London pubs by borough",
   description:
     "Browse London's pubs the way locals do, by area. Camden, Soho, Hackney and every borough on the map, ranked by the cheapest pint.",
   alternates: { canonical: "/borough" },

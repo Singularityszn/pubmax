@@ -9,6 +9,7 @@ import ShareBar from "@/components/share/ShareBar";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -48,7 +49,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Bar Tab", robots: { index: false, follow: false } };
   }
   const { venue } = read;
-  const title = `The Bar Tab: ${venue.name}. PUBMAXX`;
+  // The layout's template adds the brand to the document title. The share
+  // card is not templated, so it keeps the branded form.
+  const title = `The Bar Tab: ${venue.name}`;
+  const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `Recent pints dropped at ${venue.name} in ${
     venueAreaLabel(venue)
   }. Photos, prices, and the stories behind them.`;
@@ -57,8 +61,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description,
     // The card image comes from the sibling opengraph-image.tsx (Next file
     // convention injects og:image / twitter:image automatically).
-    openGraph: { title, description, type: "website" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title: cardTitle, description, type: "website" },
+    twitter: { card: "summary_large_image", title: cardTitle, description },
   };
 }
 

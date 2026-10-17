@@ -21,7 +21,7 @@ import TonightClient from "./TonightClient";
 // server shell carries route metadata plus the quiet-pint module when the
 // typical-pattern hour allows it (same buildQuietPint seam as /today).
 export const metadata: Metadata = {
-  title: "Tonight in London · PUBMAXX",
+  title: "Tonight in London",
   description:
     "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
   alternates: { canonical: "/tonight" },
