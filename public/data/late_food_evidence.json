@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "late-food-evidence-20260727-v3",
-  "generatedAt": "2026-07-27T12:00:00.000Z",
+  "snapshotId": "late-food-evidence-20261017-v4",
+  "generatedAt": "2026-10-17T14:08:00.000Z",
   "coveragePolicy": "Only current official venue or operator pages with explicit service hours, address and operator-linked location evidence are eligible. Hours are snapshots, not live availability, and every option must be verified on the night.",
   "areas": {
     "clapham": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-clapham-honest-burgers-clapham",
@@ -163,8 +163,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
-            "observedAt": "2026-07-27"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-WC0926P-1.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
@@ -172,11 +172,11 @@
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/victoria-nova/",
             "anchorDocumentLink": {
               "pageUrl": "https://www.francomanca.co.uk/restaurants/victoria-nova/",
-              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf"
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-WC0926P-1.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:02:37.000Z",
+            "reviewedAt": "2026-10-17T14:02:37.000Z",
+            "expiresAt": "2026-11-16T14:02:37.000Z",
             "evidenceNote": "The operator page publishes the street address, opening hours for every day, dine-in service, and a mapped address link."
           }
         }
@@ -197,7 +197,7 @@
             "lng": -0.1325587,
             "method": "operator_location_link"
           },
-          "serviceHoursText": "Monday-Tuesday 09:00-22:30; Wednesday 09:00-23:30; Thursday-Saturday 09:00-04:30 the following day; Sunday 09:00-00:30 the following day.",
+          "serviceHoursText": "Monday-Wednesday 09:00-22:30; Thursday-Saturday 09:00-04:30 the following day; Sunday 09:00-00:30 the following day.",
           "weeklyHours": {
             "monday": [
               {
@@ -216,7 +216,7 @@
             "wednesday": [
               {
                 "open": "09:00",
-                "close": "23:30",
+                "close": "22:30",
                 "closesNextDay": false
               }
             ],
@@ -254,22 +254,22 @@
           "anchor": {
             "label": "Cheeseburger",
             "price": 20,
-            "sourceUrl": "https://balans.co.uk/wp-content/uploads/2025/07/No.60-Overnight-1.pdf",
-            "observedAt": "2026-07-16"
+            "sourceUrl": "https://balans.co.uk/wp-content/uploads/2025/07/Overnight-Menu.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
             "publisher": "Balans Restaurants",
             "sourceUrl": "https://balans.co.uk/locations/soho-no-60/",
             "anchorDocumentLink": {
-              "pageUrl": "https://balans.co.uk/menus/soho-no-60/",
-              "documentUrl": "https://balans.co.uk/wp-content/uploads/2025/07/No.60-Overnight-1.pdf"
+              "pageUrl": "https://balans.co.uk/soho-no-60/",
+              "documentUrl": "https://balans.co.uk/wp-content/uploads/2025/07/Overnight-Menu.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:03:45.000Z",
+            "reviewedAt": "2026-10-17T14:03:45.000Z",
+            "expiresAt": "2026-11-16T14:03:45.000Z",
             "evidenceNote": "The operator page publishes the street address, opening hours for every day, and an operator-linked mapped location.",
-            "supportingUrls": ["https://balans.co.uk/menus/soho-no-60/"]
+            "supportingUrls": ["https://balans.co.uk/soho-no-60/"]
           }
         }
       ]
@@ -346,8 +346,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
-            "observedAt": "2026-07-27"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926P-1.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
@@ -355,11 +355,11 @@
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/canary-wharf/",
             "anchorDocumentLink": {
               "pageUrl": "https://www.francomanca.co.uk/restaurants/canary-wharf/",
-              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf"
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926P-1.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:03:13.000Z",
+            "reviewedAt": "2026-10-17T14:03:13.000Z",
+            "expiresAt": "2026-11-16T14:03:13.000Z",
             "evidenceNote": "The operator page publishes the street address, opening hours for every day, dine-in service, and a mapped address link."
           }
         }
@@ -460,27 +460,31 @@
           "verifyOnNight": true,
           "confidence": "high",
           "anchor": {
-            "label": "Fish & Chips",
-            "price": 22,
-            "sourceUrl": "https://rickstein.com/restaurants/rick-stein-barnes/",
-            "observedAt": "2026-07-16"
+            "label": "Fish and chips",
+            "price": 26,
+            "sourceUrl": "https://rickstein.com/wp-content/uploads/2024/02/Daily-Menu-Reopening.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
             "publisher": "Rick Stein",
             "sourceUrl": "https://rickstein.com/restaurants/rick-stein-barnes/",
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
-            "evidenceNote": "The operator restaurant page publishes daily service hours and its directions link supplies the mapped point; the operator return-booking page publishes the full street address.",
-            "supportingUrls": ["https://rickstein.com/return-booking-barnes/"]
+            "observedAt": "2026-10-17T14:04:03.000Z",
+            "reviewedAt": "2026-10-17T14:04:03.000Z",
+            "expiresAt": "2026-11-16T14:04:03.000Z",
+            "evidenceNote": "The operator restaurant page publishes daily service hours, its directions link supplies the mapped point, and it links the daily menu that prices the anchor; the operator return-booking page publishes the full street address.",
+            "supportingUrls": ["https://rickstein.com/return-booking-barnes/"],
+            "anchorDocumentLink": {
+              "pageUrl": "https://rickstein.com/restaurants/rick-stein-barnes/",
+              "documentUrl": "https://rickstein.com/wp-content/uploads/2024/02/Daily-Menu-Reopening.pdf"
+            }
           }
         }
       ]
     },
     "chiswick": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-chiswick-honest-burgers-chiswick",
@@ -567,7 +571,7 @@
     },
     "shoreditch": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-shoreditch-honest-burgers-spitalfields",
@@ -654,7 +658,7 @@
     },
     "camden": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-camden-honest-burgers-camden",
@@ -741,7 +745,7 @@
     },
     "brixton": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-brixton-honest-burgers-brixton",
@@ -828,7 +832,7 @@
     },
     "bermondsey-london-bridge": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-bermondsey-london-bridge-pizza-pilgrims-london-bridge",
@@ -915,7 +919,7 @@
     },
     "kings-cross": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-kings-cross-honest-burgers-king-s-cross",
@@ -1072,8 +1076,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.5,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
-            "observedAt": "2026-07-27"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
@@ -1081,11 +1085,11 @@
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/islington/",
             "anchorDocumentLink": {
               "pageUrl": "https://www.francomanca.co.uk/restaurants/islington/",
-              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:03:21.000Z",
+            "reviewedAt": "2026-10-17T14:03:21.000Z",
+            "expiresAt": "2026-11-16T14:03:21.000Z",
             "evidenceNote": "The operator page publishes the Upper Street address, opening hours for every day, dine-in service, and a mapped address link."
           }
         }
@@ -1093,7 +1097,7 @@
     },
     "dalston": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-dalston-honest-burgers-dalston",
@@ -1180,7 +1184,7 @@
     },
     "peckham": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-peckham-honest-burgers-peckham",
@@ -1267,7 +1271,7 @@
     },
     "greenwich": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-greenwich-honest-burgers-greenwich",
@@ -1354,7 +1358,7 @@
     },
     "hammersmith": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-hammersmith-honest-burgers-hammersmith",
@@ -1511,8 +1515,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.5,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
-            "observedAt": "2026-07-27"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
@@ -1520,11 +1524,11 @@
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/balham/",
             "anchorDocumentLink": {
               "pageUrl": "https://www.francomanca.co.uk/restaurants/balham/",
-              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:03:26.000Z",
+            "reviewedAt": "2026-10-17T14:03:26.000Z",
+            "expiresAt": "2026-11-16T14:03:26.000Z",
             "evidenceNote": "The operator page publishes the street address, opening hours for every day, dine-in service, and a mapped address link."
           }
         }
@@ -1532,7 +1536,7 @@
     },
     "marylebone": {
       "status": "partial",
-      "reason": "One operator-backed option has passed review; this is not complete area coverage.",
+      "reason": "One operator-backed option is on file, but its review expired on 2026-08-16 and has not been renewed, so it is not served; this is not complete area coverage.",
       "options": [
         {
           "id": "late-food-evidence-marylebone-honest-burgers-baker-street",
@@ -1689,8 +1693,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.5,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
-            "observedAt": "2026-07-27"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
@@ -1698,11 +1702,11 @@
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/richmond/",
             "anchorDocumentLink": {
               "pageUrl": "https://www.francomanca.co.uk/restaurants/richmond/",
-              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:03:32.000Z",
+            "reviewedAt": "2026-10-17T14:03:32.000Z",
+            "expiresAt": "2026-11-16T14:03:32.000Z",
             "evidenceNote": "The operator page publishes the street address, opening hours for every day, dine-in service, and a mapped address link."
           }
         }
@@ -1780,8 +1784,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.5,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
-            "observedAt": "2026-07-27"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf",
+            "observedAt": "2026-10-17"
           },
           "source": {
             "kind": "official_operator",
@@ -1789,11 +1793,11 @@
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/putney/",
             "anchorDocumentLink": {
               "pageUrl": "https://www.francomanca.co.uk/restaurants/putney/",
-              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf"
             },
-            "observedAt": "2026-07-16T22:30:00.000Z",
-            "reviewedAt": "2026-07-16T22:30:00.000Z",
-            "expiresAt": "2026-08-16T22:30:00.000Z",
+            "observedAt": "2026-10-17T14:03:38.000Z",
+            "reviewedAt": "2026-10-17T14:03:38.000Z",
+            "expiresAt": "2026-11-16T14:03:38.000Z",
             "evidenceNote": "The operator page publishes the street address, opening hours for every day, dine-in service, and a mapped address link."
           }
         }
