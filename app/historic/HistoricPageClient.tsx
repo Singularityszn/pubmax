@@ -71,7 +71,7 @@ export default function HistoricPageClient({
         lede={
           <>
             {totalPubs} notable pubs, cited from Wikipedia and Wikidata. Never
-            invented. <DataCreditsLink />
+            invented. <DataCreditsLink className="historicCreditsLink" />
           </>
         }
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
