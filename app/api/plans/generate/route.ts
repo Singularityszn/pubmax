@@ -5,12 +5,14 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { planCultureOpenerFields } from "@/lib/cultureCrawl.server";
 import type { PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
+import { pubStreetWalkKm } from "@/lib/pubWalkPairs.server";
 import { planGenerationEndings } from "@/lib/planGenerationEndings.server";
 import {
 	buildPlanGenerationStops,
 	planBudgetSummary,
 	planRouteTimingDisclosure,
 	planUsesPintPrices,
+	type GroundedRouteTimingSummary,
 } from "@/lib/planGenerationDto";
 import {
 	loadPlanGenerationBaselineWhatsOn,
@@ -74,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
 	let groundedStops: readonly SelectedGroundedPlanStop<Candidate>[] | null = null;
 	let groundedAlternatives: readonly (readonly SelectedGroundedPlanStop<Candidate>[])[] | null = null;
 	let constraintReport: PlanConstraintReport | null = null;
-	let groundedTiming: { straightLineWalkingKm: number; walkingMinutes: number; transferUncertaintyMinutes: number; scheduledRouteMinutes: number } | null = null;
+	let groundedTiming: GroundedRouteTimingSummary | null = null;
 	let accessibilityEnforced = false;
 	let anchorContext: { anchorVenueId: string; anchorSource: PlanningIntentSource } | null = null;
 	let chosen: Candidate[];
@@ -161,10 +163,12 @@ export async function POST(request: Request): Promise<Response> {
 	// line estimate; a routing failure never blocks generation. When the ORS key
 	// is present AND the global daily budget allows the call (lib/walkRouteLegs
 	// routes every provider call through consumeOrsBudget), routed leg durations
-	// upgrade the totals to a "routed" basis.
-	const chosenWalkingStops = chosen.map(({ venue }) => ({ lat: venue.lat, lng: venue.lng }));
-	const walkingEstimate = await estimatePlanWalking(chosenWalkingStops).catch(() =>
-		estimateStraightLinePlanWalking(chosenWalkingStops),
+	// upgrade the totals to a "routed" basis. A leg ORS does not route keeps the
+	// street walk the optimiser chose it on (lib/pubWalkPairs) where the table
+	// holds the pair, so the totals and the visit windows agree.
+	const chosenWalkingStops = chosen.map(({ venue }) => ({ lat: venue.lat, lng: venue.lng, venueId: venue.id }));
+	const walkingEstimate = await estimatePlanWalking(chosenWalkingStops, pubStreetWalkKm).catch(() =>
+		estimateStraightLinePlanWalking(chosenWalkingStops, pubStreetWalkKm),
 	);
 	const routeTotals: PlanRouteTotals = {
 		stopCount: chosen.length,

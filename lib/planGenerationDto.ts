@@ -21,6 +21,8 @@ export type PlanStopConstraintFlag = {
 };
 
 export type GroundedRouteTimingSummary = {
+  /** Absent reads as "straight-line", the basis every timing had before street walks. */
+  walkingBasis?: PlanWalkingBasis;
   straightLineWalkingKm: number;
   walkingMinutes: number;
   transferUncertaintyMinutes: number;
@@ -157,9 +159,8 @@ export function buildPlanGenerationStops(params: {
       : candidates
           .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
           .map((entry) => planAlternativeDto(venue, entry, null, priceContext));
-    const legRouted = walkingEstimate.legs.some(
-      (leg) => leg.toIndex === index && leg.source === "ors",
-    );
+    const legSource = walkingEstimate.legs.find((leg) => leg.toIndex === index)?.source;
+    const legRouted = legSource === "ors";
 
     return {
       venueId: venue.id,
@@ -182,9 +183,11 @@ export function buildPlanGenerationStops(params: {
         visitWindow: grounded?.visitWindow ?? null,
         transportBasis: legRouted
           ? ROUTED_WALK_TRANSPORT_BASIS
-          : grounded
-            ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
-            : "compact-straight-line",
+          : legSource === "street"
+            ? STREET_WALK_TRANSPORT_BASIS
+            : grounded
+              ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
+              : "compact-straight-line",
       },
       provenance: [
         { kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
@@ -239,13 +242,19 @@ export function planBudgetSummary(
   };
 }
 
+const TIMING_BASIS_COPY: Record<PlanWalkingBasis, string> = {
+  street: "street walking estimate; add five minutes uncertainty per transfer",
+  mixed: "street walking estimate where mapped, straight-line elsewhere; add five minutes uncertainty per transfer",
+  "straight-line": "straight-line walking estimate; add five minutes uncertainty per transfer",
+};
+
 export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary | null) {
   return grounded ? {
     walkingSpeedKmh: WALK_KMH,
     walkingMinutes: grounded.walkingMinutes,
     transferUncertaintyMinutes: grounded.transferUncertaintyMinutes,
     scheduledRouteMinutes: grounded.scheduledRouteMinutes,
-    basis: "straight-line walking estimate; add five minutes uncertainty per transfer",
+    basis: TIMING_BASIS_COPY[grounded.walkingBasis ?? "straight-line"],
   } : null;
 }
 import { haversineKm } from "@/lib/haversine";
@@ -257,4 +266,5 @@ import type {
   PlanAccessEvidence,
   PlanPriceEvidence,
 } from "@/lib/planRouteEvidence";
-import { ROUTED_WALK_TRANSPORT_BASIS, WALK_KMH } from "@/lib/routeLegs";
+import type { PlanWalkingBasis } from "@/lib/planRouteOptimizer";
+import { ROUTED_WALK_TRANSPORT_BASIS, STREET_WALK_TRANSPORT_BASIS, WALK_KMH } from "@/lib/routeLegs";

@@ -261,3 +261,27 @@ describe("selectGroundedPlanRoute street walks", () => {
     expect(street.timing.straightLineWalkingKm).toBeCloseTo(straight.timing.straightLineWalkingKm, 9);
   });
 });
+
+describe("selectGroundedPlanRoute walking basis", () => {
+  const a = candidate("a", { score: 10, lat: 51.5, lng: -0.1 });
+  const b = candidate("b", { score: 10, lat: 51.5, lng: -0.099 });
+  const c = candidate("c", { score: 10, lat: 51.5, lng: -0.098 });
+  const transport = (result: ReturnType<typeof selectGroundedPlanRoute<string>>) =>
+    result.ok ? result.constraintReport.hardConstraints.find((entry) => entry.code === "transport_feasibility")?.message : undefined;
+
+  it("reports street, mixed and straight-line timing as what it is", () => {
+    const street = selectGroundedPlanRoute([a, b, c], constraints({ streetWalkKm: () => 0.2 }));
+    expect(street.ok && street.timing.walkingBasis).toBe("street");
+    expect(transport(street)).toMatch(/walking along mapped streets plus 5 minutes/);
+
+    const mixed = selectGroundedPlanRoute([a, b, c], constraints({
+      streetWalkKm: (from, to) => ([from, to].sort().join("|") === "a|b" ? 0.2 : null),
+    }));
+    expect(mixed.ok && mixed.timing.walkingBasis).toBe("mixed");
+    expect(transport(mixed)).toMatch(/where we have them and direct distance elsewhere/);
+
+    const straight = selectGroundedPlanRoute([a, b, c], constraints());
+    expect(straight.ok && straight.timing.walkingBasis).toBe("straight-line");
+    expect(transport(straight)).toMatch(/direct-distance walking .*pavement routing is not claimed\.$/);
+  });
+});
