@@ -2,6 +2,7 @@
 
 import { act, createElement, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
@@ -350,6 +351,17 @@ describe("message sign-in doors", () => {
       expect(cancel).toHaveBeenCalledOnce();
     }
     expect(host.textContent).toBe("");
+  });
+
+  // A session that answered "nobody" has no inbox to read, so the sign-in
+  // state is the first paint rather than a line that waits on the read. The
+  // server render runs no effect at all, which is the strictest form of "the
+  // read has not landed".
+  it("says sign in on the first paint to a session that has answered nobody", () => {
+    const html = renderToString(createElement(MessagesInboxClient));
+
+    expect(html).toContain("Sign in to message");
+    expect(html).not.toContain("With you in a sec.");
   });
 
   it("ignores an old anonymous inbox result once the session is signed in", async () => {
