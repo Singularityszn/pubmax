@@ -13,7 +13,8 @@ import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 //
 // Disallow list — only surfaces that are private, member-tokened, or
 // user-generated-ephemeral, never the public data surfaces:
-//   /api/        JSON/al endpoints, not documents.
+//   /api/        JSON/al endpoints, not documents (the share-card images in
+//                ALLOW below are the exception).
 //   /admin       moderation console.
 //   /p/          Pint Drop permalinks — friends-gated UGC keyed by an opaque id
 //                (app/p/[id] withholds hidden/friends drops); not a public page.
@@ -67,6 +68,23 @@ const DISALLOW = [
   "/map/arrival",
 ];
 
+// Public share-card images that live under /api/ but are named as og:image /
+// twitter:image by crawlable pages. A crawler that obeys robots.txt (Googlebot,
+// Bingbot, Twitterbot, LinkedInBot) will not fetch an image the file disallows,
+// so a blanket "/api/" left the homepage, crawl, list, pint and city links with
+// no preview image in search results and on X. Each Allow is longer than
+// "/api/", so under RFC 9309's longest-match rule it wins for its path only.
+// /api/plan-card stays out: it draws /plan/, which is itself disallowed.
+const ALLOW = [
+  "/",
+  "/api/home-card",
+  "/api/crawl-card",
+  "/api/chaos-card",
+  "/api/city-map-card",
+  "/api/list-card",
+  "/api/pint-card",
+];
+
 function isProductionDeployment(
   vercelEnv: string | undefined = process.env.VERCEL_ENV,
 ): boolean {
@@ -87,12 +105,12 @@ export default function robots(): MetadataRoute.Robots {
 
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: DISALLOW },
+      { userAgent: "*", allow: ALLOW, disallow: DISALLOW },
       // Named allow entries for the AI crawlers — same disallow set, explicit
       // welcome (documents intent to be AI-visible and citable).
       ...NAMED_AI_CRAWLERS.map((userAgent) => ({
         userAgent,
-        allow: "/",
+        allow: ALLOW,
         disallow: DISALLOW,
       })),
     ],
