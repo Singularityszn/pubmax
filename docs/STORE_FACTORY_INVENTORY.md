@@ -86,6 +86,7 @@ Categories:
 | referralStore | 619 | factory-eligible, policy-heavy | |
 | roundsStore | 885 | factory-eligible, policy-heavy | |
 | socialInteractionStore | 1285 | factory-eligible, policy-heavy | |
+| socialPostExtraPhotoStore | 215 | factory-eligible, policy-heavy | Photos 2 to 4 with per-photo moderation (0184). |
 | socialPostReviewStore | 137 | factory-eligible, policy-heavy | Own-post, named-venue score policy (0181). |
 | socialPostStore | 928 | factory-eligible, policy-heavy | |
 | socialPostVideoStore | 297 | factory-eligible, policy-heavy | Upload intents and held-until-watched review (0182). |
@@ -129,7 +130,7 @@ Stores intentionally left off the factory, with reason:
 - **factory-eligible, policy-heavy** stores (`commentsStore`,
   `communityPriceStore`, `emailSubscribersStore`, `identityHandleStore`,
   `messagesStore`, `referralStore`, `roundsStore`, `socialInteractionStore`,
-  `socialPostReviewStore`, `socialPostStore`, `socialPostVideoStore`, `venueOperatorsStore`, `visitReportsStore`,
+  `socialPostExtraPhotoStore`, `socialPostReviewStore`, `socialPostStore`, `socialPostVideoStore`, `venueOperatorsStore`, `visitReportsStore`,
   `weatherRecommendationStore`) - technically as adoptable as the pilot
   store (same one-line seam), but not migrated in this pass because this
   task's scope is one pilot store, chosen for lowest risk. Adopting the

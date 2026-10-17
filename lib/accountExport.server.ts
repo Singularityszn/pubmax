@@ -83,6 +83,7 @@ import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { socialPostStore } from "@/lib/socialPostStore";
 import { socialPostReviewStore } from "@/lib/socialPostReviewStore";
+import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
 import { socialPostVideoStore } from "@/lib/socialPostVideoStore";
 import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import type { VenuePhoto } from "@/lib/venuePhotos";
@@ -249,14 +250,16 @@ function storeDeps(): AccountExportDeps {
       // the post, so they ride the post into the file rather than a lane.
       const posts = await socialPostStore().listOwned(owner, limit);
       const ids = posts.map((post) => post.id);
-      const [reviews, videos] = await Promise.all([
+      const [reviews, videos, extras] = await Promise.all([
         socialPostReviewStore().forPosts(ids),
         socialPostVideoStore().forPosts(ids, owner),
+        socialPostExtraPhotoStore().forPosts(ids, owner),
       ]);
       return posts.map((post) => ({
         ...post,
         review: reviews.get(post.id) ?? null,
         video: videos.get(post.id) ?? null,
+        extraPhotos: extras.get(post.id) ?? [],
       }));
     },
     crowdReports: (userId, limit) => occupancyStore().listForReporter(userId, limit),
@@ -361,6 +364,12 @@ function exportSocialPost(post: SocialPostDTO): AccountExportSocialPost {
     commentPolicy: post.commentPolicy,
     photo: post.photo ? { mediaId: post.photo.mediaId, altText: post.photo.altText } : null,
     review: post.review ? { rating: post.review.rating } : null,
+    extraPhotos: (post.extraPhotos ?? []).map((extra) => ({
+      mediaId: extra.mediaId,
+      slot: extra.slot,
+      altText: extra.altText,
+      moderationState: extra.moderationState,
+    })),
     video: post.video
       ? { contentType: post.video.contentType, durationSeconds: post.video.durationSeconds, reviewState: post.video.reviewState }
       : null,

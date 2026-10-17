@@ -198,7 +198,7 @@
   overflow-wrap: anywhere;
 }
 
-.socialPostCard > :not(.socialPostPhoto, .socialPostVideo) {
+.socialPostCard > :not(.socialPostPhoto, .socialPostVideo, .socialPostCarousel) {
   margin-inline: 14px;
 }
 
@@ -1845,4 +1845,200 @@ span.socialPostAvatar {
 .socialReelsEntry:focus-visible {
   outline: 2px solid var(--river);
   outline-offset: 2px;
+}
+
+/* Yours / Your lot's: the house segmented control, a recessed track with the
+   chosen half raised in ink (never coral). */
+.pubRanking__switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 4px;
+  padding: 2px;
+  border-radius: var(--control-radius, 12px);
+  background: var(--panel);
+}
+
+.pubRanking__switch button {
+  min-height: 44px;
+  border: 0;
+  border-radius: calc(var(--control-radius, 12px) - 2px);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.pubRanking__switch button[aria-checked="true"] {
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.pubRanking__switch button:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+.pubRanking__what {
+  display: grid;
+  min-width: 0;
+}
+
+.pubRanking__note {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Up to four photos, one frame at a time, swiped sideways. */
+.socialPostCarousel {
+  position: relative;
+  margin: 0;
+}
+
+.socialPostCarousel__track {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.socialPostCarousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.socialPostCarousel__slide {
+  position: relative;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.socialPostCarousel__slide img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 640px;
+  object-fit: cover;
+  background: var(--panel);
+}
+
+.socialPostCarousel__held {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.socialPostCarousel__arrow {
+  position: absolute;
+  top: 50%;
+  display: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-50%);
+}
+
+.socialPostCarousel__arrow--prev {
+  left: 10px;
+}
+
+.socialPostCarousel__arrow--next {
+  right: 10px;
+}
+
+.socialPostCarousel__arrow:disabled {
+  visibility: hidden;
+}
+
+.socialPostCarousel__arrow:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialPostCarousel__arrow {
+    display: grid;
+  }
+}
+
+.socialPostCarousel__dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 0 0;
+}
+
+.socialPostCarousel__dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.socialPostCarousel__dots span[data-active="true"] {
+  background: var(--ink);
+}
+
+.socialPostCarousel__count {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.socialPostCarousel figcaption {
+  margin: 8px 14px 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialExtraPhotos {
+  display: grid;
+  gap: 8px;
+}
+
+.socialExtraPhotos__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialExtraPhotos__list li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 10px;
+}
+
+.socialExtraPhotos__list img {
+  grid-row: span 2;
+  width: 64px;
+  height: 80px;
+  border-radius: 10px;
+  object-fit: cover;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { rankSocialReviews, type SocialPostReview, type SocialPubRankingEntry } from "@/lib/socialPostReviews";
+import { rankSocialReviews, type SocialLotRankingEntry, type SocialPostReview, type SocialPubRankingEntry } from "@/lib/socialPostReviews";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 
@@ -20,6 +20,8 @@ export type SocialPostReviewStore = {
   forPosts(postIds: readonly string[]): Promise<Map<string, SocialPostReview>>;
   /** The actor's own list: newest score per pub, best first. */
   ranking(actor: ReviewActor, limit?: number): Promise<Array<Omit<SocialPubRankingEntry, "venueName">>>;
+  /** Your lot's pubs: mutual friends' newest scores averaged, for this reader only. */
+  lotRanking(actor: ReviewActor, limit?: number): Promise<Array<Omit<SocialLotRankingEntry, "venueName">>>;
 };
 
 type MemoryReview = {
@@ -70,6 +72,11 @@ export function createMemorySocialPostReviewStore(options: { now?: () => Date } 
         rating: entry.rating,
         reviewedAt: entry.reviewedAt,
       }));
+    },
+    // Process memory knows scores but not who follows whom or who may read
+    // which post, so it answers no lot rather than a wrong one.
+    async lotRanking() {
+      return [];
     },
   };
 }
@@ -129,6 +136,26 @@ const supabaseSocialPostReviewStore: SocialPostReviewStore = {
         reviewedAt: String(row.reviewed_at),
       }));
     }, () => memorySocialPostReviewStore.ranking(actor, limit), false);
+  },
+  async lotRanking(actor, limit = 50) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_lot_social_pub_ranking", {
+        p_viewer_profile_id: actor.profileId,
+        p_limit: limit,
+      });
+      if (error) {
+        // A deploy that runs ahead of 0183 shows an empty lot, not an error.
+        if (error.code === "PGRST202" || /could not find the function/i.test(error.message)) return [];
+        throw error;
+      }
+      return (data ?? []).map((row) => ({
+        venueId: String(row.venue_id),
+        averageRating: Number(row.average_rating),
+        raterCount: Number(row.rater_count),
+        raterHandles: Array.isArray(row.rater_handles) ? row.rater_handles.map(String) : [],
+        lastReviewedAt: String(row.last_reviewed_at),
+      }));
+    }, () => memorySocialPostReviewStore.lotRanking(actor, limit), false);
   },
 };
 

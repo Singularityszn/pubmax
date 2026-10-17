@@ -717,3 +717,37 @@ describe("/api/social/posts reviews and videos", () => {
     expect((await posted.json()).post.video).toMatchObject({ reviewState: "held", durationSeconds: 8, url: "/api/social/videos/post-1" });
   });
 });
+
+describe("/api/social/posts/[postId]/photos", () => {
+  const POST_ID = "11111111-1111-4111-8111-111111111111";
+
+  function photoRequest(fields: Record<string, string | File>): Request {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) form.set(key, value);
+    return new Request(`http://localhost/api/social/posts/${POST_ID}/photos`, { method: "POST", body: form });
+  }
+
+  it("adds photo 2 to the caller's own post that has a first photo, held pending", async () => {
+    const { POST: addPhoto } = await import("@/app/api/social/posts/[postId]/photos/route");
+    state.ownedRead = { id: POST_ID, ownedByViewer: true, photo: { mediaId: "m-1", altText: "Front bar" } };
+    const response = await addPhoto(
+      photoRequest({ photo: new File([new Uint8Array([0xff, 0xd8, 0xff])], "a.jpg", { type: "image/jpeg" }), altText: "The snug", slot: "2" }),
+      { params: Promise.resolve({ postId: POST_ID }) },
+    );
+    expect(response.status).toBe(201);
+    expect((await response.json()).photo).toMatchObject({ slot: 2, altText: "The snug", moderationState: "pending" });
+  });
+
+  it("refuses a post without a first photo, a stranger's post, a bad slot and a missing description", async () => {
+    const { POST: addPhoto } = await import("@/app/api/social/posts/[postId]/photos/route");
+    const file = () => new File([new Uint8Array([0xff, 0xd8, 0xff])], "a.jpg", { type: "image/jpeg" });
+    const context = { params: Promise.resolve({ postId: POST_ID }) };
+    state.ownedRead = { id: POST_ID, ownedByViewer: true, photo: null };
+    expect((await addPhoto(photoRequest({ photo: file(), altText: "x", slot: "3" }), context)).status).toBe(409);
+    state.ownedRead = null;
+    expect((await addPhoto(photoRequest({ photo: file(), altText: "x", slot: "3" }), { params: Promise.resolve({ postId: POST_ID }) })).status).toBe(404);
+    state.ownedRead = { id: POST_ID, ownedByViewer: true, photo: { mediaId: "m-1", altText: "Front bar" } };
+    expect((await addPhoto(photoRequest({ photo: file(), altText: "x", slot: "5" }), { params: Promise.resolve({ postId: POST_ID }) })).status).toBe(400);
+    expect((await addPhoto(photoRequest({ photo: file(), altText: "  ", slot: "3" }), { params: Promise.resolve({ postId: POST_ID }) })).status).toBe(400);
+  });
+});

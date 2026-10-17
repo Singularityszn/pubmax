@@ -13,8 +13,9 @@ const READ_WINDOW_MS = 60_000;
 
 /**
  * GET /api/social/reviews: the viewer's own pubs, ranked by the score they
- * gave each one (newest score per pub). Only the viewer's own list: nothing
- * here adds anybody's scores together.
+ * gave each one (newest score per pub). With ?scope=lot, the viewer's lot's
+ * pubs instead: each mutual friend's newest score averaged, over posts the
+ * viewer may read (0183). Neither list reaches anybody but the viewer.
  */
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
@@ -30,7 +31,19 @@ export async function GET(request: Request): Promise<Response> {
   if (await isLimited(key, key, READ_LIMIT, READ_WINDOW_MS)) {
     return publicApiError("Too many requests. Slow down.", "RATE_LIMITED", 429, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
   }
+  const scope = new URL(request.url).searchParams.get("scope") ?? "mine";
+  if (scope !== "mine" && scope !== "lot") {
+    return publicApiError("Choose your ranking or your lot's.", "INVALID_SCOPE", 400, { headers: { "Cache-Control": "private, no-store" } });
+  }
   try {
+    if (scope === "lot") {
+      const lot = await socialPostReviewStore().lotRanking(access.actor, limit);
+      const entries = await Promise.all(lot.map(async (entry) => {
+        const venue = await resolveSocialVenueId(entry.venueId);
+        return { ...entry, venueName: venue.ok ? venue.venueName : null };
+      }));
+      return Response.json({ entries }, { headers: { "Cache-Control": "private, no-store" } });
+    }
     const ranked = await socialPostReviewStore().ranking(access.actor, limit);
     const entries = await Promise.all(ranked.map(async (entry) => {
       const venue = await resolveSocialVenueId(entry.venueId);

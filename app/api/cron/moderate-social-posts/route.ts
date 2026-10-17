@@ -7,6 +7,7 @@ import {
   OpenAISocialPostModerationAdapter,
 } from "@/lib/socialPostModeration";
 import { socialPostStore } from "@/lib/socialPostStore";
+import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
 import {
   isSocialFriendsLaunchEnabled,
   SOCIAL_FRIENDS_LAUNCH_ENV,
@@ -59,18 +60,18 @@ export async function GET(request: Request): Promise<Response> {
         ...skippedFindings,
       });
     }
-    const result = await store.processModerationQueue(
-      new OpenAISocialPostModerationAdapter(),
-      20,
-    );
+    const adapter = new OpenAISocialPostModerationAdapter();
+    const result = await store.processModerationQueue(adapter, 20);
+    // Photos 2 to 4 are screened one by one on the same pass (0184).
+    const extraPhotos = await socialPostExtraPhotoStore().processModeration(adapter, 20);
     // After every drain: a growing pending backlog or exhausted retries is its
     // own named finding. An outage must never read as "nothing to review".
     const backlog = await store.inspectModerationBacklog();
     const findings = await notifySocialModerationFindings(backlog, result);
     if (result.processed === 0 && backlog.pending === 0) {
-      return jsonNoStore({ ok: true, skipped: "queue_empty", ...result, backlog, ...findings });
+      return jsonNoStore({ ok: true, skipped: "queue_empty", ...result, extraPhotos, backlog, ...findings });
     }
-    return jsonNoStore({ ok: true, ...result, backlog, ...findings });
+    return jsonNoStore({ ok: true, ...result, extraPhotos, backlog, ...findings });
   } catch (error) {
     console.error("[cron:moderate-social-posts] queue drain failed:", thrownMessage(error));
     return publicApiError("Social post moderation queue is unavailable.", "UNAVAILABLE", 503, {

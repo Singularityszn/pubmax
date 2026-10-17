@@ -40,12 +40,18 @@ list and no score on the map. That is the line between this and the venue
 ratings the beta contract keeps out: a review here is a sentence someone wrote
 with a number in it, shown to the people who can read the post.
 
-### 2. Your pubs, ranked is your own list
+### 2. Your pubs, ranked, and your lot's
 
 `read_own_social_pub_ranking` answers one row per pub the author has scored
-(the newest score), best first. It is Beli's list, not Beli's league table:
-it counts only the reader's own scores. A friends' ranking would be an
-aggregate and is out of scope until the contract says otherwise.
+(the newest score), best first.
+
+The captain then asked for the friends' ranking (17 Oct 2026), and
+`read_lot_social_pub_ranking` (migration `0183`) is the ONE aggregate this
+ADR allows. For one reader it averages each mutual friend's newest score per
+pub, best first, over posts that reader may already read, never their own
+score, never a blocked author. It is answered to that reader alone, writes
+nothing, and no venue rating, price, map layer or feed order reads it. A
+city-wide or public "top rated" list stays out.
 
 ### 3. One video per post, held until a person watches it
 
@@ -65,7 +71,15 @@ A post carries one photo or one video, never both. A video:
 
 The limits are 100 MB and ten minutes.
 
-### 4. The card is photo-first, the feed is not ranked
+### 4. Up to four photos, each screened on its own
+
+The first photo keeps every rule 0074 gave it. Photos 2 to 4 live in
+`social_post_extra_photos` (migration `0184`): one request each (so none
+nears a serverless body limit), the same normalising pipeline, and their own
+model check drained by the Social post cron. A pending or flagged photo is
+shown to its author only; the post and its other photos stay up.
+
+### 5. The card is photo-first, the feed is not ranked
 
 The card reads like a photo app: who and where, the media edge to edge at 4:5,
 then Cheers, comments, save and report, then the score and the words. Reels
@@ -74,15 +88,17 @@ first, in the same three lanes.
 
 ## Consequences
 
-- Two migrations for the captain to apply: `0181` and `0182`, each with a
-  rollback. Without them the stores fall back to process memory outside
+- Four migrations for the captain to apply: `0181`, `0182`, `0183` and
+  `0184`, each with a rollback. Without them the stores fall back to process memory outside
   production and refuse writes in production, like every other Social store.
 - The video lane adds a moderation queue someone has to watch. Until they do,
   a video stays with its author, which is the safe failure.
 - Signed playback URLs live for two minutes. A copied URL outlives a block or
   an audience change by at most that long; photos keep their stricter
   same-origin byte path.
-- Not built here: several photos per post, a friends' ranking, head-to-head
-  "which did you prefer" ranking, venue pages assembled from reviews, and
-  booking. Each needs its own decision, and an aggregate needs the contract
-  changed first.
+- Not built here: head-to-head "which did you prefer" ranking, venue pages
+  assembled from reviews, and booking. Each needs its own decision, and any
+  aggregate beyond a reader's own lot needs this ADR changed first.
+- Removing a post keeps its extra photos' objects in Storage, as the first
+  photo's detach lifecycle does not yet cover them; a sweep of
+  `social-extra/` for removed posts is follow-up work.

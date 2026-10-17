@@ -171,6 +171,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     selector: "none",
     reason: "RPC-only durable store; no memory implementation.",
   },
+  "lib/socialPostExtraPhotoStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostReviewStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/socialPostVideoStore.ts": { class: "policy-heavy", selector: "selectStore" },

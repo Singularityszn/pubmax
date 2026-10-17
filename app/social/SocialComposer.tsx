@@ -17,6 +17,7 @@ import {
   SOCIAL_VIDEO_MAX_SECONDS,
   SOCIAL_VIDEO_TYPES,
 } from "@/lib/socialPostVideos";
+import ExtraPhotosEditor, { type ExtraPhotoDraft, uploadExtraPhotos } from "@/components/social/ExtraPhotosEditor";
 import ReviewStars from "@/components/social/ReviewStars";
 
 type VenueChoice = { id: string; name: string; borough: string };
@@ -335,6 +336,46 @@ async function prepareVideo(
   }
 }
 
+/**
+ * Everything a new post's media must clear before the post is sent: every
+ * extra photo described, and a video uploaded to Storage first.
+ */
+async function prepareNewPostMedia(input: {
+  editing: boolean;
+  photo: File | null;
+  extraPhotos: ExtraPhotoDraft[];
+  video: File | null;
+  videoDuration: number | null;
+  caption: string;
+  onUploading: () => void;
+}): Promise<{ videoUploadId: string | null } | { error: string }> {
+  if (input.photo && input.extraPhotos.some((extra) => !extra.altText.trim())) {
+    return { error: "Describe every photo before you post." };
+  }
+  if (!input.video || input.editing) return { videoUploadId: null };
+  input.onUploading();
+  const uploaded = await prepareVideo(input.video, input.videoDuration, input.caption);
+  return "error" in uploaded ? uploaded : { videoUploadId: uploaded.uploadId };
+}
+
+/** Only a new post with a first photo sends photos 2 to 4. */
+function newPostPhotoDrafts(editing: boolean, photo: File | null, drafts: ExtraPhotoDraft[]): ExtraPhotoDraft[] {
+  return !editing && photo ? drafts : [];
+}
+
+/** Photos 2 to 4 go up after the post exists, one request each. */
+async function withExtraPhotos(
+  post: SocialPostDTO | undefined,
+  drafts: ExtraPhotoDraft[],
+): Promise<{ post: SocialPostDTO | undefined; notice: string | null }> {
+  if (!post || drafts.length === 0) return { post, notice: null };
+  const { uploaded, failed } = await uploadExtraPhotos(post.id, drafts);
+  return {
+    post: uploaded.length > 0 ? { ...post, extraPhotos: uploaded } : post,
+    notice: failed === 0 ? null : `Your post is up, but ${failed === 1 ? "one photo" : `${failed} photos`} did not upload.`,
+  };
+}
+
 /** What only a new post carries: the pub's score and the uploaded video. */
 function newPostExtras(draft: Draft, videoUploadId: string | null, videoDuration: number | null): Record<string, unknown> {
   return {
@@ -346,10 +387,12 @@ function newPostExtras(draft: Draft, videoUploadId: string | null, videoDuration
 
 /** Photo or video, never both: picking one puts the other's picker away. */
 function MediaEditors({
-  editing, photoEditor, video, videoPreviewUrl, videoDuration, hasPhoto, onVideo, onDuration,
+  editing, photoEditor, video, videoPreviewUrl, videoDuration, hasPhoto, onVideo, onDuration, extraPhotos, onExtraPhotos,
 }: {
   editing: boolean;
   photoEditor: ReactNode;
+  extraPhotos: ExtraPhotoDraft[];
+  onExtraPhotos: (drafts: ExtraPhotoDraft[]) => void;
   video: File | null;
   videoPreviewUrl: string | null;
   videoDuration: number | null;
@@ -360,6 +403,7 @@ function MediaEditors({
   return (
     <>
       {video ? null : photoEditor}
+      {!editing && hasPhoto ? <ExtraPhotosEditor drafts={extraPhotos} onChange={onExtraPhotos} /> : null}
       {!editing && !hasPhoto ? (
         <VideoEditor video={video} previewUrl={videoPreviewUrl} duration={videoDuration} onVideo={onVideo} onDuration={onDuration} />
       ) : null}
@@ -400,6 +444,7 @@ export default function SocialComposer({
   const [video, setVideo] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [extraPhotos, setExtraPhotos] = useState<ExtraPhotoDraft[]>([]);
   const [draftReady, setDraftReady] = useState(false);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState(post?.mutationVersion ?? 0);
@@ -654,20 +699,17 @@ export default function SocialComposer({
     setFeedback(null);
     setFeedbackIsStatus(false);
     setConflict(false);
-    let videoUploadId: string | null = null;
-    if (video && !editing) {
-      setFeedbackIsStatus(true);
-      setFeedback("Uploading your video…");
-      const uploaded = await prepareVideo(video, videoDuration, draft.body);
-      setFeedbackIsStatus(false);
-      if ("error" in uploaded) {
-        setBusy(false);
-        setFeedback(uploaded.error);
-        return;
-      }
-      setFeedback(null);
-      videoUploadId = uploaded.uploadId;
+    const media = await prepareNewPostMedia({
+      editing, photo, extraPhotos, video, videoDuration, caption: draft.body,
+      onUploading: () => { setFeedbackIsStatus(true); setFeedback("Uploading your video…"); },
+    });
+    setFeedbackIsStatus(false);
+    setFeedback("error" in media ? media.error : null);
+    if ("error" in media) {
+      setBusy(false);
+      return;
     }
+    const videoUploadId = media.videoUploadId;
     const hashtags = draft.hashtags
       .split(/[\s,]+/)
       .map((tag) => tag.replace(/^#/, "").trim())
@@ -741,11 +783,15 @@ export default function SocialComposer({
       setBasePost(savedPost);
       setDraft(initialDraft(savedPost));
       if (savedPost) setMutationVersion(savedPost.mutationVersion);
+      const finished = await withExtraPhotos(result.post, newPostPhotoDrafts(editing, photo, extraPhotos));
       setPhoto(null);
       setVideo(null);
+      setExtraPhotos([]);
       setRemovePhoto(false);
-      closeComposer();
-      onSaved(result.post);
+      setFeedbackIsStatus(Boolean(finished.notice));
+      setFeedback(finished.notice);
+      if (!finished.notice) closeComposer();
+      onSaved(finished.post);
     } catch (cause) {
       if (isAbortError(cause)) return;
       setFeedback(
@@ -860,6 +906,7 @@ export default function SocialComposer({
             <MediaEditors
               editing={editing} video={video} videoPreviewUrl={videoPreviewUrl} videoDuration={videoDuration}
               hasPhoto={Boolean(photo)} onVideo={chooseVideo} onDuration={setVideoDuration}
+              extraPhotos={extraPhotos} onExtraPhotos={setExtraPhotos}
               photoEditor={(
                 <PhotoEditor
                   post={basePost} draft={draft} photo={photo} previewSource={previewSource}

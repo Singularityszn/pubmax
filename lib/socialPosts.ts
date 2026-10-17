@@ -4,6 +4,7 @@ import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 import type { SocialPostReview } from "@/lib/socialPostReviews";
 import type { SocialPostVideo } from "@/lib/socialPostVideos";
+import type { SocialPostExtraPhoto } from "@/lib/socialPostPhotos";
 
 const SOCIAL_POST_KINDS = ["standard", "feature_request"] as const;
 const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
@@ -64,6 +65,8 @@ export type SocialPostDTO = Omit<
   review?: SocialPostReview | null;
   /** One video, held for review: its author sees it at once, others once approved. */
   video?: SocialPostVideo | null;
+  /** Photos 2 to 4, each screened on its own (0184). */
+  extraPhotos?: SocialPostExtraPhoto[];
 };
 
 type ValidationErrorCode =

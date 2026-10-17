@@ -158,6 +158,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/crews/[crewId]/leave`
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
+- `POST app/api/social/posts/[postId]/photos`
 - `POST app/api/social/tags`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
@@ -1541,6 +1542,22 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   the moderator check.
 - **Validation:** a post UUID and a decision of `approved` or `rejected`,
   nothing else. `review_social_post_video` refuses any other word.
+
+### `app/api/social/posts/[postId]/photos` - Social photos 2 to 4 (route 98)
+
+- **Route / method:** `POST app/api/social/posts/[postId]/photos/route.ts`,
+  multipart `photo`, `altText` and `slot`, one photo a request.
+- **Authority:** `requireVerifiedSocialActor`; the route reads the post through
+  the owner's own outbox read and refuses a post that is not the caller's or
+  has no first photo, and `attach_social_post_extra_photo` refuses the same.
+- **Abuse control:** forty photos an hour per salted profile digest, after the
+  Social freeze.
+- **Validation:** the same `prepareSocialPhoto` pipeline as the first photo
+  (type from bytes, size and pixel ceilings, re-encoded to a 1200px JPEG with
+  metadata dropped), a description of 1 to 300 characters, and a slot of 2, 3
+  or 4 that is not already taken.
+- **Moderation:** each photo starts pending and is shown only to its author
+  until its own model check approves it, drained by the Social post cron.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

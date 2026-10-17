@@ -54,3 +54,16 @@ export function rankSocialReviews(
       || right.postId.localeCompare(left.postId))
     .slice(0, Math.max(1, limit));
 }
+
+/**
+ * One pub in your lot's ranking: each mutual friend's newest score averaged.
+ * Only for the reader it was read for; nothing else reads it (migration 0183).
+ */
+export type SocialLotRankingEntry = {
+  venueId: string;
+  venueName: string | null;
+  averageRating: number;
+  raterCount: number;
+  raterHandles: string[];
+  lastReviewedAt: string;
+};

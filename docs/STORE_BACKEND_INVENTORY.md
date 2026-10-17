@@ -85,6 +85,7 @@ silently stale.
 | socialCrewStore | not dual-backend | Supabase-only RPC store. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
+| socialPostExtraPhotoStore | factory-eligible, policy-heavy | Photos 2 to 4: owner and first-photo checks, per-photo moderation. |
 | socialPostReviewStore | factory-eligible, policy-heavy | Own-post, named-venue and half-step score policy. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
@@ -114,7 +115,8 @@ The following stores intentionally stay outside the factory-ready path:
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
-  `roundsStore`, `socialInteractionStore`, `socialPostReviewStore`,
+  `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
+  `socialPostReviewStore`,
   `socialPostStore`, `socialPostVideoStore`, `venueOperatorsStore`,
   `venuePhotoStore`, `visitReportsStore`, and
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
@@ -213,6 +215,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/socialInteractionStore.ts",
     "lib/socialOAuth.ts",
     "lib/socialPostCreateRequest.server.ts",
+    "lib/socialPostExtraPhotoStore.ts",
     "lib/socialPostMedia.server.ts",
     "lib/socialPostReviewStore.ts",
     "lib/socialPostStore.ts",

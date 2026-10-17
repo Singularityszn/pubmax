@@ -18,6 +18,7 @@ import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsViewer from "@/components/social/ReelsViewer";
 import ReviewStars from "@/components/social/ReviewStars";
+import SocialPostCarousel from "@/components/social/SocialPostCarousel";
 import SocialPostVideoPlayer from "@/components/social/SocialPostVideoPlayer";
 import SocialPostActions from "@/components/social/SocialPostActions";
 import StarterPacks from "@/components/social/StarterPacks";
@@ -262,7 +263,20 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, in
       {post.kind === "feature_request" ? (
         <p className="socialPostKind">Feature request</p>
       ) : null}
-      {post.photo ? (
+      {post.photo && post.extraPhotos && post.extraPhotos.length > 0 ? (
+        <SocialPostCarousel
+          caption={post.photo.tags && post.photo.tags.length > 0 ? post.photo.tags.map((tag) => `@${tag.handle}`).join(" ") : undefined}
+          photos={[
+            { key: post.photo.mediaId, src: `/api/social/media/${post.photo.mediaId}`, altText: post.photo.altText },
+            ...post.extraPhotos.map((extra) => ({
+              key: extra.mediaId,
+              src: extra.url,
+              altText: extra.altText,
+              held: extra.moderationState !== "approved",
+            })),
+          ]}
+        />
+      ) : post.photo ? (
         <figure className="socialPostPhoto">
           {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
           <img
@@ -996,7 +1010,7 @@ function SocialPageAccountState({
                       onOpenVideo={setReelStart}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id
-                          ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video }
+                          ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
                           : item)))
                         : setFeedAttempt((value) => value + 1)} />
                   ))}

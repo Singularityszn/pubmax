@@ -16,6 +16,7 @@ import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { socialPostReviewStore, SocialPostReviewError } from "@/lib/socialPostReviewStore";
 import { SocialPostVideoError, socialPostVideoStore } from "@/lib/socialPostVideoStore";
+import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
 import { sniffSocialVideoType } from "@/lib/socialPostVideos";
 import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
 import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, type SocialVenueResolution } from "@/lib/socialPostVenue.server";
@@ -56,6 +57,17 @@ async function submissionBody(request: Request): Promise<{
   } catch {
     return null;
   }
+}
+
+// Photos 2 to 4 ride a post the viewer may read: approved, or the viewer's own.
+async function withExtraPhotos(posts: SocialPostDTO[], viewer: { profileId: string }): Promise<SocialPostDTO[]> {
+  const withFirst = posts.filter((post) => post.photo).map((post) => post.id);
+  if (withFirst.length === 0) return posts;
+  const extras = await socialPostExtraPhotoStore().forPosts(withFirst, viewer);
+  return extras.size === 0 ? posts : posts.map((post) => {
+    const photos = extras.get(post.id);
+    return photos ? { ...post, extraPhotos: photos } : post;
+  });
 }
 
 // A video rides a post the viewer may read: approved, or the viewer's own.
@@ -137,11 +149,11 @@ export async function GET(request: Request): Promise<Response> {
       : new Map();
     return privateJson({
       ...page,
-      posts: await withVideos(await withReviews(await enrichSocialPostAuthors(
+      posts: await withExtraPhotos(await withVideos(await withReviews(await enrichSocialPostAuthors(
         await projectSocialVenueNames(page.posts.map((post) => post.photo
           ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
           : post)),
-      )), access.actor),
+      )), access.actor), access.actor),
     });
   } catch (error) {
     return storeError(error);

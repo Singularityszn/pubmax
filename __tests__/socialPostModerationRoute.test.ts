@@ -137,6 +137,8 @@ describe("Social post moderation worker", () => {
       needsReview: 0,
       retried: 1,
       terminalErrors: 1,
+      // Photos 2 to 4 are screened on the same pass (0184); none queued here.
+      extraPhotos: { processed: 0, approved: 0, needsReview: 0, retried: 0 },
       backlog: {
         pending: 1,
         strandedTerminal: 1,

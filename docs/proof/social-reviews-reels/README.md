@@ -19,3 +19,14 @@ captured at 2x and scaled to half.
 Measured in the same run: the feed video reached `readyState` 4 and played
 while in view; the viewer opened with focus on Close, played the clip in view,
 and Escape closed it.
+
+Added with the friends' ranking and multi-photo posts:
+
+| File | What it shows |
+| --- | --- |
+| `carousel-light.webp` | A three-photo post swiped to photo 2: the counter, the dots and the arrows a mouse gets. |
+| `lot-ranking-dark.webp` | Your lot's pubs: each friend's newest score averaged, with who scored it. |
+
+Measured in that run: the carousel held 3 slides, read "1 / 3", and moved to
+"2 / 3" on a swipe (phone) and on Next (desktop); the ranking switch loaded 3
+rows under "Your lot's pubs".

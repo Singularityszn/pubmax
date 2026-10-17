@@ -426,6 +426,7 @@ describe("buildAccountExport", () => {
         commentPolicy: "open",
         photo: { mediaId: "media-1", altText: "A back room with a fire" },
         review: null,
+        extraPhotos: [],
         video: null,
         moderationState: "approved",
         createdAt: "2026-09-04T21:00:00.000Z",
@@ -848,6 +849,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostConsentStore.ts": {
     excluded: "One consent stamp per post, read back through the post itself.",
   },
+  "lib/socialPostExtraPhotoStore.ts": { lane: "socialPosts" },
   "lib/socialPostReviewStore.ts": { lane: "socialPosts" },
   "lib/socialPostStore.ts": { lane: "socialPosts" },
   "lib/socialPostVideoStore.ts": { lane: "socialPosts" },
