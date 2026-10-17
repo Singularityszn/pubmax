@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+
+import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
+import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 
@@ -23,6 +26,17 @@ import { mobileMapShellControl } from "./helpers/mobileMapShell";
 // A raw internal venue id ("venue-16pnwmm"): the PRD's honesty guard forbids it
 // leaking as visible text. Re-pinned here on the map surface we exercise.
 const RAW_VENUE_ID = /venue-[a-z0-9]+/;
+
+// The two map-driving tests below share one cold /map, and the map may hold its
+// loading frame until its own 18s readiness ceiling (an unreachable basemap
+// style times out, then the fallback answers). On a loaded CI runner that wait
+// alone can spend most of Playwright's default 30s for the WHOLE test, so the
+// flips after it died on the test clock mid-step, never on a wrong state
+// (#2092: the toggle failed at 30.6s while its POI sibling passed at 28.2s in
+// the same run). The budget leaves room past that ceiling for hydration, the
+// drawer and the flips. The ceiling itself is read only by the phone shell
+// helper (__tests__/e2eMobileMapShellReady.test.ts), so it is not imported here.
+const MAP_TOGGLE_TEST_BUDGET_MS = 90_000;
 
 // ---------------------------------------------------------------------------
 // Owner-only profile edit — request-level (PRD user story 31).
@@ -159,6 +173,7 @@ for (const path of ["/", "/map", "/feed", "/discover"]) {
 test("quality floor: the non-alcoholic filter checkbox flips its checked state", async ({
   page,
 }) => {
+  test.setTimeout(MAP_TOGGLE_TEST_BUDGET_MS);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -170,15 +185,25 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  // PubMap is a client component — wait for the map region to mount (proof it
-  // hydrated) before driving the toolbar. WebGL-agnostic: canvas OR fallback.
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
+  // PubMap is a client component, and `.mapCanvasWrap` is already on the
+  // loading skeleton, so it proves nothing. A live (editable) toolbar search is
+  // the desktop's own hydration signal. WebGL-agnostic: never reads the canvas.
+  await expectMapToolbarReady(page);
 
-  // Open the desktop planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: "Plan an outing" });
-  await expect(planBtn).toBeVisible();
-  await planBtn.click();
+  // Open the desktop planner so the control rail's filter toggles become
+  // visible. Plan an outing relabels itself once the planner opens, so a retry
+  // taps it only while the planner is still closed (e2e/AGENTS.md: a lone click
+  // is not a wait for hydration).
+  const planBtn = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+  await expect(async () => {
+    if ((await desktopPlannerDrawer(page).getAttribute("aria-hidden")) !== "false") {
+      await planBtn.click();
+    }
+    await expect(desktopPlannerDrawer(page)).toHaveAttribute("aria-hidden", "false", {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 30_000 });
+  await expectSoleDesktopDrawer(page, "planner", 30_000);
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 
@@ -207,6 +232,7 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
 test("quality floor: a POI category toggle flips in the coordinated Layers sheet", async ({
   page,
 }) => {
+  test.setTimeout(MAP_TOGGLE_TEST_BUDGET_MS);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
