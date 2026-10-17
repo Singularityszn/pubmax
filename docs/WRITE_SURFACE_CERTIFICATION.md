@@ -71,6 +71,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
 - `POST app/api/admin/social-videos`
+- `POST app/api/admin/venue-submissions`
 - `POST app/api/area-demand`
 - `POST app/api/auth/session`
 - `POST app/api/auth/change-password/verify`
@@ -166,6 +167,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
+- `POST app/api/venue-submissions`
 - `POST app/api/venues/[id]/occupancy`
 - `POST app/api/visit-reports`
 - `POST app/api/wanted`
@@ -666,6 +668,49 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   the account deletes its diary. A second log of the same pub on
   the same day answers 409 `DIARY_ENTRY_EXISTS`. A hard store failure answers
   503, never a fake success.
+
+### `app/api/venue-submissions` and `app/api/admin/venue-submissions` - Add a pub (Phase 1)
+
+- **Route / method:** `POST app/api/venue-submissions/route.ts` takes two
+  shapes. JSON proposes one pub the map does not have: a name, a street
+  address, an optional postcode and map position, an optional website and menu
+  link, opening hours and a note as free text, and up to 20 prices the drinker
+  saw. Multipart `{ submission, file }` attaches ONE menu photo or PDF to the
+  account's own pending submission, up to three. The route also exports an
+  owner-only `GET` list, which is not a mutating verb and answers an unmet age
+  or handle gate as `{ status, error }` at 200. `POST
+  app/api/admin/venue-submissions/route.ts` is the moderator verdict:
+  `accept`, `decline` or `duplicate` (naming the existing venue id) on a
+  pending submission, once; its `GET` is the review queue with five-minute
+  signed file links and no submitter.
+- **What it never writes:** a venue, a pin, a search row or a price lane. A
+  submission is a proposal; an accepted one reaches the packs through the
+  offline rebuild. The website and menu link are provenance and are never
+  fetched by the app.
+- **Validation:** `validateVenueSubmission` (`lib/venueSubmissions.ts`), shared
+  with the form. Free text is `cleanText`-capped; a postcode must parse as a UK
+  postcode; a position must sit inside Great Britain, both halves or neither; a
+  link must be https with no credentials; a price must be a drink in the closed
+  vocabulary inside the community price envelope. Before storing, the route
+  asks the curated and UK base indexes for the same name and answers 409
+  `POSSIBLE_MATCH` with the candidates until the drinker sends `confirmNew`.
+  A file is a JPEG, PNG or WebP photo (metadata stripped and re-encoded as JPEG
+  by `prepareUploadedImage`) or a PDF checked by its lead bytes and stored as
+  sent, at most 4 MB, keyed under `venue-submissions/<owner>/<submission>/`,
+  which migration 0189's CHECK holds. A row refused after its bytes landed
+  takes the bytes back out.
+- **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
+  (`venue-submission:${actor}:${ipHash}`) on every write, then six proposals
+  (`venue-submission-create:${actor}`) and twenty files
+  (`venue-submission-file:${actor}`) per hour. An account holds at most ten
+  pending proposals. The moderator verdict is metered at 60 a minute per
+  hashed IP.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session; a body owner is ignored. Both 0189 tables key to `auth.users` with
+  ON DELETE CASCADE and no browser grant, and account deletion walks the
+  owner's menu folder (`lib/accountOwnedObjects.ts`). The verdict route is
+  `isModerator`-gated on both verbs. A hard store failure answers 503, never a
+  fake success.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 

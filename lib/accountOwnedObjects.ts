@@ -11,14 +11,16 @@
 // can read the same answer.
 //
 // TWO KINDS OF OWNERSHIP. A PREFIX kind is found by walking the bucket: the
-// profile's avatars and covers (`profileImageSlots`) and the account's Night
-// Moment photos, which are keyed by the OWNER's id. A ROW kind is keyed by
+// profile's avatars and covers (`profileImageSlots`), the account's Night
+// Moment photos and the menus it attached to pubs it added, which are keyed by
+// the OWNER's id. A ROW kind is keyed by
 // something else (a venue, a conversation), so its keys are read off the rows
 // that carry them while those rows still exist: wall photos and message
 // photos. Both kinds are listed here so a new per-account image lane has one
 // table to join.
 
 import { PROFILE_IMAGE_SLOT_SPECS } from "@/lib/profileImageSlots";
+import { venueSubmissionObjectPrefix } from "@/lib/venueSubmissions";
 
 /** The Storage API removes at most this many objects in one call. */
 export const STORAGE_REMOVE_BATCH = 1000;
@@ -56,7 +58,7 @@ export function nightMomentKeyBelongsToOwner(ownerId: string, key: string): bool
  *
  * A folder is named WITHOUT a trailing slash, the shape the Storage API's
  * `list` takes. An account that never claimed a handle has no profile and so
- * no avatar or cover folder; its Moment photos are still its own.
+ * no avatar or cover folder; its Moment photos and menu files are still its own.
  */
 export function ownedObjectFolders(input: {
   userId: string;
@@ -69,6 +71,7 @@ export function ownedObjectFolders(input: {
     }
   }
   folders.push(nightMomentObjectPrefix(input.userId));
+  folders.push(venueSubmissionObjectPrefix(input.userId));
   return folders;
 }
 

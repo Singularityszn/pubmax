@@ -11,7 +11,7 @@ import "server-only";
 // visit reports and wall photos through their own owner-keyed reads (hidden
 // rows included, because a row a moderator took down is still the person's own
 // account of their own night), saved pubs, the Wanted list, the Diary, the
-// linked socials and the Night Profile through theirs, Memories and Moments through
+// pubs it added, the linked socials and the Night Profile through theirs, Memories and Moments through
 // `nightMemoryStore`,
 // prices through the community price store's per-actor read, Pint Drops
 // through `pintDropsStore().listVisible` with the caller as author AND viewer
@@ -53,6 +53,7 @@ import {
   type AccountExportProfile,
   type AccountExportPubRanking,
   type AccountExportSocialPost,
+  type AccountExportVenueSubmission,
   type AccountExportWallPhoto,
 } from "@/lib/accountExport";
 import {
@@ -94,6 +95,8 @@ import type { DiaryEntryDTO } from "@/lib/diary";
 import { diaryStore } from "@/lib/diaryStore";
 import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
 import { socialPubRankingEntries, type SocialPubRankingRow } from "@/lib/socialPubRankings";
+import { venueSubmissionPublicFields, type VenueSubmission } from "@/lib/venueSubmissions";
+import { venueSubmissionStore } from "@/lib/venueSubmissionStore";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -152,6 +155,7 @@ export type AccountExportDeps = {
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
   diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
   pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
+  venueSubmissions(userId: string): Promise<{ status: "ready" | "degraded"; submissions: VenueSubmission[] }>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -275,6 +279,7 @@ function storeDeps(): AccountExportDeps {
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
     diary: (userId) => diaryStore().listForOwner(userId),
     pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
+    venueSubmissions: (userId) => venueSubmissionStore().listForOwner(userId),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -733,6 +738,17 @@ export async function buildAccountExport(
     };
   });
 
+  const venueSubmissions = await lane<AccountExportVenueSubmission>(async () => {
+    const read = await deps.venueSubmissions(userId);
+    return {
+      degraded: read.status === "degraded",
+      items: read.submissions.map((row) => ({
+        ...venueSubmissionPublicFields(row),
+        files: row.files.map((file) => ({ kind: file.kind, byteSize: file.byteSize, createdAt: file.createdAt })),
+      })),
+    };
+  });
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -769,6 +785,7 @@ export async function buildAccountExport(
     wanted,
     diary,
     pubRankings,
+    venueSubmissions,
     socialLinks,
     nightProfile,
     messages,
