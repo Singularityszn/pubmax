@@ -255,10 +255,41 @@ const MAP_THEME_TOKEN_PROPERTIES = {
   parkTint: "--map-park-tint",
 } as const satisfies Record<MapThemeToken, `--${string}`>;
 
+let heldTokens: { key: string; tokens: Tokens } | null = null;
+
+// Everything a theme token can follow, read without a style recalc: the
+// attributes on <html> (data-theme, data-mode, data-legacy, class, style), the
+// stylesheets in the page and the system colour scheme.
+function themeInputsKey(): string {
+  const root = document.documentElement;
+  const attributes = Array.from(root.attributes, (attribute) =>
+    `${attribute.name}=${attribute.value}`,
+  );
+  const systemDark =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return [...attributes, document.styleSheets.length, systemDark].join("\n");
+}
+
 // Every map colour derives from the app's theme tokens so both modes
 // (candle-lit night / positron day guidebook) flip from one system.
+//
+// Reading them forces a style recalc of the whole page (the colour probe below
+// joins the DOM), and the pins rebuild on every venue read. The tokens only
+// move when a theme input does, so one read is held per set of inputs.
 export function readTokens(): Tokens {
+  const key = themeInputsKey();
+  if (heldTokens?.key === key) return heldTokens.tokens;
+  const read = readTokensFromStyles();
+  // Before the theme stylesheet applies every token is its fallback: keep
+  // reading until a real theme arrives.
+  heldTokens = read.themed ? { key, tokens: read.tokens } : null;
+  return read.tokens;
+}
+
+function readTokensFromStyles(): { tokens: Tokens; themed: boolean } {
   const styles = getComputedStyle(document.documentElement);
+  const themed = styles.getPropertyValue("--ink").trim() !== "";
   const token = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
   const mapToken = (name: MapThemeToken, fallback: string) =>
@@ -291,7 +322,7 @@ export function readTokens(): Tokens {
       token(categoryVar(c), CATEGORY_COLORS[c].light),
     ]),
   ) as Record<DrinkCategory, string>;
-  return {
+  const tokens: Tokens = {
     cat,
     ink: mapToken("ink", "#1b2620"),
     inkDeep: mapToken("inkDeep", "#0f1c16"),
@@ -318,6 +349,7 @@ export function readTokens(): Tokens {
     buildingEmissive: mapToken("buildingEmissive", "#8f7d6b"),
     parkTint: mapToken("parkTint", "#7ea052"),
   };
+  return { tokens, themed };
 }
 
 /**
