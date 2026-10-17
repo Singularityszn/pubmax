@@ -9557,6 +9557,22 @@
         "rowCount": 7687,
         "siteHarvestRows": 3177
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/jollycoopers-zero-cans-2026-10-17.json",
+      "sourceEvidenceSha256": "49720148b8fce89715f3c04fceec50828eb72ceb95dff4f37ba396fe60ea8e8f",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T13:24:55.632Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "281970ba87dffb0a24f9a1be7ce38d485aa06c073a7034824b56832bba3b5df2",
+        "rowCount": 3200,
+        "rowIdentitySetSha256": "9f871c92286882f92dd7a2e003513ce2dd63a64d236709c34d10f0b9271b5a43"
+      },
+      "currentBundle": {
+        "rowCount": 7689,
+        "siteHarvestRows": 3179
+      }
     }
   ]
 }
