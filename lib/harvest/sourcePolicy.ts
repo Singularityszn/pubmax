@@ -122,8 +122,9 @@ const EVENTS_CHECKED_ON = "2026-09-07";
 // The Wetherspoon pub directory, re-read against the live robots.txt and read in
 // full on this day.
 const DIRECTORY_CHECKED_ON = "2026-09-14";
-// The open-data APIs' terms, read live on this day on each builder's first
-// networked run. Each row's evidence says what was read, and what could not be.
+// The open-data APIs, last checked on this day on each builder's first networked
+// run. Not every terms page could be read: each row's evidence says what was
+// read live and what was not.
 const OPEN_DATA_CHECKED_ON = "2026-10-17";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
