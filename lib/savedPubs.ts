@@ -107,7 +107,7 @@ export function cleanListType(value: unknown): ListType {
   return cleanText(value, MAX_LIST_TYPE);
 }
 
-export function isListType(value: unknown): value is ListType {
+function isListType(value: unknown): value is ListType {
   return typeof value === "string" && value.length > 0 && value.length <= MAX_LIST_TYPE;
 }
 
@@ -136,7 +136,7 @@ function parse(data: unknown): SavedPub[] {
   return out;
 }
 
-export function readSavedRecords(): unknown {
+function readSavedRecords(): unknown {
   if (!hasStorage()) return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);

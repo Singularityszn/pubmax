@@ -47,7 +47,7 @@ import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
-import TonightReturnCue from "./TonightReturnCue";
+import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
@@ -891,6 +891,10 @@ export default function TonightClient({
           />
         ) : null}
 
+      {/* The reader's own saved pubs, before the city's. It draws nothing and
+          asks for nothing when nothing is saved (lib/tonightYourPubs.ts). */}
+      <TonightYourPubs />
+
       {/* Real pubs before a mood ask. A night with nothing listed still has
           pubs in it, and a listed price is the one thing this product can put
           in front of somebody standing on a pavement. */}
@@ -984,10 +988,6 @@ export default function TonightClient({
       </aside>
 
       <div className="tonightAfterPrimary">
-
-      {/* A way back to a pub this browser saved. After the answer, never in
-          the lede, and only for a save the map can open. */}
-      <TonightReturnCue selectableVenueIds={selectableVenueIds} />
 
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when
