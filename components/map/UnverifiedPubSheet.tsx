@@ -11,6 +11,7 @@ import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import VenueHygiene from "@/components/map/VenueHygiene";
+import VenueListedBuilding from "@/components/map/VenueListedBuilding";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
 import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
@@ -316,6 +317,9 @@ export default function UnverifiedPubSheet({
       {/* The FSA's rating for this OSM pub, through its own fhrs:id tag when it
           carries one (lib/fsaHygienePack.ts). Renders nothing otherwise. */}
       <VenueHygiene venueId={pub.id} venueName={pub.name} address={pub.address} />
+      {/* Historic England's listing for this pub, when the NHLE join matched it
+          (scripts/build_heritage_listings.mjs). Renders nothing otherwise. */}
+      <VenueListedBuilding venueId={pub.id} venueName={pub.name} />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
