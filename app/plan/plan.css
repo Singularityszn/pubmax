@@ -2020,3 +2020,21 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     height: min(60dvh, 520px);
   }
 }
+
+/* The night the late default stepped over. A text-button on the documented
+   --control-* row (docs/DESIGN_SYSTEM.md, "Text buttons"), the same family as
+   the other secondary controls, so it reads as a choice rather than a second
+   primary beside the field it corrects. */
+.planComposer__tonight {
+  justify-self: start;
+  min-height: var(--control-height, 44px);
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  cursor: pointer;
+}

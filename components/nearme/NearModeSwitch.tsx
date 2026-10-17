@@ -4,6 +4,9 @@ import { NEAR_MODES, type NearMode } from "@/lib/nearDesk";
 
 import "./nearModeSwitch.css";
 
+// The label says what the mode finds. "Desk" named the code's word for the
+// mode, and a reader could not tell it meant a cafe, library or coworking
+// space to sit and work in (UX sprint, 15 Oct 2026).
 const LABELS: Record<NearMode, string> = {
   pint: "Pints",
   desk: "Work spots",

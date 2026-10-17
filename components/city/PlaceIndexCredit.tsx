@@ -1,3 +1,5 @@
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
+
 /**
  * The ODbL credit a UK place-index answer owes.
  *
@@ -25,7 +27,7 @@ export default function PlaceIndexCredit({
       >
         OpenStreetMap contributors
       </a>
-      , ODbL.
+      , ODbL. <DataCreditsLink />
     </p>
   );
 }

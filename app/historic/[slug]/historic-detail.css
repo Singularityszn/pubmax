@@ -330,3 +330,15 @@
     padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
   }
 }
+
+/* The credits link sits inside a sentence, but it is still a thumb target:
+   inline-flex keeps it in the line and gives it the 44px the phone tap-target
+   pin measures (e2e/phone-tap-targets.spec.ts). */
+.historicCreditsLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -134,3 +134,34 @@
   color: var(--muted);
   font-size: 0.72rem;
 }
+
+/* Historic England's listing, when the NHLE join matched this pub: the fact,
+   then who published it and when it was read, with the list entry link. */
+.unverifiedPubListed {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: start;
+  margin: 12px 0 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.unverifiedPubListed > svg {
+  margin-top: 3px;
+}
+
+.unverifiedPubListedSource {
+  grid-column: 2;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.unverifiedPubListedSource a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: inherit;
+}

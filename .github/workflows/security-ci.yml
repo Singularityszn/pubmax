@@ -19,7 +19,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -14,7 +14,7 @@ import {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const AREA_NEWS_DATASET_PATH = join(ROOT, "data", "area_news.json");
 export const AREA_NEWS_DATASET_COMMENT =
-  "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.";
+  "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. latestObservedAt is the newest entry observedAt, which the freshness registry dates this lane by. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.";
 
 export function areaNewsRefreshQueries(now = Date.now()) {
   const formatMonthYear = (time) => new Intl.DateTimeFormat("en-GB", {
@@ -79,6 +79,23 @@ export function writeAreaNewsDataset(snapshot, path = AREA_NEWS_DATASET_PATH) {
   const temporaryPath = `${path}.tmp-${process.pid}`;
   writeFileSync(temporaryPath, `${JSON.stringify(snapshot, null, 2)}\n`);
   renameSync(temporaryPath, path);
+}
+
+/**
+ * The newest entry observedAt (YYYY-MM-DD), or null when no entry carries one.
+ * The freshness registry dates area_news by this, not by generatedAt: each
+ * fact serves for 21 days from its own date, so a refresh that keeps only old
+ * facts must not make the lane read fresh.
+ */
+export function latestObservedAt(entries) {
+  let latest = null;
+  for (const entry of entries) {
+    const observedAt = entry?.observedAt;
+    if (typeof observedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(observedAt)) continue;
+    if (!Number.isFinite(Date.parse(`${observedAt}T00:00:00Z`))) continue;
+    if (latest === null || observedAt > latest) latest = observedAt;
+  }
+  return latest;
 }
 
 function sortedEntries(entries) {
@@ -301,12 +318,14 @@ export async function refreshAreaNews({
 
   const deduplicatedFreshEntries = deduplicateFreshEntries(freshEntries);
   const previousEntries = Array.isArray(previousDataset?.entries) ? previousDataset.entries : [];
+  const entries = archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries, nowTime, knownAreas);
   const snapshot = {
     ...(previousDataset && typeof previousDataset === "object" ? previousDataset : {}),
     $comment: AREA_NEWS_DATASET_COMMENT,
     version: 1,
     generatedAt: new Date(nowTime).toISOString(),
-    entries: archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries, nowTime, knownAreas),
+    latestObservedAt: latestObservedAt(entries),
+    entries,
   };
   writeDataset(snapshot);
   logger(

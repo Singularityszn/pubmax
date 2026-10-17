@@ -14,6 +14,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { ProseDisclosure } from "@/components/Disclosure";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
@@ -70,7 +71,7 @@ export default function HistoricPageClient({
         lede={
           <>
             {totalPubs} notable pubs, cited from Wikipedia and Wikidata. Never
-            invented.
+            invented. <DataCreditsLink className="historicCreditsLink" />
           </>
         }
         primary={<Link prefetch={false} href="/map">Open the map</Link>}

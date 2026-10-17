@@ -7,7 +7,7 @@ import NearModeSwitch from "@/components/nearme/NearModeSwitch";
 import { resolveNearMode } from "@/lib/nearDesk";
 
 describe("NearModeSwitch", () => {
-  it("renders a radiogroup with Pint and Desk", () => {
+  it("renders a radiogroup with Pint and Work spot", () => {
     const html = renderToStaticMarkup(
       createElement(NearModeSwitch, { value: "pint", onChange: vi.fn() }),
     );
@@ -20,7 +20,7 @@ describe("NearModeSwitch", () => {
     expect(html).toMatch(/aria-checked="false"/);
   });
 
-  it("marks Desk checked when that mode is active", () => {
+  it("marks Work spot checked when that mode is active", () => {
     const html = renderToStaticMarkup(
       createElement(NearModeSwitch, { value: "desk", onChange: vi.fn() }),
     );

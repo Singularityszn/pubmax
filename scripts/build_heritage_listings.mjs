@@ -15,8 +15,13 @@
 //   3. Match conservatively via scripts/lib/heritageMatch.mjs — a listed point
 //      must carry the pub's core name AND sit on it. False positives are worse
 //      than misses (owner rule), so most pubs get nothing and that is correct.
+//   3b. Run the same match for every London OSM pub no curated venue owns,
+//      keyed by the `venue-uk-<osmRef>` id its base-layer sheet opens under
+//      (scripts/lib/heritageBaseVenues.mjs), so a listed pub off the curated
+//      map is not left blank.
 //   4. Write public/data/heritage_listings.json — ONLY matched pubs, keyed by
-//      venueId, with { listEntry, grade, listedYear, name, fact, url, distanceM }.
+//      venueId, with { listEntry, grade, listedYear, name, fact, url, distanceM },
+//      plus `$retrievedAt`, the day the NHLE was read, which the sheet prints.
 //
 // We NEVER invent a grade, an era, or a description. `fact` is grade + the
 // building type only when the official listing name names one; `listedYear` is
@@ -26,7 +31,8 @@
 //
 // Run:
 //   node scripts/build_heritage_listings.mjs                 # fetch live NHLE
-//   node scripts/build_heritage_listings.mjs --cache pts.json  # from a cache
+//   node scripts/build_heritage_listings.mjs --cache pts.json --retrieved-at 2026-10-16
+//                                                       # from a cache, read that day
 //   node scripts/build_heritage_listings.mjs --dry-run       # print, don't write
 // Judged pass (requires TYPESAFE_API_KEY; structure Noul + same-pub Noul):
 //   node --import tsx scripts/build_heritage_listings.mjs --judged
@@ -35,6 +41,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { londonBaseVenues } from "./lib/heritageBaseVenues.mjs";
 import {
   bestMatch,
   buildFactText,
@@ -45,6 +52,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "heritage_listings.json");
+const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 
 const NHLE_FEATURESERVER =
   "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/" +
@@ -212,7 +220,10 @@ export function buildListings(venues, points) {
   return listings;
 }
 
-function serialise(listings) {
+export function serialise(listings, retrievedAt) {
+  if (!Number.isFinite(Date.parse(retrievedAt))) {
+    throw new Error("The NHLE read needs the day it was read (--retrieved-at for a cache).");
+  }
   const sortedKeys = Object.keys(listings).sort();
   const ordered = {};
   for (const key of sortedKeys) ordered[key] = listings[key];
@@ -220,6 +231,7 @@ function serialise(listings) {
     $attribution: ATTRIBUTION,
     $source: "Historic England — National Heritage List for England (NHLE), Listed Building points",
     $licence: "Open Government Licence v3.0",
+    $retrievedAt: retrievedAt,
     listings: ordered,
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -233,8 +245,20 @@ async function main() {
 
   const dataset = await loadJson(DATASET_PATH);
   const rows = Array.isArray(dataset) ? dataset : dataset.venues ?? [];
-  const venues = groupVenues(rows);
-  process.stderr.write(`Grouped ${rows.length} rows into ${venues.length} venues.\n`);
+  const curated = groupVenues(rows);
+  const base = londonBaseVenues((await loadJson(UK_SEED_PATH)).pubs);
+  const venues = [...curated, ...base];
+  process.stderr.write(
+    `Grouped ${rows.length} rows into ${curated.length} venues, plus ${base.length} London base pubs.\n`,
+  );
+
+  // The day the NHLE was read. A live read is today; a cache states its own.
+  const retrievedIdx = argv.indexOf("--retrieved-at");
+  const statedDay = retrievedIdx === -1 ? "" : (argv[retrievedIdx + 1] ?? "");
+  const retrievedAt = cachePath
+    ? Number.isFinite(Date.parse(statedDay)) ? new Date(statedDay).toISOString() : ""
+    : new Date().toISOString();
+  if (!retrievedAt) throw new Error("A cached NHLE read needs --retrieved-at <the day it was read>.");
 
   let points;
   if (cachePath) {
@@ -302,7 +326,7 @@ async function main() {
   const matched = Object.keys(listings).length;
   process.stderr.write(`Matched ${matched} pubs to listed buildings.\n`);
 
-  const output = serialise(listings);
+  const output = serialise(listings, retrievedAt);
   if (dryRun) {
     process.stdout.write(output);
     return;

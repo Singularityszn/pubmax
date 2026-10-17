@@ -17,6 +17,8 @@ export type HeritageFact = {
   source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle" | "web";
   fact: string;
   sourceRef?: string;
+  /** ISO day the source was read. Kept only when it parses as a date. */
+  observedAt?: string;
 };
 
 // The only sources we render. An entry with any other (or missing) source is
@@ -64,7 +66,17 @@ export function sanitizeHeritageFacts(raw: unknown): HeritageFact[] {
     seen.add(key);
     const clean: HeritageFact = { source: record.source, fact };
     if (sourceRef) clean.sourceRef = sourceRef;
+    const observedAt = typeof record.observedAt === "string" ? record.observedAt.trim() : "";
+    if (observedAt && Number.isFinite(Date.parse(observedAt))) clean.observedAt = observedAt;
     out.push(clean);
   }
   return out;
+}
+
+/** "read 18 Jul 2026": the day a fact's source was read, as the sheet prints it. */
+export function heritageReadLabel(observedAt: string | undefined): string | null {
+  if (!observedAt) return null;
+  const date = new Date(observedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return `read ${date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}`;
 }

@@ -315,17 +315,17 @@
     },
     {
       "id": "heritage_listings",
-      "label": "Listed-building heritage facts (Historic England NHLE)",
+      "label": "Listed-building heritage facts (Historic England NHLE), curated and London base pubs",
       "class": "episodic",
       "artifact": "public/data/heritage_listings.json",
       "stamp": {
         "kind": "literal",
         "value": "2026-07-18T00:00:00Z",
-        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically"
+        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically. lib/heritageListings.ts resolves this stamp and the venue sheet prints it beside every listed fact as the day the NHLE was read"
       },
-      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer",
+      "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. A regenerated pack carries $retrievedAt, the day the NHLE was read; point this stamp at it ({\"kind\": \"field\", \"pointer\": \"$retrievedAt\"}) in the same commit.",
       "stalenessBudgetHours": 8760,
-      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs)",
+      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     },
     {
@@ -365,12 +365,12 @@
       "artifact": "data/area_news.json",
       "stamp": {
         "kind": "field",
-        "pointer": "generatedAt"
+        "pointer": "latestObservedAt"
       },
       "cadence": "snapshot - npm run refresh:area-news",
-      "stalenessBudgetHours": 504,
+      "stalenessBudgetHours": 528,
       "refreshWorkflow": "manual (KEENABLE_API_KEY optional; npm run refresh:area-news, then node scripts/build_area_news_matches.mjs when venue badges need rebuilding)",
-      "gate": "Keenable search_web_pages + fetch_page_content; a provider failure or zero valid facts leaves the prior dataset unchanged. Vercel cron cannot write this committed file, so refresh runs locally or in a review workflow."
+      "gate": "Keenable search_web_pages + fetch_page_content; a provider failure or zero valid facts leaves the prior dataset unchanged. Vercel cron cannot write this committed file, so refresh runs locally or in a review workflow. Dated by latestObservedAt, the newest fact, not generatedAt: lib/areaNews.ts serves a fact through the 21st day after its observedAt, so the 528h budget (22 days) reads stale exactly when no fact can be served. Advisory in check:freshness."
     },
     {
       "id": "persona_drinks",
