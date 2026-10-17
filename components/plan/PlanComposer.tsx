@@ -322,6 +322,15 @@ export function planAcceptanceTelemetry(value: unknown, stops: number): { stops:
   return { stops, grounded: attribution.grounded };
 }
 
+/**
+ * The unsigned lock count. It needs the server's attribution and nothing else,
+ * and stays inside the one-to-ten band the sanitizer accepts.
+ */
+export function crawlLockedTelemetry(value: unknown, stops: number): { stops: number } | null {
+  if (!serverPlanCreationAttribution(value) || !Number.isInteger(stops) || stops < 1 || stops > 10) return null;
+  return { stops };
+}
+
 /** Rebuild the signed one-Stop save event from server attribution and the submitted anchor. */
 export function planDraftSavedTelemetry(
   value: unknown,
@@ -2239,8 +2248,12 @@ function PlanComposerForm({
       if (draftSavedTelemetry && draftSavedToken) {
         trackEvent("plan_draft_saved", draftSavedTelemetry, { deliveryToken: draftSavedToken });
       }
+      // The lock is counted for every plan the server attributed, not only the
+      // ones that carry signed acceptance tokens: those fail closed for a plan
+      // without an anchor, which left the funnel's lock step at zero.
+      const lockTelemetry = crawlLockedTelemetry(body, completeStops.length);
+      if (lockTelemetry) trackEvent("crawl_locked", lockTelemetry);
       if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
-        trackEvent("crawl_locked", { stops: completeStops.length });
         trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
         trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
       }
