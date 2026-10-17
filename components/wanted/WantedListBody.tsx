@@ -283,11 +283,11 @@ export default function WantedListBody(): React.JSX.Element {
   return (
     <>
       {loadStatus === "sign_in" ? (
-        <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
+        <p className="wantedPanel__empty">Sign in to keep a list of pubs to try.</p>
       ) : door ? (
         <ContributionGateDoor
           status={door}
-          subject="keep a Wanted list"
+          subject="keep a list of pubs to try"
           onAsserted={() => void refresh()}
         />
       ) : (
@@ -305,14 +305,14 @@ export default function WantedListBody(): React.JSX.Element {
       ) : null}
 
       {loadStatus === "loading" ? (
-        <p className="wantedPanel__empty">Loading your Wanted list…</p>
+        <p className="wantedPanel__empty">Loading your pubs to try…</p>
       ) : null}
       {loadStatus === "error" ? (
-        <p className="wantedPanel__empty">Could not load Wanted places right now.</p>
+        <p className="wantedPanel__empty">Could not load your pubs to try right now.</p>
       ) : null}
 
       {loadStatus === "ready" && open.length === 0 && anonymousOpen.length === 0 ? (
-        <p className="wantedPanel__empty">No open Wanted places yet.</p>
+        <p className="wantedPanel__empty">Nothing on your list yet.</p>
       ) : null}
 
       {open.length > 0 ? (
@@ -321,7 +321,7 @@ export default function WantedListBody(): React.JSX.Element {
       {anonymousOpen.length > 0 ? <WantedOpenList anonymous wanteds={anonymousOpen} /> : null}
 
       {fulfilled.length > 0 ? (
-        <ul className="wantedList" aria-label="Fulfilled Wanted places">
+        <ul className="wantedList" aria-label="Pubs you made it to">
           {fulfilled.slice(0, 5).map((wanted) => (
             <li key={wanted.id} className="wantedRow">
               <div>
@@ -351,7 +351,7 @@ function WantedOpenList({
   onRemoved?: (id: string) => void;
 }): React.JSX.Element {
   return (
-    <ul className="wantedList" aria-label={anonymous ? "Anonymous open Wanted places" : "Open Wanted places"}>
+    <ul className="wantedList" aria-label={anonymous ? "Pubs to try on this device" : "Pubs to try"}>
       {wanteds.map((wanted) => {
         const href = mapUrlFor(wanted);
         const promotable = !anonymous && (isWantedPromotable(wanted) || Boolean(wanted.promotedListType));

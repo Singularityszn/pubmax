@@ -103,8 +103,8 @@ describe("launch routes (group b) carry one primary action", () => {
       }),
     );
     expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><button[^>]*>Sort it<\/button>/);
-    expect(rendered).toMatch(/<h1[^>]*>Describe the outing\. We’ll put it in order\.<\/h1>/);
+    expect(rendered).toMatch(/data-primary-action=""><button[^>]*>Plan it<\/button>/);
+    expect(rendered).toMatch(/<h1[^>]*>Plan a pub crawl<\/h1>/);
   });
 
   it("/pal carries one primary action", () => {

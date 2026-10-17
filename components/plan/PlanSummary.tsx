@@ -522,7 +522,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
     setLoadingPreview(true);
     const requestedStopCount = normalizePlanStopCount(state.context.stopCount);
     announce(anchoredPlan
-      ? `Sorting a fresh ${requestedStopCount}-stop route, with a backup for each stop…`
+      ? `Planning a fresh ${requestedStopCount}-stop route, with a backup for each stop…`
       : "Finding a backup for each stop…");
     try {
       const response = await fetch("/api/plans/generate", {

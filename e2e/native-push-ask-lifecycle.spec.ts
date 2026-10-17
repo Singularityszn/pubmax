@@ -44,7 +44,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto("/map?plan=1");
       }
       await expect(page).toHaveURL(/\/map\?plan=1$/);
-      await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
       await expect(ask).toHaveCount(0);
       await page.getByRole("button", { name: "Make a plan" }).click();
       await expect.poll(() => page.evaluate(() => window.localStorage.getItem(

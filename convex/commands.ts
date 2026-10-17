@@ -61,6 +61,9 @@ export const upsertPalFromServer = internalMutation({
     };
     const existing = await findOwnedPal(ctx, owner);
     if (existing) {
+      // `migrationBatchId` is set on insert only. Patching it here would let a
+      // later call retag a pal it did not create (or untag an imported one),
+      // and rollbackPubPalsBatch deletes by that tag.
       await ctx.db.patch(existing._id, {
         name: requiredText(args.name, 32),
         appearance: args.appearance,
@@ -70,7 +73,6 @@ export const upsertPalFromServer = internalMutation({
         hidden: args.hidden,
         proposalPreferences: args.proposalPreferences ?? existing.proposalPreferences ?? { memories: false, routes: true },
         updatedAt: args.now,
-        migrationBatchId: args.migrationBatchId,
       });
       return existing._id;
     }

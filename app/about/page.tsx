@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
@@ -459,6 +460,9 @@ export default async function AboutPage() {
           </li>
           <li>Pub histories cite Wikipedia and Wikidata.</li>
           <li>Mapping data is &copy; OpenStreetMap contributors.</li>
+          <li>
+            <DataCreditsLink className="aboutLink">Every source and its licence</DataCreditsLink>
+          </li>
         </ul>
       </section>
       </Screen>

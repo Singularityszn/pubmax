@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
 import {
@@ -335,6 +336,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
             <span className="ledgerListedSource">Historic England</span>
           </a>
         ) : null}
+        {listedBuilding ? <DataCreditsLink className="ledgerCredits" /> : null}
 
         <div className="ledgerHeadActions">
           <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>

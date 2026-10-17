@@ -73,7 +73,7 @@ describe("Tonight's open plans and Drink Wall", () => {
     for (const input of [null, body({})]) {
       const html = render(input);
       expect(html).toContain('data-testid="tonight-drink-wall"');
-      expect(html).toMatch(/href="\/wall"[^>]*>Browse the wall</);
+      expect(html).toMatch(/href="\/wall"[^>]*>See the photos</);
     }
   });
 });

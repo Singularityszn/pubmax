@@ -96,7 +96,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (body.enabled !== true && body.enabled !== false) {
-    return publicApiError("Say whether Step Out is on or off.", "INVALID_REQUEST", 400);
+    return publicApiError("Say whether the weekly nudge is on or off.", "INVALID_REQUEST", 400);
   }
 
   try {

@@ -61,6 +61,8 @@ export function parsePermalinkSlug(slug: string): PermalinkSlugParts | null {
 export type PermalinkVenueCandidate = {
   id: string;
   name: string;
+  /** The dataset's own name when it carries an operator suffix, so its old slug still resolves. */
+  sourceName?: string;
   searchText?: string;
 };
 

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Regression guard for the map's phone Tonight surface (owner bug: opening it
 // gave a sheet whose lane content was absolutely positioned for the map edge —
@@ -94,7 +95,7 @@ for (const theme of ["light", "dark"] as const) {
     expect(response?.status()).toBe(200);
     await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 30_000 });
 
-    await page.getByRole("button", { name: "More map controls" }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
     await expect(sheet).toBeVisible();
     await sheet.getByRole("tab", { name: "Events" }).click();

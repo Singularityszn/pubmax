@@ -400,6 +400,15 @@
       "lcpMs": 300
     },
     {
+      "path": "/credits",
+      "readySelector": "main.legalPage",
+      "why": "Every outside source with its licence and credit, linked from the footer and from every surface that prints a credit. It shares the legal shell and composes nothing per request, so it takes the same floor as /how-we-estimate. Measured 16 Oct 2026 on a production build of this branch, five samples beside /privacy, /terms and /how-we-estimate: server render 16 ms, 835 KB decoded JS, 31 requests, LCP median 372 ms (worst 412).",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 910,
+      "requests": 37,
+      "lcpMs": 500
+    },
+    {
       "path": "/how-we-estimate",
       "readySelector": "main.legalPage",
       "why": "The authority page every estimated price links to. It shares the legal shell and composes nothing per request, so it sits on the same floor as /privacy and /terms.",

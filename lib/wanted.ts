@@ -187,7 +187,7 @@ export function validateWantedCreate(input: {
       ? input.ownerActor
       : "";
   if (!ownerActor) {
-    return { ok: false, error: "Sign in to save a Wanted place." };
+    return { ok: false, error: "Sign in to save a pub to try." };
   }
 
   const venueId = cleanText(input.venueId, MAX_WANTED_VENUE_ID);
@@ -268,7 +268,7 @@ export function validateWantedCreate(input: {
 /** Quiet fulfilment line for the UI — one honest sentence, no theatre. */
 export function wantedFulfilledLine(venueName: string): string {
   const name = cleanText(venueName, MAX_WANTED_VENUE_NAME) || "that pub";
-  return `Wanted, done: you made it to ${name}.`;
+  return `Ticked off: you made it to ${name}.`;
 }
 
 /** Honest label for a pending (unresolved) Wanted. */

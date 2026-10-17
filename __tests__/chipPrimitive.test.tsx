@@ -55,9 +55,12 @@ describe("the Chip primitive", () => {
   it("carries the chosen state on aria-pressed, so the state and the label agree", () => {
     expect(chipCss).toMatch(/\.uiChip\[aria-pressed="true"\]/);
     const chosen = chipCss.match(/\.uiChip\[aria-pressed="true"\]\s*{([^}]*)}/)?.[1] ?? "";
-    // The quiet active tint, never the painted primary: a chip row is a
-    // refinement and the loud fill belongs to the screen's one primary.
-    expect(chosen).toMatch(/background:\s*var\(--control-tint-surface/);
+    // The neutral selected row, never the painted primary and never a coral
+    // tint: a chip row is a refinement and coral belongs to the screen's one
+    // primary (docs/DESIGN_SYSTEM.md "Coral is spent twice").
+    expect(chosen).toMatch(/background:\s*var\(--state-selected-surface\)/);
+    expect(chosen).toMatch(/color:\s*var\(--state-selected-ink\)/);
+    expect(chosen).not.toMatch(/--(?:brass|color-accent|accent-action|control-tint)/);
   });
 });
 

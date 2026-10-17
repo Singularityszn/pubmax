@@ -173,7 +173,7 @@ test.describe("mobile map tile paint", () => {
 
     await page.goto("/map");
     await expectMobileMapShellReady(page, 45_000);
-    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 15_000 });
     await expect(page.locator(".createFab")).toBeVisible();

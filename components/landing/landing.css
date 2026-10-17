@@ -61,23 +61,23 @@ body:has(.lp) {
   align-items: center;
   gap: 9px;
   color: var(--ink);
-  font: 750 15px/1 var(--font-display);
-  letter-spacing: -.02em;
+  font: 750 1.02rem/1 var(--font-display);
+  letter-spacing: -.025em;
   text-decoration: none;
 }
 
 .lpWordmark .pubmaxxWordmark { max-width: 100%; }
 
-.lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
+.lpPrimaryNav { display: flex; justify-content: flex-start; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
   min-height: 44px;
-  padding: 0 13px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 0.84rem;
+  font-weight: 600;
   text-decoration: none;
 }
 .lpPrimaryNav a:hover { color: var(--ink); background: var(--panel); }
@@ -122,14 +122,19 @@ body:has(.lp) {
    the grid starts under the nav rather than floating at the vertical centre.
    Both grids share one column template, so the rail lines up under the
    answer. The head's third row is the flexible one, so the answer's height
-   never opens the gap between the kicker and the heading. */
+   never opens the gap between the kicker and the heading.
+
+   Beneath the head, the pub card takes the left column under the copy and
+   the rail the right one under the picture. Both used to stack in the right
+   column, so the left sat empty for some 700px under four lines of copy
+   while the page ran on down the right. DOM order (the phone order) is
+   untouched: this is grid areas only, never `order`. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
     grid-template-areas:
       "head head"
-      ". card"
-      ". rail";
+      "card rail";
     column-gap: clamp(28px, 4vw, 56px);
     row-gap: var(--space-4);
     align-content: start;
@@ -371,28 +376,23 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpDrops:empty { display: none; }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
-.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
+.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-body); }
 .dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
    container a keyboard could never reach: it shows four placeholder cards and
    nothing past them. */
-.dropStripRailStatic { overflow-x: hidden; }
 /* The rail is a tab stop (PintDropStrip.tsx), so it wears the same ring every
    other focusable thing on this page does. */
 .dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
 .dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
 .dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-data); }
+.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
 .dropStripPrice { flex: 0 0 auto; }
 .dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }
 .dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-data); }
+.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
 .provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
 .dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
-.dropStripCardSkeleton { gap: 15px; }
-.skelLine { height: 10px; border-radius: var(--radius-pill); background: var(--line-soft); animation: lpSkeleton var(--duration-ambient) ease-in-out infinite alternate; }
-.skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
-@keyframes lpSkeleton { to { opacity: .42; } }
 
 /* ── Footer: directory, disclosure, small print ─────────────────────────── */
 
@@ -403,15 +403,15 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFooterProvenance { margin: 20px 0 0; max-width: 640px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
 .lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-data); letter-spacing: .04em; }
+.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-body); letter-spacing: .01em; }
 .lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
 .lpFooterCol a:hover { color: var(--ink); }
 .lpFooterBase { width: min(var(--lp-max), 100%); margin: clamp(32px, 5vw, 56px) auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
-.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
+.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-body); letter-spacing: .01em; text-decoration: none; }
 .lpFooterSmallPrint a:hover { color: var(--ink); }
-.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-data); letter-spacing: .02em; }
-.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
+.lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-body); }
+.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-body); }
 /* The drinkaware link takes the footer's own ink, never the browser's blue. */
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 .lpFooterLegal a:hover { color: var(--ink); }
@@ -420,7 +420,11 @@ a.lpPubPint:hover { color: var(--ink); }
 /* Desktop width: prose sections and the drops rail use the wide token instead
    of leaving a single narrow column floating in 1920px of paper. */
 @media (min-width: 1024px) {
-  .lpWorth {
+  /* The split is for a heading beside its copy. The section carries no
+     kicker or h2 today (it is one sentence and a link), and with the split
+     always on, that sentence sat alone in the right column beside an empty
+     left one. Without a heading it reads as one block from the gutter. */
+  .lpWorth:has(> h2) {
     display: grid;
     grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
     column-gap: clamp(40px, 5vw, 72px);
@@ -464,12 +468,26 @@ a.lpPubPint:hover { color: var(--ink); }
    NO primary navigation at all: six links rendered at 0x0 and no dock under
    them. The links now stay to 641px in the same compact cut the in-app bar
    takes on that band (siteNav.css, "the tablet band"): tighter gaps, the
-   0.78rem label, 6px side padding. Measured at 641px: brand, six links and
+   0.74rem label, 6px side padding. Measured at 641px: brand, six links and
    the four-control action island fit the bar with room to spare. */
+/* One bar from the front door to every app page (siteNav.css, "Shared top-bar
+   FRAME tokens"). Its contents differ by design, since Social and the compose
+   action are not front doors, but the frame does not: the same 1100px capsule,
+   the wordmark at the same size, and the link row starting beside it in the
+   same label type, rather than a wider pill whose links sat in its centre. */
+@media (min-width: 641px) {
+  .lpNav { width: min(1100px, 100vw - 48px); }
+}
+
+/* SiteNav's lower-tablet band (siteNav.css) widens its capsule to a 24px
+   inset from 641px to 767px. Mirror it, after the phone frame below so it
+   wins on 641 to 700 too, or the bar narrowed by 24px (and by 4px under 701)
+   on the way from the front door into the app. */
+
 @media (max-width: 960px) {
   .lpNav { gap: 10px; padding-left: 12px; }
   .lpPrimaryNav { gap: 0; }
-  .lpPrimaryNav a { padding: 0 6px; font-size: 0.78rem; }
+  .lpPrimaryNav a { padding: 0 6px; font-size: 0.74rem; }
 }
 
 /* Under 641px the six-tab dock owns primary navigation, so the link row goes. */
@@ -784,3 +802,9 @@ a.lpPubPint:hover { color: var(--ink); }
 }
 
 .lpFaqAnswer { margin: var(--space-2) 0 0; }
+
+/* Lower-tablet bar width, mirrored from siteNav.css; see the frame note above.
+   Last in the file so it outranks the phone frame's calc(100vw - 20px). */
+@media (min-width: 641px) and (max-width: 767px) {
+  .lpNav { width: min(1100px, 100vw - 24px); }
+}
