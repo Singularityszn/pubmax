@@ -12,18 +12,22 @@ permissions:
   contents: read
 
 concurrency:
-  # A newer pull request head supersedes older runs of this workflow.
-  # Main, nightly and dispatch runs finish.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  # One group per pull request: a newer head cancels that pull request's
+  # older run. Every other run (main push, schedule, dispatch) gets a
+  # group of its own, so GitHub never drops it while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 
 jobs:
   law-pins:
     name: Browser law pins
-    # Law pins were proved on macOS font metrics. Ubuntu wraps the landing
-    # hero one line further, so this job stays on macos-latest.
-    runs-on: macos-latest
+    # ubuntu-latest: the free plan runs about 20 Linux jobs at once but only
+    # 5 macOS jobs, and the macOS queue held every pull request's browser run.
+    # These journeys passed on Linux (16 Oct 2026). The one law pin that
+    # measures phone chrome geometry, e2e/mobile-map-chrome-fit.spec.ts, lost
+    # 7px at 320px to Linux glyph widths, so it runs with the layout pins.
+    runs-on: ubuntu-latest
     timeout-minutes: 46
     # Each hosted runner is its own machine, so browser jobs are not queued
     # behind one another. One worker stays: four killed the single production
@@ -106,7 +110,6 @@ jobs:
           e2e/plan-held-acceptance.spec.ts
           e2e/map-surface-history.spec.ts
           e2e/surface-back-and-home.spec.ts
-          e2e/mobile-map-chrome-fit.spec.ts
           e2e/visit-reports.spec.ts
           e2e/landing-find-my-pint.spec.ts
           e2e/out-tab.spec.ts
@@ -135,6 +138,9 @@ jobs:
     # that measure them run on every pull request. They are cut into three
     # shards on separate runners, one worker each, so the law pins above keep
     # their own clock.
+    # They stay on macos-latest. The specs were proved on macOS glyph widths,
+    # and on ubuntu-latest (16 Oct 2026) four of them failed on a measured
+    # edge, for example 7px short at 320px.
     runs-on: macos-latest
     timeout-minutes: 40
     strategy:
@@ -241,6 +247,7 @@ jobs:
           e2e/mobile-feed-actions.spec.ts
           e2e/mobile-first-run-tour.spec.ts
           e2e/mobile-landing-entry.spec.ts
+          e2e/mobile-map-chrome-fit.spec.ts
           e2e/mobile-map-controls.spec.ts
           e2e/mobile-map-first-visit.spec.ts
           e2e/mobile-map-search.spec.ts
@@ -288,7 +295,9 @@ jobs:
     timeout-minutes: 45
     # A hosted macOS runner gives Playwright one worker. Two shards of about
     # 645 tests each did not finish inside the 45-minute ceiling (4 Oct 2026
-    # nightly and dispatch), so the suite is cut into four instead.
+    # nightly and dispatch), so the suite is cut into four instead. It stays
+    # on macOS: on ubuntu-latest (16 Oct 2026) it failed 19 more tests than
+    # the macOS nightly, most of them layout measures.
     strategy:
       fail-fast: false
       matrix:
