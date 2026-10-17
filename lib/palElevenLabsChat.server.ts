@@ -145,6 +145,14 @@ export async function runPalElevenLabsChatTurn(
   const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
+  // The signed URL and the owner's memories depend on neither the earlier asks
+  // nor the fence, so both leave now and travel under the prior-turn read and
+  // the fence check instead of queueing behind them. Neither ever rejects. A
+  // fenced turn drops the URL unused: no socket is opened, so no conversation
+  // starts on it.
+  const sessionRead = fetchPalSignedConversation({ apiKey, agentId });
+  // Read from the signed-in owner's own Pal, never from the request body.
+  const memoriesRead = readConfirmedPalMemories(input.ownerId);
   let prior: PriorSession;
   try {
     prior = await priorOwnedSession(input.threadId, input.ownerId);
@@ -168,13 +176,25 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
-  const memoriesRead = readConfirmedPalMemories(input.ownerId);
-
-  const session = await fetchPalSignedConversation({ apiKey, agentId });
+  const session = await sessionRead;
   if (!session.ok) return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   const signedUrl = session.signedUrl;
-  const memories = await memoriesRead;
+  const registerTurn = (id: string) =>
+    registerPubPalToolTurn(id, {
+      query,
+      cityId,
+      ownerId: input.ownerId,
+      turns,
+      summary: prior.summary,
+    });
+  // The signed URL already names the conversation, so the turn is registered
+  // while the socket opens rather than after the agent's metadata arrives. The
+  // metadata is still what decides: a different id there registers that one.
+  const earlyConversationId = session.conversationId;
+  const earlyRegistration = registerTurn(earlyConversationId);
+  // Awaited below; this only stops a socket that fails first from leaving the
+  // rejection unhandled.
+  earlyRegistration.catch(() => {});
 
   return new Promise((resolve) => {
     let settled = false;
@@ -330,13 +350,13 @@ export async function runPalElevenLabsChatTurn(
               finish({ ok: false, code: "UNAVAILABLE" });
               return;
             }
-            await registerPubPalToolTurn(conversationId, {
-              query,
-              cityId,
-              ownerId: input.ownerId,
-              turns,
-              summary: prior.summary,
-            });
+            const [, memories] = await Promise.all([
+              conversationId === earlyConversationId
+                ? earlyRegistration
+                : registerTurn(conversationId),
+              memoriesRead,
+            ]);
+            if (settled) return;
             userMessageSent = true;
             ws.send(
               JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories) }),

@@ -112,6 +112,17 @@ export async function invokePubPalAskTool(input: {
   const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
+  // The fence decides what the agent hears, never what the tool reads, and both
+  // can take seconds, so they run together. A fenced turn drops the tool's
+  // answer unread: nothing from it is appended, spoken or returned.
+  const toolRun = runAskTool(input.toolName as AskToolName, args, {
+    cityId,
+    query,
+    skipModel: true,
+  });
+  // Awaited below on the unfenced path; this only keeps a fenced turn's
+  // discarded run from surfacing as an unhandled rejection.
+  toolRun.catch(() => {});
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
@@ -139,11 +150,7 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await runAskTool(input.toolName as AskToolName, args, {
-    cityId,
-    query,
-    skipModel: true,
-  });
+  const toolResult = await toolRun;
 
   if (input.conversationId) {
     await appendPubPalToolTurn(input.conversationId, {
