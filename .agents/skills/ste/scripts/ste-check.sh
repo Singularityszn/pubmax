@@ -253,6 +253,10 @@ END {
     for (j = 1; j <= ntk; j++) {
       t = tk[j]; gsub(/^[\x27-]+|[\x27-]+$/, "", t)
       if (t == "") continue
+      # GR-8 permits the possessive, so a word plus apostrophe-s is checked as
+      # the bare word. A pronoun or adverb plus apostrophe-s (it, there, let)
+      # is a contraction, as is every other apostrophe form.
+      if (t ~ /^[A-Za-z-]+\x27[sS]$/ && lc(t) !~ /^(it|that|there|here|what|who|where|when|how|he|she|let|this)\x27s$/) sub(/\x27[sS]$/, "", t)
       if (t ~ /\x27/) { contr[lc(t)] = contr[lc(t)] i ","; continue }
       if (t ~ /[0-9]/ || t == "xIDTOKx") continue
       if (length(t) == 1) { if (lc(t) == "i") flag_i = flag_i i ","; continue }
@@ -311,7 +315,7 @@ function register_ann(tok, lineno,   ty, cat, w) {
   ty = substr(ty, 1, 2)
   if (cat != "") {
     if (ty == "tn" && (cat+0 < 1 || cat+0 > 22 || cat !~ /^[0-9]+$/)) { printf "ste-check: invalid TN category %s on line %d\n", cat, lineno > "/dev/stderr"; annerr = 1 }
-    if (ty == "tv" && (substr(cat,1,1)+0 < 1 || substr(cat,1,1)+0 > 4)) { printf "ste-check: invalid TV category %s on line %d\n", cat, lineno > "/dev/stderr"; annerr = 1 }
+    if (ty == "tv" && cat !~ /^[1-4][a-z]?$/) { printf "ste-check: invalid TV category %s on line %d\n", cat, lineno > "/dev/stderr"; annerr = 1 }
   }
   anns[lc(w)] = ty; anncat[lc(w)] = cat; annline[lc(w)] = lineno
   if (w ~ / /) { annph[lc(w)] = 1; k_ = split(w, tmp_, " "); if (k_ > maxph) maxph = k_ }
