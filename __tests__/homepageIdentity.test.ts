@@ -41,7 +41,7 @@ describe("homepage identity", () => {
     const organization = siteJsonLd.find(
       (node) => node["@type"] === "Organization",
     );
-    expect(organization?.logo).toBe("https://pubmaxxing.com/brand/icon.svg");
+    expect(organization?.logo).toBe("https://pubmaxxing.com/brand/icon-512.png");
     expect(organization?.alternateName).toContain("PubMaxxing");
   });
 

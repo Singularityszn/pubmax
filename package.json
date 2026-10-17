@@ -120,6 +120,8 @@
     "harvest:uk-menu-urls": "tsx scripts/harvest/uk-prices/menu-urls.mjs",
     "harvest:uk-prices-rendered": "tsx scripts/harvest/uk-prices/render.mjs",
     "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs",
+    "harvest:uk-food": "node --conditions=react-server --import tsx scripts/harvest/uk-food/run.mjs",
+    "build:food-price-updates": "node --conditions=react-server --import tsx scripts/build_food_price_updates.mjs",
     "build:price-bands": "tsx scripts/build_price_bands.mjs",
     "build:discover-board": "tsx scripts/build_discover_board.mjs",
     "arize:smoke": "tsx scripts/arizeSmoke.ts",

@@ -1,9 +1,9 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-
 const VIEW_PATH = "/soft-drinks-and-water";
-const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
+// Each listed row is dated by its own menu read ("Collected 17 October 2026"),
+// so the date is matched by shape, not pinned to one dataset day.
+const COLLECTED_ON_A_DAY = /Collected \d{1,2} [A-Z][a-z]+ \d{4}/;
 
 test.describe("Soft drinks and water view", () => {
   test.beforeEach(async ({ page }) => {
@@ -47,13 +47,13 @@ test.describe("Soft drinks and water view", () => {
     await page.getByRole("tab", { name: "Still water" }).click();
     await page.getByRole("tab", { name: "Lucia 🐐" }).click();
 
-    const pricedMeta = page.locator(".softDrinksWater__meta", {
-      hasText: `Collected ${COLLECTED_DAY}`,
-    });
-    const pricedCount = await pricedMeta.count();
+    const prices = page.locator(".softDrinksWater__price");
+    const pricedCount = await prices.count();
     if (pricedCount > 0) {
-      await expect(pricedMeta.first()).toBeVisible();
-      await expect(page.locator(".softDrinksWater__price").first()).toBeVisible();
+      await expect(prices.first()).toBeVisible();
+      await expect(
+        page.locator(".softDrinksWater__meta", { hasText: COLLECTED_ON_A_DAY }).first(),
+      ).toBeVisible();
       await expect(page.getByText("No price yet", { exact: false }).first()).toBeVisible();
       await expect(page.getByRole("link", { name: "add one" }).first()).toBeVisible();
     } else {

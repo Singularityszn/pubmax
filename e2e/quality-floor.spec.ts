@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+
+import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
+import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 
@@ -25,11 +28,12 @@ import { mobileMapShellControl } from "./helpers/mobileMapShell";
 const RAW_VENUE_ID = /venue-[a-z0-9]+/;
 
 // The budget for a journey that opens /map. Its own waits do not fit the 30s
-// default: a 20s mount wait, then the map's loading frame, which a canvas that
-// never answers holds for the shell's readiness ceiling (helpers/mobileMapShell.ts).
-// On a slow macOS runner (13 Oct 2026, #2092) /map took most of 30s to come up,
-// so the non-alcoholic test ran out of time mid-toggle and the POI test passed
-// at 28.2s; the toggles themselves settle in under half a second.
+// default: the map's loading frame, which a canvas that never answers holds for
+// the shell's readiness ceiling (helpers/mobileMapShell.ts), then hydration, the
+// planner or sheet, and the flips. On a slow macOS runner (13 Oct 2026, #2092)
+// /map took most of 30s to come up, so the non-alcoholic test ran out of time
+// mid-toggle and the POI test passed at 28.2s; the toggles themselves settle in
+// under half a second.
 const MAP_JOURNEY_TIMEOUT_MS = 90_000;
 
 // ---------------------------------------------------------------------------
@@ -179,15 +183,25 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  // PubMap is a client component — wait for the map region to mount (proof it
-  // hydrated) before driving the toolbar. WebGL-agnostic: canvas OR fallback.
-  await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
+  // PubMap is a client component, and `.mapCanvasWrap` is already on the
+  // loading skeleton, so it proves nothing. A live (editable) toolbar search is
+  // the desktop's own hydration signal. WebGL-agnostic: never reads the canvas.
+  await expectMapToolbarReady(page);
 
-  // Open the desktop planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: "Plan an outing" });
-  await expect(planBtn).toBeVisible();
-  await planBtn.click();
+  // Open the desktop planner so the control rail's filter toggles become
+  // visible. Plan an outing relabels itself once the planner opens, so a retry
+  // taps it only while the planner is still closed (e2e/AGENTS.md: a lone click
+  // is not a wait for hydration).
+  const planBtn = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+  await expect(async () => {
+    if ((await desktopPlannerDrawer(page).getAttribute("aria-hidden")) !== "false") {
+      await planBtn.click();
+    }
+    await expect(desktopPlannerDrawer(page)).toHaveAttribute("aria-hidden", "false", {
+      timeout: 2_000,
+    });
+  }).toPass({ timeout: 30_000 });
+  await expectSoleDesktopDrawer(page, "planner", 30_000);
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 

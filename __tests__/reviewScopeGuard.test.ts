@@ -398,6 +398,41 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual([]);
   });
 
+  it("permits the NHLE listings pack when the diff carries its builder", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_heritage_listings.mjs",
+      "public/data/heritage_listings.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["heritage_listings"]);
+  });
+
+  it("permits heritage listings re-keyed by a dataset merge", () => {
+    const report = summarizeReviewScope([
+      "public/data/pint_prices_app_dataset.json",
+      "public/data/venue_id_aliases.json",
+      "public/data/heritage_listings.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.categories.regenerated).toEqual(["public/data/heritage_listings.json"]);
+    expect(report.regeneratedLanes).toEqual(["heritage_listings"]);
+  });
+
+  it("keeps a hand edit of the NHLE listings pack forbidden", () => {
+    const report = summarizeReviewScope([
+      "data/freshness_registry.json",
+      "public/data/heritage_listings.json",
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/heritage_listings.json" },
+    ]);
+  });
+
   it("permits generated database types when the diff carries a migration", () => {
     const report = summarizeReviewScope([
       "supabase/migrations/20260101000000_example.sql",
@@ -471,10 +506,21 @@ describe("review scope guard", () => {
     ]);
   });
 
+  // The gate exempts `.claude/skills` by path alone, so this pins what the path
+  // must be: a committed symlink to the project skill root, never a regular
+  // file or a link to another tree.
+  it("keeps .claude/skills a symlink to the project skill root", () => {
+    const entry = execFileSync("git", ["ls-files", "-s", "--", ".claude/skills"], { encoding: "utf8" }).trim();
+    const [mode, sha = ""] = entry.split(/\s+/);
+    expect(mode).toBe("120000");
+    expect(execFileSync("git", ["cat-file", "-p", sha], { encoding: "utf8" })).toBe("../.agents/skills");
+  });
+
   it("allows the project skill root and a deleted skill path outside it", () => {
     const report = summarizeReviewScope([
       { path: ".agents/skills/animate/SKILL.md", status: "A" },
       { path: ".agents/skills", status: "M" },
+      { path: ".claude/skills", status: "A" },
       { path: "skills/impeccable/SKILL.md", status: "D" },
       { path: ".cursor/skills/example/SKILL.md", status: "D" },
       { path: "lib/skills/helper.mjs", status: "D" },
@@ -489,12 +535,14 @@ describe("review scope guard", () => {
     const report = summarizeReviewScope([
       { path: "skills/example/SKILL.md", status: "A" },
       { path: ".cursor/skills/example/SKILL.md", status: "M" },
+      { path: ".claude/skills/animate/SKILL.md", status: "A" },
       { path: "lib/skills/helper.mjs", status: "R" },
       { path: ".agents/skills/animate/SKILL.md", status: "A" },
     ]);
 
     expect(report.ok).toBe(false);
     expect(report.forbidden).toEqual([
+      { category: "skill-pack", path: ".claude/skills/animate/SKILL.md" },
       { category: "skill-pack", path: ".cursor/skills/example/SKILL.md" },
       { category: "skill-pack", path: "lib/skills/helper.mjs" },
       { category: "skill-pack", path: "skills/example/SKILL.md" },
