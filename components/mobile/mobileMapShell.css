@@ -1292,7 +1292,12 @@
      row is gone (captain 6 Sep 2026), but the hug is the fix at the layout
      primitive either way: the price is the size of the price. */
   .mobileVenuePeekSummary > span > .priceBadge { justify-self: start; }
-  .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
+  /* A figure may break only at a SPACE, and a figure has none: an estimate
+     prints "est. £6.56", two words. Held to one line in the figures face it
+     needed 111px where the figure column yields to 76 on a 320px phone, and
+     ran under "Near me"; it now stacks "est." over the figure instead, and at
+     390 it still fits on one line. "Near me" keeps its own nowrap below. */
+  .mobileVenuePeekSummary strong { white-space: normal; font-family: var(--font-data); font-size: var(--text-md); }
   /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */
   .mobileVenuePeekSummary .mobileVenuePeekNearMe { white-space: nowrap; }
   /* --font-data is the figures face, and this cell prints a figure only when
