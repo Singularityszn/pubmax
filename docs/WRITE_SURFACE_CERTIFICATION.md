@@ -69,6 +69,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/profile-avatars`
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
+- `POST app/api/admin/social-videos`
 - `POST app/api/area-demand`
 - `POST app/api/auth/session`
 - `POST app/api/auth/change-password/verify`
@@ -158,6 +159,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
 - `POST app/api/social/tags`
+- `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
@@ -171,6 +173,7 @@ Protection in a sibling method cannot certify another method.
 - `PUT app/api/plans/[id]/session`
 - `PUT app/api/profiles/[handle]`
 - `PUT app/api/social/interactions`
+- `PUT app/api/social/videos/uploads/[uploadId]`
 <!-- mutation-handler-inventory:end -->
 
 ## `app/api/[[...unmatched]]`: the API tree's 404, a refusal and no boundary
@@ -1508,6 +1511,36 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   recovery PATCH answer 503. The complete journey remains in the spec for a
   future authenticated browser lane; shared doubles live in
   `e2e/helpers/authDoubles.ts`.
+
+### `app/api/social/videos/uploads` - Social video upload intents (route 96)
+
+- **Route / method:** `POST app/api/social/videos/uploads/route.ts` opens one
+  intent; `PUT app/api/social/videos/uploads/[uploadId]/route.ts` is the
+  keyless stand-in for the Storage upload URL and answers 404 whenever
+  Storage is configured.
+- **Authority:** `requireVerifiedSocialActor` derives the verified Social actor.
+  The stable profile ID owns the intent; the account ID never enters a row.
+- **Abuse control:** ten intents an hour per salted profile digest, at most
+  five open intents per profile (enforced in `create_social_video_upload`),
+  and the Social freeze runs first. The keyless PUT shares the intent's owner
+  check and size ceiling.
+- **Validation:** a listed type (MP4, MOV, WebM) and a size from 1 byte to
+  100 MB. The object key is made by the database, never by the caller. Before
+  a post may bind the intent, `POST app/api/social/posts` reads the stored
+  object's real size and leading bytes and refuses anything that is not the
+  declared container.
+- **Moderation:** a bound video starts held. Its author sees it; nobody else
+  does until named staff approve it through `app/api/admin/social-videos`.
+
+### `app/api/admin/social-videos` - held Social video review (route 97)
+
+- **Route / method:** `GET` and `POST app/api/admin/social-videos/route.ts`.
+- **Authority:** `isModerator` accepts the admin header or session cookie,
+  as `app/api/admin/social-posts` does.
+- **Abuse control:** an IP-digest limiter of 60 decisions per window before
+  the moderator check.
+- **Validation:** a post UUID and a decision of `approved` or `rejected`,
+  nothing else. `review_social_post_video` refuses any other word.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

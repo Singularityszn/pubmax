@@ -7,6 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
+
 type HeldVideo = { postId: string; contentType: string; byteSize: number; createdAt: string };
 type LoadState = "loading" | "ready" | "unavailable";
 
@@ -25,6 +27,7 @@ export default function SocialVideoModeration() {
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/social-videos", SESSION_FETCH);
+      if (!response.ok) discardBody(response);
       const body = response.ok ? (await response.json()) as { videos?: HeldVideo[] } : null;
       setVideos(body?.videos ?? []);
       setState(body ? "ready" : "unavailable");
@@ -47,6 +50,7 @@ export default function SocialVideoModeration() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId, decision }),
       });
+      discardBody(response);
       if (!response.ok) throw new Error("refused");
       setVideos((current) => current.filter((video) => video.postId !== postId));
     } catch {

@@ -82,6 +82,8 @@ import { publicSocialConnection, type PublicSocialConnection } from "@/lib/socia
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { socialPostStore } from "@/lib/socialPostStore";
+import { socialPostReviewStore } from "@/lib/socialPostReviewStore";
+import { socialPostVideoStore } from "@/lib/socialPostVideoStore";
 import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
@@ -242,7 +244,21 @@ function storeDeps(): AccountExportDeps {
     memories: (userId) => listNightMemories(userId),
     moments: (userId, memoryId) => listNightMoments(userId, memoryId),
     visitReports: (handle) => visitReportsStore().listForContributor(handle),
-    socialPosts: (owner, limit) => socialPostStore().listOwned(owner, limit),
+    async socialPosts(owner, limit) {
+      // A score and a video are rows of their own (0181, 0182) that belong to
+      // the post, so they ride the post into the file rather than a lane.
+      const posts = await socialPostStore().listOwned(owner, limit);
+      const ids = posts.map((post) => post.id);
+      const [reviews, videos] = await Promise.all([
+        socialPostReviewStore().forPosts(ids),
+        socialPostVideoStore().forPosts(ids, owner),
+      ]);
+      return posts.map((post) => ({
+        ...post,
+        review: reviews.get(post.id) ?? null,
+        video: videos.get(post.id) ?? null,
+      }));
+    },
     crowdReports: (userId, limit) => occupancyStore().listForReporter(userId, limit),
     wallPhotos: (profileId) => venuePhotoStore().listForAuthor(profileId),
     coverPhotos: (profileId) => profileCoverPhotoStore().listApproved(profileId),
@@ -344,6 +360,10 @@ function exportSocialPost(post: SocialPostDTO): AccountExportSocialPost {
     hashtags: [...post.hashtags],
     commentPolicy: post.commentPolicy,
     photo: post.photo ? { mediaId: post.photo.mediaId, altText: post.photo.altText } : null,
+    review: post.review ? { rating: post.review.rating } : null,
+    video: post.video
+      ? { contentType: post.video.contentType, durationSeconds: post.video.durationSeconds, reviewState: post.video.reviewState }
+      : null,
     moderationState: post.moderationState,
     createdAt: post.createdAt,
     editedAt: post.editedAt,

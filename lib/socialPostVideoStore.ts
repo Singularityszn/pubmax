@@ -28,16 +28,16 @@ export class SocialPostVideoError extends Error {
   }
 }
 
-export type SocialVideoUploadTicket = {
+type SocialVideoUploadTicket = {
   uploadId: string;
   /** PUT the file here with its own Content-Type. */
   uploadUrl: string;
 };
 
 /** What Storage actually holds for an intent: its size and first bytes. */
-export type SocialVideoObject = { byteSize: number; head: Uint8Array; contentType: SocialVideoType };
+type SocialVideoObject = { byteSize: number; head: Uint8Array; contentType: SocialVideoType };
 
-export type HeldSocialVideo = { postId: string; authorProfileId: string; contentType: SocialVideoType; byteSize: number; createdAt: string };
+type HeldSocialVideo = { postId: string; authorProfileId: string; contentType: SocialVideoType; byteSize: number; createdAt: string };
 
 export type SocialPostVideoStore = {
   createUpload(actor: VideoActor, contentType: SocialVideoType, declaredBytes: number): Promise<SocialVideoUploadTicket>;
@@ -172,7 +172,7 @@ async function signedPlayback(objectKey: string): Promise<{ redirect: string } |
   return error || !data?.signedUrl ? null : { redirect: data.signedUrl };
 }
 
-export const supabaseSocialPostVideoStore: SocialPostVideoStore = {
+const supabaseSocialPostVideoStore: SocialPostVideoStore = {
   async createUpload(actor, contentType, declaredBytes) {
     return durableOrMemory(async () => {
       const admin = requireSupabaseAdmin();

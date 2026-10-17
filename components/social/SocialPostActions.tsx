@@ -4,6 +4,7 @@ import { Bookmark, Flag, MessageCircle, Beer } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { relativeTime } from "@/lib/relativeTime";
 
 type Summary = {
@@ -96,6 +97,7 @@ export default function SocialPostActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "desired", postId, kind }),
       }, { requiresIdentity: true });
+      discardBody(response);
       if (!response.ok) throw new Error("refused");
     } catch {
       setSummary(previous);
@@ -116,7 +118,10 @@ export default function SocialPostActions({
         headers: { "Content-Type": "application/json", "Idempotency-Key": commentKey.current },
         body: JSON.stringify({ action: "comment", postId, body }),
       }, { requiresIdentity: true });
-      if (!response.ok) throw new Error("refused");
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("refused");
+      }
       const result = (await response.json()) as { comment?: Comment };
       commentKey.current = requestKey();
       setDraft("");
@@ -138,6 +143,7 @@ export default function SocialPostActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "report", kind: "post", id: postId, reason }),
       }, { requiresIdentity: true });
+      discardBody(response);
       setNotice(response.ok ? "Reported. The team reads every report." : "That report did not send. Try again.");
     } catch {
       setNotice("That report did not send. Try again.");

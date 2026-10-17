@@ -425,6 +425,8 @@ describe("buildAccountExport", () => {
         hashtags: ["snug"],
         commentPolicy: "open",
         photo: { mediaId: "media-1", altText: "A back room with a fire" },
+        review: null,
+        video: null,
         moderationState: "approved",
         createdAt: "2026-09-04T21:00:00.000Z",
         editedAt: "2026-09-04T22:00:00.000Z",
@@ -846,7 +848,9 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostConsentStore.ts": {
     excluded: "One consent stamp per post, read back through the post itself.",
   },
+  "lib/socialPostReviewStore.ts": { lane: "socialPosts" },
   "lib/socialPostStore.ts": { lane: "socialPosts" },
+  "lib/socialPostVideoStore.ts": { lane: "socialPosts" },
   "lib/stepOutNudgeStore.ts": {
     excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
   },

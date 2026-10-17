@@ -119,6 +119,10 @@ export type AccountExportSocialPost = {
   hashtags: string[];
   commentPolicy: string;
   photo: { mediaId: string; altText: string } | null;
+  /** The account's own score for the pub the post names (ADR 0017), or null. */
+  review: { rating: number } | null;
+  /** The post's video, named by its state rather than its bytes, or null. */
+  video: { contentType: string; durationSeconds: number | null; reviewState: string } | null;
   /** `pending`, `approved` or `needs_review`: where the moderation lane last left it. */
   moderationState: string;
   createdAt: string;

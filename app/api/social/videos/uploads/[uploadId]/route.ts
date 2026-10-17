@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { isLimited } from "@/lib/pintDrops";
+import { hashActor } from "@/lib/supabase";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { memoryVideoUploadReceiver } from "@/lib/socialPostVideoStore";
 import { SOCIAL_VIDEO_MAX_BYTES } from "@/lib/socialPostVideos";
@@ -21,6 +23,10 @@ export async function PUT(request: Request, context: Context): Promise<Response>
   if (!receiver) return publicApiError("Upload not found.", "NOT_FOUND", 404, { headers: NO_STORE });
   const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: NO_STORE });
+  const key = `social-video-receive:${hashActor(access.actor.profileId)}`;
+  if (await isLimited(key, key, 10, 60 * 60_000)) {
+    return publicApiError("Too many videos for now. Try again later.", "RATE_LIMITED", 429, { retryable: true, headers: NO_STORE });
+  }
   const { uploadId } = await context.params;
   if (!UUID.test(uploadId)) return publicApiError("Upload not found.", "NOT_FOUND", 404, { headers: NO_STORE });
   const declared = Number(request.headers.get("content-length") ?? "0");

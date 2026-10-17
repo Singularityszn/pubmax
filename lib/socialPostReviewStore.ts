@@ -87,7 +87,7 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
   }
 }
 
-export const supabaseSocialPostReviewStore: SocialPostReviewStore = {
+const supabaseSocialPostReviewStore: SocialPostReviewStore = {
   async attach(actor, post, rating) {
     return durableOrMemory(async () => {
       const { data, error } = await requireSupabaseAdmin().rpc("attach_social_post_review", {
