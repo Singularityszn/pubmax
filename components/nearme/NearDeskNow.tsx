@@ -85,7 +85,7 @@ function DeskCardList({ cards }: { cards: DeskCard[] }) {
   const rest = cards.slice(1);
   if (rest.length === 0) return null;
   return (
-    <ol className="nmnList" aria-label="More desks nearby">
+    <ol className="nmnList" aria-label="More work spots nearby">
       {rest.map((card) => (
         <li key={card.id}>
           <article className="ndnCard">
@@ -285,12 +285,12 @@ export default function NearDeskNow({
   return (
     <section
       className="nmn"
-      aria-label="Find a desk nearby"
+      aria-label="Find a work spot nearby"
       {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
     >
       {state === "idle" ? (
         /* The /near head in Desk mode: the same Screen primitive as Pint
-           (docs/design/LAUNCH_SCREENS.md), with Find a desk as its one primary. */
+           (docs/design/LAUNCH_SCREENS.md), with Find a work spot as its one primary. */
         <Screen
           as="div"
           className="nmnScreen"
@@ -299,11 +299,11 @@ export default function NearDeskNow({
           titleId="near-title"
           primary={
             <button type="button" onClick={locate}>
-              <LocateFixed size={18} aria-hidden="true" /> Find a desk
+              <LocateFixed size={18} aria-hidden="true" /> Find a work spot
             </button>
           }
         >
-          <p className="nmnHint">We only use your location to rank desks nearby. Nothing is stored.</p>
+          <p className="nmnHint">We only use your location to rank work spots nearby. Nothing is stored.</p>
           <div className="nmnQuickPatches">
             <p className="nmnQuickPatchesLabel">Or pick a patch</p>
             <ul className="nmnAreaChips" aria-label="Pick an area">
@@ -327,8 +327,8 @@ export default function NearDeskNow({
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
           {patch
-            ? `Checking desks around ${patch.label}…`
-            : "Checking desks near you…"}
+            ? `Checking work spots around ${patch.label}…`
+            : "Checking work spots near you…"}
         </div>
       ) : null}
 
@@ -365,7 +365,7 @@ export default function NearDeskNow({
             <h2>{headline}</h2>
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {answer.scope === "widened" ? (
-              <p className="nmnWiden">Not many desks on your doorstep. These are a bit further out.</p>
+              <p className="nmnWiden">Not many work spots on your doorstep. These are a bit further out.</p>
             ) : (
               <p className="nmnSub">Within about a 12-minute walk.</p>
             )}

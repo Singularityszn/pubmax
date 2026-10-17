@@ -21,6 +21,7 @@ const card: LandingPubCardData = {
   id: "venue-test",
   name: "The Blackfriar",
   area: "City of London",
+  primaryBorough: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
   drinkHref: "/drink/pravha" as Route,
@@ -110,10 +111,11 @@ describe("landing answer card copy", () => {
     expect(unread).toContain("collected 21 August 2026.");
   });
 
-  it("asks Still £X? of the pub on the card, as the first QUIET door", () => {
+  it("opens the card pub's composer holding its figure, as the first QUIET door", () => {
     // The receipt door stopped being the primary on 7 Sep 2026: it ends in a
-    // sign-in ask, and /near answers a stranger with no wall at all.
-    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Still £6\.50\?<\/a>/);
+    // sign-in ask, and /near answers a stranger with no wall at all. Its label
+    // says what the tap does (UX audit 16 Oct 2026).
+    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?sel=venue-test&amp;log=1&amp;price=6\.50"[^>]*>Log what you paid<\/a>/);
     expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/);
   });
 });

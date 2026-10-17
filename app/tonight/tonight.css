@@ -320,10 +320,12 @@
   transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
 }
 
+/* Chosen is a selection, so it reads in ink, never coral
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
 .tonightChip[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 80%, var(--line));
-  background: color-mix(in srgb, var(--brass) 20%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
   font-weight: 800;
 }
 
@@ -334,7 +336,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tonightChip:hover {
-    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+    border-color: var(--state-selected-border);
     color: var(--ink);
   }
 }
@@ -613,6 +615,12 @@
       calc(var(--create-fab-lane) - var(--page-gutter))
     );
   }
+
+  /* The status line runs to the gutter, and its way back to the map sat
+     under the control at rest (UX sprint, 15 Oct 2026, 390x844). */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .tonightStatus {
+    padding-right: calc(var(--create-fab-lane) - var(--page-gutter));
+  }
 }
 
 .tonightSoftPlansIcon {
@@ -823,10 +831,16 @@
 /* While the listings read runs, nothing after the lede may paint: the lede
    answer lands above it and would push it down the page (a layout shift). The
    rail holds the soft plans and the area news, which do not wait on that
-   read, so it waits with the rest. */
+   read, so it waits with the rest.
+
+   It waits OUT OF THE LAYOUT, not invisibly inside it. `visibility: hidden`
+   kept every box below the lede, so a phone on a slow read scrolled past the
+   skeleton into about 2,000px of blank page (product owner, 16 Oct 2026). A
+   box that is not there yet cannot shift when it arrives below the fold, and
+   the primary column's own min-height still holds the room the lede needs. */
 .tonightPage[data-listings-status="idle"] .tonightContext,
 .tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
-  visibility: hidden;
+  display: none;
 }
 
 /* WIDE TONIGHT IS A COLUMN AND A RAIL (site audit D8, 13 Sep 2026). The rail

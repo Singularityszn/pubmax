@@ -37,7 +37,7 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/diary/route";
 import { londonDayKey } from "@/lib/pintContributions";
-import { __resetDiary } from "@/lib/diaryStore";
+import { __resetDiary, memoryDiaryStore } from "@/lib/diaryStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -133,6 +133,23 @@ describe("POST /api/diary actions on an existing entry", () => {
     const res = await POST(post({ action: "update", id: entry.id, visitedOn: "2026-01-02" }));
     expect(res.status).toBe(409);
     expect((await res.json()).code).toBe("DIARY_ENTRY_EXISTS");
+  });
+
+  it("answers 404 for an id that is not a uuid, without asking the store", async () => {
+    // The id column is a uuid, so PostgreSQL refuses a malformed one with
+    // 22P02, which used to surface as a retryable 503 logged as an outage.
+    const pgRefusal = new Error('invalid input syntax for type uuid: "not-an-id"');
+    const update = vi.spyOn(memoryDiaryStore, "update").mockRejectedValue(pgRefusal);
+    const remove = vi.spyOn(memoryDiaryStore, "delete").mockRejectedValue(pgRefusal);
+
+    const corrected = await POST(post({ action: "update", id: "not-an-id", rating: 4 }));
+    expect(corrected.status).toBe(404);
+    expect((await corrected.json()).code).toBe("NOT_FOUND");
+    const removed = await POST(post({ action: "delete", id: "not-an-id" }));
+    expect(removed.status).toBe(404);
+    expect((await removed.json()).code).toBe("NOT_FOUND");
+    expect(update).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it("removes the owner's own entry, and a second removal is a 404", async () => {

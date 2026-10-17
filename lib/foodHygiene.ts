@@ -148,6 +148,34 @@ function parseRatingValue(value: string | undefined): number | null {
   return Number.parseInt(value.trim(), 10);
 }
 
+function ratingOf(candidate: FhrsEstablishment): HygieneRating | null {
+  if (candidate.SchemeType !== FHRS_SCHEME) return null;
+  if (typeof candidate.FHRSID !== "number" || !candidate.BusinessName) return null;
+  const ratingValue = parseRatingValue(candidate.RatingValue);
+  if (ratingValue === null) return null;
+  return {
+    fhrsid: candidate.FHRSID,
+    ratingValue,
+    ratingDate:
+      typeof candidate.RatingDate === "string" && candidate.RatingDate ? candidate.RatingDate : null,
+    businessName: candidate.BusinessName,
+    localAuthority: candidate.LocalAuthorityName ?? null,
+  };
+}
+
+/**
+ * The establishment OSM's `fhrs:id` names, among the candidates for its
+ * postcode, or null. No name is compared: a linked venue is that one business
+ * or nothing, never a similarly named one next door.
+ */
+function exactEstablishment(
+  fhrsid: number,
+  candidates: readonly FhrsEstablishment[],
+): HygieneRating | null {
+  const candidate = candidates.find((entry) => entry.FHRSID === fhrsid);
+  return candidate ? ratingOf(candidate) : null;
+}
+
 /**
  * Choose the best FHRS establishment for a venue among the candidates returned
  * for its postcode. Returns null when nothing clears the fuzzy-name threshold —
@@ -159,12 +187,9 @@ export function matchEstablishment(
 ): HygieneRating | null {
   let best: { rating: HygieneRating; score: number; isPub: boolean } | null = null;
   for (const candidate of candidates) {
-    if (candidate.SchemeType !== FHRS_SCHEME) continue;
-    if (typeof candidate.FHRSID !== "number") continue;
-    if (!candidate.BusinessName) continue;
-    const ratingValue = parseRatingValue(candidate.RatingValue);
-    if (ratingValue === null) continue;
-    const score = nameSimilarity(venueName, candidate.BusinessName);
+    const rating = ratingOf(candidate);
+    if (rating === null) continue;
+    const score = nameSimilarity(venueName, rating.businessName);
     if (score < MATCH_THRESHOLD) continue;
     const isPub = /pub|bar|nightclub/i.test(candidate.BusinessType ?? "");
     // Higher name score wins; on a near-tie a pub/bar beats a cafe next door.
@@ -173,20 +198,7 @@ export function matchEstablishment(
       score > best.score + 0.05 ||
       (Math.abs(score - best.score) <= 0.05 && isPub && !best.isPub);
     if (!better) continue;
-    best = {
-      score,
-      isPub,
-      rating: {
-        fhrsid: candidate.FHRSID,
-        ratingValue,
-        ratingDate:
-          typeof candidate.RatingDate === "string" && candidate.RatingDate
-            ? candidate.RatingDate
-            : null,
-        businessName: candidate.BusinessName,
-        localAuthority: candidate.LocalAuthorityName ?? null,
-      },
-    };
+    best = { score, isPub, rating };
   }
   return best?.rating ?? null;
 }
@@ -224,16 +236,20 @@ export function resetHygieneCache(): void {
  * caller renders no badge in every one of those cases (fail-soft by contract;
  * this never throws). The result (including the matched FHRSID) is cached per
  * instance so re-opening the same sheet is free.
+ *
+ * `fhrsid` is the establishment OSM links the venue to. When it is given the
+ * match is that id or nothing (`exactEstablishment`), never the fuzzy name.
  */
 export async function resolveHygieneRating(
   venueName: string,
   postcodeOrAddress: string,
-  options: { fetchImpl?: typeof fetch; now?: number } = {},
+  options: { fetchImpl?: typeof fetch; now?: number; fhrsid?: number } = {},
 ): Promise<HygieneRating | null> {
   const postcode = extractPostcode(postcodeOrAddress);
   if (!postcode || !venueName.trim()) return null;
   const now = options.now ?? Date.now();
-  const key = `${postcode}|${normaliseName(venueName)}`;
+  const { fhrsid } = options;
+  const key = fhrsid === undefined ? `${postcode}|${normaliseName(venueName)}` : `${postcode}|#${fhrsid}`;
   const hit = cache.get(key);
   if (hit && hit.expiresAt > now) return hit.value;
 
@@ -242,7 +258,10 @@ export async function resolveHygieneRating(
       postcode,
       options.fetchImpl ?? fetch,
     );
-    const value = matchEstablishment(venueName, establishments);
+    const value =
+      fhrsid === undefined
+        ? matchEstablishment(venueName, establishments)
+        : exactEstablishment(fhrsid, establishments);
     cache.set(key, { value, expiresAt: now + CACHE_TTL_MS });
     return value;
   } catch {

@@ -1,6 +1,6 @@
 // Client-safe loader for the SLIM venue index (public/data/venues_slim.json,
 // built by scripts/build_slim_index.mjs). This is the minimum the map needs to
-// render pins + labels + price colour + filter hints: the map fetches THIS
+// render pins + labels + price colour + neighbourhood + filter hints: the map fetches THIS
 // (~400 KB) on load
 // instead of the heavier source datasets, and fetches per-venue detail lazily
 // via /api/venue/[id] only when a venue is opened.
@@ -26,8 +26,13 @@ import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
-import { EXPECTED_MAP_DATA_REVISION, MAP_DATA_REVISION } from "@/lib/mapDataRevision";
+import {
+  EXPECTED_MAP_DATA_REVISION,
+  MAP_DATA_REVISION,
+  reportMapDataRevisionSkew,
+} from "@/lib/mapDataRevision";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -42,14 +47,24 @@ function offlineKeyForPath(path: string): string {
 
 export type SlimVenue = {
   id: string;
+  /** Reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /** The dataset's own name when it differs from `name`; identity and search only. */
+  sourceName?: string;
   lat: number;
   lng: number;
   cheapestPrice: number | null;
-  /** Publisher and last source read from the exact listed minimum price row. */
+  /** Publisher named by the exact listed minimum price row. */
   priceSource?: string;
+  /**
+   * `YYYY-MM-DD` the cheapest figure was last read at its source (build_slim_index,
+   * lib/priceReadDay.mjs). Absent when no row carrying it records a read, which
+   * `priceAgeFor` (lib/priceTier.ts) reads as aging, never as fresh.
+   */
   priceObservedAt?: string;
   borough: string;
+  /** Neighbourhood label for reader-facing area surfaces. */
+  locality?: string;
   /**
    * Nearest-station TfL fare zone (1–6, occasionally 7–9 at the London edge).
    * Absent when no station was comparable — honestly unknown, never bucketed.
@@ -151,6 +166,8 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const price = row.cheapestPrice;
   const priceOk =
     price === null || (typeof price === "number" && Number.isFinite(price));
+  const localityOk =
+    row.locality === undefined || typeof row.locality === "string";
   // zone, when present, must be a positive integer (fare zone). Absent is fine.
   const zoneOk =
     row.zone === undefined ||
@@ -158,6 +175,9 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
       Number.isInteger(row.zone) &&
       row.zone > 0);
   const kindOk = row.kind === undefined || isVenueKind(row.kind);
+  const observedOk =
+    row.priceObservedAt === undefined ||
+    (typeof row.priceObservedAt === "string" && row.priceObservedAt.length > 0);
   const priceBandOk =
     row.priceBand === undefined ||
     row.priceBand === 0 ||
@@ -166,7 +186,8 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   return (
     priceOk &&
     (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
-    (row.priceObservedAt === undefined || (typeof row.priceObservedAt === "string" && Number.isFinite(Date.parse(row.priceObservedAt)))) &&
+    observedOk &&
+    localityOk &&
     zoneOk &&
     kindOk &&
     priceBandOk &&
@@ -183,13 +204,20 @@ function normalizeRows(data: unknown): SlimVenue[] {
   if (!Array.isArray(data)) return [];
   return data.filter(isValidSlimVenue).map((venue) => ({
     id: venue.id,
-    name: venue.name,
+    name: displayVenueName(venue.name),
+    // A stored payload was normalised once already, so its own sourceName wins.
+    ...(typeof venue.sourceName === "string" && venue.sourceName
+      ? { sourceName: venue.sourceName }
+      : venueSourceNameField(venue.name)),
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
     ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
-    ...(venue.priceObservedAt !== undefined ? { priceObservedAt: venue.priceObservedAt } : {}),
+    ...(venue.priceObservedAt !== undefined
+      ? { priceObservedAt: venue.priceObservedAt }
+      : {}),
     borough: venue.borough,
+    ...(venue.locality !== undefined ? { locality: venue.locality } : {}),
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
@@ -225,6 +253,18 @@ function normalizeRows(data: unknown): SlimVenue[] {
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
   expectedRevision?: string;
+  /**
+   * A self-contained pack (a whole index, never one shard of a manifest) whose
+   * revision still disagrees after a cache-bypassed read is painted as served
+   * rather than refused: one file cannot be mixed with itself, and an empty map
+   * is worse than the previous deploy's pins. Either way the skew is reported.
+   */
+  acceptRevisionSkew?: boolean;
+  /**
+   * Told the served revision when a pack is refused for its revision alone, so
+   * a caller holding a manifest can report it (lib/slimShards.ts).
+   */
+  onRevisionSkew?: (served: unknown) => void;
 };
 
 export type SlimVenueLoadResult = {
@@ -242,7 +282,7 @@ function directMonolithRequest(path: string): {
     options:
       EXPECTED_MAP_DATA_REVISION === undefined
         ? {}
-        : { expectedRevision: EXPECTED_MAP_DATA_REVISION },
+        : { expectedRevision: EXPECTED_MAP_DATA_REVISION, acceptRevisionSkew: true },
   };
 }
 
@@ -293,6 +333,24 @@ function normalizedRowsFromPayload(
   if (!payloadRows) return null;
   const rows = normalizeRows(payloadRows);
   return { rows, complete: rows.length === payloadRows.length };
+}
+
+/**
+ * A payload refused ONLY for its revision: well formed, complete and non-empty
+ * under any revision but the expected one. Null for anything else wrong with it.
+ */
+function revisionSkewedRows(
+  value: unknown,
+  expectedRevision?: string,
+): { rows: SlimVenue[]; served: unknown } | null {
+  if (expectedRevision === undefined) return null;
+  const payload = normalizedRowsFromPayload(value, undefined);
+  if (!payload?.complete || payload.rows.length === 0) return null;
+  const served =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as { revision?: unknown }).revision
+      : undefined;
+  return served === expectedRevision ? null : { rows: payload.rows, served };
 }
 
 async function readOfflineFallback(
@@ -354,6 +412,19 @@ async function loadSlimVenuesFromPathUnshared(
         options.expectedRevision,
       );
       if (fallback) return { rows: omitClosedCuratedVenues(fallback), status: "ready" };
+      const skewed = !payload ? revisionSkewedRows(data, options.expectedRevision) : null;
+      if (skewed && options.acceptRevisionSkew) {
+        reportMapDataRevisionSkew({
+          asset: "index",
+          outcome: "adopted",
+          expected: options.expectedRevision,
+          served: skewed.served,
+        });
+        // Never mirrored: the offline copy answers only the revision it was
+        // asked for, and this one is somebody else's.
+        return { rows: omitClosedCuratedVenues(skewed.rows), status: "ready" };
+      }
+      if (skewed) options.onRevisionSkew?.(skewed.served);
       return { rows: [], status: "unavailable" };
     }
     const { rows: parsedRows, complete } = payload;

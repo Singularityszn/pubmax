@@ -13,6 +13,12 @@ import { routeOwnsScreenFoot } from "@/lib/promptBudget";
 const PHONE = 390;
 
 describe("routeOwnsScreenFoot", () => {
+  it("defers follow-up prompts while an onboarding plan is being reviewed on a phone", () => {
+    expect(routeOwnsScreenFoot("/plan?from=onboarding", PHONE)).toBe(true);
+    expect(routeOwnsScreenFoot("/plan", 1280)).toBe(false);
+    expect(routeOwnsScreenFoot("/plan/saved-night", PHONE)).toBe(false);
+  });
+
   it.each(["/map", "/map/", "/map/london", "/map/london/soho", "/map?sel=venue-1", "/map#log"])(
     "answers true for the map family at phone width: %s",
     (pathname) => {
@@ -29,7 +35,7 @@ describe("routeOwnsScreenFoot", () => {
     expect(routeOwnsScreenFoot("/map/london", width)).toBe(false);
   });
 
-  it.each(["/", "/tonight", "/places", "/mapping", "/maps", "/plan", "/u/you"])(
+  it.each(["/", "/tonight", "/places", "/mapping", "/maps", "/u/you"])(
     "answers false off the map: %s",
     (pathname) => {
       expect(routeOwnsScreenFoot(pathname, PHONE)).toBe(false);

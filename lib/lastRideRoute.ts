@@ -7,6 +7,7 @@ import path from "path";
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { displayVenueName } from "@/lib/venueDisplay";
 import type { NearestPub } from "@/lib/tfl";
 
 const NEAREST_PUB_COUNT = 3;
@@ -84,7 +85,7 @@ async function nearestPubsToStation(
   withDistance.sort((a, b) => a.km - b.km);
   return withDistance.slice(0, NEAREST_PUB_COUNT).map(({ v }) => ({
     id: v.id as string,
-    name: v.name as string,
+    name: displayVenueName(v.name as string),
     price: typeof v.cheapestPrice === "number" ? v.cheapestPrice : null,
   }));
 }

@@ -229,7 +229,7 @@ describe("first-open summaries carry their own receipts", () => {
       { id: "m1", kind: "music", observedAt: "2026-10-02T12:00:00.000Z", source: { label: "Venue listing", url: "https://example.com/music" } },
     ] });
     slimLoad.mockResolvedValue([
-      { id: "venue-p7p18j", name: "The Three Tuns - LSE Student Union", lat: 51.510, lng: -0.128, borough: "Westminster", cheapestPrice: 2.95, priceSource: "Pint Prices", priceObservedAt: "2026-10-02T11:48:33.000Z" },
+      { id: "venue-p7p18j", name: "The Cheapside Arms", lat: 51.510, lng: -0.128, borough: "Westminster", cheapestPrice: 2.95, priceSource: "Pint Prices", priceObservedAt: "2026-10-02T11:48:33.000Z" },
       { id: "b", name: "Second", lat: 51.511, lng: -0.128, borough: "Westminster", cheapestPrice: 5 },
       { id: "c", name: "Third", lat: 51.512, lng: -0.128, borough: "Westminster", cheapestPrice: 6 },
     ]);
@@ -242,7 +242,7 @@ describe("first-open summaries carry their own receipts", () => {
     expect(tonight?.textContent).toContain("Oldest listing observed 11 July 2026");
     expect(tonight?.querySelector('a[href="/tonight"]')).not.toBeNull();
     expect(price?.textContent).toContain("Lowest listed price within 1 km of central London");
-    expect(price?.textContent).toContain("£2.95 at The Three Tuns - LSE Student Union");
+    expect(price?.textContent).toContain("£2.95 at The Cheapside Arms");
     expect(price?.textContent).toContain("Pint Prices");
     expect(price?.textContent).toContain("Source read 2 October 2026");
     expect(price?.textContent).toContain("Serving size, offer and entry terms are not recorded");

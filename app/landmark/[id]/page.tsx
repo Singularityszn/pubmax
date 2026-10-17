@@ -19,6 +19,17 @@ import "./landmark.css";
 
 type PageProps = { params: Promise<{ id: string }> };
 
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The data changes only on a deploy, so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
+
 let cachedVenues: Venue[] | null = null;
 
 async function getVenues(): Promise<Venue[]> {
@@ -48,9 +59,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const landmark = landmarkById(id);
   if (!landmark) {
-    return { title: "Landmark chapter · PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Landmark chapter", robots: { index: false, follow: false } };
   }
-  const title = `${landmark.name}: London story chapter · PUBMAXXING`;
+  const title = `${landmark.name}: London story chapter · PUBMAXX`;
   const description = landmark.history.slice(0, 155);
   const canonical = `/landmark/${landmark.id}`;
   return {
@@ -91,7 +102,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
             shareable-URL param PubMap seeds from) — a bare /map dead-ends with
             nothing selected. */}
         <Link prefetch={false} className="landmarkChapterEyebrow" href={mapHref}>
-          PUBMAXXING · London stories
+          PUBMAXX · London stories
         </Link>
         <h1 className="landmarkChapterTitle">{landmark.name}</h1>
       </header>

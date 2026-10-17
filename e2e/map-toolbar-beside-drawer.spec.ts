@@ -37,16 +37,22 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     const selected = new URL(page.url()).searchParams.get("sel");
     const nav = page.locator('.siteNavBar[aria-label="Site navigation"]');
     await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
-    const theme = nav.getByRole("button", { name: /^Switch to .* theme$/ });
-    const themeName = await theme.getAttribute("aria-label");
-    await theme.click();
-    await expect(theme).not.toHaveAttribute("aria-label", themeName!);
-    await expectSoleDesktopDrawer(page, "venue");
+    // The theme is a row of the More menu (it left the header in the Oct 2026
+    // UX audit), so the menu and the setting are both reached beside the pub.
     const more = nav.getByRole("button", { name: "More pages", exact: true });
-    await more.click();
     const menu = page.getByRole("menu", { name: "More pages", exact: true });
+    const themeOf = () => page.evaluate(() => document.documentElement.dataset.theme ?? "");
+    const themeBefore = await themeOf();
+    await more.click();
     await expect(menu).toBeVisible();
     await expect.poll(() => menu.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
+    await menu.getByRole("menuitem", { name: /(Dark|Light) theme/ }).click();
+    await expect.poll(themeOf).not.toBe(themeBefore);
+    await expectSoleDesktopDrawer(page, "venue");
+    if (await menu.count()) await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await more.click();
+    await expect(menu).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0);
     await expect(more).toBeFocused();
@@ -178,7 +184,7 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     const close = toolbar.getByRole("button", { name: "Close search results" });
     await expect(close).toBeVisible();
     await search.press("Tab");
-    await expect(toolbar.getByRole("button", { name: "Clear search", exact: true })).toBeFocused();
+    await expect(toolbar.locator('button[aria-label="Clear search"]')).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(close).toBeFocused();
     const selected = new URL(page.url()).searchParams.get("sel");
@@ -245,9 +251,10 @@ for (const { width, height } of [
     await expect(search).toHaveValue("Princess Louise");
     await expect(search).toHaveAttribute("aria-expanded", "false");
     await search.click();
-    await toolbar.getByRole("button", { name: "Clear search", exact: true }).click();
+    await toolbar.locator('button[aria-label="Clear search"]').click();
     await expect(search).toHaveValue("");
     await expect(search).toHaveAttribute("aria-expanded", "false");
+    await expect(search).toBeFocused();
 
     const drink = toolbar.getByRole("button", { name: /^Drink:/ });
     await drink.click();
@@ -259,11 +266,11 @@ for (const { width, height } of [
     await expect(drink).toHaveAttribute("aria-expanded", "false");
     await expectSoleDesktopDrawer(page, "venue");
 
-    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await page.getByRole("button", { name: /^Close (pub|venue) detail$/ }).click();
     await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
     await selectFirstToolbarVenue(page, "Blackfriar");
     await expectSoleDesktopDrawer(page, "venue");
-    await page.getByRole("button", { name: "Close pub detail", exact: true }).click();
+    await page.getByRole("button", { name: /^Close (pub|venue) detail$/ }).click();
     await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
   });
 }

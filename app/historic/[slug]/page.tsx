@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import JsonLd from "@/components/seo/JsonLd";
@@ -9,6 +8,8 @@ import {
   loadHistoricPubs,
   type HistoricPub,
 } from "@/lib/historic";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import HistoricPubDetail from "./HistoricPubDetail";
 
 import "./historic-detail.css";
@@ -27,6 +28,17 @@ import "./historic-detail.css";
 // generateStaticParams pre-renders one static page per slug for clean SEO.
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, recorded in proxy.ts
+// beside CDN_CACHED_DOCUMENT_ROUTES): it drops the per-request CSP nonce so the
+// Vercel CDN can hold it. It renders only bundled data and reads no cookie, no
+// header and no search param. `__tests__/cdnCachedDocuments.test.ts` holds
+// both rules.
+export const dynamic = "force-static";
+// The data changes only on a deploy, so an hour is the same quiet ceiling
+// `/map` takes: it bounds how long a stale copy can outlive a change nobody
+// redeployed for.
+export const revalidate = 3600;
 
 // Trim + collapse the hook into a clean meta description, capped for SEO. Never
 // invents copy — an empty hook falls back to a neutral, honest sentence.
@@ -51,12 +63,12 @@ export async function generateMetadata({
 
   if (!pub) {
     return {
-      title: "Historic pub. PUBMAXXING",
+      title: "Historic pub. PUBMAXX",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${pub.name}. Historic London pub | PUBMAXXING`;
+  const title = `${pub.name}. Historic London pub | PUBMAXX`;
   const description = metaDescription(pub);
   const canonical = `/historic/${pub.slug}`;
 
@@ -113,20 +125,27 @@ function historicPubJsonLd(pub: HistoricPub) {
   };
 }
 
+// The pint the app lists for this pub, read from the same priced index the map
+// pin and Tonight read, so the figure here is the figure everywhere. Null when
+// the pub resolves to no venue or the venue holds no listed price: the page
+// then says so and offers the way to log one.
+async function historicListedPint(pub: HistoricPub): Promise<VenueListedPint | null> {
+  if (!pub.venueId) return null;
+  const venue = (await getPricedVenues()).find((row) => row.id === pub.venueId);
+  return venue ? venueListedPint(venue) : null;
+}
+
 export default async function HistoricDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs());
   if (!pub) notFound();
 
-  // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   return (
     <main id="main" className="hdPage">
-      <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
+      <JsonLd data={historicPubJsonLd(pub)} />
       <SiteNav active="historic" />
 
-      <HistoricPubDetail pub={pub} />
+      <HistoricPubDetail pub={pub} listedPint={await historicListedPint(pub)} />
     </main>
   );
 }

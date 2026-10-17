@@ -362,6 +362,14 @@ export function profileSocialDataForLaunch(
     : { socialLinks: [], counts: null, following: false, followsViewer: false };
 }
 
+/** What a handle gets you, said once and plainly. Every line is a real feature. */
+const YOU_SIGNED_OUT_PERKS: readonly string[] = [
+  "Save pubs and keep a list of ones to try.",
+  "Log prices under your own name.",
+  "Keep private memories of your nights.",
+  "Get one weekly nudge, if you want it.",
+];
+
 export function YouSignedOutSurface({
   nightMemoriesInvite,
 }: {
@@ -371,12 +379,20 @@ export function YouSignedOutSurface({
     <section className="youIdentityIntro" aria-labelledby="you-title">
       <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
       <div>
-        <p className="profileSectionKicker">Your PUBMAXX identity</p>
-        <h1 id="you-title">Make the night yours.</h1>
-        <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
+        <p className="profileSectionKicker">You</p>
+        <h1 id="you-title">Claim your @handle.</h1>
+        <p>It&rsquo;s free. With a handle you can:</p>
+        {/* What a handle gets you, in plain words. This page used to explain
+            Wanted, Step Out and Night Memories one panel at a time to someone
+            who had none of them; this list is the whole pitch now. */}
+        <ul className="youIdentityPerks">
+          {YOU_SIGNED_OUT_PERKS.map((perk) => (
+            <li key={perk}>{perk}</li>
+          ))}
+        </ul>
         {nightMemoriesInvite ? (
           <p className="youMemoriesInvite" role="status">
-            Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
+            Memories need a handle. Claim yours to keep them.
           </p>
         ) : null}
       </div>
@@ -1562,7 +1578,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                 <nav className="youProfileTabs" aria-label="Your profile sections">
                   <a href="#timeline">Moments</a>
                   <a href="#passport">Passport</a>
-                  <a href="#wanted">Wanted</a>
+                  <a href="#wanted">Pubs to try</a>
                   <a href="#saved-pubs">Saved</a>
                   <a href="#account-settings">Account settings</a>
                 </nav>
@@ -1669,11 +1685,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
       <main id="main" className="container profileMain pageHidesCreateFab">
         {surfaceBody()}
-        {surface === "identity-loading" || surface === "you-invitation" ? (
-          <WantedList
-            key="you-wanted-panel"
-            body={surface === "you-invitation" && documentComplete}
-          />
+        {/* The list's title paints while identity is still answering, so a
+            signed-in owner's page does not jump when it lands. A signed-out
+            reader has no list, and the invitation above already says what a
+            handle keeps, so the panel is not shown to them. */}
+        {surface === "identity-loading" ? (
+          <WantedList key="you-wanted-panel" body={false} />
         ) : null}
         {surface === "you-invitation" && documentComplete ? (
           <div id="account-settings">

@@ -7,7 +7,7 @@
 // figure, and a walk that was timed for a different neighbour prints nothing
 // until the map has measured the new one.
 
-import { londonNightsAhead } from "@/lib/planIntake";
+import { londonNightsAhead, parseLondonInput } from "@/lib/planIntake";
 import { legMinutes } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 
@@ -109,22 +109,30 @@ export function routeTotals(
   return { pricePence, walkMinutes: stops.length > 1 ? walkMinutes : null };
 }
 
-/** `3 stops · £18 each · 18 min walk`, each part only when it is real. */
+/**
+ * `Fri 17 Oct, 19:00 · 3 stops · £18 each for pints · 18 min walk`, each part
+ * only when it is real. The night is named by its DATE and not by "tonight":
+ * the composer's default steps over tonight late in the evening
+ * (`defaultLondonStartInput`), so a summary that only said "3 stops" let a
+ * reader lock a plan for the wrong night.
+ */
 export function routeSummaryLine(
   stops: readonly RouteViewStop[],
   measured?: MeasuredLegMinutes,
+  startInput?: string,
 ): string {
   const totals = routeTotals(stops, measured);
   return [
+    startInput ? routeStartLabel(startInput) : null,
     stopCountLabel(stops.length),
-    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each`,
+    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each for pints`,
     totals.walkMinutes === null ? null : walkLabel(totals.walkMinutes),
   ].filter((part): part is string => part !== null).join(" · ");
 }
 
 export function priceKindLabel(kind: RouteViewStop["priceKind"]): string | null {
-  if (kind === "listed") return "Listed price";
-  if (kind === "estimated") return "Estimated price";
+  if (kind === "listed") return "Listed pint price";
+  if (kind === "estimated") return "Estimated pint price";
   return null;
 }
 
@@ -132,6 +140,15 @@ const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** Past this many nights ahead a weekday alone reads as this week's, so the date rides with it. */
 const WEEKDAY_ALONE_NIGHTS = 6;
+
+/** `Fri 17 Oct, 19:00` from a London datetime-local value, or null when it is not one. */
+export function routeStartLabel(startInput: string): string | null {
+  const parts = parseLondonInput(startInput);
+  if (!parts) return null;
+  const weekday = new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
+  const time = `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
+  return `${WEEKDAYS[weekday]?.slice(0, 3)} ${parts.day} ${MONTHS[parts.month - 1]}, ${time}`;
+}
 
 /**
  * The page's heading: where and when, in the product's own words. When is the

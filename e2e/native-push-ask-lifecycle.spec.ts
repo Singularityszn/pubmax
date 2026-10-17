@@ -44,7 +44,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto("/map?plan=1");
       }
       await expect(page).toHaveURL(/\/map\?plan=1$/);
-      await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
       await expect(ask).toHaveCount(0);
       await page.getByRole("button", { name: "Make a plan" }).click();
       await expect.poll(() => page.evaluate(() => window.localStorage.getItem(
@@ -55,8 +55,10 @@ for (const theme of ["light", "dark"] as const) {
       await expect(ask).toHaveCount(0);
 
       const tabs = page.getByRole("navigation", { name: "Primary" });
-      await tabs.getByRole("link", { name: "Places", exact: true }).click();
-      await expect(page).toHaveURL(/\/places$/);
+      // Any route but the map leaves the screen foot to the ask. Places left
+      // the dock (Oct 2026), so Plan is the off-map door here.
+      await tabs.getByRole("link", { name: "Plan", exact: true }).click();
+      await expect(page).toHaveURL(/\/plan$/);
       await expect(ask).toBeVisible();
       await tabs.getByRole("link", { name: "Map", exact: true }).click();
       await expect(page).toHaveURL(/\/map$/);

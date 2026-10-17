@@ -156,7 +156,7 @@ test.describe("social identity card", () => {
       "href",
       `/u/${HANDLE}`,
     );
-    await expect(menu.getByRole("link", { name: "Your Wanteds" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Your pubs to try" })).toBeVisible();
     await expect(menu.getByRole("link", { name: "Edit profile" })).toBeVisible();
     await expect(menu.getByText("a.rather.long.address@example.test")).toBeVisible();
     await expect(menu.getByRole("button", { name: "Sign out" })).toBeVisible();

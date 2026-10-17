@@ -25,7 +25,12 @@ import {
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { GET as readPubPal } from "@/app/api/pub-pal/route";
 import { GET as readVersion } from "@/app/api/version/route";
-import { CDN_CACHED_DOCUMENT_PATHS, config, securityProxy } from "@/proxy";
+import {
+  CDN_CACHED_DOCUMENT_PATHS,
+  CDN_CACHED_DOCUMENT_ROUTES,
+  config,
+  securityProxy,
+} from "@/proxy";
 
 /**
  * The captain's development instance key. It is a PUBLISHABLE key, so it is
@@ -284,7 +289,17 @@ describe("the CSP the proxy actually ships", () => {
 // moderator acts. `__tests__/cdnCachedDocuments.test.ts` holds the page files
 // behind the list to `force-static`; this file holds the policy each answers.
 describe("the prerendered documents drop the nonce, and only they do", () => {
-  const CDN_CACHED = ["/", "/map", "/tonight", "/today", "/near"];
+  const CDN_CACHED_EXACT = ["/", "/map", "/tonight", "/today", "/near"];
+  // One live URL per public SEO route shape (task vercel-f2-seo-cdn,
+  // 2026-10-15). They take exactly the policy the exact paths take.
+  const CDN_CACHED_SEO = [
+    "/historic/the-gun",
+    "/borough/haringey",
+    "/landmark/big-ben",
+    "/drink/guinness",
+    "/area/clapham/drink/guinness",
+  ];
+  const CDN_CACHED = [...CDN_CACHED_EXACT, ...CDN_CACHED_SEO];
   // One from each family the decision explicitly keeps strict.
   const NONCED = [
     "/login",
@@ -299,11 +314,21 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/admin",
     "/admin/community-prices",
     "/plan",
-    "/out",
     "/places",
     "/pal",
     "/map/london",
     "/map/arrival",
+    // The SEO families stop at the exact route shape. The index pages read
+    // search params, a deeper path is another route (an OG image), and the
+    // ledger resolves a viewer from the Authorization header.
+    "/historic",
+    "/borough",
+    "/drink",
+    "/area/clapham",
+    "/area/clapham/drink",
+    "/historic/the-gun/opengraph-image",
+    "/area/clapham/drink/guinness/opengraph-image",
+    "/ledger/venue-xjf3n0",
   ];
   // The signed-in surfaces, named apart from the family list above: a route
   // that resolves a session in its document is the one thing the widening may
@@ -324,7 +349,22 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
   });
 
   it("ships exactly the paths this file names, so a widening is a diff here too", () => {
-    expect([...CDN_CACHED_DOCUMENT_PATHS].sort()).toEqual([...CDN_CACHED].sort());
+    expect([...CDN_CACHED_DOCUMENT_PATHS].sort()).toEqual([...CDN_CACHED_EXACT].sort());
+    expect([...CDN_CACHED_DOCUMENT_ROUTES].sort()).toEqual(
+      [
+        "/area/[slug]/drink/[brand]",
+        "/borough/[slug]",
+        "/drink/[slug]",
+        "/historic/[slug]",
+        "/landmark/[id]",
+      ],
+    );
+  });
+
+  it("never lets a route pattern reach the ledger or a signed-in surface", () => {
+    for (const pattern of CDN_CACHED_DOCUMENT_ROUTES) {
+      expect(pattern).not.toMatch(/^\/(ledger|u|messages|admin|social|onboarding)\//);
+    }
   });
 
   it.each(CDN_CACHED)(
@@ -399,6 +439,8 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_PATHS");
     expect(proxySource).toContain("2026-08-09");
     expect(proxySource).toContain("2026-09-05");
+    expect(proxySource).toContain("vercel-f2-seo-cdn");
+    expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_ROUTES");
     expect(proxySource).toMatch(
       /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\[\s*"\/",\s*"\/map",\s*"\/tonight",\s*"\/today",\s*"\/near",?\s*\]\)/,
     );
@@ -662,7 +704,7 @@ describe("the middleware gate needs BOTH keys", () => {
     }
   });
 
-  it("keeps Clerk on its frontend API and ordinary documents", async () => {
+  it("keeps Clerk on its frontend API and ordinary documents, never on /ingest", async () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
     vi.resetModules();
@@ -701,11 +743,15 @@ describe("the middleware gate needs BOTH keys", () => {
       }
       expect(clerkResponse.status).toBe(418);
       expect(documentResponse.status).toBe(418);
-      expect(ingestResponse.status).toBe(418);
-      expect(clerkProxy).toHaveBeenCalledTimes(3);
+      // /ingest is the PostHog relay, not a Clerk consumer: it goes straight to
+      // securityProxy, which hands it to the route untouched.
+      expect(ingestResponse.status).toBe(200);
+      expect(ingestResponse.headers.get("x-middleware-next")).toBe("1");
+      expect(ingestResponse.headers.get("Content-Security-Policy")).toBeNull();
+      expect(clerkProxy).toHaveBeenCalledTimes(2);
       expect(
         clerkProxy.mock.calls.map(([request]) => request.nextUrl.pathname),
-      ).toEqual(["/__clerk/v1/environment", "/login", "/ingest/e"]);
+      ).toEqual(["/__clerk/v1/environment", "/login"]);
     } finally {
       vi.doUnmock("@clerk/nextjs/server");
       vi.resetModules();
@@ -730,6 +776,25 @@ describe("the proxy export Next.js actually runs", () => {
     ).toBe(true);
   });
 
+  // PostHog's browser client posts to trailing-slash paths (`/ingest/e/`,
+  // `/ingest/flags/`). The trailing-slash rule claimed every one, so each event
+  // paid a proxy invocation in front of the relay route's own.
+  it("keeps the PostHog relay off the proxy on the canonical host", () => {
+    for (const path of ["/ingest/e/", "/ingest/flags/?v=2", "/ingest/e", "/ingest/static/array.js"]) {
+      expect(
+        unstable_doesMiddlewareMatch({ config, url: `https://pubmaxxing.com${path}` }),
+        path,
+      ).toBe(false);
+    }
+    // The trailing-slash 308 still runs everywhere else.
+    expect(
+      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/places/" }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/ingestion/" }),
+    ).toBe(true);
+  });
+
   it("matches Clerk's own frontend API path", () => {
     expect(config.matcher).toContainEqual({ source: "/__clerk/:path*" });
     expect(
@@ -744,6 +809,82 @@ describe("the proxy export Next.js actually runs", () => {
     expect(
       unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/map" }),
     ).toBe(true);
+  });
+
+  // `Purpose: prefetch` (and `Sec-Purpose: prefetch;prerender`) is the
+  // BROWSER's word for a document it fetches ahead of a navigation: a
+  // <link rel=prefetch> or a speculation-rules prerender from app/layout.tsx
+  // (`/social`, `/crawls`, `/borough/*`). That document is the one the reader
+  // is then shown, so it needs its CSP, Clerk and every redirect and gate.
+  // Next's own router prefetch is `next-router-prefetch`, an RSC fetch.
+  const BROWSER_PREFETCH_HEADERS: Array<Record<string, string>> = [
+    { purpose: "prefetch" },
+    { "sec-purpose": "prefetch;prerender" },
+    { "sec-purpose": "prefetch" },
+  ];
+
+  it.each(BROWSER_PREFETCH_HEADERS)(
+    "runs on a browser document prefetch or prerender (%o)",
+    (purposeHeaders) => {
+      for (const path of ["/social", "/crawls", "/borough/camden", "/login"]) {
+        expect(
+          unstable_doesMiddlewareMatch({
+            config,
+            url: `https://pubmaxxing.com${path}`,
+            headers: { accept: "text/html,application/xhtml+xml", ...purposeHeaders },
+          }),
+          path,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each(BROWSER_PREFETCH_HEADERS)(
+    "ships the nonce CSP to a browser document prefetch or prerender (%o)",
+    (purposeHeaders) => {
+      const response = securityProxy(
+        new NextRequest("https://pubmaxxing.com/social", {
+          headers: {
+            host: "pubmaxxing.com",
+            accept: "text/html,application/xhtml+xml",
+            ...purposeHeaders,
+          },
+        }),
+      );
+      const policy = response.headers.get("Content-Security-Policy") ?? "";
+      expect(directive(policy, "script-src")).toMatch(/'nonce-[^']+'/);
+    },
+  );
+
+  it("still keeps Next's own router prefetch (an RSC fetch) out of the CSP work", () => {
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://pubmaxxing.com/social",
+        headers: { "next-router-prefetch": "1", accept: "*/*" },
+      }),
+    ).toBe(false);
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/social", {
+        headers: { host: "pubmaxxing.com", "next-router-prefetch": "1", accept: "*/*" },
+      }),
+    );
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+  });
+
+  it("never lets a router-prefetch header strip the CSP off a document request", () => {
+    // A request that asks for HTML is a document, whatever else it carries.
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/social", {
+        headers: {
+          host: "pubmaxxing.com",
+          "next-router-prefetch": "1",
+          accept: "text/html,application/xhtml+xml",
+        },
+      }),
+    );
+    const policy = response.headers.get("Content-Security-Policy") ?? "";
+    expect(directive(policy, "script-src")).toMatch(/'nonce-[^']+'/);
   });
 });
 

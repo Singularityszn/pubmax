@@ -48,7 +48,8 @@ function dayNightLabel(isDay: boolean | null): string | null {
  * and carry no sunset or day or night.
  */
 export function formatWeatherObservationFacts(input: WeatherObservationFactsInput): string {
-  const temp = `${Math.round(input.feelsLikeC)}°C feels like`;
+  // The line opens a sentence when fresh and follows a colon when stale.
+  const temp = `${input.stale ? "feels" : "Feels"} like ${Math.round(input.feelsLikeC)}°C`;
   const condition = input.condition.trim().toLocaleLowerCase("en-GB");
   const rain = `${Math.round(input.precipitationProbabilityPct)}% chance of rain`;
   const wind =
@@ -62,7 +63,7 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
     (part): part is string => typeof part === "string" && part.length > 0,
   );
   const body = core.join(", ");
-  return `${input.stale ? "Last read of the sky: " : ""}${body}.`;
+  return `${input.stale ? "Last reading: " : ""}${body}.`;
 }
 
 // Human "x ago" from an observation timestamp. Floor-based so the label only

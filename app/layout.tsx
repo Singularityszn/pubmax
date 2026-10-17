@@ -5,8 +5,7 @@ import { Space_Grotesk, Inter } from "next/font/google";
 import localFont from "next/font/local";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
-import "./globals.css";
-import "./theme.css";
+import "./root-shell.css";
 import CreateFab from "@/components/nav/CreateFab";
 import MobileTabBar, {
   MobileTabBarClearanceFallback,
@@ -23,7 +22,6 @@ import {
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import { siteJsonLd } from "@/lib/siteJsonLd";
-import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
@@ -38,6 +36,9 @@ import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
+import { readThemeInitSource } from "@/lib/themeInit.server";
+
+const themeInitSource = readThemeInitSource();
 
 // Clerk is optional. Keep its provider, revision bridge, and client auth graph
 // out of every keyless route, which is the normal map build, by loading one
@@ -67,7 +68,7 @@ const SPECULATION_RULES = {
   ],
 };
 
-// Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
+// Type trio for the PUBMAXX identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
 //    large x-height, so capitals and lowercase sit close in size (little
 //    caps-contrast) and headlines read confident, current, and calm rather
@@ -85,6 +86,9 @@ const displayFace = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
+  // The initial request queue must first load the code that makes input safe.
+  // swap still paints the metric-matched fallback while this face loads.
+  preload: false,
   // Variable weight axis (300–700). Weight is set per-rule in CSS (headings
   // 500–700 per the display-weight discipline); the variable face carries the
   // full range, so no reflow between weights.
@@ -99,6 +103,7 @@ const bodySans = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
+  preload: false,
 });
 
 // Vendored, not fetched. next/font/google rewrites each face's file URL into a
@@ -121,7 +126,7 @@ const dataMono = localFont({
   declarations: [{ prop: "font-family", value: "JetBrains Mono" }],
   variable: "--font-data",
   display: "swap",
-  // NOT preloaded, unlike the display and body faces. next/font preloads every
+  // NOT preloaded, like the display and body faces. next/font preloads every
   // declared face from the document head, so this one cost a request and its
   // bytes on the critical path of all 35 budgeted routes while no route paints
   // its largest element in it: it is the price stamp and the numerals, and the
@@ -149,6 +154,22 @@ const dataMono = localFont({
   // used it, and no shipped rule asks for either. __tests__/fontWeights.test.ts
   // is what keeps that true.
 });
+
+// These two fixed Google calls expose the primary family first, followed by
+// Next's generated metric-matched fallback. Keep the full existing suffix.
+const initialFontFallbacks = {
+  "--font-display": displayFace.style.fontFamily.split(",").slice(1).join(",").trim(),
+  "--font-body": bodySans.style.fontFamily.split(",").slice(1).join(",").trim(),
+};
+if (!initialFontFallbacks["--font-display"] || !initialFontFallbacks["--font-body"]) {
+  throw new Error("The display and body fonts require their generated matched fallbacks.");
+}
+
+// The complete generated chains ThemeAttribute writes back once hydrated.
+const rootFontFamilies = {
+  "--font-display": displayFace.style.fontFamily,
+  "--font-body": bodySans.style.fontFamily,
+};
 
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were
 // its last consumer and left the face on 2026-08-18, so the party-accent token
@@ -179,7 +200,7 @@ export const metadata: Metadata = {
     template: "%s | PUBMAXX",
   },
   description:
-    "PubMaxxing is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
+    "PUBMAXX is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -187,7 +208,7 @@ export const metadata: Metadata = {
     // Home Screen icon, so it must read the same as the installed name Android
     // takes from public/manifest.webmanifest. The document TITLES below are a
     // separate question and stay as they are.
-    title: "PUBMAXXING",
+    title: "PUBMAXX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {
@@ -280,12 +301,12 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
-      style={{
-        "--font-display": displayFace.style.fontFamily,
-        "--font-body": bodySans.style.fontFamily,
-      } as CSSProperties}
+      style={initialFontFallbacks as CSSProperties}
     >
       <head>
+        <noscript>
+          <style nonce={nonce}>{`html{--font-display:${displayFace.style.fontFamily} !important;--font-body:${bodySans.style.fontFamily} !important;}`}</style>
+        </noscript>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,
             glyphs and sprite from tiles.openfreemap.org (see
             components/map/canvas/tokens.ts). That cross-origin handshake
@@ -303,21 +324,14 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
-        {/* The pre-paint decisions, in one render-blocking file: the native
-            shell's entry route first, then the theme and landing splash, so
-            neither the shell nor the page paints something it is about to
-            replace. One file
-            because one request - a second pre-paint script cost every web
-            route a fetch for a decision only the shell uses. Served
-            as a static file (public/theme-init.js) rather than inline so it is
-            covered by CSP `script-src 'self'` with no per-build hash. It is a
-            render-blocking classic script in <head> (NO async/defer on purpose)
-            so it runs before first paint, preserving the no-flash guarantee.
-            That synchronous load is the whole point here, so the no-sync-scripts
-            lint (which exists to prevent render-blocking body scripts) is opted
-            out for this one intentional case. */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="/theme-init.js?v=splash-1" />
+        {/* Execute the canonical native-entry, theme, view and splash decisions
+            before paint, without another parser-blocking network request.
+            Dynamic documents carry the request nonce. The five static
+            documents retain their existing inline-script CSP allowance. */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeInitSource }}
+        />
         {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
             page while the user browses the explore-London loop, so tapping
             through borough/Social surfaces is instant. Conservative by design:
@@ -402,7 +416,6 @@ export default async function RootLayout({
                     production-only, registers after load. */}
                 <OfflineReady />
                 <ClientErrorReporter />
-                <PerformanceVitals />
                 {/* Metrics funnel (Wave M) — consent-gated, render-nothing
                     signals: daily return-rate pulse and the A2HS install funnel. */}
                 <DailyActivityPulse />
@@ -412,7 +425,10 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
-                <ThemeAttribute />
+                <ThemeAttribute
+                initialFontFallbacks={initialFontFallbacks}
+                fontFamilies={rootFontFamilies}
+              />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -426,11 +442,13 @@ export default async function RootLayout({
               <DeferredShellExtras />
               <OfflineReady />
               <ClientErrorReporter />
-              <PerformanceVitals />
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
-              <ThemeAttribute />
+              <ThemeAttribute
+                initialFontFallbacks={initialFontFallbacks}
+                fontFamilies={rootFontFamilies}
+              />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

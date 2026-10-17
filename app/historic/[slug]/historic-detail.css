@@ -42,6 +42,66 @@
   border-radius: 3px;
 }
 
+/* The listed pint: the first thing under the head, in the landing answer
+   card's shape (the banded figure, the drink, then who listed it and when). */
+.hdPrice {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 18px;
+}
+
+.hdPriceFigure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin: 0;
+}
+
+.hdPricePint {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.hdPriceSource,
+.hdPriceNone {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.hdPriceSource a,
+.hdPriceLog {
+  color: var(--river);
+  font-weight: 700;
+}
+
+.hdPriceLog {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.hdPriceSource a:focus-visible,
+.hdPriceLog:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* The intro's own source, once its duplicate has left the record. */
+.hdIntroSource {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
 /* The facts strip under the head: era, grade, status, borough. */
 .hdMeta {
   display: flex;
@@ -260,4 +320,16 @@
       transform: none;
     }
   }
+}
+
+/* The credits link sits inside a sentence, but it is still a thumb target:
+   inline-flex keeps it in the line and gives it the 44px the phone tap-target
+   pin measures (e2e/phone-tap-targets.spec.ts). */
+.historicCreditsLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

@@ -3,6 +3,7 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
@@ -72,6 +73,7 @@ export type VenuePrice = {
   price_gbp: number | null;
   price_text: string;
   address: string;
+  locality?: string;
   latitude: number;
   longitude: number;
   boroughs_visible: string;
@@ -161,13 +163,23 @@ export type Venue = {
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
   /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
   siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
+  /** What OpenStreetMap states about the pub, from its own ODbL pack (lib/osmPubFacts.ts). Absent is unknown. */
+  osmFacts?: import("@/lib/osmPubFacts").OsmPubFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
+  /** The reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
   name: string;
+  /**
+   * The name as the dataset files it, present only when it differs from `name`
+   * ("The George - JD Wetherspoon"). Identity joins and search read it; it is
+   * never rendered.
+   */
+  sourceName?: string;
   address: string;
   latitude: number;
   longitude: number;
   primaryBorough: string;
+  locality?: string;
   visibleBoroughs: string[];
   prices: VenuePrice[];
   cheapestPrice: number | null;
@@ -245,6 +257,11 @@ export type Venue = {
   kind?: VenueKind;
   /** Type-relative price band computed at build time (cheap/mid/dear). */
   priceBand?: 0 | 1 | 2;
+  /**
+   * `YYYY-MM-DD` the slim index's cheapest figure was last read at its source.
+   * Absent when unknown; the map reads that as an aging price, never a fresh one.
+   */
+  priceObservedAt?: string;
   /** Provenance for non-pub anchor prices and editorial stories. */
   anchorLabel?: string;
   anchorCourse?: FoodCategory;
@@ -635,14 +652,19 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // other venue gets undefined (honestly unknown). Keyed by pub name +
     // borough so a common name doesn't cross-contaminate the wrong pub.
     const accessibility = getVenueAccessibility(first.pub_name, first.primary_borough);
+    const locality = sortedRows
+      .map((price) => String(price.locality ?? "").trim())
+      .find(Boolean);
 
     return {
       id: stableVenueIdFromKey(key),
-      name: first.pub_name,
-      address: first.address,
+      name: displayVenueName(first.pub_name),
+      ...venueSourceNameField(first.pub_name),
+      address: displayVenueAddress(first.address),
       latitude: first.latitude,
       longitude: first.longitude,
       primaryBorough: first.primary_borough,
+      ...(locality ? { locality } : {}),
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,

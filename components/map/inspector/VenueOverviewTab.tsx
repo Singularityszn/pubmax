@@ -12,7 +12,13 @@ import {
   trustChipStateFor,
   type OverviewPriceDoor,
 } from "@/lib/pintTrust";
-import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
+import {
+  priceAgeFor,
+  priceAgeNote,
+  priceStandingFor,
+  type ConfirmedPriceInput,
+  type PriceAgeLane,
+} from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import { derivedAmenityStatus, type AmenityStatus } from "@/lib/venueTruth";
@@ -59,6 +65,9 @@ import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import VenueRecordSummary from "./VenueRecordSummary";
+import SharePintButton from "@/components/share/SharePintButton";
+import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
+import { listedCheapPintShare } from "@/lib/venuePintShare";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
@@ -69,6 +78,7 @@ import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenuePlacesDetails from "@/components/map/VenuePlacesDetails";
 import VenueSiteDetails from "@/components/map/VenueSiteDetails";
+import VenueOsmDetails from "@/components/map/VenueOsmDetails";
 import VenueBuzz from "@/components/map/VenueBuzz";
 import VenueAwardBadge from "@/components/areanews/VenueAwardBadge";
 import VenueHygiene from "@/components/map/VenueHygiene";
@@ -97,6 +107,7 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
+import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
@@ -499,7 +510,7 @@ function VenuePriceSummary({
     return (
       <div className="contributorPrice" {...trustChipAttrs}>
         <span className={chromeRevealClass}>
-          <ClaimBadge kind="contributor" /> Latest Pint Drop price
+          <ClaimBadge kind="contributor" /> Latest price from a drinker
         </span>
         {/* A confirmed price says the figure and its standing in ONE mark, so
             the number is printed once and by the module that owns the words
@@ -509,13 +520,20 @@ function VenuePriceSummary({
         {priceStanding.standing === "confirmed" ? (
           <TrustPill decision={priceStanding} area={bandArea} />
         ) : (
-          <PriceBadge variant="current" band={priceBand(lane.contributorPrice, bandArea)}>
+          <PriceBadge
+            variant="current"
+            band={priceBand(lane.contributorPrice, bandArea)}
+            className={agingBadgeClass("drinker", venue.latestContributorAt)}
+          >
             {formatPrice(lane.contributorPrice)}
           </PriceBadge>
         )}
         {venue.latestContributorAt ? (
           <small className={chromeRevealClass}>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
+        {priceStanding.standing === "confirmed" ? null : (
+          <PriceAgeLine lane="drinker" observedAt={venue.latestContributorAt} />
+        )}
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {COMMUNITY_PRICE_NOTE}
         </small>
@@ -530,9 +548,14 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
-        <PriceBadge variant="current" band={priceBand(venue.cheapestPrice, bandArea)}>
+        <PriceBadge
+          variant="current"
+          band={priceBand(venue.cheapestPrice, bandArea)}
+          className={agingBadgeClass("published", lane.sourcedPrice.observedAt)}
+        >
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
+        <PriceAgeLine lane="published" observedAt={lane.sourcedPrice.observedAt} />
         <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
@@ -592,6 +615,9 @@ function VenuePriceSummary({
   }
 
   if (lane?.lane === "baseline") {
+    // "Share this pint": only a cheap pint listed by a named publisher on a
+    // known day, and only the figure this block prints. Not a price door.
+    const pintShare = listedCheapPintShare(venue, lane, bandArea);
     return (
       <div className="contributorPrice">
         <span className={chromeRevealClass}>
@@ -600,9 +626,14 @@ function VenuePriceSummary({
               SAME STRING the phone peek prints (battle test M05). */}
           {baselineTrustCaption(lane)}
         </span>
-        <PriceBadge variant="baseline" band={priceBand(venue.cheapestPrice, bandArea)}>
+        <PriceBadge
+          variant="baseline"
+          band={priceBand(venue.cheapestPrice, bandArea)}
+          className={agingBadgeClass("published", lane.observedOn)}
+        >
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
+        <PriceAgeLine lane="published" observedAt={lane.observedOn} />
         <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {/* The publisher is DECIDED BY THE LANE, through the same reading the
               landing answer card makes, so the peek's caption and this block's
@@ -626,6 +657,7 @@ function VenuePriceSummary({
             </>
           )}
         </small>
+        {pintShare ? <SharePintButton share={pintShare} className="venuePintShare" /> : null}
         {door}
       </div>
     );
@@ -647,6 +679,47 @@ function VenuePriceSummary({
   return isPubVenue(venue) ? (
     <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
   ) : null;
+}
+
+/**
+ * THE PRICE ANSWER HAS LANDED when the price block prints a figure somebody
+ * observed. A modelled estimate is nobody's observation, and a split has no one
+ * figure, so neither counts.
+ */
+function overviewPriceAnswered(
+  showsPriceSummary: boolean,
+  lane: VenuePriceLane | null,
+): boolean {
+  if (!showsPriceSummary || !lane || lane.lane === "estimate") return false;
+  return venuePriceLaneObservedGbp(lane) !== null;
+}
+
+/**
+ * An AGING figure looks aging and never fresh (owner decision 16 Oct 2026): its
+ * plaque's edge breaks (`priceBadge--aging`, app/globals.css) and a line says
+ * why, in the windows the Price Standings own (lib/priceTier.ts). Colour stays
+ * the band's alone. A fresh figure gets neither.
+ */
+function agingBadgeClass(
+  lane: PriceAgeLane,
+  observedAt: string | number | null | undefined,
+): string | undefined {
+  return priceAgeFor(lane, observedAt) === "aging" ? "priceBadge--aging" : undefined;
+}
+
+function PriceAgeLine({
+  lane,
+  observedAt,
+}: {
+  lane: PriceAgeLane;
+  observedAt: string | number | null | undefined;
+}) {
+  if (priceAgeFor(lane, observedAt) !== "aging") return null;
+  return (
+    <small className="priceAgeNote" data-price-age="aging">
+      {priceAgeNote(lane, observedAt)}
+    </small>
+  );
 }
 
 /**
@@ -853,6 +926,8 @@ export default function VenueOverviewTab({
   revealRecordLate?: boolean;
   now?: number;
 }) {
+  // The phone portal sheet hands down its footer slot; desktop has none.
+  const phoneSheet = useSheetFooterSlot() !== null;
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
   const accessChips = accessibilityChipLabels(venue);
@@ -973,6 +1048,13 @@ export default function VenueOverviewTab({
   const sourcedObserved =
     sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
 
+  // The install ask waits for this (lib/priceAnswerMoment.ts). A mark in
+  // sessionStorage, never a beacon.
+  const priceAnswered = overviewPriceAnswered(showsPriceSummary, priceLane);
+  useEffect(() => {
+    if (priceAnswered) markPriceAnswerMoment("venue-price");
+  }, [priceAnswered]);
+
   const anchorStamp = anchorMonthLabel(venue.anchorObservedAt);
 
   return (
@@ -983,98 +1065,12 @@ export default function VenueOverviewTab({
       className="venueTabPanel"
       hidden={tab !== "overview"}
     >
-      <p className="venueAddress">{venue.address}</p>
-      <VenueRecordSummary copy={venue.recordCopy} />
-      <VenueActionStrip venue={venue} />
-      <VenueOccupancyRow
-        venueId={venue.id}
-        active={tab === "overview"}
-        revealRecord={revealRecord}
-        revealRecordLate={revealRecordLate}
-      />
-      {/* The Diary: one tap to log a visit to this pub. Private to its owner. */}
-      {isPubVenueKind(venue.kind) ? (
-        <DiaryLogPanel venueId={venue.id} venueName={venue.name} />
-      ) : null}
-      {/* Visit Report peek: newest accounts only. The full composer stays on
-          Lore (VenueStoryTab), so Overview never grows a second rating system. */}
-      <VisitReportPanel
-        venueId={venue.id}
-        venueName={venue.name}
-        mode="peek"
-        active={tab === "overview"}
-        onOpenFull={onOpenVisitReports}
-      />
-      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
-          server-side. Renders nothing for an unmatched pub. Kept above the
-          practical-info disclosure so a matched rating is not buried. */}
-      <VenueHygiene
-        venueId={venue.id}
-        venueName={venue.name}
-        address={venue.address}
-      />
-      <Disclosure
-        className="venueOverviewMore"
-        bodyClassName="venueOverviewMoreBody"
-        summary="Details and practical info"
-      >
-      <VenueGettingThere
-        userLocation={userLocation}
-        venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
-        londonTransit={cityId === "london"}
-        locationRequestStatus={locationRequestStatus}
-        onRequestLocation={onRequestLocation}
-        onClearLocation={onClearLocation}
-      />
-      <VenuePlacesDetails venue={venue} links />
-      <VenueSiteDetails venue={venue} />
-      <CityPlaceStrip
-        venueId={venue.id}
-        venueName={venue.name}
-        latitude={venue.latitude}
-        longitude={venue.longitude}
-        primaryBorough={venue.primaryBorough}
-        cityId={cityId}
-      />
-      {/* "What people say" (task A3) — AI-synthesised third-party buzz via
-          CityMCP, honestly labelled. Never community/editorial content. */}
-      <VenueBuzz
-        venueId={venue.id}
-        venueName={venue.name}
-        latitude={venue.latitude}
-        longitude={venue.longitude}
-        primaryBorough={venue.primaryBorough}
-        cityId={cityId}
-      />
-      {/* Fresh-facts layer (Cycle 15 Lane A): an engraved brass plaque when a
-          venue-matched award fact exists for this pin. Renders nothing otherwise. */}
-      <VenueAwardBadge venueId={venue.id} />
-      {amenityRow(amenityChips)}
-      {cuisineRow(servesFood, cuisineTags)}
-      {accessibilityRow(accessChips, quietHours)}
-          <VenueWeatherRecommendations
-            key={`weather-recommendations-${venue.id}`}
-            venueId={venue.id}
-            venueName={venue.name}
-          />
-          {/* Quest chips show supporting profile progress, not a primary
-              decision about this venue. Keep them with the optional detail. */}
-          <NextBadgeChips />
-      </Disclosure>
-      {gettingHome}
-      {/* Read-first community observations: character, access and eating sit
-          here so drinkers see them without opening price submit. Authoring
-          stays on the price-entry path below (VenuePriceEntryPanel). The same
-          venue-price read status feeds both, so a failed lookup never words
-          as an empty pub. */}
-      <VenueCommunitySignals
-        venueId={venue.id}
-        venueName={venue.name}
-        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
-        readStatus={venueReadStatus}
-        now={now}
-        readOnly
-      />
+      {/* THE PRICE COMES FIRST AFTER THE NAME (product owner, UX audit,
+          16 Oct 2026). A pub page is asked one question before any other,
+          what a pint costs here, so the whole price area (tonight's rows,
+          the price on record with its one door, the then-and-now line, the
+          patch yardstick and the folded composer) leads the Overview, and
+          the address, the record and the practical details follow it. */}
       {/* Tonight's community prices sit ATOP the price on record, never
           instead of it: their own rows, their own dated badges, and the
           sourced / baseline row below still renders untouched. A submission is
@@ -1192,7 +1188,102 @@ export default function VenueOverviewTab({
           }}
         />
       ) : null}
-      {mode === "build" && isPubVenue(venue) ? (
+      <p className="venueAddress">{venue.address}</p>
+      <VenueRecordSummary copy={venue.recordCopy} />
+      <VenueActionStrip venue={venue} />
+      <VenueOccupancyRow
+        venueId={venue.id}
+        active={tab === "overview"}
+        revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
+      />
+      {/* The Diary: one tap to log a visit to this pub. Private to its owner. */}
+      {isPubVenueKind(venue.kind) ? (
+        <DiaryLogPanel venueId={venue.id} venueName={venue.name} />
+      ) : null}
+      {/* Visit Report peek: newest accounts only. The full composer stays on
+          Lore (VenueStoryTab), so Overview never grows a second rating system. */}
+      <VisitReportPanel
+        venueId={venue.id}
+        venueName={venue.name}
+        mode="peek"
+        active={tab === "overview"}
+        onOpenFull={onOpenVisitReports}
+      />
+      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
+          server-side. Renders nothing for an unmatched pub. Kept above the
+          practical-info disclosure so a matched rating is not buried. */}
+      <VenueHygiene
+        venueId={venue.id}
+        venueName={venue.name}
+        address={venue.address}
+      />
+      <Disclosure
+        className="venueOverviewMore"
+        bodyClassName="venueOverviewMoreBody"
+        summary="Details and practical info"
+      >
+      <VenueGettingThere
+        userLocation={userLocation}
+        venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
+        londonTransit={cityId === "london"}
+        locationRequestStatus={locationRequestStatus}
+        onRequestLocation={onRequestLocation}
+        onClearLocation={onClearLocation}
+      />
+      <VenuePlacesDetails venue={venue} links />
+      <VenueSiteDetails venue={venue} />
+      <VenueOsmDetails facts={venue.osmFacts} />
+      <CityPlaceStrip
+        venueId={venue.id}
+        venueName={venue.name}
+        latitude={venue.latitude}
+        longitude={venue.longitude}
+        primaryBorough={venue.primaryBorough}
+        cityId={cityId}
+      />
+      {/* "What people say" (task A3) — AI-synthesised third-party buzz via
+          CityMCP, honestly labelled. Never community/editorial content. */}
+      <VenueBuzz
+        venueId={venue.id}
+        venueName={venue.name}
+        latitude={venue.latitude}
+        longitude={venue.longitude}
+        primaryBorough={venue.primaryBorough}
+        cityId={cityId}
+      />
+      {/* Fresh-facts layer (Cycle 15 Lane A): an engraved brass plaque when a
+          venue-matched award fact exists for this pin. Renders nothing otherwise. */}
+      <VenueAwardBadge venueId={venue.id} />
+      {amenityRow(amenityChips)}
+      {cuisineRow(servesFood, cuisineTags)}
+      {accessibilityRow(accessChips, quietHours)}
+          <VenueWeatherRecommendations
+            key={`weather-recommendations-${venue.id}`}
+            venueId={venue.id}
+            venueName={venue.name}
+          />
+          {/* Quest chips show supporting profile progress, not a primary
+              decision about this venue. Keep them with the optional detail. */}
+          <NextBadgeChips />
+      </Disclosure>
+      {gettingHome}
+      {/* Read-first community observations: character, access and eating sit
+          here so drinkers see them without opening price submit. Authoring
+          stays on the price-entry path above (VenuePriceEntryPanel). The same
+          venue-price read status feeds both, so a failed lookup never words
+          as an empty pub. */}
+      <VenueCommunitySignals
+        venueId={venue.id}
+        venueName={venue.name}
+        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
+        readStatus={venueReadStatus}
+        now={now}
+        readOnly
+      />
+      {/* Desktop only: on a phone the peek's ONE plan door owns the crawl
+          toggle (lib/venuePlanDoor.ts), and this would be a second. */}
+      {mode === "build" && isPubVenue(venue) && !phoneSheet ? (
         <button
           className="addStopBtn"
           aria-pressed={inCrawl}

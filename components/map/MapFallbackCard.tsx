@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 
 /**
  * The one thing the map shows when there is no map.
@@ -72,7 +73,7 @@ export default function MapFallbackCard({
               >
                 <span className="mapFallbackVenueName">{venue.name}</span>
                 <span className="mapFallbackVenueMeta">
-                  {venue.primaryBorough}
+                  {venueAreaLabel(venue)}
                   {venue.cheapestPrice != null
                     ? ` · ${formatPrice(venue.cheapestPrice)}`
                     : ""}

@@ -59,6 +59,18 @@ const OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 export const OG_CACHE_HEADERS = { "cache-control": OG_CACHE_CONTROL } as const;
 
+// A card drawn ONLY from data committed with the deployment (the Historic Pubs
+// plate reads the heritage dataset, never a live store) cannot change until the
+// next deploy, and Vercel's edge cache is scoped to a deployment, so a new deploy
+// never serves the old plate. The edge may therefore hold it for a year instead
+// of re-rasterizing it every hour. The browser still revalidates (max-age=0).
+// A card that reads anything live keeps OG_CACHE_HEADERS.
+const OG_DEPLOY_STABLE_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400";
+export const OG_DEPLOY_STABLE_CACHE_HEADERS = {
+  "cache-control": OG_DEPLOY_STABLE_CACHE_CONTROL,
+} as const;
+
 // The canonical page background: a near-black diagonal wash across the
 // elevation ladder. Kept as one string so every card opens on the same surface.
 const OG_BG = `linear-gradient(150deg, ${OG.inkDeep} 0%, ${OG.panel} 52%, ${OG.paper} 100%)`;
@@ -162,12 +174,14 @@ function WordmarkGlyph({ ink, size }: { ink: string; size: number }) {
   );
 }
 
-// The PUBMAXX wordmark, drawn the way the site header draws it
-// (components/brand/PubmaxxWordmark.tsx): PUBMA, the doubled `××` hero with the
-// second glyph tinted coral, then ING. The proportions are that component's own
+// The PUBMAXX wordmark, drawn the way the site header reads it
+// (components/brand/PubmaxxWordmark.tsx): PUBMA, then the doubled `××` hero
+// with the second glyph tinted coral, so the card says PUBMAXX and never
+// PUBMAXXING (the product's one name since 16 Oct 2026; pubmaxxing.com is only
+// the address, printed in each card's footer). The proportions are that component's own
 // CSS re-expressed in px, because satori reads neither `em` reliably nor the
 // stylesheet: glyph 0.78 of the type size, tracking -0.045, 0.025 between the
-// three parts, 0.005 between the two glyphs, the pair inset 0.015 / 0.03.
+// two parts, 0.005 between the two glyphs, the pair inset 0.015 / 0.03.
 //
 // There is no coral chip and no boxed mark here. The old lockup put an
 // ink-deep X on a coral rounded square, which is the sanctioned plaque tile
@@ -201,7 +215,6 @@ export function Wordmark({ scale = 1 }: { scale?: number }) {
         <WordmarkGlyph ink={OG.ink} size={glyph} />
         <WordmarkGlyph ink={OG.coral} size={glyph} />
       </div>
-      <div style={{ display: "flex" }}>ING</div>
     </div>
   );
 }

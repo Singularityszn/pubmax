@@ -24,7 +24,7 @@ import {
   famousVenueLeadBudgetHours,
   slimPayloadGeneratedAt,
 } from "@/__tests__/helpers/currentFamousVenues";
-import { legacyPintPriceObservedAt } from "@/lib/drinks";
+import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -48,6 +48,7 @@ const SLIM_KEYS = [
   "id",
   "lat",
   "lng",
+  "locality",
   "name",
 ];
 
@@ -180,16 +181,23 @@ function matchingIdsFromFull(filters: Filters): string[] {
 describe("slim listed price evidence", () => {
   it("keeps the exact cheapest row's publisher and source read on the shipped projection", () => {
     const row = slim.find((venue) => venue.id === "venue-p7p18j") as SlimVenue & Record<string, unknown>;
-    const price = defined(fullVenuesById.get("venue-p7p18j")?.prices.find((price) => price.price_gbp === row.cheapestPrice));
+    const prices = defined(fullVenuesById.get("venue-p7p18j")?.prices);
     expect(row).toMatchObject({
       cheapestPrice: 2.95,
       priceSource: "Pint Prices",
-      priceObservedAt: legacyPintPriceObservedAt(price),
+      priceObservedAt: cheapestPriceReadDay(prices, row.cheapestPrice),
     });
   });
 });
 
 describe("venues_slim.json", () => {
+  it("carries Hatton Garden as reader area while retaining Camden borough", () => {
+    const hatton = slim.find((venue) => venue.name === "The Sir Christopher Hatton");
+    expect(hatton?.locality).toBe("Hatton Garden");
+    expect(hatton?.borough).toBe("Camden");
+    expect(hatton ? slimVenueToPin(hatton).locality : undefined).toBe("Hatton Garden");
+  });
+
   it("is the payload URL used by the map loader", () => {
     expect(SLIM_VENUES_PATH).toBe("/data/venues_slim.json");
     expect(CITIES.london.slimVenuesPath).toBe(SLIM_VENUES_PATH);
@@ -221,6 +229,7 @@ describe("venues_slim.json", () => {
               ![
                 "zone",
                 "priceSource",
+                // The day the cheapest figure was last read (lib/priceReadDay.mjs).
                 "priceObservedAt",
                 "kind",
                 "priceBand",
@@ -317,6 +326,12 @@ describe("venues_slim.json", () => {
     expect(
       rows.some((row) => row.filterHints?.drinkText?.includes("guinness")),
     ).toBe(true);
+  });
+
+  it("keeps locality separate from the slim address search contract", () => {
+    const hatton = slim.find((row) => row.name === "The Sir Christopher Hatton");
+    expect(hatton?.locality).toBe("Hatton Garden");
+    expect(hatton?.filterHints?.searchText).not.toContain("hatton garden");
   });
 
   it("drink-lens filters use slim drinkCategories / drinkBrands hints", () => {

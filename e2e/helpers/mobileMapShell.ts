@@ -1,0 +1,79 @@
+import { expect, type Locator, type Page } from "@playwright/test";
+
+import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
+
+/**
+ * Headroom past the product's ceiling. When the canvas never reports in, the
+ * shell's own 18s clock starts in a post-hydration effect, after `goto` has
+ * already returned, and the fallback still owes a render once it fires, so a
+ * wait that ends exactly at the ceiling can expire just before the shell shows.
+ */
+const MOBILE_MAP_SHELL_SLACK_MS = 5_000;
+
+/**
+ * The least a spec may wait for the phone map shell. The shell is held until
+ * the map's loading frame lets go (`mobileShellReady` in components/PubMap.tsx),
+ * and with a slow or unreachable basemap style that frame lets go only after
+ * the 8s style-load timeout and the fallback's answer. The default 10s expect
+ * timeout raced that and flaked twice on CI (PR #2104), so the floor is the
+ * shell's own readiness ceiling, read from the product rather than retyped,
+ * plus the slack above.
+ */
+const MOBILE_MAP_SHELL_READY_MS =
+  MAP_CANVAS_READINESS_CEILING_MS + MOBILE_MAP_SHELL_SLACK_MS;
+
+/**
+ * The phone map's top bar is on screen, and with it every control the shell
+ * owns (the top bar's buttons and the map-edge column). Wait here, or reach a
+ * control through `mobileMapShellControl`, before touching any of them. A
+ * longer budget (a throttled perf run) may be passed; a shorter one is raised
+ * to the floor.
+ */
+export async function expectMobileMapShellReady(
+  page: Page,
+  timeout: number = MOBILE_MAP_SHELL_READY_MS,
+): Promise<void> {
+  await expect(page.locator(".mobileMapTopbar")).toBeVisible({
+    timeout: Math.max(timeout, MOBILE_MAP_SHELL_READY_MS),
+  });
+}
+
+/**
+ * The controls the phone shell owns (components/mobile/MobileMapShell.tsx):
+ * the top bar's Search, Filters and More map controls, and the map edge's TfL
+ * chip and Near me button. Search, Filters, TfL and Near me have namesakes on
+ * the desktop toolbar and in sheets, so each is scoped to the shell's own
+ * container rather than found by name across the page.
+ */
+export type MobileMapShellControl = "search" | "filters" | "more" | "tfl" | "nearMe";
+
+function shellControlLocator(page: Page, control: MobileMapShellControl): Locator {
+  const topbar = page.locator(".mobileMapTopbar");
+  switch (control) {
+    case "search":
+      return topbar.getByRole("button", { name: "Search the map", exact: true });
+    case "filters":
+      return topbar.locator(".mobileMapFiltersButton");
+    case "more":
+      return topbar.getByRole("button", { name: "More map controls", exact: true });
+    case "tfl":
+      return page.locator(".mobileMapUtilityCorner .mobileMapTflButton");
+    case "nearMe":
+      return page.locator(".mobileMapUtilityCorner .mobileMapLocateFab");
+  }
+}
+
+/**
+ * One of the phone shell's controls, once the shell is on screen. The wait is
+ * the shell's, not the control's: a control the product hides (TfL with no
+ * feed, Near me while search owns the top) is returned as a locator that
+ * resolves to nothing, for the caller to assert on.
+ */
+export async function mobileMapShellControl(
+  page: Page,
+  control: MobileMapShellControl,
+  timeout?: number,
+): Promise<Locator> {
+  await expectMobileMapShellReady(page, timeout);
+  return shellControlLocator(page, control);
+}

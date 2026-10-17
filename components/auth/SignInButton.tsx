@@ -17,16 +17,16 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth, type SignOutScope } from "@/components/auth/authContext";
 import AccountMenu from "@/components/auth/AccountMenu";
+import ClerkAccountSlot from "@/components/auth/ClerkAccountSlot";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
-import { providerHasAnswered } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal, providerHasAnswered } from "@/lib/authProviderRevision";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
@@ -43,17 +43,6 @@ import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
 } from "@/lib/authFocus";
-
-const ClerkAccountControls = dynamic(
-  () => import("@/components/auth/ClerkAccountControls"),
-  {
-    loading: () => (
-      <div className="clerkAccount clerkAccountLoading" hidden aria-hidden="true">
-        Clerk account controls
-      </div>
-    ),
-  },
-);
 
 /** Phone band: full-page /login instead of the nav popover. */
 const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
@@ -177,6 +166,15 @@ export default function SignInButton({
   const signInHref = loginHref(pathname);
   const addAccountHref = addAccountLoginHref(pathname);
   const [busy, setBusy] = useState<"google" | "apple" | "microsoft" | "out" | null>(null);
+  const operationRef = useRef<symbol | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      operationRef.current = null;
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState(false);
@@ -208,12 +206,12 @@ export default function SignInButton({
     return () => mq.removeEventListener?.("change", apply);
   }, []);
 
-  // A successful provider start normally navigates away before its promise
-  // settles, leaving `busy` set. If Back restores this page from the BFCache,
-  // React state is restored too, so explicitly re-enable the provider buttons.
+  // A provider can navigate away while its promise is pending. BFCache can
+  // restore that busy state, so a persisted pageshow supersedes its operation.
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
+        operationRef.current = null;
         cancelAuthAttempt();
         setBusy(null);
       }
@@ -293,40 +291,29 @@ export default function SignInButton({
   // above the new account's @handle.
   const card = usePublicProfileCard(accountHandle);
 
-  const onSignInGoogle = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "google" });
-    setBusy("google");
+  const onProviderSignIn = useCallback(async (
+    provider: "google" | "apple" | "microsoft",
+    start: (next?: string) => Promise<{ error: string | null }>,
+  ) => {
+    const operation = Symbol();
+    const accountSignal = readProviderAccountSignal();
+    operationRef.current = operation;
+    const ownsOperation = () => mountedRef.current && operationRef.current === operation;
+    trackEvent("sign_in_initiated", { provider });
+    setBusy(provider);
     setError(null);
-    const { error: signInError } = await signInWithGoogle();
-    // On success the browser redirects to Google, so we usually never get here;
-    // if signInWithOAuth returned an error instead, surface it and re-enable.
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
+    try {
+      const { error: signInError } = await start();
+      if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
+    } catch {
+      if (ownsOperation() && !accountSignal.aborted) setError("Sign-in could not be started. Try again.");
+    } finally {
+      if (ownsOperation()) {
+        operationRef.current = null;
+        setBusy(null);
+      }
     }
-  }, [signInWithGoogle]);
-
-  const onSignInApple = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "apple" });
-    setBusy("apple");
-    setError(null);
-    const { error: signInError } = await signInWithApple();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [signInWithApple]);
-
-  const onSignInMicrosoft = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "microsoft" });
-    setBusy("microsoft");
-    setError(null);
-    const { error: signInError } = await signInWithMicrosoft();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [signInWithMicrosoft]);
+  }, []);
 
   const onSignOut = useCallback(
     async (scope: SignOutScope = "account") => {
@@ -334,9 +321,17 @@ export default function SignInButton({
       // out it has done its job, and leaving it open would re-render the same
       // popover as the SIGNED-OUT one: a sign-in form that opened by itself.
       setMenuOpen(false);
+      const operation = Symbol();
+      operationRef.current = operation;
       setBusy("out");
-      await signOut(scope);
-      setBusy(null);
+      try {
+        await signOut(scope);
+      } finally {
+        if (mountedRef.current && operationRef.current === operation) {
+          operationRef.current = null;
+          setBusy(null);
+        }
+      }
     },
     [signOut],
   );
@@ -414,7 +409,7 @@ export default function SignInButton({
                 deviceAccounts={deviceAccounts}
                 onSwitchAccount={switchAccount}
                 addAccountHref={addAccountHref}
-                extraControls={clerkSessionAvailable ? <ClerkAccountControls /> : null}
+                extraControls={clerkSessionAvailable ? <ClerkAccountSlot /> : null}
               />
             ) : null}
           </div>
@@ -438,7 +433,7 @@ export default function SignInButton({
         >
           Sign out
         </button>
-        {clerkSessionAvailable ? <ClerkAccountControls /> : null}
+        {clerkSessionAvailable ? <ClerkAccountSlot /> : null}
       </div>
     );
   }
@@ -496,9 +491,9 @@ export default function SignInButton({
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
-        onGoogle={onSignInGoogle}
-        onApple={onSignInApple}
-        onMicrosoft={onSignInMicrosoft}
+        onGoogle={() => onProviderSignIn("google", signInWithGoogle)}
+        onApple={() => onProviderSignIn("apple", signInWithApple)}
+        onMicrosoft={() => onProviderSignIn("microsoft", signInWithMicrosoft)}
         fullLabels={fullLabels}
       />
     ) : null;

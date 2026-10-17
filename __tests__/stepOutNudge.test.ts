@@ -11,7 +11,7 @@ import {
 } from "@/lib/stepOutNudge";
 
 describe("stepOutNudge payload builders", () => {
-  it("builds a Wanted nearby body with coarse you-ish wording", () => {
+  it("builds a pub-to-try nearby body with a coarse walk time", () => {
     expect(
       composeWantedNearbyNudge({
         venueName: "The Anchor",
@@ -20,8 +20,8 @@ describe("stepOutNudge payload builders", () => {
       }),
     ).toEqual({
       kind: "wanted_nearby",
-      title: "Step out",
-      body: "Your Wanted The Anchor is a 12-min walk from you-ish.",
+      title: "Weekly nudge",
+      body: "The Anchor, on your list to try, is about a 12-min walk away.",
       url: "/map?sel=venue-anchor",
     });
   });
@@ -35,8 +35,8 @@ describe("stepOutNudge payload builders", () => {
   it("builds the Soft Plan open body", () => {
     expect(composeSoftPlanOpenNudge({ planId: "plan-1" })).toEqual({
       kind: "soft_plan_open",
-      title: "Step out",
-      body: "Your Soft Plan for tonight is still open.",
+      title: "Weekly nudge",
+      body: "Your plan for tonight is still open.",
       url: "/plan/plan-1",
     });
   });
@@ -52,7 +52,7 @@ describe("stepOutNudge payload builders", () => {
       }),
     ).toMatchObject({
       kind: "deal_ending",
-      title: "Step out",
+      title: "Weekly nudge",
       sourceLabel: "Greene King",
       url: "/map?sel=venue-crown",
     });
@@ -88,7 +88,7 @@ describe("stepOutNudge payload builders", () => {
     expect(isAllowedStepOutNudgeCopy("Keep your streak going")).toBe(false);
     expect(isAllowedStepOutNudgeCopy("Drink more tonight")).toBe(false);
     expect(
-      isAllowedStepOutNudgeCopy("Your Wanted The Anchor is a 12-min walk from you-ish."),
+      isAllowedStepOutNudgeCopy("The Anchor, on your list to try, is about a 12-min walk away."),
     ).toBe(true);
   });
 });

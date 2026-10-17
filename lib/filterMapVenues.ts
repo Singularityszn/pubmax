@@ -53,16 +53,24 @@ export function mapFiltersSuspendUkBasePubs(filters: Filters): boolean {
   });
 }
 
-/** Keep a deep-linked / selected venue on the canvas even if filters exclude it. */
+/**
+ * Keep a deep-linked / selected venue on the canvas even if filters exclude it.
+ *
+ * Returns `filtered` ITSELF whenever nothing has to be added. The canvas
+ * rebuilds every pin's GeoJSON and re-sends the whole source to MapLibre's
+ * worker in a layout effect keyed on this array's identity, so a fresh copy on
+ * every selection put that rebuild inside the venue tap's own frame - the /map
+ * INP tail. A tap on a pin that is already drawn changes nothing here.
+ */
 export function withForcedVenue(
-  filtered: readonly Venue[],
+  filtered: Venue[],
   allById: ReadonlyMap<string, Venue>,
   forcedId: string | null | undefined,
 ): Venue[] {
   const id = forcedId?.trim();
-  if (!id) return [...filtered];
-  if (filtered.some((venue) => venue.id === id)) return [...filtered];
+  if (!id) return filtered;
+  if (filtered.some((venue) => venue.id === id)) return filtered;
   const forced = allById.get(id);
-  if (!forced) return [...filtered];
+  if (!forced) return filtered;
   return [...filtered, forced];
 }

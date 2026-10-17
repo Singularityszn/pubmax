@@ -36,6 +36,21 @@
 //     rows the moment a first-party priced feed exists. See lib/wetherspoons.ts.
 //   - Every other source id still returns [] (documented no-op).
 //
+// PERMISSION, settled 2026-10-16 (it used to fail open):
+//   - A source with a fetcher is read ONLY when its lib/harvest/sourcePolicy.ts
+//     row (DRINK_SOURCE_POLICY_IDS) is allowed. `wetherspoon-menu-prices` is
+//     refused (`publishes-no-web-price`), so today the run logs a REFUSED line,
+//     makes NO request and exits 0: an expected refusal is a recorded decision,
+//     not an outage, and the weekly workflow and the local scheduler (which runs
+//     this lane first and stops on a failure) stay green.
+//   - Every request goes through scripts/lib/permittedHarvestFetch.mjs: the URL
+//     must sit on the policy row's own host and pass `isHarvestableOperatorUrl`,
+//     and robots.txt is read by lib/harvest/robots.ts, so a 401, 403, challenge
+//     page, 5xx or unreachable host is a refusal and a 404 is permission.
+//   - latest.json holds every lane's rows, so a write REPLACES only the
+//     publishers this run produced and refuses a merge that would leave under
+//     MIN_SHARE_OF_EXISTING_ROWS of the committed file.
+//
 // GOVERNANCE (hard rules — do not remove):
 //   - NO scraping of competitor price/review sites (Vivino, Untappd, price
 //     aggregators). Only first-party chain/venue sites and open-data feeds
@@ -48,13 +63,21 @@
 // Run:  node scripts/refresh_drink_prices.mjs [--open-pr]
 //   --open-pr   also open a GitHub PR with the new file (needs `gh` auth).
 
-import { readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { CONTACT_EMAIL } from "../lib/siteContact.mjs";
+import {
+  HarvestRefusal,
+  createPermittedFetch,
+  isOnPermittedSourceHost,
+  permittedHarvestSource,
+} from "./lib/permittedHarvestFetch.mjs";
+import { mergeDrinkUpdates } from "./lib/venueMatch.mjs";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const __dirname = dirname(MODULE_PATH);
@@ -143,11 +166,17 @@ function loadAllowlist() {
 
 const UA =
   `PubMaxxingBot/1.0 (+https://pubmaxxing.app; drink-price research; contact ${CONTACT_EMAIL})`;
-const WETHERSPOONS_HOST = "https://www.jdwetherspoon.com";
-const SITEMAP_URL = `${WETHERSPOONS_HOST}/pub-menus-sitemap.xml`;
-// Politeness: site's robots.txt asks Crawl-delay: 10. Honour it (>= our own 1s
-// floor). Jitter avoids a metronomic request signature.
-const CRAWL_DELAY_MS = 10_000;
+/**
+ * Which lib/harvest/sourcePolicy.ts row PERMITS each allowlisted drink source
+ * that has a fetcher. The two tables are read together and the narrower one
+ * binds (docs/rules/scripts-harvest-and-source-permission.md), so a source with
+ * a fetcher and no permitting row fetches nothing at all.
+ */
+export const DRINK_SOURCE_POLICY_IDS = Object.freeze({
+  "wetherspoons-official": "wetherspoon-menu-prices",
+});
+// Politeness floor. The policy row's own Crawl-delay is honoured above it.
+const MIN_CRAWL_DELAY_MS = 1_000;
 const REQUEST_BUDGET = 300; // hard ceiling of network requests per run
 const MAX_RETRIES = 4;
 
@@ -158,32 +187,13 @@ const LONDON_BOUNDS = { minLat: 51.28, maxLat: 51.70, minLng: -0.52, maxLng: 0.3
 function jitter(ms) {
   return ms + Math.floor(Math.random() * 400);
 }
-function sleep(ms) {
+function defaultSleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// Minimal robots.txt parser: returns true if `path` is allowed for our UA. We
-// honour the wildcard group (the site serves `User-agent: *  Disallow:` = allow
-// all). Any explicit Disallow prefix that matches ABORTS the run for that path.
-function robotsAllows(robotsTxt, path) {
-  const lines = robotsTxt.split(/\r?\n/).map((l) => l.replace(/#.*$/, "").trim());
-  let inStar = false;
-  const disallows = [];
-  for (const line of lines) {
-    const [rawKey, ...rest] = line.split(":");
-    if (!rawKey) continue;
-    const key = rawKey.trim().toLowerCase();
-    const value = rest.join(":").trim();
-    if (key === "user-agent") {
-      inStar = value === "*";
-    } else if (key === "disallow" && inStar) {
-      if (value !== "") disallows.push(value);
-    }
-  }
-  return !disallows.some((prefix) => path.startsWith(prefix));
-}
-
-// One rate-limited, cached, backing-off GET. `cache` is a per-run Map (URL->text).
+// One rate-limited, cached, backing-off GET through the permission door. `ctx`
+// carries the per-run cache (URL->text), the request count and the door. A
+// HarvestRefusal (fence, robots or a refused redirect landing) is never retried.
 async function politeGet(url, ctx) {
   if (ctx.cache.has(url)) return ctx.cache.get(url);
   if (ctx.requests >= REQUEST_BUDGET) {
@@ -192,17 +202,17 @@ async function politeGet(url, ctx) {
   let attempt = 0;
   for (;;) {
     // Space every network request by the crawl delay (except the very first).
-    if (ctx.requests > 0) await sleep(jitter(CRAWL_DELAY_MS));
+    if (ctx.requests > 0) await ctx.sleep(jitter(ctx.crawlDelayMs));
     ctx.requests += 1;
     let res;
     try {
-      res = await fetch(url, {
+      res = await ctx.fetch(url, {
         headers: { "User-Agent": UA, Accept: "text/html,application/xml,application/json" },
-        redirect: "follow",
       });
     } catch (err) {
+      if (err instanceof HarvestRefusal) throw err;
       if (attempt >= MAX_RETRIES) throw err;
-      await sleep(2 ** attempt * 1000);
+      await ctx.sleep(2 ** attempt * 1000);
       attempt += 1;
       continue;
     }
@@ -210,12 +220,13 @@ async function politeGet(url, ctx) {
       if (attempt >= MAX_RETRIES) {
         throw new Error(`GET ${url} failed with ${res.status} after ${attempt} retries.`);
       }
-      await sleep(2 ** attempt * 1000);
+      await ctx.sleep(2 ** attempt * 1000);
       attempt += 1;
       continue;
     }
     if (!res.ok) {
-      // 4xx (not 429): a hard, non-retryable answer. Record + skip this URL.
+      // A 4xx (not 429) on a PAGE is a hard answer about that page: skip it.
+      // robots.txt never reaches here; the door asked it already.
       const text = "";
       ctx.cache.set(url, text);
       console.warn(`  GET ${url} -> ${res.status} (skipped)`);
@@ -424,29 +435,69 @@ function inLondon(lat, lng) {
 
 // --- per-source dispatch ------------------------------------------------------
 
-async function fetchFromDrinkSource(source, options) {
-  if (source.id === "wetherspoons-official") {
-    return fetchWetherspoons(source, options);
+/**
+ * Fetch one allowlisted drink source. Returns `{ rows, refused }`: `refused` is
+ * the logged reason when the source was not read at all.
+ *
+ * Options: `limit`, `scratchCacheDir`, and for tests `fetchImpl`, `sleep` and
+ * `robots` (a `createRobotsChecker` result). No option names a URL: every URL
+ * comes from the policy row or from the pages that row permits.
+ */
+export async function fetchFromDrinkSource(source, options = {}) {
+  const policyId = DRINK_SOURCE_POLICY_IDS[source.id];
+  if (!policyId) {
+    // Every other allowlisted source has no fetcher: a documented no-op that
+    // makes no request.
+    return { rows: [], refused: null };
   }
-  // Every other allowlisted source is still a documented no-op.
-  return [];
+  const permission = permittedHarvestSource(policyId);
+  if (!permission.allowed) {
+    console.log(`  ${source.id}: ${permission.message}`);
+    return { rows: [], refused: permission.message };
+  }
+  if (source.id === "wetherspoons-official") {
+    return fetchWetherspoons(source, permission.source, options);
+  }
+  return { rows: [], refused: null };
 }
 
-async function fetchWetherspoons(source, options) {
-  const { limit, scratchCacheDir } = options;
-  const ctx = { cache: new Map(), requests: 0 };
+async function fetchWetherspoons(source, policySource, options) {
+  const { limit = 200, scratchCacheDir = null, fetchImpl = fetch, sleep = defaultSleep } = options;
+  const robots = options.robots ?? createRobotsChecker({ fetchImpl });
+  const ctx = {
+    cache: new Map(),
+    requests: 0,
+    sleep,
+    fetch: createPermittedFetch({ source: policySource, fetchImpl, robots }),
+    crawlDelayMs: Math.max(MIN_CRAWL_DELAY_MS, (policySource.crawlDelaySeconds ?? 10) * 1000),
+  };
+  // The sitemap URL is the POLICY ROW's, never a constant of this script.
+  const sitemapUrl = policySource.url;
+  const menusUrl = new URL("/pub-menus/", sitemapUrl).href;
 
-  // 1) ROBOTS PRE-FLIGHT — abort if our paths are disallowed.
-  const robotsTxt = await politeGet(`${WETHERSPOONS_HOST}/robots.txt`, ctx);
-  if (!robotsAllows(robotsTxt, "/pub-menus/") || !robotsAllows(robotsTxt, "/pub-menus-sitemap.xml")) {
-    throw new Error("ABORT: robots.txt disallows /pub-menus/ — refusing to fetch.");
+  // 1) ROBOTS PRE-FLIGHT through lib/harvest/robots.ts: every identity this
+  //    harvest answers to, and an unreadable file (401, 403, challenge, 5xx or
+  //    no answer) is a refusal. A 404 publishes no restriction.
+  try {
+    await ctx.fetch.assertPermitted(sitemapUrl);
+    await ctx.fetch.assertPermitted(menusUrl);
+  } catch (error) {
+    if (!(error instanceof HarvestRefusal)) throw error;
+    console.log(`  ${source.id}: ${error.message}`);
+    return { rows: [], refused: error.message };
   }
-  console.log("  robots.txt: /pub-menus/ ALLOWED (crawl-delay honoured at 10s).");
+  console.log(`  robots.txt: /pub-menus/ ALLOWED (crawl-delay ${ctx.crawlDelayMs / 1000}s honoured).`);
 
   // 2) Sitemap -> candidate pub-menu URLs.
-  const sitemapXml = await politeGet(SITEMAP_URL, ctx);
-  const allUrls = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  console.log(`  sitemap: ${allUrls.length} pub-menu URLs.`);
+  const sitemapXml = await politeGet(sitemapUrl, ctx);
+  const listed = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].trim());
+  // A <loc> is somebody else's string: only one on the row's own host, past the
+  // fence, is a candidate.
+  const allUrls = listed.filter((url) => isOnPermittedSourceHost(policySource, url));
+  console.log(
+    `  sitemap: ${allUrls.length} pub-menu URLs` +
+      (listed.length > allUrls.length ? ` (${listed.length - allUrls.length} off-host or refused, dropped).` : "."),
+  );
 
   // 3) Build dataset + resolve which pub URLs plausibly map to a LONDON venue in
   //    OUR dataset — so we spend budget only on relevant pubs.
@@ -469,7 +520,14 @@ async function fetchWetherspoons(source, options) {
   const rows = [];
   let priced = 0;
   for (const cand of candidates) {
-    const html = await politeGet(cand.url, ctx);
+    let html;
+    try {
+      html = await politeGet(cand.url, ctx);
+    } catch (error) {
+      if (!(error instanceof HarvestRefusal)) throw error;
+      console.warn(`  ${error.message}`);
+      continue;
+    }
     if (!html) continue;
     if (scratchCacheDir) {
       try {
@@ -509,7 +567,62 @@ async function fetchWetherspoons(source, options) {
         "(prices live only in the Order & Pay app). 0 rows contributed — see lib/wetherspoons.ts.",
     );
   }
-  return rows;
+  return { rows, refused: null };
+}
+
+// --- writing latest.json ------------------------------------------------------
+
+/**
+ * The smallest merged file, as a share of the committed one, that may replace
+ * it. latest.json holds every lane's rows; a write that loses a tenth of them is
+ * a broken merge, not a price change.
+ */
+const MIN_SHARE_OF_EXISTING_ROWS = 0.9;
+
+function publisherOf(row) {
+  return String(row?.source?.label ?? "").trim().toLowerCase();
+}
+
+/**
+ * Merge this run's rows into the committed latest.json rows.
+ *
+ * Only the rows of the publishers THIS run produced are replaced; every other
+ * lane's rows are kept as they are. Returns `{ ok: false, message }` when the
+ * result would hold fewer than MIN_SHARE_OF_EXISTING_ROWS of the existing rows,
+ * and the caller then writes nothing.
+ */
+export function planLatestDrinkWrite({ existing, incoming }) {
+  const publishers = new Set(incoming.map(publisherOf));
+  const retained = existing.filter((row) => !publishers.has(publisherOf(row)));
+  const merged = mergeDrinkUpdates(retained, incoming);
+  const floor = Math.ceil(existing.length * MIN_SHARE_OF_EXISTING_ROWS);
+  if (merged.length < floor) {
+    return {
+      ok: false,
+      merged,
+      replaced: existing.length - retained.length,
+      message:
+        `REFUSED write: the merge would leave ${merged.length} of ${existing.length} existing rows ` +
+        `(floor ${floor}, ${MIN_SHARE_OF_EXISTING_ROWS} of the committed file). Nothing written.`,
+    };
+  }
+  return { ok: true, merged, replaced: existing.length - retained.length, message: null };
+}
+
+/** The committed rows, [] when no file exists. An unreadable file is a refusal. */
+function readExistingDrinkUpdates(path) {
+  if (!existsSync(path)) return [];
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  if (!parsed || !Array.isArray(parsed.updates)) {
+    throw new Error(`${path} holds no updates array — refusing to overwrite it.`);
+  }
+  return parsed.updates;
+}
+
+/** A review branch unique to this run, so a same-day rerun does not collide at push. */
+export function reviewBranchName(date = new Date()) {
+  const iso = date.toISOString();
+  return `drink-price-refresh/${iso.slice(0, 10).replace(/-/g, "")}-${iso.slice(11, 19).replace(/:/g, "")}`;
 }
 
 // --- main ---------------------------------------------------------------------
@@ -702,7 +815,8 @@ async function main() {
 
   const raw = [];
   for (const source of sources) {
-    const rows = await fetchFromDrinkSource(source, options);
+    const { rows, refused } = await fetchFromDrinkSource(source, options);
+    if (refused) console.log(`  ${source.id}: not read this run (refusal recorded above).`);
     console.log(`  ${source.id}: ${rows.length} candidate row(s)`);
     raw.push(...rows);
   }
@@ -721,28 +835,34 @@ async function main() {
   }
 
   const stamp = todayStamp();
-  const body = {
-    version: 1,
-    generatedAt: new Date().toISOString(),
-    updates: valid,
-  };
 
   // --scratch routes ALL output to a throwaway dir and skips both the shipped
   // latest.json alias and the PR path — used by the evidence dry run.
   if (scratchDir) {
     const scratchOut = join(scratchDir, `prices_${stamp}.json`);
-    writeFileSync(scratchOut, `${JSON.stringify(body, null, 2)}\n`, "utf8");
+    const scratchBody = { version: 1, generatedAt: new Date().toISOString(), updates: valid };
+    writeFileSync(scratchOut, `${JSON.stringify(scratchBody, null, 2)}\n`, "utf8");
     console.log(`[scratch] wrote ${valid.length} update(s) to ${scratchOut} (no latest.json, no PR).`);
     return;
   }
+
+  // latest.json holds every lane's rows (Greene King, venue sites and more), so
+  // this run REPLACES only its own publishers' rows and refuses a mass drop.
+  const latestPath = join(OUT_DIR, "latest.json");
+  const existing = readExistingDrinkUpdates(latestPath);
+  const plan = planLatestDrinkWrite({ existing, incoming: valid });
+  if (!plan.ok) throw new Error(plan.message);
+  const body = { version: 1, generatedAt: new Date().toISOString(), updates: plan.merged };
 
   mkdirSync(OUT_DIR, { recursive: true });
   const outPath = join(OUT_DIR, `prices_${stamp}.json`);
   writeFileSync(outPath, `${JSON.stringify(body, null, 2)}\n`, "utf8");
   // Stable alias the client fetches (404-tolerant) — always the newest file.
-  const latestPath = join(OUT_DIR, "latest.json");
   writeFileSync(latestPath, `${JSON.stringify(body, null, 2)}\n`, "utf8");
-  console.log(`Wrote ${valid.length} update(s) to ${outPath} (+ latest.json)`);
+  console.log(
+    `Wrote ${valid.length} update(s) merged into ${plan.merged.length} row(s) ` +
+      `(${plan.replaced} of this run's publishers' rows replaced) to ${outPath} (+ latest.json)`,
+  );
 
   // Validate before ever proposing a PR — a bad file must never leave this
   // machine, even on a review branch.
@@ -759,7 +879,7 @@ async function main() {
   }
 
   // Open a PR so a human reviews every price change. Never push to main.
-  const branch = `drink-price-refresh/${stamp}`;
+  const branch = reviewBranchName();
   execFileSync("git", ["checkout", "-b", branch], { stdio: "inherit" });
   execFileSync("git", ["add", outPath, latestPath], { stdio: "inherit" });
   execFileSync("git", ["commit", "-m", `chore(drink-prices): refresh ${stamp} (${valid.length} sourced)`], {

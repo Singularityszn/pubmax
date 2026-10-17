@@ -1116,6 +1116,16 @@
   .mobileSharedSheet .venueSheetSkeleton + .venueSheetSkeleton {
     display: none;
   }
+  /* The same reservation holds the panel itself. Once its chunk is cached (every
+     open after a session's first) the panel mounts while the venue read is
+     still out, BELOW a 92dvh skeleton and so clipped out of view; the read
+     landing pulled it up into the sheet more than 500 ms after the tap, and
+     Chrome scored that jump at 0.29 on a lab phone (map-p99-vitals-tail). Held
+     out of layout until the skeleton goes, it appears in the skeleton's place
+     instead of moving there. */
+  .mobileSharedSheet .venueSheetSkeleton ~ .venueInspector {
+    display: none;
+  }
   /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
      bar (VenueStickyBar) portals into this via SheetFooterContext, so it rides
      1:1 with the sheet on drag/snap (in flow, no fixed positioning) and is
@@ -1282,6 +1292,24 @@
      was what sized the figure column past the phrase beside it. */
   .mobileVenuePeekSummary small { max-inline-size: 22ch; color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
   .mobileVenuePeekSummary button { min-height: var(--control-height, 44px); padding: 0 var(--control-pad-x, 16px); border: 0; border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size, var(--text-sm)); font-weight: var(--control-font-weight, 700); }
+  /* THE PLAN DOOR WRAPS RATHER THAN CLIPS. "Make it Stop 1" is the longest
+     label the one plan door carries (lib/venuePlanDoor.ts), and at 320px with
+     large text its one line is wider than the column the row can spare. It
+     breaks between words onto a second balanced line inside the same coral
+     button, which grows taller, never wider than the row. */
+  .mobileVenuePeekSummary .mobileVenuePeekPlanDoor { max-inline-size: 100%; padding-block: 6px; line-height: 1.15; white-space: normal; text-wrap: balance; }
+  /* LARGE TEXT GIVES THE DOOR ITS OWN LINE. Three cells share the row while it
+     is at least 17.5em wide, which a 320px phone is at default text (17.9em,
+     measured). Grow the text and the same pixels hold fewer em: at 1.3x on 320
+     the price column was squeezed to 50px and its plaque ran under "Near me".
+     Below that measure the price and the walk keep the first line and the
+     plan door spans the second, full width, on one line. The query is in em
+     on the frame, so it follows the reader's text size, not the phone's. */
+  .mobileVenuePeekFrame { container: venue-peek / inline-size; }
+  @container venue-peek (max-width: 17.5em) {
+    .mobileVenuePeekSummary { grid-template-columns: minmax(0, auto) minmax(min-content, 1fr); }
+    .mobileVenuePeekSummary > .mobileVenuePeekPlanDoor { grid-column: 1 / -1; }
+  }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */
   /* Three cells, ONE idiom. "No price yet." used to sit in a bordered, tinted

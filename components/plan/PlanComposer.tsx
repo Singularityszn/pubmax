@@ -22,8 +22,9 @@ import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { haptic } from "@/lib/nativeHaptics";
+import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
-import { measuredLegMinutes, routeHeading, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import { measuredLegMinutes, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
 import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
@@ -99,6 +100,7 @@ import {
 } from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
@@ -111,6 +113,7 @@ import {
   defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  londonNightsAhead,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
@@ -120,6 +123,7 @@ import {
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
   skipRemainingPlanIntake,
+  tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -806,24 +810,25 @@ export function planRouteRevealBehavior(reducedMotion: boolean): ScrollBehavior 
 }
 
 /**
- * Take the reader to the route they asked for. On a phone a generated route
- * lands below the fold (the context editor sits between the ask and the
- * preview), so a chip tap looked like nothing happened. Scrolls the route
- * status to the top of the viewport and moves focus onto it, so the preview
- * is seen and announced without a manual scroll.
+ * Feedback can land below the fold after generation or Tune dismissal.
+ * Reveal and focus the error first so a failed request cannot appear silent.
+ * Errors move immediately, even when ordinary route feedback uses smooth scrolling.
  */
 export function revealPlanRouteStatus(
   root: ParentNode | Document = document,
   reducedMotion?: boolean,
 ): void {
-  const status = root.querySelector("#plan-route-status");
-  if (!(status instanceof HTMLElement)) return;
+  const status = root.querySelector("#plan-composer-error") ?? root.querySelector("#plan-route-status");
+  if (!(status instanceof HTMLElement) || !status.textContent?.trim()) return;
   const reduce =
     reducedMotion ??
     (typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  status.scrollIntoView?.({ behavior: planRouteRevealBehavior(reduce), block: "start" });
+  status.scrollIntoView?.({
+    behavior: status.id === "plan-composer-error" ? "instant" : planRouteRevealBehavior(reduce),
+    block: "start",
+  });
   status.tabIndex = -1;
   status.focus({ preventScroll: true });
 }
@@ -1070,6 +1075,20 @@ function nextEvening(): string {
   return defaultLondonStartInput();
 }
 
+/**
+ * The name of the night the late default stepped over, for the one-tap choice
+ * beside the field: null whenever `tonightLondonStartInput` has no slot left
+ * to offer. Read on every render, and the slot itself read again on the tap,
+ * never latched - a quarter-hour held from mount is a moment that has passed
+ * by the time a reader has described a night and sorted it, and the lock
+ * refuses a start in the past. The tap writes that fresh slot or nothing: a
+ * control may not write a night its own label does not name.
+ */
+function tonightChoiceLabel(): string | null {
+  const value = tonightLondonStartInput();
+  return value === null ? null : routeStartLabel(value);
+}
+
 function unsupportedPatchForCurrentGenerator(
   draft: PlanIntakeDraft,
   contextPatch: Partial<NightContext>,
@@ -1172,7 +1191,7 @@ export function AcceptedContextPanel({
  * `message`; this is the exact element the form renders it in.
  */
 export function PlanComposerErrorNotice({ message }: { message: string }) {
-  return <p className="planComposer__error" role="alert">{message}</p>;
+  return <p id="plan-composer-error" className="planComposer__error" role="alert" tabIndex={-1}>{message}</p>;
 }
 
 type ComposerDraftFields = {
@@ -2116,6 +2135,9 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
+      if (new URLSearchParams(window.location.search).get("from") === "onboarding") {
+        recordPlanHighIntentAction();
+      }
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
@@ -2136,7 +2158,7 @@ function PlanComposerForm({
       setError(failureStatus);
       if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
-      setTuneOpen(false);
+      setRouteRevealTick((tick) => tick + 1);
     } finally {
       setSorting(false);
     }
@@ -2287,7 +2309,7 @@ function PlanComposerForm({
   ) : null;
   const routeStatusLine = (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
-      {error && !routeSorted && routeStatus === error
+      {error && routeStatus === error
         ? null
         : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>
@@ -2301,7 +2323,7 @@ function PlanComposerForm({
         </div>
       )}
       <div className="planComposer__conciergeInput">
-        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
+        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">{PLAN_FIELD_LABEL}</label>
         <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
         {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
             `Lock it in` is the thing to do next, and two coral fills on one
@@ -2319,7 +2341,7 @@ function PlanComposerForm({
           aria-disabled={sorting || undefined}
           aria-busy={sorting}
         >
-          {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
+          {sorting ? "Planning…" : routeSorted ? PLAN_RESUBMIT_LABEL : "Make a plan"}
         </button>
       </div>
       <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
@@ -2484,6 +2506,14 @@ function PlanComposerForm({
       </details>
     </section>
   );
+  // Whether the field is anything OTHER than a start still to come on the
+  // night running now: a later night, a start that has already passed, or a
+  // time that is not a London one. A passed start is the state that needs the
+  // door most - the lock has already refused it - and reading the night alone
+  // withheld it there.
+  const fieldNight = londonNightsAhead(startTime);
+  const fieldWantsTonight = !fieldNight || fieldNight.nights !== 0 || fieldNight.past;
+  const tonightLabel = tonightChoiceLabel();
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
@@ -2497,6 +2527,23 @@ function PlanComposerForm({
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
         <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        {/* Late in the evening the default is tomorrow at 19:00, so the night
+            the reader is standing in needs a door of its own. It carries the
+            date because an early-hours slot reads as tomorrow on a calendar
+            and as tonight on a night out. */}
+        {tonightLabel && fieldWantsTonight ? (
+          <button
+            type="button"
+            className="planComposer__tonight"
+            data-testid="plan-tonight-choice"
+            onClick={() => {
+              const slot = tonightLondonStartInput();
+              if (slot) updatePlanStartTime(slot);
+            }}
+          >
+            Tonight, {tonightLabel}
+          </button>
+        ) : null}
       </div>
 
     </>
@@ -2504,7 +2551,7 @@ function PlanComposerForm({
 
   const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
   const viewStops = completeStops;
-  const summaryLine = routeSummaryLine(viewStops, measured);
+  const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
   const stopsBlock = (
     <fieldset className="planComposer__stops">
@@ -2572,6 +2619,9 @@ function PlanComposerForm({
       </div>
       <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
       {routeStatusLine}
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <p className="planResult__provenance">One pint per person at each stop. Meal prices are not verified.</p>
+      )}
       <PlanResultProvenance />
       {routeStaleNotice}
     </section>

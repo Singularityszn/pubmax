@@ -89,27 +89,38 @@ export default function PubsFilters({
       {/* The fare zones are number squares, and a number square is ONE family:
           this row renders the same `Chip variant="number"` the planner's
           pub-stop count renders (components/ui/chip.tsx), rather than a
-          look-alike square of its own. */}
+          look-alike square of its own. A bare "1 2 3 4" row read as page
+          numbers, so a visible "Zone" label names the group, and the group
+          takes its accessible name from it. */}
       {zonesPresent.length > 0 ? (
-        <div className="zoneChips pubsZoneChips" role="group" aria-label="Filter by fare zone">
-          <Chip
-            variant="number"
-            aria-pressed={zone === "all"}
-            onClick={() => navigate(filter, "all")}
+        <div className="pubsZoneRow">
+          <span className="pubsZoneLabel" id="pubs-zone-label">
+            Zone
+          </span>
+          <div
+            className="zoneChips pubsZoneChips"
+            role="group"
+            aria-labelledby="pubs-zone-label"
           >
-            All zones
-          </Chip>
-          {zonesPresent.map((id) => (
             <Chip
-              key={id}
               variant="number"
-              aria-pressed={zone === id}
-              aria-label={`Zone ${id}${zone === id ? " (selected)" : ""}`}
-              onClick={() => navigate(filter, id as ZoneSelection)}
+              aria-pressed={zone === "all"}
+              onClick={() => navigate(filter, "all")}
             >
-              {id}
+              All zones
             </Chip>
-          ))}
+            {zonesPresent.map((id) => (
+              <Chip
+                key={id}
+                variant="number"
+                aria-pressed={zone === id}
+                aria-label={`Zone ${id}${zone === id ? " (selected)" : ""}`}
+                onClick={() => navigate(filter, id as ZoneSelection)}
+              >
+                {id}
+              </Chip>
+            ))}
+          </div>
         </div>
       ) : null}
     </>

@@ -2,8 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { LocateFixed } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
@@ -13,26 +12,18 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import type { LegacyPintPrice } from "@/lib/drinks";
 import {
-  getTourSeenServerSnapshot,
-  getTourSeenSnapshot,
-  subscribeTour,
-} from "@/lib/firstRunTour";
-import {
   answerEvidenceFor,
   answerKicker,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
-  LANDING_FALLBACK_RECEIPT_LABEL,
+  LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
-  NEAR_ME_CONTROL_BUSY_LABEL,
-  NEAR_ME_CONTROL_LABEL,
+  LANDING_RECEIPT_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
-  landingPrimaryHref,
   pintDropDoorHref,
   railHeading,
-  stillPriceLabel,
   type AnswerPublisher,
   type LandingAnswerScope,
   type LandingArchiveIndex,
@@ -45,6 +36,7 @@ import {
   type ResolvedLandingPhoto,
 } from "@/lib/landingImagery";
 import { NEAR_ME_LOCATION_OPTIONS } from "@/lib/nearMeLocation";
+import { strangerSavingLine, type PintPriceAverages } from "@/lib/pintSavings";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import { priceMovementLine } from "@/lib/priceMovementLine";
 import { priceStandingLabel, priceStandingNote, type PriceStanding } from "@/lib/priceTier";
@@ -62,11 +54,21 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 
-// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask):
-// kicker, the claim, one line under it, the PICTURE, then the one filled action,
-// then the quiet row, then the pub card and the three next-cheapest rows. The
-// DOM order is the phone order; the desktop seats the picture and the rows
-// beside the copy.
+// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask, and
+// trimmed after the 16 Oct 2026 UX audit): the claim, one line under it, the
+// PICTURE, then the one filled action, then the quiet row, then the pub card
+// and the three next-cheapest rows. The DOM order is the phone order; the
+// desktop seats the picture and the rows beside the copy.
+//
+// No brand kicker over the claim: the wordmark in the bar already says it, and
+// a second PUBMAXX six lines lower was the page repeating its own name.
+//
+// THE LINE UNDER THE CLAIM IS THE SAVING. "The average listed pint across N
+// London pubs is £X. In the cheapest third it's £Y." was the strongest sentence
+// on the page and sat mid-scroll as a plain paragraph. It is measured from the
+// same priced read the card comes from (lib/pintSavings.ts), never typed, and a
+// dataset too small to back it falls back to the map line the share card and
+// the meta description carry.
 //
 // The hero shows the London skyline the captain selected. The responsive files
 // are committed under public/landing; the live map is still one tap away.
@@ -81,6 +83,11 @@ import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
 // the browser only ever swaps the anchor for a near-you answer built from the
 // same slim index /near ranks. lib/landingImagery.ts owns which picture, whose
 // it is, and the scrim that keeps every line over it inside WCAG AA.
+//
+// The card carries no location control of its own. The primary right above it
+// is the near-you door, so a second "Near me" inside the card was the same
+// promise twice. The swap still happens for a reader whose browser already
+// granted location, with no prompt; nobody is asked from the card.
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
@@ -118,6 +125,7 @@ type Answer = {
   id: string;
   name: string;
   area: string;
+  primaryBorough: string;
   priceGbp: number;
   /** "a pint of Pravha" for the anchor; the slim index names no pint. */
   pintName: string | null;
@@ -145,6 +153,7 @@ function anchorAnswer(
     id: card.id,
     name: card.name,
     area: card.area,
+    primaryBorough: card.primaryBorough,
     priceGbp: card.priceGbp,
     pintName: card.pintName,
     drinkHref: card.drinkHref,
@@ -166,6 +175,7 @@ function nearAnswer(
     id: first.id,
     name: first.name,
     area: first.borough,
+    primaryBorough: first.borough,
     priceGbp: first.cheapestPrice,
     pintName: null,
     drinkHref: null,
@@ -177,6 +187,7 @@ function nearAnswer(
       id: card.id,
       name: card.name,
       area: card.borough,
+      primaryBorough: card.borough,
       priceGbp: card.cheapestPrice,
       walkMinutes: card.walkMinutes,
       hasThen: card.id in archive,
@@ -209,15 +220,21 @@ async function readEvidence(
   }
 }
 
+/** The line under the claim when the dataset cannot back a saving. */
+const MAP_LEDE = `London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`;
+
 export default function LandingHero({
   card,
   archive,
   rail,
+  averages = null,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
+  /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
+  averages?: PintPriceAverages | null;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -225,13 +242,6 @@ export default function LandingHero({
   const [near, setNear] = useState<NearState>({ kind: "idle" });
   const generation = useRef(0);
   const hasCard = card !== null;
-  // The document ships the returning visitor's door (the server snapshot says
-  // seen), and the browser points a first-time visitor at the journey.
-  const seenOnboarding = useSyncExternalStore(
-    subscribeTour,
-    getTourSeenSnapshot,
-    getTourSeenServerSnapshot,
-  );
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
@@ -281,7 +291,7 @@ export default function LandingHero({
   }, [archive, hasCard]);
 
   // A reader who already said yes gets the near-you answer with no tap. A
-  // reader who has not is never asked on arrival: the control on the card asks.
+  // reader who has not is never asked here: the primary's /near door asks.
   useEffect(() => {
     if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
@@ -301,16 +311,16 @@ export default function LandingHero({
   // swap moves to that pub's own borough rather than keeping the anchor's.
   const photo = landingPhotoFor(
     answer
-      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.area) }
+      ? { venueId: answer.id, boroughSlug: slugifyBorough(answer.primaryBorough) }
       : {},
   );
   // The one filled action, and it is the same door whether or not a pub card
-  // stands behind the document: /near answers in one tap, with the first-run
-  // journey in front of it for a first-time visitor.
+  // stands behind the document, and the same door for every visitor: /near
+  // answers in one tap, and offers the first-run journey there as a chip.
   const primary = (
     <Link
       prefetch={false}
-      href={landingPrimaryHref(seenOnboarding)}
+      href={LANDING_PRIMARY_HREF}
       onClick={() => trackLandingCta("near")}
     >
       {LANDING_PRIMARY_LABEL}
@@ -318,7 +328,8 @@ export default function LandingHero({
   );
 
   // The receipt door, quiet now. It carries the anchor pub where there is one,
-  // so the label still names the figure the card printed.
+  // so the composer opens on that pub holding the figure the card printed. The
+  // label says what the tap does; "Still" and a figure read as a riddle.
   const receipt = answer ? (
     <Link
       key="receipt"
@@ -327,7 +338,7 @@ export default function LandingHero({
       onClick={() => trackLandingCta("receipt")}
       aria-describedby="lp-answer-name"
     >
-      {stillPriceLabel(answer.priceGbp)}
+      {LANDING_RECEIPT_LABEL}
     </Link>
   ) : (
     <Link
@@ -336,17 +347,16 @@ export default function LandingHero({
       href={LANDING_FALLBACK_RECEIPT_HREF}
       onClick={() => trackLandingCta("receipt")}
     >
-      {LANDING_FALLBACK_RECEIPT_LABEL}
+      {LANDING_RECEIPT_LABEL}
     </Link>
   );
 
   return (
     <Screen
       className="lpHero"
-      kicker="PUBMAXX"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
-      lede={`London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`}
+      lede={strangerSavingLine(averages) ?? MAP_LEDE}
       answer={
         <figure className="lpLondonFigure">
           <picture>
@@ -379,8 +389,8 @@ export default function LandingHero({
       primary={primary}
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
-        // it was the primary until today and a returning drinker looks for it
-        // there; Tonight keeps the tap #1488 gave it.
+        // it was the primary once and a returning drinker looks for it there;
+        // Tonight keeps the tap #1488 gave it.
         <>
           {receipt}
           {LANDING_QUIET_DOORS.map((door) => (
@@ -397,7 +407,7 @@ export default function LandingHero({
         </>
       }
     >
-      {answer ? <AnswerCard answer={answer} near={near} onLocate={locate} photo={photo} /> : null}
+      {answer ? <AnswerCard answer={answer} near={near} photo={photo} /> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
   );
@@ -412,17 +422,14 @@ function sourceLine(evidence: Evidence): string {
 function AnswerCard({
   answer,
   near,
-  onLocate,
   photo,
 }: {
   answer: Answer;
   near: NearState;
-  onLocate: () => void;
   photo: ResolvedLandingPhoto;
 }) {
   const kicker = answerKicker(answer.scope, answer.area);
   const walk = answer.walkMinutes != null ? `${answer.walkMinutes} min walk` : null;
-  const showControl = near.kind === "idle" || near.kind === "requesting";
   const evidence = answer.evidence;
   const publisher = typeof evidence === "object" ? evidence.publisher : null;
   const standing = typeof evidence === "object" ? evidence.standing : null;
@@ -440,22 +447,10 @@ function AnswerCard({
         preloadMedia={ANSWER_PHOTO_PRELOAD_MEDIA}
       />
       <div className="lpAnswerHead">
-        <Kicker tone="muted">
+        <Kicker>
           {kicker}
           {walk ? <span className="lpAnswerWalk"> · {walk}</span> : null}
         </Kicker>
-        {showControl ? (
-          <button
-            type="button"
-            className="lpNearMe"
-            onClick={onLocate}
-            disabled={near.kind === "requesting"}
-            aria-busy={near.kind === "requesting" || undefined}
-          >
-            <LocateFixed size={15} aria-hidden="true" />
-            {near.kind === "requesting" ? NEAR_ME_CONTROL_BUSY_LABEL : NEAR_ME_CONTROL_LABEL}
-          </button>
-        ) : null}
       </div>
       <h2 className="lpPubName" id="lp-answer-name">
         <Link prefetch={false} href={venueMapUrl(answer.id)}>
@@ -536,7 +531,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (
                   <span className="lpRailMeta">{row.walkMinutes} min walk</span>
-                ) : row.area !== answer.area ? (
+                ) : row.primaryBorough !== answer.primaryBorough ? (
                   <span className="lpRailMeta">{row.area}</span>
                 ) : null}
               </span>

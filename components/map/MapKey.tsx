@@ -6,6 +6,7 @@ import {
   Martini,
   Utensils,
 } from "lucide-react";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import type {
@@ -13,6 +14,7 @@ import type {
   MapPriceLegendModel,
 } from "@/lib/mapPriceLegend";
 import { mapPriceTrustBeats } from "@/lib/mapPriceTrust";
+import { priceBandClass } from "@/lib/priceBand";
 
 import "./mapKey.css";
 
@@ -96,6 +98,12 @@ export default function MapKey({
             ))}
           </ul>
         </details>
+        {/* What people are SAYING about prices lives on its own page, one tap
+            away. It is a door, never a layer: a Price Pulse figure has no
+            price authority and never paints a pin (lib/pricePulse.ts). */}
+        <Link prefetch={false} href="/price-pulse" className="mapKeyPulseLink">
+          What people are saying about prices
+        </Link>
       </section>
 
       {legend.cluster ? (
@@ -103,7 +111,13 @@ export default function MapKey({
           <h3 id="mapKeyClusterHeading">Clusters</h3>
           <div className="mapKeyClusterRow">
             <span className="mapKeyClusterSample" aria-hidden="true">
-              {legend.cluster.sample}
+              {legend.cluster.samplePriced ? (
+                // A priced disc's figure wears its own band's ink, so the
+                // sample does too: the cheap band, the one "£4" sits in.
+                <span className={priceBandClass("cheap")}>{legend.cluster.sample}</span>
+              ) : (
+                legend.cluster.sample
+              )}
             </span>
             <p>{legend.cluster.note}</p>
           </div>

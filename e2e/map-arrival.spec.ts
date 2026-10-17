@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const MAP_FIRST_VISIT_KEY = "pubmax:map-first-visit-arrival:v1";
 const MAP_CHOSEN_AREA_KEY = "pubmax:map-chosen-area:v1";
@@ -116,7 +117,7 @@ test.describe("map first-visit arrival", () => {
     await prepareFirstVisitMap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await waitForPins(page);
 
     const arrival = page.locator(".mapArrivalCard");
@@ -149,7 +150,7 @@ test.describe("map first-visit arrival", () => {
     expect(stored).toMatchObject({ label: "Camden", slug: "camden", kind: "night-area" });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await waitForPins(page);
     await expect(page.locator(".mapArrivalCard")).toBeHidden();
     await expect(
@@ -170,7 +171,7 @@ test.describe("map first-visit arrival", () => {
     await prepareFirstVisitMap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+    await expectMobileMapShellReady(page, 45_000);
     await waitForPins(page);
 
     const arrival = page.locator(".mapArrivalCard");

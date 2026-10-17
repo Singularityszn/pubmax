@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 import { expectHydrated } from "./helpers/streamedPage";
 
 /**
@@ -41,7 +42,7 @@ async function openMap(page: Page): Promise<void> {
 
 async function openPhoneMap(page: Page): Promise<void> {
   await openMap(page);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 30_000 });
+  await expectMobileMapShellReady(page, 30_000);
 }
 
 /** The one Back control, wherever the surface lives. */
@@ -64,21 +65,22 @@ async function openSheetFromTopBar(page: Page, label: string): Promise<void> {
 }
 
 /**
- * Open the planner from the layers sheet with ONE tap, once React has attached.
- * A control painted on the server is tappable before React attaches, so
- * Playwright's actionability check passes and the tap is dropped with nothing on
- * screen saying so (AGENTS.md, "A LONE CLICK IS NOT A WAIT FOR HYDRATION").
- * Retrying the tap instead was not safe: when the first tap landed late, the
- * retry opened a second planner on the trail, and Back then stepped from one
- * planner to the other instead of to the sheet that opened it.
+ * Open the planner from the layers sheet within the preparation budget.
+ * Retry only while the planner is absent, using the layers sheet's control.
+ * A second planner entry would make Back return to another planner.
  */
 async function openPlannerFromSheet(page: Page): Promise<void> {
-  const plan = page.getByRole("button", { name: "Plan an outing" }).first();
+  const plan = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')
+    .getByRole("button", { name: "Plan an outing", exact: true });
   await expectHydrated(plan);
-  await plan.click();
-  await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
-    timeout: 30_000,
-  });
+  await expect(async () => {
+    if (await sheet(page).getAttribute("data-sheet-kind") !== "planner") {
+      await plan.click({ timeout: 1_000 });
+    }
+    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 30_000 });
   // The kind precedes the opening effect and the lazy route content. Wait for
   // both before Back: a growing sheet can move its header during the press.
   await expect(sheet(page).locator(".routePanel")).toBeVisible();

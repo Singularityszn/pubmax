@@ -23,7 +23,7 @@ function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
     stale: false,
     checkedLabel: "Checked 6 minutes ago",
     source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },
-    factsLine: "24°C feels like, clear, 0% chance of rain, daylight.",
+    factsLine: "Feels like 24°C, clear, 0% chance of rain, daylight.",
     ...overrides,
   };
 }
@@ -55,7 +55,7 @@ describe("buildDayGreeting", () => {
     expect(greeting.slot).toBe("evening");
     expect(greeting.salutation).toBe("Good evening");
     expect(greeting.headline).toBe("Golden evening for a beer garden.");
-    expect(greeting.support).toBe("Saturday 25 Jul. 24°C feels like, clear, 0% chance of rain, daylight.");
+    expect(greeting.support).toBe("Saturday 25 Jul. Feels like 24°C, clear, 0% chance of rain, daylight.");
     expect(greeting.weatherAware).toBe(true);
   });
 
@@ -82,12 +82,12 @@ describe("buildDayGreeting", () => {
   it("describes the rule behind the displayed reading, not only its shared lens", () => {
     const now = new Date("2026-07-25T23:30:00.000Z");
     const warmRain = brief({
-      factsLine: "24°C feels like, cloudy, 60% chance of rain, night.",
+      factsLine: "Feels like 24°C, cloudy, 60% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "hard-rain",
     });
     const cold = brief({
-      factsLine: "7°C feels like, cloudy, 10% chance of rain, night.",
+      factsLine: "Feels like 7°C, cloudy, 10% chance of rain, night.",
       venueLens: "fireplace",
       ruleId: "cold",
     });
@@ -141,12 +141,12 @@ describe("buildDayGreeting", () => {
       now: new Date("2026-07-25T18:00:00.000Z"),
       weather: brief({
         stale: true,
-        factsLine: "Last read of the sky: 24°C feels like, clear, 0% chance of rain.",
+        factsLine: "Last reading: feels like 24°C, clear, 0% chance of rain.",
       }),
       dateLabel: DATE_LABEL,
     });
     expect(greeting.support).toBe(
-      "Saturday 25 Jul. Last read of the sky: 24°C feels like, clear, 0% chance of rain.",
+      "Saturday 25 Jul. Last reading: feels like 24°C, clear, 0% chance of rain.",
     );
     expect(greeting.support).not.toContain("in London");
   });
@@ -158,12 +158,12 @@ describe("buildDayGreeting", () => {
         ruleId: null,
         verdictLine: "",
         venueLens: "any",
-        factsLine: "16°C feels like, cloudy, 45% chance of rain, daylight.",
+        factsLine: "Feels like 16°C, cloudy, 45% chance of rain, daylight.",
       }),
       dateLabel: DATE_LABEL,
     });
     expect(greeting.headline).toBe("Your night out, sorted.");
-    expect(greeting.support).toBe("Saturday 25 Jul. 16°C feels like, cloudy, 45% chance of rain, daylight.");
+    expect(greeting.support).toBe("Saturday 25 Jul. Feels like 16°C, cloudy, 45% chance of rain, daylight.");
     expect(greeting.weatherAware).toBe(false);
   });
 

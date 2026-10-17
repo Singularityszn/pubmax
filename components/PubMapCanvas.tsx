@@ -78,6 +78,7 @@ import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { mapReaderPositionGeoJSON, type MapReaderPosition } from "@/lib/mapReaderPosition";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, venueFromDetailPayload, type Venue } from "@/lib/venues";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import type {
   CategoryPriceIndexStatus,
   MapLensPrice,
@@ -132,7 +133,9 @@ import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/
 import {
   BASEMAP_RETRY_NOTICE,
   PIN_PAINT_RETRY_NOTICE,
+  basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
+  openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
   overviewSkipsVenueWait,
@@ -231,7 +234,8 @@ import {
   sameMapRenderedState,
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
-import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { MAP_OPENING_PREVIEW_RETRACT_EVENT, publishMapOpeningFrame } from "@/lib/mapOpeningPreview";
 import {
   ARRIVAL_BEARING_POLL_MS,
   nextArrivalBearingWait,
@@ -664,6 +668,29 @@ function withPubMapCanvasDefaults({
     listCount,
     focusPoint,
   };
+}
+
+/**
+ * Before its pins are revealed, tell the document's opening preview
+ * (components/map/MapOpeningPreview.tsx) what this map is about to draw and
+ * from where, so the preview stands down the moment the two differ rather than
+ * at the reveal. After the reveal there is nothing left to tell it.
+ */
+function announceOpeningFrame(
+  map: maplibregl.Map | null,
+  view: { center: [number, number]; zoom: number; pitch?: number; bearing?: number },
+  features: GeoJSON.Feature[],
+): void {
+  if (typeof performance !== "undefined" && performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0) {
+    return;
+  }
+  const centre = map?.getCenter();
+  publishMapOpeningFrame({
+    features,
+    camera: map && centre
+      ? { center: [centre.lng, centre.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() }
+      : { center: view.center, zoom: view.zoom, pitch: view.pitch ?? 0, bearing: view.bearing ?? 0 },
+  });
 }
 
 export default function PubMapCanvas(props: PubMapCanvasProps) {
@@ -1575,8 +1602,34 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
+        // The opening keeps its in-flight basemap tiles while the arrival
+        // flight zooms, so the pins can arrive during it. The first idle hands
+        // every later zoom back to MapLibre's default.
+        cancelPendingTileRequestsWhileZooming: openingCancelsPendingTiles(
+          reducedRef.current,
+        ),
       });
+      if (!map.cancelPendingTileRequestsWhileZooming) {
+        const settledMap = map;
+        settledMap.once("idle", () => {
+          settledMap.cancelPendingTileRequestsWhileZooming = true;
+        });
+      }
       markPubmaxTiming("pubmax:map-constructed");
+      // A camera that moves before the pins are revealed (the arrival turn on
+      // a desktop that waits for its basemap, an opening location, a resumed
+      // view) is a frame the preview did not draw, and it must not hang in
+      // place while the ground slides under it: it stands down as the move
+      // STARTS. After the reveal the preview is gone and this listens no more.
+      {
+        const constructed = map;
+        const onOpeningMoveStart = () => {
+          constructed.off("movestart", onOpeningMoveStart);
+          if (performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0) return;
+          window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
+        };
+        constructed.on("movestart", onOpeningMoveStart);
+      }
       onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();
       // MapLibre creates a forced-compact attribution control in its expanded
@@ -1856,6 +1909,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const areBasemapTilesLoaded = () => readBasemapTilesLoaded(map);
     let initialBasemapPending = true;
     let basemapTileReadyForPaint = false;
+    // The style generation whose primary basemap last loaded a tile. The pin
+    // reveal arm reads it so a paint this style already made is not forgotten
+    // (basemapPaintCarriesIntoReveal).
+    let basemapPaintStyleGeneration: number | null = null;
     let tileNoticeOwner: BasemapNoticeOwner = "none";
     let tileFailureStamps: number[] = [];
     let tileSpend = INITIAL_TILE_FAILURE_SPEND;
@@ -2127,6 +2184,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (primaryBasemapPainted) {
         initialBasemapPending = false;
         basemapTileReadyForPaint = true;
+        basemapPaintStyleGeneration = styleGeneration;
         silentRetryAwaitingPaint = false;
       }
       const recoveredFailures = failedBasemapTiles.recordSuccess({
@@ -2486,7 +2544,21 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // after tile readiness crosses a paint frame. The timeout deliberately
       // degrades to usable pins over the themed container when community tiles
       // are partial/offline instead of leaving the product invisible.
+      //
+      // A tile THIS style already painted still counts. The opening arrival
+      // flight starts the moment the scene is built, and a zooming camera has
+      // its pending tile requests cancelled until it stops, so a gate that
+      // forgot the painted tiles held the pins until the flight had landed.
+      // The basemap under them has a frame either way, and the pins are drawn
+      // by the same camera, so they cannot paint at a stale position.
+      const basemapPaintCarries = basemapPaintCarriesIntoReveal({
+        basemapPainted: basemapTileReadyForPaint,
+        paintedStyleGeneration: basemapPaintStyleGeneration,
+        armedStyleGeneration: generation,
+        reducedMotion: reducedRef.current,
+      });
       beginTileFailureGeneration();
+      basemapTileReadyForPaint = basemapPaintCarries;
       initialBasemapPending = true;
       pinRevealCoordinator.arm();
 
@@ -3782,6 +3854,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       null,
       spoonsValue,
     );
+    announceOpeningFrame(mapRef.current, mapViewRef.current, pubsDataRef.current.features);
     publishRenderedState(readTokens());
     if (!mapReady) return;
     // Updating an existing GeoJSON source is safe once style structure exists.
@@ -3882,7 +3955,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     let frame: number | null = null;
     let lastMembershipKey: string | null = null;
     const publishVisibleMembership = () => {
-      frame = null;
       const container = map.getContainer();
       const viewport = {
         width: container.clientWidth,
@@ -3925,16 +3997,24 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     };
     const scheduleVisibleMembership = () => {
       if (frame !== null) return;
-      frame = requestAnimationFrame(publishVisibleMembership);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        publishVisibleMembership();
+      });
     };
+    // MapLibre already emits move on its camera frame. A second frame can
+    // leave operable rows behind the camera while rendering is busy.
+    const updateVisibleMembership = venueListOpen
+      ? publishVisibleMembership
+      : scheduleVisibleMembership;
 
-    map.on(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
-    map.on("resize", scheduleVisibleMembership);
+    map.on(venueListOpen ? "move" : "moveend", updateVisibleMembership);
+    map.on("resize", updateVisibleMembership);
     scheduleVisibleMembership();
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
-      map.off(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
-      map.off("resize", scheduleVisibleMembership);
+      map.off(venueListOpen ? "move" : "moveend", updateVisibleMembership);
+      map.off("resize", updateVisibleMembership);
     };
   }, [
     londonRestaurants,
@@ -4536,7 +4616,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           </span>
           <strong>{hoverDetail?.name ?? hovered.name}</strong>
           <span className="venueHoverMeta">
-            {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
+            {hoverDetail?.locality || hoverDetail?.primaryBorough
+              ? `${venueAreaLabel(hoverDetail)} · `
+              : ""}
             {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
               <>
                 {/* The figure wears its price band (lib/priceBand.ts). */}

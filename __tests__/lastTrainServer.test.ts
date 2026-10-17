@@ -4,6 +4,8 @@ import {
   latestJourneyForDay,
   mergeTimetableSchedules,
   nextFromSchedulesAfter,
+  serviceFrameNowMinutes,
+  stableCacheControl,
   summarizeLineStatuses,
 } from "@/lib/lastTrain.server";
 
@@ -74,7 +76,7 @@ describe("last-train server seams", () => {
     expect(starts).toEqual(["/north:before", "/south:before"]);
   });
 
-  it("orders upcoming timetable departures and falls back to earlier service", () => {
+  it("orders upcoming timetable departures and lists none once all have gone", () => {
     const schedules = [
       { name: "Monday - Friday", lastJourney: { hour: 23, minute: 45 } },
       { name: "Monday - Friday", lastJourney: { hour: 24, minute: 15 } },
@@ -85,11 +87,43 @@ describe("last-train server seams", () => {
       { clock: "23:45" },
       { clock: "00:15" },
     ]);
-    expect(nextFromSchedulesAfter(schedules, "mon-thu", 26 * 60)).toEqual([
-      { clock: "22:30" },
-      { clock: "23:45" },
-      { clock: "00:15" },
+    // 02:00 in the service frame: every train has left. A departed train is
+    // never presented as a next departure.
+    expect(nextFromSchedulesAfter(schedules, "mon-thu", 26 * 60)).toEqual([]);
+  });
+
+  it("keeps the genuinely upcoming 00:28 at 00:20 in the route's service frame", () => {
+    const schedules = [
+      { name: "Monday - Friday", lastJourney: { hour: 22, minute: 30 } },
+      { name: "Monday - Friday", lastJourney: { hour: 23, minute: 45 } },
+      { name: "Monday - Friday", lastJourney: { hour: 24, minute: 15 } },
+      { name: "Monday - Friday", lastJourney: { hour: 24, minute: 28 } },
+    ];
+    // The route's own conversion of a London 00:20 wall clock.
+    const nowMinutes = serviceFrameNowMinutes(new Date(2026, 6, 11, 0, 20));
+    expect(nowMinutes).toBe(1460);
+    expect(nextFromSchedulesAfter(schedules, "mon-thu", nowMinutes)).toEqual([
+      { clock: "00:28" },
     ]);
+  });
+
+  it("puts the small hours after the evening in the service frame", () => {
+    expect(serviceFrameNowMinutes(new Date(2026, 6, 10, 23, 30))).toBe(1410);
+    expect(serviceFrameNowMinutes(new Date(2026, 6, 11, 3, 59))).toBe(1679);
+    expect(serviceFrameNowMinutes(new Date(2026, 6, 11, 4, 0))).toBe(240);
+  });
+
+  it("keeps the stable scope's shared cache short and inside the service day", () => {
+    expect(stableCacheControl(new Date(2026, 6, 11, 22, 0, 0))).toBe(
+      "public, s-maxage=60, stale-while-revalidate=60",
+    );
+    // 03:58:30: 90 s to the 04:00 rollover, so fresh plus stale ends at it.
+    expect(stableCacheControl(new Date(2026, 6, 11, 3, 58, 30))).toBe(
+      "public, s-maxage=60, stale-while-revalidate=30",
+    );
+    expect(stableCacheControl(new Date(2026, 6, 11, 3, 59, 30))).toBe(
+      "public, s-maxage=30",
+    );
   });
 
   it("aggregates disrupted lines and ignores good service", () => {

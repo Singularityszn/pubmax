@@ -83,6 +83,7 @@ const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 
 const rows = JSON.parse(read("public/data/pint_prices_app_dataset.json")) as VenuePrice[];
 const venue = defined(groupVenuePrices(rows)[0]);
+const hatton = defined(groupVenuePrices(rows).find((row) => row.name === "The Sir Christopher Hatton"));
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
 const FAMOUS_BAR_NAME = "American Bar at The Savoy";
 
@@ -120,7 +121,7 @@ async function renderCard(id: string): Promise<string> {
 }
 
 function titleVenueName(title: unknown): string {
-  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXXING$/)?.[1];
+  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXX$/)?.[1];
   if (!named) throw new Error(`Bar Tab title did not name a pub: ${String(title)}`);
   return named;
 }
@@ -254,6 +255,20 @@ describe("the Ledger structured address", () => {
   });
 });
 
+describe("the Hatton reader identity", () => {
+  it("uses locality on venue pages and share metadata while retaining Camden borough", async () => {
+    expect(hatton.locality).toBe("Hatton Garden");
+    expect(hatton.primaryBorough).toBe("Camden");
+
+    expect(await render(LedgerPage, hatton.id)).toContain("Hatton Garden");
+    expect(await render(BarTabPage, hatton.id)).toContain("Hatton Garden");
+    expect(JSON.stringify(await barTabMetadata({ params: Promise.resolve({ id: hatton.id }) }))).toContain(
+      "Hatton Garden",
+    );
+    expect(await renderCard(hatton.id)).toContain("Hatton Garden");
+  });
+});
+
 describe("the Bar Tab share card", () => {
   it("names the same pub the page title names", async () => {
     for (const id of [venue.id, defined(mergedId), FAMOUS_BAR_ID]) {
@@ -275,7 +290,7 @@ describe("the Bar Tab share card", () => {
       params: Promise.resolve({ id: "venue-does-not-exist" }),
     });
     const card = await renderCard("venue-does-not-exist");
-    expect(meta.title).toBe("Bar Tab: PUBMAXXING");
+    expect(meta.title).toBe("Bar Tab");
     expect(card).toContain("A London pub");
     expect(card).not.toContain("the cheapest pint on the tab");
   });

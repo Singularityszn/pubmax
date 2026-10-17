@@ -25,15 +25,15 @@ type Props = { params: Promise<{ storyId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { storyId } = await params;
-  if (!UUID.test(storyId)) return { title: "Recap · PUBMAXXING", robots: { index: false } };
+  if (!UUID.test(storyId)) return { title: "Recap", robots: { index: false } };
   // A read we could not run claims nothing in the unfurl either way: the same
   // bare title an absent Story gets, because the answer is unknown, not "no".
   const read = await readPublishedRecapSource(storyId);
-  if (read.status !== "found") return { title: "Recap · PUBMAXXING", robots: { index: false } };
+  if (read.status !== "found") return { title: "Recap", robots: { index: false } };
   const src = read.source;
   const indexable = src.story.visibility === "public";
   return {
-    title: `${src.story.title} · A night out · PUBMAXXING`,
+    title: `${src.story.title} · A night out`,
     // Only fully public recaps are indexable; unlisted ones stay link-only.
     robots: { index: indexable, follow: indexable },
     openGraph: { title: src.story.title, type: "article", url: `/recap/${storyId}` },

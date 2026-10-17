@@ -129,8 +129,9 @@ const deploymentId = process.env.DEPLOYMENT_VERSION ??
 // (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
 // `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
 // dynamic rendering (no static generation / ISR / PPR) on every route except
-// the two public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS, which
-// take `script-src 'unsafe-inline'` in exchange for a CDN copy.
+// the public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS and
+// CDN_CACHED_DOCUMENT_ROUTES, which take `script-src 'unsafe-inline'` in
+// exchange for a CDN copy.
 
 // Baseline security headers on every response.
 const securityHeaders = [
@@ -212,6 +213,8 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     ...runtimeDataPackIncludes,
+    // Every root-layout document executes the canonical pre-paint script.
+    "/*": ["./public/theme-init.js"],
     // Both freshness readers need every registered artifact (see above).
     "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
     "/api/cron/freshness-audit": withRuntimeDataPacks(
@@ -322,6 +325,13 @@ const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Next's response writer retains configured headers before route headers.
+      // Override the baseline only for the two fixed native callback modes.
+      {
+        source: "/auth/callback",
+        has: [{ type: "query", key: "native", value: "ios-(email-)?pkce" }],
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
       // Preview and development deploys must never be indexed, and the static
       // asset prefixes no longer pass through proxy.ts, which is where
       // applyNonProductionRobotsTag used to stamp them. Keep the header by a

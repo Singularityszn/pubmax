@@ -34,9 +34,19 @@
 // single source of truth.
 //
 // The source is pint-prices.com, the same publisher the committed extract came
-// from (data/README.md). Its robots.txt allows every agent, and this reads only
-// the pages the original extract read: 32 borough pages plus the pub pages the
-// sitemap lists.
+// from (data/README.md), and this reads only the pages the original extract
+// read: 32 borough pages plus the pub pages the sitemap lists.
+//
+// NOTHING IS FETCHED WITHOUT PERMISSION, AND PERMISSION IS NOT A COMMENT.
+// pint-prices.com is a price AGGREGATOR, not the pubs' own publisher, so it is
+// read only under a `lib/harvest/sourcePolicy.ts` row (id `pint-prices-com`)
+// that is allowed AND states its own `nonFirstPartyException`. No such row
+// exists today, so this lane REFUSES before its first request. Adding the row
+// is the captain's call, not a code change. With a row, every URL is taken
+// from the row's own origin, every sitemap entry must stay on that host and
+// pass `isHarvestableOperatorUrl`, robots.txt is asked live per page through
+// `createRobotsChecker()`, a redirect is re-asked through
+// `harvestRedirectLanding`, and the request names this project, not the source.
 //
 // A READ WE COULD NOT RUN WRITES NOTHING. If the source answers with fewer
 // observations than MIN_OBSERVATION_FLOOR, or covers less than
@@ -52,6 +62,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import {
+  harvestRedirectLanding,
+  harvestSource,
+  isHarvestableOperatorUrl,
+} from "../lib/harvest/sourcePolicy.ts";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DATASET_JSON = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
@@ -65,13 +82,17 @@ const BUILD_REPORT_OUTPUT_PATH = "data/pint_prices_app_dataset.csv";
 // row whose geography moved here would silently inherit a decision nobody made.
 const WRITABLE_CSV_COLUMNS = new Set(["price_gbp", "price_text", "scraped_at_values"]);
 
-const BASE_URL = "https://www.pint-prices.com";
-const SITEMAP_URL = `${BASE_URL}/static/sitemap.xml`;
-const USER_AGENT =
-  "Mozilla/5.0 (compatible; pubmax-pint-price-extractor/1.0; +https://www.pint-prices.com/)";
+/** The sourcePolicy row this lane needs before it may send one request. */
+export const PINT_PRICES_SOURCE_ID = "pint-prices-com";
+const SITEMAP_PATH = "/static/sitemap.xml";
+// OUR name, our URL and our contact, the same harvest identity the other
+// harvest CLIs send. The old string named the source's own site, which told it
+// the bot was theirs.
+const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
 
-// Politeness between page reads, matching the original extractor's pacing.
-const REQUEST_DELAY_MS = 100;
+// Politeness between page reads: the row's own Crawl-delay when it names one,
+// otherwise one second, as the chain menu lane uses.
+const DEFAULT_REQUEST_DELAY_MS = 1_000;
 
 // Refusal floors. Both are about the SOURCE answering, never about the figures
 // it states: a source that has genuinely changed every price is a valid answer,
@@ -100,15 +121,69 @@ function priceText(value) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchText(url) {
-  const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-  return response.text();
+/**
+ * The permission this lane reads under, or a refusal that says whose call it is.
+ *
+ * Throws BEFORE any request when the row is absent, refused, or (because the
+ * source is not first party) carries no `nonFirstPartyException`.
+ */
+export function permittedPintPricesSource(source = harvestSource(PINT_PRICES_SOURCE_ID)) {
+  const refuse = (why) => {
+    throw new Error(
+      `Refusing to read pint-prices.com: ${why}. Nothing was fetched. pint-prices.com is a ` +
+        `non-first-party price aggregator, so reading it needs an allowed \`${PINT_PRICES_SOURCE_ID}\` row in ` +
+        "lib/harvest/sourcePolicy.ts with a `nonFirstPartyException` naming what it may take. " +
+        "Adding that row is the captain's call.",
+    );
+  };
+  if (!source) refuse(`lib/harvest/sourcePolicy.ts has no \`${PINT_PRICES_SOURCE_ID}\` row`);
+  if (!source.access.allowed) refuse(`the \`${source.id}\` row is refused (${source.access.reason})`);
+  if (!source.firstParty && !source.nonFirstPartyException?.trim()) {
+    refuse(`the \`${source.id}\` row states no nonFirstPartyException`);
+  }
+  if (!isHarvestableOperatorUrl(source.url)) refuse(`the \`${source.id}\` row's url is not harvestable`);
+  return source;
 }
 
-async function readSitemapUrls() {
-  const xml = await fetchText(SITEMAP_URL);
-  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+/** True when a URL is an http(s) page on the source row's own host. */
+function onSourceHost(url, origin) {
+  if (!isHarvestableOperatorUrl(url)) return false;
+  try {
+    return new URL(url).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A reader bound to one permitted source: robots is asked live before each
+ * page, the page must sit on the source's own host, and a redirect that lands
+ * anywhere else is refused rather than read.
+ */
+function createSourceReader(source, { fetchImpl, robots }) {
+  const origin = new URL(source.url).origin;
+  return async function fetchText(url) {
+    if (!onSourceHost(url, origin)) throw new Error(`${url} is not on ${origin}, so it is not read`);
+    const decision = await robots(url);
+    if (!decision.allowed) throw new Error(`robots.txt refuses ${url}: ${decision.evidence}`);
+    const response = await fetchImpl(url, { headers: { "user-agent": USER_AGENT }, redirect: "follow" });
+    const landing = harvestRedirectLanding(url, response.url);
+    if (landing.outcome === "refused" || !onSourceHost(landing.url, origin)) {
+      await response.body?.cancel?.();
+      throw new Error(`${url} redirected outside the source to ${landing.url}`);
+    }
+    if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+    return response.text();
+  };
+}
+
+async function readSitemapUrls(fetchText, origin) {
+  const xml = await fetchText(`${origin}${SITEMAP_PATH}`);
+  // The sitemap is the source's string, not ours: an entry off its own host is
+  // dropped here and never becomes a request.
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+    .map((m) => m[1].trim())
+    .filter((u) => onSourceHost(u, origin));
   return {
     boroughs: [...new Set(locs.filter((u) => u.includes("/borough-results/")))].sort(),
     pubs: [...new Set(locs.filter((u) => u.includes("/pub/")))].sort(),
@@ -209,21 +284,30 @@ function record(observations, name, address, pint, price) {
   else observations.set(key, new Set([price]));
 }
 
-async function collect() {
-  const { boroughs, pubs } = await readSitemapUrls();
+export async function collect({
+  source: candidate = harvestSource(PINT_PRICES_SOURCE_ID),
+  fetchImpl = fetch,
+  robots = createRobotsChecker({ fetchImpl }),
+  sleepImpl = sleep,
+} = {}) {
+  // The permission gate runs before the first request, every time.
+  const source = permittedPintPricesSource(candidate);
+  const delayMs = source.crawlDelaySeconds ? source.crawlDelaySeconds * 1000 : DEFAULT_REQUEST_DELAY_MS;
+  const fetchText = createSourceReader(source, { fetchImpl, robots });
+  const { boroughs, pubs } = await readSitemapUrls(fetchText, new URL(source.url).origin);
   const observations = new Map();
   let boroughPagesWithData = 0;
 
   for (const url of boroughs) {
+    await sleepImpl(delayMs);
     const rows = readBoroughObservations(await fetchText(url), observations);
     if (rows > 0) boroughPagesWithData += 1;
-    await sleep(REQUEST_DELAY_MS);
   }
   let pubPagesWithData = 0;
   for (const url of pubs) {
+    await sleepImpl(delayMs);
     const rows = readPubPageObservations(await fetchText(url), observations);
     if (rows > 0) pubPagesWithData += 1;
-    await sleep(REQUEST_DELAY_MS);
   }
 
   return {
@@ -328,6 +412,9 @@ function assertOnlyPriceColumnsMoved(before, after, header) {
 }
 
 async function main() {
+  // Refuse before reading anything, local files included, when no policy row
+  // permits this source.
+  permittedPintPricesSource();
   const reportOnly = process.argv.includes("--report-only");
   const collectedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00");
 
@@ -468,4 +555,11 @@ async function main() {
   );
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}

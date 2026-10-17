@@ -1,0 +1,21 @@
+{
+  "status": 422,
+  "body": {
+    "error": "No 3-stop route in Piccadilly & Soho meets every must-have need with the information available.",
+    "code": "GROUNDED_CONSTRAINTS_UNSATISFIED",
+    "retryable": false,
+    "details": {
+      "nightArea": "piccadilly-soho",
+      "availableVenueCount": 0,
+      "ok": false,
+      "eligibleCandidateCount": 0,
+      "rejected": {
+        "safety": 0,
+        "exclusions": 0,
+        "accessibility": 0,
+        "budgetEvidence": 0,
+        "budgetCeiling": 0
+      }
+    }
+  }
+}

@@ -127,6 +127,17 @@ export function formatMonthYear(date: Date): string {
   return MONTH_YEAR.format(date);
 }
 
+const SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Europe/London",
+});
+
+/** "16 Jul" — a dated figure on a card too narrow for the full day. */
+export function formatObservedDayShort(date: Date): string {
+  return SHORT_DATE.format(date);
+}
+
 /** "16 July 2026" — the "Prices last collected {date}" stamp. */
 export function formatObservedDate(date: Date): string {
   return FULL_DATE.format(date);

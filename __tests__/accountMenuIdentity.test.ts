@@ -81,7 +81,7 @@ describe("account card", () => {
     expect(html).toContain('href="/u/night_person#wanted"');
     expect(html).toContain('href="/u/night_person?edit=1"');
     expect(html).toContain("Your profile");
-    expect(html).toContain("Your Wanteds");
+    expect(html).toContain("Your pubs to try");
     expect(html).toContain("Edit profile");
     expect(html).toContain("Sign out");
   });

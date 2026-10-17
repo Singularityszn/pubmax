@@ -14,7 +14,7 @@ Interruptive prompt surfaces mount globally or on `/map`:
 | First-run tour | #296 | `main` (merged) | `/map` load, first visit |
 | Identity nudge | #312 | `feat/identity-nudges` | first plan create/join, first moment draft |
 | Native push prompt | #299 | `feat/native-first-run` | plan join / activation / collab confirm (native only) |
-| A2HS install | #313 | `feat/a2hs-flow` | after proven value (2nd distinct day or completed crawl) |
+| A2HS install | #313 | `feat/a2hs-flow` | after proven value (2nd distinct day or completed crawl) AND a price answer this session, off a phone map or plan foot ([rule](rules/components-design-system-and-launch-primitives.md#the-install-ask-waits-for-a-price-answer-and-asks-at-most-once-a-fortnight)) |
 
 The review proved two independent defects:
 
@@ -44,8 +44,8 @@ The review proved two independent defects:
      asks for location itself, so a consent card over it would put two first
      questions on one screen. It is one tap and one time per device, so the
      surface behind it is not starved.
-   - Native push and create password stand down on a phone-width map route,
-     where the map owns the foot of the screen (`routeOwnsScreenFoot`,
+   - Native push and create password stand down on a phone-width map or plan-composer route,
+     where the outing controls own the foot of the screen (`routeOwnsScreenFoot`,
      `lib/promptBudget.ts`). They do not claim there and come back on the next
      route. The analytics card is the exception: on the phone map it takes the
      outing pill's slot (`components/mobile/mobileMapShell.css`).

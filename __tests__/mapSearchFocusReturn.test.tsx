@@ -19,6 +19,7 @@ const SEARCH_INDEX = { cities: [], venues: [] } satisfies MapSearchIndex;
 
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/mapSearchIndexLoader", () => ({
+  isCompleteMapSearchIndex: () => true,
   loadMapSearchIndex: vi.fn(() => Promise.resolve(SEARCH_INDEX)),
 }));
 

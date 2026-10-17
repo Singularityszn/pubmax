@@ -1,10 +1,10 @@
 "use client";
 
-// Mounted once in the root layout. public/theme-init.js sets html[data-theme],
-// html[data-legacy] and html[data-mode] before paint, but a route whose server
-// render falls back to the client (every segment not-found, such as
-// /crawls/nope, /recap/abc and /plan/nope) gets its <html> rebuilt in the
-// browser without that script running. The page then has none of the three,
+// Mounted once in the root layout. The root layout inlines public/theme-init.js
+// and sets html[data-theme], html[data-legacy] and html[data-mode] before paint,
+// but a client-rendered not-found segment (such as /crawls/nope, /recap/abc or
+// /plan/nope) gets its <html> rebuilt in the browser without that script
+// running. The page then has none of the three,
 // so a person in dark sees light tokens (QA journeys report F15) and a person
 // in Legacy Mode or the Ledger view gets standard type and the Lock-In view.
 // ThemeToggle re-asserts the theme on mount, but those pages carry no toggle.
@@ -32,7 +32,33 @@ function storedValue(storage: Storage | null, key: string): string | null {
   }
 }
 
-export default function ThemeAttribute(): null {
+type RootFontFamilies = Readonly<Record<"--font-display" | "--font-body", string>>;
+
+export default function ThemeAttribute({
+  initialFontFallbacks,
+  fontFamilies,
+}: {
+  initialFontFallbacks?: RootFontFamilies;
+  /**
+   * The complete generated chains (primary face, then its matched fallback).
+   * When given, they replace the temporary fallbacks inline, because the
+   * global :root tokens would otherwise win the cascade and drop the matched
+   * fallback the face swaps from.
+   */
+  fontFamilies?: RootFontFamilies;
+} = {}): null {
+  useEffect(() => {
+    if (!initialFontFallbacks) return;
+    const root = document.documentElement;
+    for (const name of ["--font-display", "--font-body"] as const) {
+      // Replace only this document's temporary value, never another owner's style.
+      if (root.style.getPropertyValue(name).trim() === initialFontFallbacks[name]) {
+        if (fontFamilies?.[name]) root.style.setProperty(name, fontFamilies[name]);
+        else root.style.removeProperty(name);
+      }
+    }
+  }, [initialFontFallbacks, fontFamilies]);
+
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();

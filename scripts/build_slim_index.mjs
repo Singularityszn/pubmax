@@ -1,9 +1,9 @@
 // Build the SLIM venue index the map needs to render pins + labels + price
-// colour, WITHOUT shipping the ~6 MB raw price dataset to every visitor.
+// colour + neighbourhood, WITHOUT shipping the ~6 MB raw price dataset to every visitor.
 //
 // The map only needs, per venue: a stable id (to deep-link + fetch heavy detail
 // on open), name, lat/lng, the cheapest numeric price (for the label + colour),
-// and a borough. This script groups the raw rows the SAME way
+// and a borough plus any existing locality. This script groups the raw rows the SAME way
 // lib/venues.ts#groupVenuePrices does — same FNV-1a stable id, same grouping
 // key — so every slim id is byte-identical to the "venue-…" id the rest of the
 // app links by. The heavy detail (all prices, amenities, curation) is fetched
@@ -36,6 +36,7 @@ import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -883,7 +884,15 @@ async function main() {
     const cheapestPrice = numericPrices.length
       ? Math.min(...numericPrices)
       : null;
+    // The day that figure was last read at its source, so the pin can show an
+    // aging price as aging (lib/priceTier.ts `priceAgeFor`). Absent when no row
+    // carrying the figure records a read: such a price cannot claim to be fresh.
+    const priceObservedAt = cheapestPriceReadDay(prices, cheapestPrice);
+    const { priceSource } = legacyCheapestPriceEvidence(prices, cheapestPrice);
     const id = stableVenueIdFromKey(key);
+    const locality = groupRows
+      .map((row) => String(row.locality ?? "").trim())
+      .find(Boolean);
 
     const lat = Number(first.latitude);
     const lng = Number(first.longitude);
@@ -898,8 +907,10 @@ async function main() {
       lat,
       lng,
       cheapestPrice,
-      ...legacyCheapestPriceEvidence(prices, cheapestPrice),
+      ...(priceSource ? { priceSource } : {}),
+      ...(priceObservedAt ? { priceObservedAt } : {}),
       borough: String(first.primary_borough || ""),
+      locality: locality ?? "",
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
@@ -920,6 +931,7 @@ async function main() {
       lng: row.lng,
       cheapestPrice: row.anchor.price,
       borough: row.borough,
+      locality: "",
       ...(nearest ? { zone: nearest.zone } : {}),
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),

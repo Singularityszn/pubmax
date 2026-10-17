@@ -7,6 +7,7 @@ import {
 import { installAuthDoubles } from "./helpers/authDoubles";
 import { CATEGORY_META, MAP_LENS_DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 /**
  * ONE PRICE DOOR PER TRUST STATE, on the venue Overview at 390 (captain's rule
@@ -271,7 +272,7 @@ for (const view of refreshViews) {
     const selectPub = async (name: string, venueId: string) => {
       await sheet.getByRole("button", { name: /^(Close pub detail|Close and return to the map)$/ }).click();
       await expect(sheet).toBeHidden();
-      await page.getByRole("button", { name: "Search the map", exact: true }).click();
+      await (await mobileMapShellControl(page, "search")).click();
       const search = page.getByRole("combobox", { name: "Search pubs", exact: true });
       await search.fill(name);
       const option = page.getByRole("listbox", { name: "Search suggestions" })
@@ -361,7 +362,7 @@ test("city-wide confirmed pint stays visible while selected venue details load",
     });
     await page.goto("/map");
     await cityDrops;
-    const searchButton = page.getByRole("button", { name: "Search the map", exact: true });
+    const searchButton = await mobileMapShellControl(page, "search");
     await expect(async () => {
       await searchButton.click();
       await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible({ timeout: 1_000 });
@@ -462,7 +463,7 @@ for (const fixture of RESELECTED_PRICE_CASES) {
     const selectThroughSearch = async (name: string, id: string) => {
       await sheet.getByRole("button", { name: /^Close (?:(?:pub|venue) detail|and return to the map)$/ }).click();
       await expect(sheet).toBeHidden();
-      await page.getByRole("button", { name: "Search the map", exact: true }).click();
+      await (await mobileMapShellControl(page, "search")).click();
       const search = page.getByRole("combobox", { name: "Search pubs" });
       await expect(search).toBeVisible();
       await search.fill(name);

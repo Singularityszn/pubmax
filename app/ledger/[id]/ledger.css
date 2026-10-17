@@ -48,7 +48,7 @@
 
 .ledgerEyebrow {
   margin: 0 0 10px;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -463,4 +463,15 @@ html[data-theme="dark"] .ledgerPrimaryLink:hover {
 
 .ledgerListedPlaque:hover .ledgerListedSource {
   opacity: 1;
+}
+
+/* The way to every source and its licence, under the listed-building plaque. */
+.ledgerCredits {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

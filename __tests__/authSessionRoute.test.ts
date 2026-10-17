@@ -415,6 +415,38 @@ describe("GET hint and DELETE clear", () => {
 });
 
 describe("POST resume", () => {
+  it("sends a native resume PKCE challenge without exposing the saved email", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({}));
+    const cookie = `${AUTH_RESUME_COOKIE}=${encodeURIComponent(encodeAuthResumeCookie({ refreshToken: null, email: "karan@example.com" }))}`;
+    const { POST } = await import("@/app/api/auth/session/route");
+    const callbackUrl = "http://localhost/auth/callback?native=ios-email-pkce&_authAttempt=" + "a".repeat(32);
+    const response = await POST(postRequest({ action: "resume", callbackUrl, codeChallenge: "a".repeat(43) }, { cookie }));
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(text).not.toContain("karan@example.com");
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(new URL(String(url)).searchParams.get("redirect_to")).toBe(callbackUrl);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      email: "karan@example.com", create_user: true, code_challenge: "a".repeat(43), code_challenge_method: "s256",
+    });
+  });
+
+  it.each([
+    ["native=ios-email-pkce&_authAttempt=" + "a".repeat(32), "short"],
+    ["native=ios-email-pkce&_authAttempt=invalid", "a".repeat(43)],
+    ["native=ios-email-pkce&native=ios-email-pkce&_authAttempt=" + "a".repeat(32), "a".repeat(43)],
+    ["_authAttempt=" + "a".repeat(32), "a".repeat(43)],
+    ["native=ios-pkce&_authAttempt=" + "a".repeat(32), "a".repeat(43)],
+  ])("refuses a challenge outside the strict native email relay: %s", async (query, challenge) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({}));
+    const cookie = `${AUTH_RESUME_COOKIE}=${encodeURIComponent(encodeAuthResumeCookie({ refreshToken: null, email: "karan@example.com" }))}`;
+    const { POST } = await import("@/app/api/auth/session/route");
+    const response = await POST(postRequest({ action: "resume", callbackUrl: "http://localhost/auth/callback?" + query, codeChallenge: challenge }, { cookie }));
+    expect(response.status).toBe(400);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("emails a sign-in link to the saved address for a valid same-origin callback", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")

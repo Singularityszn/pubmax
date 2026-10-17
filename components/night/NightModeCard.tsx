@@ -616,8 +616,13 @@ function NightModeSheet({
           setRecap(chosen);
           return;
         }
+        // The completion is member-only (§4.10), so the read carries the
+        // same capability the ending POST does.
+        const memberToken = readMemberToken(id);
+        if (!memberToken) return;
         const response = await fetch(`/api/plans/${id}/complete`, {
           cache: "no-store",
+          headers: { authorization: `Bearer ${memberToken}` },
           signal: controller.signal,
         });
         const body = response.ok

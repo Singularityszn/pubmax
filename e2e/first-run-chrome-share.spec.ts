@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // THE FIRST SCREEN IS THE PRODUCT, NOT ITS CHROME.
 //
@@ -71,8 +72,8 @@ async function firstRouteRecorded(page: Page) {
 }
 
 async function openedPhoneMap(page: Page) {
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
+  await expectMobileMapShellReady(page, 45_000);
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({
     timeout: 45_000,
   });
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
@@ -394,13 +395,15 @@ test("the dock paints the home-indicator strip under it and keeps its tap row @3
     insets: { top: 47, bottom: HOME_INDICATOR_INSET },
   });
   await page.goto("/tonight", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".mobileTabList")).toBeVisible({ timeout: 30_000 });
+  // The layout renders the tab bar in two places, and while /tonight streams in
+  // both can be in the document, one hidden. Read the one a reader sees.
+  await expect(page.locator(".mobileTabList").filter({ visible: true })).toBeVisible({ timeout: 30_000 });
   await page.evaluate(() => window.scrollTo(0, 400));
   await page.waitForTimeout(300);
 
   const geometry = await page.evaluate(() => {
-    const bar = document.querySelector(".mobileTabBar")!;
-    const list = document.querySelector(".mobileTabList")!;
+    const bar = [...document.querySelectorAll<HTMLElement>(".mobileTabBar")].find((node) => node.checkVisibility())!;
+    const list = bar.querySelector(".mobileTabList")!;
     const main = document.querySelector("main");
     return {
       vh: window.innerHeight,

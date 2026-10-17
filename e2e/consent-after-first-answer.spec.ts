@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER.
 //
@@ -320,10 +320,15 @@ for (const viewport of WIDTHS) {
         const actionBox = await mapAction.boundingBox();
         expect(actionBox?.height).toBeGreaterThanOrEqual(44);
         expect(boxesOverlap(actionBox as Box, box)).toBe(false);
-        await firstPub.locator("summary").click();
+        // Every card reads the same compact way: the reason folds behind "Why
+        // this pub" on every card alike, and opening it shows the reason and
+        // its credit.
+        const firstReason = firstPub.locator("details.tonightHypedReason");
+        await expect(firstReason).toHaveCount(1);
+        await expect(firstPub.locator(".tonightHypedWhy")).toBeHidden();
+        await firstReason.locator("summary").click();
         await expect(firstPub.locator(".tonightHypedWhy")).toBeVisible();
         await expect(firstPub.locator(".tonightHypedSource")).toBeVisible();
-        await expect(firstPub.getByRole("link", { name: "Open on map" })).toBeVisible();
         await expect(page.locator(".tonightWeather")).toContainText(/sky|weather|wind/i);
 
         const morePubs = page.locator(".tonightHypedMore");
@@ -335,21 +340,22 @@ for (const viewport of WIDTHS) {
             return transform === "none" ? 1 : Math.round(new DOMMatrixReadOnly(transform).a);
           });
         await expect.poll(() => chevronDirection(morePubs.locator(":scope > summary"))).toBe(-1);
-        await expect(page.locator(".tonightHypedDetails")).toHaveCount(1);
-        const laterPubs = (await page.locator(".tonightHypedRow").all()).slice(1);
-        expect(laterPubs.length).toBeGreaterThan(0);
-        for (const pub of laterPubs) {
+        const pubs = await page.locator(".tonightHypedRow").all();
+        expect(pubs.length).toBeGreaterThan(1);
+        for (const pub of pubs) {
+          const reason = pub.locator("details.tonightHypedReason");
+          await expect(reason).toHaveCount(1);
+          if ((await reason.getAttribute("open")) === null) await reason.locator("summary").click();
           await expect(pub.locator(".tonightHypedWhy")).toBeVisible();
           await expect(pub.locator(".tonightHypedSource")).toBeVisible();
           await expect(pub.locator(".tonightHypedChecked")).toBeVisible();
           const sourceBox = await pub.locator(".tonightHypedSource").boundingBox();
           expect(sourceBox?.height).toBeGreaterThanOrEqual(44);
         }
-        const firstSummary = firstPub.locator("summary");
-        await expect.poll(() => chevronDirection(firstSummary)).toBe(-1);
-        await firstSummary.click();
-        await expect.poll(() => chevronDirection(firstSummary)).toBe(1);
-        await expect(morePubs).toHaveAttribute("open", "");
+        const moreSummary = morePubs.locator(":scope > summary");
+        await moreSummary.click();
+        await expect.poll(() => chevronDirection(moreSummary)).toBe(1);
+        await expect(morePubs).not.toHaveAttribute("open", "");
       }
       await page.goto("/privacy", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
@@ -394,6 +400,14 @@ for (const viewport of WIDTHS) {
   });
 }
 
+// Places is not a nav door any more (Oct 2026): a pointer reaches the picker
+// from the map's own city chip, whose list ends in "Search a UK town".
+async function openPlacesFromMapChip(page: Page) {
+  await page.locator(".citySwitcherTrigger:visible").first().click();
+  await page.getByRole("link", { name: "Search a UK town", exact: true }).click();
+  await expect(page).toHaveURL(/\/places$/);
+}
+
 test("consent refreshes after a Places city selection and pointer return from Map", async ({ page }) => {
   test.setTimeout(90_000);
   const beacons = await prepareUnanswered(page, { width: 768, height: 1024 });
@@ -416,9 +430,7 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await expect.poll(() => page.evaluate(() =>
     window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBeNull();
 
-  await page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Places", exact: true }).click();
-  await expect(page).toHaveURL(/\/places$/);
+  await openPlacesFromMapChip(page);
   await expect(prompt).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => page.evaluate(() =>
     window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBe("analytics-consent");
@@ -428,9 +440,7 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await page.getByRole("navigation", { name: "Site navigation", exact: true })
     .getByRole("link", { name: "Map", exact: true }).click();
   await expect(page).toHaveURL(/\/map(?:\?|$)/);
-  await page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("link", { name: "Places", exact: true }).click();
-  await expect(page).toHaveURL(/\/places$/);
+  await openPlacesFromMapChip(page);
   await expect(prompt).toHaveCount(0);
   await expect.poll(() => page.evaluate(() =>
     window.localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");

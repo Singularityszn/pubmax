@@ -12,7 +12,7 @@ import { buildTonightPosterModel } from "@/lib/tonightPoster";
 // null), never a broken image.
 
 export const runtime = "nodejs";
-export const alt = "What's on in London tonight. PUBMAXXING";
+export const alt = "What's on in London tonight. PUBMAXX";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -56,7 +56,7 @@ export default async function Image() {
               fontWeight: 700,
             }}
           >
-            PUBMAXXING
+            PUBMAXX
           </div>
           <div style={{ fontSize: 82, fontFamily: serif, fontWeight: 700, lineHeight: 1.02 }}>
             {poster.title}

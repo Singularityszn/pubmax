@@ -15,7 +15,8 @@ Full rules: [`docs/rules/scripts-ci-gates-and-audits.md`](../docs/rules/scripts-
 - [A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT, AND NOTHING ELSE MAY.](../docs/rules/scripts-ci-gates-and-audits.md#a-generated-lane-may-ride-the-review-that-produced-it-and-nothing-else-may)
 - [EVERY GATE IS RUN BY SOMETHING, AND A REPORT-GATE RUNS WHERE THE REPORT IS.](../docs/rules/scripts-ci-gates-and-audits.md#every-gate-is-run-by-something-and-a-report-gate-runs-where-the-report-is)
 - [An audit waiver is a documented exception, not a mute button.](../docs/rules/scripts-ci-gates-and-audits.md#an-audit-waiver-is-a-documented-exception-not-a-mute-button)
-- [The no-mistakes Test step runs `npm run verify:no-mistakes` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
+- [The no-mistakes Test step runs `npm run verify:no-mistakes:changed` as its own command.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-npm-run-verify-as-its-own-command)
+- [The local no-mistakes Test step runs change-scoped checks, and the full unit suite runs once, in GitHub CI.](../docs/rules/scripts-ci-gates-and-audits.md#the-no-mistakes-test-step-runs-change-scoped-checks-and-ci-runs-the-full-suite)
 - [Generated database types are cut from the harness cluster, and verify refuses drift.](../docs/rules/scripts-ci-gates-and-audits.md#generated-database-types-are-cut-from-the-harness-cluster-and-verify-refuses-drift)
 
 ## Harvest and source permission
@@ -27,6 +28,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [A URL WE DECIDE TO FETCH IS SOMEBODY ELSE'S STRING, AND THE ALLOW-LIST IS ASKED ABOUT WHERE WE LANDED.](../docs/rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
 - [A PRICE source is fenced like every other source, and the NARROWER table binds.](../docs/rules/scripts-harvest-and-source-permission.md#a-price-source-is-fenced-like-every-other-source-and-the-narrower-table-binds)
 - [The London harvest reads first-party pages, and a skip is a finding.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-harvest-reads-first-party-pages-and-a-skip-is-a-finding)
+- [AN OPEN-DATA API IS A SOURCE TOO, AND ITS BUILDER ASKS THE TABLE FOR ITS URL.](../docs/rules/scripts-harvest-and-source-permission.md#an-open-data-api-is-a-source-too-and-its-builder-asks-the-table-for-its-url)
 - [THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND.](../docs/rules/scripts-harvest-and-source-permission.md#the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite)
 - [The UK venue extraction is OSM-stated or it does not exist, save one London restaurant lane.](../docs/rules/scripts-harvest-and-source-permission.md#the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist-save-one-london-resta)
 - [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
 import {
@@ -18,6 +19,7 @@ import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
@@ -84,14 +86,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // an absent pub gets, because the answer is unknown, not "no".
   if (read.status !== "found") {
     return {
-      title: "The Ledger: PUBMAXXING",
+      title: "The Ledger",
       robots: { index: false, follow: false },
     };
   }
   const { venue } = read;
 
-  const title = `The Ledger: ${venue.name}. PUBMAXXING`;
-  const description = `The story of ${venue.name} in ${venue.primaryBorough || "London"}. Heritage notes and the pub's logbook of visits, in large print.`;
+  const title = `The Ledger: ${venue.name}. PUBMAXX`;
+  const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
   const canonical = `/ledger/${encodeURIComponent(venue.id)}`;
@@ -144,12 +146,14 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
           },
         }
       : {}),
-    ...(venue.address || venue.primaryBorough
+    ...(venue.address || venue.locality || venue.primaryBorough
       ? {
           address: {
             "@type": "PostalAddress",
             ...(venue.address ? { streetAddress: venue.address } : {}),
-            ...(venue.primaryBorough ? { addressLocality: venue.primaryBorough } : {}),
+            ...(venue.locality || venue.primaryBorough
+              ? { addressLocality: venueAreaLabel(venue) }
+              : {}),
             ...(addressRegion ? { addressRegion } : {}),
             addressCountry: "GB",
           },
@@ -172,7 +176,7 @@ function NotInTheLedger() {
     <main id="main" className="ledgerPage ledgerPage--empty">
       <div className="ledgerEmptyCard">
         <Link className="ledgerHomeLink" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="ledgerEyebrow">The Ledger</p>
         <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
@@ -192,7 +196,7 @@ function LedgerReadUnavailable({ id }: { id: string }) {
     <main id="main" className="ledgerPage ledgerPage--empty">
       <div className="ledgerEmptyCard">
         <Link className="ledgerHomeLink" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <VenueReadUnavailable
           eyebrow="The Ledger"
@@ -293,7 +297,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // newest few entries, kept short and skimmable for a screen reader / TTS
   // pass rather than reading the entire ledger aloud.
   const speechParts = [
-    `The Ledger for ${venue.name}, ${venue.primaryBorough || "London"}.`,
+    `The Ledger for ${venue.name}, ${venueAreaLabel(venue)}.`,
     curation.heritageNote ? curation.heritageNote : "",
     ...entries
       .slice(0, 5)
@@ -309,13 +313,13 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
       <JsonLd data={venueJsonLd(venue, listedBuilding)} nonce={nonce} />
       <header className="ledgerHead">
         <Link className="ledgerHomeLink" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="ledgerEyebrow">The Ledger</p>
         <h1 className="ledgerTitle">{venue.name}</h1>
         <p className="ledgerAddress">
           {venue.address ? `${venue.address} · ` : ""}
-          {venue.primaryBorough || "London"}
+          {venueAreaLabel(venue)}
         </p>
 
         {/* Listed-building brass plaque (Historic England NHLE). Rendered only
@@ -332,6 +336,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
             <span className="ledgerListedSource">Historic England</span>
           </a>
         ) : null}
+        {listedBuilding ? <DataCreditsLink className="ledgerCredits" /> : null}
 
         <div className="ledgerHeadActions">
           <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>

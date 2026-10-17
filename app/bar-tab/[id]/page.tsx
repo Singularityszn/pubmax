@@ -15,6 +15,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { formatGbp } from "@/lib/venues";
 
 import "./barTab.css";
@@ -44,12 +45,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // A read we could not run claims nothing in the unfurl: the same bare title
   // an absent pub gets, because the answer is unknown, not "no".
   if (read.status !== "found") {
-    return { title: "Bar Tab: PUBMAXXING", robots: { index: false, follow: false } };
+    return { title: "Bar Tab", robots: { index: false, follow: false } };
   }
   const { venue } = read;
-  const title = `The Bar Tab: ${venue.name}. PUBMAXXING`;
+  const title = `The Bar Tab: ${venue.name}. PUBMAXX`;
   const description = `Recent pints dropped at ${venue.name} in ${
-    venue.primaryBorough || "London"
+    venueAreaLabel(venue)
   }. Photos, prices, and the stories behind them.`;
   return {
     title,
@@ -137,7 +138,7 @@ export default async function BarTabPage({ params }: PageProps) {
         <h1 className="barTabTitle">{venue.name}</h1>
         <p className="barTabAddress">
           {venue.address ? `${venue.address} · ` : ""}
-          {venue.primaryBorough || "London"}
+          {venueAreaLabel(venue)}
         </p>
 
         <div className="barTabHeadRow">
