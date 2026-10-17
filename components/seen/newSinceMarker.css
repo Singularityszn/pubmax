@@ -1,0 +1,34 @@
+/* The "New since you last looked" mark (components/seen/NewSinceMarker.tsx).
+   A label, so it is sentence case in the body face, and it is not an action or
+   a selection, so it spends no coral (docs/DESIGN_SYSTEM.md "Coral is spent
+   twice"): an ink dot and the word in ink. */
+
+.newSinceMarker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.newSinceMarkerDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.newSinceMarkerSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

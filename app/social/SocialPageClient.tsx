@@ -49,6 +49,14 @@ import {
   type SocialShellState,
 } from "@/lib/socialShell";
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import {
+  SOCIAL_POST_CONTROL_LINE,
+  SOCIAL_POST_ORDER_LINE,
+  SOCIAL_POST_REASON_SUMMARY,
+  socialPostReason,
+  socialPostReasonLine,
+  type SocialPostLane,
+} from "@/lib/socialPostReason";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./social.css";
@@ -227,7 +235,7 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
+export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
@@ -282,6 +290,22 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
         </p>
       ) : null}
       {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
+      {lane ? (
+        // A disclosure, not a control: the lane rule that let this post in, read
+        // back by `lib/socialPostReason.ts`. Nothing on the card is ranked.
+        <details className="socialPostWhy">
+          <summary>{SOCIAL_POST_REASON_SUMMARY}</summary>
+          <p>
+            {socialPostReasonLine(socialPostReason(lane, post), {
+              handle: post.author.handle,
+              visibility: post.visibility,
+              areaName: area?.name ?? null,
+            })}
+          </p>
+          <p>{SOCIAL_POST_ORDER_LINE}</p>
+          {post.ownedByViewer ? null : <p>{SOCIAL_POST_CONTROL_LINE}</p>}
+        </details>
+      ) : null}
       {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
@@ -966,7 +990,7 @@ function SocialPageAccountState({
               ) : (
                 <div className="socialPostList">
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope}
+                    <SocialPostCard key={post.id} post={post} lane={initialState.feed ?? undefined} canEdit={post.ownedByViewer} draftScope={draftScope}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
                         : setFeedAttempt((value) => value + 1)} />

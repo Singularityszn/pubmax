@@ -35,6 +35,8 @@ import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
+import NewSinceMarker from "@/components/seen/NewSinceMarker";
+import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
 import TonightChainDeals from "./TonightChainDeals";
 import TonightCheapPints from "./TonightCheapPints";
 import TonightConditionsStrip from "./TonightConditionsStrip";
@@ -46,6 +48,7 @@ import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import TonightYourPubs from "./TonightYourPubs";
+import TonightReturnCue from "./TonightReturnCue";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
@@ -399,6 +402,14 @@ export default function TonightClient({
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
+  // Which listing cards this device has not been shown before. A card is a
+  // family (one offer at many pubs), so it is judged by every member's id
+  // (lib/seenSinceLastLook.ts); the list is remembered once it has painted.
+  const groupedIds = useMemo(
+    () => grouped.map((group) => [group.row.id, ...group.alternates.map((alt) => alt.id)]),
+    [grouped],
+  );
+  const newSinceLastLook = useNewSinceLastLook("tonight", groupedIds, ready);
   const firstListingsRead = useFirstListingsRead(listingsStatus);
   const listingLede = useMemo(
     () =>
@@ -629,7 +640,7 @@ export default function TonightClient({
           ) : null}
 
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
-            {grouped.map((group) => {
+            {grouped.map((group, groupIndex) => {
               const row = group.row;
               const { primary: link, mapHref, sourceLabel } = tonightRowLinks(
                 row,
@@ -656,6 +667,7 @@ export default function TonightClient({
                       <KindIcon size={12} aria-hidden="true" />
                       {meta.label}
                     </span>
+                    {newSinceLastLook[groupIndex] ? <NewSinceMarker /> : null}
                     {barePrice !== null ? (
                       <span className="tonightRowPrice">
                         £{barePrice.toFixed(2)}
@@ -977,6 +989,10 @@ export default function TonightClient({
       </aside>
 
       <div className="tonightAfterPrimary">
+
+      {/* A way back to a pub this browser saved. After the answer, never in
+          the lede, and only for a save the map can open. */}
+      <TonightReturnCue selectableVenueIds={selectableVenueIds} />
 
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when

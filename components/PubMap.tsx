@@ -380,8 +380,8 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
-import { canonicalizeStoredSaved, getSaved } from "@/lib/savedPubs";
-import { loadVenueAliasMap, loadVenueAliasMaps } from "@/lib/venueAliasMap";
+import { getSaved, readCanonicalSaved } from "@/lib/savedPubs";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
@@ -710,11 +710,10 @@ const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: 
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
 // default on a fresh pick and renders the sheet chrome.
 
-// The set of venue ids this device has saved (any list). Read from the client
-// saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
-// narrow the map/list when the viewer flips "Saved only" on.
-function readSavedVenueIds(): Set<string> {
-  return new Set(getSaved().map((entry) => entry.venueId));
+// Read this device's saved venue ids for the "Saved only" filter.
+// readCanonicalSaved() owns alias resolution.
+function readSavedVenueIds(): Promise<Set<string>> {
+  return readCanonicalSaved().then((saved) => new Set(saved.map((entry) => entry.venueId)));
 }
 
 // SSR-safe read of the current URL query. Kept in one place so the several
@@ -1840,17 +1839,13 @@ export default function PubMap({
   // fine, this is a per-viewer view, not shared state.
   const [savedOnly, setSavedOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(() =>
-    typeof window === "undefined" ? new Set<string>() : readSavedVenueIds(),
+    typeof window === "undefined" ? new Set<string>() : new Set(getSaved().map((entry) => entry.venueId)),
   );
-  // A save this device stored under a venue id that has since been merged or
-  // superseded is rewritten under the id the map serves now, once per page.
   useEffect(() => {
     if (getSaved().length === 0) return;
     let cancelled = false;
-    void loadVenueAliasMap().then((aliases) => {
-      if (cancelled || aliases.size === 0) return;
-      canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
-      setSavedIds(readSavedVenueIds());
+    void readSavedVenueIds().then((ids) => {
+      if (!cancelled) setSavedIds(ids);
     });
     return () => {
       cancelled = true;
@@ -4193,7 +4188,7 @@ export default function PubMap({
   // (event handler, not an effect) so a venue saved elsewhere this session is
   // reflected the moment the filter is turned on — no stale set, no reload.
   const changeSavedOnly = useCallback((next: boolean) => {
-    if (next) setSavedIds(readSavedVenueIds());
+    if (next) void readSavedVenueIds().then(setSavedIds);
     setSavedOnly(next);
   }, []);
 
@@ -4397,7 +4392,7 @@ export default function PubMap({
 
   const resetLogIntentFilters = useCallback(() => {
     setSavedOnly(false);
-    setSavedIds(readSavedVenueIds());
+    void readSavedVenueIds().then(setSavedIds);
     setFilters((current) => ({
       ...seedCrawlState("").filters,
       ...(hasCategoryPriceIntent ? { drinkCategory: current.drinkCategory } : {}),

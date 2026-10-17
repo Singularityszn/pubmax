@@ -101,6 +101,12 @@ const config: KnipConfig = {
     "public/sw-plan-cache.js",
     "public/theme-init.js",
 
+    // `npx cap sync android` copies this generated WebView bundle. Capacitor
+    // loads its Cordova compatibility scripts outside the app import graph.
+    "android/app/src/main/assets/public/**",
+    // Gradle's Android tasks generate module build outputs. The WebView loads
+    // merged assets, and Gradle's HTML test report loads its CSS/JS directly.
+    "android/**/build/**",
     // Capacitor generates these bundle assets; the native JSExport loader
     // reads them outside the JavaScript import graph.
     "ios/App/App/public/cordova.js",

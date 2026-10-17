@@ -9,6 +9,8 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
+
 // What the describe prefill owes is a VALUE IN A FIELD, not a line order, so
 // this file mounts the composer and reads the input. The rule it pins has three
 // halves that a source read cannot see: the URL beats a held ask draft, the
@@ -821,5 +823,29 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     });
     expect(generateCall).toBeTruthy();
     expect(document.body.textContent).toContain("Route refreshed");
+  });
+});
+
+describe("Your name is asked for once, beside Lock", () => {
+  async function generateRoute(): Promise<void> {
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+    await mountComposer();
+    await settleComposerEffects();
+    expect(document.body.textContent).toContain("Route refreshed");
+  }
+
+  it("seats an empty Your name in the pinned Lock bar", async () => {
+    await generateRoute();
+    const field = document.querySelector<HTMLInputElement>("#plan-name");
+    expect(field?.closest(".planComposer__lock")).not.toBeNull();
+    expect(field?.value).toBe("");
+  });
+
+  it("fills Your name from the last plan on this device and leaves it with the details", async () => {
+    localStorage.setItem(PLAN_HOST_NAME_KEY, "Karan");
+    await generateRoute();
+    const field = document.querySelector<HTMLInputElement>("#plan-name");
+    expect(field?.value).toBe("Karan");
+    expect(field?.closest(".planComposer__lock")).toBeNull();
   });
 });

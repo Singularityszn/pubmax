@@ -1,8 +1,37 @@
-/** ElevenLabs conversation ids. Anything else is not a session we issued. */
+/**
+ * Pal thread ids: ElevenLabs conversation ids, plus the local ids below. Anything
+ * else is not a session we issued. The shape is also the durable store's check
+ * constraint (migration 0169), which is why a local id keeps it.
+ */
 const PUB_PAL_CONVERSATION_ID_PATTERN = /^conv_[A-Za-z0-9]{8,64}$/;
 
 export function isPubPalConversationId(value: string): boolean {
   return PUB_PAL_CONVERSATION_ID_PATTERN.test(value);
+}
+
+// A first answer Pal gives from its own records opens no provider session, yet
+// the follow-up must still read that turn back. Such a thread gets a local id:
+// `conv_pal` and 32 random characters, a length no ElevenLabs id has.
+const PAL_LOCAL_THREAD_PREFIX = "conv_pal";
+const PAL_LOCAL_THREAD_ID_PATTERN = /^conv_pal[A-Za-z0-9]{32}$/;
+const PAL_LOCAL_THREAD_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+/** True for a thread Pal issued itself; the provider has never seen it. */
+export function isPalLocalThreadId(value: string): boolean {
+  return PAL_LOCAL_THREAD_ID_PATTERN.test(value);
+}
+
+export function newPalLocalThreadId(): string {
+  let id = PAL_LOCAL_THREAD_PREFIX;
+  // 62 does not divide 256, so the 8 highest byte values are drawn again.
+  while (id.length < PAL_LOCAL_THREAD_PREFIX.length + 32) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(32))) {
+      if (byte < 248 && id.length < PAL_LOCAL_THREAD_PREFIX.length + 32) {
+        id += PAL_LOCAL_THREAD_ALPHABET[byte % 62];
+      }
+    }
+  }
+  return id;
 }
 
 /**

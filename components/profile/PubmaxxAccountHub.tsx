@@ -290,8 +290,6 @@ function AccountHandleEditor({
 
   async function rename(event: FormEvent) {
     event.preventDefault();
-    // First claim is AccountOnboarding only (handle + date of birth together).
-    // A handle-only claim here left accounts stuck on onboarding_required.
     if (!currentHandle) return;
     setMessage("");
     try {
@@ -328,8 +326,8 @@ function AccountHandleEditor({
       <div>
         <h3>Claim your @handle</h3>
         <p>
-          Finish the setup dialog that asks for your public handle and date of
-          birth. Claiming a handle alone is not enough to contribute.
+          Finish the setup dialog to claim your public handle.
+          Your name and date of birth are optional.
         </p>
         {message ? <small role="status">{message}</small> : null}
       </div>
@@ -350,6 +348,42 @@ function AccountHandleEditor({
       <small>You can rename once every 30 days. Old links keep working.</small>
       {message ? <small role="status">{message}</small> : null}
     </form>
+  );
+}
+
+function renderAnalyticsControls(
+  analyticsConsent: AnalyticsConsentDecision | null,
+  updateAnalyticsConsent: (granted: boolean) => void,
+) {
+  // Undecided: the full choice card. Decided: the card collapses to a
+  // one-line status with a small affordance to reverse it (defect 6).
+  return (
+    <div id="analytics-settings">
+      <h3>Optional usage analytics</h3>
+      {analyticsConsent === null ? (
+        <>
+          <p>Help us see which parts of the app work, using a persistent device ID, standard browser details and allow-listed product events. It&apos;s optional, and you can withdraw it here.</p>
+          <div className="accountHubActions">
+            <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
+            <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</Button>
+          </div>
+        </>
+      ) : (
+        <p className="accountHubConsentStatus" role="status">
+          {analyticsConsent === "granted"
+            ? "Usage analytics on."
+            : "Usage analytics off."}{" "}
+          <Button
+            variant="secondary"
+            type="button"
+            className="accountHubConsentChange"
+            onClick={() => updateAnalyticsConsent(analyticsConsent !== "granted")}
+          >
+            {analyticsConsent === "granted" ? "Withdraw" : "Allow"}
+          </Button>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -424,37 +458,6 @@ export default function PubmaxxAccountHub() {
       setReferralNotice("");
     });
   }, [accountRevision]);
-
-  // Undecided: the full choice card. Decided: the card collapses to a
-  // one-line status with a small affordance to reverse it (defect 6).
-  const analyticsControls = (
-    <div id="analytics-settings">
-      <h3>Optional usage analytics</h3>
-      {analyticsConsent === null ? (
-        <>
-          <p>Help us see which parts of the app work, using a persistent device ID, standard browser details and allow-listed product events. It&apos;s optional, and you can withdraw it here.</p>
-          <div className="accountHubActions">
-            <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
-            <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</Button>
-          </div>
-        </>
-      ) : (
-        <p className="accountHubConsentStatus" role="status">
-          {analyticsConsent === "granted"
-            ? "Usage analytics on."
-            : "Usage analytics off."}{" "}
-          <Button
-            variant="secondary"
-            type="button"
-            className="accountHubConsentChange"
-            onClick={() => updateAnalyticsConsent(analyticsConsent !== "granted")}
-          >
-            {analyticsConsent === "granted" ? "Withdraw" : "Allow"}
-          </Button>
-        </p>
-      )}
-    </div>
-  );
 
   useEffect(() => {
     if (!user) return;
@@ -922,7 +925,7 @@ export default function PubmaxxAccountHub() {
           <SetAccountPassword />
           <StepOutNudgePref />
           <AppearancePref />
-          {analyticsControls}
+          {renderAnalyticsControls(analyticsConsent, updateAnalyticsConsent)}
         </div>
         {/* The account's own data doors, last in the settings block because
             they are things a reader goes looking for rather than meets on the

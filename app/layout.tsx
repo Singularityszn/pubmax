@@ -165,6 +165,12 @@ if (!initialFontFallbacks["--font-display"] || !initialFontFallbacks["--font-bod
   throw new Error("The display and body fonts require their generated matched fallbacks.");
 }
 
+// The complete generated chains ThemeAttribute writes back once hydrated.
+const rootFontFamilies = {
+  "--font-display": displayFace.style.fontFamily,
+  "--font-body": bodySans.style.fontFamily,
+};
+
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were
 // its last consumer and left the face on 2026-08-18, so the party-accent token
 // is gone from the app and no route pays for a display font nothing draws.
@@ -419,7 +425,10 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
-                <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
+                <ThemeAttribute
+                initialFontFallbacks={initialFontFallbacks}
+                fontFamilies={rootFontFamilies}
+              />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -436,7 +445,10 @@ export default async function RootLayout({
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
-              <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
+              <ThemeAttribute
+                initialFontFallbacks={initialFontFallbacks}
+                fontFamilies={rootFontFamilies}
+              />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

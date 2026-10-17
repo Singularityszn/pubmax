@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { isPalLocalThreadId, isPubPalConversationId } from "@/lib/pubPalConversationId";
 
 const PROVIDER_READ_TIMEOUT_MS = 8_000;
 
@@ -25,7 +25,7 @@ export async function providerCallSeconds(
   apiKey: string,
   timeoutMs: number = PROVIDER_READ_TIMEOUT_MS,
 ): Promise<number | null> {
-  if (!isPubPalConversationId(conversationId)) return null;
+  if (!isPubPalConversationId(conversationId) || isPalLocalThreadId(conversationId)) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_READ_TIMEOUT_MS));
   try {

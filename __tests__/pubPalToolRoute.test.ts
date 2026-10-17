@@ -18,9 +18,9 @@ vi.mock("@/lib/ask/tools", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ask/tools")>();
   return {
     ...actual,
-    runAskTool: vi.fn(async () => ({
+    runAskTool: vi.fn(async (tool: string) => ({
       ok: true,
-      tool: "search_venues",
+      tool,
       data: null,
       provenance: [],
       cards: [

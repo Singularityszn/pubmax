@@ -10,7 +10,7 @@ const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
 // Clerk controls are portalled in by the Clerk tree (ConfiguredClerkTree); the

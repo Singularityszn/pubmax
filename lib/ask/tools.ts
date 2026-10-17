@@ -2,6 +2,8 @@
 // and provenance. No tool invents a price.
 
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { isIndependentAskTool, isVenueDiscoveryAsk, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
+import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import {
   drivesMap,
@@ -45,8 +47,10 @@ import {
   toolTonightNow,
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
+import { uniqueExactVenueNameMatch } from "@/lib/ask/venueResolution";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { STATIC_STATIONS } from "@/lib/staticStations";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -371,7 +375,8 @@ async function toolVenuePrices(
   );
 
   const communityRead = await readCommunityPricesWithStatus(venue.id);
-  const trusted = communityRead.prices.filter((p) => drivesMap(p));
+  const intent = resolveAskPriceIntent(ctx.query);
+  const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
   const communityCards: AskCard[] = trusted.map((p, index) => ({
     key: `${venue.id}:c-${index}`,
     venueId: venue.id,
@@ -424,6 +429,10 @@ async function toolVenuePrices(
     },
     provenance,
     cards,
+    priceEvidence: [
+      ...trusted.map((price, index) => communityCategoryEvidence(`${venue.id}:c-${index}`, venue.id, price)),
+      ...(venue.cheapestPrice != null ? [listedPintEvidence(`${venue.id}:curated`, venue.id, venue.cheapestPrice)] : []),
+    ],
     proposals,
     answerHint,
     degraded: communityRead.degraded,
@@ -506,12 +515,10 @@ async function toolJourney(
   const from = str(args.from);
   const to = str(args.to);
   const venues = await loadConciergeVenues(ctx.cityId);
-  const fromVenue = from ? await matchVenueByName(venues, from) : null;
-  const toVenue =
-    (to ? await matchVenueByName(venues, to) : null) ??
-    (!to ? await matchVenueByName(venues, stripForMatch(ctx.query)) : null);
+  const fromVenue = uniqueExactVenueNameMatch(venues, from);
+  const toVenue = uniqueExactVenueNameMatch(venues, to);
 
-  if (!from && !fromVenue) {
+  if (!from) {
     return {
       ok: false,
       tool: "journey",
@@ -523,7 +530,7 @@ async function toolJourney(
         "Say where from and which listed pub to head to (or lat,lng points).",
     };
   }
-  if (!to && !toVenue) {
+  if (!to) {
     return {
       ok: false,
       tool: "journey",
@@ -535,9 +542,16 @@ async function toolJourney(
     };
   }
 
+  const stationName = from.toLowerCase().replace(/['’]/g, "");
+  const fromStation = STATIC_STATIONS.find((station) =>
+    station.name.toLowerCase().replace(/['’]/g, "") ===
+      (stationName === "kings cross" ? "kings cross st pancras" : stationName),
+  );
   const fromPoint = fromVenue
     ? formatJourneyPoint(fromVenue.lat, fromVenue.lng)
-    : from;
+    : fromStation
+      ? formatJourneyPoint(fromStation.lat, fromStation.lon)
+      : from;
   const toPoint = toVenue
     ? formatJourneyPoint(toVenue.lat, toVenue.lng)
     : to;
@@ -595,16 +609,6 @@ async function toolJourney(
       degraded: true,
     };
   }
-}
-
-function stripForMatch(query: string): string {
-  return query
-    .replace(
-      /\b(how (do|can) i get|journey|get (me )?to|directions to|route to|from|to)\b/gi,
-      " ",
-    )
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function toolAreaBuzz(
@@ -1008,11 +1012,57 @@ export async function runAskTool(
       answerHint: "That tool is not available.",
     };
   }
-  const venueId = str(args.venueId);
+  const intent = resolveAskPriceIntent(ctx.query);
+  if (intent.kind === "unsupported" && !isIndependentAskTool(name)) {
+    return {
+      ok: false, tool: name, data: { kind: "unsupported-price", code: intent.coverage.code },
+      provenance: [], cards: [], proposals: [], priceEvidence: [], answerHint: intent.coverage.answer,
+    };
+  }
+  let toolName = name;
+  let toolArgs = ctx.query.trim() ? { ...args, query: ctx.query } : args;
+  if (name === "journey") {
+    const journey = resolveAskJourney(ctx.query);
+    if (journey) toolArgs = { ...toolArgs, from: str(args.from) || "London Bridge", ...journey };
+  }
+  if (intent.kind === "menu" && !isIndependentAskTool(name)) {
+    toolName = "venue_drinks";
+    toolArgs = { venueName: intent.venueName };
+  }
+  const answersPrice = ["search_venues", "venue_prices", "venue_drinks", "cheapest_pint_near"].includes(name);
+  const discoveryCall = isVenueDiscoveryAsk(ctx.query) && (answersPrice || name === "venue_heritage")
+    ? routeAskDeterministically(ctx.query).find((call) => call.name === "search_venues") : undefined;
+  if (discoveryCall) {
+    toolName = discoveryCall.name;
+    toolArgs = discoveryCall.args;
+  } else if (answersPrice && intent.kind === "recorded-drinks") {
+    toolName = "venue_drinks";
+    toolArgs = { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) };
+  } else if (answersPrice && intent.kind === "drink-venues") {
+    toolName = "search_venues";
+    toolArgs = { query: ctx.query, limit: 4 };
+  } else if (answersPrice && (intent.kind === "pint" || intent.kind === "pub-price")) {
+    const priceCall = routeAskDeterministically(ctx.query)
+      .find((call) => call.name === "venue_prices" || call.name === "cheapest_pint_near");
+    if (priceCall) {
+      toolName = priceCall.name;
+      toolArgs = { ...priceCall.args, ...(intent.venueName ? { venueName: intent.venueName } : {}) };
+    }
+    if (intent.kind === "pint" && intent.foodAvailability) toolArgs = { ...toolArgs, foodOnly: true };
+  }
+  const venueId = str(toolArgs.venueId);
   const canonicalArgs = venueId
-    ? { ...args, venueId: await resolveCanonicalVenueId(venueId) }
-    : args;
-  return HANDLERS[name](canonicalArgs, ctx);
+    ? { ...toolArgs, venueId: await resolveCanonicalVenueId(venueId) }
+    : toolArgs;
+  const result = await HANDLERS[toolName](canonicalArgs, ctx);
+  if (!result.priceEvidence && ["search_venues", "propose_plan", "propose_map_action"].includes(result.tool)) {
+    return {
+      ...result,
+      priceEvidence: result.cards.flatMap((card) => typeof card.price === "number" && card.venueId
+        ? [listedPintEvidence(card.key, card.venueId, card.price)] : []),
+    };
+  }
+  return result;
 }
 
 export function resolveAskCityId(raw: unknown): CityId {

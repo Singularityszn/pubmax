@@ -1,10 +1,11 @@
 /* Where the map's camera chips sit on a wide screen.
  *
- * The stack's base geometry is in app/globals.css: `--map-overlay-top` is 108px
- * on desktop and `--map-top-clearance` is 159px, so there is room for exactly
- * ONE 44px chip above the search toolbar. Everything below that first row falls
- * inside the toolbar's own band, and at 1024 and 1280 the toolbar's right end -
- * the city switcher - is painted over it and takes its taps.
+ * The stack's base geometry is in app/globals.css: on desktop
+ * `--map-overlay-top` is one gap under the toolbar's published height. It sat
+ * at 108px in a band above a toolbar at 159px, with room for exactly ONE 44px
+ * chip; everything below that first row fell inside the toolbar's own band,
+ * where at 1024 and 1280 the city switcher was painted over it and took its
+ * taps. The row form below is still what keeps the stack one line tall.
  *
  * That was survivable while the second row was "Recenter", which only exists
  * once a route does. It is not survivable now the compass is always there

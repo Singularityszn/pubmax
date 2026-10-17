@@ -289,3 +289,37 @@ test.describe("phone controls on the launch surfaces", () => {
     });
   }
 });
+
+// THE /about PRESS-KIT FLOOR HOLDS AT A PHONE WIDTH WITHOUT THE POINTER QUERY.
+// On 16 October 2026 the macOS layout-pins shard measured these links at 93x23
+// at 390 on one attempt and 44px on the retry: 23px is their fine-pointer
+// height, so that touch-emulated load had not matched `(pointer: coarse)`.
+// app/about/about.css now applies the floor at `(max-width: 559px)` as well,
+// and this run measures it with no touch emulation at all, which the sweep
+// above cannot see.
+test.describe("the /about press-kit floor without a coarse pointer", () => {
+  test.use({ hasTouch: false, isMobile: false });
+
+  test("press-kit links clear 44px at 360/390/430 with a fine pointer", async ({ page }) => {
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 844 });
+      const response = await page.goto("/about", { waitUntil: "load" });
+      expect(response?.ok(), `/about @${width}: navigation must succeed`).toBe(true);
+      const links = page.locator(".aboutLogoLinks .aboutLink");
+      await expect(links.first()).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS });
+      expect(
+        await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+        `/about @${width}: this run must not report a coarse pointer`,
+      ).toBe(false);
+      const heights = await links.evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().height),
+      );
+      expect(heights.length, `/about @${width}: both press-kit links render`).toBeGreaterThan(0);
+      for (const height of heights) {
+        expect(height, `/about @${width}: press-kit link is ${Math.round(height)}px tall`).toBeGreaterThanOrEqual(
+          MIN_TAP_HEIGHT_PX,
+        );
+      }
+    }
+  });
+});
