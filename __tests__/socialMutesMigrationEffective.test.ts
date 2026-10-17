@@ -129,14 +129,14 @@ describe.skipIf(skipReason !== null)("migration 0181: Social mutes", () => {
   });
 
   it("AFTER: the relationship read answers only what the actor set", () => {
-    expect(relationship(MUTER, MUTED)).toBe("false|true");
-    expect(relationship(MUTED, MUTER)).toBe("false|false");
+    expect(relationship(MUTER, MUTED)).toBe("f|t");
+    expect(relationship(MUTED, MUTER)).toBe("f|f");
     service(`select public.set_social_block('${MUTER}', '${MUTED}', true)`);
-    expect(relationship(MUTER, MUTED)).toBe("true|true");
+    expect(relationship(MUTER, MUTED)).toBe("t|t");
     // The blocked account is never told who blocked it.
-    expect(relationship(MUTED, MUTER)).toBe("false|false");
+    expect(relationship(MUTED, MUTER)).toBe("f|f");
     service(`select public.set_social_block('${MUTER}', '${MUTED}', false)`);
-    expect(relationship(MUTER, MUTED)).toBe("false|true");
+    expect(relationship(MUTER, MUTED)).toBe("f|t");
   });
 
   it("AFTER: a self-mute is refused and no browser role reaches the table or the functions", () => {
@@ -157,7 +157,7 @@ describe.skipIf(skipReason !== null)("migration 0181: Social mutes", () => {
   it("AFTER: an unmute puts the posts back", () => {
     expect(service(`select public.set_social_mute('${MUTER}', '${MUTED}', false)`)).toBe("t");
     expect(lane(MUTER, "following")).toBe("muted friends|muted public");
-    expect(relationship(MUTER, MUTED)).toBe("false|false");
+    expect(relationship(MUTER, MUTED)).toBe("f|f");
   });
 
   it("ROLLBACK: 0074's feed comes back byte for byte and the forward file re-applies", () => {
