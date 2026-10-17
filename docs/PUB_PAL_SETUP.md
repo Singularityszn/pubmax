@@ -159,7 +159,7 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    two-minute in-process cache, so a turn does not wait on it, and a slow or
    empty read sends no lines, which the prompt reads as "ask, do not guess".
    It is opt-out: the "Taste read" toggle on the Pal's page writes
-   `proposal_preferences.taste` (inside the existing jsonb, so no migration;
+   the `taste` key of `proposal_preferences` (inside the existing jsonb, so no migration;
    a missing key is on). The setting is read fresh before every read, so
    turning it off stops the next turn reading any logs, past the cache, and a
    Pal that cannot be read fails closed.
