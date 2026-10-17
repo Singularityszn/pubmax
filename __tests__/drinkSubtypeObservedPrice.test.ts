@@ -162,7 +162,7 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero")).toBeNull();
   });
 
-  it("exposes Lucia special, the zero-sugar cola family and still water as launch chips", () => {
+  it("exposes the Lucia lens, the zero-sugar cola family and still water as launch chips", () => {
     expect(softDrinksWaterChipSubtypes().map((s) => s.id)).toEqual([
       "soft-drink-lucia-special",
       "soft-drink-zero-sugar-cola",
@@ -170,7 +170,7 @@ describe("selectObservedSubtypePriceForVenue", () => {
     ]);
   });
 
-  it("opens on Lucia special when the URL names no soft drink", () => {
+  it("opens on the Lucia lens when the URL names no soft drink", () => {
     expect(softDrinksWaterSubtypeIdFromParam(undefined)).toBe("soft-drink-lucia-special");
     expect(softDrinksWaterSubtypeIdFromParam("beer-lager")).toBe("soft-drink-lucia-special");
     expect(softDrinksWaterSubtypeIdFromParam("soft-drink-zero-sugar-cola")).toBe(
@@ -196,7 +196,7 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-lucia-special")).toBeNull();
   });
 
-  it("prices Lucia special from Coke Zero and Diet Coke only, never Pepsi", () => {
+  it("prices the Lucia lens from Coke Zero and Diet Coke only, never Pepsi", () => {
     const venue = makeVenue([
       makePrice("Pepsi Max", 1.9),
       makePrice("Coke Zero", 3.1),

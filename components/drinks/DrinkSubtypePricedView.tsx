@@ -27,7 +27,7 @@ import "./drinkSubtypePricedView.css";
 
 export type DrinkSubtypePricedViewProps = {
   title: string;
-  /** Launch chip ids (Lucia special, zero-sugar cola and still water by default); leaf cola brands stay off the chip row. */
+  /** Launch chip ids (Lucia, zero-sugar cola and still water by default); leaf cola brands stay off the chip row. */
   launchSubtypeIds: readonly string[];
   activeSubtypeId: string;
   rows: readonly SubtypePricedVenueRow[];

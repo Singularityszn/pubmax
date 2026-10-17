@@ -36,7 +36,7 @@ test.describe("Soft drinks and water view", () => {
 
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
     await expect(page.getByText("Non-alcoholic", { exact: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Lucia special", selected: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Lucia 🐐", selected: true })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Zero-sugar cola" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Still water" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Coke Zero" })).toHaveCount(0);
@@ -45,7 +45,7 @@ test.describe("Soft drinks and water view", () => {
     await expect(page.getByRole("tab", { name: "Diet Pepsi" })).toHaveCount(0);
 
     await page.getByRole("tab", { name: "Still water" }).click();
-    await page.getByRole("tab", { name: "Lucia special" }).click();
+    await page.getByRole("tab", { name: "Lucia 🐐" }).click();
 
     const pricedMeta = page.locator(".softDrinksWater__meta", {
       hasText: `Collected ${COLLECTED_DAY}`,
@@ -76,7 +76,7 @@ test.describe("Soft drinks and water view", () => {
     await page.goto(`${VIEW_PATH}?sub=soft-drink-coke-zero`);
     await expect(page).toHaveURL(/sub=soft-drink-lucia-special/);
     await expect(page.getByRole("heading", { name: "Soft drinks and water" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Lucia special", selected: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Lucia 🐐", selected: true })).toBeVisible();
     const ledeText = (await page.locator(".screenLede").textContent()) ?? "";
     if (/No listed .* prices in London yet/.test(ledeText)) {
       await expect(page.getByText("Nobody has logged one here yet.")).toBeVisible();

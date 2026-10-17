@@ -24,7 +24,7 @@ type PageProps = {
 export const metadata: Metadata = {
   title: WORKING_TITLE,
   description:
-    "Non-alcoholic prices at London pubs: the Lucia special (Coke Zero and Diet Coke), zero-sugar cola and still water, with the poured brand and publisher status beside every listed figure.",
+    "Non-alcoholic prices at London pubs: Lucia 🐐 (Coke Zero and Diet Coke), zero-sugar cola and still water, with the poured brand and publisher status beside every listed figure.",
   alternates: { canonical: "/soft-drinks-and-water" },
 };
 

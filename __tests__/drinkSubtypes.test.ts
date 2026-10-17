@@ -104,11 +104,11 @@ describe("drinkSubtypeFromText", () => {
     expect(drinkSubtypeFamilyParentId("soft-drink-still-water")).toBeNull();
   });
 
-  it("folds the Coca-Cola pair to Lucia special, its first family", () => {
+  it("folds the Coca-Cola pair to the Lucia lens, its first family", () => {
     expect(drinkSubtypeFamilyParentId("soft-drink-coke-zero")).toBe("soft-drink-lucia-special");
     expect(drinkSubtypeFamilyParentId("soft-drink-diet-coke")).toBe("soft-drink-lucia-special");
-    expect(drinkSubtypeFromText("Lucia special", "soft-drink")).toBeNull();
-    expect(findSubtype("soft-drink-lucia-special")?.label).toBe("Lucia special 🐐");
+    expect(drinkSubtypeFromText("Lucia", "soft-drink")).toBeNull();
+    expect(findSubtype("soft-drink-lucia-special")?.label).toBe("Lucia 🐐");
   });
 
   it("classifies soft-drink subtypes without widening the category union", () => {

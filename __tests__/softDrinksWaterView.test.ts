@@ -39,7 +39,7 @@ it("does not count UK bundle venues absent from the London view", async () => {
   expect(view?.observedCounts["soft-drink-coke-zero"]).toBe(0);
 });
 
-it("opens on the Lucia special lens and counts it beside the other launch chips", async () => {
+it("opens on the Lucia lens and counts it beside the other launch chips", async () => {
   const view = await loadSoftDrinksWaterView("soft-drink-lucia-special");
   expect(view?.subtypeId).toBe("soft-drink-lucia-special");
   expect(view?.subtypeLabel).toBe("Coke Zero and Diet Coke");
