@@ -308,8 +308,8 @@
    16 October 2026 the macOS layout-pins shard measured these links at 23px on
    a 390px touch-emulated load where the pointer query had not matched, and
    the floor must not hang on that one signal. 559px is the press-kit row's
-   own breakpoint. e2e/launch-phone-controls.spec.ts measures it, and
-   __tests__/aboutPressKitTapFloor.test.ts pins the query. */
+   own breakpoint. e2e/launch-phone-controls.spec.ts measures it, with and
+   without a coarse pointer. */
 @media (pointer: coarse), (max-width: 559px) {
   .aboutLogoLinks .aboutLink {
     display: inline-flex;
