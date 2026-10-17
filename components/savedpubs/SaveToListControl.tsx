@@ -222,7 +222,7 @@ export default function SaveToListControl({
       setBusy(true);
       try {
         const wanted = !savedIn.includes(listType);
-        const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
+        const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind, wanted);
         // The second press removes the save, so the toast says which happened.
         announce(
           venueId,
@@ -272,8 +272,8 @@ export default function SaveToListControl({
           /* the save below still works even if the registry write failed */
         }
       }
-      // The save is a toggle, so a name that already holds this pub is left as
-      // it is rather than pressed a second time.
+      // A name that already holds this pub is left as it is rather than pressed
+      // a second time.
       const held = savedIn.includes(name)
         ? savedIn
         : afterPress(
