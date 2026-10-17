@@ -57,8 +57,30 @@ async function render(role: "host" | "guest", collaborationAuthorized: boolean) 
   await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState: plan })));
 }
 
+// The outbox flush runs on fetch and Response.json() promises that settle
+// outside a single act() turn, later on a loaded machine. Each poll flushes
+// React's queued work first, because an update made inside one long act()
+// scope is not committed until that scope ends.
+async function settle(check: () => void) {
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    check();
+  }, { timeout: 5_000 });
+}
+
 function action(label: string) {
   return [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith(label));
+}
+
+// The action buttons stay disabled while a tap is in flight, as a person sees
+// them, so a tap is finished only once they are enabled again.
+async function tap(label: string) {
+  await act(async () => action(label)!.click());
+  await settle(() => {
+    for (const button of host.querySelectorAll<HTMLButtonElement>(".nightCrawl__actions button")) {
+      expect(button.disabled).toBe(false);
+    }
+  });
 }
 
 describe("Night mode action permissions and recovery", () => {
@@ -75,22 +97,28 @@ describe("Night mode action permissions and recovery", () => {
   it.each(["host", "guest"] as const)("lets an authorized %s arrive and skip", async (role) => {
     await render(role, true);
     for (const label of ["We are here", "Skip it"]) {
-      await act(async () => action(label)!.click());
+      await tap(label);
       expect(readActivePlan()?.stopIndex).toBe(1);
     }
-    expect(actionCalls).toBe(2);
-    expect(listPlanMutationOutbox(planId)).toEqual([]);
+    await settle(() => {
+      expect(actionCalls).toBe(2);
+      expect(listPlanMutationOutbox(planId)).toEqual([]);
+    });
   });
 
   it.each([403, 400] as const)("rolls back HTTP %s without suggesting a signal retry", async (status) => {
     actionStatus = status;
     await render("host", true);
-    await act(async () => action("Skip it")!.click());
-    expect(readActivePlan()?.stopIndex).toBe(0);
-    expect(host.textContent).toContain("Stop 1 of 2");
+    await tap("Skip it");
+    await settle(() => {
+      expect(readActivePlan()?.stopIndex).toBe(0);
+      expect(host.textContent).toContain("Stop 1 of 2");
+      expect(host.querySelector('[role="status"]')?.textContent).toMatch(
+        status === 403 ? /permission|host/i : /rejected|full plan/i,
+      );
+    });
     const note = host.querySelector('[role="status"]');
     expect(note?.textContent).not.toMatch(/signal/i);
-    expect(note?.textContent).toMatch(status === 403 ? /permission|host/i : /rejected|full plan/i);
     await act(async () => window.dispatchEvent(new Event("online")));
     expect(actionCalls).toBe(1);
   });
@@ -98,15 +126,19 @@ describe("Night mode action permissions and recovery", () => {
   it("holds an offline action and confirms it when signal returns", async () => {
     actionStatus = "network";
     await render("host", true);
-    await act(async () => action("We are here")!.click());
-    expect(readActivePlan()?.stopIndex).toBe(1);
-    expect(host.textContent).toContain("Held on this phone");
-    expect(listPlanMutationOutbox(planId)[0]?.status).toBe("pending");
+    await tap("We are here");
+    await settle(() => {
+      expect(readActivePlan()?.stopIndex).toBe(1);
+      expect(host.textContent).toContain("Held on this phone");
+      expect(listPlanMutationOutbox(planId)[0]?.status).toBe("pending");
+    });
     const attemptsBeforeOnline = actionCalls;
     actionStatus = 200;
     await act(async () => window.dispatchEvent(new Event("online")));
-    expect(actionCalls).toBe(attemptsBeforeOnline + 1);
-    expect(listPlanMutationOutbox(planId)).toEqual([]);
-    expect(host.textContent).not.toContain("Held on this phone");
+    await settle(() => {
+      expect(actionCalls).toBe(attemptsBeforeOnline + 1);
+      expect(listPlanMutationOutbox(planId)).toEqual([]);
+      expect(host.textContent).not.toContain("Held on this phone");
+    });
   });
 });
