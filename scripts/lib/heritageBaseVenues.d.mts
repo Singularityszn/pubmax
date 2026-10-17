@@ -8,3 +8,10 @@ export function londonBaseVenues(
     ownedBy?: ReadonlyMap<string, string>;
   },
 ): Array<{ id: string; name: string; lat: number; lng: number }>;
+export function ownedBaseVenues(
+  seedPubs: unknown,
+  options?: {
+    box?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
+    ownedBy?: ReadonlyMap<string, string>;
+  },
+): Array<{ id: string; name: string; lat: number; lng: number }>;

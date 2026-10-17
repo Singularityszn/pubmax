@@ -18,8 +18,20 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildListings, serialise } from "@/scripts/build_heritage_listings.mjs";
-import { baseRowOwners, baseVenueIdFor, LONDON_BOX, londonBaseVenues } from "@/scripts/lib/heritageBaseVenues.mjs";
+import {
+  buildListings,
+  parseRead,
+  serialise,
+  serialiseRead,
+  VERIFIED_LISTINGS,
+} from "@/scripts/build_heritage_listings.mjs";
+import {
+  baseRowOwners,
+  baseVenueIdFor,
+  LONDON_BOX,
+  londonBaseVenues,
+  ownedBaseVenues,
+} from "@/scripts/lib/heritageBaseVenues.mjs";
 import { heritageReadLabel, sanitizeHeritageFacts } from "@/lib/heritageFacts";
 import { resolveObservedAt } from "@/lib/freshness";
 import { getListedBuilding } from "@/lib/heritageListings";
@@ -93,6 +105,57 @@ describe("the London base pubs the join reads", () => {
     expect(doubled).toEqual([]);
   });
 
+  it("tries an owned base pub's own name under its curated owner, only when the owner's name found nothing", () => {
+    const ownedBy = new Map([
+      ["w1", "venue-old-bell"],
+      ["w2", "venue-george"],
+    ]);
+    const ownedBase = ownedBaseVenues(
+      [
+        { osmId: "way/1", amenity: "pub", name: "The Old Bell", lat: 51.5, lng: -0.1 },
+        { osmId: "way/2", amenity: "pub", name: "The George", lat: 51.6, lng: -0.2 },
+        { osmId: "way/3", amenity: "pub", name: "Unowned", lat: 51.5, lng: -0.1 },
+      ],
+      { ownedBy },
+    );
+    expect(ownedBase).toEqual([
+      { id: "venue-old-bell", name: "The Old Bell", lat: 51.5, lng: -0.1 },
+      { id: "venue-george", name: "The George", lat: 51.6, lng: -0.2 },
+    ]);
+    const listings = buildListings(
+      [
+        // A qualifier the matcher refuses, so the owned OSM name is tried.
+        { id: "venue-old-bell", name: "The Old Bell Tavern Fleet Street Nightclub", lat: 51.5, lng: -0.1 },
+        // Its own name matches, so the owned OSM name never overrides it.
+        { id: "venue-george", name: "The George", lat: 51.6, lng: -0.2 },
+      ],
+      [
+        { listEntry: 1064658, name: "THE OLD BELL PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.5, lng: -0.1 },
+        { listEntry: 1000001, name: "THE GEORGE PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.6, lng: -0.2 },
+      ],
+      { ownedBase: [...ownedBase, { id: "venue-george", name: "The Old Bell", lat: 51.5, lng: -0.1 }] },
+    );
+    expect(listings["venue-old-bell"]?.listEntry).toBe(1064658);
+    expect(listings["venue-george"]?.listEntry).toBe(1000001);
+  });
+
+  it("puts each listed building under one venue, bar the pairs still waiting on a merge", () => {
+    const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+    const byEntry = new Map<number, string[]>();
+    for (const [id, listing] of Object.entries(pack.listings) as Array<[string, { listEntry: number }]>) {
+      byEntry.set(listing.listEntry, [...(byEntry.get(listing.listEntry) ?? []), id]);
+    }
+    const doubled = Object.fromEntries([...byEntry].filter(([, ids]) => ids.length > 1));
+    // Group C of Singularityszn/pubmax#2218, one pub held twice in one source.
+    // Each needs a merge decision, not a looser match: two curated rows for The
+    // White Bear, and an OSM node and way for each of the other two.
+    expect(doubled).toEqual({
+      1085864: ["venue-uk-n316951209", "venue-uk-w1499736517"],
+      1204809: ["venue-uk-n213434643", "venue-uk-w1414645898"],
+      1208737: ["venue-1dohqsq", "venue-7c6oel"],
+    });
+  });
+
   it("is a few thousand pubs in the committed snapshot", () => {
     const seed = JSON.parse(readFileSync(join(ROOT, "data/osm/uk/uk_osm_pubs.json"), "utf8"));
     const venues = londonBaseVenues(seed.pubs);
@@ -126,6 +189,45 @@ describe("the London base pubs the join reads", () => {
     expect(doc.$retrievedAt).toBe("2026-10-16T09:00:00.000Z");
     expect(doc.$licence).toBe("Open Government Licence v3.0");
     expect(() => serialise({}, "")).toThrow(/day it was read/);
+  });
+
+  it("finds a pinned listing for a venue whose kept name lost the listing's name, only on the venue", () => {
+    const venueId = "venue-698bu3";
+    const listEntry = VERIFIED_LISTINGS[venueId] ?? 0;
+    expect(listEntry).toBe(1267004);
+    const point = { listEntry, name: "OLD SHADES PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.5, lng: -0.1 };
+    const near = buildListings([{ id: venueId, name: "Unrelated Name", lat: 51.50001, lng: -0.10001 }], [point]);
+    expect(near[venueId]).toMatchObject({ listEntry, grade: "II", name: "Old Shades Public House" });
+    // A pin names a list entry, never a place: a point off the venue is no match.
+    const far = buildListings([{ id: venueId, name: "Unrelated Name", lat: 51.51, lng: -0.1 }], [point]);
+    expect(far).toEqual({});
+  });
+});
+
+describe("the committed NHLE read", () => {
+  const read = JSON.parse(readFileSync(join(ROOT, "data/heritage/nhle_london_points.json"), "utf8"));
+  const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+
+  it("is the read the pack was built from", () => {
+    expect(read.$retrievedAt).toBe(pack.$retrievedAt);
+    const byEntry = new Map(parseRead(read).points.map((point) => [point.listEntry, point]));
+    for (const listing of Object.values(pack.listings) as Array<{ listEntry: number; grade: string }>) {
+      expect(byEntry.get(listing.listEntry)?.grade.trim()).toBe(listing.grade);
+    }
+  });
+
+  it("round-trips one sorted row a line", () => {
+    const points = [
+      { listEntry: 2, name: "B", grade: "II", listDate: 0, lat: 51.5, lng: -0.1 },
+      { listEntry: 1, name: "A", grade: "I", listDate: null, lat: 51.4, lng: -0.2 },
+    ];
+    const text = serialiseRead(points, "2026-10-17T00:00:00.000Z");
+    expect(text).toContain('\n    [1,"A","I",null,51.4,-0.2],\n    [2,"B","II",0,51.5,-0.1]\n');
+    expect(parseRead(JSON.parse(text))).toEqual({
+      retrievedAt: "2026-10-17T00:00:00.000Z",
+      points: [points[1], points[0]],
+    });
+    expect(() => serialiseRead(points, "")).toThrow(/day it was read/);
   });
 });
 

@@ -46,6 +46,15 @@ records the owning curated venue on each promoted row by exact OSM id, so the
 base pin is suppressed while the curated pin is drawable. Nothing is removed:
 a `venue-uk-*` id stays resolvable and its community prices stay reachable.
 
+A London pub that neither the seed's `curatedRef` nor an OSM id gives to a
+curated venue still goes to one when the two spell one name two ways: "&" for
+"and", "The", "Public House" or an apostrophe ("The King & Queen" and "The
+King and Queen"). That match is a near name, which is weaker evidence than the
+exact name `curatedRef` needs, so it holds only within 45 m, the gate the fuzzy
+merge in `canonicalize:venues` uses (`nearNameOwnerIndex` in
+[`lib/outerLondonOwnership.mjs`](../../../lib/outerLondonOwnership.mjs)). Pin:
+`__tests__/ukBaseNearNameOwners.test.ts`.
+
 A refresh REMOVES a base row when OSM deletes the object, and the shard build
 is where that removal is published, so the build records the id's identity
 work in the same step. It compares the rows it publishes with the rows
