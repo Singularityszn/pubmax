@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/map",
   useRouter: () => ({ push: vi.fn() }),
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: auth.signedIn ? { id: "test-user", email: "test@example.com", user_metadata: {} } : null,
     session: null,

@@ -1,0 +1,40 @@
+Document <title> per route family, local production builds of main (1284c1f3, before) and
+claude/seo-2126-single-brand-title (after). og:title is from the after build and is unchanged.
+Doubled brand, all 2,687 sitemap URLs: before 2629, after 1 (/about, whose subject is the brand).
+
+/borough
+  before: London pubs by borough: PUBMAXX | PUBMAXX
+  after:  London pubs by borough | PUBMAXX
+  og:     London pubs by borough: PUBMAXX
+/historic
+  before: London's historic pubs, cited from Wikipedia and Wikidata · PUBMAXX | PUBMAXX
+  after:  London's historic pubs, cited from Wikipedia and Wikidata | PUBMAXX
+  og:     London's historic pubs, cited from Wikipedia and Wikidata · PUBMAXX
+/spoons-value
+  before: What a tenner buys in a Wetherspoon · PUBMAXX | PUBMAXX
+  after:  What a tenner buys in a Wetherspoon | PUBMAXX
+  og:     What a tenner buys in a Wetherspoon
+/tonight
+  before: Tonight in London · PUBMAXX | PUBMAXX
+  after:  Tonight in London | PUBMAXX
+  og:     PUBMAXX: listed pint prices on an interactive map
+/borough/westminster
+  before: The cheapest pints and best pubs in Westminster · PUBMAXX | PUBMAXX
+  after:  The cheapest pints and best pubs in Westminster | PUBMAXX
+  og:     The cheapest pints and best pubs in Westminster · PUBMAXX
+/pint-index/2026-06
+  before: The London Pint Index: June 2026 · PUBMAXX | PUBMAXX
+  after:  The London Pint Index: June 2026 | PUBMAXX
+  og:     The London Pint Index: June 2026
+/landmark/big-ben
+  before: Big Ben: London story chapter · PUBMAXX | PUBMAXX
+  after:  Big Ben: London story chapter | PUBMAXX
+  og:     Big Ben: London story chapter · PUBMAXX
+/historic/prospect-of-whitby
+  before: Prospect of Whitby. Historic London pub | PUBMAXX | PUBMAXX
+  after:  Prospect of Whitby. Historic London pub | PUBMAXX
+  og:     Prospect of Whitby. Historic London pub | PUBMAXX
+/ledger/venue-xjf3n0
+  before: The Ledger: Arnos Arms. PUBMAXX | PUBMAXX
+  after:  The Ledger: Arnos Arms | PUBMAXX
+  og:     The Ledger: Arnos Arms. PUBMAXX

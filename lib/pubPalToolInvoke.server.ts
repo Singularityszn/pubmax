@@ -6,13 +6,12 @@ import {
   runAskTool,
   type AskToolArgs,
 } from "@/lib/ask/tools";
-import type { AskToolName } from "@/lib/ask/types";
 import { isAskToolName } from "@/lib/ask/types";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { isIndependentAskTool, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -32,8 +31,7 @@ export function resolvePubPalToolQuery(input: {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  if (fromTurn.length >= fromArgs.length) return fromTurn || fromArgs;
-  return fromArgs || fromTurn;
+  return fromTurn || fromArgs;
 }
 
 export function enrichPubPalToolArgs(
@@ -112,17 +110,17 @@ export async function invokePubPalAskTool(input: {
   const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
+  const unsupported = unsupportedPriceComparison(query);
+  const priceRefusal = unsupported && !isIndependentAskTool(input.toolName) ? unsupported : null;
   // The fence decides what the agent hears, never what the tool reads, and both
   // can take seconds, so they run together. A fenced turn drops the tool's
-  // answer unread: nothing from it is appended, spoken or returned.
-  const toolRun = runAskTool(input.toolName as AskToolName, args, {
-    cityId,
-    query,
-    skipModel: true,
-  });
+  // answer unread: nothing from it is appended, spoken or returned. A price ask
+  // the tools cannot answer starts no tool at all.
+  const startTool = () => runAskTool(input.toolName, args, { cityId, query, skipModel: true });
+  const toolRun = priceRefusal ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's
   // discarded run from surfacing as an unhandled rejection.
-  toolRun.catch(() => {});
+  toolRun?.catch(() => {});
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
@@ -150,14 +148,29 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await toolRun;
+  if (priceRefusal) {
+    if (input.conversationId) {
+      await appendPubPalToolTurn(input.conversationId, { hints: [priceRefusal.answer] });
+    }
+    return {
+      result: {
+        ok: false,
+        code: priceRefusal.code,
+        answerHint: priceRefusal.answer,
+        cards: [],
+        proposals: [],
+      },
+    };
+  }
+
+  const toolResult = await (toolRun ?? startTool());
 
   if (input.conversationId) {
     await appendPubPalToolTurn(input.conversationId, {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
-      toolsUsed: [input.toolName],
+      toolsUsed: [toolResult.tool],
     });
   }
 
@@ -175,6 +188,8 @@ export async function invokePubPalAskTool(input: {
       tool: toolResult.tool,
       answerHint: spokenHint,
       cards: toolResult.cards,
+      ...(toolResult.priceEvidence ? { priceEvidence: toolResult.priceEvidence } : {}),
+      sources: toolResult.provenance,
       proposals: toolResult.proposals,
       degraded: toolResult.degraded ?? false,
     },

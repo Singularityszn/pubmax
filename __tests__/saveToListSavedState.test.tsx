@@ -514,3 +514,40 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
   });
 });
 
+describe("SaveToListControl for a pub saved under a superseded id", () => {
+  it("shows the old save as held, leaves storage alone, and an explicit press removes it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => ({
+        ok: true,
+        status: 200,
+        json: async () =>
+          input.endsWith("/data/venue_id_aliases.json") ? { aliases: { "venue-old": "venue-1" } } : {},
+      })),
+    );
+    const raw = JSON.stringify([
+      { venueId: "venue-old", listType: "Date Night", savedAt: "2026-10-06T10:00:00.000Z" },
+    ]);
+    window.localStorage.setItem("pubmax:savedPubs:v1", raw);
+    try {
+      await open();
+      await act(async () => {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      });
+      expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+      expect(window.localStorage.getItem("pubmax:savedPubs:v1")).toBe(raw);
+
+      await act(async () => {
+        chip("Date Night").click();
+      });
+      expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
+      expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+        'Removed from "Date Night"',
+      );
+      expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+

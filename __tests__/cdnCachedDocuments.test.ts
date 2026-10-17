@@ -47,9 +47,9 @@ const SIGNED_IN_ROUTES: Record<string, string> = {
   "/admin": "app/admin/page.tsx",
   "/onboarding": "app/onboarding/page.tsx",
   "/social": "app/social/page.tsx",
-  // Not signed-in, but its document resolves a viewer from the Authorization
-  // header to gate Family Table content, so it is held to the same rule.
-  "/ledger/[id]": "app/ledger/[id]/page.tsx",
+  // Not signed-in, but its document resolves a friends-gated Pint Drop viewer
+  // from the Authorization header, so it is held to the same rule.
+  "/p/[id]": "app/p/[id]/page.tsx",
 };
 
 function pageFileFor(pathname: string): string {
@@ -123,6 +123,15 @@ describe("every CDN-cached document is a force-static page", () => {
     expect(window("/tonight")).toBeLessThanOrEqual(300);
     expect(window("/today")).toBeLessThanOrEqual(300);
     expect(window("/near")).toBe(window("/map"));
+  });
+
+  it("keeps every drinker's words out of the cached Ledger document", () => {
+    // The logbook, the drop-derived story lines and the Family Table are read
+    // by GET /api/ledger/[id] after load. A Pint Drop store read in the page
+    // would put a drinker's words in a copy handed to every visitor, and a
+    // hidden, withdrawn or erased drop would outlive its removal there.
+    const source = stripComments(readFileSync(join(REPO_ROOT, "app/ledger/[id]/page.tsx"), "utf8"));
+    expect(source).not.toMatch(/pintDropsStore|pintDropViewer|ledgerLog\.server|listVisible|listLegacyForVenue/);
   });
 
   it.each([...CDN_CACHED_DOCUMENT_ROUTES].sort())(

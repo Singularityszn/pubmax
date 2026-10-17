@@ -73,10 +73,10 @@
     {
       "id": "pub-closures",
       "kind": "trade",
-      "said": "The BBPA says 295 UK pubs shut for good by the end of September, and it forecasts 360 by the end of the year.",
+      "said": "The BBPA says 295 UK pubs shut for good by the end of September, and it forecasts around 360 by the end of the year.",
       "source": {
-        "label": "Morning Advertiser, reporting the BBPA",
-        "url": "https://www.morningadvertiser.co.uk/Article/2026/10/12/bbpa-290-uk-pubs-shut-in-2026-so-far-360-closures-forecast",
+        "label": "BBPA",
+        "url": "https://www.beerandpub.com/news-insights-research/news/britain-set-to-lose-one-pub-a-day-in-2026-at-the-expense-of-over-5000-jobs-as-government-urged-to-deliver-on-promises-for-sector/",
         "publishedOn": "2026-10-12"
       }
     },

@@ -217,9 +217,14 @@ describe("the mono face carries only weights something asks for", () => {
 describe("root font loading", () => {
   // The fonts used to be pinned to their fallbacks until hydration, and the
   // release restyled the document late enough to set /today's LCP (17 Oct 2026).
+  // The root carries each complete chain from the server on, so the global
+  // tokens never win and hydration has nothing to change.
   it("pins no face to its fallback and needs no no-script override", async () => {
     const doc = await RootLayout({ children: createElement("main") });
-    expect(doc.props.style).toBeUndefined();
+    expect(doc.props.style).toEqual({
+      "--font-display": fontFamilies.display,
+      "--font-body": fontFamilies.body,
+    });
     const head = Children.toArray(doc.props.children).find(
       (child) => typeof child === "object" && child !== null && "type" in child && child.type === "head",
     ) as ReactElement<{ children: React.ReactNode }>;

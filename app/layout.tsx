@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { headers } from "next/headers";
 import { Space_Grotesk, Inter } from "next/font/google";
 import localFont from "next/font/local";
@@ -179,6 +179,17 @@ for (const face of [displayFace, bodySans]) {
   }
 }
 
+// The complete generated chains, primary face then its matched fallback, set
+// on <html> from the first byte. The global :root tokens in globals.css name
+// the families without the generated fallbacks and would otherwise win the
+// cascade, so a swap would land from ui-sans-serif rather than from the
+// metric-matched face. Set once in the document, they never change after it,
+// so nothing restyles the page at hydration.
+const rootFontFamilies = {
+  "--font-display": displayFace.style.fontFamily,
+  "--font-body": bodySans.style.fontFamily,
+};
+
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were
 // its last consumer and left the face on 2026-08-18, so the party-accent token
 // is gone from the app and no route pays for a display font nothing draws.
@@ -309,6 +320,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
+      style={rootFontFamilies as CSSProperties}
     >
       <head>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,

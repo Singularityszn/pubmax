@@ -49,6 +49,8 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax:identityNudge:dismissedAt:v1",
   // Badge event opt-ins are chosen on the owner's own profile.
   "pubmax-badge-event-opt-ins",
+  // The host name the plan composer remembers prints on every share card.
+  "pubmax:plan-host-name:v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */

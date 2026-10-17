@@ -223,6 +223,9 @@ from the follow-handle graph the seam reads, and it does not hide a PUBLIC
 profile card from a blocked account either, so this wave neither opens that door
 nor closes it. Folding the block into the seam is its own slice with its own
 cells; asserting Carol's current answer here would write the gap down as intent.
+A Social mute (`social_mutes`, migration `0181`) is narrower still: it moves only
+the muter's own post lanes, and no browser role holds the table or its two
+functions (`__tests__/socialMutesMigrationEffective.test.ts`).
 
 ## The URL allow-list
 

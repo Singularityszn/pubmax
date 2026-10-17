@@ -34,8 +34,15 @@ export const maxDuration = 15;
 
 const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 3;
-const CACHE_MAX_AGE_S = 120;
-const CACHE_STALE_WHILE_REVALIDATE_S = 600;
+// F10: the cached GET lanes carry venue-to-venue legs, and their one caller
+// (useCrawlJourneys) reads only duration and modes, which do not move minute
+// to minute. The ages stack: the in-process journey cache (lib/citymcp/
+// client.ts, three minutes) can hand the edge a leg up to three minutes old,
+// the edge holds it five and serves it stale for five more, so the oldest leg
+// a reader can see is thirteen minutes (120 s + 600 s stale allowed fifteen).
+// Clock times a reader acts on go by the POST lane, which is never cached.
+const CACHE_MAX_AGE_S = 300;
+const CACHE_STALE_WHILE_REVALIDATE_S = 300;
 
 /** A Crawl Route maps at most WALK_ROUTE_MAX_STOPS (12) stops, so 11 legs. */
 const MAX_STOPS = 12;

@@ -9,7 +9,7 @@ import {
   type PalAnswer,
   type PalCard,
 } from "@/lib/palChat";
-import type { AskProposal, AskTurn } from "@/lib/ask/types";
+import type { AskMenuEvidence, AskProposal, AskTurn } from "@/lib/ask/types";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { answerFromBody } from "@/lib/conciergeAskClient";
 import {
@@ -59,7 +59,7 @@ function askBodyToPal(body: unknown): PalChatResult {
           ? provenanceRaw.label.trim()
           : DIRECTORY_PROVENANCE_LABEL;
       const kind =
-        provenanceRaw?.kind === "whats-on" ? "whats-on" : "directory";
+        provenanceRaw?.kind === "whats-on" ? "whats-on" : provenanceRaw?.kind === "published-menu" ? "published-menu" : "directory";
       cards.push({
         key:
           typeof item.key === "string" && item.key
@@ -69,6 +69,7 @@ function askBodyToPal(body: unknown): PalChatResult {
         title: typeof item.title === "string" ? item.title : "Result",
         place: typeof item.place === "string" ? item.place : "",
         note: typeof item.note === "string" ? item.note : "",
+        ...(item.menuEvidence && typeof item.menuEvidence === "object" ? { menuEvidence: item.menuEvidence as AskMenuEvidence } : {}),
         price:
           typeof item.price === "number" && Number.isFinite(item.price)
             ? item.price

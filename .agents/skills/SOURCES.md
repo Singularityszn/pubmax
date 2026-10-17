@@ -2,7 +2,7 @@
 
 PubMaxxing keeps project skills in this directory only. General engineering skills stay in `~/.agents/skills` and are not copied here.
 
-Cursor loads `.agents/skills/<name>/SKILL.md`. There is no `skills/` mirror and no `.cursor/skills/` tree.
+Cursor loads `.agents/skills/<name>/SKILL.md`. Claude Code loads the same files through `.claude/skills`, a committed symlink to this directory, so local and cloud sessions see every skill here. There is no `skills/` mirror, no `.cursor/skills/` tree and no copy under `.claude/`.
 
 ## Kept for this repo
 
@@ -210,3 +210,11 @@ Anthropic `frontend-design` is installed in the canonical machine-wide skill roo
 ## Maintenance check, 7 Oct 2026
 
 All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Local corrections are recorded in each source section above. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
+
+## Plain-English replies, 17 Oct 2026
+
+### mryll/skills
+
+[mryll/skills](https://github.com/mryll/skills), commit `e0bacd42498b18e4c5472689bd7a0c19bd72da68`, MIT (licence copied into the skill directory). `ste`: Simplified Technical English (ASD-STE100), with a dictionary checker script (`scripts/ste-check.sh`, POSIX shell and gawk, no network access). The root `AGENTS.md` law "Talk to the captain in Simplified Technical English" points here. Agents write their replies in STE style from memory. They run the skill when the captain asks for a checked rewrite or an STE compliance check.
+
+Local corrections in `scripts/ste-check.sh` (pull request 2184, from Codex review findings): a technical-verb category must be exactly 1 to 4 with an optional letter (`tv12` was accepted), and a word plus apostrophe-s is checked as a possessive under rule GR-8 instead of always being reported as a contraction. A pronoun or adverb plus apostrophe-s (`it's`, `there's`, `let's`) is still a contraction.

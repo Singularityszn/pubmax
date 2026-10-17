@@ -1,6 +1,9 @@
 export const PAL_VOICE_START_ERROR = "Voice isn't available. Type instead.";
 export const PAL_MICROPHONE_PERMISSION_ERROR =
   "Microphone access is off. Type instead.";
+export const PAL_VOICE_START_TIMEOUT_MS = 20_000;
+export const PAL_VOICE_START_TIMEOUT_ERROR =
+  "Voice took too long to start. Ask in writing or try again.";
 
 type VoiceProbeStream = {
   getTracks: () => Array<{ stop: () => void }>;
@@ -67,6 +70,8 @@ export function createPubPalVoiceStartController() {
       if (!activeStart) return;
       activeStart.cancelled = true;
       notifyCancellation(activeStart);
+      activeStart = null;
+      inFlight = null;
     },
     start<TGrant>(attempt: VoiceStartAttempt<TGrant>): Promise<boolean> {
       if (inFlight) return inFlight;
@@ -120,7 +125,7 @@ export function createPubPalVoiceStartController() {
           }
         })
         .finally(() => {
-          inFlight = null;
+          if (inFlight === current) inFlight = null;
           if (activeStart === currentStart) activeStart = null;
         });
       inFlight = current;
