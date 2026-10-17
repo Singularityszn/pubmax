@@ -9141,6 +9141,54 @@
         "rowCount": 7597,
         "siteHarvestRows": 3087
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/coachhotelkew-2026-10-17.json",
+      "sourceEvidenceSha256": "5f1e85f2eda9302fcddf5872f7485d6300bafa66e9c3e61e2496e023a9f783ab",
+      "sourceUrl": "https://www.coachhotelkew.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "4337b5ee90476ac2d9a2f438ff1d2a1b25f0f5ae5e903a55df92192f3189d116",
+        "rowCount": 3110,
+        "rowIdentitySetSha256": "ba72f67debe8ad398c74ff057822182dd972430f6dfe9e9f1535438e59510b0f"
+      },
+      "currentBundle": {
+        "rowCount": 7599,
+        "siteHarvestRows": 3089
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/thecrownlee-2026-10-17.json",
+      "sourceEvidenceSha256": "264041a0bf69a3973cbad565456c19225156d62bb601e4cb246a75c612d25308",
+      "sourceUrl": "https://www.thecrownlee.co.uk/food-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "bf9d73730c86d6940e0b5d680539aab0c73cb4923fa8b064b4487a4bd8788b63",
+        "rowCount": 3112,
+        "rowIdentitySetSha256": "c44d1d7b19c606fc77bb125d6c22ae2e78bdbf7949d5ec7941d63d11a3910fc3"
+      },
+      "currentBundle": {
+        "rowCount": 7601,
+        "siteHarvestRows": 3091
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/lvls-2026-10-17.json",
+      "sourceEvidenceSha256": "263df8355215f79113b6d9dce4820a5e0be89a352ba86a6ce188d000631f511f",
+      "sourceUrl": "https://lvls.london/drink",
+      "sourceObservedAt": "2026-10-17T12:44:32.110Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "399a16a745c72a5655700ba18d6a23db00d5b165b17533f9fc5b21d580ab669f",
+        "rowCount": 3113,
+        "rowIdentitySetSha256": "e6ab96945a303cb80080187e3c16c05d558e82fd139e85d97054948009108dc5"
+      },
+      "currentBundle": {
+        "rowCount": 7602,
+        "siteHarvestRows": 3092
+      }
     }
   ]
 }
