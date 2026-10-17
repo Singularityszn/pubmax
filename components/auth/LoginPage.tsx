@@ -18,7 +18,7 @@ import type { PublicProfileCard } from "@/components/auth/publicProfileCard";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
-import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
+import { hasSocialAuthProviders, type AuthStartResult } from "@/lib/authProviderAvailability";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
@@ -472,7 +472,7 @@ export default function LoginPage({
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
         operationRef.current = null;
-        cancelAuthAttempt();
+        cancelAuthAttempt({ keepEmailLink: true });
         setBusy(null);
       }
     };
@@ -526,7 +526,7 @@ export default function LoginPage({
 
   const onProviderSignIn = useCallback(async (
     provider: "google" | "apple" | "microsoft",
-    start: (next?: string) => Promise<{ error: string | null }>,
+    start: (next?: string) => Promise<AuthStartResult>,
   ) => {
     const operation = Symbol();
     const accountSignal = readProviderAccountSignal();
@@ -535,13 +535,17 @@ export default function LoginPage({
     trackEvent("sign_in_initiated", { provider });
     setBusy(provider);
     setError(null);
+    // While the page leaves for the provider the controls stay busy; a
+    // back-forward cache restore releases them.
+    let navigating = false;
     try {
-      const { error: signInError } = providerDestination ? await start(providerDestination) : await start();
+      const { error: signInError, navigating: leaving } = providerDestination ? await start(providerDestination) : await start();
+      navigating = leaving === true && !signInError;
       if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
     } catch {
       if (ownsOperation() && !accountSignal.aborted) setError("Sign-in could not be started. Try again.");
     } finally {
-      if (ownsOperation()) {
+      if (ownsOperation() && !navigating) {
         operationRef.current = null;
         setBusy(null);
       }

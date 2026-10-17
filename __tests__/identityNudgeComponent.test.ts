@@ -75,6 +75,7 @@ vi.mock("@/lib/useDismissOnEscape", () => ({
 vi.mock("@/lib/useFocusTrap", () => focusTrapState);
 
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 class TestNode {
   nodeType: number;
@@ -365,5 +366,18 @@ describe("IdentityNudge visibility", () => {
       "new@example.com",
       "/u/you?returnTo=%2Fplan%2Faaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     );
+  });
+
+  // Closing the prompt after "Link sent" is not cancelling the link: on iPhone
+  // the sent link only finishes while its saved verifier survives.
+  it("leaves a sent email link usable when the nudge is dismissed", async () => {
+    authState.current.configured = true;
+
+    await renderAfterGrace();
+
+    const dismiss = vi.mocked(useDismissOnEscape).mock.lastCall?.[1];
+    expect(dismiss).toBeTypeOf("function");
+    await commitReactWork(() => dismiss!());
+    expect(authState.current.cancelAuthAttempt).toHaveBeenCalledWith({ keepEmailLink: true });
   });
 });

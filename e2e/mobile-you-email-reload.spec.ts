@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { AUTH_STORAGE_KEY, stubSocialAuthProviders } from "./helpers/authDoubles";
 
+const IPHONE_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+
 // Disposable GoTrue and Capacitor transport fixtures exercise the production
 // AuthProvider, SDK, App callback consumer and navigation. This is browser proof.
 const owner = {
@@ -115,7 +117,10 @@ for (const theme of ["light", "dark"] as const) {
     const relayUrl = new URL(callback);
     expect(relayUrl.searchParams.get("native")).toBe("ios-email-pkce");
     relayUrl.searchParams.set("code", "warm-email-code");
-    const relay = await page.request.get(new URL(relayUrl.pathname + relayUrl.search, baseURL).toString(), { maxRedirects: 0 });
+    // The relay hands an email link to the app only when an iPhone opens it.
+    const relay = await page.request.get(new URL(relayUrl.pathname + relayUrl.search, baseURL).toString(), {
+      maxRedirects: 0, headers: { "user-agent": IPHONE_USER_AGENT },
+    });
     expect(relay.status()).toBe(307);
     const returned = relay.headers().location;
     await expect.poll(() => page.evaluate(() => (window as unknown as { nativeEmailFixture: { count: () => number } }).nativeEmailFixture.count())).toBeGreaterThan(0);
