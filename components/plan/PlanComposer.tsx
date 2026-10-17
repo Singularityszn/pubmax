@@ -138,8 +138,8 @@ const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
 });
 const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultProvenance"), {
   ssr: false,
-  // One quiet line, held in place so the strip under it does not move.
-  loading: () => <p className="planResult__provenance" aria-hidden="true">&nbsp;</p>,
+  // It sits inside the fine-print line, held in place so the strip under it does not move.
+  loading: () => <span aria-hidden="true">&nbsp;</span>,
 });
 const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
@@ -320,6 +320,15 @@ export function planAcceptanceTelemetry(value: unknown, stops: number): { stops:
   const attribution = serverPlanCreationAttribution(value);
   if (!attribution || !Number.isInteger(stops) || stops < 1 || stops > 50) return null;
   return { stops, grounded: attribution.grounded };
+}
+
+/**
+ * The unsigned lock count. It needs the server's attribution and nothing else,
+ * and stays inside the one-to-ten band the sanitizer accepts.
+ */
+export function crawlLockedTelemetry(value: unknown, stops: number): { stops: number } | null {
+  if (!serverPlanCreationAttribution(value) || !Number.isInteger(stops) || stops < 1 || stops > 10) return null;
+  return { stops };
 }
 
 /** Rebuild the signed one-Stop save event from server attribution and the submitted anchor. */
@@ -2239,8 +2248,12 @@ function PlanComposerForm({
       if (draftSavedTelemetry && draftSavedToken) {
         trackEvent("plan_draft_saved", draftSavedTelemetry, { deliveryToken: draftSavedToken });
       }
+      // The lock is counted for every plan the server attributed, not only the
+      // ones that carry signed acceptance tokens: those fail closed for a plan
+      // without an anchor, which left the funnel's lock step at zero.
+      const lockTelemetry = crawlLockedTelemetry(body, completeStops.length);
+      if (lockTelemetry) trackEvent("crawl_locked", lockTelemetry);
       if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
-        trackEvent("crawl_locked", { stops: completeStops.length });
         trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
         trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
       }
@@ -2619,12 +2632,19 @@ function PlanComposerForm({
       </div>
       <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
       {routeStatusLine}
-      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
-        <p className="planResult__provenance">One pint per person at each stop. Meal prices are not verified.</p>
-      )}
-      <PlanResultProvenance />
       {routeStaleNotice}
     </section>
+  );
+  // THE STOPS COME FIRST. The fine print and the map strip used to sit between
+  // the summary and the pubs, so on a phone the first stop started below the
+  // fold. They now follow the stops, and the two caveats read as one line.
+  const resultFinePrint = (
+    <p className="planResult__provenance">
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
+      )}
+      <PlanResultProvenance />
+    </p>
   );
 
   return (
@@ -2664,8 +2684,9 @@ function PlanComposerForm({
           {resultMode ? (
             <>
               {resultHeader}
-              {resultStrip}
               {stopsBlock}
+              {resultFinePrint}
+              {resultStrip}
               {fieldsBlock}
               {coverageBlock}
               {tuneOpen ? null : (

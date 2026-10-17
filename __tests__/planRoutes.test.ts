@@ -193,6 +193,19 @@ describe("Plan public HTTP contract", () => {
     expect(guest.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(guest.role).toBe("guest");
     expect(guest.collaborationAuthorized).toBe(false);
+    const presence = await PRESENCE(new Request(URL + "/" + body.plan.plan.id + "/presence", {
+      method: "POST", body: JSON.stringify({ memberToken: guest.memberToken, status: "on_the_way" }),
+    }), ctx(body.plan.plan.id));
+    expect(presence.status).toBe(200);
+    for (const type of ["arrived", "skipped"]) {
+      const denied = await ACTION(new Request(URL + "/" + body.plan.plan.id + "/actions", {
+        method: "POST", headers: { "idempotency-key": "classic-guest-" + type },
+        body: JSON.stringify({ memberToken: guest.memberToken, type, stopPosition: 0 }),
+      }), ctx(body.plan.plan.id));
+      expect(denied.status).toBe(403);
+      expect(await denied.json()).toMatchObject({ code: "PLAN_ACTION_FORBIDDEN", retryable: false });
+    }
+
 
     const wrongPlan = await createPlan();
     const cross = await JOIN(new Request(`${URL}/${wrongPlan.body.plan.plan.id}/join`, {

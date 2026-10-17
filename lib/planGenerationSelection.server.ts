@@ -30,6 +30,8 @@ export type ScoredPlanCandidate = {
   venue: ConciergeVenue;
   score: number;
   signalClaims: NightSignalClaim[];
+  /** The chain that runs the pub, when one is known (lib/planRouteOptimizer.ts `oneStopPerOperator`). */
+  operator?: string | null;
 };
 
 export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
@@ -88,7 +90,35 @@ async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
       canAffectRoute(claim) && claim.routeEffect === "avoid"),
     access: planAccessEvidenceForVenue(candidate.venue),
     openingSchedule: openingSchedules.get(candidate.venue.id) ?? null,
+    operator: candidate.operator ?? null,
   }));
+}
+
+/**
+ * The first `count` candidates in score order, taking one per known operator
+ * before a second branch of any chain. The ungrounded path's version of the
+ * optimizer's `oneStopPerOperator` rule.
+ */
+export function firstCandidatesPerOperator<T extends ScoredPlanCandidate>(
+  candidates: readonly T[],
+  count: number,
+): T[] {
+  const chosen: T[] = [];
+  const repeats: T[] = [];
+  const operators = new Set<string>();
+  for (const candidate of candidates) {
+    if (chosen.length === count) break;
+    if (candidate.operator && operators.has(candidate.operator)) {
+      repeats.push(candidate);
+      continue;
+    }
+    if (candidate.operator) operators.add(candidate.operator);
+    chosen.push(candidate);
+  }
+  if (chosen.length === count) return chosen;
+  // Not enough distinct pubs: fill with the strongest repeats, in score order.
+  const filled = new Set([...chosen, ...repeats.slice(0, count - chosen.length)]);
+  return candidates.filter((candidate) => filled.has(candidate));
 }
 
 function requiredAccessibilityNeeds(
@@ -119,6 +149,8 @@ function groundedConstraints(
     transportConstraints: context.transportConstraints,
     routeWindow: intake?.routeWindow ?? null,
     now,
+    // Asking for a Spoons crawl is asking for one chain; otherwise one branch each.
+    oneStopPerOperator: !context.wetherspoonsPreferred,
   };
 }
 
@@ -135,7 +167,11 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
     || context.transportConstraints.length > 0
     || normalizePlanStopCount(context.stopCount) !== DEFAULT_PLAN_STOP_COUNT;
   if (!intake && !hasContextHardConstraint) {
-    return { ok: true, legacy: true, chosen: candidates.slice(0, normalizePlanStopCount(context.stopCount)) };
+    const count = normalizePlanStopCount(context.stopCount);
+    const chosen = context.wetherspoonsPreferred
+      ? candidates.slice(0, count)
+      : firstCandidatesPerOperator(candidates, count);
+    return { ok: true, legacy: true, chosen };
   }
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now, planUsesPintPrices(context)),

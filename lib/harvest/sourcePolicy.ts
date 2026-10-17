@@ -446,11 +446,28 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     access: {
       allowed: true,
       evidence:
-        "Owner decision, 16 Oct 2026. Wikidata's structured data is published under CC0 1.0. Wikimedia operators ask query-service clients to send a descriptive User-Agent and to back off on HTTP 429 (Wikimedia Phabricator tickets read through a search index). NOT read live: the query service's user manual and the Wikimedia User-Agent policy, because the registering environment's network refused both hosts. Re-read them on the first networked run of npm run build:wikidata-history.",
-      checkedOn: OPEN_DATA_CHECKED_ON,
+        "Owner decision, 16 Oct 2026. Read live on 17 Oct 2026, before the first networked run of npm run build:wikidata-history. Wikidata:Data access says all of Wikidata's data is CC0 and asks clients to follow the User-Agent policy. The Wikidata Query Service user manual (mediawiki.org) sets a hard 60-second query deadline; allows one client (User-Agent plus IP) 60 seconds of processing time each 60 seconds, 30 error queries a minute and 5 parallel queries per IP; answers a client over those limits with HTTP 429 and a Retry-After header; may temporarily ban a client that keeps asking through 429s; and may block one that breaks the User-Agent policy. The Wikimedia Foundation User-Agent Policy asks scripts for a descriptive User-Agent with contact information (a website or an email address), and says generic or browser-copied agents may be blocked.",
+      checkedOn: "2026-10-17",
     },
     notes:
-      "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent, and a 429 or 5xx retried with a doubling wait because the service does not reliably send Retry-After.",
+      "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent naming a contact URL, and a 429 or 5xx retried a bounded number of times after the service's Retry-After, or after a doubling wait when it sends none.",
+  },
+  {
+    id: "historic-england-nhle",
+    label: "Historic England - National Heritage List for England (Listed Building points)",
+    url: "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query",
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException:
+      "Historic England keeps the statutory List of buildings of special architectural or historic interest, so its record IS the listing. Take the list entry number, name, grade and list date of listed-building points inside the Greater London box, and keep one only where scripts/lib/heritageMatch.mjs matches it to a pub by name and place; never a description, an era or a construction date.",
+    access: {
+      allowed: true,
+      evidence:
+        "Registered 17 Oct 2026, when the builder's own hard-coded FeatureServer URL moved into this table. Read live on 17 Oct 2026: the layer's service metadata, whose copyright text reads \"© Crown Copyright 2026. Contains Ordnance Survey data © Crown copyright and database right 2026. Released under OGL.\", and its ArcGIS item (owner gis_historicengland), whose licence field names the Historic England Open Data Hub Terms and Conditions and whose data was last edited on 15 Oct 2026. NOT read live: that terms page on historicengland.org.uk, which answered every request from the building environment with a Cloudflare challenge (HTTP 403), and no earlier dated read of it is recorded in this tree. The Open Government Licence v3.0 credit in lib/dataCredits.ts stands on the service's own statement above.",
+      checkedOn: "2026-10-17",
+    },
+    notes:
+      "Read by scripts/build_heritage_listings.mjs into public/data/heritage_listings.json: one page of 1,000 points at a time (the layer allows 2,000), redirects refused, and a failed page stops the run and writes nothing.",
   },
 ];
 

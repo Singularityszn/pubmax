@@ -640,3 +640,11 @@
   background: transparent;
   color: var(--ink-soft);
 }
+
+.palGlanceReceipt {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}

@@ -54,6 +54,8 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  /** Publisher named by the exact listed minimum price row. */
+  priceSource?: string;
   /**
    * `YYYY-MM-DD` the cheapest figure was last read at its source (build_slim_index,
    * lib/priceReadDay.mjs). Absent when no row carrying it records a read, which
@@ -183,6 +185,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
+    (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
     observedOk &&
     localityOk &&
     zoneOk &&
@@ -209,6 +212,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
     ...(venue.priceObservedAt !== undefined
       ? { priceObservedAt: venue.priceObservedAt }
       : {}),
