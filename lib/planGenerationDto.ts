@@ -127,6 +127,15 @@ function planAlternativeDto(
 }
 
 /** Pure projection from selected candidates and evidence to public Stop DTOs. */
+/** How the walk into a stop was measured: routed, along the streets, or the straight line. */
+function stopTransportBasis(legSource: string | undefined, grounded: boolean): string {
+  if (legSource === "ors") return ROUTED_WALK_TRANSPORT_BASIS;
+  if (legSource === "street") return STREET_WALK_TRANSPORT_BASIS;
+  return grounded
+    ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
+    : "compact-straight-line";
+}
+
 export function buildPlanGenerationStops(params: {
   chosen: readonly PlanGenerationDtoCandidate[];
   candidates: readonly PlanGenerationDtoCandidate[];
@@ -160,7 +169,6 @@ export function buildPlanGenerationStops(params: {
           .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
           .map((entry) => planAlternativeDto(venue, entry, null, priceContext));
     const legSource = walkingEstimate.legs.find((leg) => leg.toIndex === index)?.source;
-    const legRouted = legSource === "ors";
 
     return {
       venueId: venue.id,
@@ -181,13 +189,7 @@ export function buildPlanGenerationStops(params: {
         openingAtVisit: grounded?.opening.state ?? null,
         openingSource: grounded?.opening.source ?? null,
         visitWindow: grounded?.visitWindow ?? null,
-        transportBasis: legRouted
-          ? ROUTED_WALK_TRANSPORT_BASIS
-          : legSource === "street"
-            ? STREET_WALK_TRANSPORT_BASIS
-            : grounded
-              ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
-              : "compact-straight-line",
+        transportBasis: stopTransportBasis(legSource, grounded !== null),
       },
       provenance: [
         { kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
