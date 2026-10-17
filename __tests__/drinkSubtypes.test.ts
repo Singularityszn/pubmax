@@ -108,6 +108,7 @@ describe("drinkSubtypeFromText", () => {
     expect(drinkSubtypeFamilyParentId("soft-drink-coke-zero")).toBe("soft-drink-lucia-special");
     expect(drinkSubtypeFamilyParentId("soft-drink-diet-coke")).toBe("soft-drink-lucia-special");
     expect(drinkSubtypeFromText("Lucia special", "soft-drink")).toBeNull();
+    expect(findSubtype("soft-drink-lucia-special")?.label).toBe("Lucia special 🐐");
   });
 
   it("classifies soft-drink subtypes without widening the category union", () => {

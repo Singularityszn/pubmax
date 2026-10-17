@@ -451,7 +451,7 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
   {
     id: "soft-drink-lucia-special",
     category: "soft-drink",
-    label: "Lucia special",
+    label: "Lucia special 🐐",
     longLabel: "Coke Zero and Diet Coke",
     tokens: [],
   },
