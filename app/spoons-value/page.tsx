@@ -31,7 +31,7 @@ const SITE_URL = "https://pubmaxxing.com";
 // post), and this page takes nothing from anybody. It states what a published
 // menu costs, which is the same kind of claim /borough and /pint-index make.
 export const metadata: Metadata = {
-  title: `${SPOONS_VALUE_PAGE_TITLE} · PUBMAXX`,
+  title: SPOONS_VALUE_PAGE_TITLE,
   description:
     "Every UK Wetherspoon ranked by the alcohol units the best £10 round holds, with the round itself beside each pub.",
   alternates: { canonical: SPOONS_VALUE_ROUTE },

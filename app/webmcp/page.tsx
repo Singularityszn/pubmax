@@ -10,7 +10,7 @@ import "./webmcp.css";
 // demo page in front of a brand query. Same shape as /out, which is noindex and
 // follow for its own reason (captain decision 2026-08-15).
 export const metadata: Metadata = {
-  title: "Agent Night Board · PUBMAXX",
+  title: "Agent Night Board",
   description: "Plan one London pub crawl from checked prices, with a person and a browser agent.",
   alternates: { canonical: "/webmcp" },
   robots: {
