@@ -471,6 +471,16 @@ describe("review scope guard", () => {
     ]);
   });
 
+  // The gate exempts `.claude/skills` by path alone, so this pins what the path
+  // must be: a committed symlink to the project skill root, never a regular
+  // file or a link to another tree.
+  it("keeps .claude/skills a symlink to the project skill root", () => {
+    const entry = execFileSync("git", ["ls-files", "-s", "--", ".claude/skills"], { encoding: "utf8" }).trim();
+    const [mode, sha = ""] = entry.split(/\s+/);
+    expect(mode).toBe("120000");
+    expect(execFileSync("git", ["cat-file", "-p", sha], { encoding: "utf8" })).toBe("../.agents/skills");
+  });
+
   it("allows the project skill root and a deleted skill path outside it", () => {
     const report = summarizeReviewScope([
       { path: ".agents/skills/animate/SKILL.md", status: "A" },
