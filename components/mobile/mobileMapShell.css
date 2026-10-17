@@ -1081,6 +1081,26 @@
     padding: 8px 16px 16px;
     scroll-padding-block: 8px 16px;
   }
+  /* THE HEAD TAKES AN EDGE ONLY ONCE THE BODY SCROLLS UNDER IT. Without one, a
+     scrolled venue sheet cut its rows flat against the title (a coral price
+     door read sliced in half), and an always-on rule doubled the body's own
+     first hairline at rest. The body's scroll position drives the line over
+     its first 12px; where scroll timelines are unsupported the head simply
+     stays edgeless, as before. It is a hairline appearing, not motion. */
+  @supports (animation-timeline: scroll()) {
+    .mobileSharedSheet { timeline-scope: --sheet-body; }
+    .mobileSharedSheetBody { scroll-timeline: --sheet-body block; }
+    .mobileSharedSheetHeader {
+      z-index: 1;
+      animation: mobileSheetHeadEdge linear both;
+      animation-timeline: --sheet-body;
+      animation-range: 0 12px;
+    }
+  }
+  @keyframes mobileSheetHeadEdge {
+    from { box-shadow: 0 1px 0 transparent; }
+    to { box-shadow: 0 1px 0 var(--hairline-strong); }
+  }
   /* Venue (right): the footer owns the bottom edge, so the body only
      needs a small gutter separating its content from the command bar (this gutter
      is between content and footer, not the sheet's bottom edge). */
