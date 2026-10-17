@@ -2,7 +2,7 @@
 
 `public/data/late_food_evidence.json` lists one operator-backed late-food option for each of the twenty London Night Areas. `lib/lateFood.ts` serves an option only until its `source.expiresAt`, which is 30 days after `source.reviewedAt`. Past that date, `/api/late-food` and both plan-ending builders leave the option out and say the evidence is missing. Nothing is made up in its place.
 
-Every row was reviewed on 2026-07-16 and expired on 2026-08-16. Since 17 August the late-food answers have been empty in every area. The freshness gate now catches this: the `late_food_evidence` registry entry declares `rowExpiry`, so the dataset reads `stale` once its last row has expired. Re-reviewing the rows below is what clears it.
+Every row was reviewed on 2026-07-16 and expired on 2026-08-16. Since 17 August the late-food answers have been empty in every area. The freshness gate now catches this: the `late_food_evidence` registry entry declares `rowExpiry`, so the dataset reads `stale` once its last row has expired. `late_food_evidence` is in `ADVISORY_STALE_IDS` (`scripts/check_freshness.mjs`), so `npm run check:freshness` prints the stale row as a warning and does not fail. No commit can clear the finding, because only a person's review can. Re-reviewing the rows below is what clears it.
 
 ## Who can do this
 
@@ -46,4 +46,4 @@ When the rows are done, set `generatedAt` to the review time and give `snapshotI
 
 ## Next time
 
-The rows expire 30 days after each review. Re-review them within that window, or the late-food answers go empty again and the freshness gate turns red.
+The rows expire 30 days after each review. Re-review them within that window, or the late-food answers go empty again and the freshness gate prints the stale warning again.
