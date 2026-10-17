@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import { fetchSavedForHandle, getSaved } from "@/lib/savedPubs";
+import { fetchSavedForHandle, getSaved, SAVED_VENUE_FALLBACK_NAME } from "@/lib/savedPubs";
 import {
   TONIGHT_YOUR_PUBS_DEVICE_NOTE,
   TONIGHT_YOUR_PUBS_LIMIT,
@@ -24,6 +24,7 @@ type ShelfRow = { venueId: string; name: string; listType: string; href: Route }
 type Shelf = {
   rows: ShelfRow[];
   total: number;
+  /** The handle the shelf was read for; it is drawn only while that is still the viewer's. */
   handle: string | null;
   /** True when the saves live in this browser only. */
   deviceOnly: boolean;
@@ -53,14 +54,20 @@ export default function TonightYourPubs() {
       if (controller.signal.aborted) return;
       if (durable) {
         const names = new Map(durable.map((row) => [row.venueId, row]));
-        const { picks, total } = tonightYourPubPicks(durable);
+        const { picks, total } = tonightYourPubPicks(durable, TONIGHT_YOUR_PUBS_LOOKUP_LIMIT);
         setShelf({
-          rows: picks.map((pick) => ({
-            venueId: pick.venueId,
-            name: names.get(pick.venueId)?.venueName ?? "",
-            listType: pick.listType,
-            href: names.get(pick.venueId)?.venueMapUrl ?? venueMapUrl(pick.venueId),
-          })).filter((row) => row.name),
+          // The account store names a pub the index no longer holds with the
+          // fallback label; that pub has no map link to open, so it is left off
+          // like a closed one on this device, and the next save takes its row.
+          rows: picks
+            .map((pick) => ({
+              venueId: pick.venueId,
+              name: names.get(pick.venueId)?.venueName ?? "",
+              listType: pick.listType,
+              href: names.get(pick.venueId)?.venueMapUrl ?? venueMapUrl(pick.venueId),
+            }))
+            .filter((row) => row.name && row.name !== SAVED_VENUE_FALLBACK_NAME)
+            .slice(0, TONIGHT_YOUR_PUBS_LIMIT),
           total,
           handle,
           deviceOnly: false,
@@ -93,7 +100,10 @@ export default function TonightYourPubs() {
     return () => controller.abort();
   }, [handle, identityResolved]);
 
-  if (!shelf || shelf.rows.length === 0) return null;
+  // A shelf read for another account, or before the session settled again, is
+  // never drawn: after an account switch the old rows would otherwise stay up
+  // while the new read runs, one account's saves under another's name.
+  if (!identityResolved || !shelf || shelf.handle !== handle || shelf.rows.length === 0) return null;
   const foot = tonightYourPubsFoot(shelf.handle, shelf.total, shelf.rows.length);
   return (
     <section className="tonightYourPubs" aria-labelledby="tonight-your-pubs-title">
