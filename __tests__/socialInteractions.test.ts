@@ -6,6 +6,7 @@ import {
   supabaseSocialInteractionStore,
   type SocialInteractionActor,
 } from "@/lib/socialInteractionStore";
+import { socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
 import { createMemorySocialPostStore } from "@/lib/socialPostStore";
 import { validateSocialPostCreate } from "@/lib/socialPosts";
 
@@ -274,6 +275,24 @@ describe("Social comments, quotes, visibility, and moderation", () => {
     expect(await store.listComments(bob, post.id, { limit: 20 })).toEqual({ items: [], nextCursor: null });
     expect(await store.listDerivatives(alice, { limit: 20 })).toEqual({ items: [], nextCursor: null });
     expect(await store.notifications(alice, { limit: 20 })).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("keeps a mute one-way and reads back only the actor's own block and mute", async () => {
+    const { store } = harness();
+    await store.setMute(bob, alice.profileId, true);
+    expect(await store.relationship(bob, alice.profileId)).toEqual({ blocked: false, muted: true });
+    expect(await store.relationship(alice, bob.profileId)).toEqual({ blocked: false, muted: false });
+    expect(socialMemoryMutedProfiles(bob.profileId)).toEqual(new Set([alice.profileId]));
+    expect(socialMemoryMutedProfiles(alice.profileId)).toEqual(new Set());
+
+    await store.setBlock(alice, bob.profileId, true);
+    expect(await store.relationship(alice, bob.profileId)).toEqual({ blocked: true, muted: false });
+    // A block is two-way in effect, but the blocked account is never told who blocked it.
+    expect(await store.relationship(bob, alice.profileId)).toEqual({ blocked: false, muted: true });
+
+    await store.setMute(bob, alice.profileId, false);
+    expect(await store.relationship(bob, alice.profileId)).toEqual({ blocked: false, muted: false });
+    await expect(store.setMute(bob, bob.profileId, true)).rejects.toMatchObject({ code: "INVALID_INTERACTION" });
   });
 
   it("never publishes held content when moderation fails", async () => {

@@ -10,6 +10,7 @@ import ContributionLanesCard from "@/components/profile/ContributionLanesCard";
 import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
+import ProfileMuteBlock from "@/components/social/ProfileMuteBlock";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
@@ -1181,6 +1182,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         targetHandle={routeHandle}
         viewerHandle={viewerHandle}
       />
+      {/* Mute and block, folded shut. Renders only for a viewer Social admits. */}
+      {socialFriendsLaunchEnabled ? (
+        <ProfileMuteBlock targetHandle={routeHandle} viewerHandle={viewerHandle} />
+      ) : null}
     </>
     );
   }
