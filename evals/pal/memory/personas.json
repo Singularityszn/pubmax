@@ -667,7 +667,7 @@
     },
     {
       "id": "long-memory",
-      "summary": "Eleven confirmed memories, more than one turn carries. Recall picks by the ask, so every probe's facts must reach the model, the oldest included. A turn with no ask carries the pinned kinds and the newest, so the oldest three stay stretch facts there.",
+      "summary": "Eleven confirmed memories, fewer than a turn carries, so every one reaches the model on every turn, the oldest included, with the ones the ask is about first.",
       "userId": "e0000000-0000-4000-8000-000000000006",
       "handle": "evallongmemory",
       "pal": {
@@ -726,7 +726,7 @@
         {
           "id": "long-01",
           "value": "Gets the Northern line home",
-          "tier": "stretch",
+          "tier": "must",
           "aliases": [
             "Northern line"
           ]
@@ -734,7 +734,7 @@
         {
           "id": "long-02",
           "value": "Loves a pub with a fireplace",
-          "tier": "stretch",
+          "tier": "must",
           "aliases": [
             "fireplace"
           ]
@@ -742,7 +742,7 @@
         {
           "id": "long-03",
           "value": "Allergic to sulphites, so no wine",
-          "tier": "stretch",
+          "tier": "must",
           "aliases": [
             "sulphite",
             "wine"
@@ -891,6 +891,283 @@
           "needs": [
             "saver-mabels"
           ]
+        }
+      ]
+    },
+    {
+      "id": "vast-memory",
+      "summary": "Forty-five confirmed memories, more than a turn carries. The wheelchair need is the oldest and must still reach every turn. Four other old memories are stretch on a turn with no ask, and each must reach the model when the ask is about it.",
+      "userId": "e0000000-0000-4000-8000-000000000008",
+      "handle": "evalvastmemory",
+      "pal": {
+        "taste": true
+      },
+      "memories": [
+        {
+          "kind": "accessibility_preference",
+          "value": "Uses a wheelchair"
+        },
+        {
+          "kind": "atmosphere_preference",
+          "value": "Hates karaoke nights"
+        },
+        {
+          "kind": "drink_preference",
+          "value": "Cannot have gluten, so cider over beer"
+        },
+        {
+          "kind": "transport_preference",
+          "value": "Lives right by Clapham Junction"
+        },
+        {
+          "kind": "venue_preference",
+          "value": "Loves a pub with a pool table"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 01 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 02 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 03 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 04 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 05 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 06 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 07 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 08 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 09 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 10 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 11 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 12 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 13 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 14 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 15 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 16 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 17 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 18 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 19 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 20 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 21 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 22 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 23 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 24 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 25 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 26 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 27 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 28 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 29 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 30 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 31 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 32 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 33 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 34 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 35 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 36 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 37 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 38 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 39 was fun"
+        },
+        {
+          "kind": "night_outcome",
+          "value": "Night out number 40 was fun"
+        }
+      ],
+      "diary": [],
+      "drops": [],
+      "saved": [],
+      "facts": [
+        {
+          "id": "vast-access",
+          "value": "Uses a wheelchair",
+          "tier": "must",
+          "aliases": [
+            "wheelchair",
+            "step-free",
+            "step free"
+          ]
+        },
+        {
+          "id": "vast-karaoke",
+          "value": "Hates karaoke nights",
+          "tier": "stretch",
+          "aliases": [
+            "karaoke"
+          ]
+        },
+        {
+          "id": "vast-gluten",
+          "value": "Cannot have gluten, so cider over beer",
+          "tier": "stretch",
+          "aliases": [
+            "gluten",
+            "cider"
+          ]
+        },
+        {
+          "id": "vast-clapham",
+          "value": "Lives right by Clapham Junction",
+          "tier": "stretch",
+          "aliases": [
+            "Clapham"
+          ]
+        },
+        {
+          "id": "vast-pool",
+          "value": "Loves a pub with a pool table",
+          "tier": "stretch",
+          "aliases": [
+            "pool"
+          ]
+        },
+        {
+          "id": "vast-newest",
+          "value": "Night out number 40 was fun",
+          "tier": "must",
+          "generic": true
+        }
+      ],
+      "absent": [],
+      "probes": [
+        {
+          "ask": "Anywhere with karaoke tonight?",
+          "needs": [
+            "vast-karaoke",
+            "vast-access"
+          ],
+          "mode": "answer"
+        },
+        {
+          "ask": "Is there a gluten-free beer near me?",
+          "needs": [
+            "vast-gluten"
+          ],
+          "mode": "answer"
+        },
+        {
+          "ask": "Getting back to Clapham later, what is easy?",
+          "needs": [
+            "vast-clapham",
+            "vast-access"
+          ]
+        },
+        {
+          "ask": "Somewhere with a pool table",
+          "needs": [
+            "vast-pool"
+          ],
+          "mode": "answer"
         }
       ]
     }

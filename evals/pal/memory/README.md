@@ -44,15 +44,23 @@ as leaks too, so one person's memory reaching another fails the suite.
 | Probes answerable | Probes whose facts all reached the model, with the context built for that probe's ask | Must be every probe |
 | Context size | Characters of personal context per typed turn | Tracked. Cost and latency |
 
-Recall picks memories by the ask (`lib/palMemoryRelevance.ts`), so each
-probe is judged against the context built for its own words, and every probe
-must be answerable: that is part of the gate. Persona-level facts are judged
-against a turn with no ask, which carries the access needs, the corrections
-and the newest eight. That is why `long-memory`'s three oldest memories stay
-`stretch` there, while its probes reach them.
+Recall carries every confirmed memory up to forty, ranked by the ask
+(`lib/palMemoryRelevance.ts`), so each probe is judged against the context
+built for its own words, and every probe must be answerable: that is part of
+the gate. Persona-level facts are judged against a turn with no ask.
 
-The first run of this eval, with recall sending the newest eight, had 14 of 17
-probes answerable. Ranking by the ask took it to 17 of 17.
+- `long-memory` has eleven memories, fewer than a turn carries, so all eleven
+  are `must` on every turn.
+- `vast-memory` has forty-five. Its wheelchair need is the oldest and is
+  `must` on every turn, because access needs are pinned. Four other old
+  memories are `stretch` on a turn with no ask, since forty newer ones fill
+  it, and its probes require each of them when the ask is about it.
+
+History: the first run, with recall sending the newest eight, had 14 of 17
+probes answerable. Ranking by the ask took it to 17 of 17, and carrying up
+to forty made all eleven of `long-memory`'s memories reach every turn.
+Restoring the old cap fails `long-memory`; switching off the ranking fails
+all four `vast-memory` probes.
 
 ### Commands
 

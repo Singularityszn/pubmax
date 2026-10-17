@@ -34,15 +34,16 @@ describe("Pal memory eval (retrieval layer)", () => {
     expect(networkCalls).toEqual([]);
   });
 
-  it("reaches every probe's facts, the oldest memories included, while a turn with no ask still carries only the newest", async () => {
+  it("carries every memory someone has under the limit, and past it reaches each one when the ask is about it", async () => {
     const scoreboard = await runPalMemoryEval();
-    const longMemory = scoreboard.personas.find((persona) => persona.id === "long-memory");
-    // Recall ranks by the ask: wine finds the sulphite allergy, getting home
-    // finds the Northern line, "everything" finds all eleven.
-    expect(longMemory?.probes.every((probe) => probe.answerable)).toBe(true);
+    const byId = (id: string) => scoreboard.personas.find((persona) => persona.id === id);
+    // Eleven memories, fewer than a turn carries: all of them, every turn.
+    expect(byId("long-memory")?.typed).toMatchObject({ mustFound: 11, mustTotal: 11 });
+    // Forty-five: the wheelchair need, the oldest, still reaches every turn.
+    expect(byId("vast-memory")?.typed).toMatchObject({ mustFound: 2, mustTotal: 2, stretchFound: 0, stretchTotal: 4 });
+    // And each of the four left out of a turn with no ask arrives when asked about.
+    expect(byId("vast-memory")?.probes.every((probe) => probe.answerable)).toBe(true);
     expect(scoreboard.totals.probesAnswerable).toBe(scoreboard.totals.probes);
-    // With nothing to rank by, the oldest three stay out of a turn's context.
-    expect(longMemory?.typed).toMatchObject({ stretchFound: 0, stretchTotal: 3 });
   });
 
   it("refuses to seed a durable store", async () => {
