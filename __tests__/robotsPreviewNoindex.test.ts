@@ -61,7 +61,7 @@ describe("preview deployments must not be indexable", () => {
       expect.arrayContaining([
         expect.objectContaining({
           userAgent: "*",
-          allow: "/",
+          allow: expect.arrayContaining(["/"]),
           disallow: expect.arrayContaining(["/api/", "/admin", "/p/"]),
         }),
       ]),
@@ -81,6 +81,38 @@ describe("preview deployments must not be indexable", () => {
         "Bingbot",
       ]),
     );
+  });
+
+  it("lets every crawler fetch the share-card images that public pages name as og:image", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    const homeImages = [
+      ...[homeMetadata.openGraph?.images ?? []].flat(),
+      ...[homeMetadata.twitter?.images ?? []].flat(),
+    ].map((image) =>
+      typeof image === "string" || image instanceof URL
+        ? String(image)
+        : String(image.url),
+    );
+    expect(homeImages).toContain("/api/home-card");
+
+    // Cards drawn for crawlable pages: the homepage, /crawls/[slug],
+    // /u/[handle]/lists/[listType], pint shares and /map/[city].
+    const publicCards = [
+      "/api/home-card",
+      "/api/crawl-card",
+      "/api/chaos-card",
+      "/api/city-map-card",
+      "/api/list-card",
+      "/api/pint-card",
+    ];
+    for (const rule of ruleList(robots())) {
+      const allow = Array.isArray(rule.allow) ? rule.allow : [rule.allow];
+      // A longer Allow beats the "/api/" Disallow under longest-match.
+      expect(rule.disallow).toContain("/api/");
+      for (const card of publicCards) expect(allow).toContain(card);
+      // The private plan card stays behind the /api/ Disallow.
+      expect(allow).not.toContain("/api/plan-card");
+    }
   });
 
   it("disallows everything under VERCEL_ENV=preview and differs from production", () => {
