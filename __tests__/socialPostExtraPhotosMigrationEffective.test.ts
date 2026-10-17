@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0184 (Social extra photos).
+// Effective PostgreSQL proof for 0185 (Social extra photos).
 //
 // Photos 2 to 4 attach only to the author's own post that already has a first
 // photo, one per position. Each is screened on its own: its author reads it at
@@ -20,7 +20,7 @@ const skipReason = postgresSkipReason();
 
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261017150000_0184_social_post_extra_photos_rollback.sql",
+  "supabase/migrations/rollback/20261017160000_0185_social_post_extra_photos_rollback.sql",
 );
 
 const ALICE = "00000000-0000-4000-8000-0000000000a1";
@@ -74,7 +74,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0184 social extra photos", () => {
+describe.skipIf(skipReason !== null)("0185 social extra photos", () => {
   it("attaches photos 2 to 4 to the author's own post with a first photo, held pending", () => {
     expect(db().sql(attach(POST, ALICE, EXTRA[0]!, 2))).toBe("pending");
     expect(db().sql(attach(POST, ALICE, EXTRA[1]!, 3))).toBe("pending");

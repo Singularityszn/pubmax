@@ -1,4 +1,4 @@
--- 0181: a Social post can carry its author's own score for the pub it names.
+-- 0182: a Social post can carry its author's own score for the pub it names.
 -- Captain applies. Agents ship SQL only.
 --
 -- A review is one person's score, 1 to 5 in half steps, attached to a post
@@ -15,7 +15,7 @@
 -- the half-step scale. Browser roles hold no privilege on the table or the
 -- functions; the routes use the service role, as every other Social table.
 --
--- Reverse: supabase/migrations/rollback/20261017120000_0181_social_post_reviews_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017130000_0182_social_post_reviews_rollback.sql
 
 begin;
 

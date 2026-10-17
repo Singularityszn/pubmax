@@ -4511,6 +4511,39 @@ export type Database = {
           },
         ];
       };
+      social_mutes: {
+        Row: {
+          muter_profile_id: string;
+          muted_profile_id: string;
+          created_at: string;
+        };
+        Insert: {
+          muter_profile_id: string;
+          muted_profile_id: string;
+          created_at?: string;
+        };
+        Update: {
+          muter_profile_id?: string;
+          muted_profile_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_mutes_muted_profile_id_fkey";
+            columns: ["muted_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_mutes_muter_profile_id_fkey";
+            columns: ["muter_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_notifications: {
         Row: {
           id: string;
@@ -7803,6 +7836,16 @@ export type Database = {
           updated_at: string;
         }[];
       };
+      read_social_relationship: {
+        Args: {
+          p_actor: string | null;
+          p_target: string | null;
+        };
+        Returns: {
+          blocked: boolean;
+          muted: boolean;
+        }[];
+      };
       read_social_report_queue: {
         Args: {
           p_actor: string | null;
@@ -8211,6 +8254,14 @@ export type Database = {
           p_kind: string | null;
           p_active: boolean | null;
           p_actor_handle?: string | null;
+        };
+        Returns: boolean;
+      };
+      set_social_mute: {
+        Args: {
+          p_actor: string | null;
+          p_target: string | null;
+          p_active: boolean | null;
         };
         Returns: boolean;
       };

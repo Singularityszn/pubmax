@@ -2049,7 +2049,7 @@ export default function AdminClient() {
             </div>
           )}
 
-          {/* ── Social videos held for a person to watch (0182) ───────────── */}
+          {/* ── Social videos held for a person to watch (0183) ───────────── */}
           <SocialVideoModeration />
 
           {/* ── Pub photo wall queues ─────────────────────────────────────── */}

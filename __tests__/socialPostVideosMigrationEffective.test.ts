@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0182 (Social post videos).
+// Effective PostgreSQL proof for 0183 (Social post videos).
 //
 // An upload intent belongs to one owner, carries a checked type and size, and
 // binds once to that owner's own post. A video reads back to its author at
@@ -21,7 +21,7 @@ const skipReason = postgresSkipReason();
 
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261017130000_0182_social_post_videos_rollback.sql",
+  "supabase/migrations/rollback/20261017140000_0183_social_post_videos_rollback.sql",
 );
 
 const ALICE = "00000000-0000-4000-8000-0000000000a1";
@@ -68,7 +68,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0182 social post videos", () => {
+describe.skipIf(skipReason !== null)("0183 social post videos", () => {
   it("opens an upload intent with a server-made key for a listed type and size", () => {
     const [id, key] = db().sql(upload(ALICE, "video/mp4", 5_000_000)).split("|");
     aliceUpload = id!;

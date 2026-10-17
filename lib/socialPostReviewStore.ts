@@ -28,7 +28,7 @@ export type SocialPostReviewStore = {
   ranking(actor: ReviewActor, limit?: number): Promise<Array<Omit<SocialPubRankingEntry, "venueName">>>;
   /** Your lot's pubs: mutual friends' newest scores averaged, for this reader only. */
   lotRanking(actor: ReviewActor, limit?: number): Promise<Array<Omit<SocialLotRankingEntry, "venueName">>>;
-  /** Your lot's scored posts about one pub, newest first, for this reader only (0186). */
+  /** Your lot's scored posts about one pub, newest first, for this reader only (0187). */
   lotVenueReviews(actor: ReviewActor, venueId: string, limit?: number): Promise<SocialLotVenueReview[]>;
 };
 
@@ -101,7 +101,7 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
     if (!isMissingTableSchema(error, ["social_post_reviews"])) throw error;
     if (requiresSupabaseStore()) throw error;
     if (!write) return fallback();
-    return onMissingDurableWrite({ storeTag: "social-post-reviews", migrationHint: "apply migration 0181", fallback });
+    return onMissingDurableWrite({ storeTag: "social-post-reviews", migrationHint: "apply migration 0182", fallback });
   }
 }
 
@@ -155,7 +155,7 @@ const supabaseSocialPostReviewStore: SocialPostReviewStore = {
         p_limit: limit,
       });
       if (error) {
-        // A deploy that runs ahead of 0183 shows an empty lot, not an error.
+        // A deploy that runs ahead of 0184 shows an empty lot, not an error.
         if (error.code === "PGRST202" || /could not find the function/i.test(error.message)) return [];
         throw error;
       }
@@ -176,7 +176,7 @@ const supabaseSocialPostReviewStore: SocialPostReviewStore = {
         p_limit: limit,
       });
       if (error) {
-        // A deploy that runs ahead of 0186 shows no lot section, not an error.
+        // A deploy that runs ahead of 0187 shows no lot section, not an error.
         if (error.code === "PGRST202" || /could not find the function/i.test(error.message)) return [];
         throw error;
       }

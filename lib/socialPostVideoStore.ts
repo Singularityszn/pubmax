@@ -146,7 +146,7 @@ export function createMemorySocialPostVideoStore(options: { now?: () => Date } =
 const memorySocialPostVideoStore = createMemorySocialPostVideoStore();
 
 // ---------------------------------------------------------------------------
-// Supabase: the intent and the binding are 0182's functions; the bytes live in
+// Supabase: the intent and the binding are 0183's functions; the bytes live in
 // Storage and are reached through short signed URLs minted per request.
 
 async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => Promise<T>, write: boolean): Promise<T> {
@@ -156,7 +156,7 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
     if (!isMissingTableSchema(error, ["social_post_videos", "social_video_uploads"])) throw error;
     if (requiresSupabaseStore()) throw error;
     if (!write) return fallback();
-    return onMissingDurableWrite({ storeTag: "social-post-videos", migrationHint: "apply migration 0182", fallback });
+    return onMissingDurableWrite({ storeTag: "social-post-videos", migrationHint: "apply migration 0183", fallback });
   }
 }
 

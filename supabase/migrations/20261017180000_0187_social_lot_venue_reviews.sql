@@ -1,9 +1,9 @@
--- 0186: what your lot said about one pub, for its pub page.
+-- 0187: what your lot said about one pub, for its pub page.
 -- Captain applies. Agents ship SQL only.
 --
 -- The pub page (app/pubs/[id]) shows a signed-in reader the scored posts
 -- their mutual friends wrote about THAT pub, newest first, with the post's
--- words and its first photo. It is 0183's lot ranking narrowed to one venue
+-- words and its first photo. It is 0184's lot ranking narrowed to one venue
 -- and opened to the posts themselves, under the same rules:
 --   * only posts the reader may already read (social_post_readable), so a
 --     friend's private post and a stranger's post never appear;
@@ -12,7 +12,7 @@
 -- A post naming a pub is never public (0072), so a signed-out reader and a
 -- reader with no lot get an empty answer, never somebody else's.
 --
--- Reverse: supabase/migrations/rollback/20261017170000_0186_social_lot_venue_reviews_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017180000_0187_social_lot_venue_reviews_rollback.sql
 
 begin;
 

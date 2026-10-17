@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0181 (Social post reviews).
+// Effective PostgreSQL proof for 0182 (Social post reviews).
 //
 // A score attaches only to a post its author owns that names a venue, on the
 // half-step scale from 1 to 5. The ranking reads one row per venue, the newest
@@ -22,7 +22,7 @@ const skipReason = postgresSkipReason();
 
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261017120000_0181_social_post_reviews_rollback.sql",
+  "supabase/migrations/rollback/20261017130000_0182_social_post_reviews_rollback.sql",
 );
 
 const ALICE = "00000000-0000-4000-8000-0000000000a1";
@@ -68,7 +68,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0181 social post reviews", () => {
+describe.skipIf(skipReason !== null)("0182 social post reviews", () => {
   it("attaches a half-step score to the author's own post that names a venue", () => {
     expect(db().sql(attach(POST_BEEHIVE, ALICE, "3.5"))).toBe("3.5");
     expect(db().sql(attach(POST_SOL, ALICE, "4.5"))).toBe("4.5");

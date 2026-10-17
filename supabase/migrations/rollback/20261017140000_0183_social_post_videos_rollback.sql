@@ -1,4 +1,4 @@
--- Rollback for 0182 (Social post videos).
+-- Rollback for 0183 (Social post videos).
 --
 -- Drops the five functions and both tables. Every post loses its video and
 -- every pending upload intent is forgotten; the posts, their words, photos and

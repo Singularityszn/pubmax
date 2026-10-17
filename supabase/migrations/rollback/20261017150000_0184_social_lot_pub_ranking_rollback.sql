@@ -1,4 +1,4 @@
--- Rollback for 0183 (your lot's pubs).
+-- Rollback for 0184 (your lot's pubs).
 --
 -- Drops the one read function. It wrote nothing, so nothing is lost: every
 -- score stays on its post and in its author's own ranking. Safe to re-run.

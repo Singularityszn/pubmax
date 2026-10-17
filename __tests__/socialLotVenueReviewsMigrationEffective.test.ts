@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0186 (your lot on one pub).
+// Effective PostgreSQL proof for 0187 (your lot on one pub).
 //
 // A reader sees the scored posts their mutual friends wrote about one pub,
 // newest first, and nothing else: not their own, not a one-way follower's,
@@ -20,7 +20,7 @@ const skipReason = postgresSkipReason();
 
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261017170000_0186_social_lot_venue_reviews_rollback.sql",
+  "supabase/migrations/rollback/20261017180000_0187_social_lot_venue_reviews_rollback.sql",
 );
 
 const ME = "00000000-0000-4000-8000-000000000101";
@@ -74,7 +74,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0186 your lot on one pub", () => {
+describe.skipIf(skipReason !== null)("0187 your lot on one pub", () => {
   it("lists mutual friends' scored posts about that pub, newest first", () => {
     expect(reviews()).toEqual(["ana:5.0:Best Harveys in town", "ben:3.5:Rammed but fine"]);
   });

@@ -57,7 +57,7 @@ export function rankSocialReviews(
 
 /**
  * One pub in your lot's ranking: each mutual friend's newest score averaged.
- * Only for the reader it was read for; nothing else reads it (migration 0183).
+ * Only for the reader it was read for; nothing else reads it (migration 0184).
  */
 export type SocialLotRankingEntry = {
   venueId: string;
@@ -68,7 +68,7 @@ export type SocialLotRankingEntry = {
   lastReviewedAt: string;
 };
 
-/** One scored post a mutual friend wrote about a pub (migration 0186). */
+/** One scored post a mutual friend wrote about a pub (migration 0187). */
 export type SocialLotVenueReview = {
   postId: string;
   authorHandle: string;

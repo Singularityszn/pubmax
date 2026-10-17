@@ -131,7 +131,7 @@ export type AccountExportSocialPost = {
   editedAt: string | null;
 };
 
-/** One pub in the account's own compared order (migration 0185). */
+/** One pub in the account's own compared order (migration 0186). */
 export type AccountExportPubRanking = {
   venueId: string;
   band: string;

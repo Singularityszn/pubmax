@@ -1,4 +1,4 @@
--- Rollback for 0186 (your lot on one pub).
+-- Rollback for 0187 (your lot on one pub).
 --
 -- Drops the one read function. It wrote nothing, so nothing is lost; the pub
 -- page's lot section answers empty until it is back. Safe to re-run.

@@ -62,7 +62,7 @@ export async function GET(request: Request): Promise<Response> {
     }
     const adapter = new OpenAISocialPostModerationAdapter();
     const result = await store.processModerationQueue(adapter, 20);
-    // Photos 2 to 4 are screened one by one on the same pass (0184).
+    // Photos 2 to 4 are screened one by one on the same pass (0185).
     const extraPhotos = await socialPostExtraPhotoStore().processModeration(adapter, 20);
     // After every drain: a growing pending backlog or exhausted retries is its
     // own named finding. An outage must never read as "nothing to review".

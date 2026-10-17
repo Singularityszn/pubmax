@@ -1,7 +1,7 @@
 // One video on a Social post: the rules a browser and the server share.
 //
 // A video is uploaded straight to Storage, checked by its leading bytes, and
-// held until a moderator has watched it (migration 0182). Its author sees it
+// held until a moderator has watched it (migration 0183). Its author sees it
 // at once; everybody else sees it once it is approved.
 
 export const SOCIAL_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"] as const;

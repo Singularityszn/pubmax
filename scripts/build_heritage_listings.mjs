@@ -18,7 +18,8 @@
 //   3b. Run the same match for every London OSM pub no curated venue owns,
 //      keyed by the `venue-uk-<osmRef>` id its base-layer sheet opens under
 //      (scripts/lib/heritageBaseVenues.mjs), so a listed pub off the curated
-//      map is not left blank.
+//      map is not left blank. "Owns" is the published uk_base shards' owner
+//      column, the same answer the map uses to hide a base pin.
 //   4. Write public/data/heritage_listings.json — ONLY matched pubs, keyed by
 //      venueId, with { listEntry, grade, listedYear, name, fact, url, distanceM },
 //      plus `$retrievedAt`, the day the NHLE was read, which the sheet prints.
@@ -41,7 +42,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { londonBaseVenues } from "./lib/heritageBaseVenues.mjs";
+import { openDataSourceUrl } from "../lib/harvest/sourcePolicy.ts";
+import { baseRowOwners, LONDON_BOX, londonBaseVenues } from "./lib/heritageBaseVenues.mjs";
 import {
   bestMatch,
   buildFactText,
@@ -53,10 +55,11 @@ const ROOT = path.resolve(__dirname, "..");
 const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "heritage_listings.json");
 const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const UK_BASE_MANIFEST_PATH = path.join(ROOT, "public", "data", "uk_base", "manifest.json");
 
-const NHLE_FEATURESERVER =
-  "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/" +
-  "National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query";
+// The NHLE FeatureServer's row in lib/harvest/sourcePolicy.ts. THE TABLE OWNS
+// THE HOST: the query URL comes from `openDataSourceUrl`, never from here.
+const NHLE_SOURCE_POLICY_ID = "historic-england-nhle";
 
 // Greater-London bounding box (WGS84). Generous; the matcher's distance gate is
 // what actually prevents cross-region false positives.
@@ -94,6 +97,16 @@ function stableVenueIdFromKey(key) {
 
 async function loadJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
+}
+
+// The published uk_base shards whose cell meets the London box.
+async function londonBaseShards() {
+  const manifest = await loadJson(UK_BASE_MANIFEST_PATH);
+  const prefix = String(manifest.urlPrefix ?? "").replace(/^\/+/, "");
+  const cells = (manifest.shards ?? []).filter(({ bbox: [minLng, minLat, maxLng, maxLat] = [] }) =>
+    minLng < LONDON_BOX.maxLng && maxLng > LONDON_BOX.minLng && minLat < LONDON_BOX.maxLat && maxLat > LONDON_BOX.minLat,
+  );
+  return Promise.all(cells.map(({ id }) => loadJson(path.join(ROOT, "public", prefix, `${id}.json`))));
 }
 
 // One representative venue per grouping key (first row supplies name/coords),
@@ -135,7 +148,8 @@ async function fetchListedPoints() {
       resultRecordCount: String(step),
       f: "json",
     });
-    const res = await fetch(`${NHLE_FEATURESERVER}?${params.toString()}`);
+    const url = openDataSourceUrl(NHLE_SOURCE_POLICY_ID, `?${params.toString()}`);
+    const res = await fetch(url.href, { redirect: "error" });
     if (!res.ok) throw new Error(`NHLE fetch failed: HTTP ${res.status}`);
     const body = await res.json();
     if (body.error) throw new Error(`NHLE error: ${JSON.stringify(body.error)}`);
@@ -246,10 +260,18 @@ async function main() {
   const dataset = await loadJson(DATASET_PATH);
   const rows = Array.isArray(dataset) ? dataset : dataset.venues ?? [];
   const curated = groupVenues(rows);
-  const base = londonBaseVenues((await loadJson(UK_SEED_PATH)).pubs);
+  // A base row the map hides behind one of these curated venues is matched
+  // under the curated id alone. An owner this join does not match keeps its
+  // base pub, so no listing is lost to an owner the pack never keys.
+  const curatedIds = new Set(curated.map((venue) => venue.id));
+  const ownedBy = new Map(
+    [...baseRowOwners(await londonBaseShards())].filter(([, owner]) => curatedIds.has(owner)),
+  );
+  const base = londonBaseVenues((await loadJson(UK_SEED_PATH)).pubs, { ownedBy });
   const venues = [...curated, ...base];
   process.stderr.write(
-    `Grouped ${rows.length} rows into ${curated.length} venues, plus ${base.length} London base pubs.\n`,
+    `Grouped ${rows.length} rows into ${curated.length} venues, plus ${base.length} London base pubs ` +
+      `(${ownedBy.size} base rows owned by a curated venue).\n`,
   );
 
   // The day the NHLE was read. A live read is today; a cache states its own.

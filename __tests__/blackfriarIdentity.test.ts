@@ -76,7 +76,8 @@ describe("published Blackfriar identity", () => {
         });
         expect(answer.ok).toBe(true);
         expect(answer.data).toMatchObject({ venueId: canonicalId });
-        expect(answer.cards.map((card) => card.venueId)).toEqual([canonicalId]);
+        expect([...new Set(answer.cards.map((card) => card.venueId))]).toEqual([canonicalId]);
+        expect(answer.cards.map((card) => card.price)).toContain(6.5);
       }
     });
   }

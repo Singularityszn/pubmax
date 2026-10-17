@@ -56,6 +56,14 @@ import {
   type SocialShellState,
 } from "@/lib/socialShell";
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import {
+  SOCIAL_POST_CONTROL_LINE,
+  SOCIAL_POST_ORDER_LINE,
+  SOCIAL_POST_REASON_SUMMARY,
+  socialPostReason,
+  socialPostReasonLine,
+  type SocialPostLane,
+} from "@/lib/socialPostReason";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./social.css";
@@ -234,47 +242,10 @@ export function SocialAccessBoundary({
   );
 }
 
-/** Where a post was: the pub, which opens its page, and the area. */
-function PostPlace({ venueId, venueName, areaName }: { venueId: string | null; venueName: string | null; areaName: string | null }) {
-  if (!venueName && !areaName) return null;
+/** The post's media: a carousel, one photo, or a reel, edge to edge. */
+function PostMedia({ post, onOpenVideo }: { post: SocialPostDTO; onOpenVideo?: (postId: string) => void }) {
   return (
-    <span className="socialPostMeta__place">
-      {venueId && venueName ? <Link prefetch={false} href={`/pubs/${encodeURIComponent(venueId)}` as Route}>{venueName}</Link> : null}
-      {venueId && venueName && areaName ? " · " : null}
-      {areaName}
-    </span>
-  );
-}
-
-export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
-  const area = post.area ? getNightArea(post.area) : null;
-  const exactVenueId = post.venueProjected ? post.venueId : null;
-  const venueName = exactVenueId ? post.venueName : null;
-  const review = exactVenueId && post.review ? post.review : null;
-  const when = relativeTime(post.createdAt);
-  return (
-    <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
-      <header className="socialPostMeta">
-        <HandleAvatar
-          handle={post.author.handle}
-          avatarUrl={post.author.avatarUrl}
-          className="socialPostAvatar"
-          imageClassName="socialPostAvatar"
-          size={36}
-        />
-        <div className="socialPostMeta__who">
-          <strong>
-            <Link prefetch={false} href={profilePath(post.author.handle)}>
-              @{post.author.handle}
-            </Link>
-          </strong>
-          <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
-        </div>
-        {when ? <time dateTime={post.createdAt}>{when}</time> : null}
-      </header>
-      {post.kind === "feature_request" ? (
-        <p className="socialPostKind">Feature request</p>
-      ) : null}
+    <>
       {post.photo && post.extraPhotos && post.extraPhotos.length > 0 ? (
         <SocialPostCarousel
           caption={post.photo.tags && post.photo.tags.length > 0 ? post.photo.tags.map((tag) => `@${tag.handle}`).join(" ") : undefined}
@@ -305,6 +276,73 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, in
       {post.video ? (
         <SocialPostVideoPlayer video={post.video} caption={post.body} onOpen={onOpenVideo ? () => onOpenVideo(post.id) : undefined} />
       ) : null}
+    </>
+  );
+}
+
+/**
+ * A disclosure, not a control: the lane rule that let this post in, read back
+ * by `lib/socialPostReason.ts`. Nothing on the card is ranked.
+ */
+function PostWhy({ lane, post, areaName }: { lane: SocialPostLane; post: SocialPostDTO; areaName: string | null }) {
+  return (
+    <details className="socialPostWhy">
+      <summary>{SOCIAL_POST_REASON_SUMMARY}</summary>
+      <p>
+        {socialPostReasonLine(socialPostReason(lane, post), {
+          handle: post.author.handle,
+          visibility: post.visibility,
+          areaName,
+        })}
+      </p>
+      <p>{SOCIAL_POST_ORDER_LINE}</p>
+      {post.ownedByViewer ? null : <p>{SOCIAL_POST_CONTROL_LINE}</p>}
+    </details>
+  );
+}
+
+/** Where a post was: the pub, which opens its page, and the area. */
+function PostPlace({ venueId, venueName, areaName }: { venueId: string | null; venueName: string | null; areaName: string | null }) {
+  if (!venueName && !areaName) return null;
+  return (
+    <span className="socialPostMeta__place">
+      {venueId && venueName ? <Link prefetch={false} href={`/pubs/${encodeURIComponent(venueId)}` as Route}>{venueName}</Link> : null}
+      {venueId && venueName && areaName ? " · " : null}
+      {areaName}
+    </span>
+  );
+}
+
+export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdited, interactive = false, onOpenVideo }: { post: SocialPostDTO; lane?: SocialPostLane; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void; interactive?: boolean; onOpenVideo?: (postId: string) => void }) {
+  const area = post.area ? getNightArea(post.area) : null;
+  const exactVenueId = post.venueProjected ? post.venueId : null;
+  const venueName = exactVenueId ? post.venueName : null;
+  const review = exactVenueId && post.review ? post.review : null;
+  const when = relativeTime(post.createdAt);
+  return (
+    <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
+      <header className="socialPostMeta">
+        <HandleAvatar
+          handle={post.author.handle}
+          avatarUrl={post.author.avatarUrl}
+          className="socialPostAvatar"
+          imageClassName="socialPostAvatar"
+          size={36}
+        />
+        <div className="socialPostMeta__who">
+          <strong>
+            <Link prefetch={false} href={profilePath(post.author.handle)}>
+              @{post.author.handle}
+            </Link>
+          </strong>
+          <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
+        </div>
+        {when ? <time dateTime={post.createdAt}>{when}</time> : null}
+      </header>
+      {post.kind === "feature_request" ? (
+        <p className="socialPostKind">Feature request</p>
+      ) : null}
+      <PostMedia post={post} onOpenVideo={onOpenVideo} />
       {interactive ? <SocialPostActions postId={post.id} /> : null}
       {review ? (
         <p className="socialPostReview">
@@ -326,6 +364,7 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited, in
         </p>
       ) : null}
       {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
+      {lane ? <PostWhy lane={lane} post={post} areaName={area?.name ?? null} /> : null}
       {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
@@ -1018,7 +1057,7 @@ function SocialPageAccountState({
                     </button>
                   ) : null}
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
+                    <SocialPostCard key={post.id} post={post} lane={initialState.feed ?? undefined} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
                       onOpenVideo={setReelStart}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id

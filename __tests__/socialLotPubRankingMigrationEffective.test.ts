@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0183 (your lot's pubs).
+// Effective PostgreSQL proof for 0184 (your lot's pubs).
 //
 // The friends' ranking averages each mutual friend's newest score per pub,
 // counts only posts the reader may read, never the reader's own, never a
@@ -20,7 +20,7 @@ const skipReason = postgresSkipReason();
 
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261017140000_0183_social_lot_pub_ranking_rollback.sql",
+  "supabase/migrations/rollback/20261017150000_0184_social_lot_pub_ranking_rollback.sql",
 );
 
 const ME = "00000000-0000-4000-8000-000000000001";
@@ -80,7 +80,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0183 your lot's pubs", () => {
+describe.skipIf(skipReason !== null)("0184 your lot's pubs", () => {
   it("averages each mutual friend's newest score per pub, best first", () => {
     expect(ranking()).toEqual(["harp:4.5:2:ana,ben", "lamb:4.5:1:ben"]);
   });

@@ -3,7 +3,7 @@
 // against pubs already in that band until the new one has a place.
 //
 // The comparisons are a binary search, so a band of n pubs takes about
-// log2(n) questions. Only the result is stored (migration 0185). The 0-10
+// log2(n) questions. Only the result is stored (migration 0186). The 0-10
 // figure is DERIVED from band and place on every read and never stored.
 // It is the person's own list: nothing public reads it (ADR 0017).
 

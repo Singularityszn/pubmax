@@ -79,7 +79,7 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
     if (!isMissingTableSchema(error, ["social_pub_rankings"])) throw error;
     if (requiresSupabaseStore()) throw error;
     if (!write) return fallback();
-    return onMissingDurableWrite({ storeTag: "social-pub-rankings", migrationHint: "apply migration 0185", fallback });
+    return onMissingDurableWrite({ storeTag: "social-pub-rankings", migrationHint: "apply migration 0186", fallback });
   }
 }
 

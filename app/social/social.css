@@ -325,6 +325,26 @@ span.socialPostAvatar {
   font-size: 0.8125rem;
 }
 
+/* Why this post: a quiet disclosure under the post, closed by default. The
+   summary is a full tap target; the lines inside read like the edited note. */
+.socialPostWhy {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialPostWhy summary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.socialPostWhy p {
+  margin: 0 0 6px;
+  line-height: 1.45;
+}
+
 .socialPostKind {
   width: fit-content;
   margin: 12px 0 0;

@@ -18,7 +18,7 @@ function reviewDate(iso: string): string {
 /**
  * What your lot said about this pub: the scored posts your mutual friends
  * wrote about it, newest first, and their newest scores averaged. It is your
- * friends' word, read to you alone (0186), never a public rating, so a reader
+ * friends' word, read to you alone (0187), never a public rating, so a reader
  * who is signed out, or whose lot has not been, sees nothing here at all.
  */
 export default function PubLotReviews({ venueId, venueName }: { venueId: string; venueName: string }) {

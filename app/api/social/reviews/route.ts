@@ -15,7 +15,7 @@ const READ_WINDOW_MS = 60_000;
  * GET /api/social/reviews: the viewer's own pubs, ranked by the score they
  * gave each one (newest score per pub). With ?scope=lot, the viewer's lot's
  * pubs instead: each mutual friend's newest score averaged, over posts the
- * viewer may read (0183). Neither list reaches anybody but the viewer.
+ * viewer may read (0184). Neither list reaches anybody but the viewer.
  */
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);

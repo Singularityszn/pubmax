@@ -10,6 +10,7 @@ import ContributionLanesCard from "@/components/profile/ContributionLanesCard";
 import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
+import ProfileMuteBlock from "@/components/social/ProfileMuteBlock";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
@@ -520,6 +521,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
+  const editToggleRef = useRef<HTMLButtonElement>(null);
+  const wasEditingRef = useRef(false);
+  useEffect(() => {
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = editing;
+    if (wasEditing && !editing) editToggleRef.current?.focus({ preventScroll: true });
+  }, [editing]);
   // Post-save confirmation shown back in view mode; clears itself shortly.
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -1138,6 +1146,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         </Link>
       ) : null}
       <button
+        ref={editToggleRef}
         type="button"
         className="profileEditToggle"
         data-primary-action=""
@@ -1173,6 +1182,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         targetHandle={routeHandle}
         viewerHandle={viewerHandle}
       />
+      {/* Mute and block, folded shut. Renders only for a viewer Social admits. */}
+      {socialFriendsLaunchEnabled ? (
+        <ProfileMuteBlock targetHandle={routeHandle} viewerHandle={viewerHandle} />
+      ) : null}
     </>
     );
   }

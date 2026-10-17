@@ -1,4 +1,4 @@
--- 0183: Your lot's pubs, the friends' ranking.
+-- 0184: Your lot's pubs, the friends' ranking.
 -- Captain applies. Agents ship SQL only.
 --
 -- ADR 0017 kept every score personal. The captain has since asked for the
@@ -16,7 +16,7 @@
 -- rating, price, map layer or feed order reads it, and nobody else's lot is
 -- reachable through it. It writes nothing.
 --
--- Reverse: supabase/migrations/rollback/20261017140000_0183_social_lot_pub_ranking_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017150000_0184_social_lot_pub_ranking_rollback.sql
 
 begin;
 

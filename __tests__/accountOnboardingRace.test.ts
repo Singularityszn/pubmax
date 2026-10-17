@@ -8,6 +8,14 @@ const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
 
+const deviceState = vi.hoisted(() => ({
+  records: [] as Array<{ userId: string; refreshToken: string; email: string; handle: string | null; lastActiveAt: number }>,
+}));
+
+vi.mock("@/components/auth/useDeviceAccounts", () => ({
+  useDeviceAccounts: () => deviceState.records,
+}));
+
 const requestState = vi.hoisted(() => ({
   calls: [] as string[],
   responses: [] as Array<Response | Error>,
@@ -63,7 +71,10 @@ beforeEach(() => {
     session: { user: { id: "user-a" }, access_token: "token-a" },
     loading: false,
     identityResolved: false,
+    signOut: vi.fn(async () => {}),
+    switchAccount: vi.fn(async () => ({ status: "unavailable" })),
   };
+  deviceState.records = [];
   requestState.calls = [];
   requestState.responses = [];
 
@@ -86,6 +97,70 @@ afterEach(async () => {
 });
 
 describe("AccountOnboarding cold-open identity race", () => {
+  it("lets an unclaimed account sign out inside the mandatory modal without claiming", async () => {
+    requestState.responses = [Response.json({ complete: false })];
+    authState.current.identityResolved = true;
+    authState.current.user = { id: "user-a", email: "new@example.test" };
+    const signOut = vi.fn(async () => {
+      authState.current = { ...authState.current, user: null, session: null };
+      root?.render(createElement(AccountOnboarding));
+    });
+    authState.current.signOut = signOut;
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain("new@example.test");
+    expect([...dialog.querySelectorAll("button")].find((button) => button.textContent === "Claim handle")?.disabled).toBe(true);
+    const exit = [...dialog.querySelectorAll("button")].find((button) => button.textContent === "Sign out");
+    expect(exit).toBeDefined();
+    await commit(() => exit?.click());
+    await settleOnboarding();
+    expect(signOut).toHaveBeenCalledWith("account");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(requestState.calls).toEqual(["/api/identity/onboarding"]);
+    expect(localStorage.getItem("pubmax_handle")).toBeNull();
+
+    requestState.responses = [Response.json({ complete: false, handle: "original" })];
+    authState.current = { ...authState.current, user: { id: "user-b" }, session: { user: { id: "user-b" }, access_token: "token-b" } };
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(localStorage.getItem("pubmax_handle")).toBe("original");
+  });
+
+  it("switches to a remembered owned account from an unclaimed modal without a claim", async () => {
+    deviceState.records = [{ userId: "user-b", refreshToken: "token-b", email: "owned@example.test", handle: "original", lastActiveAt: 1 }];
+    requestState.responses = [Response.json({ complete: false })];
+    authState.current.identityResolved = true;
+    const switchAccount = vi.fn(async (userId: string) => {
+      requestState.responses = [Response.json({ complete: false, handle: "original" })];
+      authState.current = { ...authState.current, user: { id: userId }, session: { user: { id: userId }, access_token: "token-b" } };
+      root?.render(createElement(AccountOnboarding));
+      return { status: "switched", userId };
+    });
+    authState.current.switchAccount = switchAccount;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({})));
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+    const toggle = [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.startsWith("Switch account"));
+    expect(toggle).toBeDefined();
+    await commit(() => (toggle as HTMLButtonElement)?.click());
+    const target = document.querySelector<HTMLButtonElement>('[role="dialog"] .authSwitcherRow');
+    expect(target?.textContent).toContain("@original");
+    switchAccount.mockResolvedValueOnce({ status: "unavailable", userId: "user-b" });
+    await commit(() => target?.click());
+    await settleOnboarding();
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("could not switch account");
+    expect(requestState.calls).toEqual(["/api/identity/onboarding"]);
+    await commit(() => target?.click());
+    await settleOnboarding();
+    expect(switchAccount).toHaveBeenCalledWith("user-b");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(requestState.calls).toEqual(["/api/identity/onboarding", "/api/identity/onboarding"]);
+    expect(localStorage.getItem("pubmax_handle")).toBe("original");
+  });
+
   it("supersedes an open sheet with strict modal focus and restores its owner", async () => {
     const sheetControl = document.createElement("button");
     sheetControl.inert = false;

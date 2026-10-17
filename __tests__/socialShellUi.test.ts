@@ -216,6 +216,32 @@ describe("verified Social post card", () => {
     expect(html).not.toContain("<button");
   });
 
+  it("says why a post is in the lane, folded shut and with no control on the card", () => {
+    const theirs = { ...protectedPost, ownedByViewer: false };
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, { post: theirs, lane: "following" }),
+    );
+
+    expect(html).toContain('<details class="socialPostWhy">');
+    expect(html).toContain("<summary>Why this post?</summary>");
+    expect(html).toContain("You and @alice follow each other, and this one is for mutuals only.");
+    expect(html).toContain("Newest first. We don&#x27;t rank posts by likes, and nobody can pay to be here.");
+    expect(html).toContain("Mute or block someone on their profile to stop seeing their posts.");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("For You");
+
+    const own = renderToStaticMarkup(
+      createElement(SocialPostCard, { post: protectedPost, lane: "following" }),
+    );
+    expect(own).toContain("It&#x27;s your post. Only your mutuals can see it.");
+    expect(own).not.toContain("Mute or block");
+
+    const nearby = renderToStaticMarkup(
+      createElement(SocialPostCard, { post: { ...theirs, visibility: "public" }, lane: "nearby" }),
+    );
+    expect(nearby).toContain("It&#x27;s a public post tagged Camden.");
+  });
+
   it("does not render exact Venue context from an invalid public DTO", () => {
     const html = renderToStaticMarkup(
       createElement(SocialPostCard, {

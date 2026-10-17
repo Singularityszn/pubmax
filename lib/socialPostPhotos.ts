@@ -1,4 +1,4 @@
-// Photos on a Social post beyond the first (migration 0184): the shapes the
+// Photos on a Social post beyond the first (migration 0185): the shapes the
 // browser and the server share.
 //
 // The first photo keeps every rule it always had (social_posts.photo_media_id).

@@ -1,4 +1,4 @@
--- 0182: a Social post can carry one video, held until a person has watched it.
+-- 0183: a Social post can carry one video, held until a person has watched it.
 -- Captain applies. Agents ship SQL only.
 --
 -- WHY HELD. Post text and photos are screened by a model before anyone sees
@@ -19,7 +19,7 @@
 -- already been allowed to read: an approved video to anybody, a held or
 -- rejected one only to its author. Browser roles hold nothing.
 --
--- Reverse: supabase/migrations/rollback/20261017130000_0182_social_post_videos_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017140000_0183_social_post_videos_rollback.sql
 
 begin;
 

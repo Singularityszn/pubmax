@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0185 (your pubs in your own order).
+// Effective PostgreSQL proof for 0186 (your pubs in your own order).
 //
 // A pub lands between the two neighbours the comparisons found, inside its
 // band; a stale pair is refused; placing an already-ranked pub moves it; the
@@ -20,7 +20,7 @@ const skipReason = postgresSkipReason();
 
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261017160000_0185_social_pub_rankings_rollback.sql",
+  "supabase/migrations/rollback/20261017170000_0186_social_pub_rankings_rollback.sql",
 );
 
 const ME = "00000000-0000-4000-8000-0000000000c1";
@@ -59,7 +59,7 @@ afterAll(async () => {
   database = null;
 });
 
-describe.skipIf(skipReason !== null)("0185 social pub rankings", () => {
+describe.skipIf(skipReason !== null)("0186 social pub rankings", () => {
   it("builds a band in the order the comparisons found", () => {
     db().sql(place(ME, "harp", "loved", null, null));
     db().sql(place(ME, "lamb", "loved", "harp", null));

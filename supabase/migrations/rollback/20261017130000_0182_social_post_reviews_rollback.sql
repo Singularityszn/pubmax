@@ -1,4 +1,4 @@
--- Rollback for 0181 (Social post reviews).
+-- Rollback for 0182 (Social post reviews).
 --
 -- Drops the two functions and the table. Every score anybody gave a pub is
 -- deleted with it; the posts themselves, their venues and their photos are

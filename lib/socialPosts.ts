@@ -65,7 +65,7 @@ export type SocialPostDTO = Omit<
   review?: SocialPostReview | null;
   /** One video, held for review: its author sees it at once, others once approved. */
   video?: SocialPostVideo | null;
-  /** Photos 2 to 4, each screened on its own (0184). */
+  /** Photos 2 to 4, each screened on its own (0185). */
   extraPhotos?: SocialPostExtraPhoto[];
 };
 

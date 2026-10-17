@@ -15,7 +15,7 @@ const NO_STORE = { "Cache-Control": "private, no-store" };
  * GET /api/social/pub-reviews?venueId=...: what the reader's lot said about one
  * pub, for its pub page. Mutual friends' scored posts the reader may already
  * read, newest first, and their newest scores averaged. Answered to the reader
- * alone (0186); a reader with no lot, or no Social access, gets nothing.
+ * alone (0187); a reader with no lot, or no Social access, gets nothing.
  */
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);

@@ -250,7 +250,7 @@ function storeDeps(): AccountExportDeps {
     moments: (userId, memoryId) => listNightMoments(userId, memoryId),
     visitReports: (handle) => visitReportsStore().listForContributor(handle),
     async socialPosts(owner, limit) {
-      // A score and a video are rows of their own (0181, 0182) that belong to
+      // A score and a video are rows of their own (0182, 0183) that belong to
       // the post, so they ride the post into the file rather than a lane.
       const posts = await socialPostStore().listOwned(owner, limit);
       const ids = posts.map((post) => post.id);

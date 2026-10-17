@@ -1,4 +1,4 @@
--- 0184: a Social post can carry up to four photos, the first and three more.
+-- 0185: a Social post can carry up to four photos, the first and three more.
 -- Captain applies. Agents ship SQL only.
 --
 -- THE FIRST PHOTO IS UNCHANGED. It stays social_posts.photo_media_id with
@@ -19,7 +19,7 @@
 -- Bytes live under social-extra/<media id>/image.jpg in the same bucket,
 -- normalised to JPEG by the same pipeline as the first photo.
 --
--- Reverse: supabase/migrations/rollback/20261017150000_0184_social_post_extra_photos_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017160000_0185_social_post_extra_photos_rollback.sql
 
 begin;
 

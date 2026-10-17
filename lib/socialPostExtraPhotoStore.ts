@@ -102,7 +102,7 @@ export function createMemorySocialPostExtraPhotoStore(): SocialPostExtraPhotoSto
 const memorySocialPostExtraPhotoStore = createMemorySocialPostExtraPhotoStore();
 
 // ---------------------------------------------------------------------------
-// Supabase: rows and checks are 0184's functions, bytes live in Storage.
+// Supabase: rows and checks are 0185's functions, bytes live in Storage.
 
 async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => Promise<T>, write: boolean): Promise<T> {
   try {
@@ -111,7 +111,7 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
     if (!isMissingTableSchema(error, ["social_post_extra_photos"])) throw error;
     if (requiresSupabaseStore()) throw error;
     if (!write) return fallback();
-    return onMissingDurableWrite({ storeTag: "social-post-extra-photos", migrationHint: "apply migration 0184", fallback });
+    return onMissingDurableWrite({ storeTag: "social-post-extra-photos", migrationHint: "apply migration 0185", fallback });
   }
 }
 

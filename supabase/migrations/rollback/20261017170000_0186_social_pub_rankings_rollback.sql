@@ -1,4 +1,4 @@
--- Rollback for 0185 (your pubs in your own order).
+-- Rollback for 0186 (your pubs in your own order).
 --
 -- Drops the three functions and the table. Every order anybody built by
 -- comparing pubs is deleted with it; their posts, star scores and the star

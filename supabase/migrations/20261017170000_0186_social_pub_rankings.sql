@@ -1,4 +1,4 @@
--- 0185: your pubs in your own order, built by "which did you prefer?".
+-- 0186: your pubs in your own order, built by "which did you prefer?".
 -- Captain applies. Agents ship SQL only.
 --
 -- A person sorts each pub into one of three bands (loved it, it was fine,
@@ -17,7 +17,7 @@
 -- asks again, so two tabs can never interleave a wrong order. Placing a pub
 -- that is already ranked moves it.
 --
--- Reverse: supabase/migrations/rollback/20261017160000_0185_social_pub_rankings_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017170000_0186_social_pub_rankings_rollback.sql
 
 begin;
 

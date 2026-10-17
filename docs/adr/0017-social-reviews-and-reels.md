@@ -31,7 +31,7 @@ Three rules this tree already holds bear on the design, and they stay:
 ### 1. A review is one person's score on their own post
 
 A post that names a pub may carry its author's score, 1 to 5 in half stars
-(`social_post_reviews`, migration `0181`). The score reads the post's own
+(`social_post_reviews`, migration `0182`). The score reads the post's own
 `venue_id`, so it always means the pub the post names today; a post edited off
 its venue carries no score.
 
@@ -46,7 +46,7 @@ with a number in it, shown to the people who can read the post.
 (the newest score), best first.
 
 The captain then asked for the friends' ranking (17 Oct 2026), and
-`read_lot_social_pub_ranking` (migration `0183`) is the ONE aggregate this
+`read_lot_social_pub_ranking` (migration `0184`) is the ONE aggregate this
 ADR allows. For one reader it averages each mutual friend's newest score per
 pub, best first, over posts that reader may already read, never their own
 score, never a blocked author. It is answered to that reader alone, writes
@@ -74,7 +74,7 @@ The limits are 100 MB and ten minutes.
 ### 3a. Which did you prefer?
 
 A person can also build their own order the way Beli does (migration
-`0185`). They put a pub in a band (loved it, it was fine, not for me), then
+`0186`). They put a pub in a band (loved it, it was fine, not for me), then
 answer "which did you prefer?" against pubs already in that band. The
 questions are a binary search in the browser, so a band of n pubs takes
 about log2(n) taps. Only the result is stored: the band and an ordering key.
@@ -91,7 +91,7 @@ own lane.
 ### 4. Up to four photos, each screened on its own
 
 The first photo keeps every rule 0074 gave it. Photos 2 to 4 live in
-`social_post_extra_photos` (migration `0184`): one request each (so none
+`social_post_extra_photos` (migration `0185`): one request each (so none
 nears a serverless body limit), the same normalising pipeline, and their own
 model check drained by the Social post cron. A pending or flagged photo is
 shown to its author only; the post and its other photos stay up.
@@ -116,7 +116,7 @@ starts the which-did-you-prefer flow on this pub. The page is reached from a
 post's pub name (like a location tag), a reel's pub name, a row in Your pubs,
 ranked, and "See the full page" on the map's pub sheet.
 
-"Your lot on this pub" (migration `0186`) is the lot ranking narrowed to one
+"Your lot on this pub" (migration `0187`) is the lot ranking narrowed to one
 pub and opened to the posts: mutual friends' scored posts the reader may
 already read, newest first, with each friend's newest score averaged. It is
 read for one reader and never shown to anyone signed out, so it is still not
@@ -128,7 +128,7 @@ Swapping the two in the sitemap is the captain's call, not this change's.
 
 ## Consequences
 
-- Six migrations for the captain to apply: `0181` to `0186`, each with a
+- Six migrations for the captain to apply: `0182` to `0187`, each with a
   rollback. Without them the stores fall back to process memory outside
   production and refuse writes in production, like every other Social store.
 - The video lane adds a moderation queue someone has to watch. Until they do,

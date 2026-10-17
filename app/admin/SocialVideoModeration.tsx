@@ -1,6 +1,6 @@
 "use client";
 
-// The videos waiting for a person to watch them (migration 0182). Nothing
+// The videos waiting for a person to watch them (migration 0183). Nothing
 // screens a video automatically, so a Social video stays with its author until
 // a moderator approves it here. This lane fetches and decides for itself
 // through /api/admin/social-videos, on the same admin session as the console.

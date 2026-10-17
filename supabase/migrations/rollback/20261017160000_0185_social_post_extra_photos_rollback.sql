@@ -1,4 +1,4 @@
--- Rollback for 0184 (Social extra photos).
+-- Rollback for 0185 (Social extra photos).
 --
 -- Drops the five functions and the table. Every post keeps its first photo
 -- and loses photos 2 to 4. Their objects stay in Storage under social-extra/,

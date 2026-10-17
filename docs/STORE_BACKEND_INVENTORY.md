@@ -89,7 +89,7 @@ silently stale.
 | socialPostReviewStore | factory-eligible, policy-heavy | Own-post, named-venue and half-step score policy. |
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
-| socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0185). |
+| socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
