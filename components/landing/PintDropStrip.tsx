@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
+import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
+import NewSinceMarker from "@/components/seen/NewSinceMarker";
 
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
@@ -137,6 +139,12 @@ export default function PintDropStrip() {
     };
   }, []);
 
+  // Which drops this device has not been shown before (lib/seenSinceLastLook.ts).
+  // A drop is its own row, so each is judged by its own id, and they are
+  // remembered only once the strip has painted them.
+  const dropIds = useMemo(() => drops.map((d) => [d.id]), [drops]);
+  const newSinceLastLook = useNewSinceLastLook("drops", dropIds, status === "ready");
+
   // Fail-soft (journey audit P1): hidden on fetch failure, hidden when the
   // feed is empty after load, and hidden while it loads, so the section only
   // ever paints with real rows in it.
@@ -161,10 +169,13 @@ export default function PintDropStrip() {
         aria-label="Recent prices from drinkers"
         tabIndex={0}
       >
-        {drops.map((d) => (
+        {drops.map((d, index) => (
           <li className="dropStripCard" key={d.id}>
             <div className="dropStripTop">
-              <span className="dropStripWho">{d.handle}</span>
+              <span className="dropStripLead">
+                <span className="dropStripWho">{d.handle}</span>
+                {newSinceLastLook[index] ? <NewSinceMarker /> : null}
+              </span>
               <PriceBadge
                 variant="current"
                 className="dropStripPrice"
