@@ -80,9 +80,15 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
 }
 
 /**
- * The typed turn as the agent reads it: confirmed memories, the taste read from
- * the person's own logs, the session summary, earlier asks, then the ask itself.
+ * Everything a typed turn tells the agent about the person: their confirmed
+ * memories, then the taste read from their own logs. The memory eval
+ * (evals/pal/memory) grades exactly these lines.
  */
+export function palPersonalContext(memories: PalRecalledMemory[] | null, taste: PalTaste | null): string[] {
+  return [...palMemoryPreamble(memories), ...palTastePreamble(taste)];
+}
+
+/** The typed turn as the agent reads it: the personal context, the session summary, earlier asks, then the ask itself. */
 function userMessageText(
   query: string,
   prior: PriorSession,
@@ -91,8 +97,7 @@ function userMessageText(
 ): string {
   const priorAsks = prior.turns;
   return [
-    ...palMemoryPreamble(memories),
-    ...palTastePreamble(taste),
+    ...palPersonalContext(memories, taste),
     ...palSessionSummaryTurn(prior.summary),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]

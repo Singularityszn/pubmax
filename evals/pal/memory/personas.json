@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "now": "2026-10-16T21:00:00.000Z",
+  "personas": [
+    {
+      "id": "soho-regular",
+      "summary": "Friday regular at two Soho locals, Guinness drinker, rated one pub low, two confirmed memories, and a half that must not move their usual pint.",
+      "userId": "e0000000-0000-4000-8000-000000000001",
+      "handle": "evalsohoregular",
+      "pal": { "taste": true },
+      "memories": [
+        { "kind": "drink_preference", "value": "No lager, ever" },
+        { "kind": "accessibility_preference", "value": "Needs step-free access" }
+      ],
+      "diary": [
+        { "venueId": "venue-nyowgc", "visitedOn": "2026-09-04", "rating": null },
+        { "venueId": "venue-nyowgc", "visitedOn": "2026-09-11", "rating": null },
+        { "venueId": "venue-nyowgc", "visitedOn": "2026-09-18", "rating": null },
+        { "venueId": "venue-nyowgc", "visitedOn": "2026-09-25", "rating": null },
+        { "venueId": "venue-1r4e6my", "visitedOn": "2026-09-26", "rating": 2 },
+        { "venueId": "venue-15i2wst", "visitedOn": "2026-10-02", "rating": null },
+        { "venueId": "venue-nyowgc", "visitedOn": "2026-10-09", "rating": 4.5 },
+        { "venueId": "venue-15i2wst", "visitedOn": "2026-10-16", "rating": null }
+      ],
+      "drops": [
+        { "venueId": "venue-nyowgc", "day": "2026-09-04", "drink": "Guinness", "priceGbp": 6.1, "vibeTags": ["old local"] },
+        { "venueId": "venue-nyowgc", "day": "2026-09-11", "drink": "Guinness", "priceGbp": 6.3, "vibeTags": ["old local"] },
+        { "venueId": "venue-nyowgc", "day": "2026-09-18", "drink": "Guinness", "priceGbp": 6.2, "vibeTags": [] },
+        { "venueId": "venue-15i2wst", "day": "2026-10-02", "drink": "Guinness", "priceGbp": 3.4, "measure": "half", "vibeTags": [] }
+      ],
+      "saved": [],
+      "facts": [
+        { "id": "soho-memory-drink", "value": "No lager, ever", "tier": "must" },
+        { "id": "soho-memory-access", "value": "Needs step-free access", "tier": "must" },
+        { "id": "soho-patch", "value": "Piccadilly & Soho", "line": "patches", "tier": "must" },
+        { "id": "soho-regular-coach", "value": "Coach & Horses", "line": "regulars", "tier": "must" },
+        { "id": "soho-regular-golden", "value": "Golden Lion (Soho)", "line": "regulars", "tier": "must" },
+        { "id": "soho-loved", "value": "Coach & Horses", "line": "loved", "tier": "must" },
+        { "id": "soho-not-keen", "value": "Crown (Covent Garden)", "line": "notKeen", "tier": "must" },
+        { "id": "soho-drink", "value": "Guinness", "line": "drinks", "tier": "must" },
+        { "id": "soho-price", "value": "£6.20", "line": "price", "tier": "must" },
+        { "id": "soho-vibe", "value": "old local", "line": "vibes", "tier": "must", "generic": true },
+        { "id": "soho-style", "value": "stick to a few locals", "tier": "must", "generic": true },
+        { "id": "soho-night", "value": "Fridays", "tier": "must", "generic": true },
+        { "id": "soho-last", "value": "Golden Lion (Soho) on 16 Oct", "line": "lastVisit", "tier": "must" }
+      ],
+      "absent": [
+        { "value": "Crown (Covent Garden)", "line": "loved", "why": "A pub rated 2 is never a favourite." },
+        { "value": "£6.15", "why": "A half may not pull the usual pint price down." }
+      ],
+      "probes": [
+        { "ask": "What do I usually drink?", "needs": ["soho-drink", "soho-memory-drink"] },
+        { "ask": "Somewhere for tonight, my usual sort of place.", "needs": ["soho-patch", "soho-regular-coach", "soho-price"] },
+        { "ask": "Anywhere I should skip?", "needs": ["soho-not-keen"] },
+        { "ask": "I need somewhere I can get into easily.", "needs": ["soho-memory-access"] }
+      ]
+    },
+    {
+      "id": "explorer",
+      "summary": "Never the same pub twice across four patches, tags hidden gems, saved one pub they have not tried and one they have.",
+      "userId": "e0000000-0000-4000-8000-000000000002",
+      "handle": "evalexplorer",
+      "pal": { "taste": true },
+      "memories": [],
+      "diary": [
+        { "venueId": "venue-66xs98", "visitedOn": "2026-09-01", "rating": null },
+        { "venueId": "venue-5zogu6", "visitedOn": "2026-09-09", "rating": null },
+        { "venueId": "venue-21w0p0", "visitedOn": "2026-09-17", "rating": null },
+        { "venueId": "venue-yhodj6", "visitedOn": "2026-09-26", "rating": null },
+        { "venueId": "venue-18h2bv8", "visitedOn": "2026-10-04", "rating": 4.5 },
+        { "venueId": "venue-ug91dc", "visitedOn": "2026-10-12", "rating": null },
+        { "venueId": "venue-r2rhk7", "visitedOn": "2026-10-14", "rating": null }
+      ],
+      "drops": [
+        { "venueId": "venue-66xs98", "day": "2026-09-01", "drink": "Neck Oil", "priceGbp": 5.4, "vibeTags": ["hidden gem"] },
+        { "venueId": "venue-21w0p0", "day": "2026-09-17", "drink": "Neck Oil", "priceGbp": 5.8, "vibeTags": ["hidden gem"] },
+        { "venueId": "venue-18h2bv8", "day": "2026-10-04", "drink": "Camden Hells", "priceGbp": 5.6, "vibeTags": ["riverside"] },
+        { "venueId": "venue-r2rhk7", "day": "2026-10-14", "drink": "Camden Hells", "priceGbp": 5.7, "vibeTags": ["hidden gem"] }
+      ],
+      "saved": ["venue-1ar7s8w", "venue-66xs98"],
+      "facts": [
+        { "id": "explorer-style", "value": "trying somewhere new", "tier": "must", "generic": true },
+        { "id": "explorer-patch", "value": "Greenwich", "line": "patches", "tier": "must" },
+        { "id": "explorer-vibe", "value": "hidden gem", "line": "vibes", "tier": "must", "generic": true },
+        { "id": "explorer-drink-neck", "value": "Neck Oil", "line": "drinks", "tier": "must" },
+        { "id": "explorer-drink-hells", "value": "Camden Hells", "line": "drinks", "tier": "must" },
+        { "id": "explorer-price", "value": "£5.65", "line": "price", "tier": "must" },
+        { "id": "explorer-loved", "value": "The Gate Clock", "line": "loved", "tier": "must" },
+        { "id": "explorer-wishlist", "value": "The Boot", "line": "wishlist", "tier": "must" }
+      ],
+      "absent": [
+        { "value": "The Angelic", "line": "wishlist", "why": "A saved pub they already visited is not untried." },
+        { "value": "keep going back to", "why": "Seven pubs, seven nights: there is no regular." }
+      ],
+      "probes": [
+        { "ask": "Surprise me, somewhere new.", "needs": ["explorer-style", "explorer-vibe"] },
+        { "ask": "What was that pub I saved and never went to?", "needs": ["explorer-wishlist"] }
+      ]
+    },
+    {
+      "id": "changed-mind",
+      "summary": "Loved a Shoreditch pub in August and rated it low in October, so the newer rating has to win. Carries one correction memory.",
+      "userId": "e0000000-0000-4000-8000-000000000003",
+      "handle": "evalchangedmind",
+      "pal": { "taste": true },
+      "memories": [{ "kind": "correction", "value": "I moved from Hackney to Brixton" }],
+      "diary": [
+        { "venueId": "venue-1cti8so", "visitedOn": "2026-08-01", "rating": 5 },
+        { "venueId": "venue-1s7ucod", "visitedOn": "2026-09-10", "rating": 4.5 },
+        { "venueId": "venue-dxqfg0", "visitedOn": "2026-09-20", "rating": null },
+        { "venueId": "venue-1cti8so", "visitedOn": "2026-10-01", "rating": 1.5 },
+        { "venueId": "venue-dxqfg0", "visitedOn": "2026-10-05", "rating": null }
+      ],
+      "drops": [],
+      "saved": [],
+      "facts": [
+        { "id": "changed-correction", "value": "I moved from Hackney to Brixton", "tier": "must" },
+        { "id": "changed-not-keen", "value": "BrewDog Shoreditch", "line": "notKeen", "tier": "must" },
+        { "id": "changed-loved", "value": "Nancy Spain's", "line": "loved", "tier": "must" },
+        { "id": "changed-patch", "value": "Shoreditch", "line": "patches", "tier": "must" }
+      ],
+      "absent": [
+        { "value": "BrewDog Shoreditch", "line": "loved", "why": "The October rating replaced the August one." }
+      ],
+      "probes": [
+        { "ask": "Is BrewDog Shoreditch still a good shout for me?", "needs": ["changed-not-keen"] },
+        { "ask": "Somewhere near where I live now.", "needs": ["changed-correction"] }
+      ]
+    },
+    {
+      "id": "opted-out",
+      "summary": "Logs plenty in Camden but turned the taste read off. Their confirmed memory still counts; their logs must never reach the model.",
+      "userId": "e0000000-0000-4000-8000-000000000004",
+      "handle": "evaloptedout",
+      "pal": { "taste": false },
+      "memories": [{ "kind": "atmosphere_preference", "value": "Prefers a quiet table away from speakers" }],
+      "diary": [
+        { "venueId": "venue-fejqqd", "visitedOn": "2026-09-03", "rating": 5 },
+        { "venueId": "venue-fejqqd", "visitedOn": "2026-09-10", "rating": null },
+        { "venueId": "venue-fejqqd", "visitedOn": "2026-09-17", "rating": null },
+        { "venueId": "venue-d6icqd", "visitedOn": "2026-09-24", "rating": null }
+      ],
+      "drops": [
+        { "venueId": "venue-fejqqd", "day": "2026-09-03", "drink": "Hobgoblin", "priceGbp": 5.1, "vibeTags": ["quiet pint"] },
+        { "venueId": "venue-fejqqd", "day": "2026-09-10", "drink": "Hobgoblin", "priceGbp": 5.2, "vibeTags": [] }
+      ],
+      "saved": ["venue-136xtuu"],
+      "noTasteRead": true,
+      "facts": [
+        { "id": "optout-memory", "value": "Prefers a quiet table away from speakers", "tier": "must" }
+      ],
+      "absent": [
+        { "value": "The Constitution", "why": "Opted out: no pub from their logs." },
+        { "value": "Sheephaven Bay", "why": "Opted out: no pub from their logs." },
+        { "value": "The Colonel Fawcett", "why": "Opted out: no saved pub either." },
+        { "value": "Hobgoblin", "why": "Opted out: no drink from their logs." },
+        { "value": "Camden", "why": "Opted out: no patch from their logs." }
+      ],
+      "probes": [
+        { "ask": "Somewhere quiet tonight.", "needs": ["optout-memory"] }
+      ]
+    },
+    {
+      "id": "newcomer",
+      "summary": "Signed in, no Pal, nothing logged. The Pal must hear that it knows nothing, and nothing else.",
+      "userId": "e0000000-0000-4000-8000-000000000005",
+      "handle": "evalnewcomer",
+      "pal": null,
+      "memories": [],
+      "diary": [],
+      "drops": [],
+      "saved": [],
+      "exactContext": ["I have not confirmed anything for you to remember about me."],
+      "facts": [],
+      "absent": [],
+      "probes": []
+    },
+    {
+      "id": "long-memory",
+      "summary": "Eleven confirmed memories. Today only the newest eight reach the model, so the oldest three are stretch facts: the gap this eval is here to close.",
+      "userId": "e0000000-0000-4000-8000-000000000006",
+      "handle": "evallongmemory",
+      "pal": { "taste": true },
+      "memories": [
+        { "kind": "transport_preference", "value": "Gets the Northern line home" },
+        { "kind": "venue_preference", "value": "Loves a pub with a fireplace" },
+        { "kind": "drink_preference", "value": "Allergic to sulphites, so no wine" },
+        { "kind": "atmosphere_preference", "value": "Cannot stand sports on the telly" },
+        { "kind": "venue_preference", "value": "Likes a proper beer garden" },
+        { "kind": "drink_preference", "value": "Drinks cask bitter" },
+        { "kind": "accessibility_preference", "value": "Brings a guide dog" },
+        { "kind": "transport_preference", "value": "Cycles everywhere" },
+        { "kind": "night_outcome", "value": "Had a great birthday at The Lamb" },
+        { "kind": "atmosphere_preference", "value": "Likes a pub quiz on Tuesdays" },
+        { "kind": "venue_preference", "value": "Prefers pubs with food till late" }
+      ],
+      "diary": [],
+      "drops": [],
+      "saved": [],
+      "facts": [
+        { "id": "long-01", "value": "Gets the Northern line home", "tier": "stretch" },
+        { "id": "long-02", "value": "Loves a pub with a fireplace", "tier": "stretch" },
+        { "id": "long-03", "value": "Allergic to sulphites, so no wine", "tier": "stretch" },
+        { "id": "long-04", "value": "Cannot stand sports on the telly", "tier": "must" },
+        { "id": "long-05", "value": "Likes a proper beer garden", "tier": "must" },
+        { "id": "long-06", "value": "Drinks cask bitter", "tier": "must" },
+        { "id": "long-07", "value": "Brings a guide dog", "tier": "must" },
+        { "id": "long-08", "value": "Cycles everywhere", "tier": "must" },
+        { "id": "long-09", "value": "Had a great birthday at The Lamb", "tier": "must" },
+        { "id": "long-10", "value": "Likes a pub quiz on Tuesdays", "tier": "must" },
+        { "id": "long-11", "value": "Prefers pubs with food till late", "tier": "must" }
+      ],
+      "absent": [],
+      "probes": [
+        { "ask": "Fancy a glass of wine somewhere?", "needs": ["long-03"] },
+        { "ask": "How am I getting home tonight?", "needs": ["long-01", "long-08"] },
+        { "ask": "Tell me everything you know about me.", "needs": ["long-01", "long-02", "long-03", "long-04", "long-05", "long-06", "long-07", "long-08", "long-09", "long-10", "long-11"] }
+      ]
+    },
+    {
+      "id": "saver",
+      "summary": "Has saved two pubs and logged nothing else, with no Pal. Saves are real listed pubs the Pal may offer.",
+      "userId": "e0000000-0000-4000-8000-000000000007",
+      "handle": "evalsaver",
+      "pal": null,
+      "memories": [],
+      "diary": [],
+      "drops": [],
+      "saved": ["venue-12400i0", "venue-17m0t8h"],
+      "facts": [
+        { "id": "saver-mabels", "value": "Mabel's Tavern", "line": "wishlist", "tier": "must" },
+        { "id": "saver-mcglynns", "value": "McGlynn's Free House", "line": "wishlist", "tier": "must" }
+      ],
+      "absent": [
+        { "value": "I have logged", "why": "No visits, so no visit count." }
+      ],
+      "probes": [
+        { "ask": "Somewhere I have been meaning to try.", "needs": ["saver-mabels"] }
+      ]
+    }
+  ]
+}

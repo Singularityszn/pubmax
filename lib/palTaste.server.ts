@@ -128,3 +128,8 @@ async function readTasteWithinBudget(ownerId: string, now: number): Promise<PalT
     clearTimeout(timer);
   }
 }
+
+/** Test and eval only: forget every cached read. */
+export function __resetPalTasteCache(): void {
+  cache.clear();
+}
