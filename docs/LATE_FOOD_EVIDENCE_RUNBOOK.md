@@ -4,6 +4,8 @@
 
 Every row was reviewed on 2026-07-16 and expired on 2026-08-16. Since 17 August the late-food answers have been empty in every area. The freshness gate now catches this: the `late_food_evidence` registry entry declares `rowExpiry`, so the dataset reads `stale` once its last row has expired. `late_food_evidence` is in `ADVISORY_STALE_IDS` (`scripts/check_freshness.mjs`), so `npm run check:freshness` prints the stale row as a warning and does not fail. No commit can clear the finding, because only a person's review can. Re-reviewing the rows below is what clears it.
 
+Until 2026-11-16 00:00 UTC the finding only warns: `late_food_evidence` has a temporary exemption in `TEMPORARY_ADVISORY_UNTIL` (`scripts/check_freshness.mjs`). From that instant it fails the gate again. Delete the entry in the same commit that lands the re-reviewed rows.
+
 ## Who can do this
 
 A person with a browser. `reviewedAt` records that someone read the operator's page and checked the row against it, so the dates must not be advanced without that review. None of the five operator hosts is in `lib/harvest/sourcePolicy.ts`, so no harvest script may fetch them.
