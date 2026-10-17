@@ -73,6 +73,7 @@ describe("landing hero rhythm", () => {
           observedDay: "14 July 2013",
           years: 13,
           source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
+          movement: null,
         },
       },
       rail: [

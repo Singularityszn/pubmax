@@ -25,6 +25,7 @@
 // so it is dropped rather than shown.
 
 import { DAY_MS } from "@/lib/dayMs";
+import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { isHttpUrl } from "@/lib/httpUrl";
 import { isFiniteNumber, isNonBlankString } from "@/lib/priceUpdateRowShape";
 
@@ -41,6 +42,11 @@ export type PriceHistoryObservation = {
   drink?: string;
   /** The words that carry the price, quoted so a reader can check the claim. */
   quote?: string;
+  /**
+   * What the figure is a price FOR, only where the source states all of it.
+   * `drink` and `quote` are words for a reader and never stand in for this.
+   */
+  item?: PriceComparisonItem;
   source: {
     label: string;
     url: string;
@@ -93,6 +99,7 @@ export function parsePriceHistory(raw: unknown, now: number = Date.now()): Price
   for (const row of rows) {
     if (!isValidPriceHistoryObservation(row, now)) continue;
     const r = row as PriceHistoryObservation;
+    const item = priceComparisonItem(r.item);
     out.push({
       venueId: r.venueId,
       venueName: r.venueName,
@@ -100,6 +107,7 @@ export function parsePriceHistory(raw: unknown, now: number = Date.now()): Price
       observedOn: r.observedOn,
       ...(isNonBlankString(r.drink) ? { drink: r.drink } : {}),
       ...(isNonBlankString(r.quote) ? { quote: r.quote } : {}),
+      ...(item ? { item } : {}),
       source: { label: r.source.label, url: r.source.url, licence: r.source.licence },
     });
   }
@@ -123,6 +131,69 @@ export function groupPriceHistoryByVenue(
 }
 
 /**
+ * What a figure is a price FOR, as its source states it. A then-and-now
+ * movement claims that ONE thing got dearer or cheaper, so it needs this on
+ * both figures: the same drink, the same serving and an ordinary bar price.
+ * Nothing here is read out of free text, because a guessed item is how two true
+ * prices for two different pints became "Down £0.46 in 13 years."
+ */
+export type PriceComparisonItem = {
+  /** The drink as the source names it ("Bud Light"). Matched exactly, ignoring case and spacing. */
+  drink: string;
+  /** The serving the source states. Never defaulted: an unstated measure is not a pint here. */
+  measure: DrinkMeasure;
+  /** An ordinary bar price. A happy hour, member, festival or promotional price is never `standard`. */
+  terms: "standard";
+};
+
+/** A stated comparison item, or null when the value states less than all three parts. */
+function priceComparisonItem(value: unknown): PriceComparisonItem | null {
+  if (typeof value !== "object" || value === null) return null;
+  const item = value as Record<string, unknown>;
+  const drink = item.drink;
+  if (!isNonBlankString(drink)) return null;
+  const measure = statedDrinkMeasure(item.measure);
+  if (measure === null || item.terms !== "standard") return null;
+  return { drink: drink.trim(), measure, terms: "standard" };
+}
+
+/** Names that say what KIND of drink, never which one. Two of them are not the same pint. */
+const GENERIC_DRINK_NAMES: ReadonlySet<string> = new Set([
+  "a pint",
+  "ale",
+  "beer",
+  "bitter",
+  "cider",
+  "draught",
+  "house lager",
+  "lager",
+  "pint",
+  "stout",
+]);
+
+function drinkKey(drink: string): string | null {
+  const key = drink.toLowerCase().replace(/\s+/g, " ").trim();
+  return key === "" || GENERIC_DRINK_NAMES.has(key) ? null : key;
+}
+
+/**
+ * THE ONE comparison policy every then-and-now line reads, on the venue sheet
+ * and on the landing alike. True only when both sides state an item and the
+ * items are the same drink by name, the same pint or half, and both ordinary
+ * prices. Two unknowns are not a match, a generic name is not a drink, an
+ * `other` serving carries a free label nobody can line up, and a near-miss name
+ * is a different drink.
+ */
+export function sameComparisonItem(a: unknown, b: unknown): boolean {
+  const left = priceComparisonItem(a);
+  const right = priceComparisonItem(b);
+  if (!left || !right) return false;
+  if (left.measure === "other" || left.measure !== right.measure) return false;
+  const key = drinkKey(left.drink);
+  return key !== null && key === drinkKey(right.drink);
+}
+
+/**
  * The then-and-now arc for one venue: the deepest historical price we can
  * evidence, against the price on record today.
  *
@@ -134,13 +205,21 @@ export function groupPriceHistoryByVenue(
  * Returns null when the venue has no historical row at all. A venue with
  * history but no current price still gets an arc, with `nowGbp` null: the
  * historical fact stands on its own.
+ *
+ * A movement between the two is a separate claim, and `deltaGbp` carries it
+ * only when `nowItem` and the then row state the same item
+ * (`sameComparisonItem`). The default is no item, so a caller that states
+ * nothing about today's pint gets both figures and no movement.
  */
 export type VenuePriceArc = {
   then: PriceHistoryObservation;
   /** Every historical row for the venue, oldest first (`then` is the first). */
   history: PriceHistoryObservation[];
   nowGbp: number | null;
-  /** nowGbp - then.priceGbp, when both exist. Positive means it has gone up. */
+  /**
+   * nowGbp - then.priceGbp, only when both figures are the same item. Positive
+   * means it has gone up. Null says no movement may be printed.
+   */
   deltaGbp: number | null;
   /** Whole years between the historical day and `asOf`, floored, minimum 0. */
   years: number;
@@ -150,6 +229,7 @@ export function venuePriceArc(
   history: PriceHistoryObservation[],
   nowGbp: number | null | undefined,
   asOf: number = Date.now(),
+  nowItem: PriceComparisonItem | null = null,
 ): VenuePriceArc | null {
   const ordered = [...history].sort(
     (a, b) => a.observedOn.localeCompare(b.observedOn) || a.priceGbp - b.priceGbp,
@@ -161,11 +241,12 @@ export function venuePriceArc(
     ? Math.max(0, Math.floor((asOf - thenMs) / (365.2425 * DAY_MS)))
     : 0;
   const now = isFiniteNumber(nowGbp) ? nowGbp : null;
+  const comparable = sameComparisonItem(then.item, nowItem);
   return {
     then,
     history: ordered,
     nowGbp: now,
-    deltaGbp: now === null ? null : Math.round((now - then.priceGbp) * 100) / 100,
+    deltaGbp: now !== null && comparable ? Math.round((now - then.priceGbp) * 100) / 100 : null,
     years,
   };
 }

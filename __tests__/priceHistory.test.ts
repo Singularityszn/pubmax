@@ -32,7 +32,9 @@ import {
   isValidObservedOn,
   isValidPriceHistoryObservation,
   parsePriceHistory,
+  sameComparisonItem,
   venuePriceArc,
+  type PriceComparisonItem,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
@@ -373,7 +375,9 @@ describe("price archaeology: the module", () => {
     const arc = venuePriceArc([newer, older], 6.2, asOf);
     expect(arc?.then.observedOn).toBe("2009-06-14");
     expect(arc?.nowGbp).toBe(6.2);
-    expect(arc?.deltaGbp).toBeCloseTo(3.4, 2);
+    // Neither figure states what it is a price for, so both stand and no
+    // movement is said between them.
+    expect(arc?.deltaGbp).toBeNull();
     expect(arc?.years).toBe(17);
 
     const noCurrent = venuePriceArc([older], null, asOf);
@@ -394,5 +398,78 @@ describe("price archaeology: the module", () => {
     expect(formatObservedMonth("2013-07-14")).toBe("July 2013");
     expect(formatObservedDay("2013-07-14")).toBe("14 July 2013");
     expect(formatObservedMonth("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("price archaeology: then against now", () => {
+  // Two true dated prices are not a trend. A movement says ONE thing got
+  // dearer or cheaper, so both figures must state the same drink, the same
+  // serving and an ordinary price, and nothing less will do.
+  const asOf = Date.parse("2026-10-17T00:00:00.000Z");
+  const budLight: PriceComparisonItem = { drink: "Bud Light", measure: "pint", terms: "standard" };
+  const unstated: PriceHistoryObservation = {
+    venueId: "venue-moon",
+    venueName: "The Moon on the Hill",
+    priceGbp: 2.89,
+    observedOn: "2013-04-24",
+    source: { label: "beerintheevening.com", url: "https://example.com/moon", licence: "Quoted." },
+  };
+  const stated: PriceHistoryObservation = { ...unstated, item: budLight };
+
+  it("says the movement when both figures state the same pint at an ordinary price", () => {
+    const arc = venuePriceArc([stated], 2.43, asOf, { drink: " bud  LIGHT ", measure: "pint", terms: "standard" });
+    expect(arc?.deltaGbp).toBe(-0.46);
+    expect(arc?.years).toBe(13);
+  });
+
+  it("keeps both figures and says no movement when either side states no item", () => {
+    const arcs = [
+      venuePriceArc([unstated], 2.43, asOf, budLight),
+      venuePriceArc([stated], 2.43, asOf),
+      venuePriceArc([unstated], 2.43, asOf),
+    ];
+    for (const arc of arcs) {
+      expect(arc?.then.priceGbp).toBe(2.89);
+      expect(arc?.then.observedOn).toBe("2013-04-24");
+      expect(arc?.nowGbp).toBe(2.43);
+      expect(arc?.deltaGbp).toBeNull();
+    }
+  });
+
+  it("says no movement for another drink, another serving or a generic name", () => {
+    const todays: PriceComparisonItem[] = [
+      { drink: "Bud Light Lime", measure: "pint", terms: "standard" },
+      { drink: "Budweiser", measure: "pint", terms: "standard" },
+      { drink: "Bud Light", measure: "half", terms: "standard" },
+    ];
+    for (const today of todays) {
+      expect(venuePriceArc([stated], 2.43, asOf, today)?.deltaGbp).toBeNull();
+    }
+    const other: PriceComparisonItem = { drink: "Bud Light", measure: "other", terms: "standard" };
+    expect(sameComparisonItem(other, other)).toBe(false);
+    const lager: PriceComparisonItem = { drink: "Lager", measure: "pint", terms: "standard" };
+    expect(sameComparisonItem(lager, { ...lager, drink: "lager" })).toBe(false);
+  });
+
+  it("says no movement against a promotional price or an unstated serving", () => {
+    expect(sameComparisonItem(budLight, { drink: "Bud Light", measure: "pint", terms: "happy hour" })).toBe(false);
+    expect(sameComparisonItem(budLight, { drink: "Bud Light", terms: "standard" })).toBe(false);
+    expect(sameComparisonItem({}, {})).toBe(false);
+    expect(sameComparisonItem(null, undefined)).toBe(false);
+    expect(sameComparisonItem(budLight, { ...budLight })).toBe(true);
+  });
+
+  it("reads an item only where a row states all of it, never out of its words", () => {
+    const parsed = parsePriceHistory(
+      [
+        { ...unstated, drink: "a pint of Bud Light", quote: "£2.89 for a pint of Bud Light." },
+        { ...unstated, observedOn: "2014-01-01", item: { drink: "Bud Light", measure: "pint", terms: "promotion" } },
+        { ...unstated, observedOn: "2015-01-01", item: budLight },
+      ],
+      asOf,
+    );
+    // A row whose item states too little keeps its dated fact and loses only the item.
+    expect(parsed).toHaveLength(3);
+    expect(parsed.map((row) => row.item ?? null)).toEqual([null, null, budLight]);
   });
 });

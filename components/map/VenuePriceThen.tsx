@@ -7,9 +7,10 @@ import {
   formatObservedDay,
   formatObservedMonth,
   venuePriceArc,
+  type PriceComparisonItem,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
-import { priceMovementLine } from "@/lib/priceMovementLine";
+import { PRICE_NOT_COMPARED_LINE, priceMovementLine } from "@/lib/priceMovementLine";
 import { formatPrice } from "@/lib/venues";
 
 import "./venuePriceThen.css";
@@ -20,6 +21,11 @@ import "./venuePriceThen.css";
 // today. "£3.60 in July 2013. £6.50 now." is the whole thing; everything else
 // on this block exists to let a reader check that sentence, which is why the
 // source is named, dated and linked rather than summarised.
+//
+// A movement ("Down £0.46 in 13 years.") is a third claim and prints only when
+// both figures state the same pint at an ordinary price (lib/priceHistory.ts,
+// `sameComparisonItem`). Otherwise both figures stand and one line says why
+// there is no movement.
 //
 // The historical figure is a fact about the past and nothing else. It reaches
 // this component and stops: it never touches price bands, pin colour, the
@@ -54,13 +60,16 @@ function useVenueHistory(venueId: string): PriceHistoryObservation[] | null {
 export default function VenuePriceThen({
   venueId,
   currentPriceGbp,
+  currentItem = null,
 }: {
   venueId: string;
   /** Whatever the sheet is already showing as this pub's price today, or null. */
   currentPriceGbp: number | null | undefined;
+  /** What today's figure is a price FOR, where its source states all of it. */
+  currentItem?: PriceComparisonItem | null;
 }) {
   const history = useVenueHistory(venueId);
-  const arc = history ? venuePriceArc(history, currentPriceGbp) : null;
+  const arc = history ? venuePriceArc(history, currentPriceGbp, undefined, currentItem) : null;
   if (!arc) return null;
 
   const { then, nowGbp, deltaGbp, years } = arc;
@@ -96,7 +105,9 @@ export default function VenuePriceThen({
       </p>
       {nowGbp !== null ? (
         <p className="vptNote">
-          A pint someone paid for then, against the price this pub has on record now.
+          {deltaGbp !== null
+            ? "A pint someone paid for then, against the price this pub has on record now."
+            : PRICE_NOT_COMPARED_LINE}
         </p>
       ) : null}
     </section>
