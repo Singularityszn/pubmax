@@ -75,6 +75,7 @@ export async function GET(request: Request): Promise<Response> {
       rootDir,
       dataset,
       overlay[dataset.id],
+      now,
     );
     return evaluateDataset(dataset, observedAt, now, reason, rowExpiry);
   });

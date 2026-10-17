@@ -203,8 +203,9 @@ function resolveStamp(spec, read) {
 }
 
 // Mirror of lib/freshness.ts readRowExpiry: walk a `rowExpiry` path (`*` walks
-// an array or an object's values) and keep the latest parseable expiry.
-function readRowExpiry(path, json) {
+// an array or an object's values), keep the latest parseable expiry, and count
+// the rows already past theirs at `now`.
+function readRowExpiry(path, json, now = new Date()) {
   let nodes = [json];
   for (const segment of path.split(".")) {
     const next = [];
@@ -216,13 +217,15 @@ function readRowExpiry(path, json) {
     nodes = next;
   }
   let rows = 0;
+  let expired = 0;
   let latest = null;
   for (const value of nodes) {
     if (!isParseableDate(value)) continue;
     rows += 1;
+    if (Date.parse(value) <= now.getTime()) expired += 1;
     if (latest === null || Date.parse(value) > Date.parse(latest)) latest = value;
   }
-  return { rows, latestExpiresAt: latest };
+  return { rows, expired, latestExpiresAt: latest };
 }
 
 // Mirror of lib/freshness.ts evaluateDataset.
@@ -310,6 +313,13 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null, rowE
     }
   }
 
+  // Mirror of lib/freshness.ts: a partly lapsed row set is named in the
+  // detail and moves no status (captain ruling 2026-10-17).
+  const lapsed =
+    dataset.rowExpiry !== undefined && rowExpiry !== undefined && rowExpiry.expired > 0
+      ? ` ${rowExpiry.expired} of ${rowExpiry.rows} rows past their own expiry, so they may not be served.`
+      : "";
+
   if (base.stalenessBudgetHours === null) {
     // Mirror of lib/freshness.ts: a lane DECLARED a snapshot and given no
     // budget is one nothing may lawfully advance, so it reports the day it was
@@ -323,17 +333,18 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null, rowE
         status: "snapshot",
         detail:
           `Aged ${ageHours}h. A declared snapshot with no staleness budget: it reports ` +
-          "the day it was collected, and no refresh is owed.",
+          "the day it was collected, and no refresh is owed." +
+          lapsed,
       };
     }
-    return { ...base, ageHours, status: "untracked", detail: "Intentionally not budgeted (episodic / user-cadence)." };
+    return { ...base, ageHours, status: "untracked", detail: "Intentionally not budgeted (episodic / user-cadence)." + lapsed };
   }
   if (ageHours > base.stalenessBudgetHours) {
     return {
       ...base,
       ageHours,
       status: "stale",
-      detail: `Aged ${ageHours}h, over the ${base.stalenessBudgetHours}h budget.`,
+      detail: `Aged ${ageHours}h, over the ${base.stalenessBudgetHours}h budget.${lapsed}`,
     };
   }
   // Mirror of lib/freshness.ts: inside the budget, a point-in-time feed past
@@ -346,14 +357,14 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null, rowE
       status: "snapshot",
       detail:
         `Aged ${ageHours}h, within the ${base.stalenessBudgetHours}h budget but over ` +
-        `${SNAPSHOT_AFTER_DAYS} days old: a snapshot of its collection day, not a current reading.`,
+        `${SNAPSHOT_AFTER_DAYS} days old: a snapshot of its collection day, not a current reading.${lapsed}`,
     };
   }
   return {
     ...base,
     ageHours,
     status: "fresh",
-    detail: `Aged ${ageHours}h, within the ${base.stalenessBudgetHours}h budget.`,
+    detail: `Aged ${ageHours}h, within the ${base.stalenessBudgetHours}h budget.${lapsed}`,
   };
 }
 
@@ -427,7 +438,7 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
       );
       const rowExpiry =
         dataset.rowExpiry !== undefined && artifactRead.kind === "ok"
-          ? readRowExpiry(dataset.rowExpiry, artifactRead.json)
+          ? readRowExpiry(dataset.rowExpiry, artifactRead.json, now)
           : undefined;
       return evaluateDataset(dataset, observedAt, now, reason, rowExpiry);
     }),
@@ -521,6 +532,7 @@ async function main() {
       console.log("  UNRESOLVED (the age could not be determined):");
       for (const r of unknown) console.log(`    ? ${r.id}: ${r.detail}`);
     }
+    printPartlyLapsed(results);
     printUnmeasured(unmeasured);
     printRetired(retired);
     if (failed) {
@@ -542,12 +554,29 @@ async function main() {
     console.log(`\nFRESHNESS CHECK PASSED with ${qualifiers.join(" and ")}.`);
     return;
   }
+  printPartlyLapsed(results);
   printUnmeasured(unmeasured);
   printRetired(retired);
   console.log(
     `FRESHNESS CHECK PASSED: ${results.length} datasets within budget (or live/untracked/snapshot), ` +
       `${unmeasured.length} unmeasured, ${retired.length} retired.`,
   );
+}
+
+/**
+ * A row set that has PARTLY lapsed keeps its file's own status (captain ruling
+ * 2026-10-17), so the table alone would show it fresh. The detail names the
+ * count, and this prints it under its own heading. It fails nothing. A stale or
+ * unresolved row already prints its detail above, so it is not repeated here.
+ */
+function printPartlyLapsed(results) {
+  const lapsed = results.filter(
+    (r) => r.status !== "stale" && r.status !== "unknown" && /rows past their own expiry/.test(r.detail ?? ""),
+  );
+  if (!lapsed.length) return;
+  console.log("  ROWS PAST THEIR OWN EXPIRY (named only; the status stays the file's own):");
+  for (const r of lapsed) console.log(`    · ${r.id}: ${r.detail}`);
+  console.log("");
 }
 
 /**
