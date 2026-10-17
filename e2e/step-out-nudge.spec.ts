@@ -236,19 +236,39 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     });
   });
 
-  test("documents Home Screen install when not standalone", async ({ page }) => {
+  // Web push needs the Home Screen install on an iPhone or iPad and nowhere
+  // else (#2051, lib/a2hsPrompt.ts webPushNeedsHomeScreenInstall). A browser
+  // tab off iOS is not standalone either, and it must be offered the switch
+  // with no iPhone instruction.
+  test("offers Step Out with no Home Screen note in a browser tab off iOS", async ({ page }) => {
     await seedSignedInSession(page);
     await installStepOutRoutes(page);
     await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
     const panel = page.getByTestId("step-out-nudge-pref");
-    await expect(panel).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("step-out-ios-install-note")).toBeVisible();
-    await expect(
-      page.getByText(/web push needs the Home Screen install/i),
-    ).toBeVisible();
-    await page.screenshot({
-      path: path.join(SHOTS, "step-out-nudge-ios-note-390.png"),
-      fullPage: true,
+    await expect(panel.getByRole("button", { name: "Turn Step Out on" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("step-out-ios-install-note")).toHaveCount(0);
+  });
+
+  test.describe("on an iPhone Safari tab", () => {
+    test.use({
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Mobile/15E148 Safari/604.1",
+    });
+
+    test("documents Home Screen install when not standalone", async ({ page }) => {
+      await seedSignedInSession(page);
+      await installStepOutRoutes(page);
+      await page.goto("/u/you#account-settings", { waitUntil: "domcontentloaded" });
+      const panel = page.getByTestId("step-out-nudge-pref");
+      await expect(panel.getByRole("button", { name: "Turn Step Out on" })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("step-out-ios-install-note")).toBeVisible();
+      await expect(
+        page.getByText(/web push needs the Home Screen install/i),
+      ).toBeVisible();
+      await page.screenshot({
+        path: path.join(SHOTS, "step-out-nudge-ios-note-390.png"),
+        fullPage: true,
+      });
     });
   });
 });
