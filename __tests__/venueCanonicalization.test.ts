@@ -231,6 +231,56 @@ describe("canonicalizeDataset — safety guards", () => {
     });
     expect(canonicalizeDataset(result.rows).aliases).toEqual({});
   });
+  it("joins the Young's 'Guardhouse' seed to the OSM 'Guard House' it duplicates", () => {
+    // Both rows as committed in public/data/pint_prices_app_dataset.json.
+    const osm = makeRow({
+      pub_name: "The Guard House",
+      address: "No 1 Street, London, SE18 6GH",
+      latitude: 51.4918809, longitude: 0.0691701, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    const seed = makeRow({
+      pub_name: "The Guardhouse",
+      address: "No 1 Street, Plumstead, SE18 6GH, London",
+      latitude: 51.49188, longitude: 0.06917, price_gbp: null,
+      source_datasets: "london_chain_gazetteer_seed",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-9e93hd");
+    expect(stableVenueIdFromKey(venueGroupingKey(seed))).toBe("venue-kkpnq8");
+    const result = canonicalizeDataset([seed, osm]);
+    expect(result.aliases).toEqual({ "venue-kkpnq8": "venue-9e93hd" });
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-9e93hd"]);
+    // The alias is for that pair only: the same spelling gap elsewhere stays two pubs.
+    const elsewhere = canonicalizeDataset([
+      { ...seed, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+      { ...osm, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
+  it("joins a verified pair past the fuzzy radius, and only that pair", () => {
+    // Both rows as committed: 52.6 m apart, beyond the 45 m fuzzy radius.
+    const kept = makeRow({
+      pub_name: "The Trafalgar",
+      address: "Park Row, London SE10 9NW",
+      latitude: 51.4841, longitude: -0.0041379, price_gbp: 8.4,
+    });
+    const wikipedia = makeRow({
+      pub_name: "Trafalgar Tavern",
+      address: "Greenwich, Greater London",
+      latitude: 51.484565, longitude: -0.004274, price_gbp: null,
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(kept))).toBe("venue-1lj3hj4");
+    expect(stableVenueIdFromKey(venueGroupingKey(wikipedia))).toBe("venue-1clnw4x");
+    expect(canonicalizeDataset([wikipedia, kept]).aliases).toEqual({ "venue-1clnw4x": "venue-1lj3hj4" });
+    // The same two names at the same distance are not joined for anyone else.
+    const elsewhere = canonicalizeDataset([
+      { ...kept, address: "1 Other Road, London E1 1AA" },
+      { ...wikipedia, address: "1 Other Road, London E1 1AA" },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
   describe("a verified misplaced record", () => {
     const pub = makeRow({
       pub_name: "The Marquis of Cornwallis",

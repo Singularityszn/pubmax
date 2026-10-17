@@ -57,6 +57,7 @@ type Fake = AccountDeletionDeps & {
   wallKeys: string[];
   messageKeys: string[];
   messageKeysAskedWith: Array<[string, string]>;
+  socialKeys: string[];
 };
 
 /** A bucket that lists by folder the way the Storage API does, and an auth that answers as GoTrue does. */
@@ -74,6 +75,7 @@ function fakeDeps(): Fake {
     wallKeys: [],
     messageKeys: [],
     messageKeysAskedWith: [],
+    socialKeys: [],
     async profileForUser() {
       return fake.profile;
     },
@@ -91,6 +93,10 @@ function fakeDeps(): Fake {
       fake.messageKeysAskedWith.push([profileId, handle]);
       if (fake.rowsThrow) throw new Error("messages unreadable");
       return fake.messageKeys;
+    },
+    async socialMediaKeys() {
+      if (fake.rowsThrow) throw new Error("social media unreadable");
+      return fake.socialKeys;
     },
     async removeObjects(keys) {
       if (fake.removeThrows) throw new Error("storage refused");
@@ -151,6 +157,21 @@ describe("ownedObjectKeys", () => {
     await ownedObjectKeys(USER, fake);
 
     expect(fake.messageKeysAskedWith).toEqual([[PROFILE, "night_owl"]]);
+  });
+
+  it("collects the account's Social reels and photos 2 to 4 before the rows naming them go", async () => {
+    // Codex review on #2186: the profile cascade deletes the video and extra
+    // photo rows, and nothing else names those objects, so they are read here
+    // or left in the bucket for good.
+    const fake = fakeDeps();
+    const video = "social-video/00000000-0000-4000-8000-0000000000a1/video.mp4";
+    const extra = "social-extra/00000000-0000-4000-8000-0000000000a2/image.jpg";
+    fake.socialKeys = [video, extra];
+
+    const keys = await ownedObjectKeys(USER, fake);
+
+    expect(keys).toContain(video);
+    expect(keys).toContain(extra);
   });
 
   it("walks only the Moment folder for an account that never claimed a handle", async () => {

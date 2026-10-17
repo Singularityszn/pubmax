@@ -1,0 +1,208 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only tattoo-bar.co.uk",
+  "sourceUrl": "https://tattoo-bar.co.uk/menu",
+  "sourceObservedAt": "2026-10-17T14:11:25.414Z",
+  "candidateHost": "Curated London website (addCuratedLondonWebsiteHosts): Tattoo Bar states its own website in public/data/pint_prices_app_dataset.json; the UK OSM pub snapshot carries no tattoo-bar.co.uk website.",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published. Rows whose label names no drink, or names a mixer flavour from a mixer list, are listed under notSelected and were not published.",
+  "pageTextQuoted": "The page's own lines, re-read on 2026-10-17 through sourcePolicy and a live robots ask, normalised by lib/harvest/ukPriceCrawl.ts pageText (HTML) or lib/harvest/pdfText.ts readPdfText (PDF).",
+  "pageText": [
+    "Virgin Coctails",
+    "ELDERFLOWER SHERBERT £6.50 25ml Teisseire Elderflower, 100ml Cloudy Apple juice, 50ml R Whites Lemonade HOUSE SODA RASPBERRY £6.00 25ml Teisseire Raspberry, 150ml Soda water HOUSE SODA ELDERFLOWER £6.50 25ml Teisseire Elderflower, 150ml Soda water HOUSE SODA PINEAPPLE £6.00 25ml Teisseire Pineapple, 150ml Soda Water VIRGIN PORNSTAR MARTINI £8.00 12.5ml Monin Vanilla Syrup, 125ml Funkin Passionfruit Martini Mix, 25ml R Whites Lemonade VIRGIN BLOODY MARY RE-SPEC £9.00 12.5ml Lemon Juice, 150ml Tomato Juice, Salt & Pepper, Dash Tabasco, Dash Worcestershire Sauce",
+    "CRANBERRY £2.50 ORANGE £2.50 APPLE £2.50 PINEAPPLE £2.50 TOMATO £2.50",
+    "Soft Drinks",
+    "STILL/ SPARKLING WATER £3.00 COCA COLA/ DIET COKE £3.50",
+    "Tonic",
+    "330 ml PEACH £2.30 PINK GRAPEFRUIT £2.30 PREMIUM £2.30 LIGHT £2.30 MEDETERIAN £2.30 ELDERFLOWER £2.30 RASPBERRY £2.30 BLOOD ORANGE £2.30 GINGER BEER £2.30"
+  ],
+  "rows": [
+    {
+      "host": "tattoo-bar.co.uk",
+      "venueId": "venue-8rf7pi",
+      "osmId": null,
+      "name": "Tattoo Bar",
+      "postcode": null,
+      "lat": 51.5019503,
+      "lng": 0.0289504,
+      "category": "soft-drink",
+      "priceGbp": 3.5,
+      "drinkLabel": "COCA COLA/ DIET COKE",
+      "sourceUrl": "https://tattoo-bar.co.uk/menu",
+      "observedAt": "2026-10-17T14:11:25.414Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 168
+    },
+    {
+      "host": "tattoo-bar.co.uk",
+      "venueId": "venue-8rf7pi",
+      "osmId": null,
+      "name": "Tattoo Bar",
+      "postcode": null,
+      "lat": 51.5019503,
+      "lng": 0.0289504,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Soft Drinks STILL/ SPARKLING WATER",
+      "sourceUrl": "https://tattoo-bar.co.uk/menu",
+      "observedAt": "2026-10-17T14:11:25.414Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 168
+    }
+  ],
+  "withheld": [
+    {
+      "reason": "label-names-alcohol-or-mix",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 6.5,
+        "drinkLabel": "12.5ml Funkin sugar syrup, 25ml lime juice Virgin Coctails ELDERFLOWER SHERBERT",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    },
+    {
+      "reason": "label-names-alcohol-or-mix",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 6,
+        "drinkLabel": "erflower, 100ml Cloudy Apple juice, 50ml R Whites Lemonade HOUSE SODA RASPBERRY",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    }
+  ],
+  "notSelected": [
+    {
+      "reason": "mixer-list-flavour-not-a-standalone-drink",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 2.3,
+        "drinkLabel": "BLOOD ORANGE",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    },
+    {
+      "reason": "mixer-list-flavour-not-a-standalone-drink",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 2.3,
+        "drinkLabel": "ELDERFLOWER",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    },
+    {
+      "reason": "mixer-list-flavour-not-a-standalone-drink",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 2.3,
+        "drinkLabel": "GINGER BEER",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    },
+    {
+      "reason": "mixer-list-flavour-not-a-standalone-drink",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 2.3,
+        "drinkLabel": "MEDETERIAN",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    },
+    {
+      "reason": "mixer-list-flavour-not-a-standalone-drink",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 2.3,
+        "drinkLabel": "RASPBERRY",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    },
+    {
+      "reason": "label-names-no-drink",
+      "row": {
+        "host": "tattoo-bar.co.uk",
+        "venueId": "venue-8rf7pi",
+        "osmId": null,
+        "name": "Tattoo Bar",
+        "postcode": null,
+        "lat": 51.5019503,
+        "lng": 0.0289504,
+        "category": "soft-drink",
+        "priceGbp": 2.5,
+        "drinkLabel": "TOMATO",
+        "sourceUrl": "https://tattoo-bar.co.uk/menu",
+        "observedAt": "2026-10-17T14:11:25.414Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 168
+      }
+    }
+  ]
+}

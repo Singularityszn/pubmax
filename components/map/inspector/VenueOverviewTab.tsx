@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
@@ -826,6 +827,15 @@ function accessibilityRow(accessChips: readonly string[], quietHours: string | n
   );
 }
 
+function PubPageLink({ venue }: { venue: Venue }) {
+  if (!isPubVenueKind(venue.kind)) return null;
+  return (
+    <Link prefetch={false} className="venuePubPageLink" href={`/pubs/${encodeURIComponent(venue.id)}` as Route}>
+      See the full page
+    </Link>
+  );
+}
+
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -1189,6 +1199,9 @@ export default function VenueOverviewTab({
         />
       ) : null}
       <p className="venueAddress">{venue.address}</p>
+      {/* The pub's own page: prices, hours, what's there and what your lot
+          said, laid out on one screen (app/pubs/[id]). */}
+      <PubPageLink venue={venue} />
       <VenueRecordSummary copy={venue.recordCopy} />
       <VenueActionStrip venue={venue} />
       <VenueOccupancyRow
