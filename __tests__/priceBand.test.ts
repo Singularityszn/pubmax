@@ -121,7 +121,9 @@ describe("the band a figure wears", () => {
     expect(priceBandLegendLabel("cheap", LONDON)).toBe("£5.20 or less");
     expect(priceBandLegendLabel("average", LONDON)).toBe("Over £5.20, up to £6.15");
     expect(priceBandLegendLabel("expensive", LONDON)).toBe("Over £6.15");
-    expect(priceBandNote("expensive", LONDON)).toContain("dearest third of 950 priced pubs");
+    expect(priceBandNote("expensive", LONDON)).toContain(
+      `dearest third of ${thresholdsTable.cities.london.sampleSize} priced pubs`,
+    );
   });
 });
 
