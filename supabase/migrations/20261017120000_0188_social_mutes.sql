@@ -1,6 +1,6 @@
--- Social mutes (0181). Apply AFTER 0180. Captain applies; agents ship SQL only.
+-- Social mutes (0188). Apply AFTER 0180. Captain applies; agents ship SQL only.
 --
--- Reverse: supabase/migrations/rollback/20261017120000_0181_social_mutes_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261017120000_0188_social_mutes_rollback.sql
 --
 -- WHAT A MUTE IS. One account choosing to stop seeing another's posts in its
 -- own Social lanes. It is ONE-WAY and PRIVATE, which is what makes it different
