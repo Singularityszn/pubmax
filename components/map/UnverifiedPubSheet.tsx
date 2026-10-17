@@ -9,6 +9,7 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
@@ -324,7 +325,7 @@ export default function UnverifiedPubSheet({
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors
         </a>
-        , ODbL. Prices never come from OpenStreetMap.
+        , ODbL. Prices never come from OpenStreetMap. <DataCreditsLink />
       </p>
     </div>
   );

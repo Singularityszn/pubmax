@@ -100,6 +100,8 @@ describe("historic pub detail hydration", () => {
 
     expect(mismatches).toEqual([]);
     expect(host!.querySelector('button[aria-label="Share to another app"]')).not.toBeNull();
+    // The provenance footer links every source and its licence.
+    expect(host!.querySelector('footer a[href="/credits"]')?.textContent).toBe("Data credits");
   });
 
   it("hydrates the public recap share without mismatch warnings", async () => {

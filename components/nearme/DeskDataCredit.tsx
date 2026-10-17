@@ -1,3 +1,5 @@
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
+
 /**
  * The ODbL credit a desk answer owes.
  *
@@ -14,7 +16,7 @@ export default function DeskDataCredit() {
       <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
         OpenStreetMap contributors
       </a>
-      , ODbL.
+      , ODbL. <DataCreditsLink />
     </p>
   );
 }
