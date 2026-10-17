@@ -34,8 +34,13 @@ export const maxDuration = 15;
 
 const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 3;
-const CACHE_MAX_AGE_S = 120;
-const CACHE_STALE_WHILE_REVALIDATE_S = 600;
+// F10: the cached GET lanes carry venue-to-venue legs, and their one caller
+// (useCrawlJourneys) reads only duration and modes, which do not move minute
+// to minute. Five minutes at the edge, plus five of stale, caps the oldest
+// answer at ten minutes, as citymcp/status and things-to-do do. Clock times a
+// reader acts on go by the POST lane, which is never cached.
+const CACHE_MAX_AGE_S = 300;
+const CACHE_STALE_WHILE_REVALIDATE_S = 300;
 
 /** A Crawl Route maps at most WALK_ROUTE_MAX_STOPS (12) stops, so 11 legs. */
 const MAX_STOPS = 12;

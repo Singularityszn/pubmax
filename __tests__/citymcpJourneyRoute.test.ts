@@ -117,7 +117,10 @@ describe("GET /api/citymcp/journey", () => {
 
     const res = await GET(new Request(journeyUrl("limit=2")));
     expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toMatch(/^public,/);
+    // F10: a venue-to-venue leg is held five minutes, never older than ten.
+    expect(res.headers.get("cache-control")).toBe(
+      "public, s-maxage=300, stale-while-revalidate=300",
+    );
     const body = await res.json();
     expect(body.from).toBe("51.51200,-0.10400");
     expect(body.to).toBe("51.51000,-0.12100");
