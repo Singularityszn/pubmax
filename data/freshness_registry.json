@@ -356,8 +356,22 @@
       },
       "cadence": "episodic — re-derived from the committed UK Overpass snapshot whenever data/osm/uk/raw is refreshed",
       "stalenessBudgetHours": 4320,
-      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) registers its own row in the commit that first writes it.",
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-wikidata-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived. The Wikidata statements pack (public/data/wikidata_history/london.json, npm run build:wikidata-history) is its own row, wikidata_history.",
       "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: Wikidata's statements are their own CC0 pack."
+    },
+    {
+      "id": "wikidata_history",
+      "label": "Wikidata history statements for London pubs OSM links to an item (inception, heritage designation, style, architect)",
+      "class": "episodic",
+      "artifact": "public/data/wikidata_history/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
+      "cadence": "episodic — re-read from the Wikidata Query Service whenever osm_wikidata_links is re-derived, or when a pub's Wikidata statements are known to have changed",
+      "stalenessBudgetHours": 8760,
+      "refreshWorkflow": "manual (npm run build:wikidata-history). The stamp is the day the query service was read, which the sheet prints beside every statement.",
+      "gate": "none (keyless SPARQL; Wikidata structured data is CC0 1.0). Read with a descriptive User-Agent, batches of 100 one second apart, and a 429 waited out per Retry-After."
     },
     {
       "id": "osm_pub_facts",

@@ -16,10 +16,9 @@
   ("Inception recorded as 1520."), the Wikidata chip, the day the pack was read
   and a link to the exact statement (`https://www.wikidata.org/wiki/<QID>#<P>`).
   A pub with no row shows nothing.
-- **Not yet built.** The first run needs network access to
-  `query.wikidata.org`. Commit its output together with a `wikidata_history`
-  row in `data/freshness_registry.json` (class `episodic`, stamp field
-  `retrievedAt`), because the freshness gate fails on a registered artifact that
-  is not on disk.
+- **Freshness:** registered as `wikidata_history` in
+  `data/freshness_registry.json` (class `episodic`, stamp field
+  `retrievedAt`). First built 17 Oct 2026: 439 of the 798 linked items carry
+  at least one kept statement.
 
 Pin: `__tests__/wikidataHistory.test.tsx`.

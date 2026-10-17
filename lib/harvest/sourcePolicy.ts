@@ -127,6 +127,9 @@ const DIRECTORY_CHECKED_ON = "2026-09-14";
 // network policy refused both hosts), so each row says what was and was not
 // read, and the first networked builder run re-reads the terms.
 const OPEN_DATA_CHECKED_ON = "2026-10-16";
+// The Wikimedia terms the query service is read under, read live on the first
+// networked run of npm run build:wikidata-history.
+const WIKIDATA_TERMS_CHECKED_ON = "2026-10-17";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -446,8 +449,8 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     access: {
       allowed: true,
       evidence:
-        "Owner decision, 16 Oct 2026. Wikidata's structured data is published under CC0 1.0. Wikimedia operators ask query-service clients to send a descriptive User-Agent and to back off on HTTP 429 (Wikimedia Phabricator tickets read through a search index). NOT read live: the query service's user manual and the Wikimedia User-Agent policy, because the registering environment's network refused both hosts. Re-read them on the first networked run of npm run build:wikidata-history.",
-      checkedOn: OPEN_DATA_CHECKED_ON,
+        "Owner decision, 16 Oct 2026; terms read live 17 Oct 2026. Wikidata:Licensing (www.wikidata.org) releases all structured data (the main, Property, Lexeme and EntitySchema namespaces) under CC0. The Wikidata Query Service user manual (www.mediawiki.org/wiki/Wikidata_Query_Service/User_Manual) allows one client (User-Agent plus IP) 60 seconds of processing time each 60 seconds and 30 error queries a minute, throttles past that with HTTP 429 and a Retry-After header, may ban a client that ignores 429s, and allows 5 parallel queries per IP. The Wikimedia Foundation User-Agent policy (foundation.wikimedia.org) asks scripts for an informative User-Agent with contact information, such as a URL. The builder sends one query at a time, one second apart, with a User-Agent naming the project and its /credits URL, and waits out a 429 per Retry-After.",
+      checkedOn: WIKIDATA_TERMS_CHECKED_ON,
     },
     notes:
       "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent, and a 429 or 5xx retried with a doubling wait because the service does not reliably send Retry-After.",
