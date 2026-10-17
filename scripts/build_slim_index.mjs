@@ -34,7 +34,7 @@ import {
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
-import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -688,9 +688,10 @@ function buildCurationHints(prices) {
 
 function buildFilterHints(rows, venueId, scrapedIds) {
   // Mirrors groupVenuePrices: a superseded row gives the pub its identity and
-  // its story, and nothing it served or charged (lib/priceRowEligibility.mjs).
+  // its story, and nothing it served or charged. An out-of-band row keeps the
+  // story; the pin price below reads isLivePriceRow (lib/priceRowEligibility.mjs).
   const first = rows[0];
-  const prices = rows.filter(isLivePriceRow);
+  const prices = rows.filter(isCurrentVenueRow);
   const searchParts = new Set(
     [
       first.pub_name,

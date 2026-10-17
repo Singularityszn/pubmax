@@ -197,7 +197,28 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
 // Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
 // Keep its old id resolvable without loosening name matching for other pubs.
 const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
-const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
+
+// A record whose address names only a street, so a street-level geocode put it
+// hundreds of metres off its pub, and whose name is misspelled past what the
+// name matcher forgives. Neither check can see it is the same pub, so each
+// entry is a verified pair of ids. An id hashes the record's name, address and
+// point, so an edit to either record changes its id and stops the merge rather
+// than stretching it to a record nobody checked.
+export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
+  Object.freeze({
+    // "Maruquis of Cornwallis", Bethnal Green Road, about 640 m west of the pub.
+    from: "venue-j71x23",
+    // The Marquis of Cornwallis, 304 Bethnal Green Rd, E2 0AG. OpenStreetMap
+    // way/1059879142 is the only Marquis of Cornwallis on Bethnal Green Road,
+    // and no pub stands at the misplaced point.
+    to: "venue-1eyb3zz",
+  }),
+]);
+
+const VERIFIED_CANONICAL_IDS = new Set([
+  ...Object.values(VERIFIED_VENUE_ALIASES),
+  ...VERIFIED_MISPLACED_RECORDS.map((entry) => entry.to),
+]);
 
 // A verified alias can bypass name matching, but never distance or postcode
 // checks. Other pairs use the caller's matcher or namesLikelySamePub.
@@ -344,6 +365,25 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
   }
 }
 
+// Fold each verified misplaced record into its pub (VERIFIED_MISPLACED_RECORDS).
+// A pair whose records are absent is skipped: once merged, the loser's rows
+// carry the pub's identity, so a later run finds nothing to fold. Mutates
+// `units` in place.
+function unionVerifiedMisplacedRecords(units, groupList) {
+  const groupById = new Map(groupList.map((g) => [g.id, g]));
+  for (const entry of VERIFIED_MISPLACED_RECORDS) {
+    const from = groupById.get(entry.from);
+    const to = groupById.get(entry.to);
+    if (!from || !to) continue;
+    const fromUnit = units.find((u) => u.includes(from));
+    const toUnit = units.find((u) => u.includes(to));
+    if (!fromUnit || !toUnit || fromUnit === toUnit) continue;
+    if (clusterHasPostcodeConflict([...fromUnit, ...toUnit])) continue;
+    units.splice(units.indexOf(fromUnit), 1);
+    toUnit.push(...fromUnit);
+  }
+}
+
 /**
  * Canonicalize a raw price-row dataset.
  *
@@ -451,6 +491,10 @@ export function canonicalizeDataset(rows, options = {}) {
   // 2b. Fuzzy union: fold in coordinate-drift / matching-ish-name duplicates the
   //     exact pass can't see (see fuzzyUnionUnits).
   fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch);
+
+  // 2c. Verified misplaced records: a street-only geocode and a misspelt name
+  //     that no distance or name check can bridge.
+  unionVerifiedMisplacedRecords(units, groupList);
 
   const clusters = units.filter((u) => u.length > 1);
 

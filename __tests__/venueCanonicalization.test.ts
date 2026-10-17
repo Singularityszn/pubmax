@@ -77,7 +77,7 @@ const ROCHESTER_SEED = makeRow({
   app_price_id: "app_price_001091",
   pub_name: "The Rochester Castle",
   pint_name: "BUD LIGHT",
-  price_gbp: 1.99,
+  price_gbp: 2.09, // the source row says £1.99, which is out of the pint band; this test is about the merge
   address: "143-145 Stoke Newington High Street, , Stoke Newington, England",
   latitude: 51.561,
   longitude: -0.073976,
@@ -156,7 +156,7 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
     expect(rows.every((r) => r.latitude === 51.561 && r.longitude === -0.073976)).toBe(true);
     // ...but each keeps its own price + provenance (no averaging, no invention).
     const prices = rows.map((r) => r.price_gbp).sort((a, b) => (a ?? 0) - (b ?? 0));
-    expect(prices).toEqual([1.99, 2.43]);
+    expect(prices).toEqual([2.09, 2.43]);
     const spoonsRow = rows.find((r) => r.app_price_id === "app_price_001099")!;
     expect(spoonsRow.source_datasets).toContain("individual_pub_page");
     expect(spoonsRow.price_gbp).toBe(2.43);
@@ -170,7 +170,7 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
     const ids = venues.map((v) => v.id);
     expect(new Set(ids).size).toBe(ids.length); // no two entries share a canonical id
     expect(defined(venues[0]).name).toBe("The Rochester Castle");
-    expect(defined(venues[0]).cheapestPrice).toBe(1.99); // cheapest across the union
+    expect(defined(venues[0]).cheapestPrice).toBe(2.09); // cheapest across the union
     expect(defined(venues[0]).prices).toHaveLength(2); // both price rows preserved
   });
 });
@@ -230,6 +230,45 @@ describe("canonicalizeDataset — safety guards", () => {
     });
     expect(canonicalizeDataset(result.rows).aliases).toEqual({});
   });
+  describe("a verified misplaced record", () => {
+    const pub = makeRow({
+      pub_name: "The Marquis of Cornwallis",
+      address: "304 Bethnal Green Rd, Bethnal Green, London E2 0AG",
+      latitude: 51.5264, longitude: -0.0644607, price_gbp: 4.55,
+      source_datasets: "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const misplaced = makeRow({
+      pub_name: "Maruquis of Cornwallis",
+      address: "Bethnal Green Road",
+      latitude: 51.5242, longitude: -0.0732748, price_gbp: 4.1,
+      source_datasets: "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw",
+    });
+
+    it("folds the misspelt, misplaced Cornwallis into the pub at 304 Bethnal Green Road", () => {
+      expect(stableVenueIdFromKey(venueGroupingKey(pub))).toBe("venue-1eyb3zz");
+      expect(stableVenueIdFromKey(venueGroupingKey(misplaced))).toBe("venue-j71x23");
+      const result = canonicalizeDataset([misplaced, pub]);
+      expect(result.aliases).toEqual({ "venue-j71x23": "venue-1eyb3zz" });
+      expect(result.rows[0]).toEqual({
+        ...misplaced,
+        pub_name: pub.pub_name, address: pub.address,
+        latitude: pub.latitude, longitude: pub.longitude,
+      });
+      // The price the record carried stays its own.
+      expect(result.rows[0]?.price_gbp).toBe(4.1);
+      const venues = groupVenuePrices(result.rows);
+      expect(venues.map((venue) => venue.id)).toEqual(["venue-1eyb3zz"]);
+      expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+    });
+
+    it("stops merging once either record is edited, because its id moves", () => {
+      const withPostcode = { ...misplaced, address: "Bethnal Green Road, London E1 6LA" };
+      expect(canonicalizeDataset([withPostcode, pub]).aliases).toEqual({});
+      const movedPub = { ...pub, latitude: 51.5265 };
+      expect(canonicalizeDataset([misplaced, movedPub]).aliases).toEqual({});
+    });
+  });
+
   it("does NOT merge same-named pubs with conflicting postcodes (bad coords)", () => {
     // Two "Coach & Horses" mis-geocoded within 100 m but in different postcode
     // areas (Soho W1D vs Rickmansworth WD3) — genuinely distinct pubs.

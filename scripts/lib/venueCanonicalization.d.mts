@@ -32,6 +32,10 @@ export interface CanonicalizationResult<T> {
   stats: CanonicalizationStats;
 }
 
+export const VERIFIED_MISPLACED_RECORDS: ReadonlyArray<
+  Readonly<{ from: string; to: string }>
+>;
+
 export function normaliseVenueKeyPart(value: unknown): string;
 export function venueGroupingKey(row: CanonicalizationRow): string;
 export function stableVenueIdFromKey(key: string): string;
