@@ -41,6 +41,7 @@ vi.mock("@/app/social/SocialOutbox", () => ({ default: () => null }));
 vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 
 import SocialPageClient from "@/app/social/SocialPageClient";
+import { SOCIAL_SIGNED_OUT_VALUE_LINE } from "@/lib/socialLaunch";
 
 const posts = { valid: true as const, tab: "posts" as const, feed: "following" as const, area: null };
 let host: HTMLDivElement;
@@ -134,7 +135,10 @@ describe("Social Posts account resolution", () => {
     const pendingChildren = Array.from(rail.children);
     const sizingContent = content.textContent;
     expect(sizingContent).toContain("No posts to read yet.");
-    expect(sizingContent).toContain("Sign in from the button above");
+    // One door, in the head: the rail says what Social holds instead of
+    // repeating the ask, as safe metadata only (lib/socialLaunch.ts).
+    expect(sizingContent).toContain(SOCIAL_SIGNED_OUT_VALUE_LINE);
+    expect(sizingContent).not.toMatch(/sign in/i);
     expect(content.getAttribute("aria-hidden")).toBe("true");
     expect(getComputedStyle(content).visibility).toBe("hidden");
     expect(getComputedStyle(content).display).not.toBe("none");

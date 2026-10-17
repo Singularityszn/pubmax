@@ -181,6 +181,16 @@ describe("findings 2.1 / 2.9 — map canvas coral economy", () => {
     expect(fallback).toBe("riverBright");
   });
 
+  // A planned route's stop names are labels, like every other name on the
+  // map. They were drawn in --brass and --brass-bright, a coral word on the
+  // canvas beside the coral selection ring.
+  it("a route's stop names read in ink, never coral", () => {
+    const layer = /id: "route-stops-name"[\s\S]*?paint: \{[\s\S]*?\},/.exec(buildSceneSrc)?.[0] ?? "";
+    expect(layer.length).toBeGreaterThan(0);
+    expect(layer).toMatch(/"text-color": tokens\.ink,/);
+    expect(layer).not.toMatch(/tokens\.brass/);
+  });
+
   it("the selected-pin rings stay coral — selection owns the accent", () => {
     const glow = /id: "pubs-selected-glow"[\s\S]*?\},/.exec(buildSceneSrc)?.[0] ?? "";
     expect(glow).toContain("tokens.brass");

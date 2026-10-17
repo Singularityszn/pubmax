@@ -249,9 +249,66 @@ const VERIFIED_FAR_MERGE_METERS = 100;
 // and its OSM twin The Miller's Well (venue-1i5w333). The twin still carries
 // the Wetherspoon website for a pub the chain left in 2023, so a merge would
 // label it a Wetherspoon again. Merge once an OSM refresh drops that tag.
+
+// A record whose address names only a street, so a street-level geocode put it
+// hundreds of metres off its pub, and whose name is misspelled past what the
+// name matcher forgives. Neither check can see it is the same pub, so each
+// entry is a verified pair of ids. An id hashes the record's name, address and
+// point, so an edit to either record changes its id and stops the merge rather
+// than stretching it to a record nobody checked.
+export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
+  Object.freeze({
+    // "Maruquis of Cornwallis", Bethnal Green Road, about 640 m west of the pub.
+    from: "venue-j71x23",
+    // The Marquis of Cornwallis, 304 Bethnal Green Rd, E2 0AG. OpenStreetMap
+    // way/1059879142 is the only Marquis of Cornwallis on Bethnal Green Road,
+    // and no pub stands at the misplaced point.
+    to: "venue-1eyb3zz",
+  }),
+]);
+
+// A pub's own website that the source also printed on a namesake across town.
+// Each entry is the one site and the postcode of the pub it belongs to; a row
+// at any other postcode loses the link, so every export (`npm run export:data`
+// runs this pass straight after it) clears it again rather than letting the
+// CSV hand it back. A row with a different site, or none, is left alone.
+export const VERIFIED_BORROWED_WEBSITES = Object.freeze([
+  // The Marquis Cornwallis, 31 Marchmont St. The Bethnal Green Road pub (E2)
+  // carried it.
+  Object.freeze({ site: "themarquiscornwalliswc1.co.uk", ownerPostcode: "WC1N 1AP" }),
+  // Greene King's Goat Tavern, 3a Kensington High Street. The Mayfair Goat
+  // Tavern (W1S) carried it.
+  Object.freeze({ site: "greeneking.co.uk/pubs/greater-london/goat-tavern", ownerPostcode: "W8 5NP" }),
+]);
+
+function normalisedSite(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/[#?].*$/, "")
+    .replace(/\/+$/, "");
+}
+
+function compactPostcode(value) {
+  return String(value ?? "").toUpperCase().replace(/\s+/g, "");
+}
+
+// The row with a borrowed website cleared, or the same row when it keeps its own.
+function withoutBorrowedWebsite(row) {
+  const site = normalisedSite(row.website);
+  if (!site) return row;
+  const entry = VERIFIED_BORROWED_WEBSITES.find((candidate) => candidate.site === site);
+  if (!entry) return row;
+  if (compactPostcode(row.address).includes(compactPostcode(entry.ownerPostcode))) return row;
+  return { ...row, website: "" };
+}
+
 const VERIFIED_CANONICAL_IDS = new Set([
   ...Object.values(VERIFIED_VENUE_ALIASES),
   ...Object.values(VERIFIED_FAR_VENUE_ALIASES),
+  ...VERIFIED_MISPLACED_RECORDS.map((entry) => entry.to),
 ]);
 
 // A verified alias can bypass name matching, but never distance or postcode
@@ -413,6 +470,25 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
   }
 }
 
+// Fold each verified misplaced record into its pub (VERIFIED_MISPLACED_RECORDS).
+// A pair whose records are absent is skipped: once merged, the loser's rows
+// carry the pub's identity, so a later run finds nothing to fold. Mutates
+// `units` in place.
+function unionVerifiedMisplacedRecords(units, groupList) {
+  const groupById = new Map(groupList.map((g) => [g.id, g]));
+  for (const entry of VERIFIED_MISPLACED_RECORDS) {
+    const from = groupById.get(entry.from);
+    const to = groupById.get(entry.to);
+    if (!from || !to) continue;
+    const fromUnit = units.find((u) => u.includes(from));
+    const toUnit = units.find((u) => u.includes(to));
+    if (!fromUnit || !toUnit || fromUnit === toUnit) continue;
+    if (clusterHasPostcodeConflict([...fromUnit, ...toUnit])) continue;
+    units.splice(units.indexOf(fromUnit), 1);
+    toUnit.push(...fromUnit);
+  }
+}
+
 /**
  * Canonicalize a raw price-row dataset.
  *
@@ -524,6 +600,10 @@ export function canonicalizeDataset(rows, options = {}) {
   // 2c. The verified pairs too far apart for the fuzzy grid to ever compare.
   unionVerifiedFarPairs(units, groupList);
 
+  // 2c. Verified misplaced records: a street-only geocode and a misspelt name
+  //     that no distance or name check can bridge.
+  unionVerifiedMisplacedRecords(units, groupList);
+
   const clusters = units.filter((u) => u.length > 1);
 
   // 3. Pick the canonical identity per cluster and plan the row rewrites.
@@ -555,10 +635,15 @@ export function canonicalizeDataset(rows, options = {}) {
   // 4. Rewrite only the four identity fields of losing rows; every other field
   //    (price, pint_name, source_datasets, …) is preserved so per-row
   //    provenance stays honest.
+  //    A verified borrowed website is cleared from any row at another pub's
+  //    postcode (VERIFIED_BORROWED_WEBSITES).
+  let borrowedWebsitesCleared = 0;
   const newRows = rows.map((row, idx) => {
     const rw = rewriteByRowIdx.get(idx);
-    if (!rw) return row;
-    return { ...row, ...rw };
+    const rewritten = rw ? { ...row, ...rw } : row;
+    const cleaned = withoutBorrowedWebsite(rewritten);
+    if (cleaned !== rewritten) borrowedWebsitesCleared += 1;
+    return cleaned;
   });
 
   return {
@@ -571,6 +656,7 @@ export function canonicalizeDataset(rows, options = {}) {
       duplicateClusters: clusters.length,
       mergedRecords: Object.keys(aliases).length,
       venueIdentitiesAfter: groupList.length - Object.keys(aliases).length,
+      borrowedWebsitesCleared,
     },
   };
 }

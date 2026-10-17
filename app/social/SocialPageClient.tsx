@@ -37,6 +37,7 @@ import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
 import {
   adultSelfAssertionLine,
+  SOCIAL_SIGNED_OUT_VALUE_LINE,
   socialBoundaryCopy,
   socialInviteMessage,
   socialLoadingLabel,
@@ -825,7 +826,7 @@ function SocialPageAccountState({
                 {/* Hidden content reserves its responsive size until the account answers. */}
                 <div aria-hidden={viewerSession.unresolved || undefined} className="socialRailContent">
                   <EmptyState title="No posts to read yet.">
-                    Sign in from the button above and nights from your lot land here.
+                    {SOCIAL_SIGNED_OUT_VALUE_LINE}
                   </EmptyState>
                 </div>
                 {viewerSession.unresolved ? (
