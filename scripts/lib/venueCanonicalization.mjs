@@ -196,7 +196,13 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
 
 // Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
 // Keep its old id resolvable without loosening name matching for other pubs.
-const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
+// The Guard House, No 1 Street, SE18 6GH: the Young's seed spells it
+// "The Guardhouse" 0.1 m from OSM node/4515363508's "The Guard House", and its
+// own site prints both. Token matching cannot join one word to two.
+const VERIFIED_VENUE_ALIASES = {
+  "venue-1sw9ofl": "venue-eltcmh",
+  "venue-kkpnq8": "venue-9e93hd",
+};
 const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
 
 // A verified alias can bypass name matching, but never distance or postcode

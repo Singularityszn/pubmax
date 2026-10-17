@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-17T13:34:17.180Z",
+  "generatedAt": "2026-10-17T13:57:54.435Z",
   "rowsPath": "/data/uk_prices/rows.json",
   "counts": {
     "rows": 7701,
-    "venues": 3236,
+    "venues": 3235,
     "byStanding": {
       "estimate": 2950,
       "listed": 4751
