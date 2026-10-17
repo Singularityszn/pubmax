@@ -293,8 +293,11 @@
   text-underline-offset: 4px;
 }
 
+/* Coral as a word takes the ink token: --color-accent is under AA as text on
+   the light surfaces (docs/DESIGN_SYSTEM.md, "Coral as a fill and coral as a
+   word are two tokens"). */
 .placesWaitlistLink:hover {
-  color: var(--color-accent);
+  color: var(--color-accent-ink);
 }
 
 .placesWaitlistLink:focus-visible {
