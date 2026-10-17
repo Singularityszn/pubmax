@@ -49,11 +49,11 @@ function staticImports(file: string): string[] {
   return found;
 }
 
-/** Every module app/layout.tsx reaches eagerly, with the edge that reached it. */
-function rootShellGraph(): Map<string, string | null> {
-  const layout = join(REPO_ROOT, "app/layout.tsx");
-  const reachedFrom = new Map<string, string | null>([[layout, null]]);
-  const queue = [layout];
+/** Every module `entry` reaches eagerly, with the edge that reached it. */
+function staticGraph(entry: string): Map<string, string | null> {
+  const start = join(REPO_ROOT, entry);
+  const reachedFrom = new Map<string, string | null>([[start, null]]);
+  const queue = [start];
   while (queue.length > 0) {
     const file = queue.shift()!;
     if (!/\.(?:ts|tsx|mjs|js)$/.test(file)) continue;
@@ -97,7 +97,7 @@ const KEPT_OUT_OF_THE_SHELL = [
 ];
 
 describe("the root shell's eager import graph", () => {
-  const graph = rootShellGraph();
+  const graph = staticGraph("app/layout.tsx");
 
   it("walks a real graph rather than an empty one", () => {
     // The shell's own pieces must be found, or a broken walk would pass.
@@ -115,5 +115,23 @@ describe("the root shell's eager import graph", () => {
   it("still reads the consent gate and the slug vocabulary through their leaves", () => {
     expect(graph.has(join(REPO_ROOT, "lib/mapFirstVisitArrivalGate.ts"))).toBe(true);
     expect(graph.has(join(REPO_ROOT, "lib/nightAreaSlugs.ts"))).toBe(true);
+  });
+});
+
+// DeferredShellExtras mounts the plan outbox flusher on every route as soon as
+// it hydrates, so its lazy chunk is downloaded by every page too. It needs the
+// active-plan store and the Night Crawl outcome rules, never the planner: one
+// `isPlanId` read through lib/plan.ts took night planning and every area's
+// prose into that chunk.
+describe("the always-mounted plan outbox chunk", () => {
+  const graph = staticGraph("components/plan/PlanMutationOutboxHost.tsx");
+
+  it("still reaches the outbox it flushes", () => {
+    expect(graph.has(join(REPO_ROOT, "lib/planMutationOutbox.ts"))).toBe(true);
+  });
+
+  it.each(["lib/plan.ts", "lib/nightPlanning.ts", "lib/nightAreas.ts"])("does not reach %s", (file) => {
+    const target = join(REPO_ROOT, file);
+    expect(graph.has(target), chainTo(graph, target)).toBe(false);
   });
 });
