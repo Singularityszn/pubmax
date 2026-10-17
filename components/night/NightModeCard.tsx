@@ -1376,9 +1376,9 @@ function FoodEndingPicker({
               }}
               onClick={() => onChoose(terminal)}
               disabled={saving}
-              aria-label={`Choose food ending with ${terminal.name}`}
+              aria-label={`Confirm food ending with ${terminal.name}`}
             >
-              <span>{terminal.name}</span>
+              <span>Confirm food ending with {terminal.name}</span>
               <small>
                 {terminal.walkingDetour.minutes === null
                   ? "distance pending"
@@ -1457,7 +1457,7 @@ function GetHomeEndingConfirmation({
         disabled={saving}
         onClick={onConfirm}
       >
-        That&apos;s my way home
+        Confirm Get home ending
       </button>
       <a
         className="nightCard__endingLink"
@@ -1504,8 +1504,9 @@ export function KeepGoingPicker({
               className="nightCard__endingLink"
               disabled={saving}
               onClick={() => onChoose(extension)}
+              aria-label={`Confirm Keep going to ${extension.name}`}
             >
-              <span>{extension.name}</span>
+              <span>Confirm Keep going to {extension.name}</span>
               <small>
                 {keepGoingDistanceDescription(extension.distanceKm)} ·{" "}
                 {!usesPintPrices

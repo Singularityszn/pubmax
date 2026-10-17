@@ -1,5 +1,6 @@
 import { BEERS, normalizeBeer } from "@/lib/beers";
-import { firstHttp } from "@/lib/httpUrl";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+export { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
@@ -164,10 +165,12 @@ export function abvForBrand(brand: { abv?: number }): number | undefined {
 export function alcoholTypeForDrink(input: {
   name: string;
   abv?: number;
+  category?: DrinkCategory;
 }): AlcoholType {
   if (typeof input.abv === "number" && Number.isFinite(input.abv)) {
     return input.abv <= 0.5 ? "low-no" : "alcoholic";
   }
+  if (input.category === "alcohol-free") return "low-no";
   return isNonAlcoholicDrink(input.name) ? "low-no" : "unknown";
 }
 
@@ -222,21 +225,6 @@ export type LegacyPintPrice = {
 };
 
 /**
- * The instant this row's figure was last read at its source, or null when the
- * row records no read. A price is dated by its own row and never by the day
- * the dataset as a whole was last collected, because a re-collection only
- * re-reads the rows its source still states.
- */
-export function legacyPintPriceObservedAt(price: LegacyPintPrice): string | null {
-  let latest = Number.NEGATIVE_INFINITY;
-  for (const value of String(price.scraped_at_values ?? "").split("|")) {
-    const ms = Date.parse(value.trim());
-    if (Number.isFinite(ms) && ms > latest) latest = ms;
-  }
-  return Number.isFinite(latest) ? new Date(latest).toISOString() : null;
-}
-
-/**
  * The read a set of printed prices can all stand behind: the oldest of their
  * own reads. Null when there are none, or when any of them records no read, so
  * a caption over several prices never dates them by the dataset's collection
@@ -280,31 +268,6 @@ const LONDON_ISO_DAY = new Intl.DateTimeFormat("en-CA", {
 export function legacyPintPriceObservedOn(price: LegacyPintPrice): string | null {
   const observedAt = legacyPintPriceObservedAt(price);
   return observedAt ? LONDON_ISO_DAY.format(new Date(observedAt)) : null;
-}
-
-type NamedPriceSource = {
-  label: string;
-  url: string;
-};
-
-function publisherLabelForUrl(sourceUrl: string): string {
-  const hostname = new URL(sourceUrl).hostname.toLocaleLowerCase("en-GB");
-  if (hostname === "pint-prices.com" || hostname.endsWith(".pint-prices.com")) {
-    return "Pint Prices";
-  }
-  return hostname.replace(/^www\./, "");
-}
-
-/** Named publisher carried by the price record itself, or null when absent. */
-export function namedLegacyPintPriceSource(
-  price: LegacyPintPrice,
-): NamedPriceSource | null {
-  const url = firstHttp(price.pub_url);
-  if (!url) return null;
-  return {
-    label: publisherLabelForUrl(url),
-    url,
-  };
 }
 
 // A pint row → a beer Drink. Rows without a numeric price are skipped (a menu

@@ -65,6 +65,21 @@ export function socialBoundaryCopy(
   }
 }
 
+/**
+ * What a stranger is told Social holds, in the empty Posts slot under the tabs.
+ * The slot used to repeat the ask ("Sign in from the button above"), so a
+ * signed-out page asked four times and never said what was behind the door.
+ * The owner wanted the value before the ask (17 Oct 2026), and
+ * docs/social/SOCIAL_BETA_CONTRACT.md bounds how: a signed-out preview is safe
+ * metadata only, route-level beta copy and no post text, photos, handles or
+ * venue context. So this line describes the surface and shows none of it. It
+ * sits under the sign-in primary rather than in the Screen's lede, because at
+ * 320x568 and 32px type a lede pushes that primary off the first screen
+ * (e2e/consent-after-first-answer.spec.ts).
+ */
+export const SOCIAL_SIGNED_OUT_VALUE_LINE =
+  "Nights your lot post land here, in the order they went up, with crews for a regular round. It is an invite beta for people 18 and over.";
+
 export function socialInviteMessage(friendsLaunchEnabled = true): string {
   return `Use ${socialSurfaceName(friendsLaunchEnabled)}.`;
 }

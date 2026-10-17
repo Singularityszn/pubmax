@@ -1,0 +1,28 @@
+Two single GET requests to https://pubmaxxing.com/today, Saturday 17 October 2026
+(London is on BST, UTC+1). Deployment from /api/version: dpl_72wRDnp979oNf4kGotREGiKFHZkk.
+Headers and the server-rendered greeting are copied from the responses.
+
+Request 1, sent 2026-10-17T14:01:40Z (15:01 London)
+  age: 13539
+  date: Sat, 17 Oct 2026 10:16:00 GMT
+  x-vercel-cache: STALE
+  x-nextjs-stale-time: 300
+  render instant in the document (nowIso): 2026-10-17T10:15:59.781Z (11:15 London)
+  greeting: "Good morning. Saturday 17 Oct. 7°C feels like, clear, 0% chance of rain, ..."
+
+Request 2, sent 2026-10-17T14:09:05Z (15:09 London)
+  age: 442
+  date: Sat, 17 Oct 2026 14:01:43 GMT
+  x-vercel-cache: STALE
+  render instant in the document (nowIso): 2026-10-17T14:01:42.445Z
+  greeting: "Good afternoon. Saturday 17 Oct. ..."
+
+Reading: the page declares revalidate = 300, but the first request after a quiet
+period receives the copy rendered at the previous visit (3 h 45 min old here) and
+only triggers regeneration. The next reader gets the regenerated copy. A quiet
+period that spans midnight prints the previous day's date the same way.
+
+Local production build of main (1284c1f3) on a private port shows the header that
+allows this: Cache-Control: s-maxage=300, stale-while-revalidate=31535700
+(Next's default expireTime, one year). A request at 14:08:42Z, 5 min 29 s after the
+14:03:13Z render, answered x-nextjs-cache: STALE with nowIso 2026-10-17T14:03:13.422Z.

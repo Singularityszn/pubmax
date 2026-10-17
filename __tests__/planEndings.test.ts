@@ -9,7 +9,7 @@ describe("buildPlanEndingRecommendations", () => {
       daypart: "late_night",
       foodRequested: true,
       transportAnchor: "Piccadilly Circus",
-      lateFood: getLateFoodForArea("piccadilly-soho", [], { now: Date.parse("2026-07-16T23:00:00.000Z") }),
+      lateFood: getLateFoodForArea("piccadilly-soho", [], { now: Date.parse("2026-10-17T23:00:00.000Z") }),
       extensions: [
         { venueId: "venue-4", venueName: "Fourth Pub", distanceKm: 0.4, estimatedPintPricePence: 650 },
         { venueId: "venue-5", venueName: "Fifth Pub", distanceKm: 0.7, estimatedPintPricePence: null },
@@ -43,7 +43,7 @@ describe("buildPlanEndingRecommendations", () => {
 
   it("caps food endings at three", () => {
     const terminal = getLateFoodForArea("piccadilly-soho", [], {
-      now: Date.parse("2026-07-16T23:00:00.000Z"),
+      now: Date.parse("2026-10-17T23:00:00.000Z"),
     })[0]!;
     const recommendations = buildPlanEndingRecommendations({
       daypart: "late_night",

@@ -24,6 +24,7 @@ import {
   famousVenueLeadBudgetHours,
   slimPayloadGeneratedAt,
 } from "@/__tests__/helpers/currentFamousVenues";
+import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
@@ -177,6 +178,18 @@ function matchingIdsFromFull(filters: Filters): string[] {
     .sort();
 }
 
+describe("slim listed price evidence", () => {
+  it("keeps the exact cheapest row's publisher and source read on the shipped projection", () => {
+    const row = slim.find((venue) => venue.id === "venue-p7p18j") as SlimVenue & Record<string, unknown>;
+    const prices = defined(fullVenuesById.get("venue-p7p18j")?.prices);
+    expect(row).toMatchObject({
+      cheapestPrice: 2.95,
+      priceSource: "Pint Prices",
+      priceObservedAt: cheapestPriceReadDay(prices, row.cheapestPrice),
+    });
+  });
+});
+
 describe("venues_slim.json", () => {
   it("carries Hatton Garden as reader area while retaining Camden borough", () => {
     const hatton = slim.find((venue) => venue.name === "The Sir Christopher Hatton");
@@ -215,6 +228,7 @@ describe("venues_slim.json", () => {
             (key) =>
               ![
                 "zone",
+                "priceSource",
                 // The day the cheapest figure was last read (lib/priceReadDay.mjs).
                 "priceObservedAt",
                 "kind",

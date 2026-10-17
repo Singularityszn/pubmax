@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync,
 import path from "node:path";
 import { expect, it } from "vitest";
 import { defined } from "@/__tests__/helpers/defined";
+import { PLACES_REFRESH_DAYS, PLACES_REFRESH_START_DAYS } from "@/lib/placesEnrichment";
 
 const ROOT = path.resolve(__dirname, "..");
 function fixture(name: string) {
@@ -239,6 +240,22 @@ it("the USD 85 cap is cumulative across pushes in a calendar month and resets in
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(calls(dir)).toHaveLength(6);
   expect(pack(dir).spend).toMatchObject({ attemptedCalls: 4252, month: MONTH, monthAttemptedCalls: 2 });
+});
+
+it("a refresh may start once a copied row is past the start window, two weeks before its hours lapse", () => {
+  const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+  const early = fixture("runner-refresh-early");
+  expect(run(early, ["--write", "--exclusive"]).status).toBe(0);
+  age(checkpointFile(early), daysAgo(PLACES_REFRESH_START_DAYS - 1));
+  age(path.join(early, "data/places_enrichment.json"), daysAgo(PLACES_REFRESH_START_DAYS - 1));
+  expect(run(early, ["--write", "--exclusive", "--refresh"]).stderr).toContain("nothing to refresh");
+
+  const due = fixture("runner-refresh-due");
+  expect(run(due, ["--write", "--exclusive"]).status).toBe(0);
+  age(checkpointFile(due), daysAgo(PLACES_REFRESH_START_DAYS + 1));
+  age(path.join(due, "data/places_enrichment.json"), daysAgo(PLACES_REFRESH_START_DAYS + 1));
+  expect(PLACES_REFRESH_START_DAYS + 1).toBeLessThan(PLACES_REFRESH_DAYS);
+  expect(preview(due, ["--refresh"])).toMatchObject({ push: "refresh", pending: 3 });
 });
 
 it("a paid response with no usable field completes its row for the refresh push", () => {

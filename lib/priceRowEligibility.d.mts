@@ -15,6 +15,12 @@ export type PriceSuperseded = {
   recorded_on: string;
 };
 
+export const PINT_PRICE_BAND_GBP: Readonly<{ minGbp: 2; maxGbp: 12 }>;
+
+type EligibilityRow = { price_superseded?: unknown; price_gbp?: unknown } | null | undefined;
+
 export function isSupersededPriceRow(row: { price_superseded?: unknown } | null | undefined): boolean;
-export function isLivePriceRow(row: { price_superseded?: unknown } | null | undefined): boolean;
+export function isOutOfBandPriceRow(row: EligibilityRow): boolean;
+export function isCurrentVenueRow(row: { price_superseded?: unknown } | null | undefined): boolean;
+export function isLivePriceRow(row: EligibilityRow): boolean;
 export function priceSupersededErrors(row: { price_superseded?: unknown } | null | undefined): string[];

@@ -1,0 +1,2816 @@
+{
+ "version": 1,
+ "source": "Wikidata",
+ "sourceUrl": "https://www.wikidata.org/",
+ "license": "CC0 1.0",
+ "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+ "retrievedAt": "2026-10-17T13:26:25.717Z",
+ "counts": {
+  "wanted": 798,
+  "withHistory": 439
+ },
+ "items": {
+  "Q1771680": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q2414574": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q3924088": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q4752659": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q5122929": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q5137601": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q5189482": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q5545090": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q6127350": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7084824": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7244677": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q7374962": [
+   [
+    "P571",
+    "1863"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7653450": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7725384": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7735253": [
+   [
+    "P571",
+    "1910"
+   ]
+  ],
+  "Q7745280": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7754813": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7754896": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7758738": [
+   [
+    "P571",
+    "1750"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q7761864": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q7762114": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q7762629": [
+   [
+    "P571",
+    "1759"
+   ]
+  ],
+  "Q12058464": [
+   [
+    "P1435",
+    "Grade I listed building"
+   ]
+  ],
+  "Q12404791": [
+   [
+    "P571",
+    "1746"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q14955146": [
+   [
+    "P571",
+    "1995"
+   ]
+  ],
+  "Q15059596": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15225054": [
+   [
+    "P571",
+    "1928"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15278847": [
+   [
+    "P571",
+    "1585"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15673036": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15957066": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978878": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q15978885": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978902": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978918": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978924": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978971": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978976": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978977": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978982": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978989": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15978995": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979003": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979009": [
+   [
+    "P571",
+    "1865"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979032": [
+   [
+    "P571",
+    "1896"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "W. M. Brutton"
+   ]
+  ],
+  "Q15979214": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Nowell Parr"
+   ]
+  ],
+  "Q15979215": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979250": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979255": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q15979280": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979287": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979291": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979540": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979548": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Norman Evans"
+   ]
+  ],
+  "Q15979550": [
+   [
+    "P571",
+    "1905"
+   ],
+   [
+    "P1435",
+    "Grade II* listed building"
+   ],
+   [
+    "P149",
+    "Art Nouveau architecture"
+   ],
+   [
+    "P84",
+    "Herbert Fuller-Clark"
+   ]
+  ],
+  "Q15979552": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979554": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979555": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979559": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979561": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979572": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979609": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979613": [
+   [
+    "P571",
+    "1826"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15979621": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q15991477": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16022395": [
+   [
+    "P571",
+    "18th century"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16331613": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16707717": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ],
+   [
+    "P84",
+    "R. A. Lewcock"
+   ]
+  ],
+  "Q16707728": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16707729": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16707737": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ],
+   [
+    "P149",
+    "Jacobethan"
+   ]
+  ],
+  "Q16707742": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16707743": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16707746": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16707752": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16707771": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16707773": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16707776": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16707778": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16707782": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q16891401": [
+   [
+    "P571",
+    "1848"
+   ]
+  ],
+  "Q16901620": [
+   [
+    "P84",
+    "Nowell Parr"
+   ]
+  ],
+  "Q16949468": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16954461": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16985641": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16986257": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16986291": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16988250": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16988333": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16989158": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Nowell Parr"
+   ]
+  ],
+  "Q16992302": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Nowell Parr"
+   ]
+  ],
+  "Q16993490": [
+   [
+    "P571",
+    "19th century"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16994177": [
+   [
+    "P571",
+    "1790s"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16994281": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16995255": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "A. E. Sewell"
+   ]
+  ],
+  "Q16995675": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16997942": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q16997944": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17017445": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17018181": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q17018369": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17018729": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17020230": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17020568": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17020810": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17021189": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17022824": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17030403": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17030424": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17030743": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17031032": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17031191": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17041248": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17062311": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17066576": [
+   [
+    "P571",
+    "1938"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361837": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361842": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361846": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361847": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Latham Withall"
+   ]
+  ],
+  "Q17361849": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361851": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361854": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361856": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361860": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361862": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361863": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361864": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361868": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361872": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17361880": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17530855": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q17551721": [
+   [
+    "P1435",
+    "Grade II* listed building"
+   ]
+  ],
+  "Q17747095": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17985738": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q17986739": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18159900": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18160079": [
+   [
+    "P571",
+    "1700"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18160134": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18161227": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18161385": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18161687": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Treadwell & Martin"
+   ]
+  ],
+  "Q18162102": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18344137": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18353351": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18379002": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18390480": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18391723": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18393967": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18708780": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q18708781": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q19587199": [
+   [
+    "P571",
+    "1840"
+   ]
+  ],
+  "Q20746332": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q20876233": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q20876387": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q20878182": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008630": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008634": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008638": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008639": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008650": [
+   [
+    "P571",
+    "1935"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Sidney Clark"
+   ]
+  ],
+  "Q21008652": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008653": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008660": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008686": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008691": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008694": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008696": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008705": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008706": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q21008721": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q24022951": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26279742": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26279778": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26280074": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26280086": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26280880": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26280905": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26281040": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26281365": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26281383": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26281425": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26283192": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26314557": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317423": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317457": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317597": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317602": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317614": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317783": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26317813": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318092": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318148": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318188": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318258": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318259": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318301": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318314": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318357": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318414": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318469": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318520": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318598": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318611": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26318736": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26319747": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26319777": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26319820": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26349999": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26350046": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26350368": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26350524": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26350635": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26350649": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26351351": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26351419": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26352263": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26352471": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26352597": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26352894": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26353856": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26353898": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354066": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354522": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354620": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354638": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354674": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354690": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354696": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354776": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26354951": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26355850": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26355880": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26356218": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26374641": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26375427": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26375451": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26388410": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26393624": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26393675": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26394137": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26395027": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26397549": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26397553": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26397583": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26397640": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26407029": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26407044": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26407136": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26417214": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26417243": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26417434": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26417888": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26432008": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26432011": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26432022": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26432040": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26440356": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26440890": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26456262": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26457990": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26458346": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26462874": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26462887": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26468331": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26468355": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26468747": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26469284": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26477529": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26477591": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26478805": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26482023": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26482297": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26483219": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26484333": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26484378": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26484583": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26486633": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26486682": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26487354": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P149",
+    "Italianate architecture"
+   ],
+   [
+    "P84",
+    "Arthur Blomfield"
+   ]
+  ],
+  "Q26487647": [
+   [
+    "P571",
+    "1887"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26488970": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26489084": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26490080": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26490121": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26490218": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26500217": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26501447": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26502779": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26503628": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26503811": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26508214": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26508678": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26508867": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26511583": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26516308": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26528456": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26528639": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26530908": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26536409": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26545668": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26549786": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26550182": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26555290": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26558796": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26562675": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26569367": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26570177": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26573583": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26573779": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26573851": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26574523": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26583498": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26583638": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26584800": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26584836": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26584855": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26585569": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26585613": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26586439": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26599508": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26621539": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26621704": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26630388": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26630417": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26630445": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26631294": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26631617": [
+   [
+    "P571",
+    "18th century"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26631626": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26631632": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26631638": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26632376": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26633434": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26639765": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26640820": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26641139": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26641570": [
+   [
+    "P571",
+    "1700"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26641587": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26641604": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26641637": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26641664": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26647406": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26656852": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26657099": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26657127": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26657883": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26657906": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26658060": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26658427": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26665410": [
+   [
+    "P571",
+    "1881"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26665437": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26665488": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26665634": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26668928": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26670161": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26670342": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26670434": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26670454": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26673080": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26677342": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q26683530": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080326": [
+   [
+    "P571",
+    "1867"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080346": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080464": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080590": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080711": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080748": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080797": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27080908": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27081017": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27081264": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27081607": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27081696": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27081723": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27081741": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082196": [
+   [
+    "P571",
+    "18th century"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082283": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082408": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082427": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082781": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082912": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27082945": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083223": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083432": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083453": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083480": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083485": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083517": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083738": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083820": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083919": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27083993": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084059": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084213": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084299": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084319": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084354": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084488": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084492": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084503": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084519": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084619": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084775": [
+   [
+    "P571",
+    "1875"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084908": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27084956": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085020": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085030": [
+   [
+    "P571",
+    "19th century"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085228": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085338": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085366": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085557": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085567": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085570": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085740": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085812": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27085857": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27086020": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27086674": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27086680": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27086982": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27087042": [
+   [
+    "P571",
+    "1845"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27087166": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27087260": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27087335": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q27087707": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ],
+   [
+    "P84",
+    "Nowell Parr"
+   ]
+  ],
+  "Q28026659": [
+   [
+    "P149",
+    "Tudor Revival architecture"
+   ]
+  ],
+  "Q28433128": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q88965904": [
+   [
+    "P571",
+    "1999"
+   ]
+  ],
+  "Q92455427": [
+   [
+    "P571",
+    "1888"
+   ]
+  ],
+  "Q108464970": [
+   [
+    "P571",
+    "1947"
+   ]
+  ],
+  "Q112810610": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q113554208": [
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q116168104": [
+   [
+    "P571",
+    "1858"
+   ]
+  ],
+  "Q118383202": [
+   [
+    "P571",
+    "1851"
+   ]
+  ],
+  "Q121322874": [
+   [
+    "P1435",
+    "locally listed building"
+   ]
+  ],
+  "Q121322899": [
+   [
+    "P1435",
+    "locally listed building"
+   ]
+  ],
+  "Q123759829": [
+   [
+    "P571",
+    "1858"
+   ]
+  ],
+  "Q126190930": [
+   [
+    "P571",
+    "1800"
+   ],
+   [
+    "P1435",
+    "Grade II listed building"
+   ]
+  ],
+  "Q130866576": [
+   [
+    "P571",
+    "1938"
+   ]
+  ],
+  "Q133288301": [
+   [
+    "P571",
+    "1889"
+   ]
+  ],
+  "Q134360893": [
+   [
+    "P571",
+    "2002"
+   ]
+  ]
+ }
+}

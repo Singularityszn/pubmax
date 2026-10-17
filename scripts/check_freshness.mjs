@@ -46,13 +46,9 @@ const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content"]);
 
 // Temporary exemptions, each with the instant it lapses. Until then the dataset
 // warns like an advisory row; from then on it fails the gate again, so an
-// exemption cannot outlive the reason it was granted.
-// late_food_evidence: every row expired on 2026-08-16 and the re-review is a
-// person's job (docs/LATE_FOOD_EVIDENCE_RUNBOOK.md). Delete this entry in the
-// commit that lands the re-reviewed rows.
-export const TEMPORARY_ADVISORY_UNTIL = Object.freeze({
-  late_food_evidence: "2026-11-16T00:00:00.000Z",
-});
+// exemption cannot outlive the reason it was granted. Delete an entry in the
+// commit that clears its finding. None is open today.
+export const TEMPORARY_ADVISORY_UNTIL = Object.freeze({});
 
 /** True when a stale finding for this dataset warns instead of failing the gate. */
 export function isAdvisoryStale(id, now = new Date()) {
