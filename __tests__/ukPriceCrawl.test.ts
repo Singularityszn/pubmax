@@ -652,3 +652,65 @@ describe("a long wine list", () => {
     expect(reading.kept.some((row) => row.category === "beer" && row.priceGbp === 6.2)).toBe(true);
   });
 });
+
+// A rendered page reaches the reader as Markdown. The Lvls drinks page, read
+// through the rendered lane on 2026-10-17, stored "#### Coke / Diet Coke 330ml
+// glass bottle" beside the document lane's "Coke / Diet Coke 330ml glass bottle",
+// and a Stratford pub's event banner was read out of its own link syntax.
+describe("a page that reaches the reader as Markdown", () => {
+  const menu = `### SOFT DRINKS
+
+#### Coke / Diet Coke 330ml glass bottle
+
+£3.50
+
+#### Fentimans Ginger Beer
+
+**£3.80**
+
+#### J2O Apple \\& Mango
+
+£3.20
+
+#### [Seedlip Garden](https://example.pub/seedlip) and tonic
+
+£6.50
+
+[![£6 Margarita Monday](https://example.pub/banner.jpg)](https://example.pub/whats-on/6-margarita-monday/)
+`;
+
+  it("names each drink by its words, not its heading, emphasis, escape or link marks", () => {
+    const reading = readVenueDrinkPrices(menu);
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(reading.kept.map((row) => [row.drinkLabel, row.priceGbp])).toEqual(
+      expect.arrayContaining([
+        // The section heading leads the first item, as it does on a served page.
+        ["SOFT DRINKS Coke / Diet Coke 330ml glass bottle", 3.5],
+        ["Fentimans Ginger Beer", 3.8],
+        ["J2O Apple & Mango", 3.2],
+      ]),
+    );
+    for (const row of reading.kept) {
+      expect(row.drinkLabel ?? "").not.toMatch(/[#*\\[\]]|\]\(|https?:/);
+    }
+  });
+
+  it("reads an image as no words at all, so its alt text states no price", () => {
+    expect(pageText(menu)).not.toContain("Margarita");
+    expect(pageText(menu)).toContain("Seedlip Garden and tonic");
+    expect(readVenueDrinkPrices(menu).kept.some((row) => row.priceGbp === 6)).toBe(false);
+  });
+
+  it("keeps the same label a served HTML page states for the same line", () => {
+    const html = "<h4>Coke / Diet Coke 330ml glass bottle</h4><p>£3.50</p>";
+    const markdown = "#### Coke / Diet Coke 330ml glass bottle\n\n£3.50";
+    const label = (text: string, format: "html" | "text") =>
+      readVenueDrinkPrices(text, format).kept[0]?.drinkLabel;
+    expect(label(markdown, "text")).toBe("Coke / Diet Coke 330ml glass bottle");
+    expect(label(markdown, "text")).toBe(label(html, "html"));
+  });
+
+  it("leaves a served HTML page's own hash and bracket text alone", () => {
+    expect(pageText("<p>Pint #2 [house] £5.50</p>", false, "html")).toBe("Pint #2 [house] £5.50");
+  });
+});

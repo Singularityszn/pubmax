@@ -502,6 +502,25 @@ function normalizeHtmlTextWhitespace(source: string): string {
 export type UkPriceSourceFormat = "html" | "text";
 
 /**
+ * MARKDOWN IS LAYOUT, NOT WORDS. A rendered page and an extract reach this
+ * reader as Markdown, and its syntax used to survive into drink names: a
+ * heading's `####` made "#### Coke / Diet Coke" a different drink from the
+ * same line served as HTML, and a link's target URL sat beside the price it
+ * wrapped. An image is not text a drinker reads, a link reads as its own
+ * words, and heading, emphasis and escape marks are dropped. Runs before
+ * whitespace is collapsed, while line starts still exist.
+ */
+function markdownAsText(source: string): string {
+  return source
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+    .replace(/[ \t]+#+[ \t]*$/gm, "")
+    .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2")
+    .replace(/\\([!-/:-@[-`{-~])/g, "$1");
+}
+
+/**
  * Strip a page to the text a reader sees. Scripts and styles go first, because
  * a price inside a JSON blob or a CSS rule is not something the page states.
  */
@@ -510,10 +529,11 @@ export function pageText(
   preserveItemBoundaries = false,
   sourceFormat: UkPriceSourceFormat = "text",
 ): string {
-  const visibleSource = html
+  const tagged = html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ");
+  const visibleSource = sourceFormat === "text" ? markdownAsText(tagged) : tagged;
   const source = sourceFormat === "html"
     ? visibleSource.replace(/\s+/g, " ")
     : preserveItemBoundaries ? normalizeHtmlTextWhitespace(visibleSource) : visibleSource;

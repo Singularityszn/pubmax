@@ -212,6 +212,15 @@ collapses formatting whitespace within HTML elements and between adjacent
 elements while preserving surrounding Markdown rows. Inline and table-cell
 fragments therefore keep a wrapped drink name within its item.
 
+In `text`, Markdown syntax is layout, not words. Before whitespace is
+collapsed, an image is dropped (its alt text states no price), a link reads
+as its own words without its target, and heading marks, `**`/`__` emphasis and
+backslash escapes are removed. A rendered line therefore names its drink as the
+served page does, and lands on the same ledger key. The 2026-10-17 Lvls read
+had stored `#### Coke / Diet Coke 330ml glass bottle` beside the served page's
+`Coke / Diet Coke 330ml glass bottle`. Served HTML is not touched, so a page's
+own `#` or brackets stay.
+
 The judged reader and its deterministic fallback use the same format and
 boundary-preserving text. Candidate offsets identify figures in that text,
 so failed batches recover the decision for the same item.
