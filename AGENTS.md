@@ -55,13 +55,16 @@ tree is named here, and this file stays under 12 KB.
   See [`scripts/AGENTS.md`](scripts/AGENTS.md).
 - **The captain applies migrations and decides a deploy.** Agents ship SQL and a
   rollback beside it. See [`supabase/AGENTS.md`](supabase/AGENTS.md).
-- **Talk to the captain in plain English.** Every message to the captain (chat
-  replies, summaries, questions, PR descriptions and PR comments) reads like a
-  note to a smart friend who is not an engineer. Lead with what happened and
-  what, if anything, they need to do. Use short sentences and everyday words.
-  Explain any technical term in a few words the first time you use it, or leave
-  it out. Put file paths, commands and test names after the plain summary, never
-  in place of it. If a sentence would need a second read, rewrite it.
+- **Talk to the captain in Simplified Technical English (ASD-STE100).** Every
+  message to the captain (chat replies, summaries, questions, PR descriptions
+  and PR comments) is written in STE style, for a reader who is not an engineer.
+  Start with what happened and what the captain must do, if anything. One idea
+  in each sentence: 20 words or fewer for an instruction, 25 or fewer for a
+  description. Use the active voice, simple tenses, common words, no
+  contractions, and the same word for the same thing every time. Put a condition
+  before its command. Use a list for three or more items. Explain a technical
+  term in a few words the first time you use it, or do not use it. File paths,
+  commands and test names come after the plain summary, never in place of it.
 
 ### Working in this tree
 
