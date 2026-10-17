@@ -54,7 +54,7 @@ Hierarchy on purpose: brand → map (the product) → Plan CTA → stops/friends
 
 ## Skill mapping
 
-These comps were read through the design-skills stack researched in [`.firecrawl/design-skills/PUBMAX-DESIGN-SKILLS-REPORT.md`](../../.firecrawl/design-skills/PUBMAX-DESIGN-SKILLS-REPORT.md). The packs this repo keeps are in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md).
+These comps were read through a design-skills stack we researched from scraped third-party pages. That scrape was never ours to keep, so it's out of the repo now. The packs this repo keeps are in [`docs/DESIGN_SKILLS_CATALOG.md`](../DESIGN_SKILLS_CATALOG.md).
 
 ### Impeccable — `/impeccable colorize` (+ typeset / layout / critique)
 
