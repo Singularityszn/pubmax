@@ -90,4 +90,22 @@ describe("readPalTaste", () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(await readPalTaste("owner-slow", 1_000)).toMatchObject({ visits: 1, loved: ["The Crown"] });
   });
+
+  it("deletes a cached read two minutes after it lands, even when the owner never asks again", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await logVisit("owner-quiet", "2026-10-02", 5);
+      expect(await readPalTaste("owner-quiet", 1_000)).toMatchObject({ visits: 1 });
+
+      // With every store failing, only the cache can answer. The same `now`
+      // keeps the read-time age check out of it, so this is the timer alone.
+      indexState.fail = true;
+      vi.advanceTimersByTime(119_000);
+      expect(await readPalTaste("owner-quiet", 1_000)).toMatchObject({ visits: 1 });
+      vi.advanceTimersByTime(1_000);
+      expect(await readPalTaste("owner-quiet", 1_000)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

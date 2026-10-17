@@ -101,7 +101,9 @@ Each reply is graded on:
 | Latency | p50 and p95 per typed turn | Tracked |
 
 A pub named in a pick is never a false memory on its own: it may be a tool
-result. Only a claim about the person counts. The grader is deterministic, so
+result. Only a claim about the person counts. A value barred from one line
+only (`absent` with a `line`) counts when the claim puts it on that line:
+"you loved BrewDog Shoreditch" is the stale rating, "you rated it low" is not. The grader is deterministic, so
 it cannot catch every invented memory; every reply is written to the
 scoreboard for a person to read.
 

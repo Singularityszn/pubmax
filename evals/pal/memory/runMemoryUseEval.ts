@@ -22,6 +22,7 @@ import {
   withSeededPalMemorySuite,
 } from "@/evals/pal/memory/runMemoryEval";
 import type {
+  PalMemoryLine,
   PalMemoryPersona,
   PalMemoryProbeUse,
   PalMemoryReply,
@@ -38,6 +39,24 @@ const SCOREBOARD_DIR = "evals/pal/memory/scoreboard";
  */
 const CLAIM_CUE =
   /\b(?:you(?:'ve| have)?\s+(?:usually|always|often|tend to|like|love|loved|rated|saved|logged|go|went|drink|prefer|said)|your\s+(?:usual|regular|local|favourite|go-to|patch|pint)|last time you|you're a (?:regular|fan)|I remember|I know you)\b/i;
+
+/**
+ * A value barred from one line only is a false memory when a claim puts it on
+ * that line, not whenever it is named: for changed-mind, "you rated BrewDog
+ * Shoreditch low" is true and "you loved BrewDog Shoreditch" is the stale
+ * rating. A line with no cue here bars the value from every claim.
+ */
+const LINE_CLAIMS: Partial<Record<PalMemoryLine, { says: RegExp; unless?: RegExp }>> = {
+  loved: { says: /\b(?:lov(?:e|ed|es)|favourite|fave|top-rated|highest)\b/i, unless: /\b(?:used to|no longer|any ?more|gone off)\b/i },
+  notKeen: { says: /\b(?:rated\b[^.?!]*\blow|not keen|didn't (?:like|rate)|disliked)\b/i },
+  regulars: { says: /\b(?:keep going back|go back to|regular|local|go-to)\b/i },
+  wishlist: { says: /\b(?:saved|haven't (?:tried|been)|not (?:tried|been)|never been|on your list|want(?:ed)? to try)\b/i },
+};
+
+function claimsOnLine(sentence: string, line: PalMemoryLine): boolean {
+  const cue = LINE_CLAIMS[line];
+  return !cue || (cue.says.test(sentence) && !(cue.unless?.test(sentence) ?? false));
+}
 
 function mentions(text: string, value: string): boolean {
   return value.length > 0 && text.toLocaleLowerCase("en-GB").includes(value.toLocaleLowerCase("en-GB"));
@@ -95,9 +114,15 @@ export function gradePalMemoryReply(input: {
   // Pal has nothing on record for them.
   const knowsNothing = context.length <= 1;
   const forbidden = [...foreign, ...persona.absent.filter((item) => !item.line).map((item) => item.value)];
+  const lineBarred = persona.absent.flatMap((item) => (item.line ? [{ value: item.value, line: item.line }] : []));
   const falseMemories = sentences(reply.reply)
     .filter((sentence) => CLAIM_CUE.test(sentence))
-    .filter((sentence) => knowsNothing || forbidden.some((value) => mentions(sentence, value)));
+    .filter(
+      (sentence) =>
+        knowsNothing ||
+        forbidden.some((value) => mentions(sentence, value)) ||
+        lineBarred.some((item) => mentions(sentence, item.value) && claimsOnLine(sentence, item.line)),
+    );
 
   const mode = probe.mode ? modeCheck(probe.mode, reply.reply) : null;
   const answerable = needed.every((fact) => factInContext(context, fact));

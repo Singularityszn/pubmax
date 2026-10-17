@@ -100,6 +100,18 @@ describe("Pal memory eval, use layer", () => {
     expect(pick).toMatchObject({ pass: true, falseMemories: [], used: ["optout-memory"] });
   });
 
+  it("flags a stale favourite, but not the same pub named on the line it sits on now", () => {
+    const changed = personaById("changed-mind");
+    const probe = probeOf(changed, "Is BrewDog Shoreditch still a good shout for me?");
+    const context = ["What I can tell from your logs.", "- Pubs you rated low, so do not push them: BrewDog Shoreditch."];
+
+    const stale = gradePalMemoryReply({ persona: changed, probe, reply: ok("You loved BrewDog Shoreditch, so go for it."), context, foreign: [] });
+    expect(stale).toMatchObject({ pass: false, blame: "model", falseMemories: ["You loved BrewDog Shoreditch, so go for it."] });
+
+    const current = gradePalMemoryReply({ persona: changed, probe, reply: ok("You rated BrewDog Shoreditch low, so I'd skip it."), context, foreign: [] });
+    expect(current).toMatchObject({ pass: true, falseMemories: [], used: ["changed-not-keen"] });
+  });
+
   it("fails a quick pick met with only a question, and a plan met with four", () => {
     const soho = personaById("soho-regular");
     const context = ["- My usual patches: Piccadilly & Soho."];

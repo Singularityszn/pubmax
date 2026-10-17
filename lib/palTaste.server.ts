@@ -21,7 +21,22 @@ const PAL_TASTE_READ_BUDGET_MS = 900;
 const CACHE_TTL_MS = 120_000;
 const CACHE_MAX = 500;
 
-const cache = new Map<string, { at: number; taste: PalTaste | null }>();
+type CachedTaste = { at: number; taste: PalTaste | null };
+
+const cache = new Map<string, CachedTaste>();
+
+/**
+ * Deleted on a timer as well as checked on read, so a read is never held past
+ * the two minutes /privacy promises, even when the person never writes again.
+ */
+function remember(ownerId: string, entry: CachedTaste): void {
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
+  cache.set(ownerId, entry);
+  const expiry = setTimeout(() => {
+    if (cache.get(ownerId) === entry) cache.delete(ownerId);
+  }, CACHE_TTL_MS);
+  expiry.unref?.();
+}
 
 function patchOf(venue: VenueRef, areas: readonly NightArea[]): string | null {
   let best: { area: NightArea; km: number } | null = null;
@@ -109,8 +124,7 @@ async function readTasteWithinBudget(ownerId: string, now: number): Promise<PalT
   // person's next line carries it.
   const read = readTaste(ownerId).then(
     (taste) => {
-      if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
-      cache.set(ownerId, { at: now, taste });
+      remember(ownerId, { at: now, taste });
       return taste;
     },
     (error: unknown) => {
