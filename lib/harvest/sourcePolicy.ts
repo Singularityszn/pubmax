@@ -127,6 +127,9 @@ const DIRECTORY_CHECKED_ON = "2026-09-14";
 // network policy refused both hosts), so each row says what was and was not
 // read, and the first networked builder run re-reads the terms.
 const OPEN_DATA_CHECKED_ON = "2026-10-16";
+// The FSA's API help, API Best Practices page and terms, read live on the first
+// networked run of npm run build:fsa-hygiene.
+const FSA_TERMS_CHECKED_ON = "2026-10-17";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -429,8 +432,8 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     access: {
       allowed: true,
       evidence:
-        "Owner decision, 16 Oct 2026. The FSA publishes FHRS data as open data under the Open Government Licence v3.0, and its API page (food.gov.uk/food-hygiene-rating-scheme-api-version-2, read through a search index) states no sign-up, API key or login is required. NOT read live: the API's BestPractices page and the FSA terms, because the registering environment's network refused both hosts. Re-read them on the first networked run of npm run build:fsa-hygiene.",
-      checkedOn: OPEN_DATA_CHECKED_ON,
+        "Owner decision, 16 Oct 2026; terms read live 17 Oct 2026. The API help page (api.ratings.food.gov.uk/help) states the FHRS API is free and needs no sign-up, API key or login. The FSA terms (gov.uk, Food Standards Agency, About our services, section Using food hygiene ratings information and services) put the ratings under the Open Government Licence v3.0 and make it the user's responsibility to use the current rating or to indicate the date the information was updated, which the sheet does by printing the rating day and the day the pack was read. The FHRS imagery and the FSA logo are trademarks and are not used. The API Best Practices page (api.ratings.food.gov.uk/Help/BestPractices) asks API readers for flow control, pages of 200 or fewer and backing off on a 429, which the builder does; it prefers the nightly Open Data files for full local-authority downloads, and suggests bulk reads between 01:00 and 06:00 while noting the same throttle applies all day.",
+      checkedOn: FSA_TERMS_CHECKED_ON,
     },
     notes:
       "Read by scripts/build_fsa_hygiene_pack.mjs into public/data/fsa_hygiene/london.json: pages of 200 or fewer, one request a second, the x-api-version: 2 header, and a 429 or 5xx retried a bounded number of times. The live /api/hygiene route reads the same API per sheet, server-side.",

@@ -115,9 +115,14 @@ describe("every source is a decision with evidence", () => {
       // An open-data API states facts about businesses it does not own.
       expect(source.firstParty, source.id).toBe(false);
       expect(new URL(source.url).protocol, source.id).toBe("https:");
-      // Each row says what was not read live, so the first networked run knows to.
-      expect(source.access.evidence, source.id).toMatch(/NOT read live/);
     }
+    // A row says what was not read live until a networked run reads it; the FSA's
+    // terms were read on the first networked run of npm run build:fsa-hygiene.
+    expect(harvestSource("wikidata-query-service")?.access.evidence).toMatch(/NOT read live/);
+    const fsa = harvestSource("fsa-fhrs-api");
+    expect(fsa?.access.evidence).not.toMatch(/NOT read live/);
+    expect(fsa?.access.evidence).toMatch(/terms read live 17 Oct 2026/);
+    expect(fsa?.access.checkedOn).toBe("2026-10-17");
     expect(openDataSourceUrl("fsa-fhrs-api", "/Establishments/1").href).toBe(
       "https://api.ratings.food.gov.uk/Establishments/1",
     );
