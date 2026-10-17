@@ -13,7 +13,7 @@
   padding: 2px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  background: var(--panel);
+  background: var(--panel-raised);
   box-sizing: border-box;
 }
 
@@ -33,14 +33,13 @@
   cursor: pointer;
 }
 
-/* Selection is the raised fill on the recessed track, with ink over it, as
-   every segmented control reads (__tests__/deBoxSegmentedControl.test.ts and
-   components/nav/nowSegment.css). A coral fill here was a second painted
-   coral beside the page's one primary, "Find my pint". */
+/* The chosen mode is a selection, not an action, so it reads in ink
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). Painted coral it was a second
+   filled button above Find my pint, the page's one primary. */
 .nearModeSwitchTab[aria-checked="true"] {
-  background: var(--panel-raised);
-  color: var(--ink);
-  box-shadow: var(--shadow-sm);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
 }
 
 .nearModeSwitchTab:focus-visible {

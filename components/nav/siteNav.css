@@ -37,7 +37,11 @@
    does not load this file's stylesheet) still resolves to the same values. */
 :root {
   --topbar-h: 52px;
-  --topbar-inset: calc(env(safe-area-inset-top, 0px) + 10px);
+  /* The gap between the viewport top (below the system inset) and every top
+     bar. 10px on a phone; 12px from 641px, the floating map bar's desktop
+     offset, so moving between Map and a tab never makes the bar jump. */
+  --topbar-gap: 10px;
+  --topbar-inset: calc(env(safe-area-inset-top, 0px) + var(--topbar-gap));
   --topbar-radius: 14px;
   --topbar-pad-x: 10px;
   /* Shared MOBILE side inset — the viewport-relative left/right gap every top
@@ -79,8 +83,21 @@
   -webkit-backdrop-filter: blur(14px) saturate(1.06);
 }
 
+@media (min-width: 641px) {
+  :root {
+    --topbar-gap: 12px;
+  }
+}
+
+/* THE BAR OWNS ITS TOP OFFSET, safe area and gap alike. It used to pay only
+   the safe area and leave the gap to whichever shell hosted it, so the bar sat
+   0px down on /social and /u, 10px on /tonight, 12px on /pubs and 48px on a
+   desktop /plan, and jumped on every tab change. A shell whose first child is
+   the bar carries exactly this offset as its own padding instead, whatever
+   padding it declares (the :has rule below); the space under the bar is still
+   the page's own. */
 .siteNavBar:not(.siteNavBarFloating) {
-  margin-top: env(safe-area-inset-top, 0px);
+  margin-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
   /* THE BAR OWNS ITS POPOVERS. The bar is its own stacking context (the
      backdrop-filter and the named view transition both make one), and as an
      unpositioned box at z-index:auto it painted at the bottom of the root
@@ -90,6 +107,18 @@
      level puts the popover above page content, and below the modal layer. */
   position: relative;
   z-index: var(--z-float, 50);
+}
+
+/* A shell that opens on the bar pays the same offset as padding instead, and
+   the bar drops its margin there: a margin on a first child collapses through
+   an unpadded parent, which left a 12px band of the body's colour above a page
+   that paints its own background (/plan). Padding cannot collapse. */
+:is(body, main, div):has(> .siteNavBar:not(.siteNavBarFloating):first-child) {
+  padding-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
+}
+
+:is(body, main, div) > .siteNavBar:not(.siteNavBarFloating):first-child {
+  margin-top: 0;
 }
 
 /* Content pages embed the bar inside a narrow reading column (~880px), which
@@ -120,7 +149,7 @@
    so it matches the Search/Plan toolbar width and inset. */
 .siteNavBarFloating {
   position: fixed;
-  top: 12px;
+  top: var(--topbar-inset, 12px);
   left: 50%;
   z-index: var(--z-modal);
   width: var(--desktop-map-surface-width);

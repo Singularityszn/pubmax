@@ -105,7 +105,35 @@ export function tonightAcceptedVenueId(
   return selectable.has(venueId) ? venueId : null;
 }
 
-/** Past-guarded rows that belong on a pub surface, never a theatre dump. */
+/**
+ * How old a read may be and still say what is on TONIGHT.
+ *
+ * A day. Past that the answer is about another night, and "Checked 22 Aug" over
+ * tonight's quiet sentence is the 6 September defect wearing the live read's
+ * clothes. The same day bounds a LISTING: on 17 October the page printed
+ * "2 listings · Checked 7 Oct" over two fixtures a pub's own page had listed
+ * ten days earlier, which is a claim about tonight nobody had checked.
+ */
+const TONIGHT_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whether a row's own check is recent enough to be shown as on tonight.
+ *
+ * A deal is the one exception, because it already has its own rule: it is a
+ * standing offer with a stated window, and `dealListingAgeCaption`
+ * (`lib/dealsHonesty.ts`) says its age out loud beside the card instead. Every
+ * other kind is a dated occurrence, and an undatable or stale check fails
+ * closed: the row leaves, and the night reads honestly empty rather than
+ * borrowing an old page's word for tonight.
+ */
+export function isTonightCheckedRow(row: WhatsOnRow, now: number = Date.now()): boolean {
+  if (row.kind === "deal") return true;
+  const observed = Date.parse(row.observedAt);
+  if (!Number.isFinite(observed)) return false;
+  return now - observed <= TONIGHT_READ_MAX_AGE_MS;
+}
+
+/** Past-guarded, recently checked rows that belong on a pub surface, never a theatre dump. */
 export function filterTonightPubSurfaceRows(
   rows: readonly WhatsOnRow[],
   now: number = Date.now(),
@@ -115,8 +143,8 @@ export function filterTonightPubSurfaceRows(
   // has already proved the row's venue identity; a lazy map shard must not
   // turn confirmed supply into an empty night.
   void selectable;
-  return filterNotPast([...rows], now).filter((row) =>
-    tonightRowHasListedPub(row),
+  return filterNotPast([...rows], now).filter(
+    (row) => tonightRowHasListedPub(row) && isTonightCheckedRow(row, now),
   );
 }
 
@@ -308,7 +336,7 @@ export function tonightListingLanes(
  * page carrying Out rows and no What's-On row still claims no What's-On day,
  * because that lane really did contribute nothing to what a reader is looking
  * at. (2) THE READ MUST BE ABOUT TONIGHT: evidence older than
- * `TONIGHT_QUIET_READ_MAX_AGE_MS` cannot say what is on tonight, which is
+ * `TONIGHT_READ_MAX_AGE_MS` cannot say what is on tonight, which is
  * exactly what "Checked 22 Aug" claimed on 6 September, so it goes undated
  * instead. A read that dated nothing answers null either way, because then
  * nobody looked at all.
@@ -336,15 +364,6 @@ export function tonightWhatsOnObservedAt(input: {
   return tonightQuietReadObservedAt(input.kindObservedAt, input.now ?? Date.now());
 }
 
-/**
- * How old a read may be and still say what is on TONIGHT.
- *
- * A day. Past that the answer is about another night, and "Checked 22 Aug" over
- * tonight's quiet sentence is the 6 September defect wearing the live read's
- * clothes.
- */
-const TONIGHT_QUIET_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
 /** The day an empty surface may claim it was checked, or null. */
 function tonightQuietReadObservedAt(
   kindObservedAt: WhatsOnKindObservedAt,
@@ -357,7 +376,7 @@ function tonightQuietReadObservedAt(
   if (!observed) return null;
   const ms = Date.parse(observed);
   if (!Number.isFinite(ms)) return null;
-  return now - ms <= TONIGHT_QUIET_READ_MAX_AGE_MS ? observed : null;
+  return now - ms <= TONIGHT_READ_MAX_AGE_MS ? observed : null;
 }
 
 /**

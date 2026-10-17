@@ -20,6 +20,15 @@
   max-width: 100%;
 }
 
+/* At the large text scale the head is five lines of display type, and on a
+   320x568 phone Sign in finishes a few px above the tab bar
+   (e2e/consent-after-first-answer.spec.ts). The bar pays its own top gap now
+   (components/nav/siteNav.css), 10px this page used to go without, so at that
+   scale the head gives the same 10px back from its own top padding. */
+html[data-text-scale="large"] .socialPage .screenHead {
+  padding-top: calc(var(--space-6) - var(--topbar-gap, 10px));
+}
+
 /* The Screen paints the one primary; while the session or the access answer
    is still open that control waits rather than routing anybody anywhere. */
 .socialPage .screenPrimary > button:disabled {
@@ -99,15 +108,18 @@
   border-left: 1px solid var(--line);
 }
 
+/* A selection is not an action, so the tab you are on reads in ink, never a
+   coral tint (docs/DESIGN_SYSTEM.md "Coral is spent twice"): the page's one
+   coral is its Sign in or Post primary just above this switcher. */
 .socialSwitcher a[aria-current="page"],
 .socialLaneNav a[aria-current="page"] {
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--ink);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .socialSwitcher a:hover,
 .socialLaneNav a:hover {
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
   color: var(--ink);
 }
 

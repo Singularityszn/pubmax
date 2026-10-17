@@ -229,13 +229,16 @@
     color var(--duration-base) var(--ease-out);
 }
 
+/* An open panel is a selection, so it reads in ink (docs/DESIGN_SYSTEM.md
+   "Coral is spent twice"). In a coral wash it sat beside "Plan an outing" as a
+   second coral control in the one row that has a single primary. */
 .mapToolbarLensBtn.isActive,
 .mapToolbarDrinkLaneBtn.isActive,
 .mapVenueKindFilterBtn.isActive,
 .mapToolbarDrinksBtn.isActive {
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
-  color: var(--ink-soft);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
   box-shadow: none;
 }
 
