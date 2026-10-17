@@ -2,6 +2,7 @@
 
 import { ForkKnife, MapPin } from "lucide-react";
 
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import type { LondonVenue } from "@/lib/londonVenueShards";
 
 import "./londonRestaurantSheet.css";
@@ -40,7 +41,7 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
           OpenStreetMap contributors
         </a>
         , ODbL. It is on the map because OpenStreetMap or the restaurant&rsquo;s own
-        website says it serves alcohol.
+        website says it serves alcohol. <DataCreditsLink />
       </p>
     </div>
   );

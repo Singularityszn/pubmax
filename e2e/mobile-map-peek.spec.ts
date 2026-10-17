@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The phone map's bottom card: "Cheapest in this view", the plan door inside it,
 // a pull up that opens List view. Rules: docs/rules/components-sheets-chrome-and-navigation.md,
@@ -598,7 +598,7 @@ test("a tap on the door still plans, and a drag that starts on it does not", asy
 test("the credit is a control on the map and copy under the Key", async ({ page }) => {
   await openMap(page);
   await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeVisible();
-  await page.locator(".mobileMapTopbar").getByRole("button", { name: "More map controls" }).click();
+  await (await mobileMapShellControl(page, "more")).click();
   const credits = page.locator(".mobileMapCredits");
   await expect(credits).toBeVisible({ timeout: 20_000 });
   await expect(credits).toContainText("OpenStreetMap contributors (ODbL)");

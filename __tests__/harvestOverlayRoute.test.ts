@@ -23,6 +23,41 @@ beforeEach(() => {
   __resetPintDrops();
 });
 
+describe("GET /api/harvest-overlay budget", () => {
+  it("has no shared budget a handful of addresses could spend for everybody", async () => {
+    // Eleven addresses each staying under their own 120 a minute used to
+    // exhaust a global 1,200 and lock every other reader out.
+    for (let ip = 1; ip <= 11; ip += 1) {
+      for (let i = 0; i < 110; i += 1) {
+        const res = await GET(
+          new Request("http://localhost/api/harvest-overlay", {
+            headers: { "x-forwarded-for": `198.51.100.${ip}` },
+          }),
+        );
+        expect(res.status).toBe(400);
+      }
+    }
+    const bystander = await GET(
+      new Request("http://localhost/api/harvest-overlay", {
+        headers: { "x-forwarded-for": "203.0.113.200" },
+      }),
+    );
+    expect(bystander.status).toBe(400);
+  });
+
+  it("still holds one address to its own budget", async () => {
+    let last: Response | null = null;
+    for (let i = 0; i < 121; i += 1) {
+      last = await GET(
+        new Request("http://localhost/api/harvest-overlay", {
+          headers: { "x-forwarded-for": "198.51.100.77" },
+        }),
+      );
+    }
+    expect(last?.status).toBe(429);
+  });
+});
+
 describe("GET /api/harvest-overlay", () => {
   it("returns 400 when venueId is missing", async () => {
     const res = await get("");

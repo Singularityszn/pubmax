@@ -42,6 +42,15 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   };
 });
 
+// The ONE venue resolver every community write runs through. Its own rules are
+// pinned in its own suite; here an alias and an unknown id stand in for it.
+vi.mock("@/lib/venueWriteTarget.server", () => ({
+  resolveWritableVenueId: async (venueId: string) =>
+    venueId === "venue-unknown"
+      ? { ok: false, status: 400, error: "Pick a venue from the map." }
+      : { ok: true, venueId: venueId === "venue-old-alias" ? "venue-1" : venueId },
+}));
+
 import { GET, POST } from "@/app/api/visit-reports/route";
 import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -117,6 +126,25 @@ describe("POST /api/visit-reports (create)", () => {
     expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toEqual([
       expect.objectContaining({ handle: "attacker" }),
     ]);
+  });
+
+  it("refuses a venue id the resolver does not know, and stores nothing", async () => {
+    const res = await POST(
+      post({ venueId: "venue-unknown", visitedAt: dayKey(1), busyness: "steady" }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Pick a venue from the map.");
+    expect((await memoryVisitReportStore.readForVenue("venue-unknown")).reports).toEqual([]);
+  });
+
+  it("stores a report posted under an alias against the canonical venue", async () => {
+    const res = await POST(
+      post({ venueId: "venue-old-alias", visitedAt: dayKey(1), busyness: "steady" }),
+    );
+    expect(res.status).toBe(201);
+    expect((await res.json()).report.venueId).toBe("venue-1");
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+    expect((await memoryVisitReportStore.readForVenue("venue-old-alias")).reports).toEqual([]);
   });
 
   it("requires the established account prompt without orphaning a legacy unlinked row", async () => {

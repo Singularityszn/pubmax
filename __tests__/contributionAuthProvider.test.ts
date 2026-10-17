@@ -36,6 +36,7 @@ const authRedirect = vi.hoisted(() => ({
   })),
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
 }));
@@ -50,7 +51,8 @@ vi.mock("@/lib/authCallbackClient", () => ({
   clearLegacyPkceVerifiers: vi.fn(),
   establishAuthCallbackSession: vi.fn(),
 }));
-vi.mock("@/lib/authClient", () => ({
+vi.mock("@/lib/authClient", async (original) => ({
+  ...await original<typeof import("@/lib/authClient")>(),
   ensureSupabaseBrowser: async () => ({
     auth: {
       getSession: async () => ({ data: { session: providerState.session } }),

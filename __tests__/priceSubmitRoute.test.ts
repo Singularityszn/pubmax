@@ -1186,6 +1186,32 @@ describe("GET /api/price-submit", () => {
     expect(data).not.toHaveProperty("degraded");
   });
 
+  it("refuses a non-beer price whose bill is not a photo, and writes nothing", async () => {
+    // Only a beer price pairs a Pint Drop, whose upload sniffs the bytes. A
+    // wine price used to take any non-empty file as its bill.
+    const venueId = "venue-1f5ygjb";
+    const send = (receipt: File) => {
+      const form = new FormData();
+      form.set("venueId", venueId);
+      form.set("drinkCategory", "wine");
+      form.set("priceGbp", "8");
+      form.set("receipt_photo", receipt);
+      return POST(new Request("http://localhost/api/price-submit", { method: "POST", body: form }));
+    };
+
+    const mislabelled = await send(new File([new Uint8Array([0x78])], "bill.jpg", { type: "image/jpeg" }));
+    expect(mislabelled.status).toBe(400);
+    expect(await mislabelled.json()).toMatchObject({ code: "INVALID_REQUEST" });
+    const notAnImage = await send(new File(["receipt"], "bill.txt", { type: "text/plain" }));
+    expect(notAnImage.status).toBe(400);
+
+    const read = await GET(get(`?venueId=${venueId}`));
+    const data = (await read.json()) as { prices: Array<{ drinkCategory: string }> };
+    expect(data.prices.filter((row) => row.drinkCategory === "wine")).toEqual([]);
+
+    expect((await send(jpegFile("bill.jpg"))).status).toBe(201);
+  });
+
   it("reads venue signals beside prices from the same route", async () => {
     await POST(
       post({

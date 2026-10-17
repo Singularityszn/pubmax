@@ -87,6 +87,15 @@ describe("typical last tram + decision", () => {
     expect(result.decision?.decision).toBe("train_risk");
   });
 
+  it("after midnight, the evening's 23:45 last service reads as gone, not order_one_more", () => {
+    // Thursday 00:30 Europe/London (BST) is still Wednesday's service day, and
+    // its Mon–Thu 23:45 last service left before midnight.
+    const now = new Date("2026-07-08T23:30:00.000Z");
+    const result = computeMetrolinkLastRide({ lat: 53.48, lng: -2.24, now });
+    expect(result.decision?.decision).not.toBe("order_one_more");
+    expect(result.decision?.decision).toBe("train_risk");
+  });
+
   it("marks live_data_unavailable when no stations are available", () => {
     const result = computeMetrolinkLastRide({
       lat: 53.48,
