@@ -4,7 +4,7 @@
 // contributor-attributed accounts newest first and opens one compact composer.
 // A row is a claim about one dated visit, never a score or verified venue fact.
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -144,6 +144,26 @@ function visitDayLabel(day: string): string {
     timeZone: "UTC",
   }).format(parsed);
 }
+
+// The weekday comes from the calendar date itself. A report holds no hour,
+// so nothing here may say when in the day anyone was there.
+function visitWeekdayLabel(day: string): string {
+  const parsed = new Date(`${day}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return day;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).formatToParts(parsed);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((entry) => entry.type === type)?.value ?? "";
+  return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`;
+}
+
+const NOISE_SAMPLE_LIMITS =
+  "Each is one person's account of that day, not a live reading, and it doesn't say what time they were there.";
 
 function reportDetails(report: VisitReportDTO): string[] {
   return [
@@ -427,6 +447,9 @@ function VenueVisitReports({
     : `visitReports-${venueId}`;
   const visibleReports =
     read === null ? [] : visitReportsForPanel(read.reports, mode);
+  // Only the accounts on screen are counted, so the peek speaks for its own
+  // rows and never for the venue's whole lane.
+  const noiseReports = visibleReports.filter((report) => Boolean(report.noise));
 
   return (
     <section
@@ -475,18 +498,49 @@ function VenueVisitReports({
           Checking visit notes.
         </p>
       ) : visibleReports.length > 0 ? (
-        <div className="visitReportList">
-          {visibleReports.map((report) => (
-            <VisitReportRow
-              key={report.id}
-              report={report}
-              flagged={flaggedIds.has(report.id)}
-              flagging={flaggingId === report.id}
-              onFlag={(id) => void flag(id)}
-              readOnly={peek}
-            />
-          ))}
-        </div>
+        <>
+          <div
+            className="visitReportNoise"
+            role="note"
+            aria-label="Could you hear each other?"
+          >
+            {noiseReports.length > 0 ? (
+              <>
+                <p>
+                  {noiseReports.length} of the visit accounts shown here{" "}
+                  {noiseReports.length === 1 ? "mentions" : "mention"} noise.
+                </p>
+                <p>
+                  {"Visits with a noise note: "}
+                  {noiseReports.map((report, index) => (
+                    <Fragment key={report.id}>
+                      {index > 0 ? ", " : null}
+                      <time dateTime={report.visitedAt}>
+                        {visitWeekdayLabel(report.visitedAt)}
+                      </time>
+                    </Fragment>
+                  ))}
+                  .
+                </p>
+                <p>{NOISE_SAMPLE_LIMITS}</p>
+              </>
+            ) : (
+              <p>None of the visit accounts shown here mention noise.</p>
+            )}
+          </div>
+          <div className="visitReportList">
+            {visibleReports.map((report) => (
+              <VisitReportRow
+                key={report.id}
+                report={report}
+                flagged={flaggedIds.has(report.id)}
+                flagging={flaggingId === report.id}
+                onFlag={(id) => void flag(id)}
+                readOnly={peek}
+              />
+            ))}
+          </div>
+        </>
       ) : (
         <p className="visitReportEmpty">{visitReportEmptyCopy(read.status)}</p>
       )}
