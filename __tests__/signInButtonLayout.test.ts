@@ -1,4 +1,4 @@
-import { act as reactAct, createElement, type ReactNode } from "react";
+import { act as reactAct, createElement, Fragment, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,6 +27,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@clerk/nextjs", () => ({
+  ClerkProvider: ({ children }: { children: ReactNode }) => children,
   Show: ({ children }: { children: ReactNode }) => children,
   SignInButton: ({ children }: { children: ReactNode }) => children,
   SignUpButton: ({ children }: { children: ReactNode }) => children,
@@ -37,8 +38,14 @@ vi.mock("@/components/auth/MagicLinkForm", () => ({
 }));
 vi.mock("@/components/auth/SocialSignInButtons", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/components/auth/ClerkAuthRevision", () => ({ default: () => null }));
 
+import ConfiguredClerkTree from "@/components/auth/ConfiguredClerkTree";
 import SignInButton from "@/components/auth/SignInButton";
+
+// Warm the controls chunk ConfiguredClerkTree loads with next/dynamic, so one
+// tick after a slot registers is enough for the portal to fill it.
+await import("@/components/auth/ClerkAccountControls");
 
 class TestNode {
   nodeType: number;
@@ -216,9 +223,13 @@ async function commitReactWork(work: () => void | Promise<void>): Promise<void> 
   await pending;
 }
 
+// The Clerk tree mounts beside the product (OptionalClerkProvider) and fills
+// SignInButton's ClerkAccountSlot hosts through portals, as the layout does.
 async function mount(compact: boolean): Promise<void> {
   await commitReactWork(() => {
-    root?.render(createElement(SignInButton, { compact }));
+    root?.render(
+      createElement(Fragment, null, createElement(SignInButton, { compact }), createElement(ConfiguredClerkTree)),
+    );
   });
 }
 
@@ -301,6 +312,8 @@ describe("signed-in auth layout with fully configured Clerk", () => {
     expect(trigger).not.toBeNull();
 
     await commitReactWork(() => mountedClick(trigger as TestElement));
+    // The popover's slot registers on open, then the controls chunk resolves.
+    await commitReactWork(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
     const menu = findByClass(container, "authMenu");
     const clerkControls = findByClass(container, "clerkAccount");

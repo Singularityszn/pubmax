@@ -363,7 +363,7 @@ body:has(.mobileMapUtilityCorner) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 6;
+    --tab-count: 5;
     --tab-inset: 2px;
     max-width: 420px;
     margin: 0 auto;
@@ -516,10 +516,11 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  /* Active = coral GLYPH + ink label. The glyph is the one coral mark the tab
-     bar keeps (finding 2.1's three-place accent budget), and the ink label is
-     what closes the 2.91:1 light-theme failure (finding 2.2). The gliding
-     highlight behind it carries the fill, so the tab itself stays clean. */
+  /* Active = ink GLYPH + ink label over the gliding neutral highlight. The
+     glyph used to be coral; an active tab is a selection, and coral is spent
+     on the one primary action and the create disc alone (docs/DESIGN_SYSTEM.md
+     "Coral is spent twice"). The ink label is what closed the 2.91:1
+     light-theme failure (finding 2.2). */
   .mobileTab.isActive {
     color: var(--ink);
     background: transparent;
@@ -527,7 +528,7 @@ body:has(.mobileMapUtilityCorner) {
   }
 
   .mobileTab.isActive .mobileTabIcon {
-    color: var(--brass);
+    color: var(--state-selected-ink);
   }
 }
 
@@ -547,7 +548,7 @@ body:has(.mobileMapUtilityCorner) {
 
   .mobileTab {
     /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
-       the 11px floor (iOS-convention exception) to fit six tabs across ~340px. */
+       the 11px floor (iOS-convention exception) to fit five tabs across ~340px. */
     font-size: 0.6875rem;
     padding: 2px 0;
     min-height: 44px;

@@ -74,11 +74,45 @@ const SCOPES: Record<SocialOAuthProvider, string[]> = {
 // connection (no happy-path behavior change).
 const OAUTH_FETCH_TIMEOUT_MS = 8000;
 
-const memoryOAuthStates = new Map<string, OAuthState>();
-const stateHash = (token: string) => createHash("sha256").update(token).digest("hex");
+// THE STATE IS BOUND TO THE BROWSER THAT STARTED THE FLOW, not only to the
+// account the server stored beside it. Without that, anyone could start a
+// connection on their OWN account, stop at the provider's redirect, and send
+// the callback link to somebody else: that person's browser would finish the
+// flow and link THEIR provider account to the attacker's profile (forced
+// account-linking CSRF).
+//
+// So the start mints a second random value and hands it to the browser in a
+// short-lived HttpOnly, SameSite=Lax cookie scoped to these routes, and the
+// row is keyed on SHA-256(state + "." + browserNonce) rather than on the state
+// alone. A callback that arrives without the cookie the start set looks up a
+// key that was never stored, and fails exactly like an expired state. The
+// binding needs no new column: the consume RPC already takes the hash.
+export const SOCIAL_OAUTH_BROWSER_COOKIE = "pubmax_social_oauth";
+export const SOCIAL_OAUTH_STATE_TTL_SECONDS = 10 * 60;
 
-async function storeSocialOAuthState(token: string, payload: OAuthState): Promise<void> {
-  const hash = stateHash(token);
+const memoryOAuthStates = new Map<string, OAuthState>();
+const stateHash = (token: string, browserNonce: string) =>
+  createHash("sha256").update(`${token}.${browserNonce}`).digest("hex");
+
+/** The start's browser nonce, read off a raw Cookie header. */
+export function socialOAuthBrowserNonceFromCookieHeader(header: string | null): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name === SOCIAL_OAUTH_BROWSER_COOKIE) {
+      const value = rest.join("=");
+      return /^[A-Za-z0-9_-]{16,128}$/.test(value) ? value : null;
+    }
+  }
+  return null;
+}
+
+async function storeSocialOAuthState(
+  token: string,
+  browserNonce: string,
+  payload: OAuthState,
+): Promise<void> {
+  const hash = stateHash(token, browserNonce);
   if (!isSupabaseConfigured()) {
     for (const [key, state] of memoryOAuthStates) {
       if (state.expiresAt < Date.now() || (state.ownerId === payload.ownerId && state.provider === payload.provider)) {
@@ -102,8 +136,13 @@ async function storeSocialOAuthState(token: string, payload: OAuthState): Promis
   if (error) throw new Error("OAuth state storage is unavailable.");
 }
 
-export async function readSocialOAuthState(token: string, expectedProvider: SocialOAuthProvider): Promise<OAuthState> {
-  const hash = stateHash(token);
+export async function readSocialOAuthState(
+  token: string,
+  expectedProvider: SocialOAuthProvider,
+  browserNonce: string | null,
+): Promise<OAuthState> {
+  if (!browserNonce) throw new Error("Expired or mismatched OAuth state.");
+  const hash = stateHash(token, browserNonce);
   if (!isSupabaseConfigured()) {
     const payload = memoryOAuthStates.get(hash);
     memoryOAuthStates.delete(hash);
@@ -133,7 +172,7 @@ export async function createSocialOAuthStart(input: {
   ownerId: string;
   provider: SocialOAuthProvider;
   origin: string;
-}): Promise<{ authorizeUrl: string }> {
+}): Promise<{ authorizeUrl: string; browserNonce: string }> {
   if (!socialProviderAvailability()[input.provider].oauth_identity) {
     throw new Error(`${input.provider} OAuth is not configured.`);
   }
@@ -142,12 +181,13 @@ export async function createSocialOAuthStart(input: {
   const redirectUri = `${input.origin}/api/social-connections/${input.provider}/callback`;
   const codeVerifier = randomBytes(32).toString("base64url");
   const state = randomBytes(32).toString("base64url");
-  await storeSocialOAuthState(state, {
+  const browserNonce = randomBytes(32).toString("base64url");
+  await storeSocialOAuthState(state, browserNonce, {
     ownerId: input.ownerId,
     provider: input.provider,
     redirectUri,
     codeVerifier,
-    expiresAt: Date.now() + 10 * 60 * 1_000,
+    expiresAt: Date.now() + SOCIAL_OAUTH_STATE_TTL_SECONDS * 1_000,
   });
   const url = new URL(AUTHORIZE_URLS[input.provider]);
   url.searchParams.set(input.provider === "tiktok" ? "client_key" : "client_id", clientId);
@@ -159,7 +199,7 @@ export async function createSocialOAuthStart(input: {
     url.searchParams.set("code_challenge_method", "S256");
     url.searchParams.set("code_challenge", createHash("sha256").update(codeVerifier).digest("base64url"));
   }
-  return { authorizeUrl: url.toString() };
+  return { authorizeUrl: url.toString(), browserNonce };
 }
 
 function encryptSocialCredential(value: string): string {
@@ -197,11 +237,13 @@ export async function completeSocialOAuth(input: {
   provider: SocialOAuthProvider;
   code: string;
   state: string;
+  /** The value of the cookie the start set in THIS browser, or null. */
+  browserNonce: string | null;
 }): Promise<{ ownerId: string; connection: OAuthConnectionInput }> {
   if (!providerCapability(input.provider, "oauth_identity")) {
     throw new Error(`${input.provider} OAuth is not certified.`);
   }
-  const state = await readSocialOAuthState(input.state, input.provider);
+  const state = await readSocialOAuthState(input.state, input.provider, input.browserNonce);
   const clientId = process.env[CLIENT_KEYS[input.provider]];
   if (!clientId) throw new Error(`${input.provider} OAuth is not configured.`);
   const form = new URLSearchParams({

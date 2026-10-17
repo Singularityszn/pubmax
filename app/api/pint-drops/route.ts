@@ -15,6 +15,7 @@ import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server"
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
+import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { parseCityId } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
@@ -49,6 +50,7 @@ import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { FUNCTION_REQUEST_BODY_LIMIT_BYTES } from "@/lib/uploadBodyLimit";
 import { loadVenueAliasResolver, lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
 import { getVenueIndex, getVenueIndexSnapshot, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
@@ -145,13 +147,16 @@ function forbidden(): Response {
 // Parse either a JSON body or a multipart form. For multipart we pull the text
 // fields into a plain object (validatePintDrop cleans them) and keep the photo
 // Files aside. JSON bodies carry no photos. Returns null on a malformed body.
+// Both reads are BOUNDED: nothing is buffered past the platform's own body
+// ceiling (three photos never fit under it anyway), so an oversized body costs
+// one capped read rather than the function's memory.
 async function parseBody(
   request: Request,
 ): Promise<{ fields: Record<string, unknown>; photos: PintDropPhotos } | null> {
   const type = request.headers.get("content-type") ?? "";
   if (type.includes("multipart/form-data")) {
     try {
-      const form = await request.formData();
+      const form = await boundedFormData(request, FUNCTION_REQUEST_BODY_LIMIT_BYTES);
       const fields: Record<string, unknown> = {};
       const photos: PintDropPhotos = { pint: null, venue: null, receipt: null };
       // Vibe tags arrive as a form field: either repeated `vibe_tags` entries or
@@ -180,7 +185,7 @@ async function parseBody(
   }
   try {
     return {
-      fields: (await request.json()) as Record<string, unknown>,
+      fields: (await boundedJson(request)) as Record<string, unknown>,
       photos: { pint: null, venue: null, receipt: null },
     };
   } catch (err) {

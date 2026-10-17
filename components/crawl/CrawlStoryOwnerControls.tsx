@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
+import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { discardBody } from "@/lib/responseBody";
 
 // Owner-only edit/delete controls for a durable Crawl Story (story 35). The story
@@ -19,11 +21,10 @@ import { discardBody } from "@/lib/responseBody";
 // with a 401. That refusal gets its own line, because "Could not delete this
 // crawl." would read as an outage over a door the reader can still walk through.
 
-const HANDLE_KEY = "pubmax_handle";
-
-function readViewerHandle(): string {
-  if (typeof window === "undefined") return "";
-  return (window.localStorage.getItem(HANDLE_KEY) ?? "").trim().toLowerCase();
+// The server cannot know the viewer, so it renders nothing, and hydration must
+// render the same nothing before the device handle is read.
+function serverSnapshot(): string {
+  return "";
 }
 
 function refusalLine(status: number): string {
@@ -40,8 +41,9 @@ export default function CrawlStoryOwnerControls({
   authorHandle: string;
 }) {
   const router = useRouter();
-  // Lazy initialiser reads localStorage on first client render — no effect.
-  const [viewer] = useState(readViewerHandle);
+  // The device handle, read after hydration (the server snapshot is ""). A
+  // browser that blocks storage reads as a stranger.
+  const viewer = useSyncExternalStore(subscribeDeviceIdentity, readDeviceHandle, serverSnapshot);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 

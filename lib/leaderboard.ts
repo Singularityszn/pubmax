@@ -1,6 +1,7 @@
 import { DAY_MS } from "@/lib/dayMs";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import type { PriceStanding } from "@/lib/priceTier";
+import { isPublicRankablePub } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
 // Pure ranking helpers over grouped Venue[] for the /discover leaderboard.
@@ -57,6 +58,12 @@ export function venueArea(venue: Venue): string {
 
 function hasPrice(venue: Venue): venue is PricedVenue {
   return typeof venue.cheapestPrice === "number";
+}
+
+// A board of the cheapest pints ranks only bars the public can walk into
+// (lib/venueKindFilters.ts, `isPublicRankablePub`).
+function isRankablePricedVenue(venue: Venue): venue is PricedVenue {
+  return hasPrice(venue) && isPublicRankablePub(venue);
 }
 
 /**
@@ -158,7 +165,7 @@ export function cheapestPints(
   const ranked: Array<{ venue: PricedVenue; standing: PriceStanding }> = [];
 
   for (const venue of venues
-    .filter(hasPrice)
+    .filter(isRankablePricedVenue)
     .sort(
       (a, b) =>
         a.cheapestPrice - b.cheapestPrice || a.name.localeCompare(b.name),

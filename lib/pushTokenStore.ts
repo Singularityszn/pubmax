@@ -64,6 +64,11 @@ export type PushTokenStore = {
 };
 
 const TABLE = "push_tokens";
+// PostgREST silently caps one response at the project's max-rows setting
+// (hosted default 1000), so an unpaged list() reached only the oldest 1000
+// devices and a broadcast skipped everyone after them. The read pages in
+// chunks no larger than that default until a short page comes back.
+export const PUSH_TOKEN_PAGE_ROWS = 1_000;
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 const supabasePushTokenStore: PushTokenStore = {
@@ -86,17 +91,28 @@ const supabasePushTokenStore: PushTokenStore = {
     };
   },
   async list() {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("token, platform, created_at, last_seen_at")
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((row) => ({
-      token: String(row.token),
-      platform: row.platform === "web" ? "web" : row.platform === "android" ? "android" : "ios",
-      createdAt: String(row.created_at),
-      lastSeenAt: String(row.last_seen_at),
-    }));
+    const tokens: PushTokenDTO[] = [];
+    for (let offset = 0; ; offset += PUSH_TOKEN_PAGE_ROWS) {
+      // The token tiebreak gives offset paging a total order, so two rows
+      // registered in the same instant can neither repeat nor be skipped.
+      const { data, error } = await admin()
+        .from(TABLE)
+        .select("token, platform, created_at, last_seen_at")
+        .order("created_at", { ascending: true })
+        .order("token", { ascending: true })
+        .range(offset, offset + PUSH_TOKEN_PAGE_ROWS - 1);
+      if (error) throw new Error(error.message);
+      const page = data ?? [];
+      for (const row of page) {
+        tokens.push({
+          token: String(row.token),
+          platform: row.platform === "web" ? "web" : row.platform === "android" ? "android" : "ios",
+          createdAt: String(row.created_at),
+          lastSeenAt: String(row.last_seen_at),
+        });
+      }
+      if (page.length < PUSH_TOKEN_PAGE_ROWS) return tokens;
+    }
   },
   async delete(token) {
     const { error } = await admin().from(TABLE).delete().eq("token", token);

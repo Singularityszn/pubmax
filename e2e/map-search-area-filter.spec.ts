@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const PHONE = { width: 393, height: 852 };
 
@@ -37,7 +38,7 @@ test("area picks clear the text filter before priced pins paint", async ({ page 
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
-  const searchToggle = page.getByRole("button", { name: "Search the map" });
+  const searchToggle = await mobileMapShellControl(page, "search");
   await expect(async () => {
     if (!(await page.getByRole("combobox", { name: "Search pubs" }).count())) {
       await searchToggle.click();

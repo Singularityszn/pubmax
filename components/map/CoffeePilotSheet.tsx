@@ -2,6 +2,7 @@
 
 import { Coffee, ExternalLink, MapPin } from "lucide-react";
 
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import {
   coffeePilotDrinkLabel,
   coffeePilotSourceLine,
@@ -64,7 +65,7 @@ export default function CoffeePilotSheet({ cafe }: { cafe: CoffeePilotCafe }) {
           OpenStreetMap contributors
         </a>
         , ODbL. Shoreditch coffee pilot: prices come from each cafe&rsquo;s own page,
-        never from OpenStreetMap.
+        never from OpenStreetMap. <DataCreditsLink />
       </p>
     </div>
   );

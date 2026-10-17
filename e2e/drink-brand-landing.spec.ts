@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const BRAND = "Guinness";
 const BRAND_SLUG = "guinness";
@@ -321,9 +322,7 @@ test.describe("Guinness landing cross-surface journey", () => {
 
     await page.getByRole("link", { name: "Open the map", exact: true }).click();
     await expect(page).toHaveURL(/\/map\?brand=guinness$/);
-    const mapFilters = page.locator(".mobileMapFiltersButton");
-    await expect(mapFilters).toBeVisible({ timeout: 45_000 });
-    await mapFilters.click();
+    await (await mobileMapShellControl(page, "filters", 45_000)).click();
     const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
     await expect(filtersSheet).toBeVisible();
     await expect(

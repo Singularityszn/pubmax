@@ -240,10 +240,24 @@
       "class": "live",
       "artifact": null,
       "stamp": null,
-      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached)",
+      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), which registers its own row when npm run build:fsa-hygiene first writes public/data/fsa_hygiene/london.json.",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "live-per-request (app/api/hygiene)",
       "gate": "none (keyless open API; requires the x-api-version: 2 header)"
+    },
+    {
+      "id": "osm_fhrs_links",
+      "label": "OSM fhrs:id links for London pubs (FSA hygiene join key)",
+      "class": "episodic",
+      "artifact": "public/data/osm_fhrs/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "fetchedAt"
+      },
+      "cadence": "episodic — re-derived from the committed UK Overpass snapshot whenever data/osm/uk/raw is refreshed",
+      "stalenessBudgetHours": 4320,
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-fhrs-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived.",
+      "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: the FSA's ratings are their own OGL pack."
     },
     {
       "id": "citymcp",
@@ -276,6 +290,17 @@
       "cadence": "static — line geometry changes rarely",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual",
+      "gate": "none"
+    },
+    {
+      "id": "station_walk_access",
+      "label": "Street walks to stations (Zone 1)",
+      "class": "static",
+      "artifact": "data/station_walk_access.json",
+      "stamp": null,
+      "cadence": "static: built offline from a pinned Overture Maps release; streets change rarely",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (uv run scripts/build_station_walk_access.py)",
       "gate": "none"
     },
     {
@@ -321,18 +346,32 @@
       "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
     },
     {
+      "id": "osm_pub_facts",
+      "label": "London pub facts from OpenStreetMap (ODbL pack)",
+      "class": "episodic",
+      "artifact": "data/osm/facts/london_pub_facts.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "extractedAt"
+      },
+      "cadence": "episodic - npm run build:osm-pub-facts after npm run fetch:uk-pubs refreshes data/osm/uk/raw/",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-pub-facts)",
+      "gate": "none (offline read of the committed data/osm/uk/raw/ chunks; OSM data, ODbL)"
+    },
+    {
       "id": "area_news",
       "label": "Area news (fresh-facts layer)",
       "class": "snapshot",
       "artifact": "data/area_news.json",
       "stamp": {
         "kind": "field",
-        "pointer": "generatedAt"
+        "pointer": "latestObservedAt"
       },
       "cadence": "snapshot - npm run refresh:area-news",
-      "stalenessBudgetHours": 504,
+      "stalenessBudgetHours": 528,
       "refreshWorkflow": "manual (KEENABLE_API_KEY optional; npm run refresh:area-news, then node scripts/build_area_news_matches.mjs when venue badges need rebuilding)",
-      "gate": "Keenable search_web_pages + fetch_page_content; a provider failure or zero valid facts leaves the prior dataset unchanged. Vercel cron cannot write this committed file, so refresh runs locally or in a review workflow."
+      "gate": "Keenable search_web_pages + fetch_page_content; a provider failure or zero valid facts leaves the prior dataset unchanged. Vercel cron cannot write this committed file, so refresh runs locally or in a review workflow. Dated by latestObservedAt, the newest fact, not generatedAt: lib/areaNews.ts serves a fact through the 21st day after its observedAt, so the 528h budget (22 days) reads stale exactly when no fact can be served. Advisory in check:freshness."
     },
     {
       "id": "persona_drinks",

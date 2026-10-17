@@ -9,10 +9,10 @@ import {
   deskChainKey,
   deskCollapsedChainsAttributes,
   deskHoursCaption,
-  parseOsmOpeningHours,
   rankDeskNearMe,
   type DeskPoint,
 } from "@/lib/nearDesk";
+import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
 import type { VenueKind } from "@/lib/venues";
 
 const here = { lat: 51.5136, lng: -0.1365 };

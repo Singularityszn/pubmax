@@ -60,4 +60,29 @@ export function normalizeOsmVenueElement(
   options: { kind: string; taxonomyKey: string; fallbackCity?: string | null },
 ): OsmVenue | null;
 
+export type OsmPubFactField =
+  | "openingHours"
+  | "hoursCheckDate"
+  | "checkDate"
+  | "wheelchair"
+  | "liveSport"
+  | "outdoorSeating"
+  | "beerGarden"
+  | "realAle"
+  | "dog"
+  | "menuUrl"
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "operator"
+  | "brand"
+  | "brewery";
+
+export const OSM_PUB_FACT_TAGS: ReadonlyArray<readonly [OsmPubFactField, readonly string[]]>;
+
+/** The verbatim OSM facts one element states, or null when it states none. */
+export function readOsmPubFacts(
+  tags: Record<string, unknown> | undefined,
+): Partial<Record<OsmPubFactField, string>> | null;
+
 export function sortOsmPubs<T extends { osmId: string; lat: number; lng: number }>(pubs: T[]): T[];

@@ -19,7 +19,7 @@ import {
 } from "@/lib/cityShare";
 
 const LONDON_MAP_DESCRIPTION =
-  "PubMaxxing is the London pub map, with listed pint prices and crawl planning.";
+  "PUBMAXX is the London pub map, with listed pint prices and crawl planning.";
 
 export function londonMapMetadata(
   options: CityMapShareOptions = {},

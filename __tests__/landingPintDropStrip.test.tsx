@@ -25,15 +25,13 @@ afterEach(async () => {
 });
 
 describe("landing community Pint Drops", () => {
-  it("hides a hanging feed after eight seconds", async () => {
+  it("paints nothing while the feed loads, and nothing for a feed that hangs", async () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
     await act(async () => root.render(createElement(PintDropStrip)));
-    expect(container.textContent).toContain("Pint drops");
-    expect(container.querySelectorAll(".dropStripCardSkeleton")).toHaveLength(4);
+    // No grey cards while waiting: the strip arrives whole or not at all.
+    expect(container.childElementCount).toBe(0);
 
-    await act(async () => { vi.advanceTimersByTime(7_999); });
-    expect(container.querySelector(".dropStrip")).not.toBeNull();
-    await act(async () => { vi.advanceTimersByTime(1); });
+    await act(async () => { vi.advanceTimersByTime(8_000); });
     expect(container.childElementCount).toBe(0);
   });
 
@@ -50,13 +48,13 @@ describe("landing community Pint Drops", () => {
       }],
     }))));
     await act(async () => root.render(createElement(PintDropStrip)));
+    expect(container.textContent).toContain("Recent prices");
     expect(container.textContent).toContain("London drinker");
     expect(container.textContent).toContain("A pint by the Thames.");
     expect(container.querySelectorAll(".dropStripCard")).toHaveLength(1);
 
     await act(async () => { vi.advanceTimersByTime(8_000); });
     expect(container.textContent).toContain("London drinker");
-    expect(container.querySelector(".dropStripCardSkeleton")).toBeNull();
   });
 
   it.each([

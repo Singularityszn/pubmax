@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   useCallback,
+  useEffect,
   useReducer,
   useRef,
   useState,
@@ -26,6 +27,7 @@ import {
 import { discardBody } from "@/lib/responseBody";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { trackEvent } from "@/lib/analytics";
 
 import "./contributionGate.css";
@@ -113,13 +115,24 @@ export function ContributionGateDialog({
   // nothing else, so a reader who reached it with the keyboard had to tab to
   // the end of the dialog to leave.
   useDismissOnEscape(true, onClose);
+  // It declares itself modal, so it has to BE one (review finding CMP-5): the
+  // page behind goes inert, Tab cycles inside, focus lands in the dialog
+  // rather than staying on the control that opened it, and goes back there
+  // when it closes (the trap restores it).
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(true, dialogRef, "strict-modal");
+  useEffect(() => {
+    dialogRef.current?.focus({ preventScroll: true });
+  }, []);
   const dialog = (
     <div className="contributionGateBackdrop" role="presentation">
       <section
+        ref={dialogRef}
         className="contributionGate"
         role="dialog"
         aria-modal="true"
         aria-labelledby="contribution-gate-title"
+        tabIndex={-1}
       >
         {mode === "sign_in_required" ? (
           <>

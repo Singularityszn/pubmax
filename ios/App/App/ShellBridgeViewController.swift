@@ -8,6 +8,7 @@ final class ShellBridgeViewController: CAPBridgeViewController, UIGestureRecogni
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        bridge?.registerPluginInstance(NativeAuthSessionPlugin())
         guard let webView = webView, let bridge = bridge,
               let original = webView.navigationDelegate, let errorURL = bridge.config.errorPathURL else { return }
         // Capacitor owns the bridge, UI delegate and scroll delegate. Its loadView is final.

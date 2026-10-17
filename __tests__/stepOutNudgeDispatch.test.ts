@@ -47,8 +47,8 @@ describe("dispatchStepOutNudges", () => {
       resolveAccountId: async () => "user-1",
       selectPayload: async () => ({
         kind: "soft_plan_open",
-        title: "Step out",
-        body: "Your Soft Plan for tonight is still open.",
+        title: "Weekly nudge",
+        body: "Your plan for tonight is still open.",
         url: "/tonight",
       }),
       send,
@@ -66,8 +66,8 @@ describe("dispatchStepOutNudges", () => {
       resolveAccountId: async () => "user-1",
       selectPayload: async () => ({
         kind: "soft_plan_open",
-        title: "Step out",
-        body: "Your Soft Plan for tonight is still open.",
+        title: "Weekly nudge",
+        body: "Your plan for tonight is still open.",
         url: "/tonight",
       }),
       send: async () => ({ sent: 1, pruned: 0, errors: 0 }),

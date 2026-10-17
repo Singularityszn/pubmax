@@ -207,7 +207,7 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     const panel = page.getByTestId("step-out-nudge-pref");
     await expect(panel).toBeVisible({ timeout: 20_000 });
     await expect(panel.getByRole("heading", { name: "Notifications" })).toBeVisible();
-    await expect(page.getByText(/at most one place-bound push a week/i)).toBeVisible();
+    await expect(page.getByText(/at most one push a week/i)).toBeVisible();
     // Installed/standalone runtime: iOS install note is hidden.
     await expect(page.getByTestId("step-out-ios-install-note")).toHaveCount(0);
 
@@ -219,15 +219,15 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
     const registration = page.waitForRequest(
       (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
     );
-    await panel.getByRole("button", { name: "Turn Step Out on" }).click();
-    await expect(panel.getByText(/Step Out on/i)).toBeVisible({ timeout: 10_000 });
+    await panel.getByRole("button", { name: "Turn weekly nudge on" }).click();
+    await expect(panel.getByText(/Weekly nudge on/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(true);
     const registrationRequest = await registration;
     expect(registrationRequest.postDataJSON()).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
     expect((await registrationRequest.response())?.status()).toBe(200);
 
-    await panel.getByRole("button", { name: "Turn Step Out off" }).click();
-    await expect(panel.getByText(/Step Out off/i)).toBeVisible({ timeout: 10_000 });
+    await panel.getByRole("button", { name: "Turn weekly nudge off" }).click();
+    await expect(panel.getByText(/Weekly nudge off/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(false);
 
     await page.screenshot({

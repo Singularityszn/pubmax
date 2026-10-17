@@ -28,26 +28,36 @@ export const commands: Command[] = [
     id: "nav-tonight",
     label: "Tonight",
     hint: "/tonight",
-    keywords: ["tonight", "today", "what's on", "now", "open now"],
+    // /out folded into /tonight (16 Oct 2026), so its words find Tonight.
+    keywords: [
+      "tonight",
+      "today",
+      "what's on",
+      "now",
+      "open now",
+      "events",
+      "live music",
+      "quiz",
+      "gigs",
+      "going out",
+      "tomorrow",
+      "weekend",
+    ],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/tonight"),
   },
+  // Places is not a tab any more (the map's city chip and the footer reach
+  // it), but a reader who types "city" still deserves the picker.
   {
     id: "nav-places",
-    label: "Places",
+    label: "Pick your city",
     hint: "/places",
-    keywords: ["cities", "city", "choose city", "areas", "where"],
+    keywords: ["places", "cities", "city", "choose city", "areas", "where"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/places"),
   },
-  {
-    id: "nav-out",
-    label: "Out",
-    hint: "/out",
-    keywords: ["events", "live music", "quiz", "gigs", "what's on", "going out"],
-    group: "Navigate",
-    run: (ctx) => ctx.navigate("/out"),
-  },
+  // Out folded into Tonight (/out 308s there), so the old word still finds
+  // the listings, at their new address.
   {
     id: "nav-near",
     label: "Near",
@@ -66,9 +76,9 @@ export const commands: Command[] = [
   },
   {
     id: "nav-wall",
-    label: "Drink Wall",
+    label: "Photos",
     hint: "/wall",
-    keywords: ["photos", "pictures", "pub fronts", "gallery", "wall"],
+    keywords: ["photos from drinkers", "pictures", "pub fronts", "gallery", "wall", "drink wall"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/wall"),
   },

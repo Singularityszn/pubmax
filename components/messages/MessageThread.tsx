@@ -76,6 +76,7 @@ import {
   type TimelineItem,
 } from "@/lib/messageTimeline";
 import { normalizeHandle } from "@/lib/profiles";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
@@ -129,8 +130,7 @@ const HANDLE_KEY = "pubmax_handle";
 const COUNTER_FROM = MAX_MESSAGE_BODY - 100;
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+  return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
 /**

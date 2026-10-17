@@ -32,10 +32,13 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import {
+  harvestRedirectLanding,
   harvestSourcesOfKind,
+  isHarvestableChainMenuUrl,
   isHarvestSourceAllowed,
 } from "../lib/harvest/sourcePolicy.ts";
 import {
@@ -80,17 +83,31 @@ async function readChainPintPricesMaybeJudged(html, ctx) {
   return reading;
 }
 
-async function fetchText(url) {
+/**
+ * Read one page of a chain source.
+ *
+ * `redirect: "follow"` lets the HOST pick the last hop, so the permission we
+ * asked about is not necessarily the permission we spend. The landing is asked
+ * twice: `harvestRedirectLanding` refuses a hop onto a refused estate or our
+ * own network, and the chain's own allow-list refuses a hop onto any host this
+ * source row does not cover. Either way the body is never read.
+ */
+export async function fetchText(url, { sourceId, fetchImpl = fetch } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const response = await fetchImpl(url, {
       headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
       signal: controller.signal,
       redirect: "follow",
     });
-    if (!response.ok) return { ok: false, status: response.status, body: "" };
-    return { ok: true, status: response.status, body: await response.text() };
+    const landing = harvestRedirectLanding(url, response.url);
+    if (landing.outcome === "refused" || !isHarvestableChainMenuUrl(landing.url, sourceId)) {
+      await response.body?.cancel?.();
+      return { ok: false, status: response.status, body: "", redirectedAway: true, landedUrl: landing.url };
+    }
+    if (!response.ok) return { ok: false, status: response.status, body: "", landedUrl: landing.url };
+    return { ok: true, status: response.status, body: await response.text(), landedUrl: landing.url };
   } catch (error) {
     return { ok: false, status: 0, body: "", error: String(error) };
   } finally {
@@ -98,13 +115,28 @@ async function fetchText(url) {
   }
 }
 
-/** Menu page URLs a source publishes about itself, from its own sitemap. */
-async function menuPagesFor(source, spend) {
-  if (!source.url.endsWith(".xml")) return [source.url];
-  if (!spend()) return [];
-  const sitemap = await fetchText(source.url);
-  if (!sitemap.ok) return [];
-  return [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
+/**
+ * Menu page URLs a source publishes about itself, from its own sitemap.
+ *
+ * A sitemap is the HOST's string, not ours, so every `<loc>` it names is put
+ * back through the chain allow-list before it can become a fetch: a sitemap
+ * that lists another host's page does not lend that page this source's
+ * permission. The sitemap itself is a page too, so robots is asked about it
+ * before it is read.
+ */
+export async function menuPagesFor(source, spend, { robots, fetchImpl = fetch } = {}) {
+  if (!isHarvestableChainMenuUrl(source.url, source.id)) {
+    return { pages: [], offAllowList: 1, refusal: null };
+  }
+  if (!source.url.endsWith(".xml")) return { pages: [source.url], offAllowList: 0, refusal: null };
+  const decision = await robots(source.url);
+  if (!decision.allowed) return { pages: [], offAllowList: 0, refusal: decision };
+  if (!spend()) return { pages: [], offAllowList: 0, refusal: null };
+  const sitemap = await fetchText(source.url, { sourceId: source.id, fetchImpl });
+  if (!sitemap.ok) return { pages: [], offAllowList: 0, refusal: null };
+  const named = [...sitemap.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
+  const pages = named.filter((url) => isHarvestableChainMenuUrl(url, source.id));
+  return { pages, offAllowList: named.length - pages.length, refusal: null };
 }
 
 function cityOfUrl(url) {
@@ -118,19 +150,27 @@ function cityOfUrl(url) {
   return "unplaced";
 }
 
-async function main() {
-  const sources = harvestSourcesOfKind("chain-menu-prices");
+/**
+ * One run over the chain sources, with its network and clock edges injectable
+ * so a test can prove what is and is not fetched without touching a host.
+ */
+export async function harvestChainMenuPrices({
+  sources = harvestSourcesOfKind("chain-menu-prices"),
+  fetchImpl = fetch,
+  robots = createRobotsChecker({ fetchImpl }),
+  sleepImpl = sleep,
+  pageBudget = PAGE_BUDGET,
+} = {}) {
   const allowed = sources.filter(isHarvestSourceAllowed);
   const refused = sources.filter((source) => !isHarvestSourceAllowed(source));
 
-  const robots = createRobotsChecker();
   const coverage = new Map();
   const drops = [];
   const rows = [];
   const skipped = [];
 
   let spent = 0;
-  const spend = () => (spent < PAGE_BUDGET ? (spent += 1, true) : false);
+  const spend = () => (spent < pageBudget ? (spent += 1, true) : false);
 
   // A SKIP IS A FINDING. Every refused source prints its own reason and the day
   // that reason was checked, so "we harvested nothing from Wetherspoon" reads as
@@ -146,10 +186,17 @@ async function main() {
 
   for (const source of allowed) {
     const delayMs = (source.crawlDelaySeconds ?? 1) * 1000;
-    const pages = await menuPagesFor(source, spend);
-    for (const url of pages) {
+    const listed = await menuPagesFor(source, spend, { robots, fetchImpl });
+    if (listed.refusal) {
+      skipped.push({ id: source.id, reason: listed.refusal.reason, checkedOn: new Date().toISOString().slice(0, 10), evidence: listed.refusal.evidence });
+      continue;
+    }
+    // A sitemap entry outside this chain's own hosts is dropped and counted,
+    // never fetched.
+    for (let n = 0; n < listed.offAllowList; n += 1) drops.push("off-source-allow-list");
+    for (const url of listed.pages) {
       if (!spend()) {
-        skipped.push({ id: source.id, reason: "budget-exhausted", checkedOn: source.access.checkedOn, evidence: `page budget of ${PAGE_BUDGET} spent` });
+        skipped.push({ id: source.id, reason: "budget-exhausted", checkedOn: source.access.checkedOn, evidence: `page budget of ${pageBudget} spent` });
         break;
       }
       // Permission is re-asked live, per host, every run.
@@ -158,8 +205,18 @@ async function main() {
         skipped.push({ id: source.id, reason: decision.reason, checkedOn: new Date().toISOString().slice(0, 10), evidence: decision.evidence });
         break;
       }
-      await sleep(delayMs);
-      const page = await fetchText(url);
+      await sleepImpl(delayMs);
+      const page = await fetchText(url, { sourceId: source.id, fetchImpl });
+      if (page.redirectedAway) {
+        // The host sent us somewhere this source does not cover. Nothing on
+        // that page is this chain's statement, so no row and no coverage.
+        drops.push("redirect-left-source");
+        continue;
+      }
+      if (page.ok && page.landedUrl !== url && !(await robots(page.landedUrl)).allowed) {
+        drops.push("redirect-robots-refused");
+        continue;
+      }
       const city = cityOfUrl(url);
       const row = coverage.get(city) ?? { city, pagesRead: 0, venuesPriced: 0, pagesWithNoPrice: 0 };
       if (!page.ok) {
@@ -170,7 +227,7 @@ async function main() {
       }
       const reading = await readChainPintPricesMaybeJudged(page.body, {
         pubName: source.label,
-        pageUrl: url,
+        pageUrl: page.landedUrl,
       });
       drops.push(...reading.drops);
       row.pagesRead += 1;
@@ -179,7 +236,7 @@ async function main() {
       else {
         row.venuesPriced += 1;
         rows.push({
-          url,
+          url: page.landedUrl,
           priceGbp: cheapest.priceGbp,
           ...(cheapest.drinkLabel ? { drinkLabel: cheapest.drinkLabel } : {}),
           sourceId: source.id,
@@ -195,13 +252,18 @@ async function main() {
     version: 1,
     generatedAt: new Date().toISOString(),
     pagesRead: spent,
-    pageBudget: PAGE_BUDGET,
+    pageBudget,
     sourcesAllowed: allowed.map((source) => source.id),
     sourcesSkipped: skipped,
     coverage: [...coverage.values()],
     drops: drops.reduce((counts, reason) => ({ ...counts, [reason]: (counts[reason] ?? 0) + 1 }), {}),
     rowsFound: rows.length,
   };
+  return { report, rows, skipped, allowed, spent };
+}
+
+async function main() {
+  const { report, rows, skipped, allowed, spent } = await harvestChainMenuPrices();
 
   if (!DRY_RUN) {
     mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
@@ -225,4 +287,6 @@ async function main() {
   }
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

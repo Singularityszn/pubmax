@@ -53,6 +53,8 @@ export type AreaNewsEntry = {
 export type AreaNewsDataset = {
   version: number;
   generatedAt: string;
+  /** The newest entry observedAt: what the freshness registry dates this lane by. */
+  latestObservedAt?: string;
   entries: AreaNewsEntry[];
 };
 
@@ -61,7 +63,7 @@ export type AreaNewsDataset = {
 export const NEW_ROUND_HERE_CAP = 3;
 
 /** A dated fact may only support the "New round here" claim for 21 days. */
-const AREA_NEWS_MAX_AGE_DAYS = 21;
+export const AREA_NEWS_MAX_AGE_DAYS = 21;
 
 // Short, dry labels for each kind. No exclamation, no hype — the fact carries
 // the weight.

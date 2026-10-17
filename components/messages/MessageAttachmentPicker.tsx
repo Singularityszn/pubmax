@@ -4,6 +4,7 @@ import { BarChart3, CalendarDays, Camera, FileText, Images, MapPin, UserRound, X
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useId,
   useRef,
@@ -23,6 +24,8 @@ import {
   MESSAGE_ATTACH_VENUE_SHORT,
 } from "@/lib/messageAttachments";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import "@/components/mobile/mobileMapShell.css";
 
@@ -134,6 +137,20 @@ const MessageAttachmentPicker = forwardRef<
 
   useImperativeHandle(ref, () => ({ select }), [select]);
 
+  // The sheet declares itself modal, so it has to BE one (review finding
+  // CMP-5): the page behind goes inert, Tab stays in the sheet, Escape leaves,
+  // focus lands on the sheet and goes back to the opener when it closes (the
+  // trap restores it). The trap holds the portal rather than the section so the
+  // scrim, the sheet's own backdrop, still answers a tap.
+  const portalRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(open, portalRef, "strict-modal");
+  useDismissOnEscape(open, close);
+  useEffect(() => {
+    if (!open) return;
+    sheetRef.current?.focus({ preventScroll: true });
+  }, [open]);
+
   const onDragStart = useCallback((event: PointerEvent<HTMLElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     dragStartY.current = event.clientY;
@@ -202,19 +219,26 @@ const MessageAttachmentPicker = forwardRef<
       />
 
       {open ? (
-        <div className="mobileSheetPortal messageAttachSheetPortal">
+        <div ref={portalRef} className="mobileSheetPortal messageAttachSheetPortal">
           <button
             className="mobileSheetScrim"
             type="button"
             tabIndex={-1}
+            // A pointer's way out only. It sits inside the trap so a tap still
+            // reaches it, and aria-hidden keeps Tab's wrap from landing on it;
+            // the keyboard and a screen reader leave by the close button or
+            // Escape.
+            aria-hidden="true"
             onClick={close}
             aria-label="Dismiss attachment chooser"
           />
           <section
+            ref={sheetRef}
             className="mapDrawer mobileSharedSheet contextual open sheet-half messageAttachSheet"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
+            tabIndex={-1}
             style={{
               transform: `translateY(${dragOffsetY}px)`,
               transition: dragging ? "none" : undefined,

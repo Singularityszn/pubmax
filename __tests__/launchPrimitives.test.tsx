@@ -45,13 +45,13 @@ describe("Kicker", () => {
     expect(html).toBe('<p class="kicker">Tonight in London</p>');
   });
 
-  it("takes a muted tone and an inline element", () => {
+  it("takes an inline element, and has one tone because a kicker is never coral", () => {
     const html = renderToStaticMarkup(
-      <Kicker tone="muted" as="span" id="k">
+      <Kicker as="span" id="k">
         PUBMAXX
       </Kicker>,
     );
-    expect(html).toBe('<span class="kicker kickerMuted" id="k">PUBMAXX</span>');
+    expect(html).toBe('<span class="kicker" id="k">PUBMAXX</span>');
   });
 });
 

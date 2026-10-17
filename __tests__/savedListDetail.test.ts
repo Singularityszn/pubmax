@@ -56,7 +56,7 @@ describe("SavedListDetail", () => {
     expect(html).toContain('aria-label="Share this"');
     expect(html).toContain("Share");
     expect(html).toContain(
-      "sam&#x27;s my locals list. 1 venue on PUBMAXXING.",
+      "sam&#x27;s my locals list. 1 venue on PUBMAXX.",
     );
     expect(html).toContain("Venues in this list");
     expect(html).toContain("%2Fu%2Fsam%2Flists%2Fmy%2520locals");

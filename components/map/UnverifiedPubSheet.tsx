@@ -9,6 +9,8 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
 import { useVenueSheetOpened } from "@/components/map/useVenueSheetOpened";
@@ -28,8 +30,10 @@ import { parsePublicOverlay, type PublicHarvestOverlay } from "@/lib/harvestFold
 import { discardBody } from "@/lib/responseBody";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice, type Venue } from "@/lib/venues";
+import { osmPubFactsFromRow, type OsmPubFacts } from "@/lib/osmPubFacts";
 import { type PlacesEnrichmentRecord } from "@/lib/placesEnrichment";
 import { slimVenueToPin } from "@/lib/slimPins";
+import VenueOsmDetails from "./VenueOsmDetails";
 import VenuePlacesDetails from "./VenuePlacesDetails";
 import {
   drinkLensEmptyVenueNote,
@@ -108,9 +112,16 @@ function UnverifiedPubName({ pub }: { pub: UkBasePub }) {
   );
 }
 
-/** Google Places content is more than a pin, so only a pub without it says the pin is all we know. */
+/** OSM facts read for this pub, never ones left over from the pub opened before it. */
+function factsForPub(read: { id: string; facts: OsmPubFacts } | null, pubId: string): OsmPubFacts | undefined {
+  return read && read.id === pubId ? read.facts : undefined;
+}
+
+/** Google Places content and OSM facts are more than a pin, so only a pub without either says the pin is all we know. */
 function knownHereLead(placeNoun: string, venue: Venue): string {
-  return venue.placesContent ? `We know this ${placeNoun} is here.` : `We know this ${placeNoun} is here, and that is all we know.`;
+  return venue.placesContent || venue.osmFacts
+    ? `We know this ${placeNoun} is here.`
+    : `We know this ${placeNoun} is here, and that is all we know.`;
 }
 
 export default function UnverifiedPubSheet({
@@ -125,9 +136,12 @@ export default function UnverifiedPubSheet({
   useVenueSheetOpened(pub.id, "uk_base");
   const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
   const [places, setPlaces] = useState<{ id: string; record: PlacesEnrichmentRecord } | null>(null);
+  const [osm, setOsm] = useState<{ id: string; facts: OsmPubFacts } | null>(null);
+  const osmFacts = factsForPub(osm, pub.id);
   const detailVenue = applyPlacesEnrichment({
     ...slimVenueToPin({ id: pub.id, name: pub.name, lat: pub.lat, lng: pub.lng, borough: "", cheapestPrice: null }),
     address: pub.address,
+    osmFacts,
   }, places?.id === pub.id ? places.record : null);
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const pricesKnown = readStatus === "ready";
@@ -176,8 +190,10 @@ export default function UnverifiedPubSheet({
           discardBody(res);
           return;
         }
-        const body = (await res.json()) as { overlay?: unknown; placesContent?: PlacesEnrichmentRecord };
+        const body = (await res.json()) as { overlay?: unknown; placesContent?: PlacesEnrichmentRecord; osmFacts?: unknown };
         if (body.placesContent && !controller.signal.aborted) setPlaces({ id: pub.id, record: body.placesContent });
+        const facts = osmPubFactsFromRow(body.osmFacts);
+        if (facts && !controller.signal.aborted) setOsm({ id: pub.id, facts });
         const parsed = parsePublicOverlay(body.overlay);
         if (!parsed) return;
         void Promise.resolve().then(() => {
@@ -276,6 +292,7 @@ export default function UnverifiedPubSheet({
       ) : null}
 
       <VenuePlacesDetails venue={detailVenue} links websiteLink />
+      <VenueOsmDetails facts={detailVenue.osmFacts} />
       {overlay ? <HarvestOverlayFields overlay={detailVenue.website ? { ...overlay, website: null } : overlay} /> : null}
 
       <VenueSheetPriceEntry
@@ -296,6 +313,9 @@ export default function UnverifiedPubSheet({
           base pins like this one, so the row lives on this sheet as well as on
           the curated Overview, and renders nothing for every other pub. */}
       <VenueSpoonsValueRow venueId={pub.id} visible={!drinkLensCategory} />
+      {/* The FSA's rating for this OSM pub, through its own fhrs:id tag when it
+          carries one (lib/fsaHygienePack.ts). Renders nothing otherwise. */}
+      <VenueHygiene venueId={pub.id} venueName={pub.name} address={pub.address} />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
           (data/osm/uk/README.md), and it is also the honest provenance line:
@@ -305,7 +325,7 @@ export default function UnverifiedPubSheet({
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors
         </a>
-        , ODbL. Prices never come from OpenStreetMap.
+        , ODbL. Prices never come from OpenStreetMap. <DataCreditsLink />
       </p>
     </div>
   );

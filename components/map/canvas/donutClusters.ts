@@ -260,13 +260,26 @@ export function createDonutClusterSync(
       el.className = "donut-cluster-marker";
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
+      // A button the keyboard can reach and press, like every other control.
+      el.setAttribute("tabindex", "0");
       el.setAttribute("aria-label", label);
       el.innerHTML = markup(counts, figure, figureColor, countCaption);
-      el.addEventListener("click", (event) => {
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]);
+      // A re-used marker is moved with setLngLat above, and supercluster can
+      // hand this cluster_id to a different cluster after a filter change, so
+      // the flight reads where the disc stands NOW, never where it was made.
+      const activate = (event: Event) => {
         event.stopPropagation();
-        handleClusterClick(clusterId, [lng, lat]);
+        const live = marker.getLngLat();
+        handleClusterClick(clusterId, [live.lng, live.lat]);
+      };
+      el.addEventListener("click", activate);
+      el.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        activate(event);
       });
-      const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+      marker.addTo(map);
       markers.set(clusterId, { marker, el, counts, look });
     }
     for (const [id, entry] of markers) {

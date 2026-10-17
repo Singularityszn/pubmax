@@ -23,6 +23,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { HeritageFact } from "@/lib/heritage";
+import { displayVenueName } from "@/lib/venueDisplay";
 import type {
   HeritageDatePrecision,
   HeritageDateType,
@@ -79,7 +80,10 @@ export async function loadHistoricPubs(): Promise<HistoricPub[]> {
     const raw = await readFile(HISTORIC_PUBS_PATH, "utf8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    cached = parsed as HistoricPub[];
+    // The reader-facing name drops an operator suffix; the slug is untouched.
+    cached = (parsed as HistoricPub[]).map((pub) =>
+      typeof pub?.name === "string" ? { ...pub, name: displayVenueName(pub.name) } : pub,
+    );
   } catch {
     return [];
   }
