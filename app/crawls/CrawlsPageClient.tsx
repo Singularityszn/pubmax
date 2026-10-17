@@ -4,9 +4,8 @@ import type { Route } from "next";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Check, Copy, MapPin, Flag } from "lucide-react";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
@@ -94,22 +93,24 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-function CrawlsPageInner() {
-  // useSearchParams so client navigations between ?pack= links re-filter the
-  // curated grid (a mount-only window.location read would stick on the first pack).
-  const searchParams = useSearchParams();
-  const activePackId = searchParams.get("pack");
+export default function CrawlsPageClient({ pack, encodedStory }: {
+  pack?: string;
+  encodedStory?: string | null;
+}) {
+  // The server passes query values on each navigation. No Suspense placeholder
+  // hides the directory from a reader whose JavaScript cannot run.
+  const activePackId = pack;
   const activePack = activePackId ? getRoutePack(activePackId) : undefined;
   const activePackCrawlIds = activePack ? new Set(activePack.crawlIds) : null;
   const visibleCrawls = activePackCrawlIds
     ? curatedCrawls.filter((crawl) => activePackCrawlIds.has(crawl.id))
     : curatedCrawls;
 
-  // Read ?s= from the live search params so client navigations stay in sync.
-  // decode never throws, so a garbage param falls through to the empty state.
+  // The server supplies ?s= again on navigation. Invalid values fall through
+  // to the directory because decodeCrawlStory never throws.
   const story = useMemo<CrawlStory | null>(
-    () => decodeCrawlStory(searchParams.get("s")),
-    [searchParams],
+    () => decodeCrawlStory(encodedStory),
+    [encodedStory],
   );
 
   // Slim venue index — the only client-safe source of stop coords + price, used
@@ -183,9 +184,9 @@ function CrawlsPageInner() {
           as="section"
           className="crawlEmpty"
           kicker="Crawls"
-          title="Pub stories mapped into walks."
+          title="London pub crawl routes"
           titleId="crawlsHeading"
-          lede="A Crawl Story is a poster of a London pub crawl that you can share, with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
+          lede="Pub stories mapped into walks. Share a London pub crawl with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
           primary={
             <Link
               prefetch={false}
@@ -458,15 +459,5 @@ function CrawlPoster({
         <p className="crawlFootnote">Pubs, prices and the route between them.</p>
       </Screen>
     </article>
-  );
-}
-
-export default function CrawlsPageClient() {
-  // Suspense boundary required by Next.js when a client page uses useSearchParams
-  // during static prerender — without it, /crawls fails the production build.
-  return (
-    <Suspense fallback={<main id="main" className="crawlsShell" aria-busy="true" />}>
-      <CrawlsPageInner />
-    </Suspense>
   );
 }

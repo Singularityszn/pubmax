@@ -26,6 +26,9 @@ import PintIndexScreen from "./PintIndexScreen";
 import "./pint-index.css";
 
 const SITE_URL = "https://pubmaxxing.com";
+const PAGE_TITLE = "London pint prices by borough and fare zone";
+const PAGE_DESCRIPTION =
+  "Compare London’s listed pint prices by fare zone. The borough league uses only prices with a public source and date.";
 
 // LIVE IS NOT THE SAME AS INDEXED (captain decision D10). This route always
 // serves a validated snapshot, including its valid empty state. The borough, About
@@ -39,20 +42,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const snapshot = await loadPublicPintIndexSnapshotOrThrow();
   const promoted = pintIndexMeetsAdmissionFloor(snapshot);
   return {
-    title: "The London Pint Index public data status · PUBMAXX",
-    description: "The public London Pint Index, with named sources, licences and price dates. Older map-only prices stay out.",
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
     alternates: { canonical: "/pint-index" },
     robots: { index: promoted, follow: true },
     openGraph: {
-      title: "The London Pint Index public data status",
-      description: "A London pint-price dataset built from prices with named sources and dates.",
+      title: PAGE_TITLE,
+      description: PAGE_DESCRIPTION,
       type: "website",
       url: "/pint-index",
     },
     twitter: {
       card: "summary_large_image",
-      title: "The London Pint Index public data status",
-      description: "Only pint prices with named sources and dates are published.",
+      title: PAGE_TITLE,
+      description: PAGE_DESCRIPTION,
     },
   };
 }
@@ -110,7 +113,7 @@ export default async function PintIndexPage() {
       <SiteNav />
 
       <PintIndexScreen
-        title={rows.length ? "London pint prices, by borough" : "London pint prices, by fare zone"}
+        title={PAGE_TITLE}
         lede={
           window
             ? `Prices seen: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`
