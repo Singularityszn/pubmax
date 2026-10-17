@@ -2,7 +2,7 @@
 
 PubMaxxing keeps project skills in this directory only. General engineering skills stay in `~/.agents/skills` and are not copied here.
 
-Cursor loads `.agents/skills/<name>/SKILL.md`. There is no `skills/` mirror and no `.cursor/skills/` tree.
+Cursor loads `.agents/skills/<name>/SKILL.md`. Claude Code loads the same files through `.claude/skills`, a committed symlink to this directory, so local and cloud sessions see every skill here. There is no `skills/` mirror, no `.cursor/skills/` tree and no copy under `.claude/`.
 
 ## Kept for this repo
 
