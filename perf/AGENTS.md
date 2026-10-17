@@ -23,3 +23,4 @@ Full rules: [`docs/rules/perf-budgets-and-measured-findings.md`](../docs/rules/p
 - [THE BASEMAP ALREADY RIDES A CDN, SO THE FIRST TILE IS WON IN THE ENGINE, NOT ON THE WIRE.](../docs/rules/perf-budgets-and-measured-findings.md#the-basemap-already-rides-a-cdn-so-the-first-tile-is-won-in-the-engine-not-on-th)
 - [THE ROOT SHELL READS LEAVES, NEVER LIBRARIES.](../docs/rules/perf-budgets-and-measured-findings.md#the-root-shell-reads-leaves-never-libraries)
 - [A TAB IS WARMED ON INTENT, BECAUSE AN IDLE WARM WAS MEASURED AND BOUGHT NOTHING.](../docs/rules/perf-budgets-and-measured-findings.md#a-tab-is-warmed-on-intent-because-an-idle-warm-was-measured-and-bought-nothing)
+- [A HYDRATION REMOUNT IS A NEW LARGEST PAINT, SO IT HAPPENS ONLY WHEN THERE IS SOMETHING TO RECOVER.](../docs/rules/perf-budgets-and-measured-findings.md#a-hydration-remount-is-a-new-largest-paint-so-it-happens-only-when-there-is-something-to-recover)
