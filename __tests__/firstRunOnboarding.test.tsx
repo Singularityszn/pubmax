@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -784,4 +787,41 @@ describe("first-run handoff to the planner", () => {
     }
   });
 
+});
+
+// #1531: once the consent card was answered, the photograph band came back at
+// full height and pushed "Use London" under the foot of an Android screen,
+// because the action row was laid out INSIDE the stage the photograph shares.
+// The row is now the surface's own footer, outside the scroller, in a column
+// exactly the viewport tall, so no height the stage takes can move it.
+describe("first-run primary action", () => {
+  // Led by a newline so the file's first rule matches like every other.
+  const css = `\n${readFileSync(join(process.cwd(), "app/onboarding/onboarding.css"), "utf8")}`;
+  const rule = (selector: string): string => {
+    const start = css.indexOf(`\n${selector} {`);
+    expect(start, `${selector} must be styled`).toBeGreaterThan(-1);
+    return css.slice(start, css.indexOf("\n}", start + 1));
+  };
+
+  it("sits in a footer beside the scrolling stage, never inside it", () => {
+    const primary = buttonContaining("Use London");
+    const footer = primary.closest("footer.firstRunActions");
+    const stage = container.querySelector(".firstRunStage");
+    expect(footer).not.toBeNull();
+    expect(stage).not.toBeNull();
+    expect(stage?.contains(primary)).toBe(false);
+    expect(stage?.nextElementSibling).toBe(footer);
+  });
+
+  it("is laid out in a column the viewport tall, where only the stage gives", () => {
+    const surface = rule(".firstRunOnboarding");
+    expect(surface).toMatch(/height:\s*100dvh;/);
+    expect(surface).toMatch(/flex-direction:\s*column;/);
+    expect(surface).toMatch(/overflow:\s*hidden;/);
+    const stage = rule(".firstRunStage");
+    expect(stage).toMatch(/flex:\s*1 1 auto;/);
+    expect(stage).toMatch(/min-height:\s*0;/);
+    expect(stage).toMatch(/overflow-y:\s*auto;/);
+    expect(rule(".firstRunActions")).toMatch(/flex:\s*0 0 auto;/);
+  });
 });
