@@ -7,6 +7,7 @@ import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import {
+  isCompleteMapSearchIndex,
   loadMapSearchIndex,
 } from "@/lib/mapSearchIndexLoader";
 import {
@@ -150,14 +151,18 @@ export default function MapSearchSuggest({
   const [searchIndex, setSearchIndex] = useState<MapSearchIndex | null>(null);
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
+  // An index missing a city pack is shown, and asked for again on the next
+  // focus or keystroke rather than kept until the page reloads.
+  const searchIndexCompleteRef = useRef(false);
   const ensureSearchIndex = useCallback(() => {
-    if (searchIndex || searchIndexPromiseRef.current) return;
+    if (searchIndexCompleteRef.current || searchIndexPromiseRef.current) return;
     setSearchIndexLoading(true);
     const pending = loadMapSearchIndex({
       currentCityId: cityId,
       currentVenues: venues,
     })
       .then((index) => {
+        searchIndexCompleteRef.current = isCompleteMapSearchIndex(index);
         setSearchIndex(index);
         return index;
       })
@@ -167,11 +172,11 @@ export default function MapSearchSuggest({
         setSearchIndexLoading(false);
       });
     searchIndexPromiseRef.current = pending;
-  }, [cityId, searchIndex, venues]);
+  }, [cityId, venues]);
 
   useEffect(() => {
-    if (mode === "overlay") ensureSearchIndex();
-  }, [cityId, ensureSearchIndex, mode]);
+    if (mode === "overlay" && !searchIndex) ensureSearchIndex();
+  }, [cityId, ensureSearchIndex, mode, searchIndex]);
 
   const suggestions = useMemo(
     () =>
@@ -222,14 +227,29 @@ export default function MapSearchSuggest({
     () => indexedResults.filter((result): result is Extract<MapSearchIndexResult, { kind: "city" }> => result.kind === "city"),
     [indexedResults],
   );
-  const indexedVenues = useMemo(() => {
+  // The map holds only the shards around its viewport, so a pub of this city
+  // the reader has not panned to comes from the index. It still belongs in the
+  // Venues group, after the held pubs; other cities keep their own lane.
+  const { currentCityIndexedVenues, indexedVenues } = useMemo(() => {
     const localVenueIds = new Set(suggestions.pubs.map((pub) => pub.id));
-    return indexedResults.filter(
+    const venueResults = indexedResults.filter(
       (result): result is Extract<MapSearchIndexResult, { kind: "venue" }> =>
         result.kind === "venue" &&
         (result.cityId !== cityId || !localVenueIds.has(result.id)),
     );
+    const currentCity = venueResults.filter((result) => result.cityId === cityId);
+    return {
+      currentCityIndexedVenues: currentCity,
+      indexedVenues: [
+        ...currentCity,
+        ...venueResults.filter((result) => result.cityId !== cityId),
+      ],
+    };
   }, [cityId, indexedResults, suggestions.pubs]);
+  const crossCityIndexedVenues = useMemo(
+    () => indexedVenues.slice(currentCityIndexedVenues.length),
+    [currentCityIndexedVenues.length, indexedVenues],
+  );
 
   const mergedUkBasePubs = useMemo(() => {
     return suggestions.ukBasePubs.slice(0, 12);
@@ -452,7 +472,36 @@ export default function MapSearchSuggest({
   const liveAnnouncement =
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
-  const pubGroup = suggestions.pubs.length > 0 ? (
+  const renderIndexedVenue = (
+    venue: Extract<MapSearchIndexResult, { kind: "venue" }>,
+    index: number,
+  ) => {
+    const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
+    const locationLabel = venue.cityId === cityId
+      ? venue.area
+      : venue.area && venue.area !== cityName
+        ? `${venue.area} · ${cityName ?? ""}`.trim()
+        : venue.area || cityName;
+    return (
+      <div
+        key={`${venue.cityId}:${venue.id}`}
+        id={optionId(index)}
+        role="option"
+        data-venue-id={venue.id}
+        aria-selected={safeActive === index}
+        className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => activate({ type: "indexedVenue", item: venue })}
+        onPointerEnter={() => chooseActiveIndex(index)}
+      >
+        <span className="mapSearchSuggestRowMain">
+          <span className="mapSearchSuggestRowName">{venue.name}</span>
+          {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
+        </span>
+      </div>
+    );
+  };
+  const pubGroup = suggestions.pubs.length > 0 || currentCityIndexedVenues.length > 0 ? (
     <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
       <p className="mapSearchSuggestGroupHead">
         <span>Venues</span>
@@ -494,38 +543,22 @@ export default function MapSearchSuggest({
           </div>
         );
       })}
+      {currentCityIndexedVenues.map((venue, offset) =>
+        renderIndexedVenue(venue, indexedVenueStartIndex + offset),
+      )}
     </div>
   ) : null;
-  const indexedVenueGroup = indexedVenues.length > 0 ? (
+  const indexedVenueGroup = crossCityIndexedVenues.length > 0 ? (
     <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
       <p className="mapSearchSuggestGroupHead">
         <span>Venues across city maps</span>
       </p>
-      {indexedVenues.map((venue, offset) => {
-        const index = indexedVenueStartIndex + offset;
-        const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
-        const locationLabel = venue.area && venue.area !== cityName
-          ? `${venue.area} · ${cityName ?? ""}`.trim()
-          : venue.area || cityName;
-        return (
-          <div
-            key={`${venue.cityId}:${venue.id}`}
-            id={optionId(index)}
-            role="option"
-            data-venue-id={venue.id}
-            aria-selected={safeActive === index}
-            className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => activate({ type: "indexedVenue", item: venue })}
-            onPointerEnter={() => chooseActiveIndex(index)}
-          >
-            <span className="mapSearchSuggestRowMain">
-              <span className="mapSearchSuggestRowName">{venue.name}</span>
-              {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
-            </span>
-          </div>
-        );
-      })}
+      {crossCityIndexedVenues.map((venue, offset) =>
+        renderIndexedVenue(
+          venue,
+          indexedVenueStartIndex + currentCityIndexedVenues.length + offset,
+        ),
+      )}
     </div>
   ) : null;
   const areaGroup = suggestions.areas.length > 0 ? (

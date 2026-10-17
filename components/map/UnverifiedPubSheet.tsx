@@ -11,6 +11,7 @@ import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import VenueHygiene from "@/components/map/VenueHygiene";
+import VenueListedBuilding from "@/components/map/VenueListedBuilding";
 import VenueWikidataHistory from "@/components/map/VenueWikidataHistory";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
@@ -317,6 +318,9 @@ export default function UnverifiedPubSheet({
       {/* The FSA's rating for this OSM pub, through its own fhrs:id tag when it
           carries one (lib/fsaHygienePack.ts). Renders nothing otherwise. */}
       <VenueHygiene venueId={pub.id} venueName={pub.name} address={pub.address} />
+      {/* Historic England's listing for this pub, when the NHLE join matched it
+          (scripts/build_heritage_listings.mjs). Renders nothing otherwise. */}
+      <VenueListedBuilding venueId={pub.id} venueName={pub.name} />
       {/* What Wikidata records about this pub, through its own OSM wikidata
           tag (lib/wikidataHistory.ts). Renders nothing otherwise. */}
       <VenueWikidataHistory venueId={pub.id} venueName={pub.name} />

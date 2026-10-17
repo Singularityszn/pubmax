@@ -154,7 +154,12 @@ export async function retrieveHeritageWithStatus(input: {
   // same-named pub. This is the authoritative "brass plaque" line, so it leads.
   const listed = await getListedBuilding(input.venueId);
   if (listed) {
-    facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
+    facts.push({
+      source: "nhle",
+      fact: listed.fact,
+      sourceRef: listed.url,
+      ...(listed.retrievedAt ? { observedAt: listed.retrievedAt } : {}),
+    });
   }
 
   // (0b) Wikidata history, through the pub's own OSM wikidata tag: an exact
