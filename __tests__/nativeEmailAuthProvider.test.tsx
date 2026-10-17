@@ -366,6 +366,52 @@ describe("installed iPhone email link, relay and App consumer", () => {
     expect(h.setSession).not.toHaveBeenCalled();
   });
 
+  it("keeps a sent link usable when a prompt closes without cancelling the link", async () => {
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test", "/u/you")).status).toBe("sent"); });
+    const callback = await emailCallback();
+    await act(async () => { actions.cancelAuthAttempt({ keepEmailLink: true }); });
+    await openApp(callback);
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    expect(h.tokenRequests).toBe(1);
+    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+  });
+
+  it.each(["superseded", "expired"] as const)("says a %s email link could not be completed instead of doing nothing", async (reason) => {
+    await act(async () => { await actions.signInWithEmail("native@example.test"); });
+    const earlier = await emailCallback("earlier-code");
+    if (reason === "superseded") await act(async () => { await actions.signInWithEmail("native@example.test"); });
+    else localStorage.removeItem(NATIVE_EMAIL_RECEIPT_KEY);
+    await openApp(earlier);
+    await vi.waitFor(() => expect(container.querySelector("[role=alert]")?.textContent)
+      .toContain("Sign-in could not be completed. The link may be invalid or expired."));
+    expect(h.tokenRequests).toBe(0);
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+  });
+
+  it("stays quiet for a second copy of a link that already signed in", async () => {
+    await act(async () => { await actions.signInWithEmail("native@example.test"); });
+    const incoming = new URL(h.callbackUrl); incoming.searchParams.set("code", "one-use-email-code");
+    const custom = (await GET(new Request(incoming))).headers.get("location")!;
+    await openApp(custom);
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    await openApp(incoming.toString());
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(container.querySelector("[role=alert]")).toBeNull();
+    expect(h.tokenRequests).toBe(1);
+  });
+
+  it("stays quiet for a stale link that reaches a signed-in app", async () => {
+    await act(async () => { await actions.signInWithEmail("native@example.test"); });
+    const stale = await emailCallback("stale-code");
+    await act(async () => { await actions.signInWithEmail("native@example.test"); });
+    await openApp(await emailCallback("current-code"));
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    await resetDocument(stale);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(container.querySelector("[role=alert]")).toBeNull();
+    expect(h.tokenRequests).toBe(1);
+  });
+
   it("ignores the earlier email after a same-app request supersedes it", async () => {
     await act(async () => { await actions.signInWithEmail("native@example.test"); });
     const earlier = await emailCallback("earlier-code");

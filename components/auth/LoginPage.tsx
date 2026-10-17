@@ -469,7 +469,7 @@ export default function LoginPage({
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
         operationRef.current = null;
-        cancelAuthAttempt();
+        cancelAuthAttempt({ keepEmailLink: true });
         setBusy(null);
       }
     };

@@ -138,6 +138,7 @@ import {
 import {
   AuthContext,
   type AuthContextValue,
+  type CancelAuthAttemptOptions,
   type SignOutScope,
 } from "@/components/auth/authContext";
 
@@ -205,8 +206,8 @@ function releaseBrowserAuthAttempt(attemptId: string): void {
   releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
 }
 
-function cancelBrowserAuthAttempt(): void {
-  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage());
+function cancelBrowserAuthAttempt(keepAttemptId?: string | null): void {
+  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage(), keepAttemptId);
 }
 
 /**
@@ -938,9 +939,15 @@ export function AuthProvider({
 
   useEffect(() => () => { void cancelPendingNativeAuth(true); }, [cancelPendingNativeAuth]);
 
-  const cancelSignInAttempt = useCallback(() => {
-    void cancelPendingNativeAuth();
-    cancelBrowserAuthAttempt();
+  const cancelSignInAttempt = useCallback((options?: CancelAuthAttemptOptions) => {
+    const keepEmailLink = options?.keepEmailLink === true;
+    void cancelPendingNativeAuth(keepEmailLink);
+    // A sent iPhone link finishes only while its receipt and its attempt claim
+    // both survive, so a prompt closing without a cancel leaves both alone.
+    const sentLink = keepEmailLink && typeof window !== "undefined"
+      ? readNativeEmailReceipt(browserLocalStorage(), window.location.origin)?.id ?? null
+      : null;
+    cancelBrowserAuthAttempt(sentLink);
   }, [cancelPendingNativeAuth]);
 
   const finishNativeSignIn = useCallback((result: { session: Session; captured: CapturedAuthCallback }, current: () => boolean) => {
@@ -1032,6 +1039,8 @@ export function AuthProvider({
   }, [cancelPendingNativeAuth, finishNativeSignIn]);
 
   const nativeEmailCallbacks = useRef(new Set<string>());
+  // Links this document already answered, so a second copy stays quiet.
+  const settledNativeEmailCallbacks = useRef(new Set<string>());
   useEffect(() => {
     if (nativePlatform() !== "ios") return;
     readNativeEmailReceipt(browserLocalStorage(), window.location.origin);
@@ -1041,7 +1050,16 @@ export function AuthProvider({
       const callback = readNativeEmailCallback(raw, window.location.origin);
       const storage = browserLocalStorage();
       const receipt = readNativeEmailReceipt(storage, window.location.origin);
-      if (!callback || receipt?.id !== callback.id || nativeEmailCallbacks.current.has(callback.id)) return;
+      if (!callback || nativeEmailCallbacks.current.has(callback.id) || settledNativeEmailCallbacks.current.has(callback.id)) return;
+      if (receipt?.id !== callback.id) {
+        // This app can no longer finish the link: it expired, a newer request
+        // replaced it, or it was cancelled. Say so to a signed-out reader.
+        settledNativeEmailCallbacks.current.add(callback.id);
+        void waitForNativeEmailReadiness().then((signedOut) => {
+          if (active && signedOut) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        });
+        return;
+      }
       nativeEmailCallbacks.current.add(callback.id);
       void (async () => {
         try {
@@ -1073,7 +1091,10 @@ export function AuthProvider({
           if (!active || !ticket.current()) return;
           if (outcome.status === "established") finishNativeSignIn(outcome, ticket.current);
           else if (outcome.status === "failed") setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
-        } finally { nativeEmailCallbacks.current.delete(callback.id); }
+        } finally {
+          nativeEmailCallbacks.current.delete(callback.id);
+          settledNativeEmailCallbacks.current.add(callback.id);
+        }
       })();
     }).then((cleanup) => { if (!active) cleanup(); else stop = cleanup; });
     return () => { active = false; stop(); };

@@ -16,6 +16,9 @@ import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 /** How far a sign-out reaches: this account, or every account on this device. */
 export type SignOutScope = "account" | "device";
 
+/** Closing a prompt is not cancelling the email link it already sent. */
+export type CancelAuthAttemptOptions = { keepEmailLink?: boolean };
+
 export type AuthContextValue = {
   /** Current session, or null when signed out / not yet loaded. */
   session: Session | null;
@@ -39,8 +42,12 @@ export type AuthContextValue = {
   signInWithMicrosoft: (next?: string) => Promise<{ error: string | null }>;
   /** Send a passwordless email link with normalized, non-enumerating feedback. */
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
-  /** User cancelled an abandoned provider or magic-link attempt. */
-  cancelAuthAttempt: () => void;
+  /**
+   * User cancelled an abandoned provider or magic-link attempt. Pass
+   * `keepEmailLink` when a surface closes without cancelling a sent link, so
+   * the iPhone link keeps the verifier it needs to finish.
+   */
+  cancelAuthAttempt: (options?: CancelAuthAttemptOptions) => void;
   /**
    * Clear the local session. "account" (the default) signs out the active
    * account alone and hands the device to the next account still signed in on
