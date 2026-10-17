@@ -234,7 +234,7 @@ export default function SaveToListControl({
             listType,
             wanted,
             durable,
-            await readCanonicalSaved(),
+            handle ? [] : await readCanonicalSaved(),
           ),
         );
       } finally {
@@ -283,7 +283,7 @@ export default function SaveToListControl({
             name,
             true,
             await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
-            await readCanonicalSaved(),
+            handle ? [] : await readCanonicalSaved(),
           );
       setNewName("");
       announce(venueId, name, held);
