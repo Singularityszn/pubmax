@@ -57,10 +57,10 @@
         "kind": "field",
         "pointer": "generatedAt"
       },
-      "cadence": "none: a closed refresh lane. The pack still ships and is still read. No automatic producer refreshes it.",
+      "cadence": "none yet: a closed lane with a producer that has not published. The pack still ships and is still read.",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "None. This lane has no automatic refresh producer. The source pack contains the preserved July 2026 Greene King import and reviewed first-party additions captured on 13 October 2026: 42 dishes from The Eagle and 48 dishes from The New Inn and The Narrowboat. Each row retains its own observedAt. lib/priceUpdates.server.ts only reads the source pack. The drink and UK price harvesters do not produce food updates. A future generator requires a separate source decision. A missing or malformed artifact remains an integrity failure despite retired=true.",
-      "gate": "No automatic food writer. Three reviewed source imports do not establish a refresh cadence. Both freshness readers still open the artifact. A missing or malformed pack remains an UNRESOLVED integrity breach."
+      "refreshWorkflow": "npm run harvest:uk-food reads London pubs' own food menus (first party only, sourcePolicy, live robots per path, redirect landing re-asked) and npm run build:food-price-updates publishes the reviewed rows into public/data/food_price_updates/ (runbook docs/UK_FOOD_HARVEST.md). The lane stays `retired: true` until that first reviewed publish lands, because a producer that has not yet run has refreshed nothing, and the PR that lands it moves this entry off retired and gives it a staleness budget. What ships today is three reviewed imports, none repeated: the preserved July 2026 Greene King import and the first-party additions captured on 13 October 2026 (42 dishes from The Eagle, 48 from The New Inn and The Narrowboat); lib/priceUpdates.server.ts only reads them, and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live.",
+      "gate": "A producer exists and has not published: the harvest needs network access to the pubs' own hosts and, for pages that only show a menu in a browser, BROWSERBASE_API_KEY. The artifact is still opened by both freshness readers, so a pack that goes missing or stops parsing is still an UNRESOLVED breach: retiring a lane retires its refresh, never its file's integrity."
     },
     {
       "id": "night_signals",

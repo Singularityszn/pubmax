@@ -40,7 +40,9 @@ export const siteJsonLd = [
     name: BRAND_NAME,
     alternateName: [...SITE_BRAND_ALTERNATE_NAMES],
     url: PRODUCTION_SITE_ORIGIN,
-    logo: `${PRODUCTION_SITE_ORIGIN}/brand/icon.svg`,
+    // A raster logo: Google's Organization logo needs a crawlable image of at
+    // least 112x112, and a PNG is the format every consumer of it reads.
+    logo: `${PRODUCTION_SITE_ORIGIN}/brand/icon-512.png`,
     founder: {
       "@type": "Person",
       name: "Karan Manoharan",

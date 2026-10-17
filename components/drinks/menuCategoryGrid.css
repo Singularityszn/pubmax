@@ -195,16 +195,20 @@
   color: var(--ink);
 }
 
+/* An empty state's one QUIET way onward, read off the text-button row: a
+   secondary. It was a coral pill, a second painted primary on the sheet beside
+   the peek's plan door, in a radius no other text button wears. */
 .menuHubEmptyAction {
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   margin-top: 6px;
-  padding: 9px 16px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--brass);
-  color: var(--color-on-accent-strong);
+  padding: 8px var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
   font: inherit;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
 }
 
