@@ -1,4 +1,4 @@
-import type { FoodCategory, UkFoodDropReason } from "../../../lib/harvest/ukFoodCrawl.ts";
+import type { FoodCategory } from "../../../lib/food.ts";
 
 type RobotsAnswer = { allowed: boolean; reason: string; robots?: string; evidence: string; sitemaps?: string[] };
 
@@ -72,7 +72,7 @@ export type FoodHarvestResult = {
     outcomes: Record<string, number>;
     rows: number;
     venuesPriced: number;
-    drops: Partial<Record<UkFoodDropReason, number>>;
+    drops: Record<string, number>;
     pdfUnread: number;
     renders: number;
     rendersSkippedOverBudget: number;

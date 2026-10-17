@@ -20,21 +20,12 @@
 // with no heading above it is filed `other` rather than guessed into `mains`,
 // because a category is a claim about the menu and the menu did not make it.
 
+import type { FoodCategory } from "../food";
+
 import { categoryFor, pageText, type UkPriceSourceFormat } from "./ukPriceCrawl";
 
-export type FoodCategory =
-  | "breakfast"
-  | "starters"
-  | "sharers"
-  | "mains"
-  | "burgers"
-  | "short-eats"
-  | "bar-snacks"
-  | "sides"
-  | "desserts"
-  | "other";
 
-export const UK_FOOD_DROP_REASONS = [
+const UK_FOOD_DROP_REASONS = [
   "offer-or-add-on",
   "several-prices-on-line",
   "outside-food-band",
@@ -44,9 +35,9 @@ export const UK_FOOD_DROP_REASONS = [
   "no-food-context",
   "duplicate-item",
 ] as const;
-export type UkFoodDropReason = (typeof UK_FOOD_DROP_REASONS)[number];
+type UkFoodDropReason = (typeof UK_FOOD_DROP_REASONS)[number];
 
-export type UkFoodDish = {
+type UkFoodDish = {
   itemName: string;
   category: FoodCategory;
   priceGbp: number;
@@ -62,8 +53,8 @@ export type UkFoodReading = {
 };
 
 /** A dish costs at least this, and a pub dish never more than the ceiling. */
-export const FOOD_PRICE_FLOOR_GBP = 1;
-export const FOOD_PRICE_CEILING_GBP = 60;
+const FOOD_PRICE_FLOOR_GBP = 1;
+const FOOD_PRICE_CEILING_GBP = 60;
 
 /**
  * How many dishes a page has to state before it counts as a MENU. The drink
