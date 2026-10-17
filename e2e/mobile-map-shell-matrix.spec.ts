@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 
 const VIEWPORTS = [
@@ -98,19 +98,20 @@ for (const viewport of VIEWPORTS) {
       await expectMobileMapShellReady(page, 30_000);
       // ONE bar (design judgement 2026-08-01, finding 2.3): no control rail.
       await expect(page.locator(".mobileMapRail")).toHaveCount(0);
-      await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
+      const nearMe = await mobileMapShellControl(page, "nearMe");
+      await expect(nearMe).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 30_000 });
       await waitForMapPaint(page);
 
       expect(await page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("0");
-      await expect(page.getByRole("button", { name: "Near me" })).toBeVisible();
+      await expect(nearMe).toHaveAccessibleName("Near me");
       const viewportBeforeNearby = await page.evaluate(() => {
         const raw = JSON.parse(window.localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as { viewport?: unknown } | null;
         return JSON.stringify(raw?.viewport ?? null);
       });
-      await page.getByRole("button", { name: "Near me" }).click();
+      await nearMe.click();
       await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-geo-calls"))).toBe("1");
       const nearbyChip = page.getByRole("button", { name: "Nearby" });
       await expect(nearbyChip).toBeVisible();
@@ -131,8 +132,8 @@ for (const viewport of VIEWPORTS) {
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
       const navLinks = page.getByRole("navigation", { name: "Primary" }).getByRole("link");
-      await expect(navLinks).toHaveCount(6);
-      await expect(navLinks).toHaveText(["Tonight", "Map", "Places", "Out", "Plan", "You"]);
+      await expect(navLinks).toHaveCount(5);
+      await expect(navLinks).toHaveText(["Map", "Tonight", "Plan", "Social", "You"]);
       await expect(navLinks.filter({ hasText: "Map" })).toHaveAttribute("aria-current", "page");
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");
@@ -140,8 +141,8 @@ for (const viewport of VIEWPORTS) {
       // The map edge holds TfL at the top and the Near me FAB at the thumb
       // (components/mobile/MobileMapShell.tsx MapEdgeControls).
       await expect(utilityCorner.getByRole("button")).toHaveCount(2);
-      await expect(utilityCorner.getByRole("button", { name: /TfL live/ })).toBeVisible();
-      await expect(utilityCorner.locator(".mobileMapLocateFab")).toHaveAttribute("aria-pressed", "true");
+      await expect(await mobileMapShellControl(page, "tfl")).toHaveAccessibleName(/^TfL live/);
+      await expect(nearMe).toHaveAttribute("aria-pressed", "true");
       await expect(utilityCorner.getByRole("button", { name: "List view of venues on the map" })).toHaveCount(0);
 
       for (const selector of [
@@ -159,7 +160,8 @@ for (const viewport of VIEWPORTS) {
       await expectNoHorizontalOverflow(page);
       await saveShot(page, `map-${viewport.width}x${viewport.height}-${theme}`);
 
-      await page.getByRole("button", { name: "More map controls" }).click();
+      const more = await mobileMapShellControl(page, "more");
+      await more.click();
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
       await expect(
         page.getByRole("tablist", { name: "Map control sections" }),
@@ -213,9 +215,9 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole("button", { name: "Close and return to the London map" }).click();
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
 
-      await page.getByRole("button", { name: "More map controls" }).click();
+      await more.click();
       await page.getByRole("button", { name: "Close Map controls" }).click();
-      await page.getByRole("button", { name: /Filters/ }).click();
+      await (await mobileMapShellControl(page, "filters")).click();
       const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
       await expect(filtersSheet).toHaveCount(1);
       await expect(filtersSheet.getByRole("heading", { name: "Prices and places" })).toBeVisible();
@@ -262,11 +264,10 @@ test("TfL badges a badly disrupted line, and only that", async ({ page }) => {
     }),
   );
   await page.goto("/map");
-  const tflChip = page.getByRole("button", { name: /TfL/ });
   // The chip is phone shell chrome, held until the map's loading frame lets go
   // (`mobileShellReady` in components/PubMap.tsx), so it is owed the shell's
   // readiness ceiling rather than the default expect timeout.
-  await expectMobileMapShellReady(page);
+  const tflChip = await mobileMapShellControl(page, "tfl");
   await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveText("1");
   await expect(tflChip).toHaveAttribute(
     "aria-label",
@@ -298,7 +299,7 @@ test("TfL status is fresh in the rail before its grouped sheet opens", async ({ 
   });
 
   await page.goto("/map");
-  const tflChip = page.getByRole("button", { name: /TfL/ });
+  const tflChip = await mobileMapShellControl(page, "tfl");
   // Three routine updates are in the accessible name and the sheet, never a
   // badge: a number on the resting map says something is urgent.
   await expect(tflChip).toHaveAttribute("aria-label", "TfL live: 3 updates");
@@ -352,8 +353,8 @@ for (const theme of THEMES) {
 
     for (const [zoom, pitch] of [[10, 0], [12, 22], [14, 40], [16, 50]] as const) {
       // Leave the map before writing its camera. A live map keeps writing both
-      // stores: the session on every camera change, the resume cache 250ms
-      // after one. Its opening turn or a late resume write landing between this
+      // stores: the session on every camera change, the resume cache in idle
+      // time after one. Its opening turn or a late resume write landing between this
       // write and the reopen put the map back at its own camera, not this one.
       await page.goto("/offline.html");
       await page.evaluate(({ nextZoom, nextPitch }) => {
@@ -367,7 +368,7 @@ for (const theme of THEMES) {
         window.localStorage.setItem(key, JSON.stringify(raw));
         // The map writes the same camera to its resume cache (lib/mapResume.ts),
         // and that cache wins on reopen, so both stores carry the camera.
-        const resumeKey = "map-resume:v1:london";
+        const resumeKey = "map-resume:v2:london:view";
         const resume = JSON.parse(window.localStorage.getItem(resumeKey) ?? "null") as Record<string, unknown> | null;
         if (resume) {
           resume.viewport = viewport;

@@ -39,8 +39,8 @@ jobs:
   # From 6 to 15 September 2026 the measurement ran on a 4 vCPU runner (Avrea,
   # then Blacksmith). A private repository's 2 vCPU `ubuntu-latest` could not
   # measure itself, which is one reason the sweep left the pull-request path.
-  # This job launches Playwright, so it runs on macos-latest with the law pins.
-  # Ubuntu font metrics do not match those pins. The
+  # This job stays on macos-latest: its route budgets were measured there,
+  # and a Linux figure is a different measurement. The
   # 6 September run reported LCP samples spread 37 to 51 per cent on /today,
   # /discover, /drinks and /crawls, past the method's own 12 per cent width, so
   # a route flipped between pass and fail on one commit. A ceiling is only a

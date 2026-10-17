@@ -17,6 +17,7 @@ import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
 import type { PublicProfileCard } from "@/components/auth/publicProfileCard";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
@@ -25,6 +26,7 @@ import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -378,8 +380,10 @@ function DoorSwitch({
           role="tab"
           className="loginPageDoor"
           aria-selected={intent === option}
+          tabIndex={intent === option ? 0 : -1}
           data-selected={intent === option ? "" : undefined}
           onClick={() => onChoose(option)}
+          onKeyDown={(event) => moveTablistFocus(event)}
         >
           {DOORS[option].tab}
         </button>
@@ -441,6 +445,15 @@ export default function LoginPage({
   // ONE live read of the remembered-account lane on this page.
   const deviceAccounts = useDeviceAccounts();
   const [busy, setBusy] = useState<"google" | "apple" | "microsoft" | "out" | null>(null);
+  const operationRef = useRef<symbol | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      operationRef.current = null;
+    };
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [resumeStatus, setResumeStatus] = useState<
     "idle" | "sending" | MagicLinkResult["status"]
@@ -458,6 +471,7 @@ export default function LoginPage({
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
+        operationRef.current = null;
         cancelAuthAttempt();
         setBusy(null);
       }
@@ -510,44 +524,29 @@ export default function LoginPage({
     [destination, intent, signInWithEmail],
   );
 
-  const onSignInGoogle = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "google" });
-    setBusy("google");
+  const onProviderSignIn = useCallback(async (
+    provider: "google" | "apple" | "microsoft",
+    start: (next?: string) => Promise<{ error: string | null }>,
+  ) => {
+    const operation = Symbol();
+    const accountSignal = readProviderAccountSignal();
+    operationRef.current = operation;
+    const ownsOperation = () => mountedRef.current && operationRef.current === operation;
+    trackEvent("sign_in_initiated", { provider });
+    setBusy(provider);
     setError(null);
-    const { error: signInError } = providerDestination
-      ? await signInWithGoogle(providerDestination)
-      : await signInWithGoogle();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
+    try {
+      const { error: signInError } = providerDestination ? await start(providerDestination) : await start();
+      if (ownsOperation() && !accountSignal.aborted && signInError) setError(signInError);
+    } catch {
+      if (ownsOperation() && !accountSignal.aborted) setError("Sign-in could not be started. Try again.");
+    } finally {
+      if (ownsOperation()) {
+        operationRef.current = null;
+        setBusy(null);
+      }
     }
-  }, [providerDestination, signInWithGoogle]);
-
-  const onSignInApple = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "apple" });
-    setBusy("apple");
-    setError(null);
-    const { error: signInError } = providerDestination
-      ? await signInWithApple(providerDestination)
-      : await signInWithApple();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [providerDestination, signInWithApple]);
-
-  const onSignInMicrosoft = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "microsoft" });
-    setBusy("microsoft");
-    setError(null);
-    const { error: signInError } = providerDestination
-      ? await signInWithMicrosoft(providerDestination)
-      : await signInWithMicrosoft();
-    if (signInError) {
-      setError(signInError);
-      setBusy(null);
-    }
-  }, [providerDestination, signInWithMicrosoft]);
+  }, [providerDestination]);
 
   const onResume = useCallback(async () => {
     if (resumeStatus === "sending" || resumeStatus === "sent") return;
@@ -563,9 +562,17 @@ export default function LoginPage({
 
   const onSignOut = useCallback(
     async (scope: SignOutScope) => {
+      const operation = Symbol();
+      operationRef.current = operation;
       setBusy("out");
-      await signOut(scope);
-      setBusy(null);
+      try {
+        await signOut(scope);
+      } finally {
+        if (mountedRef.current && operationRef.current === operation) {
+          operationRef.current = null;
+          setBusy(null);
+        }
+      }
     },
     [signOut],
   );
@@ -725,9 +732,9 @@ export default function LoginPage({
                 <SocialSignInButtons
                   availability={socialProviders}
                   disabled={busy !== null}
-                  onGoogle={onSignInGoogle}
-                  onApple={onSignInApple}
-                  onMicrosoft={onSignInMicrosoft}
+                  onGoogle={() => onProviderSignIn("google", signInWithGoogle)}
+                  onApple={() => onProviderSignIn("apple", signInWithApple)}
+                  onMicrosoft={() => onProviderSignIn("microsoft", signInWithMicrosoft)}
                   fullLabels
                 />
               ) : null}

@@ -42,6 +42,7 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import { resolveFutureLondonStartIso } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 
@@ -112,7 +113,7 @@ async function sortIt(query: string): Promise<void> {
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, query);
     field.dispatchEvent(new Event("input", { bubbles: true }));
-    [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Sort it")!.click();
+    [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
     await Promise.resolve();
   });
   await settle();
@@ -175,11 +176,214 @@ async function openTune(): Promise<void> {
 }
 
 async function sortAgainFromTune(): Promise<void> {
-  const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Sort it again")!;
+  const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Plan it again")!;
   await act(async () => { again.click(); });
   await settle();
   await settle();
 }
+
+// NOBODY SILENTLY LOSES TONIGHT (captain, 16 Oct 2026). From 22:30 London the
+// default First pint is tomorrow at 19:00, because a first pint near midnight
+// is not a night out. That left a reader standing in the night with no default
+// for it, and a summary that never said which night it was.
+describe("the First pint beside a night the default stepped over", () => {
+  function startField(): HTMLInputElement {
+    return document.querySelector<HTMLInputElement>("#plan-time")!;
+  }
+
+  function tonightChoice(): HTMLButtonElement | null {
+    return document.querySelector<HTMLButtonElement>('[data-testid="plan-tonight-choice"]');
+  }
+
+  function summary(): string {
+    return document.querySelector('[data-testid="plan-route-summary"]')?.textContent ?? "";
+  }
+
+  it("defaults to tomorrow at 19:00 and offers tonight in one tap, with its date", async () => {
+    // 21:45 UTC is 22:45 BST: past the cutoff.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    expect(startField().value).toBe("2026-10-16T19:00");
+    expect(summary()).toContain("Fri 16 Oct, 19:00");
+
+    const tonight = tonightChoice();
+    expect(tonight).not.toBeNull();
+    expect(tonight!.textContent).toBe("Tonight, Thu 15 Oct, 23:00");
+
+    await act(async () => { tonight!.click(); });
+    await settle();
+
+    expect(startField().value).toBe("2026-10-15T23:00");
+    expect(summary()).toContain("Thu 15 Oct, 23:00");
+    // The choice is made, so the door closes.
+    expect(tonightChoice()).toBeNull();
+  });
+
+  // The slot was latched at mount, so a reader who described a night and sorted
+  // it before tapping wrote a quarter-hour that had already passed: the lock
+  // then refuses the start it was handed, with nothing on screen saying so.
+  it("writes the slot the clock says on the tap, not the one it was offered at", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(tonightChoice()!.textContent).toBe("Tonight, Thu 15 Oct, 23:00");
+
+    // Twenty minutes of describing and sorting later, 23:00 is behind us.
+    vi.setSystemTime(new Date("2026-10-15T22:05:00.000Z"));
+    const tonight = tonightChoice()!;
+    await act(async () => { tonight.click(); });
+    await settle();
+
+    expect(startField().value).toBe("2026-10-15T23:30");
+    expect(summary()).toContain("Thu 15 Oct, 23:30");
+    // And the start the lock reads is still ahead of now.
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
+      .toBe("2026-10-15T22:30:00.000Z");
+  });
+
+  // The page runs no timer, so a button offered before midnight is still on
+  // screen after it. The slot it was offered then is a moment that has gone:
+  // the tap must write the night the control NAMES, read fresh, rather than a
+  // start in the past or a different night seventeen hours out.
+  it("writes tonight's own slot when tapped after the night it offered", async () => {
+    // 22:50 UTC is 23:50 BST: the slot rolls past midnight.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T22:50:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    const tonight = tonightChoice()!;
+    expect(tonight.textContent).toBe("Tonight, Fri 16 Oct, 00:15");
+
+    // Back at 00:40, with no render in between.
+    vi.setSystemTime(new Date("2026-10-15T23:40:00.000Z"));
+    await act(async () => { tonight.click(); });
+    await settle();
+
+    // 00:40 is still the 15th's night out, so the fresh slot is the next
+    // quarter a clear fifteen minutes out - not the offered 00:15, and not the
+    // next evening.
+    expect(startField().value).toBe("2026-10-16T01:00");
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
+      .toBe("2026-10-16T00:00:00.000Z");
+    // Nothing the reader had settled is re-opened by the tap.
+    expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  // A start the lock has already refused is the state that needs the door
+  // most, and reading the field's NIGHT alone withheld it there: a start
+  // earlier tonight is on the night running now, so the door stayed shut over
+  // a field the reader could only fix by hand.
+  it("comes back once the start in the field has passed", async () => {
+    // 21:45 UTC is 22:45 BST.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    await act(async () => { tonightChoice()!.click(); });
+    await settle();
+    expect(startField().value).toBe("2026-10-15T23:00");
+    expect(tonightChoice()).toBeNull();
+
+    // Twenty-five minutes of tuning later, that start has gone by: the lock
+    // refuses it, so the way back into tonight has to be on screen.
+    vi.setSystemTime(new Date("2026-10-15T22:20:00.000Z"));
+    const title = document.querySelector<HTMLInputElement>("#plan-title")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(title, "Late one");
+      title.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+
+    // The lock's own verdict on the field: the start it holds has gone.
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date())).toBeNull();
+    const again = tonightChoice();
+    expect(again).not.toBeNull();
+    expect(again!.textContent).toBe("Tonight, Thu 15 Oct, 23:45");
+
+    await act(async () => { again!.click(); });
+    await settle();
+    expect(startField().value).toBe("2026-10-15T23:45");
+    expect(resolveFutureLondonStartIso(startField().value, null, new Date()))
+      .toBe("2026-10-15T22:45:00.000Z");
+  });
+
+  // Near the end of the night the rounding runs out of slots: the next quarter
+  // lands on the NEXT night, so there is nothing left to step back to. The tap
+  // used to fall through to the late default - 19:00 the following evening -
+  // under a label naming the small hours, with nothing on screen saying so.
+  it("writes nothing rather than a night its label does not name", async () => {
+    // 03:28 UTC is 04:28 BST: the last few minutes with a slot left.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-16T03:28:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(tonightChoice()!.textContent).toBe("Tonight, Fri 16 Oct, 04:45");
+
+    // A start the reader chose, so a wrong write is visible rather than hidden
+    // behind the default the door would otherwise have fallen back to.
+    const field = startField();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "2026-10-18T19:00");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect(startField().value).toBe("2026-10-18T19:00");
+
+    // 03:35 UTC is 04:35 BST: the next quarter is 05:00, which is the next
+    // night, so the door has nothing to offer and must write nothing.
+    vi.setSystemTime(new Date("2026-10-16T03:35:00.000Z"));
+    const tonight = tonightChoice()!;
+    await act(async () => { tonight.click(); });
+    await settle();
+
+    expect(startField().value).toBe("2026-10-18T19:00");
+    expect(summary()).toContain("Sun 18 Oct, 19:00");
+    expect(document.querySelector("#plan-time")?.getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("re-reads the offer as the clock moves, so the label names the slot it writes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T21:45:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(tonightChoice()!.textContent).toBe("Tonight, Thu 15 Oct, 23:00");
+
+    vi.setSystemTime(new Date("2026-10-15T22:05:00.000Z"));
+    // Any re-render re-reads the clock: the name on the door follows it.
+    const field = startField();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "2026-10-17T19:00");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+
+    expect(tonightChoice()!.textContent).toBe("Tonight, Thu 15 Oct, 23:30");
+  });
+
+  it("leaves an ordinary evening alone: the default is tonight and there is no second choice", async () => {
+    // 19:05 UTC is 20:05 BST: before the cutoff.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-15T19:05:00.000Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    expect(startField().value).toBe("2026-10-15T20:30");
+    expect(summary()).toContain("Thu 15 Oct, 20:30");
+    expect(tonightChoice()).toBeNull();
+  });
+});
 
 describe("sorting again from Tune details", () => {
   it("closes the sheet and lands focus on the new route's status", async () => {
@@ -207,7 +411,7 @@ describe("sorting again from Tune details", () => {
     const generateCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).length;
     const before = generateCalls();
 
-    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Sort it again")!;
+    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Plan it again")!;
     await act(async () => { again.focus(); again.click(); });
     await settle();
 
@@ -641,5 +845,35 @@ describe("an accepted place the venue index has no name for", () => {
     const status = document.querySelector("#plan-route-status");
     expect(status?.textContent).toBe("Released The Held Arms. Stop 1 is yours to change.");
     expect(document.activeElement).toBe(status);
+  });
+});
+
+describe("swapping one stop in place", () => {
+  it("swaps to the generator's alternative and leaves the night lockable without a refresh", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const body = url.includes("/api/plans/generate")
+        ? {
+            ...GENERATED,
+            stops: [
+              GENERATED.stops[0],
+              { ...GENERATED.stops[1], estimatedPintPricePence: 520, alternatives: [{ venueId: "venue-c", venueName: "Pub C", estimatedPintPricePence: 480 }] },
+            ],
+          }
+        : [];
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    const swap = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.getAttribute("aria-label") === "Swap stop 2, currently Pub B")!;
+    await act(async () => { swap.click(); });
+    await settle();
+
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop 2 swapped to Pub C.");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(document.querySelector("#plan-lock-hint")?.textContent ?? "").not.toMatch(/Refresh the route/);
+    expect(document.body.textContent).toContain("Pub C");
   });
 });

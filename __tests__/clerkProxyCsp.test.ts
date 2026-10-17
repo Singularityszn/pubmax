@@ -296,6 +296,9 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/historic/the-gun",
     "/borough/haringey",
     "/landmark/big-ben",
+    // The Ledger joined on 2026-10-17 (option a): the document holds the pub's
+    // bundled facts, and the logbook and Family Table load after it.
+    "/ledger/venue-xjf3n0",
     "/drink/guinness",
     "/area/clapham/drink/guinness",
   ];
@@ -314,14 +317,12 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/admin",
     "/admin/community-prices",
     "/plan",
-    "/out",
     "/places",
     "/pal",
     "/map/london",
     "/map/arrival",
     // The SEO families stop at the exact route shape. The index pages read
-    // search params, a deeper path is another route (an OG image), and the
-    // ledger resolves a viewer from the Authorization header.
+    // search params, and a deeper path is another route (an OG image).
     "/historic",
     "/borough",
     "/drink",
@@ -329,7 +330,8 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/area/clapham/drink",
     "/historic/the-gun/opengraph-image",
     "/area/clapham/drink/guinness/opengraph-image",
-    "/ledger/venue-xjf3n0",
+    "/ledger",
+    "/ledger/venue-xjf3n0/extra",
   ];
   // The signed-in surfaces, named apart from the family list above: a route
   // that resolves a session in its document is the one thing the widening may
@@ -358,13 +360,14 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
         "/drink/[slug]",
         "/historic/[slug]",
         "/landmark/[id]",
+        "/ledger/[id]",
       ],
     );
   });
 
-  it("never lets a route pattern reach the ledger or a signed-in surface", () => {
+  it("never lets a route pattern reach a signed-in surface", () => {
     for (const pattern of CDN_CACHED_DOCUMENT_ROUTES) {
-      expect(pattern).not.toMatch(/^\/(ledger|u|messages|admin|social|onboarding)\//);
+      expect(pattern).not.toMatch(/^\/(u|messages|admin|social|onboarding|p)\//);
     }
   });
 
@@ -808,8 +811,84 @@ describe("the proxy export Next.js actually runs", () => {
 
   it("keeps running on ordinary pages", () => {
     expect(
-      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/map" }),
+      unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/login" }),
     ).toBe(true);
+  });
+
+  // `Purpose: prefetch` (and `Sec-Purpose: prefetch;prerender`) is the
+  // BROWSER's word for a document it fetches ahead of a navigation: a
+  // <link rel=prefetch> or a speculation-rules prerender from app/layout.tsx
+  // (`/social`, `/crawls`, `/borough/*`). That document is the one the reader
+  // is then shown, so it needs its CSP, Clerk and every redirect and gate.
+  // Next's own router prefetch is `next-router-prefetch`, an RSC fetch.
+  const BROWSER_PREFETCH_HEADERS: Array<Record<string, string>> = [
+    { purpose: "prefetch" },
+    { "sec-purpose": "prefetch;prerender" },
+    { "sec-purpose": "prefetch" },
+  ];
+
+  it.each(BROWSER_PREFETCH_HEADERS)(
+    "runs on a browser document prefetch or prerender (%o)",
+    (purposeHeaders) => {
+      for (const path of ["/social", "/crawls", "/borough/camden", "/login"]) {
+        expect(
+          unstable_doesMiddlewareMatch({
+            config,
+            url: `https://pubmaxxing.com${path}`,
+            headers: { accept: "text/html,application/xhtml+xml", ...purposeHeaders },
+          }),
+          path,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each(BROWSER_PREFETCH_HEADERS)(
+    "ships the nonce CSP to a browser document prefetch or prerender (%o)",
+    (purposeHeaders) => {
+      const response = securityProxy(
+        new NextRequest("https://pubmaxxing.com/social", {
+          headers: {
+            host: "pubmaxxing.com",
+            accept: "text/html,application/xhtml+xml",
+            ...purposeHeaders,
+          },
+        }),
+      );
+      const policy = response.headers.get("Content-Security-Policy") ?? "";
+      expect(directive(policy, "script-src")).toMatch(/'nonce-[^']+'/);
+    },
+  );
+
+  it("still keeps Next's own router prefetch (an RSC fetch) out of the CSP work", () => {
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://pubmaxxing.com/social",
+        headers: { "next-router-prefetch": "1", accept: "*/*" },
+      }),
+    ).toBe(false);
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/social", {
+        headers: { host: "pubmaxxing.com", "next-router-prefetch": "1", accept: "*/*" },
+      }),
+    );
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+  });
+
+  it("never lets a router-prefetch header strip the CSP off a document request", () => {
+    // A request that asks for HTML is a document, whatever else it carries.
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/social", {
+        headers: {
+          host: "pubmaxxing.com",
+          "next-router-prefetch": "1",
+          accept: "text/html,application/xhtml+xml",
+        },
+      }),
+    );
+    const policy = response.headers.get("Content-Security-Policy") ?? "";
+    expect(directive(policy, "script-src")).toMatch(/'nonce-[^']+'/);
   });
 });
 

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://huntersmoonlondon.co.uk/drinks/",
+  "observedAt": "2026-10-17T12:39:21.246Z",
+  "evidence": "Ginger Beer £ 3.00 Ginger Ale £ 3.00 Juices ( Tomato, Pomegranate, Grapefruit) £ 3.00 Freshly Squeezed Orange Juice £ 3.60 Starkey’s Bramley Apple Juice £ 3.60 Coca Cola / Diet Coke (330ml) £ 3.60",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "huntersmoonlondon.co.uk",
+      "venueId": "venue-uk-w121083435",
+      "osmId": "way/121083435",
+      "name": "The Hunter's Moon",
+      "postcode": "SW3 6HR",
+      "lat": 51.4900842,
+      "lng": -0.1749576,
+      "category": "soft-drink",
+      "priceGbp": 3.6,
+      "drinkLabel": "Coca Cola / Diet Coke (330ml)",
+      "sourceUrl": "https://huntersmoonlondon.co.uk/drinks/",
+      "observedAt": "2026-10-17T12:39:21.246Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 79
+    }
+  ]
+}

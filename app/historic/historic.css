@@ -95,9 +95,9 @@
 }
 
 .historicToggle[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -414,4 +414,18 @@
   .historicBoroughList {
     grid-template-columns: 1fr;
   }
+}
+
+/* The credits link sits inside a sentence, but it is still a thumb target:
+   inline-flex keeps it in the line and gives it the 44px the phone tap-target
+   pin measures (e2e/phone-tap-targets.spec.ts). */
+.historicCreditsLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

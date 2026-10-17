@@ -8,13 +8,11 @@ import { outAnswerView } from "@/lib/out/outStatus";
 import type { OutDay, OutResponse } from "@/lib/out/types";
 import { discardBody } from "@/lib/responseBody";
 
-export type HeldOutAnswer = {
+type HeldOutAnswer = {
   day: OutDay;
   city: CityId;
   body: OutResponse | null;
   failed: boolean;
-  /** Render time for a public server answer, never source freshness. */
-  servedAt?: number;
 };
 
 /**
@@ -40,14 +38,12 @@ const OUT_FETCH_TIMEOUT_MS = 8_000;
 export function useOutListings(
   window: OutDayWindow,
   city: CityId = DEFAULT_CITY_ID,
-  initialAnswer?: HeldOutAnswer,
 ) {
   const apiDay = outWindowToApiDay(window);
-  const [answer, setAnswer] = useState<HeldOutAnswer | null>(initialAnswer ?? null);
+  const [answer, setAnswer] = useState<HeldOutAnswer | null>(null);
   const [generation, setGeneration] = useState(0);
-  const currentAnswer = answer?.city === city && answer.day === apiDay ? answer : null;
   const view = outAnswerView(
-    currentAnswer,
+    answer && answer.city === city ? answer : null,
     apiDay,
   );
 
@@ -95,7 +91,7 @@ export function useOutListings(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [apiDay, city, generation, initialAnswer]);
+  }, [apiDay, city, generation]);
 
-  return { ...view, servedAt: currentAnswer?.servedAt, retry };
+  return { ...view, retry };
 }

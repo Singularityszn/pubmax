@@ -14,8 +14,9 @@
 // The two names are NOT interchangeable and neither is typed out here. A store
 // listing is an INSTALL surface, so the name field is APP_NAME; the description
 // is talking about the product, so it names the BRAND. lib/brandNaming.ts is
-// the one seam for both (AGENTS.md, "PUBMAXX is the brand; PUBMAXXING is the
-// app"), and letters typed here would rot apart from it.
+// the one seam for both, and letters typed here would rot apart from it. Every
+// web surface names PUBMAXX alone (product decision 16 Oct 2026); the store
+// name keeps APP_NAME until the captain renames the store record himself.
 //
 // Voice: docs/VOICE.md governs this like any other copy. No exclamation marks,
 // British English, and the price lane described honestly, because a listing
@@ -155,7 +156,7 @@ const STORE_LISTING_DESCRIPTION = [
   "",
   "Plan the night",
   "",
-  "- Describe the outing and get a crawl route back in order, with the walking kept honest.",
+  "- Say where, how many and what budget, and get a pub crawl back in order, with the walking kept honest.",
   "- What is on tonight, from named sources, with the date we read them.",
   "- The last train, so the night has an ending you chose.",
   "",

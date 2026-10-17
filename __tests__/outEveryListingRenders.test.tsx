@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
-// /out prints every sourced listing.
+// Every sourced listing is printed: the /out law, carried onto /tonight.
+//
+// /out folded into /tonight on 16 Oct 2026. Its listing surface lives on as
+// Tonight's Tomorrow and Weekend section (`OutListingsRead`), and the fence
+// below rides with it on every window, tonight included.
 //
 // Live walk B4, 6 September 2026: /out answered 31, 54 and 63 sourced listings
 // for tonight, tomorrow and the weekend, matched none of them to a pub, and
@@ -12,13 +16,12 @@
 // is a product action (the map), never a listing.
 
 import { act, createElement } from "react";
-import { createRoot, hydrateRoot, type Root } from "react-dom/client";
-import { renderToString } from "react-dom/server";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
-  usePathname: () => "/out",
+  usePathname: () => "/tonight",
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -38,8 +41,10 @@ vi.mock("next/link", () => ({
   },
 }));
 
-import OutClient from "@/app/out/OutClient";
-import type { HeldOutAnswer } from "@/components/out/useOutListings";
+import TonightLaterListings, {
+  OutListingsRead,
+  TONIGHT_LATER_PENDING_LINE,
+} from "@/app/tonight/TonightLaterListings";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -87,11 +92,11 @@ function body(rows: WhatsOnRow[]): OutResponse {
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready", initialAnswer?: HeldOutAnswer, apiAnswer?: OutResponse) {
+async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready") {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
-      new Response(JSON.stringify(apiAnswer ?? { ...body(rows), venueMatch }), {
+      new Response(JSON.stringify({ ...body(rows), venueMatch }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -101,7 +106,7 @@ async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "week
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(createElement(OutClient, { day, initialAnswer }));
+    root?.render(createElement(OutListingsRead, { day }));
   });
   await act(async () => {});
 }
@@ -140,16 +145,113 @@ afterEach(async () => {
 });
 
 describe("a night of unmatched listings renders rows, not an empty state", () => {
-  it.each([
-    ["tonight", "Tonight", "What’s on tonight."],
-    ["tomorrow", "Tomorrow", "What’s on tomorrow."],
-    ["weekend", "Weekend", "What’s on this weekend."],
-  ] as const)("names the selected %s period in the page heading", async (day, label, heading) => {
-    await renderOut([], day);
+  it("asks for nothing until a day is chosen, then reads that day", async () => {
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () =>
+      new Response(JSON.stringify(body([unmatchedRow(0)])), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(TonightLaterListings));
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(container.querySelector("#tonight-later-heading")?.textContent).toBe(
+      "Tomorrow and the weekend",
+    );
+    const chips = [...container.querySelectorAll<HTMLButtonElement>(".outDayChip")];
+    expect(chips.map((chip) => chip.textContent)).toEqual(["Tomorrow", "Weekend"]);
+    expect(chips.every((chip) => chip.getAttribute("aria-pressed") === "false")).toBe(true);
 
-    expect(container.querySelector("h1#out-title")?.textContent).toBe(heading);
-    const selectedChip = container.querySelector('.outDayChips a[aria-current="page"]');
-    expect(selectedChip?.textContent).toBe(label);
+    await act(async () => {
+      chips[1]!.click();
+    });
+    await act(async () => {});
+    expect(chips[1]!.getAttribute("aria-pressed")).toBe("true");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("day=weekend");
+    expect(container.querySelectorAll('[data-testid="out-listing-row"]')).toHaveLength(1);
+  });
+
+  it("keeps the day an old /out link named after the redirect to /tonight", async () => {
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () =>
+      new Response(JSON.stringify(body([unmatchedRow(0)])), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const before = window.location.href;
+    window.history.replaceState(null, "", "/tonight?day=weekend");
+    try {
+      container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(createElement(TonightLaterListings));
+      });
+      await act(async () => {});
+      const chips = [...container.querySelectorAll<HTMLButtonElement>(".outDayChip")];
+      expect(chips.map((chip) => chip.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain("day=weekend");
+
+      // A tap still moves the day.
+      await act(async () => {
+        chips[0]!.click();
+      });
+      await act(async () => {});
+      expect(chips[0]!.getAttribute("aria-pressed")).toBe("true");
+      expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("day=tomorrow");
+    } finally {
+      window.history.replaceState(null, "", before);
+    }
+  });
+
+  it("picks nothing for ?day=tonight, the page itself", async () => {
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>();
+    vi.stubGlobal("fetch", fetchMock);
+    const before = window.location.href;
+    window.history.replaceState(null, "", "/tonight?day=tonight");
+    try {
+      container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(createElement(TonightLaterListings));
+      });
+      const chips = [...container.querySelectorAll<HTMLButtonElement>(".outDayChip")];
+      expect(chips.every((chip) => chip.getAttribute("aria-pressed") === "false")).toBe(true);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState(null, "", before);
+    }
+  });
+
+  it("says a running read in one line, never a skeleton", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(OutListingsRead, { day: "tomorrow" }));
+    });
+    expect(container.querySelector('[data-testid="out-listings-pending"]')?.textContent).toBe(
+      TONIGHT_LATER_PENDING_LINE,
+    );
+    expect(container.querySelector('[data-testid="listings-skeleton"]')).toBeNull();
+  });
+
+  it("says an empty window in one line", async () => {
+    await renderOut([], "tomorrow");
+    const lane = container.querySelector('[data-testid="out-empty-lane"]');
+    expect(lane?.tagName).toBe("P");
+    expect(lane?.getAttribute("data-out-state")).toBe("empty");
+    expect(container.querySelector('[data-testid="out-listing-row"]')).toBeNull();
   });
 
   it("counts listings shown separately from their map links", async () => {
@@ -208,20 +310,10 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     expect(credit?.getAttribute("href")).toBe("https://www.ticketmaster.co.uk/event/3");
   });
 
-  it("keeps the map as the primary, never a listing's title", async () => {
+  it("never makes a listing the page's primary", async () => {
     const rows = Array.from({ length: 4 }, (_, index) => unmatchedRow(index));
     await renderOut(rows);
-
-    const primaries = container.querySelectorAll("[data-primary-action]");
-    expect(primaries.length).toBe(1);
-    const primary = container.querySelector<HTMLAnchorElement>(
-      "[data-primary-action] a",
-    );
-    expect(primary?.textContent).toBe("Open the map");
-    expect(primary?.getAttribute("href")).toBe("/map");
-    for (const index of [0, 1, 2, 3]) {
-      expect(primaries[0]?.textContent).not.toContain(`Sourced listing ${index}`);
-    }
+    expect(container.querySelectorAll("[data-primary-action]")).toHaveLength(0);
   });
 
   it("leads a night with nothing at a pub of ours with the honest line, then the rest", async () => {
@@ -234,7 +326,7 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     );
     expect(lead?.querySelector("a")?.getAttribute("href")).toBe("/tonight");
 
-    const heading = container.querySelector("#out-unmatched-heading");
+    const heading = container.querySelector("#out-tonight-unmatched-heading");
     expect(heading?.textContent).toBe("Places we couldn’t match");
     const firstRow = container.querySelector('[data-testid="out-listing-row"]');
     expect(
@@ -279,7 +371,7 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     );
 
     const block = container.querySelector(".outUnmatchedBlock");
-    expect(block?.querySelector("#out-unmatched-heading")?.tagName).toBe("H3");
+    expect(block?.querySelector("#out-weekend-unmatched-heading")?.tagName).toBe("H3");
     const groupTitles = [...(block?.querySelectorAll(".outGroupTitle") ?? [])];
     expect(groupTitles).toHaveLength(2);
     expect(groupTitles.every((node) => node.tagName === "H4")).toBe(true);
@@ -332,7 +424,7 @@ describe("a matched listing keeps its pub link and its pin", () => {
     ].map((node) => node.textContent);
     expect(titles).toEqual(["Sourced listing 1", "Sourced listing 0", "Sourced listing 2"]);
 
-    const heading = container.querySelector("#out-unmatched-heading");
+    const heading = container.querySelector("#out-tonight-unmatched-heading");
     const matchedRow = container.querySelector('[data-testid="out-listing-row"]');
     const unmatchedRows = container.querySelectorAll('[data-testid="out-listing-row"]');
     expect(
@@ -343,150 +435,5 @@ describe("a matched listing keeps its pub link and its pin", () => {
       (heading as Element).compareDocumentPosition(unmatchedRows[1] as Node) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-  });
-});
-
-describe("a night with nothing on still has a way onward", () => {
-  it("keeps the map as the primary when no listing can lead", async () => {
-    await renderOut([]);
-    const primary = container.querySelector<HTMLAnchorElement>("[data-primary-action] a");
-    expect(primary?.textContent).toBe("Open the map");
-  });
-});
-
-
-describe("the public server answer belongs to one city and service day", () => {
-  it.each(["tonight", "tomorrow", "weekend"] as const)(
-    "restores Open plans from a listings-only %s seed",
-    async (day) => {
-      const rows = [unmatchedRow(0)];
-      const seed = body(rows);
-      delete seed.openPlansStatus;
-      const apiAnswer = body(rows);
-      apiAnswer.openPlans = [{
-        crewId: "50000000-0000-4000-8000-000000000001",
-        title: "Meet at the Lexington",
-        startTime: "2026-09-07T19:30:00Z",
-        stopVenueId: "venue-lexington",
-        stopVenueName: "The Lexington",
-        hostHandle: "alice",
-        memberCount: 2,
-        meetingPoint: { kind: "venue", name: "The Lexington", lat: 51.53, lng: -0.11 },
-      }];
-      await renderOut(rows, day, "ready", {
-        city: "london", day: day === "tonight" ? "today" : day,
-        body: seed, failed: false, servedAt: NOW - 1_000,
-      }, apiAnswer);
-      expect(container.querySelector(".outOpenPlanTitle")?.textContent).toBe("Meet at the Lexington");
-      expect(container.querySelector(".outOpenPlanLink")?.getAttribute("href")).toBe(
-        "/social/crews/50000000-0000-4000-8000-000000000001",
-      );
-    },
-  );
-
-  it.each([
-    ["preview", "Open plans are in preview."],
-    ["degraded", "Open plans could not be checked."],
-  ] as const)("restores the %s Open plans status", async (status, line) => {
-    const rows = [unmatchedRow(0)];
-    const seed = body(rows);
-    delete seed.openPlansStatus;
-    await renderOut(rows, "tonight", "ready", {
-      city: "london", day: "today", body: seed, failed: false, servedAt: NOW - 1_000,
-    }, { ...body(rows), openPlansStatus: status, openPlans: status === "preview" ? null : [] });
-    expect(container.querySelector(".outPlans")?.textContent).toContain(line);
-  });
-
-  it.each([
-    { name: "a fresh London answer", city: "london" as const },
-    { name: "another city's answer", city: "manchester" as const },
-  ])("reads the API once for $name", async ({ city }) => {
-    const rows = [unmatchedRow(0)];
-    await renderOut(rows, "tonight", "ready", {
-      city, day: "today", body: body(rows), failed: false, servedAt: NOW - 1_000,
-    });
-    const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
-    expect(calls.map(([url]) => String(url))).toEqual(["/api/out?city=london&day=today"]);
-    expect(container.textContent).toContain("Sourced listing 0");
-  });
-
-  it("reads the API once more when a refresh brings a new listings-only seed", async () => {
-    const rows = [unmatchedRow(0)];
-    const seed = body(rows);
-    delete seed.openPlansStatus;
-    await renderOut(rows, "tonight", "ready", {
-      city: "london", day: "today", body: seed, failed: false, servedAt: NOW - 1_000,
-    });
-    const outReads = () => vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith("/api/out?"));
-    expect(outReads()).toHaveLength(1);
-
-    const refreshedRows = [unmatchedRow(0), unmatchedRow(1)];
-    const refreshedSeed = body(refreshedRows);
-    delete refreshedSeed.openPlansStatus;
-    vi.mocked(fetch).mockImplementationOnce(async () => Response.json(body(refreshedRows)));
-    await act(async () => {
-      root?.render(createElement(OutClient, {
-        day: "tonight",
-        initialAnswer: { city: "london", day: "today", body: refreshedSeed, failed: false, servedAt: NOW },
-      }));
-    });
-    await act(async () => {});
-
-    expect(outReads().map(([url]) => String(url))).toEqual([
-      "/api/out?city=london&day=today",
-      "/api/out?city=london&day=today",
-    ]);
-    expect(container.querySelectorAll('[data-testid="out-listing-row"]')).toHaveLength(2);
-    expect(container.textContent).toContain("Sourced listing 1");
-  });
-});
-
-describe.each(["split", "unmatched-only", "unavailable"] as const)("%s seeded group labels survive hydration across the London service rollover", (mode) => {
-  it.each([
-    ["2026-10-17T02:59:59Z", "2026-10-17T03:00:01Z", "2026-10-17", "Sunday 18 October"],
-    ["2026-03-29T02:59:59Z", "2026-03-29T03:00:01Z", "2026-03-29", "Monday 30 March"],
-    ["2026-10-25T03:59:59Z", "2026-10-25T04:00:01Z", "2026-10-25", "Monday 26 October"],
-  ])("holds matched and unmatched labels from %s until the API answers", async (before, after, eventDate, nextLabel) => {
-    const startsAt = `${eventDate}T19:00:00Z`;
-    const nextStartsAt = new Date(Date.parse(startsAt) + 24 * 60 * 60_000).toISOString();
-    const allRows = [
-      { ...unmatchedRow(0), startsAt, venueId: "venue-lexington" },
-      { ...unmatchedRow(1), startsAt: nextStartsAt, venueId: "venue-lexington" },
-      { ...unmatchedRow(2), startsAt },
-      { ...unmatchedRow(3), startsAt: nextStartsAt },
-    ];
-    const rows = mode === "unmatched-only" ? allRows.slice(2) : allRows;
-    const response = { ...body(rows), venueMatch: mode === "unavailable" ? "unavailable" as const : "ready" as const };
-    const props = {
-      day: "weekend" as const,
-      initialAnswer: {
-        city: "london" as const, day: "weekend" as const,
-        body: response, failed: false, servedAt: Date.parse(before),
-      },
-    };
-    container = document.createElement("div");
-    document.body.append(container);
-    vi.setSystemTime(new Date(before));
-    container.innerHTML = renderToString(createElement(OutClient, props));
-    const labels = () => [...container.querySelectorAll(".outGroupTitle")].map((node) => node.textContent);
-    const heldLabels = mode === "split" ? ["Tomorrow", nextLabel, "Tomorrow", nextLabel] : ["Tomorrow", nextLabel];
-    expect(labels()).toEqual(heldLabels);
-
-    let resolveRead!: (response: Response) => void;
-    const read = new Promise<Response>((resolve) => { resolveRead = resolve; });
-    vi.stubGlobal("fetch", vi.fn(() => read));
-    const onRecoverableError = vi.fn();
-    vi.setSystemTime(new Date(after));
-    await act(async () => {
-      root = hydrateRoot(container, createElement(OutClient, props), { onRecoverableError });
-    });
-    expect(onRecoverableError).not.toHaveBeenCalled();
-    expect(labels()).toEqual(heldLabels);
-
-    await act(async () => {
-      resolveRead(Response.json(response));
-      await read;
-    });
-    expect(labels()).toEqual(mode === "split" ? ["Tonight", "Tomorrow", "Tonight", "Tomorrow"] : ["Tonight", "Tomorrow"]);
   });
 });

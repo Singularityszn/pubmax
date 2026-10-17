@@ -63,6 +63,25 @@
     pointer-events: none;
   }
 
+  /* THE STATUS BAR IS NOT MAP (#1543). The canvas runs to the top of the
+     screen under the iOS status bar by design, and MapLibre places a pin's
+     price anywhere in its viewport, so a "£6.10" sat under the wifi and battery
+     glyphs and read as part of iOS. Camera padding cannot help: it moves the
+     centre, never symbol placement. So the band the system owns is filled
+     with the page, as the landing bar's own band is (components/landing/
+     landing.css). It is exactly env(safe-area-inset-top) tall, measured from
+     the viewport top, so a browser with no inset paints nothing. */
+  .mobileMapChrome::before {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--mobile-map-top));
+    left: calc(-1 * var(--mobile-map-stack-left));
+    right: calc(-1 * var(--mobile-map-stack-right));
+    height: env(safe-area-inset-top, 0px);
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    pointer-events: none;
+  }
+
   /* The coordinator is the only mobile map chrome owner. Desktop keeps the
      mature controls while mobile removes their independently-positioned rows.
      CitySuggestBanner and CityStatusBanner are two of those rows, and the
@@ -580,7 +599,7 @@
     pointer-events: auto;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
   }
-  /* The status suffix ("OK", "?") rides inside the pill rather than spilling
+  /* The status suffix ("?") rides inside the pill rather than spilling
      past its edge: the icon size is a floor here, not a fixed width. */
   .mobileMapUtilityCorner > .mobileMapTflButton {
     width: auto;
@@ -1081,6 +1100,26 @@
     padding: 8px 16px 16px;
     scroll-padding-block: 8px 16px;
   }
+  /* THE HEAD TAKES AN EDGE ONLY ONCE THE BODY SCROLLS UNDER IT. Without one, a
+     scrolled venue sheet cut its rows flat against the title (a coral price
+     door read sliced in half), and an always-on rule doubled the body's own
+     first hairline at rest. The body's scroll position drives the line over
+     its first 12px; where scroll timelines are unsupported the head simply
+     stays edgeless, as before. It is a hairline appearing, not motion. */
+  @supports (animation-timeline: scroll()) {
+    .mobileSharedSheet { timeline-scope: --sheet-body; }
+    .mobileSharedSheetBody { scroll-timeline: --sheet-body block; }
+    .mobileSharedSheetHeader {
+      z-index: 1;
+      animation: mobileSheetHeadEdge linear both;
+      animation-timeline: --sheet-body;
+      animation-range: 0 12px;
+    }
+  }
+  @keyframes mobileSheetHeadEdge {
+    from { box-shadow: 0 1px 0 transparent; }
+    to { box-shadow: 0 1px 0 var(--hairline-strong); }
+  }
   /* Venue (right): the footer owns the bottom edge, so the body only
      needs a small gutter separating its content from the command bar (this gutter
      is between content and footer, not the sheet's bottom edge). */
@@ -1272,7 +1311,12 @@
      row is gone (captain 6 Sep 2026), but the hug is the fix at the layout
      primitive either way: the price is the size of the price. */
   .mobileVenuePeekSummary > span > .priceBadge { justify-self: start; }
-  .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
+  /* A figure may break only at a SPACE, and a figure has none: an estimate
+     prints "est. £6.56", two words. Held to one line in the figures face it
+     needed 111px where the figure column yields to 76 on a 320px phone, and
+     ran under "Near me"; it now stacks "est." over the figure instead, and at
+     390 it still fits on one line. "Near me" keeps its own nowrap below. */
+  .mobileVenuePeekSummary strong { white-space: normal; font-family: var(--font-data); font-size: var(--text-md); }
   /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */
   .mobileVenuePeekSummary .mobileVenuePeekNearMe { white-space: nowrap; }
   /* --font-data is the figures face, and this cell prints a figure only when
@@ -1292,6 +1336,24 @@
      was what sized the figure column past the phrase beside it. */
   .mobileVenuePeekSummary small { max-inline-size: 22ch; color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
   .mobileVenuePeekSummary button { min-height: var(--control-height, 44px); padding: 0 var(--control-pad-x, 16px); border: 0; border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size, var(--text-sm)); font-weight: var(--control-font-weight, 700); }
+  /* THE PLAN DOOR WRAPS RATHER THAN CLIPS. "Make it Stop 1" is the longest
+     label the one plan door carries (lib/venuePlanDoor.ts), and at 320px with
+     large text its one line is wider than the column the row can spare. It
+     breaks between words onto a second balanced line inside the same coral
+     button, which grows taller, never wider than the row. */
+  .mobileVenuePeekSummary .mobileVenuePeekPlanDoor { max-inline-size: 100%; padding-block: 6px; line-height: 1.15; white-space: normal; text-wrap: balance; }
+  /* LARGE TEXT GIVES THE DOOR ITS OWN LINE. Three cells share the row while it
+     is at least 17.5em wide, which a 320px phone is at default text (17.9em,
+     measured). Grow the text and the same pixels hold fewer em: at 1.3x on 320
+     the price column was squeezed to 50px and its plaque ran under "Near me".
+     Below that measure the price and the walk keep the first line and the
+     plan door spans the second, full width, on one line. The query is in em
+     on the frame, so it follows the reader's text size, not the phone's. */
+  .mobileVenuePeekFrame { container: venue-peek / inline-size; }
+  @container venue-peek (max-width: 17.5em) {
+    .mobileVenuePeekSummary { grid-template-columns: minmax(0, auto) minmax(min-content, 1fr); }
+    .mobileVenuePeekSummary > .mobileVenuePeekPlanDoor { grid-column: 1 / -1; }
+  }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */
   /* Three cells, ONE idiom. "No price yet." used to sit in a bordered, tinted

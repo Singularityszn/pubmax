@@ -40,7 +40,22 @@ const SNAPSHOT_NAMED_CLASSES = new Set(["episodic", "user-cadence"]);
 // area_news is hand-refreshed editorial texture; a late cron must not block verify.
 // google_places_content is a paid manual push whose copied fields stay shown
 // under their own dates, so an overdue refresh is a visible mark, not a red build.
+// late_food_evidence is not one of these: its exemption is temporary and lapses
+// (TEMPORARY_ADVISORY_UNTIL below), so listing it here would make it permanent.
 const ADVISORY_STALE_IDS = new Set(["area_news", "google_places_content"]);
+
+// Temporary exemptions, each with the instant it lapses. Until then the dataset
+// warns like an advisory row; from then on it fails the gate again, so an
+// exemption cannot outlive the reason it was granted. Delete an entry in the
+// commit that clears its finding. None is open today.
+export const TEMPORARY_ADVISORY_UNTIL = Object.freeze({});
+
+/** True when a stale finding for this dataset warns instead of failing the gate. */
+export function isAdvisoryStale(id, now = new Date()) {
+  if (ADVISORY_STALE_IDS.has(id)) return true;
+  const until = TEMPORARY_ADVISORY_UNTIL[id];
+  return until !== undefined && now.getTime() < Date.parse(until);
+}
 
 function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -187,8 +202,31 @@ function resolveStamp(spec, read) {
   };
 }
 
+// Mirror of lib/freshness.ts readRowExpiry: walk a `rowExpiry` path (`*` walks
+// an array or an object's values) and keep the latest parseable expiry.
+function readRowExpiry(path, json) {
+  let nodes = [json];
+  for (const segment of path.split(".")) {
+    const next = [];
+    for (const node of nodes) {
+      if (typeof node !== "object" || node === null) continue;
+      if (segment === "*") next.push(...(Array.isArray(node) ? node : Object.values(node)));
+      else if (!Array.isArray(node) && Object.hasOwn(node, segment)) next.push(node[segment]);
+    }
+    nodes = next;
+  }
+  let rows = 0;
+  let latest = null;
+  for (const value of nodes) {
+    if (!isParseableDate(value)) continue;
+    rows += 1;
+    if (latest === null || Date.parse(value) > Date.parse(latest)) latest = value;
+  }
+  return { rows, latestExpiresAt: latest };
+}
+
 // Mirror of lib/freshness.ts evaluateDataset.
-function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
+function evaluateDataset(dataset, observedAt, now, unresolvedReason = null, rowExpiry = undefined) {
   const base = {
     id: dataset.id,
     label: dataset.label,
@@ -247,6 +285,30 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
   }
 
   const ageHours = ageHoursOf(observedAt);
+
+  // Mirror of lib/freshness.ts: a row that has expired may not be served,
+  // whatever the file's age, so a dataset whose every row has expired is stale
+  // inside its budget, and a declared path that finds no dated row is unknown.
+  if (dataset.rowExpiry !== undefined) {
+    if (!rowExpiry || rowExpiry.latestExpiresAt === null) {
+      return {
+        ...base,
+        ageHours,
+        status: "unknown",
+        detail: `The registry declares row expiry "${dataset.rowExpiry}" but no row in the artifact carries a parseable one.`,
+      };
+    }
+    if (Date.parse(rowExpiry.latestExpiresAt) <= now.getTime()) {
+      return {
+        ...base,
+        ageHours,
+        status: "stale",
+        detail:
+          `Every one of the ${rowExpiry.rows} rows has passed its own expiry ` +
+          `(the latest was ${rowExpiry.latestExpiresAt}), so none of them may be served.`,
+      };
+    }
+  }
 
   if (base.stalenessBudgetHours === null) {
     // Mirror of lib/freshness.ts: a lane DECLARED a snapshot and given no
@@ -350,7 +412,8 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
       // lives inside the artifact, so only a field stamp opens one — plus a
       // declared row pack, whose rows are the finding whatever dates it.
       const opensArtifact =
-        Boolean(dataset.artifact) && (spec?.kind === "field" || dataset.pack === true);
+        Boolean(dataset.artifact) &&
+        (spec?.kind === "field" || dataset.pack === true || dataset.rowExpiry !== undefined);
       const artifactRead = opensArtifact
         ? readArtifact(rootDir, dataset.artifact)
         : { kind: "absent" };
@@ -362,16 +425,20 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
         spec,
         spec?.kind === "field" ? artifactRead : { kind: "absent" },
       );
-      return evaluateDataset(dataset, observedAt, now, reason);
+      const rowExpiry =
+        dataset.rowExpiry !== undefined && artifactRead.kind === "ok"
+          ? readRowExpiry(dataset.rowExpiry, artifactRead.json)
+          : undefined;
+      return evaluateDataset(dataset, observedAt, now, reason, rowExpiry);
     }),
   );
   const breached = results.some((r) => r.status === "stale" || r.status === "unknown");
   return { results, breached };
 }
 
-export function freshnessGateFailed(results, { requireStore = false } = {}) {
+export function freshnessGateFailed(results, { requireStore = false, now = new Date() } = {}) {
   const stale = results.filter((r) => r.status === "stale");
-  const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
+  const hardStale = stale.filter((r) => !isAdvisoryStale(r.id, now));
   const unknown = results.filter((r) => r.status === "unknown");
   const unmeasurableHere = unknown.filter((r) =>
     /unmeasurable without credentials/.test(r.detail ?? ""),
@@ -427,8 +494,8 @@ async function main() {
   if (artifactOnly) console.log("Scope: candidate artifact-backed feeds. Production store feeds use their own gate.\n");
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
-  const hardStale = stale.filter((r) => !ADVISORY_STALE_IDS.has(r.id));
-  const advisoryStale = stale.filter((r) => ADVISORY_STALE_IDS.has(r.id));
+  const hardStale = stale.filter((r) => !isAdvisoryStale(r.id));
+  const advisoryStale = stale.filter((r) => isAdvisoryStale(r.id));
   const unknown = results.filter((r) => r.status === "unknown");
   const unmeasured = results.filter((r) => r.status === "unmeasured");
   const retired = results.filter((r) => r.status === "retired");
@@ -439,12 +506,16 @@ async function main() {
     // Two findings, reported apart. Stale means the data is old; unresolved means
     // the age could not be measured and says nothing about the data itself.
     if (hardStale.length) {
-      console.log("  STALE (the data is over budget):");
+      console.log("  STALE (over budget, or every row past its own expiry):");
       for (const r of hardStale) console.log(`    ✗ ${r.id}: ${r.detail}`);
     }
     if (advisoryStale.length) {
       console.log("  STALE (advisory only — does not fail this check):");
-      for (const r of advisoryStale) console.log(`    ⚠ ${r.id}: ${r.detail}`);
+      for (const r of advisoryStale) {
+        const until = TEMPORARY_ADVISORY_UNTIL[r.id];
+        const lapse = until ? ` (temporary exemption; fails the gate again from ${until})` : "";
+        console.log(`    ⚠ ${r.id}: ${r.detail}${lapse}`);
+      }
     }
     if (unknown.length) {
       console.log("  UNRESOLVED (the age could not be determined):");

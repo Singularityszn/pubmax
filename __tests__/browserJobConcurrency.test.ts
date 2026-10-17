@@ -3,7 +3,8 @@
 // On 3-4 Oct 2026 several jobs that each start a production server and
 // Chromium ran together on one Mac and timed out. GitHub-hosted runners are
 // separate machines, so those jobs are not queued behind one group. A newer
-// pull request head still cancels that workflow's older run.
+// pull request head still cancels that pull request's older run, and no
+// other run is ever cancelled.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -24,6 +25,7 @@ type Job = {
   steps: Step[];
 };
 type Workflow = {
+  on: Record<string, unknown> | string;
   concurrency?: Concurrency;
   jobs: Record<string, Job>;
 };
@@ -53,7 +55,9 @@ describe("browser jobs on hosted runners", () => {
     expect(playwrightJobs.map(({ file, jobId }) => `${file} / ${jobId}`).sort()).toEqual([
       "e2e.yml / full-suite",
       "e2e.yml / law-pins",
-      "e2e.yml / layout-pins",
+      "e2e.yml / layout-pins-1",
+      "e2e.yml / layout-pins-2",
+      "e2e.yml / layout-pins-3",
       "performance.yml / performance-budget",
       "performance.yml / ux-lane-performance",
       "prod-smoke.yml / smoke",
@@ -71,11 +75,25 @@ describe("browser jobs on hosted runners", () => {
     }
   });
 
-  it("still supersedes an older head of the same pull request", () => {
-    const browser = workflows.find((workflow) => workflow.file === "e2e.yml");
-    expect(browser?.parsed.concurrency).toMatchObject({
-      "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
-    });
-    expect(browser?.parsed.concurrency?.group).toContain("github.ref");
+  // GitHub keeps one waiting run per group and cancels the older one, even
+  // with cancel-in-progress off. A per-ref group dropped main pushes that way
+  // (16 Oct 2026), so only a pull request shares a group with its own heads.
+  it("supersedes an older head of the same pull request and nothing else", () => {
+    const pullRequestWorkflows = workflows.filter(({ parsed }) =>
+      (typeof parsed.on === "string" ? [parsed.on] : Object.keys(parsed.on)).includes("pull_request"),
+    );
+    expect(pullRequestWorkflows.map(({ file }) => file)).toEqual([
+      "ci.yml",
+      "e2e.yml",
+      "rls-session.yml",
+      "security-ci.yml",
+    ]);
+    for (const { file, parsed } of pullRequestWorkflows) {
+      expect(parsed.concurrency, file).toEqual({
+        group:
+          "${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}",
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+      });
+    }
   });
 });

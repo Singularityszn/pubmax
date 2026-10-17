@@ -20,7 +20,9 @@
   margin: 0 0 8px;
   font-size: 13px;
   letter-spacing: 0.01em;
-  color: var(--state-active-ink);
+  /* A kicker is a label in muted ink (docs/DESIGN_SYSTEM.md "Coral is spent
+     twice"); --state-active-ink is the "you are here" marker, not a kicker. */
+  color: var(--color-text-muted);
   font-weight: 700;
 }
 
@@ -110,9 +112,9 @@
 }
 
 .routePackChip.isActive {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  color: var(--state-active-ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .routePackChipCount {
@@ -211,7 +213,9 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--accent-price-ink);
+  /* A price with no band stays neutral: --accent-price-ink is the brass plaque
+     for non-price metal, never a price colour (docs/DESIGN_SYSTEM.md). */
+  color: var(--ink-soft);
 }
 
 /* "Starts at Big Ben"-style origin chip (story 27). */
@@ -300,10 +304,9 @@
 
 .crawlCompactGroupHeading {
   margin: 0;
-  font-size: 12px;
+  /* Sentence case: caps are for stamps, and a group title is a label. */
+  font-size: var(--text-sm);
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--ink-soft);
 }
 
@@ -380,8 +383,10 @@
 .crawlCompactPrice {
   flex: 0 0 auto;
   margin-left: auto;
+  /* A figure, so the data face; a range with no band stays neutral ink. */
+  font-family: var(--font-data);
   font-weight: 700;
-  color: var(--accent-price-ink);
+  color: var(--ink);
 }
 
 @media (prefers-reduced-motion: reduce) {

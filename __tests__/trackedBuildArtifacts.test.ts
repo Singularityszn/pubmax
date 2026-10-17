@@ -46,4 +46,17 @@ describe("tracked build artifacts", () => {
     expect(trackedFiles()).not.toContain("next-env.d.ts");
     expect(isIgnored("next-env.d.ts")).toBe(true);
   });
+
+  // Ops review OPS-11: a root `findings.json` and `review-results.json` (one
+  // agent review's output each) and twelve `.tmp-evidence/` debug scripts and
+  // screenshots were tracked although `.gitignore` already ignored the
+  // directory, so every clone and every CLI upload carried them.
+  it("tracks no review dump and no local evidence scratch", () => {
+    const tracked = trackedFiles();
+    for (const dump of ["findings.json", "review-results.json"]) {
+      expect(tracked).not.toContain(dump);
+      expect(isIgnored(dump)).toBe(true);
+    }
+    expect(tracked.filter((file) => file.startsWith(".tmp-evidence/"))).toEqual([]);
+  });
 });

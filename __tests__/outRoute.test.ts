@@ -53,7 +53,6 @@ import { OUT_OPEN_PLAN_LIMIT, type OutOpenPlan } from "@/lib/out";
 import * as loadOut from "@/lib/out/loadOut";
 import {
   MAX_OUT_EVENTS,
-  OUT_LIVE_LISTINGS_DEFERRED_REASON,
   buildOutResponse,
   isOutCityCovered,
   outDayWindow,
@@ -282,45 +281,6 @@ describe("buildOutResponse", () => {
       status: "degraded",
     });
     expect(JSON.stringify(body)).not.toContain("503");
-  });
-
-  it("keeps a deferred answer's grounded rows, and lets a failed baseline say its own reason", async () => {
-    const fetchTonight = vi.fn(async () => [eventRow({ id: "live-1", sourceId: "live-1" })]);
-    const lanes = () => [
-      { name: "ticketmaster", isConfigured: () => true, fetchTonight },
-      { name: "skiddle", isConfigured: () => false, fetchTonight },
-    ];
-    const deferred = await buildOutResponse(
-      { city: "london", day: "today" },
-      {
-        now: FIXTURE_NOW.getTime(),
-        loadBaseline: () => [eventRow()],
-        liveProviders: lanes(),
-        deferLiveProviders: true,
-      },
-    );
-    expect(fetchTonight).not.toHaveBeenCalled();
-    expect(deferred.events.map((row) => row.id)).toEqual(["events-tm-1"]);
-    expect(deferred.providers).toEqual([
-      { name: "skiddle", configured: false, rows: 0, status: "not-configured" },
-      { name: "ticketmaster", configured: true, rows: 0, status: "deferred" },
-    ]);
-    expect(outStatusLines({ body: deferred, failed: false })).toEqual([
-      OUT_LIVE_LISTINGS_DEFERRED_REASON,
-    ]);
-
-    const unreadable = await buildOutResponse(
-      { city: "london", day: "today" },
-      {
-        now: FIXTURE_NOW.getTime(),
-        loadBaseline: () => {
-          throw new Error("events file unreadable");
-        },
-        liveProviders: lanes(),
-        deferLiveProviders: true,
-      },
-    );
-    expect(outStatusLines({ body: unreadable, failed: false })).toEqual([OUT_DEGRADED_LINE]);
   });
 
   it("answers an uncovered city with an honest reason and never another city's rows", async () => {

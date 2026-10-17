@@ -115,7 +115,7 @@ async function render(): Promise<void> {
 
 function turnOn(): HTMLButtonElement {
   return [...container.querySelectorAll("button")].find(
-    (candidate) => candidate.textContent?.trim() === "Turn Step Out on",
+    (candidate) => candidate.textContent?.trim() === "Turn weekly nudge on",
   )!;
 }
 
@@ -135,7 +135,7 @@ describe("StepOutNudgePref in a browser tab", () => {
     });
 
     expect(registerWebPush).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toContain("Step Out is on. At most one place-bound push a week.");
+    expect(container.textContent).toContain("Weekly nudge is on. At most one push a week.");
     expect(container.textContent).not.toContain("On iPhone");
   });
 
@@ -191,9 +191,9 @@ describe("StepOutNudgePref inside the native app", () => {
     await render();
 
     expect(container.querySelector("[data-testid=step-out-native-note]")?.textContent).toContain(
-      "Step Out alerts are not available in the app yet; they work on the web in Chrome, Edge or Firefox on a computer or an Android phone, or from the Home Screen on an iPhone.",
+      "Weekly nudges are not available in the app yet; they work on the web in Chrome, Edge or Firefox on a computer or an Android phone, or from the Home Screen on an iPhone.",
     );
-    expect([...container.querySelectorAll("button")].some((b) => b.textContent?.includes("Turn Step Out on"))).toBe(
+    expect([...container.querySelectorAll("button")].some((b) => b.textContent?.includes("Turn weekly nudge on"))).toBe(
       false,
     );
     expect(container.querySelector("[data-testid=step-out-ios-install-note]")).toBeNull();
@@ -264,7 +264,7 @@ describe("StepOutNudgePref across an account change", () => {
 
     const posts = authedActionFetch.mock.calls.filter(([, init]) => init?.method === "POST");
     expect(posts).toHaveLength(0);
-    expect(container.textContent).not.toContain("Step Out is on.");
+    expect(container.textContent).not.toContain("Weekly nudge is on.");
     signedInAuth.user = { id: "user-1" };
   });
 });

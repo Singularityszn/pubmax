@@ -38,7 +38,9 @@ proof, not a second policy. The closed list is:
 and `night_signal_claims` (SELECT re-opened with an explicit approved-claim
 predicate). `pub_presence` is service-mediated for writes; browser SELECT, when
 granted, is the single non-expired read rule from 0159. Catalogue tables
-`drinks`, `pub_heritage`, and `crawl_stories` are not on this list.
+`drinks` and `pub_heritage` are not on this list. `crawl_stories` is not on it
+either: since 0178 browser roles hold no grant on it, and its read policy
+admits `public` rows only, so an unlisted crawl's slug never lists.
 
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized
@@ -147,6 +149,9 @@ no side effect, as above.
    the check into the helper the policies read and drops the stray copy, which
    was also an exposed RPC in the public schema (the live isolated project
    answered `POST /rest/v1/rpc/rls_is_plan_participant` to the anon key).
+   The `0124` rollback used to recreate that public copy as SECURITY DEFINER,
+   although no copy existed before `0124`; it now drops it and leaves the
+   `pubmax_private` helper (0075's body, with its legacy-only guard) untouched.
 2. **Refusals for a foreign Plan write read as 400** rather than 403 on the
    `PATCH` and presence routes, because validation and the capability lookup
    share one store result. Denied is denied; the matrix asserts 400 or 403.
@@ -218,6 +223,9 @@ from the follow-handle graph the seam reads, and it does not hide a PUBLIC
 profile card from a blocked account either, so this wave neither opens that door
 nor closes it. Folding the block into the seam is its own slice with its own
 cells; asserting Carol's current answer here would write the gap down as intent.
+A Social mute (`social_mutes`, migration `0181`) is narrower still: it moves only
+the muter's own post lanes, and no browser role holds the table or its two
+functions (`__tests__/socialMutesMigrationEffective.test.ts`).
 
 ## The URL allow-list
 

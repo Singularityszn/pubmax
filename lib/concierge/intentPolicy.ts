@@ -85,10 +85,35 @@ function extractAreaPhrase(text: string): string | undefined {
   return area || undefined;
 }
 
+/**
+ * A cap word before a figure: "under", "below", "max", "up to". Alone it says
+ * nothing about money: "under 10 minutes", "max 4 pubs" and "up to 8 of us"
+ * all carry one, so every budget pattern below also needs a currency word.
+ */
+const BUDGET_CAP = String.raw`\b(?:under|below|max(?:imum)?|up to)`;
+const BUDGET_FIGURE = String.raw`(\d+(?:\.\d{1,2})?)`;
+/** A unit after the figure that makes it a count, a time or a distance. */
+const NOT_MONEY_UNIT = String.raw`(?!\.?\d|\s*(?:min|mins|minutes?|hours?|hrs?|km|kms|miles?|stops?|pubs?|bars?|people|mates|pax|of us)\b)`;
+/** A currency word after the figure: "7 quid", "6 pounds", "6 a pint". */
+const MONEY_AFTER = String.raw`\s*(?:quid|pounds?|gbp|(?:a|per)\s+pint)\b`;
+
+const BUDGET_PATTERNS: readonly RegExp[] = [
+  // "under £7", "max £5", "up to £6.50"
+  new RegExp(`${BUDGET_CAP}\\s*£\\s*${BUDGET_FIGURE}${NOT_MONEY_UNIT}`, "i"),
+  // "under 7 quid", "below 6 pounds", "max 6 a pint"
+  new RegExp(`${BUDGET_CAP}\\s*${BUDGET_FIGURE}${MONEY_AFTER}`, "i"),
+  // "£6 or less", "£6 max"
+  new RegExp(`£\\s*${BUDGET_FIGURE}\\s*(?:or less|max)\\b`, "i"),
+  // "6 quid or less", "6 quid max"
+  new RegExp(`${BUDGET_FIGURE}\\s*(?:quid|pounds?)\\s*(?:or less|max)\\b`, "i"),
+];
+
 export function extractExplicitBudget(text: string): number | undefined {
-  const explicitBudget =
-    text.match(/(?:under|below|max(?:imum)?|up to)\s*£?\s*(\d+(?:\.\d{1,2})?)/i)?.[1]
-    ?? text.match(/£\s*(\d+(?:\.\d{1,2})?)\s*(?:or less|max)/i)?.[1];
+  let explicitBudget: string | undefined;
+  for (const pattern of BUDGET_PATTERNS) {
+    explicitBudget = text.match(pattern)?.[1];
+    if (explicitBudget) break;
+  }
   if (!explicitBudget) return undefined;
   const n = Number(explicitBudget);
   if (!Number.isFinite(n)) return undefined;

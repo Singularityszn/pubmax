@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "../lib/priceBand";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
@@ -278,10 +279,7 @@ for (const width of [390, 320]) {
     await expect(
       page.getByRole("group", { name: "Venue types" }),
     ).toHaveCount(0);
-    await page
-      .locator(".mobileMapTopbar")
-      .getByRole("button", { name: /^Filters/ })
-      .click();
+    await (await mobileMapShellControl(page, "filters")).click();
     const filtersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
@@ -439,7 +437,7 @@ for (const width of [390, 320]) {
     await expect(fullCredit).toContainText("OpenMapTiles");
     await expect(fullCredit).toContainText("Data from OpenStreetMap");
 
-    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
     const geometry = await page.evaluate(() => {
       const attributionElement = document.querySelector<HTMLElement>(
         ".maplibregl-ctrl-attrib",
@@ -491,11 +489,11 @@ for (const width of [390, 320]) {
     await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
+    await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({
       timeout: 45_000,
     });
 
-    await page.getByRole("button", { name: "More map controls" }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     const credits = page.locator(".mobileMapCredits");
     await expect(credits).toBeVisible({ timeout: 20_000 });
     await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
@@ -650,8 +648,8 @@ test("390px More map controls credits the active CARTO fallback", async ({ page 
   await installDeterministicMapBasemap(page);
   await page.route(/^https:\/\/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
   await page.goto("/map");
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({ timeout: 45_000 });
-  await page.getByRole("button", { name: "More map controls" }).click();
+  await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible({ timeout: 45_000 });
+  await (await mobileMapShellControl(page, "more")).click();
   const credits = page.locator(".mobileMapCredits");
   await expect(credits).toContainText("CARTO", { timeout: 20_000 });
   await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");

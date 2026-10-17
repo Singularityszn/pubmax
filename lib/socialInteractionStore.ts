@@ -10,7 +10,14 @@ import type {
   SocialPostStore,
 } from "@/lib/socialPostStore";
 import { socialPostServerProjectionFromRow, socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
-import { clearSocialMemoryBlocks, setSocialMemoryBlock, socialMemoryBlocked } from "@/lib/socialBlockMemory";
+import {
+  clearSocialMemoryBlocks,
+  setSocialMemoryBlock,
+  setSocialMemoryMute,
+  socialMemoryBlocked,
+  socialMemoryBlocks,
+  socialMemoryMutes,
+} from "@/lib/socialBlockMemory";
 import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 import {
   cleanSocialText,
@@ -30,6 +37,7 @@ import {
   type SocialModerationState,
   type SocialNotificationDTO,
   type SocialQuoteInput,
+  type SocialRelationship,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
@@ -88,6 +96,9 @@ export type SocialInteractionStore = {
   listDerivatives(viewer: SocialInteractionActor, page: PageInput): Promise<Page<SocialDerivativeDTO>>;
   processModerationQueue(adapter: ModerationAdapter, limit?: number): Promise<ModerationResult>;
   setBlock(actor: SocialInteractionActor, targetProfileId: string, active: boolean): Promise<void>;
+  setMute(actor: SocialInteractionActor, targetProfileId: string, active: boolean): Promise<void>;
+  /** What this actor has set against one account: their own block and mute, never the other side's. */
+  relationship(actor: SocialInteractionActor, targetProfileId: string): Promise<SocialRelationship>;
   notifications(viewer: SocialInteractionActor, page: PageInput): Promise<Page<SocialNotificationDTO>>;
   markNotificationRead(viewer: SocialInteractionActor, id: string, read: boolean): Promise<void>;
   updateFeatureRequest(actor: SocialInteractionActor, postId: string, input: SocialFeatureUpdateInput): Promise<SocialFeatureUpdateDTO>;
@@ -555,6 +566,20 @@ export function createMemorySocialInteractionStore(options: {
       setSocialMemoryBlock(actor.profileId, targetProfileId, active);
     },
 
+    async setMute(actor, targetProfileId, active) {
+      if (!targetProfileId || targetProfileId === actor.profileId) {
+        throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose another account to mute.");
+      }
+      setSocialMemoryMute(actor.profileId, targetProfileId, active);
+    },
+
+    async relationship(actor, targetProfileId) {
+      return {
+        blocked: socialMemoryBlocks(actor.profileId, targetProfileId),
+        muted: socialMemoryMutes(actor.profileId, targetProfileId),
+      };
+    },
+
     async notifications(viewer, input) {
       const visible: SocialNotificationDTO[] = [];
       for (const row of notificationRows.values()) {
@@ -819,6 +844,7 @@ async function durableOrMemory<T>(
   } catch (error) {
     if (!isMissingTableSchema(error, [
       "social_blocks",
+      "social_mutes",
       "social_cheers",
       "social_saves",
       "social_reposts",
@@ -1106,6 +1132,32 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
       });
       if (error) throw error;
     }, () => memorySocialInteractionStore.setBlock(actor, targetProfileId, active), true);
+  },
+
+  async setMute(actor, targetProfileId, active) {
+    if (!targetProfileId || targetProfileId === actor.profileId) {
+      throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose another account to mute.");
+    }
+    return durableOrMemory(async () => {
+      const { error } = await requireSupabaseAdmin().rpc("set_social_mute", {
+        p_actor: actor.profileId,
+        p_target: targetProfileId,
+        p_active: active,
+      });
+      if (error) throw error;
+    }, () => memorySocialInteractionStore.setMute(actor, targetProfileId, active), true);
+  },
+
+  async relationship(actor, targetProfileId) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_social_relationship", {
+        p_actor: actor.profileId,
+        p_target: targetProfileId,
+      });
+      if (error) throw error;
+      const value = row((data ?? [])[0]);
+      return { blocked: value.blocked === true, muted: value.muted === true };
+    }, () => memorySocialInteractionStore.relationship(actor, targetProfileId), false);
   },
 
   async notifications(viewer, input) {

@@ -2,6 +2,26 @@
 // Browser-safe types only: no server imports.
 
 import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
+import type { FoodDietary } from "@/lib/food";
+
+export type AskMenuEvidence = {
+  kind: "published-menu";
+  itemId: string;
+  itemName: string;
+  menu: "food" | "drink";
+  category: string;
+  currency: "GBP";
+  serving: string | null;
+  caloriesKcal: number | null;
+  caloriesProvenance: { source: string; licence: string; observedAt: string; sourceUrl: string } | null;
+  dietary: FoodDietary[];
+  dietaryProvenance: { source: string; licence: string; observedAt: string; sourceUrl: string } | null;
+  observedAt: string | null;
+  source: string;
+  sourceUrl: string | null;
+  licence: string;
+  availability: "unknown";
+};
 
 export type AskSource = {
   label: string;
@@ -11,6 +31,7 @@ export type AskSource = {
     | "whats-on"
     | "heritage"
     | "community-price"
+    | "published-menu"
     | "citymcp"
     | "plan";
 };
@@ -23,7 +44,19 @@ export type AskCard = {
   note: string;
   price: number | null;
   provenance?: AskSource;
+  menuEvidence?: AskMenuEvidence;
 };
+
+export function askCardSources(cards: readonly AskCard[]): AskSource[] {
+  return cards.flatMap((card) => {
+    const evidence = card.menuEvidence;
+    return [
+      ...(card.provenance ? [card.provenance] : []),
+      ...[evidence?.caloriesProvenance, evidence?.dietaryProvenance].flatMap((field): AskSource[] => field
+        ? [{ kind: "published-menu", label: field.source, url: field.sourceUrl }] : []),
+    ];
+  });
+}
 
 export type AskProposal =
   | {

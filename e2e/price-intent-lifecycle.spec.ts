@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.use({ serviceWorkers: "block" });
 test.setTimeout(90_000);
@@ -77,7 +78,7 @@ test("an anonymous price intent stays with the first pub and never gates another
 
   await venueSheet(page).locator(".surfaceNavHome").click();
   await expect(gate).toBeHidden();
-  await page.getByRole("button", { name: "Search the map" }).click();
+  await (await mobileMapShellControl(page, "search")).click();
   await page.locator("#mobileMapSearchInput").fill(otherVenue!);
   await page.getByRole("option", { name: new RegExp(otherVenue!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).first().click();
 

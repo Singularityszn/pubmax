@@ -12,6 +12,7 @@ import {
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { trackEvent } from "@/lib/analytics";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
   UK_TOWN_SEARCH_HREF,
   UK_NATIONAL_ENTRY_LABEL,
@@ -123,8 +124,12 @@ function CitySwitcherList({
         );
       })}
       <li role="option" aria-selected={false} className="citySwitcherNational">
+        {/* National browse is a /map arrival that renders per request (the
+            document twin), so a prefetch on sight is a real server render
+            (__tests__/linkPrefetchFence.test.ts). */}
         <Link
           href={UK_NATIONAL_MAP_HREF}
+          prefetch={false}
           className="citySwitcherLink citySwitcherNationalLink"
           onClick={() => onClose?.()}
         >
@@ -154,8 +159,13 @@ function CitySwitcherTrigger({
   const cities = listEnabledCities();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const current = cities.find((city) => city.id === cityId) ?? cities[0];
+  useDismissOnEscape(open && cities.length >= 2 && Boolean(current), () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, rootRef);
 
   useEffect(() => {
     if (!open) return;
@@ -164,16 +174,9 @@ function CitySwitcherTrigger({
       if (!root) return;
       if (event.target instanceof Node && !root.contains(event.target)) setOpen(false);
     };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-    };
     document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -203,6 +206,7 @@ function CitySwitcherTrigger({
       <button
         type="button"
         className="citySwitcherTrigger"
+        ref={triggerRef}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}

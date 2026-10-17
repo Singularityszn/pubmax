@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
+import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import ShareBar from "@/components/share/ShareBar";
@@ -12,7 +13,6 @@ import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
 import { formatGbp } from "@/lib/formatGbp";
-import { inlineOfflineOrMessageJs } from "@/lib/apiErrorMessage";
 
 import "./permalink.css";
 
@@ -57,10 +57,13 @@ function formatDropPrice(value: number | null): string | null {
 function formatDate(iso: string): string | null {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
+  // Rendered on the server, so the London calendar is named rather than left to
+  // the host's zone: a drop logged at 00:30 BST belongs to that day.
   return new Date(t).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/London",
   });
 }
 
@@ -71,7 +74,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   if (!drop) {
     return {
       title: "This pint isn't on the wall",
-      description: "This Pint Drop couldn't be found on PUBMAXXING.",
+      description: "This Pint Drop couldn't be found on PUBMAXX.",
     };
   }
 
@@ -82,7 +85,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     drop.note ||
     (drop.drink
       ? `${drop.drink} at ${drop.venueName}${price ? ` for ${price}` : ""}.`
-      : `A Pint Drop at ${drop.venueName} on PUBMAXXING.`);
+      : `A Pint Drop at ${drop.venueName} on PUBMAXX.`);
 
   // opengraph-image.tsx sits beside this route, so Next auto-attaches it; we
   // still name the canonical url + card type here for a complete lockup.
@@ -109,7 +112,7 @@ function NotOnTheWall() {
     <main id="main" className="permalink permalink--empty">
       <div className="permalink__emptyCard">
         <Link className="permalink__home" href="/">
-          PUBMAXXING
+          PUBMAXX
         </Link>
         <p className="permalink__eyebrow">Pint Drop</p>
         <h1 className="permalink__emptyTitle">This pint isn&rsquo;t on the wall</h1>
@@ -130,14 +133,11 @@ export default async function PintDropPermalink({ params, searchParams }: PagePr
 
   if (!drop) return <NotOnTheWall />;
 
-  // Per-request CSP nonce (set by proxy.ts) for the inline copy-link script.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
-  return <MemoryCard drop={drop} id={id} nonce={nonce} />;
+  return <MemoryCard drop={drop} id={id} />;
 }
 
 // ── The collectible pint memory card ─────────────────────────────────────────
-function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?: string }) {
+function MemoryCard({ drop, id }: { drop: PublicDrop; id: string }) {
   const price = formatDropPrice(drop.priceGbp);
   const date = formatDate(drop.createdAt);
   const headline = drop.drink || "A pint worth remembering";
@@ -156,7 +156,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
         {/* Kicker: brand + edition line */}
         <div className="permalink__kicker">
           <Link className="permalink__brand" href="/">
-            PUBMAXXING
+            PUBMAXX
           </Link>
           <span className="permalink__edition">A Pint Drop</span>
         </div>
@@ -215,15 +215,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
 
         {/* Actions: copy link + open on the map */}
         <div className="permalink__actions">
-          <button type="button" className="permalink__primary" data-copy-link>
-            <span data-copy-idle>Copy link</span>
-            <span data-copy-done hidden>
-              Copied
-            </span>
-            <span data-copy-failed hidden>
-              Could not copy link. Try again.
-            </span>
-          </button>
+          <CrawlStoryCopyButton className="permalink__primary" />
           <Link className="permalink__ghost" href={drop.venueMapUrl}>
             Open the pub on the map
           </Link>
@@ -242,16 +234,6 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
       <section className="permalink__comments" aria-label="Comments">
         <CommentThread dropId={id} />
       </section>
-
-      {/* Copy-link wiring. Kept as a server-rendered inline script (no client
-          component file per the build constraints); progressive-enhancement only,
-          the button is inert if JS is off. */}
-      <script
-        nonce={nonce}
-        dangerouslySetInnerHTML={{
-          __html: `(function(){var btn=document.querySelector('[data-copy-link]');if(!btn)return;btn.addEventListener('click',function(){var idle=btn.querySelector('[data-copy-idle]');var done=btn.querySelector('[data-copy-done]');var failed=btn.querySelector('[data-copy-failed]');function reset(){if(idle)idle.hidden=false;if(done)done.hidden=true;if(failed)failed.hidden=true;}function flash(){if(idle)idle.hidden=true;if(done)done.hidden=false;if(failed)failed.hidden=true;setTimeout(reset,2000);}function fail(){if(idle)idle.hidden=true;if(done)done.hidden=true;if(failed)failed.hidden=false;if(failed)failed.textContent=${inlineOfflineOrMessageJs("Could not copy link. Try again.")};setTimeout(reset,3000);}try{navigator.clipboard.writeText(window.location.href).then(flash,fail);}catch(e){fail();}});})();`,
-        }}
-      />
     </main>
   );
 }

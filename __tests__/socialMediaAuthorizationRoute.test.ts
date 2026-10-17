@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/social/media/[mediaId]/route";
 import { GET as adminGET } from "@/app/api/admin/social-posts/media/[mediaId]/route";
 import { POST as createModeratorSession } from "@/app/api/admin/session/route";
-import { AUTH_RESUME_COOKIE, encodeAuthResumeCookie } from "@/lib/authSessionResume";
+import { AUTH_RESUME_COOKIE, decodeAuthResumeCookie, encodeAuthResumeCookie } from "@/lib/authSessionResume";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const PROFILE_ID = "22222222-2222-4222-8222-222222222222";
@@ -15,6 +15,7 @@ const JPEG = new Uint8Array([255, 216, 255, 224, 1, 2, 3, 255, 217]);
 const state = {
   authorized: true, staffActive: true, limited: false,
   imageState: "valid" as "valid" | "missing" | "corrupt", paths: [] as string[],
+  refreshFailures: 0,
 };
 
 // Only the external Auth, PostgREST and Storage responses are fixtures. The
@@ -31,8 +32,21 @@ const fixtureFetch: typeof fetch = async (input, init) => {
   }
   if (url.pathname === "/auth/v1/token") {
     const body = JSON.parse(String(init?.body)) as { refresh_token?: string };
-    return body.refresh_token === "fixture-refresh-token"
-      ? json({ user: { id: USER_ID } }) : json({ error: "invalid_grant" }, 400);
+    if (body.refresh_token === "fixture-refresh-token") return json({ user: { id: USER_ID } });
+    // A rotating token answers the way GoTrue does: a fresh pair, the old one spent.
+    if (body.refresh_token?.startsWith("fixture-rotating-")) {
+      if (state.refreshFailures > 0) {
+        state.refreshFailures -= 1;
+        return json({ code: "over_request_rate_limit" }, 429);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return json({
+        access_token: "fixture-access-token",
+        refresh_token: `${body.refresh_token}-rotated`,
+        user: { id: USER_ID, email: "alice@example.test" },
+      });
+    }
+    return json({ error: "invalid_grant" }, 400);
   }
   if (url.pathname === "/rest/v1/rpc/provision_social_product_account") {
     return json([{ ok: true, product_account_id: ACCOUNT_ID, provisioned: false }]);
@@ -74,6 +88,7 @@ beforeEach(() => {
   state.limited = false;
   state.imageState = "valid";
   state.paths = [];
+  state.refreshFailures = 0;
   vi.stubEnv("SUPABASE_URL", "https://social-media.test");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fixture-key");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://social-media.test");
@@ -95,6 +110,14 @@ function serve(headers: HeadersInit = { authorization: "Bearer fixture-user-toke
   return GET(new Request(`https://app.test/api/social/media/${MEDIA_ID}`, { headers }), {
     params: Promise.resolve({ mediaId: MEDIA_ID }),
   });
+}
+
+function resumeCookie(refreshToken: string): HeadersInit {
+  return { cookie: `${AUTH_RESUME_COOKIE}=${encodeAuthResumeCookie({ refreshToken, email: null })}` };
+}
+
+function refreshes(): number {
+  return state.paths.filter((path) => path === "/auth/v1/token").length;
 }
 
 function downloads(): string[] {
@@ -181,4 +204,53 @@ it.each(["missing", "corrupt"] as const)("withholds %s Storage objects without i
   expect(response.headers.get("cache-control")).toBe("private, no-store");
   expect(await response.text()).not.toContain(OBJECT_KEY);
   expect(downloads()).toEqual([`/storage/v1/object/pint-drops/${OBJECT_KEY}`]);
+});
+
+// Each test below presents its own token: the cookie lane remembers a verified
+// token for a minute, so a shared one would answer from memory.
+it("writes the rotated refresh token back to the resume cookie on the photo", async () => {
+  const response = await serve(resumeCookie("fixture-rotating-write"));
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  await expectPhoto(response);
+  expect(setCookie).toMatch(new RegExp(`^${AUTH_RESUME_COOKIE}=`));
+  expect(setCookie).toContain("HttpOnly");
+  expect(setCookie).toContain("SameSite=Lax");
+  const value = decodeURIComponent((setCookie.split(";")[0] ?? "").slice(AUTH_RESUME_COOKIE.length + 1));
+  expect(decodeAuthResumeCookie(value)).toEqual({
+    refreshToken: "fixture-rotating-write-rotated",
+    email: "alice@example.test",
+    userId: USER_ID,
+  });
+});
+
+it("redeems one token once for a page of concurrent photos", async () => {
+  const [first, second] = await Promise.all([
+    serve(resumeCookie("fixture-rotating-page")),
+    serve(resumeCookie("fixture-rotating-page")),
+  ]);
+  expect(refreshes()).toBe(1);
+  for (const response of [first, second]) {
+    expect(response.headers.get("set-cookie")).toContain(
+      encodeURIComponent(encodeAuthResumeCookie({
+        refreshToken: "fixture-rotating-page-rotated",
+        email: "alice@example.test",
+        userId: USER_ID,
+      })),
+    );
+    await expectPhoto(response);
+  }
+  // A later photo inside the window answers from memory and spends nothing,
+  // and so does the next photo carrying the token the browser was just handed.
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-page")));
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
+  expect(refreshes()).toBe(1);
+});
+
+it("never remembers a refused refresh as a sign-in", async () => {
+  state.refreshFailures = 1;
+  const refused = await serve(resumeCookie("fixture-rotating-refused"));
+  expect(refused.status).toBe(404);
+  expect(refused.headers.get("set-cookie")).toBeNull();
+  await expectPhoto(await serve(resumeCookie("fixture-rotating-refused")));
+  expect(refreshes()).toBe(2);
 });

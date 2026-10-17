@@ -225,7 +225,7 @@ describe("the import graph", () => {
   });
 });
 
-describe("the full suite still runs once, in GitHub CI, on every pull request", () => {
+describe("the full suite still runs once, in GitHub CI, on every code pull request", () => {
   it("keeps the CI unit shards on the whole suite through npm run coverage", () => {
     const workflow = parse(readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     expect(Object.keys(workflow.on)).toContain("pull_request");

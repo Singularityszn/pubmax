@@ -19,6 +19,7 @@ import {
   type AskCard,
 } from "@/lib/conciergeAskClient";
 import type { AskProposal } from "@/lib/ask/types";
+import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
@@ -61,6 +62,7 @@ export default function MapConciergeAsk({
   const [state, setState] = useState<AskState>({ status: "idle" });
   const [proposalError, setProposalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const expand = useCallback(() => {
     setOpen(true);
@@ -71,7 +73,7 @@ export default function MapConciergeAsk({
     setOpen(false);
   }, []);
 
-  useDismissOnEscape(open, collapse);
+  useDismissOnEscape(open, collapse, panelRef);
 
   const sessionRef = useRef<ReturnType<typeof createAskSession> | null>(null);
 
@@ -168,7 +170,7 @@ export default function MapConciergeAsk({
 
   if (!open) {
     return (
-      <div className="mapConciergeAsk mapConciergeAsk--collapsed">
+      <div ref={panelRef} className="mapConciergeAsk mapConciergeAsk--collapsed">
         <button
           type="button"
           className="mapConciergeAskPill pressable"
@@ -183,7 +185,7 @@ export default function MapConciergeAsk({
   }
 
   return (
-    <div className="mapConciergeAsk mapConciergeAsk--open">
+    <div ref={panelRef} className="mapConciergeAsk mapConciergeAsk--open">
       <section
         className="mapConciergeAskPanel"
         role="dialog"
@@ -206,7 +208,7 @@ export default function MapConciergeAsk({
 
         <form className="mapConciergeAskForm" onSubmit={onSubmit}>
           <label className="mapConciergeAskSr" htmlFor="map-concierge-query">
-            Describe the outing
+            {PLAN_FIELD_LABEL}
           </label>
           <input
             id="map-concierge-query"

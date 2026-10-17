@@ -55,10 +55,12 @@ export function useMapKeyboardShortcuts(args: KeyboardShortcutArgs) {
         // Phone sheets own Escape. The map fallback only serves desktop drawers.
         // Topmost first: the Drop pub picker, then the planner, then venue detail.
         if (logIntentFallbackVisible) {
+          event.preventDefault();
           dismissLogIntent();
           return;
         }
         if (planningOpen || selectedVenueId) {
+          event.preventDefault();
           onInterruptReveal();
           onBack();
         }

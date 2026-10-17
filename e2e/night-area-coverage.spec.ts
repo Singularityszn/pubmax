@@ -8,9 +8,9 @@ import { expect, type Page, test } from "@playwright/test";
  * than trusting the describe-first field's visibility, which would false-positive.
  */
 async function openComposer(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Guide me instead" }).click();
+  await page.getByRole("button", { name: "Step by step" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
-  await expect(page.getByLabel("Describe the outing")).toBeVisible();
+  await expect(page.getByLabel("Where, how many, what budget")).toBeVisible();
 }
 
 test("mobile planner explains planning confidence and evidence warnings", async ({ page }) => {
@@ -85,7 +85,7 @@ test("mobile planner announces concierge progress while it finds a route", async
   await openComposer(page);
 
   const concierge = page.locator(".planComposer__concierge");
-  const description = page.getByLabel("Describe the outing");
+  const description = page.getByLabel("Where, how many, what budget");
   await description.fill("A calm, affordable night near Clapham");
   await expect(description).toHaveValue("A calm, affordable night near Clapham");
   const submit = page.getByRole("button", { name: "Make a plan" });
@@ -137,7 +137,7 @@ test("mobile planner keeps the inferred Night Area context editable", async ({ p
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
   await openComposer(page);
-  await page.getByLabel("Describe the outing").fill("A calm night in Clapham for four");
+  await page.getByLabel("Where, how many, what budget").fill("A calm night in Clapham for four");
   await page.getByRole("button", { name: "Make a plan" }).click();
 
   // The route comes first; the inferred context is one tap away, in the sheet.

@@ -2,6 +2,7 @@ import { expect, test, type CDPSession, type Page } from "@playwright/test";
 
 import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The map a reader turns with two fingers, in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project).
@@ -471,7 +472,7 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
   ).toBeGreaterThan(MIN_BEARING_CHANGE);
 
   const openLayersTab = async () => {
-    await page.getByRole("button", { name: "More map controls" }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
     await expect(sheet).toBeVisible();
     await sheet.getByRole("tab", { name: "Layers" }).click();

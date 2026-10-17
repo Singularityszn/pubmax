@@ -1,6 +1,7 @@
 import "server-only";
 
-import { composeAnswer } from "@/lib/ask/runAsk";
+import { composeAnswer, runAsk } from "@/lib/ask/runAsk";
+import { recordedDrinkComparison, unsupportedPriceComparison } from "@/lib/ask/router";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
@@ -9,8 +10,11 @@ import {
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
-import { fetchPalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { palTastePreamble, type PalTaste } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
+import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
+import { log } from "@/lib/log";
+import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
@@ -60,7 +64,7 @@ async function waitForPubPalToolTurn(
   return readPubPalToolTurn(conversationId);
 }
 
-type PriorSession = { turns: PubPalFenceTurn[]; summary: string };
+type PriorSession = { turns: PubPalFenceTurn[]; summary: string; conversationId?: string };
 
 /**
  * The signed-in owner's earlier asks, read from their own stored turn and never
@@ -74,14 +78,28 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
   const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
     (turn) => turn.role === "user" && turn.content.trim(),
   );
-  return windowPalSessionTurns(prior.summary, asks);
+  return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
 }
 
-/** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
-function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[] | null): string {
+/**
+ * Everything a typed turn tells the agent about the person: their confirmed
+ * memories, then the taste read from their own logs. The memory eval
+ * (evals/pal/memory) grades exactly these lines.
+ */
+export function palPersonalContext(memories: PalRecalledMemory[] | null, taste: PalTaste | null): string[] {
+  return [...palMemoryPreamble(memories), ...palTastePreamble(taste)];
+}
+
+/** The typed turn as the agent reads it: the personal context, the session summary, earlier asks, then the ask itself. */
+function userMessageText(
+  query: string,
+  prior: PriorSession,
+  memories: PalRecalledMemory[] | null,
+  taste: PalTaste | null,
+): string {
   const priorAsks = prior.turns;
   return [
-    ...palMemoryPreamble(memories),
+    ...palPersonalContext(memories, taste),
     ...palSessionSummaryTurn(prior.summary),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
@@ -133,15 +151,39 @@ export type PalElevenLabsChatOutcome =
     }
   | { ok: false; code: "UNAVAILABLE" | "TIMEOUT" | "PROVIDER_UNAVAILABLE" };
 
+type PalChatFailureStage =
+  | "configuration" | "input" | "context" | "signed_url" | "registration"
+  | "tool_result" | "deadline" | "caller_cancel" | "socket_error" | "socket_close" | "turn";
+
 export async function runPalElevenLabsChatTurn(
   input: PalElevenLabsChatInput,
 ): Promise<PalElevenLabsChatOutcome> {
+  const startedAt = Date.now();
+  const recordFailure = (
+    code: Extract<PalElevenLabsChatOutcome, { ok: false }>["code"],
+    stage: PalChatFailureStage,
+    reason?: Extract<PalSignedConversation, { ok: false }>["reason"],
+  ): void => {
+    if (input.signal?.aborted || stage === "caller_cancel") return;
+    log("warn", "pub_pal.chat_failed", {
+      code,
+      stage,
+      ...(reason ? { reason } : {}),
+      durationMs: Math.max(0, Date.now() - startedAt),
+    });
+  };
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
-  if (!apiKey || !agentId) return { ok: false, code: "UNAVAILABLE" };
+  if (!apiKey || !agentId) {
+    recordFailure("UNAVAILABLE", "configuration");
+    return { ok: false, code: "UNAVAILABLE" };
+  }
 
   const query = input.query.trim().slice(0, 500);
-  if (!query) return { ok: false, code: "UNAVAILABLE" };
+  if (!query) {
+    recordFailure("UNAVAILABLE", "input");
+    return { ok: false, code: "UNAVAILABLE" };
+  }
   const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
@@ -149,6 +191,7 @@ export async function runPalElevenLabsChatTurn(
   try {
     prior = await priorOwnedSession(input.threadId, input.ownerId);
   } catch {
+    recordFailure("UNAVAILABLE", "context");
     return { ok: false, code: "UNAVAILABLE" };
   }
   const turns = prior.turns;
@@ -168,13 +211,40 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
-  const memoriesRead = readConfirmedPalMemories(input.ownerId);
+  const unsupported = unsupportedPriceComparison(query);
+  if (unsupported || recordedDrinkComparison(query)) {
+    const result = await runAsk({ query, cityId, skipModel: true });
+    // A first answer from the records opens no provider session, so it gets a
+    // local thread: the follow-up reads this turn back instead of starting blind.
+    const threadId = unsupported ? "" : prior.conversationId ?? newPalLocalThreadId();
+    if (threadId) {
+      await registerPubPalToolTurn(threadId, {
+        query, cityId, ownerId: input.ownerId, turns: prior.turns, summary: prior.summary,
+        cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed,
+      });
+    }
+    return {
+      ok: true,
+      message: result.answer,
+      cards: result.cards,
+      proposals: result.proposals,
+      conversationId: threadId,
+      toolsUsed: result.toolsUsed,
+    };
+  }
+
+  // Read from the signed-in owner's own Pal and logs, never from the request
+  // body, beside the signed-URL request so neither waits on the other. Neither rejects.
+  const memoriesRead = readConfirmedPalMemories(input.ownerId, query);
+  const tasteRead = readPalTaste(input.ownerId);
 
   const session = await fetchPalSignedConversation({ apiKey, agentId });
-  if (!session.ok) return { ok: false, code: "PROVIDER_UNAVAILABLE" };
+  if (!session.ok) {
+    recordFailure("PROVIDER_UNAVAILABLE", "signed_url", session.reason);
+    return { ok: false, code: "PROVIDER_UNAVAILABLE" };
+  }
   const signedUrl = session.signedUrl;
-  const memories = await memoriesRead;
+  const [memories, taste] = await Promise.all([memoriesRead, tasteRead]);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -232,7 +302,7 @@ export async function runPalElevenLabsChatTurn(
     const timer = setTimeout(() => {
       if (settled) return;
       if (!latestReply || !replyIsAnswer()) {
-        finish({ ok: false, code: "TIMEOUT" });
+        finish({ ok: false, code: "TIMEOUT" }, "deadline");
         return;
       }
       const agentMessage = latestReply;
@@ -240,14 +310,15 @@ export async function runPalElevenLabsChatTurn(
         try {
           finish(answer(agentMessage, conversationId ? await readPubPalToolTurn(conversationId) : null));
         } catch {
-          finish({ ok: false, code: "TIMEOUT" });
+          finish({ ok: false, code: "TIMEOUT" }, "tool_result");
         }
       })();
     }, Math.max(0, deadline - Date.now()));
 
-    const finish = (outcome: PalElevenLabsChatOutcome) => {
+    const finish = (outcome: PalElevenLabsChatOutcome, failureStage: PalChatFailureStage = "turn") => {
       if (settled) return;
       settled = true;
+      if (!outcome.ok) recordFailure(outcome.code, failureStage);
       clearTimeout(timer);
       clearSettle();
       try {
@@ -268,14 +339,14 @@ export async function runPalElevenLabsChatTurn(
           if (generation !== replyGeneration || events !== toolEvents) return;
           finish(answer(agentMessage, turn));
         } catch {
-          finish({ ok: false, code: "UNAVAILABLE" });
+          finish({ ok: false, code: "UNAVAILABLE" }, "tool_result");
         }
       })();
     };
 
     const ws = new WebSocket(signedUrl);
 
-    const onAbort = () => finish({ ok: false, code: "TIMEOUT" });
+    const onAbort = () => finish({ ok: false, code: "TIMEOUT" }, "caller_cancel");
     if (input.signal?.aborted) onAbort();
     input.signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -327,7 +398,7 @@ export async function runPalElevenLabsChatTurn(
         void (async () => {
           try {
             if (!isPubPalConversationId(conversationId)) {
-              finish({ ok: false, code: "UNAVAILABLE" });
+              finish({ ok: false, code: "UNAVAILABLE" }, "registration");
               return;
             }
             await registerPubPalToolTurn(conversationId, {
@@ -339,10 +410,10 @@ export async function runPalElevenLabsChatTurn(
             });
             userMessageSent = true;
             ws.send(
-              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories) }),
+              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories, taste) }),
             );
           } catch {
-            finish({ ok: false, code: "UNAVAILABLE" });
+            finish({ ok: false, code: "UNAVAILABLE" }, "registration");
           }
         })();
         return;
@@ -397,11 +468,11 @@ export async function runPalElevenLabsChatTurn(
     });
 
     ws.addEventListener("error", () => {
-      finish({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+      finish({ ok: false, code: "PROVIDER_UNAVAILABLE" }, "socket_error");
     });
 
     ws.addEventListener("close", () => {
-      if (!settled) finish({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+      if (!settled) finish({ ok: false, code: "PROVIDER_UNAVAILABLE" }, "socket_close");
     });
   });
 }

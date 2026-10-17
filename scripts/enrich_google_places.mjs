@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { PLACES_EXTRAS_FIELD_MASK, PLACES_REFRESH_DAYS, placesEnrichmentRecord, planPlacesEnrichment } from "../lib/placesEnrichment.ts";
+import { PLACES_EXTRAS_FIELD_MASK, PLACES_REFRESH_START_DAYS, placesEnrichmentRecord, planPlacesEnrichment } from "../lib/placesEnrichment.ts";
 import { restoreQuotasUntilVerified } from "../lib/placesVerification.ts";
 import { accessToken, dailyOverrideValue, effectiveDailyLimit, setDailyOverrides,
   monthPlacesRequests, SEARCH_METRIC, DETAILS_METRIC } from "./lib/googlePlacesQuota.mjs";
@@ -22,7 +22,7 @@ const config = PACKS[options.pack];
 const OUT = join(ROOT, `data/${config.output}.json`);
 const CHECKPOINT = join(ROOT, `data/places_verification/${config.checkpoint}.json`);
 const CAP_USD = config.cap;
-const REFRESH_MS = PLACES_REFRESH_DAYS * 86_400_000;
+const REFRESH_MS = PLACES_REFRESH_START_DAYS * 86_400_000;
 const CORE_MASK = "regularOpeningHours.periods,regularOpeningHours.weekdayDescriptions,formattedAddress,nationalPhoneNumber,websiteUri";
 const MASK = options.pack.endsWith("_extras") ? PLACES_EXTRAS_FIELD_MASK : CORE_MASK;
 const read = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -85,7 +85,7 @@ function rollMonth(ledger) {
   return ledger;
 }
 
-/** Resume the current push, or with --refresh start a new one once a copied field is past its refresh window. The cap spans every push in a calendar month. */
+/** Resume the current push, or with --refresh start a new one once a copied field is past the refresh start window, two weeks before its hours lapse. The cap spans every push in a calendar month. */
 function currentPush(rows, reportRows, inputHash, refresh) {
   let previous = rollMonth(priorLedger() ?? { inputHash, attempts: 0, month: null, monthAttempts: 0, runStartedAt: null, completed: {}, errors: [] });
   const plan = planPlacesEnrichment(rows, reportRows, 85, 0, config.rate);
@@ -102,7 +102,7 @@ function currentPush(rows, reportRows, inputHash, refresh) {
   if (refresh) {
     const oldest = Object.values(previous.completed).map((record) => record.observedAt).sort()[0];
     if (!oldest || Date.now() - Date.parse(oldest) <= REFRESH_MS)
-      throw new Error(`No copied field is older than ${PLACES_REFRESH_DAYS} days; nothing to refresh`);
+      throw new Error(`No copied field is older than ${PLACES_REFRESH_START_DAYS} days; nothing to refresh`);
     if (previous.inputHash === inputHash && budgetFor(previous).rows.length)
       throw new Error("The current push still has budgeted rows; resume it without --refresh");
     const verifiedIds = new Map(rows.map((row) => [row.venueId, row.googlePlaceId]));

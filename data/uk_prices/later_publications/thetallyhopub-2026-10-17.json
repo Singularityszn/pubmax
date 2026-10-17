@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://thetallyhopub.co.uk/wp-content/uploads/2025/01/TALLY-HO-Drinks-compressed.pdf",
+  "observedAt": "2026-10-17T12:46:19.027Z",
+  "evidence": "ice, homemade raspberry syrup, passion fruit syrup, rose water Maharani £ 6.50 strawberry puree, pineapple juice, orgeat, cream Bottled Soft Drinks Coke £ 2.20 Diet Coke £ 2.20 Ginger Ale £ 2.20 Red Bull £ 3.00 Slimline Tonic £ 2.20 Soda Water £ 2.20 Tonic £ 2.20 J20 £ 3.70 Soft Drinks Regular Large Coke £ 3.00 £ 4.20 Diet Coke £ 3.00 £ 4.20 Orange/Lemonade/Apple £ 3.00 £ 4.20 Jug Of Soft Drink £ 12.00 tea English Br",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "thetallyhopub.co.uk",
+      "venueId": "venue-uk-n451271",
+      "osmId": "node/451271",
+      "name": "The Tally Ho",
+      "postcode": "N12 0BP",
+      "lat": 51.6141038,
+      "lng": -0.1765556,
+      "category": "soft-drink",
+      "priceGbp": 2.2,
+      "drinkLabel": "Diet Coke",
+      "sourceUrl": "https://thetallyhopub.co.uk/wp-content/uploads/2025/01/TALLY-HO-Drinks-compressed.pdf",
+      "observedAt": "2026-10-17T12:46:19.027Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 87
+    }
+  ]
+}

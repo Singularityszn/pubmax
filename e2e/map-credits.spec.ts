@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -31,10 +32,9 @@ for (const theme of ["light", "dark"] as const) {
       await page.goto("/map");
       await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 30_000 });
       const credits = page.locator(".mobileMapCredits");
+      const more = await mobileMapShellControl(page, "more");
       await expect(async () => {
-        await page.locator(".mobileMapTopbar").getByRole("button", {
-          name: "More map controls",
-        }).click();
+        await more.click();
         await expect(credits).toBeVisible({ timeout: 1_000 });
       }).toPass({ timeout: 20_000 });
       await credits.scrollIntoViewIfNeeded();

@@ -22,12 +22,13 @@ import {
   type StampResolution,
   type StoreRead,
 } from "@/lib/freshness";
-import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
+import { resolveDatasetStampWithOverlay } from "@/lib/freshnessArtifact";
 import {
   resolveDurableFeedStoreReads,
   resolveStoreObservedAt,
 } from "@/lib/freshnessStoreOverlay";
 import { countCorroboratedCommunityCategories } from "@/lib/communityPriceStore";
+import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -55,8 +56,14 @@ export async function GET(): Promise<Response> {
       readFileSync(join(rootDir, "data", "freshness_registry.json"), "utf8"),
     ) as FreshnessRegistry;
   } catch (e) {
+    // The reason stays in the server log: a read error's message carries the
+    // absolute path of the deployed function, which is nobody's business.
+    log("warn", "freshness.registry_unavailable", {
+      route: "GET /api/freshness",
+      error: e instanceof Error ? e.message : String(e),
+    });
     return jsonResponse(
-      { error: "registry unavailable", detail: (e as Error).message, datasets: [] },
+      { error: "registry unavailable", datasets: [] },
       { status: 200 },
     );
   }
@@ -76,9 +83,7 @@ export async function GET(): Promise<Response> {
       const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
       return resolveStoreStamp(dataset.stamp, read);
     }
-    const stored = overlay[dataset.id];
-    if (stored) return { observedAt: stored, reason: null };
-    return resolveDatasetStamp(rootDir, dataset);
+    return resolveDatasetStampWithOverlay(rootDir, dataset, overlay[dataset.id]);
   };
   const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
     ...result,

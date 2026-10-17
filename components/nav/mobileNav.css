@@ -300,12 +300,12 @@ body:has(.mobileMapUtilityCorner) {
        (D19): in the iOS shell the dock sat 34px up on the home-indicator inset
        over an 88 percent gradient, and page content showed through the strip
        beneath it. The paper is solid from the bottom edge to the pill's middle
-       (6px + the inset + half the 50px pill) and fades above that, so the
-       pill's top half still floats and nothing of the page reads under it. */
+       (6px + the inset + half the 54px rail) and fades above that, so the
+       rail's top half still floats and nothing of the page reads under it. */
     background: linear-gradient(
       to top,
       var(--paper) 0,
-      var(--paper) calc(31px + env(safe-area-inset-bottom, 0px)),
+      var(--paper) calc(33px + env(safe-area-inset-bottom, 0px)),
       transparent
     );
     /* 6px base clearance + the home-indicator inset, so the pill never reads
@@ -363,27 +363,33 @@ body:has(.mobileMapUtilityCorner) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 6;
-    --tab-inset: 2px;
+    --tab-count: 5;
+    --tab-inset: 4px;
+    /* THE PRESSED RAIL. The dock is a raised mat and the page you are on is a
+       well pressed into it (the bar-mat tactility in docs/DESIGN_SYSTEM.md),
+       so the rail wears one hairline and one soft drop, and the radius steps
+       down by the inset to the well inside it. */
+    --tab-rail-radius: 20px;
     max-width: 420px;
     margin: 0 auto;
     padding: var(--tab-inset);
     list-style: none;
-    border: 1px solid var(--line);
-    border-radius: 16px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--tab-rail-radius);
     background: var(--panel-raised);
     box-shadow:
-      0 -3px 12px color-mix(in srgb, var(--ink-deep) 10%, transparent),
-      0 4px 12px color-mix(in srgb, var(--ink-deep) 8%, transparent);
+      0 -2px 10px color-mix(in srgb, var(--ink-deep) 6%, transparent),
+      0 10px 24px -10px color-mix(in srgb, var(--ink-deep) 32%, transparent);
     /* Clip the gliding highlight to the pill's own rounded rect (#1544). */
     overflow: hidden;
     pointer-events: auto;
   }
 
-  /* Gliding active-tab highlight (still solid — Flat-Chrome-On-Map Rule; this
-     is a tint of the panel's own accent, not glass). Sized to one of the
-     --tab-count equal flex columns and translated by --active-index * 100% of
-     its OWN width, so it only ever animates `transform` (+ opacity to hide
+  /* The gliding well (still solid: Flat-Chrome-On-Map Rule, a neutral ink
+     recess and never glass or coral). Pressed, not painted: a shadow under its
+     top lip and a lit lower lip read as a dent in the rail. Sized to one of
+     the --tab-count equal flex columns and translated by --active-index * 100%
+     of its OWN width, so it only ever animates `transform` (+ opacity to hide
      when no tab matches the route). A decorative first child, painted behind
      the tab items by DOM order. */
   .mobileTabHighlight {
@@ -392,8 +398,11 @@ body:has(.mobileMapUtilityCorner) {
     bottom: var(--tab-inset);
     left: var(--tab-inset);
     width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--ink) 9%, transparent);
+    border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
+    background: var(--state-selected-surface);
+    box-shadow:
+      inset 0 1.5px 3px color-mix(in srgb, var(--ink-deep) 22%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--paper) 80%, transparent);
     transform: translateX(calc(var(--active-index, -1) * 100%));
     z-index: 0;
     pointer-events: none;
@@ -421,18 +430,19 @@ body:has(.mobileMapUtilityCorner) {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1px;
+    gap: 2px;
     /* Keep ≥44px hit area for thumbs (WCAG 2.5.5 minimum). */
     min-height: 44px;
     padding: 4px 2px;
-    border-radius: 12px;
+    border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
     color: var(--muted, var(--ink-soft));
     text-decoration: none;
     /* iOS-convention tab labels — floored at 11px (the one sub-12px exception),
-       ellipsis preserved by .mobileTabLabel. */
+       ellipsis preserved by .mobileTabLabel. Idle words stay a step lighter
+       so the page you are on is the one that carries weight. */
     font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0;
+    font-weight: 600;
+    letter-spacing: 0.01em;
     line-height: 1.05;
     transition:
       color var(--duration-base) var(--ease-out),
@@ -445,8 +455,8 @@ body:has(.mobileMapUtilityCorner) {
   .mobileTabIcon {
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     color: currentcolor;
     transition:
       color var(--duration-base) var(--ease-out),
@@ -516,18 +526,23 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  /* Active = coral GLYPH + ink label. The glyph is the one coral mark the tab
-     bar keeps (finding 2.1's three-place accent budget), and the ink label is
-     what closes the 2.91:1 light-theme failure (finding 2.2). The gliding
-     highlight behind it carries the fill, so the tab itself stays clean. */
+  /* Active = ink GLYPH + ink label over the gliding neutral highlight. The
+     glyph used to be coral; an active tab is a selection, and coral is spent
+     on the one primary action and the create disc alone (docs/DESIGN_SYSTEM.md
+     "Coral is spent twice"). The ink label is what closed the 2.91:1
+     light-theme failure (finding 2.2). */
   .mobileTab.isActive {
     color: var(--ink);
+    font-weight: 750;
     background: transparent;
     box-shadow: none;
   }
 
+  /* The glyph sits a pixel down in the well: a static shape, like the press
+     itself, so it stays under reduced motion. */
   .mobileTab.isActive .mobileTabIcon {
-    color: var(--brass);
+    color: var(--state-selected-ink);
+    transform: translateY(1px);
   }
 }
 
@@ -541,13 +556,13 @@ body:has(.mobileMapUtilityCorner) {
   .mobileTabList {
     /* One knob: the highlight geometry above derives from --tab-inset, so the
        smallest step only needs to shrink the inset and everything stays flush. */
-    --tab-inset: 1px;
+    --tab-inset: 2px;
     max-width: 340px;
   }
 
   .mobileTab {
     /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
-       the 11px floor (iOS-convention exception) to fit six tabs across ~340px. */
+       the 11px floor (iOS-convention exception) to fit five tabs across ~340px. */
     font-size: 0.6875rem;
     padding: 2px 0;
     min-height: 44px;

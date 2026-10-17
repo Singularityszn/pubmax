@@ -1,7 +1,8 @@
 {
-  "$comment": "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.",
+  "$comment": "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. latestObservedAt is the newest entry observedAt, which the freshness registry dates this lane by. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.",
   "version": 1,
   "generatedAt": "2026-09-30T05:48:21.600Z",
+  "latestObservedAt": "2026-09-15",
   "entries": [
     {
       "id": "area-news-5839c17f90c480f3",

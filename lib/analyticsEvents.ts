@@ -100,7 +100,6 @@ export const ANALYTICS_EVENTS = {
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
-  out_screen_view: [],
   out_filter_select: ["kind"],
   create_fab_action: ["action"],
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
@@ -426,7 +425,7 @@ export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
 export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
-export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "other"] as const;
+export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "other"] as const;
 export type ContentShareSurface = (typeof CONTENT_SHARE_SURFACES)[number];
 export const ERROR_SHOWN_SURFACES = [
   "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",

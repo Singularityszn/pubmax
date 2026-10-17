@@ -31,7 +31,11 @@ never applied to an unread row.
 ## Re-collecting the prices
 
 `node scripts/refresh_pint_price_observations.mjs` re-reads the same 32 borough
-pages and 932 pub pages the first extract read. For every row the source still
+pages and 932 pub pages the first extract read. It REFUSES before any request
+until `lib/harvest/sourcePolicy.ts` holds an allowed `pint-prices-com` row with a
+`nonFirstPartyException`, because pint-prices.com is an aggregator rather than a
+pub's own site; that row is the captain's call. With the row in place, every
+page is asked of robots.txt live and must stay on the row's own host. For every row the source still
 states, it writes the figure the source states and stamps the row's
 `scraped_at_values` with the run's instant, whether or not the figure moved. It
 can neither add a row nor remove one, so the layered artifact below keeps every

@@ -15,8 +15,14 @@
 //   3. Match conservatively via scripts/lib/heritageMatch.mjs — a listed point
 //      must carry the pub's core name AND sit on it. False positives are worse
 //      than misses (owner rule), so most pubs get nothing and that is correct.
+//   3b. Run the same match for every London OSM pub no curated venue owns,
+//      keyed by the `venue-uk-<osmRef>` id its base-layer sheet opens under
+//      (scripts/lib/heritageBaseVenues.mjs), so a listed pub off the curated
+//      map is not left blank. "Owns" is the published uk_base shards' owner
+//      column, the same answer the map uses to hide a base pin.
 //   4. Write public/data/heritage_listings.json — ONLY matched pubs, keyed by
-//      venueId, with { listEntry, grade, listedYear, name, fact, url, distanceM }.
+//      venueId, with { listEntry, grade, listedYear, name, fact, url, distanceM },
+//      plus `$retrievedAt`, the day the NHLE was read, which the sheet prints.
 //
 // We NEVER invent a grade, an era, or a description. `fact` is grade + the
 // building type only when the official listing name names one; `listedYear` is
@@ -26,7 +32,8 @@
 //
 // Run:
 //   node scripts/build_heritage_listings.mjs                 # fetch live NHLE
-//   node scripts/build_heritage_listings.mjs --cache pts.json  # from a cache
+//   node scripts/build_heritage_listings.mjs --cache pts.json --retrieved-at 2026-10-16
+//                                                       # from a cache, read that day
 //   node scripts/build_heritage_listings.mjs --dry-run       # print, don't write
 // Judged pass (requires TYPESAFE_API_KEY; structure Noul + same-pub Noul):
 //   node --import tsx scripts/build_heritage_listings.mjs --judged
@@ -35,6 +42,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { openDataSourceUrl } from "../lib/harvest/sourcePolicy.ts";
+import { baseRowOwners, LONDON_BOX, londonBaseVenues } from "./lib/heritageBaseVenues.mjs";
 import {
   bestMatch,
   buildFactText,
@@ -45,10 +54,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "heritage_listings.json");
+const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const UK_BASE_MANIFEST_PATH = path.join(ROOT, "public", "data", "uk_base", "manifest.json");
 
-const NHLE_FEATURESERVER =
-  "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/" +
-  "National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query";
+// The NHLE FeatureServer's row in lib/harvest/sourcePolicy.ts. THE TABLE OWNS
+// THE HOST: the query URL comes from `openDataSourceUrl`, never from here.
+const NHLE_SOURCE_POLICY_ID = "historic-england-nhle";
 
 // Greater-London bounding box (WGS84). Generous; the matcher's distance gate is
 // what actually prevents cross-region false positives.
@@ -86,6 +97,16 @@ function stableVenueIdFromKey(key) {
 
 async function loadJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
+}
+
+// The published uk_base shards whose cell meets the London box.
+async function londonBaseShards() {
+  const manifest = await loadJson(UK_BASE_MANIFEST_PATH);
+  const prefix = String(manifest.urlPrefix ?? "").replace(/^\/+/, "");
+  const cells = (manifest.shards ?? []).filter(({ bbox: [minLng, minLat, maxLng, maxLat] = [] }) =>
+    minLng < LONDON_BOX.maxLng && maxLng > LONDON_BOX.minLng && minLat < LONDON_BOX.maxLat && maxLat > LONDON_BOX.minLat,
+  );
+  return Promise.all(cells.map(({ id }) => loadJson(path.join(ROOT, "public", prefix, `${id}.json`))));
 }
 
 // One representative venue per grouping key (first row supplies name/coords),
@@ -127,7 +148,8 @@ async function fetchListedPoints() {
       resultRecordCount: String(step),
       f: "json",
     });
-    const res = await fetch(`${NHLE_FEATURESERVER}?${params.toString()}`);
+    const url = openDataSourceUrl(NHLE_SOURCE_POLICY_ID, `?${params.toString()}`);
+    const res = await fetch(url.href, { redirect: "error" });
     if (!res.ok) throw new Error(`NHLE fetch failed: HTTP ${res.status}`);
     const body = await res.json();
     if (body.error) throw new Error(`NHLE error: ${JSON.stringify(body.error)}`);
@@ -212,7 +234,10 @@ export function buildListings(venues, points) {
   return listings;
 }
 
-function serialise(listings) {
+export function serialise(listings, retrievedAt) {
+  if (!Number.isFinite(Date.parse(retrievedAt))) {
+    throw new Error("The NHLE read needs the day it was read (--retrieved-at for a cache).");
+  }
   const sortedKeys = Object.keys(listings).sort();
   const ordered = {};
   for (const key of sortedKeys) ordered[key] = listings[key];
@@ -220,6 +245,7 @@ function serialise(listings) {
     $attribution: ATTRIBUTION,
     $source: "Historic England — National Heritage List for England (NHLE), Listed Building points",
     $licence: "Open Government Licence v3.0",
+    $retrievedAt: retrievedAt,
     listings: ordered,
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
@@ -233,8 +259,28 @@ async function main() {
 
   const dataset = await loadJson(DATASET_PATH);
   const rows = Array.isArray(dataset) ? dataset : dataset.venues ?? [];
-  const venues = groupVenues(rows);
-  process.stderr.write(`Grouped ${rows.length} rows into ${venues.length} venues.\n`);
+  const curated = groupVenues(rows);
+  // A base row the map hides behind one of these curated venues is matched
+  // under the curated id alone. An owner this join does not match keeps its
+  // base pub, so no listing is lost to an owner the pack never keys.
+  const curatedIds = new Set(curated.map((venue) => venue.id));
+  const ownedBy = new Map(
+    [...baseRowOwners(await londonBaseShards())].filter(([, owner]) => curatedIds.has(owner)),
+  );
+  const base = londonBaseVenues((await loadJson(UK_SEED_PATH)).pubs, { ownedBy });
+  const venues = [...curated, ...base];
+  process.stderr.write(
+    `Grouped ${rows.length} rows into ${curated.length} venues, plus ${base.length} London base pubs ` +
+      `(${ownedBy.size} base rows owned by a curated venue).\n`,
+  );
+
+  // The day the NHLE was read. A live read is today; a cache states its own.
+  const retrievedIdx = argv.indexOf("--retrieved-at");
+  const statedDay = retrievedIdx === -1 ? "" : (argv[retrievedIdx + 1] ?? "");
+  const retrievedAt = cachePath
+    ? Number.isFinite(Date.parse(statedDay)) ? new Date(statedDay).toISOString() : ""
+    : new Date().toISOString();
+  if (!retrievedAt) throw new Error("A cached NHLE read needs --retrieved-at <the day it was read>.");
 
   let points;
   if (cachePath) {
@@ -302,7 +348,7 @@ async function main() {
   const matched = Object.keys(listings).length;
   process.stderr.write(`Matched ${matched} pubs to listed buildings.\n`);
 
-  const output = serialise(listings);
+  const output = serialise(listings, retrievedAt);
   if (dryRun) {
     process.stdout.write(output);
     return;

@@ -307,7 +307,7 @@
   border-radius: var(--radius-pill, 999px);
   background: color-mix(in srgb, var(--brass) 10%, transparent);
   color: color-mix(in srgb, var(--brass) 76%, var(--ink));
-  font: 640 0.64rem/1 var(--font-data);
+  font: 640 0.64rem/1 var(--font-body);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   text-decoration: none;
@@ -321,7 +321,7 @@
 
 .palChatConfidence {
   color: var(--muted);
-  font: 600 0.64rem/1 var(--font-data);
+  font: 600 0.64rem/1 var(--font-body);
   letter-spacing: 0.05em;
   text-transform: capitalize;
 }
@@ -329,7 +329,7 @@
 .palChatCardCta {
   margin-left: auto;
   color: var(--brass);
-  font: 640 0.68rem/1 var(--font-data);
+  font: 640 0.68rem/1 var(--font-body);
   letter-spacing: 0.03em;
 }
 
@@ -639,4 +639,12 @@
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink-soft);
+}
+
+.palGlanceReceipt {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
 }

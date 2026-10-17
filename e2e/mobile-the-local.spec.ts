@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 
-test("mobile Describe the outing builds one grounded route without camera flicker", async ({ page }) => {
+test("mobile Plan a pub crawl builds one grounded route without camera flicker", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
@@ -22,10 +22,10 @@ test("mobile Describe the outing builds one grounded route without camera flicke
 
   await page.goto("/map");
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Describe the outing" }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl" }).click();
   const planner = page.locator(".mapDrawer.left");
   await expect(planner).toHaveClass(/sheet-half/);
-  await planner.getByRole("textbox", { name: "Describe the outing" }).fill("Four of us in Barnes, under £24 each and quiet");
+  await planner.getByRole("textbox", { name: "Where, how many, what budget" }).fill("Four of us in Barnes, under £24 each and quiet");
   const generateResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"),

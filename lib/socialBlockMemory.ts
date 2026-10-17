@@ -1,7 +1,13 @@
 const blocks = new Set<string>();
+const mutes = new Set<string>();
 
 export function socialMemoryBlocked(first: string, second: string): boolean {
   return blocks.has(`${first}:${second}`) || blocks.has(`${second}:${first}`);
+}
+
+/** One-way: whether `blocker` blocked `blocked`, the way `set_social_block` writes it. */
+export function socialMemoryBlocks(blocker: string, blocked: string): boolean {
+  return blocks.has(`${blocker}:${blocked}`);
 }
 
 export function setSocialMemoryBlock(first: string, second: string, active: boolean): void {
@@ -19,4 +25,26 @@ export function socialMemoryBlockedProfiles(profileId: string): Set<string> {
   return result;
 }
 
-export function clearSocialMemoryBlocks(): void { blocks.clear(); }
+/** One-way, unlike a block: only the muter's lanes change. */
+export function socialMemoryMutes(muter: string, muted: string): boolean {
+  return mutes.has(`${muter}:${muted}`);
+}
+
+export function setSocialMemoryMute(muter: string, muted: string, active: boolean): void {
+  const key = `${muter}:${muted}`;
+  if (active) mutes.add(key); else mutes.delete(key);
+}
+
+export function socialMemoryMutedProfiles(profileId: string): Set<string> {
+  const result = new Set<string>();
+  for (const key of mutes) {
+    const [muter, muted] = key.split(":");
+    if (muter === profileId && muted) result.add(muted);
+  }
+  return result;
+}
+
+export function clearSocialMemoryBlocks(): void {
+  blocks.clear();
+  mutes.clear();
+}

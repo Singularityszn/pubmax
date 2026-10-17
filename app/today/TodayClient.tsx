@@ -135,7 +135,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         <div>
           <p className="todayCardEyebrow">Drink weather</p>
           <h2 className="todayCardTitle" id="today-weather-title">
-            {weather?.verdictLine || (weather?.stale ? "Last sky read on file." : "No weather verdict right now.")}
+            {weather?.verdictLine || (weather?.stale ? "Last weather reading on file." : "No weather verdict right now.")}
           </h2>
         </div>
       </div>
@@ -178,7 +178,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         </>
       ) : (
         <p className="todayCardEmpty">
-          No fresh read on the sky just now. Have a look out the window for this one.
+          No weather reading right now.
         </p>
       )}
     </section>
@@ -572,8 +572,11 @@ export default function TodayClient({
         title={shownGreeting.headline}
         titleId="today-title"
         lede={
+          // One string, so the server HTML carries one text node: three JSX
+          // children put React's separators round the period, and a reader of
+          // the stripped document saw "Good morning ." with no name.
           <span data-testid="today-greeting">
-            {shownGreeting.salutation}. {shownGreeting.support}
+            {`${shownGreeting.salutation}. ${shownGreeting.support}`}
           </span>
         }
         primary={

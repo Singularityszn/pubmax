@@ -17,6 +17,7 @@ import {
 } from "@/lib/poiToggleGroups";
 import type { PoiCategory } from "@/lib/pois";
 import type { StoryBand } from "@/lib/storyBands";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapLayersControl.css";
 
@@ -120,6 +121,7 @@ export default function MapLayersControl({
   const open = embedded || manualOpen || bandForcesOpen;
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const layersCopy = mapLayersCopy(cityId);
 
   function closePanel() {
@@ -130,6 +132,13 @@ export default function MapLayersControl({
     setManualOpen(false);
     if (activeBandId) setClosedForBandId(activeBandId);
   }
+  function dismissPanel() {
+    closePanel();
+    triggerRef.current?.focus();
+  }
+  // Embedded content belongs to its phone sheet. Escape must follow that
+  // sheet's Back action, including when no onRequestClose was supplied.
+  useDismissOnEscape(open && !embedded, dismissPanel, rootRef);
 
   function openPanel() {
     setManualOpen(true);
@@ -138,13 +147,6 @@ export default function MapLayersControl({
 
   useEffect(() => {
     if (!open) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
-        event.preventDefault();
-        closePanel();
-      }
-    }
     function onPointer(event: MouseEvent | TouchEvent) {
       const root = rootRef.current;
       if (!root) return;
@@ -152,11 +154,9 @@ export default function MapLayersControl({
         closePanel();
       }
     }
-    window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onPointer);
     window.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
-      window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("touchstart", onPointer);
     };
@@ -179,6 +179,7 @@ export default function MapLayersControl({
     >
       {!embedded ? <button
         type="button"
+        ref={triggerRef}
         className={
           open || storiesActive ? "mapLayersFab isActive" : "mapLayersFab"
         }
@@ -205,7 +206,7 @@ export default function MapLayersControl({
               type="button"
               className="mapLayersClose"
               aria-label="Close layers"
-              onClick={closePanel}
+              onClick={dismissPanel}
             >
               <X size={16} aria-hidden="true" />
             </button> : null}

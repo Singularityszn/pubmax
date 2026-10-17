@@ -17,7 +17,7 @@ curl --fail --silent --show-error --location https://pubmaxxing.com/social \
 # <title>Social preview · PUBMAXXING</title>
 ```
 
-Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohort. Agents keep product + this checklist current.
+Captain still owns merge of #747, the production release (`npm run release:prod`), and the human WhatsApp cohort. Agents keep product + this checklist current.
 
 ## Do not do in this wave
 
@@ -33,7 +33,7 @@ Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohor
 1. DONE (2026-08-07): V1 invite-ready product work merged ([#816](https://github.com/Singularityszn/pubmax/pull/816)).
 2. Merge CI runner fix ([#747](https://github.com/Singularityszn/pubmax/pull/747)) so quality gates are real.
 3. Confirm migrations through `0084_crew_snapshot_wetherspoons_flag` are live (runbook §1.3; applied 2026-08-08).
-4. Promote the production deployment (`vercel promote <url>`).
+4. Release to production with `npm run release:prod` ([release procedure](../DEPLOYMENT.md#one-release-command)). It builds with Production values, promotes that build and waits for the smoke run. Never promote a Preview build: promotion does not rebuild, so it keeps its Preview environment values.
 5. Smoke:
 
 ```sh

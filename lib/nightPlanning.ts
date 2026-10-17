@@ -4,6 +4,7 @@ import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
+import { tubeIsARouteRule } from "@/lib/planGetHome";
 import { drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
 import { cleanText } from "@/lib/textClean";
 import {
@@ -157,7 +158,16 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   // not a cuisine filter (lateFood drops this non-specific tag).
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
-  const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
+  // Each word the reader names, not the first one that matches: a tube used to
+  // win a ternary and take the walk rule out of the record with it, so "walk
+  // between stops, then home by tube" routed while the same sentence without
+  // the tube failed closed. A whole word on the tube arm, because "YouTube" is
+  // no transport at all, and only a tube named as the WAY HOME is dropped from
+  // the route rules, which lib/planGetHome.ts decides.
+  const transportConstraints = [
+    ...(tubeIsARouteRule(lower) ? ["tube"] : []),
+    ...(/walk/.test(lower) ? ["walking"] : []),
+  ];
   const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober/.test(lower)
     || hasZeroAlcoholStrength(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);

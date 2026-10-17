@@ -54,8 +54,21 @@ const MOMENT_URL = process.env.PW_MOMENT_BASE_URL
   ? `${process.env.PW_MOMENT_BASE_URL}/moment`
   : "/moment";
 
+// The picker a person reaches: the file input, named by its label. A bare
+// `input[type="file"]` also counts DOM the reader cannot reach. When an update
+// reaches /moment's streamed Suspense boundary before React's runtime reveals
+// it, React renders the composer again on the client. The server's copy then
+// waits in a `<div hidden>` segment until the runtime's next reveal removes
+// it, so for a moment the page holds two #moment-photo-file inputs, and only
+// one is in the accessibility tree. "Add a photo" is also the phone-width
+// answer, which only the hydrated composer gives, so a pick is never dropped
+// on markup React has not attached to yet.
+function photoPicker(page: Page): Locator {
+  return page.getByRole("button", { name: /^Add a photo/ });
+}
+
 async function attachPhoto(page: Page): Promise<void> {
-  await page.locator('input[type="file"]').setInputFiles({
+  await photoPicker(page).setInputFiles({
     name: "night.png",
     mimeType: "image/png",
     buffer: PHOTO,
@@ -71,11 +84,34 @@ test.describe("Moment photo editor with the sign-in nudge armed", () => {
     await seedMomentGuest(page);
     // The first photo arms the "Own your memories" nudge, which then waits out
     // an 8 s first-paint grace or the first tap. Hold the page's clock so only
-    // the Edit tap can end that grace, however slow the runner is.
+    // the Edit tap can end that grace.
+    //
+    // The grace starts when the page mounts, so the clock is held from before
+    // navigation: a slow runner's load and hydration then spend no page time.
+    // React's inline runtime still reveals each streamed Suspense segment on a
+    // timer ($RC, then requestAnimationFrame or setTimeout, then $RV), and a
+    // clock that never moves leaves the hidden server copy of the composer
+    // (see photoPicker) on the page. So step the page's time a frame's worth
+    // per check until the hydrated picker shows and the last hidden copy is
+    // gone. Each step is page time, not wall time, so however slowly the
+    // runner hydrates, the grace has seconds left when the photo goes in.
     const start = Date.now();
     await page.clock.install({ time: start });
-    await page.clock.pauseAt(start + 5_000);
+    await page.clock.pauseAt(start + 1_000);
     await page.goto(MOMENT_URL);
+    await expect
+      .poll(async () => {
+        await page.clock.runFor(50);
+        return (
+          (await photoPicker(page).isVisible()) &&
+          (await page.locator('input[type="file"]').count()) === 1
+        );
+      }, { timeout: 30_000 })
+      .toBe(true);
+    expect(
+      (await page.evaluate(() => Date.now())) - start,
+      "page time spent before the photo, against the nudge's 8 s grace",
+    ).toBeLessThan(5_000);
     await attachPhoto(page);
     // The draft save that arms the nudge is debounced by 300 ms.
     await page.clock.runFor(1_000);

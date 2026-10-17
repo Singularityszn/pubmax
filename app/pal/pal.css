@@ -12,12 +12,20 @@
   min-height: 100dvh;
   overflow: hidden;
   padding: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
+  color: var(--pal-paper);
+  font-family: var(--font-body);
+}
+
+/* The Pal surface is the PAGE's background, not the main box's. Painted on the
+   main box, it stopped where the box stopped, and the body's own gradient
+   showed under it on a phone: the clearance the hidden tab bar still reserves
+   read as a seam below Continue (UX sprint, 15 Oct 2026, 390x844 dark). The
+   body paints the canvas, so one surface runs the full height. */
+body:has(.palExperience) {
   background:
     radial-gradient(circle at 76% 22%, color-mix(in srgb, var(--brass) 12%, transparent), transparent 31rem),
     radial-gradient(circle at 18% 86%, color-mix(in srgb, var(--river) 10%, transparent), transparent 26rem),
-    var(--pal-night);
-  color: var(--pal-paper);
-  font-family: var(--font-body);
+    var(--paper);
 }
 
 .palExperience *, .palExperience *::before, .palExperience *::after { box-sizing: border-box; }
@@ -52,7 +60,7 @@
 .palEyebrow {
   margin-bottom: .85rem !important;
   color: var(--pal-accent);
-  font: 650 var(--text-2xs)/1 var(--font-data);
+  font: 650 var(--text-2xs)/1 var(--font-body);
   letter-spacing: .01em;
 }
 
@@ -172,7 +180,7 @@
 .palPortraitEcho { opacity: .13; filter: blur(.5px); transform: translate(.8rem, .25rem); }
 .palPortraitSignalMark { width: 54%; aspect-ratio: 1; border: 1px solid currentColor; border-radius: 38% 62% 54% 46%; transform: rotate(24deg); }
 .palPortraitScan { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 .42rem, color-mix(in srgb, var(--signal) 12%, transparent) .45rem .49rem); mix-blend-mode: screen; }
-.palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-data); letter-spacing: .08em; text-transform: uppercase; }
+.palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
 .palPortrait-chrome .palPortraitCore { background: linear-gradient(135deg, rgba(251, 251, 254, .25), color-mix(in srgb, var(--signal) 10%, transparent) 46%, rgba(251, 251, 254, .06)); }
 /* Glass is a tint, not a blur: backdrop blur outside the sheet material is on
    the template-pattern ban list (docs/VOICE.md). */
@@ -235,7 +243,7 @@
 .palField > small { color: var(--pal-soft); font-size: .76rem; }
 .palNameIdeas { margin-top: 1.15rem; display: grid; gap: .85rem; }
 .palNameIdeas > div { display: grid; grid-template-columns: 4.5rem 1fr; align-items: center; gap: .65rem; }
-.palNameIdeas > div > span { color: var(--pal-soft); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
+.palNameIdeas > div > span { color: var(--pal-soft); font: 650 var(--text-2xs)/1 var(--font-body); letter-spacing: .01em; }
 .palNameIdeas > div > div { display: flex; gap: .45rem; overflow-x: auto; touch-action: pan-y; scrollbar-width: none; }
 .palNameIdeas button { min-width: 3.8rem; min-height: 2.75rem; padding: 0 .8rem; border: 1px solid var(--pal-line); border-radius: 999px; background: var(--panel-raised); color: var(--pal-paper); cursor: pointer; }
 .palNameIdeas button:hover { border-color: var(--pal-accent); background: color-mix(in srgb, var(--pal-accent) 8%, var(--panel-raised)); }
@@ -288,7 +296,7 @@
 .palMemoryList { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
 .palMemoryList > li { display: grid; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
 .palMemoryList__meta { display: grid; gap: .25rem; }
-.palMemoryList__meta span { color: var(--pal-accent); font: 700 var(--text-2xs) var(--font-data); letter-spacing: .01em; }
+.palMemoryList__meta span { color: var(--pal-accent); font: 700 var(--text-2xs) var(--font-body); letter-spacing: .01em; }
 .palMemoryList__meta small { color: var(--pal-soft); text-transform: capitalize; }
 .palMemoryList > li > p { margin: 0; line-height: 1.5; }
 .palMemoryList__actions, .palMemoryList__edit > div { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -361,7 +369,9 @@
   .palSpeciesGrid .palChoice { min-height: 4.85rem; padding-right: 2.5rem; }
   .palRange { grid-template-columns: 5.2rem 1fr; }
   .palReview { grid-template-columns: 1fr; }
-  .palOnboardingActions { position: relative; bottom: auto; z-index: 2; margin: 1.25rem -1rem 0; padding: .75rem 1rem; border-top: 1px solid var(--pal-line); background: color-mix(in srgb, var(--pal-night) 92%, transparent); backdrop-filter: blur(1.1rem); }
+  /* The bar sits in the flow here, so nothing scrolls under it, and a fill of
+     its own only drew a band across the page surface. */
+  .palOnboardingActions { position: relative; bottom: auto; z-index: 2; margin: 1.25rem -1rem 0; padding: .75rem 1rem; border-top: 1px solid var(--pal-line); }
   .palOnboardingActions > button:not(.palPrimary) { display: none; }
   .palOnboardingActions .palPrimary { width: 100%; }
   .palHomeHero { min-height: auto; padding-top: 1.5rem; }
@@ -394,7 +404,7 @@ body:has(.analyticsConsentPrompt) .palHomeCopy h1 { font-size: var(--text-xl); l
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .palSpeech, .palOnboardingActions { background: var(--panel-raised); backdrop-filter: none; }
+  .palSpeech { background: var(--panel-raised); backdrop-filter: none; }
   .palPortrait-glass .palPortraitCore { background: var(--panel); backdrop-filter: none; }
 }
 

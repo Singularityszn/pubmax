@@ -257,8 +257,11 @@ async function claimNightSignalBroadcast(version: string): Promise<boolean> {
   const key = `night-signal-broadcast:${version}`;
   // isLimited records the attempt atomically and returns false for the FIRST
   // unit (the winning claim), true once the budget of 1 is spent. Same key for
-  // the local + durable arg, exactly like the push-tokens route.
-  return !(await isLimited(key, key, 1, BROADCAST_CLAIM_WINDOW_MS));
+  // the local + durable arg, exactly like the push-tokens route. FAIL CLOSED:
+  // when the durable limiter cannot answer, the default falls back to a
+  // per-instance budget, and every warm instance would then win its own claim
+  // and broadcast. A dropped broadcast is acceptable; a duplicate is not.
+  return !(await isLimited(key, key, 1, BROADCAST_CLAIM_WINDOW_MS, { failClosed: true }));
 }
 
 /**

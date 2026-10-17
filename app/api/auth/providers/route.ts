@@ -9,14 +9,30 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
 import { readSupabaseSocialAuthProviders } from "@/lib/authProviderAvailability";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 
 // Dashboard flags change without a deploy, so this is minutes, not the
 // static-data hour. Vercel drops the edge copy on the next deploy anyway.
 const PROVIDER_EDGE_MAX_AGE_SECONDS = 300;
 const PROVIDER_STALE_WHILE_REVALIDATE_SECONDS = 60;
 
+// `?fresh=1` skips the edge and goes to Supabase every time, so that lane alone
+// spends a per-address budget. One sign-in needs one recheck; the cached lane
+// is answered by the edge and needs none.
+const FRESH_RECHECK_LIMIT = 30;
+const FRESH_RECHECK_WINDOW_MS = 60_000;
+
 export async function GET(request: Request): Promise<Response> {
   const fresh = new URL(request.url).searchParams.get("fresh") === "1";
+  if (fresh) {
+    const key = `auth-providers-fresh:${hashIp(clientIp(request))}`;
+    if (await isLimited(key, key, FRESH_RECHECK_LIMIT, FRESH_RECHECK_WINDOW_MS)) {
+      return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+        retryable: true,
+      });
+    }
+  }
   const availability = await readSupabaseSocialAuthProviders();
   if (!availability) {
     return publicApiError(

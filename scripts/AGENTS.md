@@ -28,10 +28,12 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [A URL WE DECIDE TO FETCH IS SOMEBODY ELSE'S STRING, AND THE ALLOW-LIST IS ASKED ABOUT WHERE WE LANDED.](../docs/rules/scripts-harvest-and-source-permission.md#a-url-we-decide-to-fetch-is-somebody-else-s-string-and-the-allow-list-is-asked-a)
 - [A PRICE source is fenced like every other source, and the NARROWER table binds.](../docs/rules/scripts-harvest-and-source-permission.md#a-price-source-is-fenced-like-every-other-source-and-the-narrower-table-binds)
 - [The London harvest reads first-party pages, and a skip is a finding.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-harvest-reads-first-party-pages-and-a-skip-is-a-finding)
+- [AN OPEN-DATA API IS A SOURCE TOO, AND ITS BUILDER ASKS THE TABLE FOR ITS URL.](../docs/rules/scripts-harvest-and-source-permission.md#an-open-data-api-is-a-source-too-and-its-builder-asks-the-table-for-its-url)
 - [THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND.](../docs/rules/scripts-harvest-and-source-permission.md#the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite)
 - [The UK venue extraction is OSM-stated or it does not exist, save one London restaurant lane.](../docs/rules/scripts-harvest-and-source-permission.md#the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist-save-one-london-resta)
 - [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)
 - [The London Tavily pass and the London promotion are capped in code, and every row keeps its evidence.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-tavily-pass-and-the-london-promotion-are-capped-in-code)
+- [A PUB'S OWN FOOD MENU IS READ LIKE ITS DRINKS LIST, AND ONLY ITS PRICE FACT SHIPS.](../docs/rules/scripts-harvest-and-source-permission.md#a-pub-s-own-food-menu-is-read-like-its-drinks-list-and-only-its-price-fact-ships)
 
 ## Builders and publishers
 

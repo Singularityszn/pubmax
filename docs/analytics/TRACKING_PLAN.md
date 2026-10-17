@@ -304,7 +304,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `plan_started` | A generation request produced a route the reader can review. |
 | `stop_added` | A pub joined the crawl being built, and on which surface. |
 | `route_opened` | A route of two or more stops was drawn on the Map, and from which surface. |
-| `crawl_locked` | A plan was accepted, with its stop count. |
+| `crawl_locked` | A plan was locked, with its stop count. Unsigned, so it counts plans `plan_accepted` cannot. |
 | `plan_draft_saved` | An anchored one-stop draft was kept. |
 | `plan_accepted` | A grounded, route-ready three-stop plan was verified server-side. |
 | `plan_saved` | The plan and its route finished saving. |
@@ -353,9 +353,8 @@ vocabularies. The column here is the question the event exists to answer.
 | `tonight_filter_select` | A tonight filter was used. |
 | `tonight_vibe_select` | A mood chip was pressed. |
 | `tonight_result_opened` | A tonight row was opened, and on what locality basis. |
-| `out_screen_view` | Out was opened. |
-| `out_filter_select` | An Out filter was used. |
-| `out_card_opened` | An Out listing was opened, and from which source. |
+| `out_filter_select` | A Tomorrow or Weekend window was chosen on Tonight. |
+| `out_card_opened` | A Tomorrow or Weekend listing on Tonight was opened, and from which source. |
 | `create_fab_action` | The compose action was used. |
 | `night_moment_saved` | A moment was kept, and how visible. |
 | `night_memory_created` | A memory was created. |

@@ -206,12 +206,40 @@ describe("verified Social post card", () => {
     expect(html).toContain("#quietpint");
     expect(html).toContain('href="/map?sel=venue-a"');
     expect(html).toContain("Open venue");
+    // The pub's name opens its own page, like a location tag.
+    expect(html).toContain('href="/pubs/venue-a"');
     expect(html).not.toContain("Open pub");
     expect(html).not.toContain("Cheers");
     expect(html).not.toContain("Comment");
     expect(html).not.toContain("For You");
     expect(html).not.toContain("Presence");
     expect(html).not.toContain("<button");
+  });
+
+  it("says why a post is in the lane, folded shut and with no control on the card", () => {
+    const theirs = { ...protectedPost, ownedByViewer: false };
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, { post: theirs, lane: "following" }),
+    );
+
+    expect(html).toContain('<details class="socialPostWhy">');
+    expect(html).toContain("<summary>Why this post?</summary>");
+    expect(html).toContain("You and @alice follow each other, and this one is for mutuals only.");
+    expect(html).toContain("Newest first. We don&#x27;t rank posts by likes, and nobody can pay to be here.");
+    expect(html).toContain("Mute or block someone on their profile to stop seeing their posts.");
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("For You");
+
+    const own = renderToStaticMarkup(
+      createElement(SocialPostCard, { post: protectedPost, lane: "following" }),
+    );
+    expect(own).toContain("It&#x27;s your post. Only your mutuals can see it.");
+    expect(own).not.toContain("Mute or block");
+
+    const nearby = renderToStaticMarkup(
+      createElement(SocialPostCard, { post: { ...theirs, visibility: "public" }, lane: "nearby" }),
+    );
+    expect(nearby).toContain("It&#x27;s a public post tagged Camden.");
   });
 
   it("does not render exact Venue context from an invalid public DTO", () => {
@@ -225,6 +253,7 @@ describe("verified Social post card", () => {
     expect(html).toContain("Camden");
     expect(html).not.toContain("Open venue");
     expect(html).not.toContain('href="/map?sel=venue-a"');
+    expect(html).not.toContain('href="/pubs/venue-a"');
   });
 
   it("renders exact Venue context on a public DTO authorised for a mutual friend", () => {
@@ -236,6 +265,32 @@ describe("verified Social post card", () => {
 
     expect(html).toContain("Open venue");
     expect(html).toContain('href="/map?sel=venue-a"');
+  });
+});
+
+describe("Social post card, photo-app layout", () => {
+  it("shows the author's own score beside a venue the viewer may see, with the action row in the feed", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, venueName: "The Proof Arms", review: { rating: 4.5 } },
+        interactive: true,
+      }),
+    );
+    expect(html).toContain("The Proof Arms");
+    expect(html).toContain('aria-label="@alice scored The Proof Arms 4.5 out of 5"');
+    expect(html).toContain("Cheers");
+    expect(html).toContain("Comment");
+    expect(html).toContain('aria-label="Report this post"');
+  });
+
+  it("drops the score when the venue is not projected to the viewer", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, venueProjected: false, venueName: "The Proof Arms", review: { rating: 2 } },
+      }),
+    );
+    expect(html).not.toContain("out of 5");
+    expect(html).not.toContain("The Proof Arms");
   });
 });
 

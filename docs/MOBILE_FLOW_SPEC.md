@@ -30,7 +30,7 @@ FROM surface × intent → TO surface, with the exact mechanic. Deep-link params
 | Pint Drop composer | finished / cancelled | back where they were | Composer is a mode of Map (`?log=1`), not a page. Closing clears `log` and returns to the map beneath; if arrived from a tab, the tab's root shows. | closing composer ≠ leaving Map |
 | Invite card | "see these stops" | Map | `Open these stops on the map` is unconditional: one stop opens `?sel=`, two or more open the ordered crawl in build mode. A confirmed RSVP is remembered per Plan on the guest's own device and only changes the emphasis. See [`docs/specs/mobile-invite-rsvp-map-handoff.md`](specs/mobile-invite-rsvp-map-handoff.md). | back → invite card |
 | Plan link (shared) | "join this plan" | Map of the plan's stops | `/plan/<id>` → join → `/map?pubs=<stops>&mode=build` showing the route. | back → plan detail |
-| You | passport / activity / messages | profile sub-screens | `/u/<handle>`, `/activity`, `/messages` — in-tab pushes with back to the tab root. | back within You tab |
+| You | passport / activity / messages | profile sub-screens | Follow the [You and sign-in guide](../README.md#features) for the tab destination. `/activity` and `/messages` use in-tab pushes with back to the tab root. | back within You tab |
 
 The Pint Drop composer is price-first. The selected Venue comes from the sheet,
 so the first step shows price quick-add controls, drink, and one `Log it` action.

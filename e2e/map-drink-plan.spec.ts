@@ -204,7 +204,7 @@ async function openPhonePlanner(page: Page, search = "drink=wine") {
   const response = await page.goto(`/map?${search}`);
   expect(response?.status()).toBe(200);
   const intent = page.locator(".mapDrawer.left .mobilePlannerIntent");
-  const toggle = page.getByRole("button", { name: "Describe the outing", exact: true });
+  const toggle = page.getByRole("button", { name: "Plan a pub crawl", exact: true });
   await expect(async () => {
     if (!(await intent.isVisible())) await toggle.click();
     await expect(intent).toBeVisible({ timeout: 1_000 });
@@ -223,7 +223,7 @@ const phoneRequests = [
 for (const scenario of phoneRequests) {
   test(`phone generation respects ${scenario.name}`, async ({ page }, testInfo) => {
     const intent = await openPhonePlanner(page);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(scenario.query);
     if (scenario.alcoholFree) {
       const control = intent.getByRole("button", { name: "Alcohol-free", exact: true });
       await control.click();
@@ -280,7 +280,7 @@ test("phone planner refuses an unsupported Gin brand before requesting a generic
 
 test("generated Gin replaces the previous Wine map context", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page);
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Gin in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Gin in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -339,7 +339,7 @@ for (const scenario of [
 ] as const) {
   test(`generated Soft drinks respects ${scenario.name}`, async ({ page }, testInfo) => {
     const intent = await openPhonePlanner(page, scenario.search);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(scenario.query);
     if (scenario.alcoholFree) {
       const control = intent.getByRole("button", { name: "Alcohol-free", exact: true });
       await control.click();
@@ -363,7 +363,12 @@ for (const scenario of [
     expect(body.inferredContext.zeroProof).toBe(scenario.zeroProof);
     expect(body.stops).toHaveLength(2);
     const sent = response.request().postDataJSON() as { context: Record<string, unknown> };
-    expect(sent.context.drinkCategory).toBe("soft-drink");
+    // A request that names its drink sends no map drink: the client leaves
+    // the words to the server (mapPlanDrinkDefaultContext in
+    // lib/mapPlanDrinkPresentation.ts), which answered soft-drink above, so a
+    // Wine or Beer map never overrides the drink asked for. Only a
+    // location-only request carries the map's own Soft drinks.
+    expect(sent.context.drinkCategory).toBe(scenario.zeroProof ? undefined : "soft-drink");
     await expect(page).toHaveURL(/[?&]drink=soft-drink(?:&|$)/);
     await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
     await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
@@ -381,7 +386,7 @@ for (const scenario of [
 
 test("generated Soft drinks shares ordered stops and exports its drink", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page);
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soft drinks in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Soft drinks in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -414,6 +419,7 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   const stops = body.stops.map((stop) => stop.venueId).join(",");
   expect(params.get("drink")).toBe("soft-drink");
   expect(params.get("pubs")).toBe(stops);
+  expect(params.get("mode")).toBe("build");
   const landed = page.waitForURL(sharedUrl);
   await shared.click();
   await landed;
@@ -426,7 +432,15 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
   await expect(route.locator(".routeList > li")).toHaveCount(2);
   await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
-  await expect(page).toHaveURL(sharedUrl);
+  // The reopened page may write its query in its own order (mode first), so
+  // the link is read as its path and its sorted parameters, not as one string.
+  // Every parameter still counts: a reopen that dropped mode=build would keep
+  // the stops (seedCrawlState restores them) but quietly switch to suggest.
+  const normalisedLink = (href: string) => {
+    const url = new URL(href);
+    return [url.pathname, ...[...url.searchParams].map(([key, value]) => `${key}=${value}`).sort()];
+  };
+  await expect.poll(() => normalisedLink(page.url())).toEqual(normalisedLink(sharedUrl));
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
@@ -435,13 +449,14 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
   expect(copied.searchParams.get("drink")).toBe("soft-drink");
   expect(copied.searchParams.get("pubs")).toBe(stops);
+  expect(copied.searchParams.get("mode")).toBe("build");
   await expect(page.getByRole("button", { name: "Drink shown on the map: Soft drinks. Choose another drink", exact: true })).toHaveCount(1);
   await testInfo.attach("soft-drink-reopened", { body: await page.screenshot(), contentType: "image/png" });
 });
 
 test("generated Alcohol-free replaces the previous Gin refinement", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Alcohol-free in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Alcohol-free in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -478,7 +493,7 @@ test("generated Alcohol-free replaces the previous Gin refinement", async ({ pag
 
 test("generated Beer clears the previous Gin brand and style", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith&sub=gin-london-dry&alt=mocktail");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Beer in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Beer in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -508,7 +523,7 @@ test("generated Beer clears the previous Gin brand and style", async ({ page }, 
 
 test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }) => {
   const intent = await openPhonePlanner(page);
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Cocktails in Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Cocktails in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -599,7 +614,7 @@ test("phone planner refuses a Top shelf Beer default before requesting a generic
     }
   });
   const intent = await openPhonePlanner(page, "drink=beer&topshelf=1");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Soho");
   await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
   await expect(intent.getByRole("alert")).toContainText(
     "The planner cannot match Top shelf beer yet. Turn off Top shelf on the map, or name a different drink.",
@@ -609,7 +624,7 @@ test("phone planner refuses a Top shelf Beer default before requesting a generic
 
 test("phone generation from the No-alcohol view stays zero-proof", async ({ page }) => {
   const intent = await openPhonePlanner(page, "experience=no-alcohol");
-  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soho");
+  await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill("Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
   );
@@ -636,7 +651,7 @@ for (const generated of [
   test(`generated ${generated.category} keeps the saved favourite pint`, async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("pubmax:favoritePint:v1", "estrella"));
     const intent = await openPhonePlanner(page);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(generated.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(generated.query);
     const generatedResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
     );
@@ -708,7 +723,7 @@ for (const scenario of [
       },
     );
     const intent = await openPhonePlanner(page);
-    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    await intent.getByRole("textbox", { name: "Where, how many, what budget", exact: true }).fill(scenario.query);
     const generatedResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
     );

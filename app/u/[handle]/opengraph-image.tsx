@@ -10,7 +10,7 @@ import { clampOgText } from "@/lib/ogCardText";
 // pulling the pint-drops store.)
 
 export const runtime = "nodejs";
-export const alt = "Pint passport on PUBMAXXING";
+export const alt = "Pint passport on PUBMAXX";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -69,7 +69,7 @@ export default async function Image({ params }: PageProps) {
               {`@${handle}`}
             </div>
             <div style={{ fontSize: 28, color: CREAM_DIM, marginTop: 8 }}>
-              Pint passport on PUBMAXXING
+              Pint passport on PUBMAXX
             </div>
             <div style={{ fontSize: 24, color: CREAM_DIM, marginTop: 4 }}>
               Pubs · boroughs · beers · nights
@@ -89,7 +89,7 @@ export default async function Image({ params }: PageProps) {
               marginLeft: 32,
             }}
           >
-            PUBMAXXING
+            PUBMAXX
           </div>
         </div>
         <div

@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
+import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
+import NewSinceMarker from "@/components/seen/NewSinceMarker";
 
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
 // and renders a horizontal scrollable rail of cards.
 //
 // Failure is silent by design: if the fetch throws, aborts, times out, or
-// returns a non-OK / malformed body, we render NOTHING. The static "Demo"
-// drops already on the landing stand in as the fallback, so a broken feed can
-// never leave a blank or broken band on the page.
+// returns a non-OK / malformed body, we render NOTHING, and so does an empty
+// feed. Nothing paints while the fetch is in flight either (UX audit, 16 Oct
+// 2026): the strip sits far below the fold, so it can arrive whole when it has
+// rows, and a slow connection never meets a band of grey cards. The dynamic
+// import in LandingPage paints nothing while the chunk loads too.
 
 // Local shape — only the public fields we read. Kept in this file so the
 // component stays inside its ownership boundary (it consumes the API by fetch;
@@ -135,75 +139,67 @@ export default function PintDropStrip() {
     };
   }, []);
 
-  // Fail-soft (journey audit P1): hidden on fetch failure, and hidden when the
-  // feed is empty after load — never leave permanent empty skeleton cards or a
-  // "no drops yet" band mid-landing. Loading still paints a short skeleton so
-  // the section does not pop in late when data exists.
-  if (status === "hidden" || status === "empty") return null;
-  if (status === "ready" && drops.length === 0) return null;
+  // Which drops this device has not been shown before (lib/seenSinceLastLook.ts).
+  // A drop is its own row, so each is judged by its own id, and they are
+  // remembered only once the strip has painted them.
+  const dropIds = useMemo(() => drops.map((d) => [d.id]), [drops]);
+  const newSinceLastLook = useNewSinceLastLook("drops", dropIds, status === "ready");
+
+  // Fail-soft (journey audit P1): hidden on fetch failure, hidden when the
+  // feed is empty after load, and hidden while it loads, so the section only
+  // ever paints with real rows in it.
+  if (status !== "ready" || drops.length === 0) return null;
 
   return (
     <div className="dropStrip" aria-labelledby="dropStrip-title">
       <div className="dropStripHead">
         <p className="eyebrow" id="dropStrip-title">
           <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
-          Pint drops
+          Recent prices
         </p>
       </div>
-
-      {status === "loading" && (
-        <div className="dropStripRail dropStripRailStatic" aria-hidden="true">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div className="dropStripCard dropStripCardSkeleton" key={i}>
-              <span className="skelLine skelLineTop" />
-              <span className="skelLine" />
-              <span className="skelLine" />
-              <span className="skelLine skelLineShort" />
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* The rail scrolls sideways and its cards hold no control of their own,
           so without a tab stop of its own every drop past the fold was
           unreachable by keyboard (axe scrollable-region-focusable). Focused,
           it takes the browser's native arrow-key scrolling; the list keeps its
           own role, and the label says what the arrows will move. */}
-      {status === "ready" && (
-        <ul
-          className="dropStripRail"
-          aria-label="Latest community Pint Drops"
-          tabIndex={0}
-        >
-          {drops.map((d) => (
-            <li className="dropStripCard" key={d.id}>
-              <div className="dropStripTop">
+      <ul
+        className="dropStripRail"
+        aria-label="Recent prices from drinkers"
+        tabIndex={0}
+      >
+        {drops.map((d, index) => (
+          <li className="dropStripCard" key={d.id}>
+            <div className="dropStripTop">
+              <span className="dropStripLead">
                 <span className="dropStripWho">{d.handle}</span>
-                <PriceBadge
-                  variant="current"
-                  className="dropStripPrice"
-                  band={priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))}
-                >
-                  {formatPrice(d.priceGbp)}
-                </PriceBadge>
-              </div>
-              <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
-              <div className="dropStripMeta">
-                {d.era ? (
-                  <span className="dropStripEra">{d.era}</span>
-                ) : (
-                  <span className="dropStripEra dropStripEraMuted">
-                    Pint Drop
-                  </span>
-                )}
-                <span className={`provChip provChip-${d.provenance}`}>
-                  {PROVENANCE_LABEL[d.provenance]}
+                {newSinceLastLook[index] ? <NewSinceMarker /> : null}
+              </span>
+              <PriceBadge
+                variant="current"
+                className="dropStripPrice"
+                band={priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))}
+              >
+                {formatPrice(d.priceGbp)}
+              </PriceBadge>
+            </div>
+            <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
+            <div className="dropStripMeta">
+              {d.era ? (
+                <span className="dropStripEra">{d.era}</span>
+              ) : (
+                <span className="dropStripEra dropStripEraMuted">
+                  Pint Drop
                 </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+              )}
+              <span className={`provChip provChip-${d.provenance}`}>
+                {PROVENANCE_LABEL[d.provenance]}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

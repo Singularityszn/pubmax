@@ -13,11 +13,9 @@
 //   M02 a guest who tapped "I'm in" got their crew row while the route beside
 //       it still said "The full route reveals once you join the crew".
 //
-// The rule is one sentence: read at mount, and read again each time the
-// capability is not the one the last read carried. The second half is the fix.
-// The last-read token is why it stays at one read for an ordinary member: a
-// naive dependency on the token would re-run the moment a mount-time restore
-// published its own answer, doubling every member's page load.
+// Read at mount and whenever the capability changes. Each effect setup needs
+// a live subscriber, including Strict Mode's replay after cleanup. Concurrent
+// subscribers share the request through readPlanMemberProjection below.
 //
 // Restoring the session is deliberately NOT this hook's job. It belongs to the
 // surfaces that own a session lane and gate it on `identityResolved`, because
@@ -31,7 +29,7 @@
 // (`lib/planInviteTokenClient.ts`), and it is the ONE place that fetch is
 // written down.
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import {
   parsePlanCapabilitySnapshot,
@@ -104,29 +102,8 @@ export function usePlanMemberRead(
   read: (isActive: () => boolean) => void,
 ): void {
   const capabilityToken = usePlanCapabilityToken(planId);
-  // null: no read has been made for this plan yet. Otherwise the token the last
-  // read actually carried, read live rather than from this render's closure,
-  // which is already stale by the time a mount-time restore has answered.
-  const lastReadToken = useRef<{ planId: string; token: string | null }>({
-    planId,
-    token: null,
-  });
-
   useEffect(() => {
-    if (lastReadToken.current.planId !== planId) {
-      lastReadToken.current = { planId, token: null };
-    }
-    if (
-      lastReadToken.current.token !== null
-      && lastReadToken.current.token === capabilityToken
-    ) {
-      return;
-    }
     let active = true;
-    lastReadToken.current = {
-      planId,
-      token: parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId)).token,
-    };
     read(() => active);
     return () => {
       active = false;

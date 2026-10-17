@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
@@ -7,6 +8,7 @@ import { useEffect, useMemo, useRef } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
 import EmptyState from "@/components/ui/empty-state";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import SoftDrinkSubtypeMiniMap from "@/components/drinks/SoftDrinkSubtypeMiniMap";
 import { PricedLandingPublisher } from "@/components/drinks/PricedLandingRows";
 import { trackEvent } from "@/lib/analytics";
@@ -21,17 +23,20 @@ import {
 import { findSubtype } from "@/lib/drinkSubtypes";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import type { PricedLandingRow } from "@/lib/pricedLanding";
+import { isUkBaseId } from "@/lib/ukBasePubs";
 import { formatPrice } from "@/lib/venues";
 
 import "./drinkSubtypePricedView.css";
 
 export type DrinkSubtypePricedViewProps = {
   title: string;
-  /** Launch chip ids (zero-sugar cola family and still water by default); leaf cola brands stay off the chip row. */
+  /** Launch chip ids (Lucia, zero-sugar cola and still water by default); leaf cola brands stay off the chip row. */
   launchSubtypeIds: readonly string[];
   activeSubtypeId: string;
   rows: readonly SubtypePricedVenueRow[];
   observedCounts: Record<string, number>;
+  /** The listed prices could not be read, so a zero is "could not look", not "none". */
+  listedPricesUnavailable?: boolean;
 };
 
 function publisherRow(
@@ -49,12 +54,26 @@ function publisherRow(
   };
 }
 
+// A base pub has no ledger page; its pin on the map is where it opens.
+function venueHref(venueId: string): Route {
+  return isUkBaseId(venueId)
+    ? (`/map?sel=${encodeURIComponent(venueId)}` as Route)
+    : (`/ledger/${encodeURIComponent(venueId)}` as Route);
+}
+
+// "Still water" reads "still water" mid-sentence; a label that capitalises a
+// brand past its first letter ("Coke Zero and Diet Coke") keeps its case.
+function inSentenceLabel(label: string): string {
+  return /[A-Z]/.test(label.slice(1)) ? label : label.toLowerCase();
+}
+
 export default function DrinkSubtypePricedView({
   title,
   launchSubtypeIds,
   activeSubtypeId,
   rows,
   observedCounts,
+  listedPricesUnavailable = false,
 }: DrinkSubtypePricedViewProps) {
   const router = useRouter();
   const openedRef = useRef(false);
@@ -63,6 +82,7 @@ export default function DrinkSubtypePricedView({
     [launchSubtypeIds],
   );
   const active = findSubtype(activeSubtypeId);
+  const anyChipOn = chips.some((subtype) => softDrinksWaterChipSelected(subtype.id, activeSubtypeId));
 
   useEffect(() => {
     if (openedRef.current) return;
@@ -76,23 +96,26 @@ export default function DrinkSubtypePricedView({
     subtypeId: activeSubtypeId,
     log: true,
   });
-  const activeLabel = active?.longLabel.toLowerCase() ?? "soft drink";
+  const activeLabel = active ? inSentenceLabel(active.longLabel) : "soft drink";
+  const lede = listedPricesUnavailable
+    ? pricedCount === 0
+      ? `Could not read the listed ${activeLabel} prices just now.`
+      : `${pricedCount} pubs with a ${activeLabel} price in London. Could not read the listed prices just now, so this list may be short.`
+    : pricedCount === 0
+      ? `No listed ${activeLabel} prices in London yet.`
+      : active
+        ? `${pricedCount} pubs with a listed ${activeLabel} price in London.`
+        : "Listed soft-drink prices in London.";
 
   return (
     <div className="softDrinksWater">
       <Screen
         as="section"
         className="softDrinksWater__screen"
-        kicker="Soft drinks"
+        kicker="Non-alcoholic"
         title={title}
         titleId="soft-drinks-water-heading"
-        lede={
-          pricedCount === 0
-            ? `No listed ${activeLabel} prices in London yet.`
-            : active
-              ? `${pricedCount} pubs with a listed ${activeLabel} price in London.`
-              : "Listed soft-drink prices in London."
-        }
+        lede={lede}
         primary={<Link prefetch={false} href={mapHref}>Open the map</Link>}
       >
         <div
@@ -100,15 +123,22 @@ export default function DrinkSubtypePricedView({
           role="tablist"
           aria-label="Drink"
         >
-          {chips.map((subtype) => {
+          {chips.map((subtype, index) => {
             const on = softDrinksWaterChipSelected(subtype.id, activeSubtypeId);
+            // The row is one tab stop. With no chip chosen the first holds it,
+            // or the row could not be reached from the keyboard at all.
+            const stop = on || (index === 0 && !anyChipOn);
             return (
               <button
                 key={subtype.id}
                 type="button"
                 role="tab"
                 aria-selected={on}
+                tabIndex={stop ? 0 : -1}
                 className={on ? "softDrinksWater__chip isOn" : "softDrinksWater__chip"}
+                // Each choice is a route push, so the arrows move focus alone
+                // and Enter or Space chooses.
+                onKeyDown={(event) => moveTablistFocus(event, { activate: false })}
                 onClick={() => {
                   trackEvent("soft_drinks_water_view_opened", { subtype: subtype.id });
                   router.push(
@@ -123,7 +153,11 @@ export default function DrinkSubtypePricedView({
         </div>
 
         <div className="softDrinksWater__layout">
-          {pricedCount === 0 ? (
+          {pricedCount === 0 && listedPricesUnavailable ? (
+            <EmptyState title="Prices could not load.">
+              Refresh to try again.
+            </EmptyState>
+          ) : pricedCount === 0 ? (
             <EmptyState
               title="Nobody has logged one here yet."
               action={
@@ -155,7 +189,7 @@ export default function DrinkSubtypePricedView({
               return (
                 <li className="softDrinksWater__row" key={row.venueId}>
                   <div>
-                    <Link className="softDrinksWater__venue" href={`/ledger/${encodeURIComponent(row.venueId)}`}>
+                    <Link className="softDrinksWater__venue" href={venueHref(row.venueId)}>
                       {row.venueName}
                     </Link>
                     <span className="softDrinksWater__borough">{row.borough}</span>

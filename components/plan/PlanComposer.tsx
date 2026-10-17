@@ -22,8 +22,9 @@ import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { haptic } from "@/lib/nativeHaptics";
+import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
-import { measuredLegMinutes, routeHeading, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import { measuredLegMinutes, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
 import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
@@ -37,6 +38,7 @@ import {
 } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX, creatorNameFromAccount } from "@/lib/crew";
+import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -112,6 +114,7 @@ import {
   defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  londonNightsAhead,
   nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
@@ -121,6 +124,7 @@ import {
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
   skipRemainingPlanIntake,
+  tonightLondonStartInput,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -135,14 +139,21 @@ const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
 });
 const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultProvenance"), {
   ssr: false,
-  // One quiet line, held in place so the strip under it does not move.
-  loading: () => <p className="planResult__provenance" aria-hidden="true">&nbsp;</p>,
+  // It sits inside the fine-print line, held in place so the strip under it does not move.
+  loading: () => <span aria-hidden="true">&nbsp;</span>,
 });
 const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
 const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
 
 type RouteRevision = string | number;
-type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+type RouteAlternative = {
+  venueId: string;
+  venueName: string;
+  selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  /** The generator prices alternatives too, so a swap keeps the night's total honest. */
+  estimatedPintPricePence?: number;
+  priceKind?: "listed" | "estimated";
+};
 export type DraftStop = {
   key: number;
   venueId: string;
@@ -176,6 +187,8 @@ export function composerRouteMutation(input: {
   routeStale: boolean;
   /** The same venues in a new order. See the proof rule below. */
   reorder?: boolean;
+  /** One stop swapped to an alternative the generator offered for it. See the proof rule below. */
+  swapToAlternative?: boolean;
 }): ComposerRouteMutation {
   const heldVenueId = input.heldVenueId ?? null;
   if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
@@ -196,6 +209,24 @@ export function composerRouteMutation(input: {
     && new Set(input.currentStops.map((stop) => stop.venueId)).size === input.currentStops.length
     && input.currentStops.every((stop) => input.nextStops.some((next) => next.venueId === stop.venueId));
   if (input.reorder && sameVenueSet && !input.planAnchor) {
+    return {
+      accepted: true,
+      stops: input.nextStops,
+      groundingProof: input.groundingProof,
+      createOperationKey: input.createOperationKey,
+      planAnchor: input.planAnchor,
+      routeStale: input.routeStale,
+    };
+  }
+  // The same V1 proof covers every alternative the generator attached to a stop
+  // (app/api/plans/generate/route.ts grounds it over the stops plus those
+  // alternatives), so swapping to one is still a route the server proved and
+  // the night stays lockable without a refresh. The server re-checks the proof
+  // at Lock and marks the plan ungrounded if it does not cover a stop, so this
+  // can never claim a check that did not happen. An anchored V2 proof binds the
+  // exact route, so for that route a swap is an identity change like any other.
+  if (input.swapToAlternative && input.groundingProof && !input.planAnchor
+    && input.currentStops.length === input.nextStops.length) {
     return {
       accepted: true,
       stops: input.nextStops,
@@ -319,6 +350,15 @@ export function planAcceptanceTelemetry(value: unknown, stops: number): { stops:
   return { stops, grounded: attribution.grounded };
 }
 
+/**
+ * The unsigned lock count. It needs the server's attribution and nothing else,
+ * and stays inside the one-to-ten band the sanitizer accepts.
+ */
+export function crawlLockedTelemetry(value: unknown, stops: number): { stops: number } | null {
+  if (!serverPlanCreationAttribution(value) || !Number.isInteger(stops) || stops < 1 || stops > 10) return null;
+  return { stops };
+}
+
 /** Rebuild the signed one-Stop save event from server attribution and the submitted anchor. */
 export function planDraftSavedTelemetry(
   value: unknown,
@@ -440,14 +480,27 @@ function routeRevisionFromState(value: unknown): RouteRevision | null {
 
 function cleanRouteAlternative(value: unknown): RouteAlternative | null {
   if (!value || typeof value !== "object") return null;
-  const row = value as { venueId?: unknown; venueName?: unknown; name?: unknown; selectedDrinkPriceEvidence?: unknown };
+  const row = value as {
+    venueId?: unknown;
+    venueName?: unknown;
+    name?: unknown;
+    selectedDrinkPriceEvidence?: unknown;
+    estimatedPintPricePence?: unknown;
+    priceEvidence?: unknown;
+    priceKind?: unknown;
+  };
   const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
   const venueName = typeof row.venueName === "string"
     ? row.venueName.trim()
     : typeof row.name === "string" ? row.name.trim() : "";
   if (!venueId || !venueName) return null;
   const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
-  return { venueId, venueName, ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}) };
+  return {
+    venueId,
+    venueName,
+    ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+    ...generatedStopPrice(row),
+  };
 }
 
 function routeAlternatives(value: unknown): RouteAlternative[] {
@@ -488,18 +541,26 @@ function generatedStopTiming(
   const minutes = row.walkingMinutesFromPrevious;
   const walkMinutes = routed && typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0 && minutes <= 600
     ? Math.round(minutes) : null;
+  return {
+    ...(index > 0 && walkMinutes !== null && walkFromVenueId
+      ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
+    ...generatedStopPrice(row),
+  };
+}
+
+/** The pint price the generator gave a stop or an alternative, read defensively. */
+function generatedStopPrice(row: {
+  estimatedPintPricePence?: unknown;
+  priceEvidence?: unknown;
+  priceKind?: unknown;
+}): { estimatedPintPricePence?: number; priceKind?: "listed" | "estimated" } {
   const pence = row.estimatedPintPricePence;
-  const pricePence = typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 && pence <= 100_000
-    ? pence : null;
+  if (typeof pence !== "number" || !Number.isSafeInteger(pence) || pence <= 0 || pence > 100_000) return {};
   const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
     && (row.priceEvidence as { source?: unknown }).source);
   const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
     : recorded ? "listed" : "estimated";
-  return {
-    ...(index > 0 && walkMinutes !== null && walkFromVenueId
-      ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
-    ...(pricePence !== null ? { estimatedPintPricePence: pricePence, priceKind } : {}),
-  };
+  return { estimatedPintPricePence: pence, priceKind };
 }
 
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
@@ -569,11 +630,20 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     venueName: next.venueName,
     reason: undefined,
     selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
+    // The walk to and from this stop was measured for the old pub, so it goes;
+    // the price was the generator's for this pub, so it comes with it.
     ...NO_TIMING_OR_PRICE,
+    ...(next.estimatedPintPricePence !== undefined
+      ? { estimatedPintPricePence: next.estimatedPintPricePence, priceKind: next.priceKind } : {}),
     alternatives: [
       ...remaining,
-      { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
-        ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}) },
+      {
+        venueId: stop.venueId,
+        venueName: stop.venueName,
+        ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
+        ...(typeof stop.estimatedPintPricePence === "number"
+          ? { estimatedPintPricePence: stop.estimatedPintPricePence, priceKind: stop.priceKind } : {}),
+      },
     ],
   };
 }
@@ -1072,6 +1142,20 @@ function nextEvening(): string {
   return defaultLondonStartInput();
 }
 
+/**
+ * The name of the night the late default stepped over, for the one-tap choice
+ * beside the field: null whenever `tonightLondonStartInput` has no slot left
+ * to offer. Read on every render, and the slot itself read again on the tap,
+ * never latched - a quarter-hour held from mount is a moment that has passed
+ * by the time a reader has described a night and sorted it, and the lock
+ * refuses a start in the past. The tap writes that fresh slot or nothing: a
+ * control may not write a night its own label does not name.
+ */
+function tonightChoiceLabel(): string | null {
+  const value = tonightLondonStartInput();
+  return value === null ? null : routeStartLabel(value);
+}
+
 function unsupportedPatchForCurrentGenerator(
   draft: PlanIntakeDraft,
   contextPatch: Partial<NightContext>,
@@ -1467,6 +1551,17 @@ function PlanComposerForm({
       return seeded || current;
     });
   }, [identityResolved, user, viewerHandle]);
+  // The name typed for an earlier plan on this device, so it is asked for once.
+  // It waits for identity too: an account change clears it
+  // (DEVICE_IDENTITY_LOCAL_KEYS), and reading before that would offer the
+  // previous person's name. Declared after the account seed, so an account
+  // name wins and this fills only what that left empty.
+  const deviceCreatorNameSeededRef = useRef(false);
+  useEffect(() => {
+    if (!identityResolved || deviceCreatorNameSeededRef.current) return;
+    deviceCreatorNameSeededRef.current = true;
+    setCreatorName((current) => current.trim() ? current : readRememberedPlanHostName(safeLocalStorage()) || current);
+  }, [identityResolved]);
   useEffect(() => {
     if (!canPersist) return;
     if (palHandoffAutoGenerateStartedRef.current) return;
@@ -1559,6 +1654,22 @@ function PlanComposerForm({
   // holds the description, context and templates. Name and start-time fields
   // stay below the cards for locking the plan.
   const resultMode = composerVisible && routeSorted && stops.length > 0;
+  // A result with no host name seats "Your name" in the pinned Lock bar, so the
+  // one thing Lock still needs sits beside it rather than screens below. The
+  // seat is chosen when the result appears and kept, so the field never jumps
+  // away from a caret mid-word.
+  const [nameInLockBar, setNameInLockBar] = useState(() => resultMode && !creatorName.trim());
+  const [nameSeatResultMode, setNameSeatResultMode] = useState(resultMode);
+  if (resultMode !== nameSeatResultMode) {
+    setNameSeatResultMode(resultMode);
+    setNameInLockBar(resultMode && !creatorName.trim());
+  }
+  const nameField = (
+    <div className="planComposer__field">
+      <label htmlFor="plan-name">Your name</label>
+      <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Shown on the invite" />
+    </div>
+  );
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
   // row instead of falling through to the neutral label.
@@ -1847,7 +1958,7 @@ function PlanComposerForm({
   function applyStopIdentityMutation(
     nextStops: DraftStop[],
     status: string,
-    options: { reorder?: boolean; settledStatus?: string; release?: boolean } = {},
+    options: { reorder?: boolean; swapToAlternative?: boolean; settledStatus?: string; release?: boolean } = {},
   ): boolean {
     const release = Boolean(options.release && heldVenueId);
     const mutation = composerRouteMutation({
@@ -1859,6 +1970,7 @@ function PlanComposerForm({
       planAnchor,
       routeStale,
       reorder: options.reorder,
+      swapToAlternative: options.swapToAlternative,
     });
     if (!mutation.accepted) {
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
@@ -1993,9 +2105,11 @@ function PlanComposerForm({
       setRouteStatus("No other pub we can vouch for near that stop yet.");
       return;
     }
+    const position = stops.findIndex((stop) => stop.key === key) + 1;
     applyStopIdentityMutation(
       stops.map((stop) => stop.key === key ? next : stop),
-      `Stop ${stops.findIndex((stop) => stop.key === key) + 1} swapped to ${next.venueName}. Refresh the route before locking.`,
+      `Stop ${position} swapped to ${next.venueName}. Refresh the route before locking.`,
+      { swapToAlternative: true, settledStatus: `Stop ${position} swapped to ${next.venueName}.` },
     );
   }
 
@@ -2222,8 +2336,12 @@ function PlanComposerForm({
       if (draftSavedTelemetry && draftSavedToken) {
         trackEvent("plan_draft_saved", draftSavedTelemetry, { deliveryToken: draftSavedToken });
       }
+      // The lock is counted for every plan the server attributed, not only the
+      // ones that carry signed acceptance tokens: those fail closed for a plan
+      // without an anchor, which left the funnel's lock step at zero.
+      const lockTelemetry = crawlLockedTelemetry(body, completeStops.length);
+      if (lockTelemetry) trackEvent("crawl_locked", lockTelemetry);
       if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
-        trackEvent("crawl_locked", { stops: completeStops.length });
         trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
         trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
       }
@@ -2261,6 +2379,7 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
+      rememberPlanHostName(safeLocalStorage(), creatorName);
       clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
@@ -2306,7 +2425,7 @@ function PlanComposerForm({
         </div>
       )}
       <div className="planComposer__conciergeInput">
-        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
+        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">{PLAN_FIELD_LABEL}</label>
         <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
         {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
             `Lock it in` is the thing to do next, and two coral fills on one
@@ -2324,7 +2443,7 @@ function PlanComposerForm({
           aria-disabled={sorting || undefined}
           aria-busy={sorting}
         >
-          {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
+          {sorting ? "Planning…" : routeSorted ? PLAN_RESUBMIT_LABEL : "Make a plan"}
         </button>
       </div>
       <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
@@ -2489,19 +2608,41 @@ function PlanComposerForm({
       </details>
     </section>
   );
+  // Whether the field is anything OTHER than a start still to come on the
+  // night running now: a later night, a start that has already passed, or a
+  // time that is not a London one. A passed start is the state that needs the
+  // door most - the lock has already refused it - and reading the night alone
+  // withheld it there.
+  const fieldNight = londonNightsAhead(startTime);
+  const fieldWantsTonight = !fieldNight || fieldNight.nights !== 0 || fieldNight.past;
+  const tonightLabel = tonightChoiceLabel();
   const fieldsBlock = (
     <>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
         <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
       </div>
-      <div className="planComposer__field">
-        <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
-      </div>
+      {nameInLockBar ? null : nameField}
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
         <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        {/* Late in the evening the default is tomorrow at 19:00, so the night
+            the reader is standing in needs a door of its own. It carries the
+            date because an early-hours slot reads as tomorrow on a calendar
+            and as tonight on a night out. */}
+        {tonightLabel && fieldWantsTonight ? (
+          <button
+            type="button"
+            className="planComposer__tonight"
+            data-testid="plan-tonight-choice"
+            onClick={() => {
+              const slot = tonightLondonStartInput();
+              if (slot) updatePlanStartTime(slot);
+            }}
+          >
+            Tonight, {tonightLabel}
+          </button>
+        ) : null}
       </div>
 
     </>
@@ -2509,7 +2650,7 @@ function PlanComposerForm({
 
   const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
   const viewStops = completeStops;
-  const summaryLine = routeSummaryLine(viewStops, measured);
+  const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
   const stopsBlock = (
     <fieldset className="planComposer__stops">
@@ -2570,19 +2711,26 @@ function PlanComposerForm({
   const resultHeader = (
     <section className="planResult" aria-labelledby="plan-result-title">
       <div className="planResult__top">
-        <h2 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h2>
+        <h1 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h1>
         <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
         </button>
       </div>
       <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
       {routeStatusLine}
-      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
-        <p className="planResult__provenance">One pint per person at each stop. Meal prices are not verified.</p>
-      )}
-      <PlanResultProvenance />
       {routeStaleNotice}
     </section>
+  );
+  // THE STOPS COME FIRST. The fine print and the map strip used to sit between
+  // the summary and the pubs, so on a phone the first stop started below the
+  // fold. They now follow the stops, and the two caveats read as one line.
+  const resultFinePrint = (
+    <p className="planResult__provenance">
+      {viewStops.some((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0) && (
+        <><span>One pint per person at each stop. Meal prices are not verified.</span>{" "}</>
+      )}
+      <PlanResultProvenance />
+    </p>
   );
 
   return (
@@ -2622,8 +2770,9 @@ function PlanComposerForm({
           {resultMode ? (
             <>
               {resultHeader}
-              {resultStrip}
               {stopsBlock}
+              {resultFinePrint}
+              {resultStrip}
               {fieldsBlock}
               {coverageBlock}
               {tuneOpen ? null : (
@@ -2651,7 +2800,8 @@ function PlanComposerForm({
           line that qualifies it, so the two can never separate. The create
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
-      <div className="planComposer__lock">
+      <div className="planComposer__lock" data-name-seat={nameInLockBar ? "true" : undefined}>
+        {nameInLockBar ? nameField : null}
         <button
           className="planComposer__submit"
           type="submit"

@@ -20,6 +20,16 @@ import "server-only";
 // store's participant-gated thread read, keeping the caller's OWN messages
 // and dropping the other side's words.
 //
+// EVERY HANDLE THE ACCOUNT HAS HELD (LIB-S5). A handle is text stamped on a
+// row when it is written, and a rename never rewrites an authored row, so a
+// lane read by the current handle alone hands somebody who ever renamed a file
+// that leaves out everything they wrote before it while calling itself
+// complete. Each handle-keyed lane is read under the current handle AND every
+// `profile_handle_aliases` row the profile holds (a retired handle is never
+// re-issued, so each can only name this account's rows), and the account's own
+// messages are kept by `sender_profile_id` as well as by sender handle. A
+// handle list that cannot be read refuses every lane that needs it.
+//
 // A lane that could not be run is `unavailable` and the route refuses the
 // whole export; a lane that answered nothing is `complete` with no items.
 // The two are different findings and only the store can tell them apart, so
@@ -41,6 +51,7 @@ import {
   type AccountExportPintDrop,
   type AccountExportPrice,
   type AccountExportProfile,
+  type AccountExportPubRanking,
   type AccountExportSocialPost,
   type AccountExportWallPhoto,
 } from "@/lib/accountExport";
@@ -51,6 +62,7 @@ import {
 import type { CheckIn } from "@/lib/checkIn";
 import { checkInStore } from "@/lib/checkInStore";
 import { followStore } from "@/lib/followStore";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import type { MessageDTO } from "@/lib/messages";
 import { messagesStore, type InboxRead } from "@/lib/messagesStore";
@@ -71,12 +83,17 @@ import { publicSocialConnection, type PublicSocialConnection } from "@/lib/socia
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { socialPostStore } from "@/lib/socialPostStore";
+import { socialPostReviewStore } from "@/lib/socialPostReviewStore";
+import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
+import { socialPostVideoStore } from "@/lib/socialPostVideoStore";
 import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import { visitReportsStore, type VisitReportReadResult } from "@/lib/visitReportsStore";
 import type { DiaryEntryDTO } from "@/lib/diary";
 import { diaryStore } from "@/lib/diaryStore";
+import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
+import { socialPubRankingEntries, type SocialPubRankingRow } from "@/lib/socialPubRankings";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -134,6 +151,7 @@ export type AccountExportDeps = {
   savedPubs(handle: string): Promise<SavedPubsRead>;
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
   diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
+  pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -144,7 +162,64 @@ export type AccountExportDeps = {
   conversations(handle: string): Promise<InboxRead>;
   /** Null when the caller is not a participant, which for their own inbox row is a read that failed. */
   messages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
+  /** Every handle this profile has held, current and retired (`profile_handle_aliases`). */
+  handlesForProfile(profileId: string): Promise<string[]>;
+  /**
+   * The ids of the messages this profile sent in these conversations, by
+   * `sender_profile_id` (0151). Null where that column does not exist yet, so
+   * the sender handle is the only identity there is.
+   */
+  ownMessageIds(profileId: string, conversationIds: readonly string[]): Promise<Set<string> | null>;
 };
+
+/** PostgREST's undefined-column answer for the one column 0151 adds. */
+function isMissingSenderProfileColumn(error: { code?: unknown; message?: unknown }): boolean {
+  if (error.code === "42703") return true;
+  return (
+    typeof error.message === "string"
+    && /sender_profile_id/.test(error.message)
+    && /does not exist|schema cache/i.test(error.message)
+  );
+}
+
+const OWN_MESSAGE_CONVERSATION_CHUNK = 100;
+const OWN_MESSAGE_PAGE = 1000;
+
+async function supabaseHandlesForProfile(profileId: string): Promise<string[]> {
+  const { data, error } = await requireSupabaseAdmin()
+    .from("profile_handle_aliases")
+    .select("handle")
+    .eq("profile_id", profileId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => row.handle).filter((handle): handle is string => typeof handle === "string");
+}
+
+async function supabaseOwnMessageIds(
+  profileId: string,
+  conversationIds: readonly string[],
+): Promise<Set<string> | null> {
+  const ids = new Set<string>();
+  for (let start = 0; start < conversationIds.length; start += OWN_MESSAGE_CONVERSATION_CHUNK) {
+    const chunk = conversationIds.slice(start, start + OWN_MESSAGE_CONVERSATION_CHUNK);
+    for (let from = 0; ; from += OWN_MESSAGE_PAGE) {
+      const { data, error } = await requireSupabaseAdmin()
+        .from("messages")
+        .select("id")
+        .eq("sender_profile_id", profileId)
+        .in("conversation_id", chunk)
+        .order("id")
+        .range(from, from + OWN_MESSAGE_PAGE - 1);
+      if (error) {
+        if (isMissingSenderProfileColumn(error)) return null;
+        throw new Error(error.message);
+      }
+      const rows = data ?? [];
+      for (const row of rows) ids.add(row.id);
+      if (rows.length < OWN_MESSAGE_PAGE) break;
+    }
+  }
+  return ids;
+}
 
 function storeDeps(): AccountExportDeps {
   return {
@@ -174,7 +249,23 @@ function storeDeps(): AccountExportDeps {
     memories: (userId) => listNightMemories(userId),
     moments: (userId, memoryId) => listNightMoments(userId, memoryId),
     visitReports: (handle) => visitReportsStore().listForContributor(handle),
-    socialPosts: (owner, limit) => socialPostStore().listOwned(owner, limit),
+    async socialPosts(owner, limit) {
+      // A score and a video are rows of their own (0182, 0183) that belong to
+      // the post, so they ride the post into the file rather than a lane.
+      const posts = await socialPostStore().listOwned(owner, limit);
+      const ids = posts.map((post) => post.id);
+      const [reviews, videos, extras] = await Promise.all([
+        socialPostReviewStore().forPosts(ids),
+        socialPostVideoStore().forPosts(ids, owner),
+        socialPostExtraPhotoStore().forPosts(ids, owner),
+      ]);
+      return posts.map((post) => ({
+        ...post,
+        review: reviews.get(post.id) ?? null,
+        video: videos.get(post.id) ?? null,
+        extraPhotos: extras.get(post.id) ?? [],
+      }));
+    },
     crowdReports: (userId, limit) => occupancyStore().listForReporter(userId, limit),
     wallPhotos: (profileId) => venuePhotoStore().listForAuthor(profileId),
     coverPhotos: (profileId) => profileCoverPhotoStore().listApproved(profileId),
@@ -183,6 +274,7 @@ function storeDeps(): AccountExportDeps {
     savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
     diary: (userId) => diaryStore().listForOwner(userId),
+    pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -192,7 +284,40 @@ function storeDeps(): AccountExportDeps {
       pintDropsStore().listVisible(undefined, { handle }, handle, null),
     conversations: (handle) => messagesStore().listConversations(handle),
     messages: (conversationId, handle) => messagesStore().listMessages(conversationId, handle),
+    // The keyless process-memory backend keeps no alias ledger a reader can
+    // list and no sender profile column, so it answers with the current handle
+    // alone, which is the whole truth for an in-memory account that has not
+    // renamed in this process.
+    handlesForProfile: (profileId) =>
+      isSupabaseConfigured() ? supabaseHandlesForProfile(profileId) : Promise.resolve([]),
+    ownMessageIds: (profileId, conversationIds) =>
+      isSupabaseConfigured() ? supabaseOwnMessageIds(profileId, conversationIds) : Promise.resolve(null),
   };
+}
+
+/**
+ * One lane read under every handle, with a row that two handles both answered
+ * kept once. Any handle's read failing fails the lane: a file missing one
+ * handle's rows is the partial file this exists to stop.
+ */
+async function readUnderEveryHandle<T>(
+  handles: readonly string[],
+  read: (handle: string) => Promise<{ degraded: boolean; items: T[] }>,
+  key: (item: T) => string,
+): Promise<{ degraded: boolean; items: T[] }> {
+  const seen = new Set<string>();
+  const items: T[] = [];
+  for (const handle of handles) {
+    const answer = await read(handle);
+    if (answer.degraded) return { degraded: true, items: [] };
+    for (const item of answer.items) {
+      const id = key(item);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      items.push(item);
+    }
+  }
+  return { degraded: false, items };
 }
 
 /** The private card, field by field, so nothing a store adds later leaks unread. */
@@ -243,6 +368,16 @@ function exportSocialPost(post: SocialPostDTO): AccountExportSocialPost {
     hashtags: [...post.hashtags],
     commentPolicy: post.commentPolicy,
     photo: post.photo ? { mediaId: post.photo.mediaId, altText: post.photo.altText } : null,
+    review: post.review ? { rating: post.review.rating } : null,
+    extraPhotos: (post.extraPhotos ?? []).map((extra) => ({
+      mediaId: extra.mediaId,
+      slot: extra.slot,
+      altText: extra.altText,
+      moderationState: extra.moderationState,
+    })),
+    video: post.video
+      ? { contentType: post.video.contentType, durationSeconds: post.video.durationSeconds, reviewState: post.video.reviewState }
+      : null,
     moderationState: post.moderationState,
     createdAt: post.createdAt,
     editedAt: post.editedAt,
@@ -355,6 +490,20 @@ export async function buildAccountExport(
     handle: profile ? normalizeHandle(profile.handle) || null : null,
   }));
   owner.catch(() => undefined);
+  // Every handle the account has held, the current one first. A lane keyed on
+  // a handle awaits this, so an alias read that failed refuses those lanes
+  // rather than quietly reading the current handle alone.
+  const handles = owner.then(async ({ profile, handle }) => {
+    if (!profile || !handle) return [] as string[];
+    const held = await deps.handlesForProfile(profile.id);
+    const out = [handle];
+    for (const raw of held) {
+      const candidate = normalizeHandle(raw);
+      if (candidate && !out.includes(candidate)) out.push(candidate);
+    }
+    return out;
+  });
+  handles.catch(() => undefined);
 
   const memories = await (async () => {
     try {
@@ -381,27 +530,42 @@ export async function buildAccountExport(
     }
   })();
 
-  const pintDrops = await (async () => {
-    try {
-      const { handle } = await owner;
-      if (!handle) return boundedLane<AccountExportPintDrop>([]);
-      return boundedLane((await deps.pintDrops(handle)).map(exportPintDrop));
-    } catch {
-      return unavailableLane<AccountExportPintDrop>();
-    }
-  })();
+  const pintDrops = await lane<AccountExportPintDrop>(async () => {
+    const read = await readUnderEveryHandle(
+      await handles,
+      async (handle) => ({ degraded: false, items: await deps.pintDrops(handle) }),
+      (drop) => drop.id,
+    );
+    return { degraded: read.degraded, items: read.items.map(exportPintDrop) };
+  });
 
   const messages = await (async () => {
     try {
-      const { handle } = await owner;
-      if (!handle) return boundedLane<AccountExportConversation>([]);
-      const inbox = await deps.conversations(handle);
-      // A DEGRADED inbox read may have missed conversations entirely, and a
-      // portable copy that quietly omits a thread is a partial file handed over
-      // as a complete one. The lane refuses instead.
-      if (inbox.status === "degraded") return unavailableLane<AccountExportConversation>();
+      const { profile } = await owner;
+      const held = await handles;
+      if (!profile || held.length === 0) return boundedLane<AccountExportConversation>([]);
+      // Every conversation under every handle, each once, read as the handle
+      // that is a participant in it: a DM keeps the handle text it was opened
+      // under, and a group seat the handle it was taken under.
+      const found = new Map<string, { conversation: InboxRead["conversations"][number]; handle: string }>();
+      for (const handle of held) {
+        const inbox = await deps.conversations(handle);
+        // A DEGRADED inbox read may have missed conversations entirely, and a
+        // portable copy that quietly omits a thread is a partial file handed over
+        // as a complete one. The lane refuses instead.
+        if (inbox.status === "degraded") return unavailableLane<AccountExportConversation>();
+        for (const conversation of inbox.conversations) {
+          if (!found.has(conversation.id)) found.set(conversation.id, { conversation, handle });
+        }
+      }
+      const listed = [...found.values()].slice(0, ACCOUNT_EXPORT_LANE_CAP + 1);
+      const ownIds = await deps.ownMessageIds(
+        profile.id,
+        listed.map(({ conversation }) => conversation.id),
+      );
+      const heldSet = new Set(held);
       const out: AccountExportConversation[] = [];
-      for (const conversation of inbox.conversations.slice(0, ACCOUNT_EXPORT_LANE_CAP + 1)) {
+      for (const { conversation, handle } of listed) {
         const thread = await deps.messages(conversation.id, handle);
         // The inbox named this thread as the caller's, so a refused read is a
         // read that failed rather than a thread that is not theirs.
@@ -421,8 +585,14 @@ export async function buildAccountExport(
                   : {}),
               }
             : {}),
+          // The account's OWN messages: by profile where the row carries one,
+          // and by every handle it has held for a row that does not.
           messages: thread
-            .filter((message) => normalizeHandle(message.senderHandle) === handle)
+            .filter(
+              (message) =>
+                ownIds?.has(message.id) === true
+                || heldSet.has(normalizeHandle(message.senderHandle)),
+            )
             .map(exportMessage),
         });
       }
@@ -445,12 +615,16 @@ export async function buildAccountExport(
       }),
   }));
 
-  const visitReports = await lane<VisitReportDTO>(async () => {
-    const { handle } = await owner;
-    if (!handle) return { degraded: false, items: [] };
-    const read = await deps.visitReports(handle);
-    return { degraded: read.status === "degraded", items: read.reports };
-  });
+  const visitReports = await lane<VisitReportDTO>(async () =>
+    readUnderEveryHandle(
+      await handles,
+      async (handle) => {
+        const read = await deps.visitReports(handle);
+        return { degraded: read.status === "degraded", items: read.reports };
+      },
+      (report) => report.id,
+    ),
+  );
 
   const wallPhotos = await lane<AccountExportWallPhoto>(async () => {
     const { profile } = await owner;
@@ -503,26 +677,34 @@ export async function buildAccountExport(
     };
   });
 
-  const checkIns = await lane<CheckIn>(async () => {
-    const { handle } = await owner;
-    if (!handle) return { degraded: false, items: [] };
-    return { degraded: false, items: await deps.checkIns(handle) };
-  });
+  const checkIns = await lane<CheckIn>(async () =>
+    readUnderEveryHandle(
+      await handles,
+      async (handle) => ({ degraded: false, items: await deps.checkIns(handle) }),
+      (checkIn) => checkIn.id,
+    ),
+  );
 
-  const follows = await lane<string>(async () => {
-    const { handle } = await owner;
-    if (!handle) return { degraded: false, items: [] };
-    return { degraded: false, items: await deps.follows(handle) };
-  });
+  const follows = await lane<string>(async () =>
+    readUnderEveryHandle(
+      await handles,
+      async (handle) => ({ degraded: false, items: await deps.follows(handle) }),
+      (followed) => followed,
+    ),
+  );
 
-  const savedPubs = await lane<SavedPubDTO>(async () => {
-    const { handle } = await owner;
-    if (!handle) return { degraded: false, items: [] };
-    const read = await deps.savedPubs(handle);
-    return read.status === "ready"
-      ? { degraded: false, items: read.rows }
-      : { degraded: true, items: [] };
-  });
+  const savedPubs = await lane<SavedPubDTO>(async () =>
+    readUnderEveryHandle(
+      await handles,
+      async (handle) => {
+        const read = await deps.savedPubs(handle);
+        return read.status === "ready"
+          ? { degraded: false, items: read.rows }
+          : { degraded: true, items: [] };
+      },
+      (saved) => JSON.stringify([saved.listType, saved.venueId]),
+    ),
+  );
 
   const wanted = await lane<WantedDTO>(async () => {
     const { profile } = await owner;
@@ -534,6 +716,21 @@ export async function buildAccountExport(
   const diary = await lane<DiaryEntryDTO>(async () => {
     const read = await deps.diary(userId);
     return { degraded: read.status === "degraded", items: read.entries };
+  });
+
+  const pubRankings = await lane<AccountExportPubRanking>(async () => {
+    const { profile } = await owner;
+    if (!profile) return { degraded: false, items: [] };
+    const rows = await deps.pubRankings(profile.id);
+    return {
+      degraded: false,
+      items: socialPubRankingEntries(rows).map((entry) => ({
+        venueId: entry.venueId,
+        band: entry.band,
+        place: entry.place,
+        score: entry.score,
+      })),
+    };
   });
 
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
@@ -571,6 +768,7 @@ export async function buildAccountExport(
     savedPubs,
     wanted,
     diary,
+    pubRankings,
     socialLinks,
     nightProfile,
     messages,

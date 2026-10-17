@@ -7,8 +7,10 @@ import {
   failOptimisticSpill,
   markOptimisticSpillRetrying,
   mergeOptimisticSpillDrops,
+  readOptimisticSpills,
   reconcileOptimisticSpill,
   upsertOptimisticSpill,
+  writeOptimisticSpills,
   type StoredOptimisticSpill,
 } from "@/lib/optimisticSpillPost";
 import type { PintDropDTO } from "@/lib/feed";
@@ -226,6 +228,47 @@ describe("optimistic Spill posting", () => {
     expect(form.get("visibility")).toBe("public");
     expect(form.getAll("vibe_tags")).toEqual(["proper", "riverside"]);
     expect(form.get("pint_photo")).toBeInstanceOf(Blob);
+  });
+
+  it("never persists a blob: preview, and a retry refuses rather than dropping the photo", async () => {
+    const input = {
+      clientRequestId: "client-1",
+      venueId: "venue-1",
+      handle: "karan",
+      priceGbp: "5.8",
+      drink: "Pale ale",
+      passedDownNote: "",
+      era: "",
+      visibility: "public" as const,
+      vibeTags: [],
+      pintPhotoUrl: "blob:http://localhost/pint",
+      venuePhotoUrl: null,
+      createdAt: "2026-07-07T21:00:00.000Z",
+    };
+    const memory = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => void memory.set(key, value),
+      removeItem: (key: string) => void memory.delete(key),
+    };
+    writeOptimisticSpills(
+      storage,
+      upsertOptimisticSpill([], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input)),
+    );
+    expect([...memory.values()].join("")).not.toContain("blob:");
+    const stored = readOptimisticSpills(storage)[0]!;
+    expect(stored.drop.pintPhotoUrl).toBeNull();
+    expect(stored.retry).toMatchObject({ pintPhotoUrl: null, photoNotKept: true });
+    await expect(buildOptimisticSpillRetryFormData(stored.retry!)).rejects.toThrow(
+      "Photo preview is no longer available.",
+    );
+
+    // An entry written before the rule is cleaned on the way back in.
+    memory.set(
+      "pubmax:optimistic-spill-posts:v1",
+      JSON.stringify([{ clientRequestId: "client-1", drop: buildOptimisticSpillDrop(input) }]),
+    );
+    expect(readOptimisticSpills(storage)[0]?.drop.pintPhotoUrl).toBeNull();
   });
 
   it("marks a failed draft as retrying before the retry request settles", () => {

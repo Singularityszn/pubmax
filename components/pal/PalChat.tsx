@@ -22,6 +22,7 @@ import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import Screen from "@/components/ui/screen";
+import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -49,18 +50,21 @@ import {
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
-import { venueAcceptUrl } from "@/lib/venueMapUrl";
+import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { PLAN_FIELD_LABEL } from "@/lib/planCopy";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
 import {
   cheapestGlanceLine,
+  cheapestGlanceReceipt,
   countTonightKinds,
   GLANCE_QUIET_EXIT,
   GLANCE_QUIET_LINE,
   tonightGlanceLine,
+  tonightGlanceReceipt,
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
@@ -85,7 +89,7 @@ type Entry =
       /** In-thread recall only (lib/palRecall). Never a durable memory. */
       recall: PalRecall | null;
     }
-  | { kind: "error"; id: string; message: string; needsSignIn?: boolean };
+  | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
 
 function VenueLink({
   card,
@@ -208,6 +212,11 @@ export function AnswerCard({
         </VenueLink>
         <div className="palChatCardMeta">
           <ProvChip card={card} />
+          {[card.menuEvidence?.caloriesProvenance, card.menuEvidence?.dietaryProvenance].map((field, index) => field && field.sourceUrl !== card.provenance.url ? (
+            <a key={index} className="palChatProv palChatProv--link" href={field.sourceUrl} target="_blank" rel="noreferrer noopener">
+              {index === 0 ? "Calorie source" : "Dietary source"}: {field.source}
+            </a>
+          ) : null)}
           {card.confidence ? (
             <span className="palChatConfidence">{card.confidence}</span>
           ) : null}
@@ -301,7 +310,7 @@ export default function PalChat() {
   }, [entries, pending, streamText, keyboardInset]);
 
   const ask = useCallback(
-    async (raw: string) => {
+    async (raw: string, options: { preserveDraft?: boolean } = {}) => {
       const text = raw.trim();
       if (!text || pending) return;
       sessionRef.current ??= createPalChatSession();
@@ -310,7 +319,9 @@ export default function PalChat() {
       const recall = palRecall(priorAsksRef.current, text);
       priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      setQuery("");
+      if (!options.preserveDraft) {
+        setQuery((current) => current.trim() === text ? "" : current);
+      }
       setPending(true);
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
@@ -325,6 +336,7 @@ export default function PalChat() {
             id: nextId(),
             message: result.message,
             needsSignIn: result.needsSignIn,
+            retryQuery: text,
           },
         ]);
         return;
@@ -511,9 +523,14 @@ export default function PalChat() {
         const answer = rankNearMe(patch.lat, patch.lng, slim);
         const card = answer.cards[0];
         if (!card) return;
+        const listed = slim.find((row) => row.id === card.id);
         setCheapest({
           areaLabel: patch.label,
           card: {
+            id: card.id,
+            scope: answer.scope,
+            priceSource: listed?.priceSource,
+            priceObservedAt: listed?.priceObservedAt,
             name: card.name,
             cheapestPrice: card.cheapestPrice,
             // The ranker measured from the middle of the area, not from the
@@ -560,6 +577,11 @@ export default function PalChat() {
 
       <div className="palChatScroll" ref={scrollRef}>
         <div className="palChatTranscript" aria-live="polite">
+          {empty ? (
+            <div className="palChatRow palChatRow--pal">
+              <p className="palChatBubble">Hi. What kind of night are you planning?</p>
+            </div>
+          ) : null}
           {entries.map((entry) => {
             if (entry.kind === "user") {
               return (
@@ -591,6 +613,17 @@ export default function PalChat() {
                       </>
                     ) : null}
                   </p>
+                  {entry.retryQuery && !entry.needsSignIn ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending}
+                      aria-label={`Ask again: ${entry.retryQuery}`}
+                      onClick={() => { if (entry.retryQuery) void ask(entry.retryQuery, { preserveDraft: true }); }}
+                    >
+                      Ask again
+                    </Button>
+                  ) : null}
                 </div>
               );
             }
@@ -734,6 +767,12 @@ export default function PalChat() {
               <Sparkles size={13} aria-hidden="true" /> Tonight
             </span>
             <p className="palGlanceLine">{glanceLine}</p>
+            <p className="palGlanceReceipt">
+              {tonightGlanceReceipt(glance.rows)}{" "}
+              <Link prefetch={false} className="palGlanceExit" href="/tonight">
+                See listings and sources.
+              </Link>
+            </p>
           </div>
         ) : null}
         {empty && glance.status === "empty" ? (
@@ -747,15 +786,21 @@ export default function PalChat() {
                 {GLANCE_QUIET_EXIT}
               </Link>
             </p>
+            <p className="palGlanceReceipt">
+              No listing sources returned.{" "}
+              <Link prefetch={false} className="palGlanceExit" href="/tonight">
+                See listings and sources.
+              </Link>
+            </p>
           </div>
         ) : null}
 
         {/* Cheapest-pint row (judge-w2 polish item 1): same rankNearMe answer
             Near me serves, from the remembered patch. Absent = renders nothing. */}
         {empty && cheapestLine ? (
-          <div className="palGlance" role="note" aria-label="Cheapest pint nearby">
+          <div className="palGlance" role="note" aria-label="Listed price nearby">
             <span className="palGlanceLabel">
-              <MapPin size={13} aria-hidden="true" /> Cheapest
+              <MapPin size={13} aria-hidden="true" /> Listed price
             </span>
             <p className="palGlanceLine">
               {cheapestLine}{" "}
@@ -763,6 +808,17 @@ export default function PalChat() {
                 See the list.
               </Link>
             </p>
+            {cheapest ? (
+              <p className="palGlanceReceipt">
+                {cheapestGlanceReceipt(cheapest.card)}{" "}
+                Listed in the pint dataset. Serving size, offer and entry terms are not recorded.{" "}
+                {cheapest.card.id ? (
+                  <Link prefetch={false} className="palGlanceExit" href={venueMapUrl(cheapest.card.id)}>
+                    Price source and venue details.
+                  </Link>
+                ) : null}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -774,7 +830,7 @@ export default function PalChat() {
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
         <label className="palChatSr" htmlFor={inputId}>
-          Describe the outing
+          {PLAN_FIELD_LABEL}
         </label>
         <input
           id={inputId}

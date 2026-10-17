@@ -68,7 +68,7 @@ const SPECULATION_RULES = {
   ],
 };
 
-// Type trio for the PUBMAXXING identity (see docs/DESIGN_SYSTEM.md):
+// Type trio for the PUBMAXX identity (see docs/DESIGN_SYSTEM.md):
 //  - display: Space Grotesk — a Gen-Z-native geometric grotesque with a very
 //    large x-height, so capitals and lowercase sit close in size (little
 //    caps-contrast) and headlines read confident, current, and calm rather
@@ -165,6 +165,12 @@ if (!initialFontFallbacks["--font-display"] || !initialFontFallbacks["--font-bod
   throw new Error("The display and body fonts require their generated matched fallbacks.");
 }
 
+// The complete generated chains ThemeAttribute writes back once hydrated.
+const rootFontFamilies = {
+  "--font-display": displayFace.style.fontFamily,
+  "--font-body": bodySans.style.fontFamily,
+};
+
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were
 // its last consumer and left the face on 2026-08-18, so the party-accent token
 // is gone from the app and no route pays for a display font nothing draws.
@@ -194,7 +200,7 @@ export const metadata: Metadata = {
     template: "%s | PUBMAXX",
   },
   description:
-    "PubMaxxing is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
+    "PUBMAXX is a price-aware London pub map: listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -202,7 +208,7 @@ export const metadata: Metadata = {
     // Home Screen icon, so it must read the same as the installed name Android
     // takes from public/manifest.webmanifest. The document TITLES below are a
     // separate question and stay as they are.
-    title: "PUBMAXXING",
+    title: "PUBMAXX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {
@@ -419,7 +425,10 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
-                <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
+                <ThemeAttribute
+                initialFontFallbacks={initialFontFallbacks}
+                fontFamilies={rootFontFamilies}
+              />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -436,7 +445,10 @@ export default async function RootLayout({
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
-              <ThemeAttribute initialFontFallbacks={initialFontFallbacks} />
+              <ThemeAttribute
+                initialFontFallbacks={initialFontFallbacks}
+                fontFamilies={rootFontFamilies}
+              />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

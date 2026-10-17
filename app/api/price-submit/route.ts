@@ -78,7 +78,8 @@ import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import type { PintTrustState } from "@/lib/pintTrust";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
-import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
+import { magicBytesOk } from "@/lib/imageSafety";
+import { RECEIPT_REQUIRED_LINE, photoRefusal, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import type { PintDropPhotos } from "@/lib/pintDropsStore";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -159,6 +160,15 @@ async function reportObservation(request: Request, body: Record<string, unknown>
   return jsonNoStore({ ok: true }, { status: 200 });
 }
 
+/** Why the attached bill is not a photo we could keep, or null. */
+async function receiptPhotoRefusal(receipt: File | null | undefined): Promise<string | null> {
+  if (!receipt) return null;
+  const refusal = photoRefusal(receipt);
+  if (refusal) return refusal;
+  const head = new Uint8Array(await receipt.slice(0, 64).arrayBuffer());
+  return magicBytesOk(head, receipt.type) ? null : "Photo must be a JPEG, PNG, or WebP image.";
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsedBody = await parsePriceSubmitPostBody(request);
   if (!parsedBody) {
@@ -237,6 +247,14 @@ export async function POST(request: Request): Promise<Response> {
   // lib/pintDropReceipt.ts; this route only asks.
   if (priceNeedsReceipt(submission.priceGbp) && !pintDropPhotos.receipt) {
     return publicApiError(RECEIPT_REQUIRED_LINE, "RECEIPT_REQUIRED", 400);
+  }
+  // ...and the bill has to BE a photo. Only a beer price pairs a Pint Drop,
+  // whose upload sniffs the bytes; every other category stops at its community
+  // price, so without this any non-empty file satisfied the rule above. Same
+  // refusal and same 400 the drop's own photo check answers with.
+  const receiptRefusal = await receiptPhotoRefusal(pintDropPhotos.receipt);
+  if (receiptRefusal) {
+    return publicApiError(receiptRefusal, "INVALID_REQUEST", 400);
   }
 
   // Cap one account across every venue before applying the tighter per-venue

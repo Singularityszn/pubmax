@@ -75,6 +75,16 @@ vi.mock("@/lib/log", () => ({
   redact: (value: unknown) => value,
 }));
 
+// The ONE venue resolver every community write runs through. Its own rules are
+// pinned in its own suite; here an alias and an unknown id stand in for it so
+// the route's use of the answer is what is under test.
+vi.mock("@/lib/venueWriteTarget.server", () => ({
+  resolveWritableVenueId: async (venueId: string) =>
+    venueId === "venue-unknown"
+      ? { ok: false, status: 400, error: "Pick a venue from the map." }
+      : { ok: true, venueId: venueId === "venue-old-alias" ? "venue-abc" : venueId },
+}));
+
 import { GET, POST } from "@/app/api/venue-photos/route";
 import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
 import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
@@ -310,6 +320,25 @@ describe("posting a photo to a wall", () => {
     expect(elsewhere.status).toBe(201);
   });
 
+  it("refuses a venue id the resolver does not know, before it spends a scan", async () => {
+    const storage = deps("approved");
+    const response = await POST(upload(await jpeg(), { venueId: "venue-unknown" }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("Pick a venue from the map.");
+    expect(storage.uploads).toHaveLength(0);
+    expect((await venuePhotoStore().listForVenue("venue-unknown", {})).photos).toEqual([]);
+  });
+
+  it("stores a photo posted under an alias on the canonical venue's wall", async () => {
+    const storage = deps("approved");
+    const response = await POST(upload(await jpeg(), { venueId: "venue-old-alias" }));
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.photo.venueId).toBe(VENUE);
+    expect(body.photo.url).toBe(`/api/venue-photo/${VENUE}/${body.photo.id}`);
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, body.photo.id)]);
+  });
+
   it("refuses over the per-account budget, and the budget fails closed", async () => {
     limitState.limited = true;
     const storage = deps("approved");
@@ -494,6 +523,17 @@ describe("taking a photo down", () => {
     expect(deleted.status).toBe(200);
     expect(storage.keys()).toEqual([]);
     expect(await venuePhotoStore().getById(id)).toBeNull();
+  });
+
+  it("spends a budget on an author delete, like every other write", async () => {
+    const storage = deps("approved");
+    const id = await post();
+    limitState.limited = true;
+    const refused = await POST(json({ action: "delete", id }));
+    expect(refused.status).toBe(429);
+    expect((await refused.json()).code).toBe("RATE_LIMITED");
+    expect(storage.keys()).toHaveLength(1);
+    expect(await venuePhotoStore().getById(id)).not.toBeNull();
   });
 
   it("refuses an author delete once a moderator has hidden it, so the trail stays", async () => {

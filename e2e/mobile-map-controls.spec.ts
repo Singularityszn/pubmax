@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectLayoutSettled } from "./helpers/layoutSettled";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -52,17 +52,18 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   const area = topbar.getByRole("button", { name: "Map area: London. Change city" });
   await expectTapTarget(area, "map area switcher");
   await expect(area.locator(".citySwitcherLabelFull")).toHaveText("London");
-  await expectTapTarget(topbar.getByRole("button", { name: "Search the map" }), "map search action");
-  await topbar.getByRole("button", { name: "Search the map" }).click();
+  const search = await mobileMapShellControl(page, "search");
+  await expectTapTarget(search, "map search action");
+  await search.click();
   // The field suggests pubs as it is typed in, so it is a combobox.
   const searchInput = page.getByRole("combobox", { name: "Search pubs" });
   await expect(searchInput).toBeVisible();
   await expectTapTarget(searchInput.locator(".."), "map search field");
 
-  await topbar.getByRole("button", { name: "Search the map" }).click();
+  await search.click();
   // The drink filters live in the Filters sheet, opened from the top bar
   // (#1631: one bar, and the category row moved into Filters).
-  const filtersButton = topbar.getByRole("button", { name: /^Filters/ });
+  const filtersButton = await mobileMapShellControl(page, "filters");
   await expectTapTarget(filtersButton, "filters button");
   await filtersButton.click();
   const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
@@ -95,7 +96,7 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
       .getByRole("button", { name: "Drink shown on the map: Gin. Choose another drink" }),
   ).toBeVisible();
 
-  const layersFab = topbar.getByRole("button", { name: "More map controls" });
+  const layersFab = await mobileMapShellControl(page, "more");
   await expectTapTarget(layersFab, "layers button");
   await layersFab.click();
 
@@ -163,7 +164,7 @@ test("critical city status badges TfL without adding a third chrome row", async 
 
   await expect(page.locator(".mobileMapChrome > :visible")).toHaveCount(2);
   await expect(page.locator(".cityStatusBanner")).toHaveCount(0);
-  const tfl = page.getByRole("button", { name: /TfL/ });
+  const tfl = await mobileMapShellControl(page, "tfl");
   await expectTapTarget(tfl, "TfL status chip");
   await expect(tfl).toContainText("1");
   await tfl.click();

@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "15 October 2026";
+const LAST_UPDATED = "17 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -79,7 +79,7 @@ export default function PrivacyPage() {
             data sales, no ad networks, no advertising trackers on the site.
           </li>
           <li>
-            <strong>Your nights are yours.</strong>{" "}Night Memories and private
+            <strong>Your nights are yours.</strong>{" "}Your memories and private
             plans aren&rsquo;t public unless you choose to share them.
           </li>
         </ul>
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="who">
         <h2 id="who" className="legalH2">Who&rsquo;s responsible</h2>
         <p className="legalBody">
-          PUBMAXXING is run by Karan Manoharan, an individual based in London,
+          PUBMAXX is run by Karan Manoharan, an individual based in London,
           UK. There is no company behind it yet, so for UK GDPR purposes the
           data controller is that individual, reachable at{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>. We
@@ -218,8 +218,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
-          messages to other people, Visit Reports, Recommendations, and Night
-          Memories. We keep these because they are the product. A price with no
+          messages to other people, Visit Reports, Recommendations, and your
+          memories. We keep these because they are the product. A price with no
           date and no source is worth nothing. Presence is always a deliberate
           tap; the app never tracks your location in the background.
         </p>
@@ -730,9 +730,18 @@ export default function PrivacyPage() {
               provider that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). With Pub Pal, the memories you confirmed for your
-              Pal (up to eight short preferences, such as a drink you like or
-              an access need) go with each chat or voice call too, so it can
-              use them. Nothing else about you goes with it. We do not keep
+              Pal go with each chat or voice call too, so it can use them:
+              every one of those short preferences, such as a drink you like or
+              an access need, up to forty, with the ones about what you just
+              asked first. Past forty, the ones about what you asked go and the
+              oldest of the rest wait for a question about them. So does a short read of your taste that we work out
+              from what you logged yourself: your usual patches, the pubs you
+              go back to or rated, what you drink, what you usually pay for a
+              pint, the vibes you tag and the pubs you saved. Our server keeps
+              that read in memory for two minutes at most and never writes it
+              to a database. Turn the taste read off on your Pal&rsquo;s page
+              and none of your logs are read for it. Nothing else about you
+              goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that
               runs every minute.
@@ -782,11 +791,11 @@ export default function PrivacyPage() {
               subscription itself belongs to your own browser&rsquo;s push service.
               We keep that stored row until the push service reports it dead or
               you ask us to remove it.
-              The separate Step Out weekly nudge is off by default. If you turn
-              it on, we store that preference against your account, bind it to
-              the same web push subscription, and may send at most one
-              place-bound push a week about a Wanted pub near your night patch,
-              an open Soft Plan, or a sourced deal. Turning it off withdraws the
+              The separate weekly nudge is off by default. If you turn it on,
+              we store that preference against your account, bind it to the
+              same web push subscription, and may send at most one push a week
+              about a pub on your list to try near your night patch, an open
+              plan for tonight, or a sourced deal. Turning it off withdraws the
               preference and removes the bound subscription.
             </dd>
           </div>
@@ -821,7 +830,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Backups:</strong>{" "}data you delete, including a deleted
             account, can remain in our backups for up to 8 weeks before it is
-            removed.
+            removed. We never delete our only complete backup, so if newer
+            backups fail, that one is kept past 8 weeks until a newer backup
+            completes. A failed backup sends us an alert so we can fix it.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account
@@ -901,7 +912,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Push subscriptions:</strong>{" "}if you turned notifications
             on, the stored subscription row stays until your browser&rsquo;s
-            push service reports it dead or you ask us to remove it. A Step Out
+            push service reports it dead or you ask us to remove it. A weekly nudge
             opt-in preference and its last-sent stamp stay until you turn the
             nudge off or delete your account.
           </li>
@@ -929,7 +940,7 @@ export default function PrivacyPage() {
         <p className="legalBody">
           A portable copy you can take yourself, without asking us: open the You
           tab, go to Account settings and choose Download your data. It is one
-          JSON file of your Night Memories and Moments, the prices and Pint Drops
+          JSON file of your memories and Moments, the prices and Pint Drops
           you logged, and the messages you sent.
         </p>
         <p className="legalBody">

@@ -32,10 +32,12 @@ function applyDrinkUpdatesForKeys(
   const keySet = new Set(keys);
   const scoped = updates.filter((u) => keySet.has(u.venueKey));
   if (scoped.length === 0) return base;
-  const remapped = scoped.map((u) =>
-    u.venueKey === canonical ? u : { ...u, venueKey: canonical },
+  // Legacy alias observations retain their established canonical rating refs.
+  // An explicit ID stays bound to the original validated source row.
+  const menuUpdates = scoped.map((u) =>
+    u.venueKey === canonical || u.itemId !== undefined ? u : { ...u, venueKey: canonical },
   );
-  return applyDrinkPriceUpdatesToMenu(canonical, base, remapped);
+  return applyDrinkPriceUpdatesToMenu(canonical, base, menuUpdates, keys);
 }
 
 export function venueMenuForInspector(
@@ -51,6 +53,7 @@ export type VenueMenuVenue = Pick<Venue, "id" | "prices"> &
     Pick<
       Venue,
       | "name"
+      | "sourceName"
       | "address"
       | "latitude"
       | "longitude"
@@ -76,16 +79,19 @@ export function venueMenuLookupKeys(venue: VenueMenuVenue): string[] {
   if (firstPrice) {
     keys.push(venueGroupingKey(firstPrice));
   }
+  // An update is keyed by the name the dataset files, so the operator-suffixed
+  // spelling (lib/venueDisplay.ts) is the one the key is built from.
+  const keyName = venue.sourceName ?? venue.name;
   if (
-    typeof venue.name === "string" &&
-    venue.name.trim() &&
+    typeof keyName === "string" &&
+    keyName.trim() &&
     typeof venue.latitude === "number" &&
     typeof venue.longitude === "number" &&
     Number.isFinite(venue.latitude) &&
     Number.isFinite(venue.longitude)
   ) {
     const coordsKey = venueCoordsGroupingKey(
-      venue.name,
+      keyName,
       venue.address ?? "",
       venue.latitude,
       venue.longitude,

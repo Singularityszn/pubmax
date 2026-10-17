@@ -385,7 +385,7 @@ export async function preparePlanGeneration(
 	}
 	if (!query && !contextPatch && !intake?.exactNightArea) {
 		return { response: publicApiError(
-			"Describe the outing or add its time, group and area.",
+			"Say where, how many and what budget, or add a time, group and area.",
 			"NIGHT_CONTEXT_REQUIRED",
 			400,
 		) };
@@ -478,9 +478,11 @@ export async function preparePlanGeneration(
 	const venues = await loadConciergeVenues(cityId);
 	const pintCap = priceLimits.pintCeiling;
 	const pintEvidence = pintCap === null ? null : await planPriceEvidenceForVenues(venues, requestNow);
-	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
-		? await matchedWetherspoonsVenueIds(venues)
-		: undefined;
+	// Every plan needs to know which pubs are Wetherspoon branches, so a route
+	// takes one of them rather than three (`oneStopPerOperator`). Only a request
+	// that asks for Spoons also earns the scoring boost.
+	const wetherspoonBranchIds = await matchedWetherspoonsVenueIds(venues);
+	const wetherspoonsMatchedIds = context.wetherspoonsPreferred ? wetherspoonBranchIds : undefined;
 	const cappedVenues = pintCap === null ? venues : venues.flatMap((venue) => {
 		const price = pintEvidence!.get(venue.id);
 		return price && priceEvidenceUsableForCeiling(price) && price.pence! <= Math.round(pintCap * 100)
@@ -504,7 +506,8 @@ export async function preparePlanGeneration(
 				drinkLensPrices,
 			);
 			return { venue, distance, tonightEvents, signalClaims, ...scored, selectedDrinkPrice: drinkLensPrices?.get(venue.id) ?? null,
-				pintPriceEvidence: pintEvidence?.get(venue.id) ?? null };
+				pintPriceEvidence: pintEvidence?.get(venue.id) ?? null,
+				operator: wetherspoonBranchIds.has(venue.id) ? "wetherspoon" : null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
 			distance <= area.radiusKm

@@ -72,7 +72,7 @@ describe("GET /api/citymcp/journey?stops= (one crawl, every leg)", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe(
-      "public, s-maxage=120, stale-while-revalidate=600",
+      "public, s-maxage=300, stale-while-revalidate=300",
     );
     expect(limiter.isCityMcpLimited).toHaveBeenCalledTimes(2);
     expect(upstreamArgs()).toEqual([

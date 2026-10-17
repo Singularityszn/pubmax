@@ -23,7 +23,7 @@ import {
   reactionsStore,
   UnknownDropError,
 } from "@/lib/reactionsStore";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
 assertServerEnv();
@@ -35,6 +35,15 @@ const MAX_IDS = 100;
 // generous: many per feed page is normal, only a hammering actor should trip it.
 const REACTION_LIMIT = 40;
 const REACTION_WINDOW_MS = 60_000;
+
+// The actor id comes from the request body, so a caller rotating it gets a
+// fresh actor budget every time. This one is keyed on the hashed IP instead,
+// and is wider than the actor budget because one pub's wifi is many drinkers.
+const REACTION_IP_LIMIT = 120;
+
+// One "reacted to your drop" notification per handle, drop and reaction a
+// day: toggling the same reaction on and off must not ring the author each time.
+const REACTION_NOTIFY_WINDOW_MS = 24 * 60 * 60_000;
 
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
@@ -108,8 +117,10 @@ export async function POST(request: Request): Promise<Response> {
   // Flood guard per hashed actor. Mirrors comments/saved-pubs, but with a
   // generous budget (reactions are cheap toggles — a normal feed page fires
   // several). 429 only once one actor blows past REACTION_LIMIT in the window.
+  const ipHash = hashIp(clientIp(request));
   if (
-    await isLimited(`reaction:${actorHash}`, `reaction:${actorHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)
+    (await isLimited(`reaction:${actorHash}`, `reaction:${actorHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)) ||
+    (await isLimited(`reaction-ip:${ipHash}`, `reaction-ip:${ipHash}`, REACTION_IP_LIMIT, REACTION_WINDOW_MS))
   ) {
     return publicApiError("Too many reactions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
@@ -127,18 +138,19 @@ export async function POST(request: Request): Promise<Response> {
     if (actorHandle && summary.mine.includes(reaction)) {
       const ownership = await gateHandleAction(request, actorHandle);
       if (ownership.allowed) {
-        void dropOwnerHandle(id)
-          .then((owner) => {
-            if (!owner) return;
-            return emitNotification({
-              recipientHandle: owner,
-              actorHandle: ownership.handle,
-              kind: "reaction",
-              subjectRef: id,
-              subjectLabel: reaction,
-            });
-          })
-          .catch(() => {});
+        const notifyKey = `reaction-notify:${ownership.handle}:${id}:${reaction}`;
+        void (async () => {
+          if (await isLimited(notifyKey, notifyKey, 1, REACTION_NOTIFY_WINDOW_MS)) return;
+          const owner = await dropOwnerHandle(id);
+          if (!owner) return;
+          await emitNotification({
+            recipientHandle: owner,
+            actorHandle: ownership.handle,
+            kind: "reaction",
+            subjectRef: id,
+            subjectLabel: reaction,
+          });
+        })().catch(() => {});
       }
     }
     return jsonNoStore({ summary }, { status: 200 });

@@ -65,7 +65,9 @@ uses WebKit's existing history directly, or stays in place when no history exist
 Android keeps its hardware Back lifecycle. The iOS wrapper delays Capacitor's
 plugin reset until a replacement document commits. A cancelled provisional load
 retains the visible document's listeners.
-OAuth callbacks close the system browser before the app changes routes.
+Generic HTTPS OAuth callbacks close the system browser before the app changes routes.
+The [iPhone provider-return contract](rules/ios-native-auth-return.md) and
+[iPhone email-return contract](rules/ios-native-email-return.md) own their separate native consumers.
 
 ## Cold start
 
@@ -424,10 +426,10 @@ user/plan identity**. Consequences, enforced in code:
      manifests take a SHORT edge cache window for exactly this reason: the
      fingerprint has to reach the verifier in minutes, not after a year of CDN.
      `docs/STORE_READINESS.md` section 8 step 13 is the copy-paste version.
-   - Email, Google, and Apple sign-in return through `/auth/callback`. The code
-     path is ready, but it is not release proof until the Team ID or Android
-     signing fingerprint is published and a physical-device sign-in returns to
-     the signed-in WebView on each platform.
+   - iPhone authentication follows the [provider-return contract](rules/ios-native-auth-return.md)
+     and [email-return contract](rules/ios-native-email-return.md). Android keeps
+     the HTTPS App Link return through `/auth/callback`. Each platform requires
+     physical-device sign-in proof for its final signed binary.
    - **Universal links and App Links need a signed build to test.** A
      team-less simulator build writes an empty entitlements file, so
      `https://pubmaxxing.com/map?sel=<id>` opens Safari there however correct
@@ -437,8 +439,8 @@ user/plan identity**. Consequences, enforced in code:
      intent filter in `android/app/src/main/AndroidManifest.xml`.
      `lib/nativeDeepLinks.ts` (`NATIVE_URL_SCHEME`) maps
      `pubmaxx://map?sel=<id>` onto the same families as the verified links.
-     It never carries `/auth/callback`, because any app can register a custom
-     scheme. On a rig:
+     The general navigation router rejects custom-scheme authentication.
+     The dedicated iPhone auth consumers are owned by the contracts above. On a rig:
      `xcrun simctl openurl <udid> 'pubmaxx://map?sel=<id>'` and
      `adb shell am start -a android.intent.action.VIEW -d 'pubmaxx://tonight' com.pubmaxx.app`.
 6. **Supabase migration** - apply
