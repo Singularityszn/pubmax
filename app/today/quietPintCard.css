@@ -30,8 +30,9 @@
   height: 34px;
   margin-top: 1px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+  /* The neutral ink disc today.css gives every card icon. */
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  color: var(--ink-soft);
 }
 
 .todayCardEyebrow {
