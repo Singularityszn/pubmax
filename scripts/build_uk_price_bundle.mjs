@@ -82,6 +82,7 @@ const DRINK_UPDATES = path.join(
 );
 const BOUNDARIES = path.join(ROOT, "data/london_boroughs_simplified.json");
 const LONDON_SLIM = path.join(ROOT, "public/data/venues_slim.json");
+const VENUE_ALIASES = path.join(ROOT, "public/data/venue_id_aliases.json");
 const HARVEST_LEDGER_ROWS = path.join(
   ROOT,
   "data-harvest/uk_prices/rows.jsonl",
@@ -254,6 +255,7 @@ function collectRows(report) {
     push,
     report,
     existsSync(BOUNDARIES) ? read(BOUNDARIES) : null,
+    existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
   );
   notes.push(
     harvest.from
@@ -297,7 +299,7 @@ function londonBasePlace(venueId, row, drinkFields, boundaries) {
 }
 
 /** Lane one: the prices a pub's or a chain's own site stated. */
-function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report, boundaries) {
+function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report, boundaries, venueAliases = {}) {
   for (const ledgerRow of harvestRows) {
     const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
@@ -316,7 +318,10 @@ function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report, bound
       row.venueId.startsWith("venue-uk-") &&
       !servedRefs.has(osmRef) &&
       !owners.has(osmRef);
-    const venueId = (osmRef && owners.get(osmRef)) || row.venueId;
+    // A curated id canonicalize:venues merged away resolves to the venue that
+    // kept the pub, so the append-only ledger never has to be rewritten.
+    const ownedId = (osmRef && owners.get(osmRef)) || row.venueId;
+    const venueId = venueAliases[ownedId] ?? ownedId;
     if (leftTheBase || typeof venueId !== "string" || venueId.length === 0) {
       report.droppedUnresolvedVenue += 1;
       continue;

@@ -53,6 +53,7 @@ export default async function SoftDrinksAndWaterPage({ searchParams }: PageProps
         rows={payload.rows}
         observedCounts={payload.observedCounts}
         mcdonalds={payload.mcdonalds}
+        listedPricesUnavailable={payload.listedPricesUnavailable}
       />
     </main>
   );

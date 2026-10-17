@@ -38,6 +38,8 @@ export type DrinkSubtypePricedViewProps = {
   observedCounts: Record<string, number>;
   /** London McDonald's and their community price; the Lucia 🐐 lens only. */
   mcdonalds?: McDonaldsSection | null;
+  /** The listed prices could not be read, so a zero is "could not look", not "none". */
+  listedPricesUnavailable?: boolean;
 };
 
 function publisherRow(
@@ -75,6 +77,7 @@ export default function DrinkSubtypePricedView({
   rows,
   observedCounts,
   mcdonalds = null,
+  listedPricesUnavailable = false,
 }: DrinkSubtypePricedViewProps) {
   const router = useRouter();
   const openedRef = useRef(false);
@@ -97,6 +100,15 @@ export default function DrinkSubtypePricedView({
     log: true,
   });
   const activeLabel = active ? inSentenceLabel(active.longLabel) : "soft drink";
+  const lede = listedPricesUnavailable
+    ? pricedCount === 0
+      ? `Could not read the listed ${activeLabel} prices just now.`
+      : `${pricedCount} pubs with a ${activeLabel} price in London. Could not read the listed prices just now, so this list may be short.`
+    : pricedCount === 0
+      ? `No listed ${activeLabel} prices in London yet.`
+      : active
+        ? `${pricedCount} pubs with a listed ${activeLabel} price in London.`
+        : "Listed soft-drink prices in London.";
 
   return (
     <div className="softDrinksWater">
@@ -106,13 +118,7 @@ export default function DrinkSubtypePricedView({
         kicker="Non-alcoholic"
         title={title}
         titleId="soft-drinks-water-heading"
-        lede={
-          pricedCount === 0
-            ? `No listed ${activeLabel} prices in London yet.`
-            : active
-              ? `${pricedCount} pubs with a listed ${activeLabel} price in London.`
-              : "Listed soft-drink prices in London."
-        }
+        lede={lede}
         primary={<Link prefetch={false} href={mapHref}>Open the map</Link>}
       >
         <div
@@ -143,7 +149,11 @@ export default function DrinkSubtypePricedView({
         </div>
 
         <div className="softDrinksWater__layout">
-          {pricedCount === 0 ? (
+          {pricedCount === 0 && listedPricesUnavailable ? (
+            <EmptyState title="Prices could not load.">
+              Refresh to try again.
+            </EmptyState>
+          ) : pricedCount === 0 ? (
             <EmptyState
               title="Nobody has logged one here yet."
               action={

@@ -9541,6 +9541,70 @@
         "rowCount": 7686,
         "siteHarvestRows": 3176
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/jollycoopers-2026-10-17.json",
+      "sourceEvidenceSha256": "49ee004fd36a18e2ffeb342fe62950ea56189c54628d1dac0eaecf24f07bcbe9",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T13:24:55.632Z",
+      "addedRows": 1,
+      "currentLedger": {
+        "sha256": "e61b156c75d14836dd5a9596b62806f30bc0b2944c475519d0ef8feeae358ebd",
+        "rowCount": 3198,
+        "rowIdentitySetSha256": "1507e4218453429f2f1a7c0659e317a7ba56e41e72065211ff2348b862b00dfb"
+      },
+      "currentBundle": {
+        "rowCount": 7687,
+        "siteHarvestRows": 3177
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/jollycoopers-zero-cans-2026-10-17.json",
+      "sourceEvidenceSha256": "49720148b8fce89715f3c04fceec50828eb72ceb95dff4f37ba396fe60ea8e8f",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T13:24:55.632Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "281970ba87dffb0a24f9a1be7ce38d485aa06c073a7034824b56832bba3b5df2",
+        "rowCount": 3200,
+        "rowIdentitySetSha256": "9f871c92286882f92dd7a2e003513ce2dd63a64d236709c34d10f0b9271b5a43"
+      },
+      "currentBundle": {
+        "rowCount": 7689,
+        "siteHarvestRows": 3179
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/theguardhousewoolwich-2026-10-17.json",
+      "sourceEvidenceSha256": "2ebac9e7fc4ff73db5512eebd808621055c9025035941193bfdc9c302ccc941f",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "sourceObservedAt": "2026-10-17T12:29:05.127Z",
+      "addedRows": 3,
+      "currentLedger": {
+        "sha256": "25eeaa6d5f02822b616bb73a21fbb951a47acf3a3e019be3d53040939d50319a",
+        "rowCount": 3203,
+        "rowIdentitySetSha256": "0dcd11fe00a4cdc19f504f73cb9cc53862016a7cab605b3d36018c043a012405"
+      },
+      "currentBundle": {
+        "rowCount": 7692,
+        "siteHarvestRows": 3182
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-roofeast-com-food-and-drink-roof-east-bars.json",
+      "sourceEvidenceSha256": "0ee9e970e03708c22063f60a3ff7724fdd188655d72bb7033c28241ade79b3f2",
+      "sourceUrl": "https://www.roofeast.com/food-and-drink/roof-east-bars",
+      "sourceObservedAt": "2026-10-17T13:27:10.082Z",
+      "addedRows": 9,
+      "currentLedger": {
+        "sha256": "3a86cda0a30a5a880f9a76b33e771c0c91a5cf1ba4ad4579cc04f38a26cb74c3",
+        "rowCount": 3212,
+        "rowIdentitySetSha256": "81fcd54c454a28cb86aa929e7ebeb8b0f947762bb8598306d0f50abe209178e5"
+      },
+      "currentBundle": {
+        "rowCount": 7701,
+        "siteHarvestRows": 3191
+      }
     }
   ]
 }

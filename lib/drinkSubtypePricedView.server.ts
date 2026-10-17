@@ -27,6 +27,11 @@ export type SoftDrinksWaterViewPayload = {
   observedCounts: Record<string, number>;
   /** London McDonald's and their community price, on the Lucia 🐐 lens only. */
   mcdonalds: LuciaMcDonaldsSection | null;
+  /**
+   * True when the UK price bundle could not be read. The listed prices are
+   * missing, not absent, and the view must not word zero as "nobody has one".
+   */
+  listedPricesUnavailable: boolean;
 };
 
 /**
@@ -63,13 +68,14 @@ export async function loadSoftDrinksWaterView(
   const subtype = findSubtype(subtypeId);
   if (!subtype || subtype.category !== "soft-drink") return null;
 
-  const [venues, drinkUpdates, { byVenue: bundleByVenue }, mcdonalds] = await Promise.all([
+  const [venues, drinkUpdates, bundle, mcdonalds] = await Promise.all([
     loadPintPriceLandingVenues(),
     allDrinkPriceUpdates(),
     ukPriceBundleRowsByVenue(),
     subtype.id === FOOD_PLACE_PRICE_SUBTYPE_ID ? loadLuciaMcDonalds() : Promise.resolve(null),
   ]);
 
+  const bundleByVenue = bundle.byVenue;
   const observedCounts: Record<string, number> = {};
   const countIds = new Set<string>([...SOFT_DRINKS_WATER_LAUNCH_SUBTYPE_IDS, subtype.id]);
   for (const id of countIds) {
@@ -82,5 +88,6 @@ export async function loadSoftDrinksWaterView(
     rows: buildSubtypePricedVenueRows(venues, subtype.id, drinkUpdates, undefined, bundleByVenue),
     observedCounts,
     mcdonalds,
+    listedPricesUnavailable: bundle.status === "unavailable",
   };
 }

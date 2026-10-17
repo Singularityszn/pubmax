@@ -230,6 +230,33 @@ describe("canonicalizeDataset — safety guards", () => {
     });
     expect(canonicalizeDataset(result.rows).aliases).toEqual({});
   });
+  it("joins the Young's 'Guardhouse' seed to the OSM 'Guard House' it duplicates", () => {
+    // Both rows as committed in public/data/pint_prices_app_dataset.json.
+    const osm = makeRow({
+      pub_name: "The Guard House",
+      address: "No 1 Street, London, SE18 6GH",
+      latitude: 51.4918809, longitude: 0.0691701, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    const seed = makeRow({
+      pub_name: "The Guardhouse",
+      address: "No 1 Street, Plumstead, SE18 6GH, London",
+      latitude: 51.49188, longitude: 0.06917, price_gbp: null,
+      source_datasets: "london_chain_gazetteer_seed",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-9e93hd");
+    expect(stableVenueIdFromKey(venueGroupingKey(seed))).toBe("venue-kkpnq8");
+    const result = canonicalizeDataset([seed, osm]);
+    expect(result.aliases).toEqual({ "venue-kkpnq8": "venue-9e93hd" });
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-9e93hd"]);
+    // The alias is for that pair only: the same spelling gap elsewhere stays two pubs.
+    const elsewhere = canonicalizeDataset([
+      { ...seed, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+      { ...osm, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
   it("does NOT merge same-named pubs with conflicting postcodes (bad coords)", () => {
     // Two "Coach & Horses" mis-geocoded within 100 m but in different postcode
     // areas (Soho W1D vs Rickmansworth WD3) — genuinely distinct pubs.
