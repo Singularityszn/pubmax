@@ -8,7 +8,6 @@ import ReviewStars from "@/components/social/ReviewStars";
 import { authedFetch } from "@/lib/authedFetch";
 import type { SocialLotRankingEntry, SocialPubRankingEntry as StarEntry } from "@/lib/socialPostReviews";
 import { SOCIAL_PUB_BAND_LABEL, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
-import { venueMapUrl } from "@/lib/venueMapUrl";
 
 const SHOWN = 5;
 
@@ -111,7 +110,7 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
             <li key={row.venueId}>
               <span className="pubRanking__place" aria-hidden="true">{index + 1}</span>
               <span className="pubRanking__what">
-                <Link prefetch={false} href={venueMapUrl(row.venueId)} className="pubRanking__name">
+                <Link prefetch={false} href={`/pubs/${encodeURIComponent(row.venueId)}`} className="pubRanking__name">
                   {row.venueName ?? "A pub you ranked"}
                 </Link>
                 {row.note ? <span className="pubRanking__note">{row.note}</span> : null}

@@ -2,6 +2,8 @@ import { Star, StarHalf } from "lucide-react";
 
 import { formatSocialReviewRating, socialReviewStars } from "@/lib/socialPostReviews";
 
+import "./reviewStars.css";
+
 /**
  * A person's own score for a pub, as five stars and the figure. The stars are
  * decoration; the label carries the score for a screen reader.

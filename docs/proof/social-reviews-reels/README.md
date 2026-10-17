@@ -42,3 +42,20 @@ Added with "which did you prefer?":
 Measured in that run: with four pubs in Loved it, placing The Black Friar
 between The Lamb and The Crown & Anchor took two questions and landed #3 of
 five; the dialog closed and the panel re-read the order.
+
+Added with the pub page (`/pubs/[id]`), on the real record for the Greyhound,
+Kensington (`venue-10jffb0`), with `/api/social/pub-reviews` and
+`/api/social/rankings` answered by route doubles. The chain photo reads "No
+photo yet" only because the capture sandbox cannot reach the chain's image
+host through `/api/image-proxy`.
+
+| File | What it shows |
+| --- | --- |
+| `pub-page-phone-light.webp` | The whole page on a phone: Book a table as the one filled action, pints and prices, hours, what's here, the story, photos and visits. |
+| `pub-page-desk-dark.webp` | Desktop, dark: the same page with "Your lot on Greyhound", 4.3 from three friends, and their posts. |
+| `pub-rank-done-light.webp` | Rank it from the pub page: placed #2 at 8.4 in Loved it, and the action now reads "Ranked #2". |
+
+Measured in that run: the lot section rendered three reviews only after the
+session answered signed in; Rank it opened on this pub's band question,
+placed it in two answers, and the page's action changed to "Ranked #2". An
+unknown id answers 404.

@@ -19,6 +19,8 @@ import {
 } from "@/lib/socialPubRankings";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
+import "./comparePub.css";
+
 type Venue = { id: string; name: string; borough?: string };
 type Step = "pick" | "band" | "compare" | "saving" | "done";
 
