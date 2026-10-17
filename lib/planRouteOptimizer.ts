@@ -73,6 +73,12 @@ export type GroundedPlanRouteConstraints = {
   now: number;
   /** Requested number of pub stops. Missing means the original 3-stop default. */
   stopCount?: number;
+  /**
+   * Street kilometres between two candidates, or null to keep the straight
+   * line for that leg. The server passes lib/pubWalkPairs; a caller without
+   * it measures every leg along the straight line, as before.
+   */
+  streetWalkKm?: (fromVenueId: string, toVenueId: string) => number | null;
 };
 
 export type SelectedGroundedPlanStop<T> = GroundedPlanRouteCandidate<T> & {
@@ -100,18 +106,31 @@ function distanceKm<T>(left: GroundedPlanRouteCandidate<T>, right: GroundedPlanR
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+// The leg the walker actually walks: the street walk where the table holds
+// the pair, else the straight line. The leg and route caps and the visit
+// windows read this; straightLineWalkingKm stays the straight line it says.
+function walkKm<T>(
+  left: GroundedPlanRouteCandidate<T>,
+  right: GroundedPlanRouteCandidate<T>,
+  constraints: Pick<GroundedPlanRouteConstraints, "streetWalkKm">,
+): number {
+  return constraints.streetWalkKm?.(left.venueId, right.venueId) ?? distanceKm(left, right);
+}
+
 function legWalkingMinutes(km: number): number {
   return Math.ceil((km / PLAN_WALKING_KMH) * 60);
 }
 
 function routeTiming<T>(
   route: readonly GroundedPlanRouteCandidate<T>[],
-  routeWindow: GroundedPlanRouteConstraints["routeWindow"],
+  constraints: Pick<GroundedPlanRouteConstraints, "routeWindow" | "streetWalkKm">,
 ): PlanRouteTiming | null {
   if (route.length < MIN_PLAN_STOP_COUNT || route.length > MAX_PLAN_STOP_COUNT) return null;
-  const legs = route.slice(1).map((candidate, index) => distanceKm(route[index]!, candidate));
-  const distance = legs.reduce((total, km) => total + km, 0);
-  if (legs.some((km) => km > MAX_PLAN_ROUTE_SEGMENT_KM) || distance > MAX_PLAN_ROUTE_WALKING_KM) return null;
+  const routeWindow = constraints.routeWindow;
+  const legs = route.slice(1).map((candidate, index) => walkKm(route[index]!, candidate, constraints));
+  const walked = legs.reduce((total, km) => total + km, 0);
+  if (legs.some((km) => km > MAX_PLAN_ROUTE_SEGMENT_KM) || walked > MAX_PLAN_ROUTE_WALKING_KM) return null;
+  const distance = route.slice(1).reduce((total, candidate, index) => total + distanceKm(route[index]!, candidate), 0);
   const walkingMinutes = legs.reduce((total, km) => total + legWalkingMinutes(km), 0);
   const uncertainty = PLAN_TRANSFER_UNCERTAINTY_MINUTES * legs.length;
   const scheduledRouteMinutes = PLAN_STOP_MINUTES * route.length + walkingMinutes + uncertainty;
@@ -162,7 +181,7 @@ function evaluateRoute<T>(
     if (!route.every((candidate) => priceEvidenceUsableForCeiling(candidate.price))) return null;
     if (route.reduce((total, candidate) => total + candidate.price.pence!, 0) > constraints.budgetLimitPence) return null;
   }
-  const timing = routeTiming(route, constraints.routeWindow);
+  const timing = routeTiming(route, constraints);
   if (!timing) return null;
   const visits = timing.visitWindows;
   if (!route.every((candidate, position) => constraints.accessibilityNeeds.every((need) =>
@@ -377,7 +396,7 @@ function partialRouteAllowed<T>(
   }
   let distance = 0;
   for (let index = 1; index < route.length; index += 1) {
-    const leg = distanceKm(route[index - 1]!, route[index]!);
+    const leg = walkKm(route[index - 1]!, route[index]!, constraints);
     if (leg > MAX_PLAN_ROUTE_SEGMENT_KM) return false;
     distance += leg;
   }
@@ -401,7 +420,7 @@ function beamBestRoute<T>(
         if (!partialRouteAllowed(route, constraints)) continue;
         let distance = 0;
         for (let index = 1; index < route.length; index += 1) {
-          distance += distanceKm(route[index - 1]!, route[index]!);
+          distance += walkKm(route[index - 1]!, route[index]!, constraints);
         }
         next.push({
           route,

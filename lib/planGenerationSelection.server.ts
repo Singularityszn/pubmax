@@ -25,6 +25,7 @@ import {
   type GroundedPlanRouteSelection,
   type SelectedGroundedPlanStop,
 } from "@/lib/planRouteOptimizer";
+import { pubStreetWalkKm } from "@/lib/pubWalkPairs.server";
 
 export type ScoredPlanCandidate = {
   venue: ConciergeVenue;
@@ -119,6 +120,7 @@ function groundedConstraints(
     transportConstraints: context.transportConstraints,
     routeWindow: intake?.routeWindow ?? null,
     now,
+    streetWalkKm: pubStreetWalkKm,
   };
 }
 
