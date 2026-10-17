@@ -41,12 +41,27 @@ export function planMemberCookieCapability(
   }
 }
 
+/**
+ * How long the member cookie outlives the process that set it (#1540).
+ *
+ * A cookie with no Max-Age is a SESSION cookie, and a native WebView drops
+ * every session cookie when its process dies. A host who made a Plan and then
+ * cold-started the app on its link (a notification, a message, the App Link)
+ * arrived with no capability, and a signed-out host has no other lane back:
+ * the account recovery PATCH needs a session. The page then showed the host
+ * the invitee teaser on their own plan. Thirty days covers the 14-day start
+ * horizon (`lib/planGenerationIntake.ts`), the night and the recap after it,
+ * and matches the auth resume cookie, which carries more authority than this.
+ * The cookie stays HttpOnly and path-scoped to this Plan's API.
+ */
+export const PLAN_MEMBER_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+
 /** Attach a path-scoped, script-inaccessible recovery session to create/join. */
 export function attachPlanMemberSession(response: Response, request: Request, planId: string, token: string): Response {
   const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
   response.headers.append(
     "Set-Cookie",
-    `${planMemberCookieName(planId)}=${encodeURIComponent(token)}; Path=/api/plans/${planId}; HttpOnly; SameSite=Lax${secure}`,
+    `${planMemberCookieName(planId)}=${encodeURIComponent(token)}; Path=/api/plans/${planId}; HttpOnly; SameSite=Lax; Max-Age=${PLAN_MEMBER_SESSION_MAX_AGE_SECONDS}${secure}`,
   );
   return response;
 }

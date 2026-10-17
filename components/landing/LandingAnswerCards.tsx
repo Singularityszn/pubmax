@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import type { LandingAnswers } from "@/lib/landingAnswers";
@@ -19,12 +20,18 @@ export default function LandingAnswerCards({ answers }: { answers: LandingAnswer
 
       <div className="lpAnswersGrid">
         <Link prefetch={false} href="/today" className="lpAnswerTile">
-          <span className="lpAnswerTileHead">What&rsquo;s on today</span>
+          <span className="lpAnswerTileHead">
+            What&rsquo;s on today
+            <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
+          </span>
           <span className="lpAnswerTileLine">{answers.today.line}</span>
           <span className="lpAnswerTileStamp">{answers.today.stamp}</span>
         </Link>
         <Link prefetch={false} href="/tonight" className="lpAnswerTile">
-          <span className="lpAnswerTileHead">What&rsquo;s on tonight</span>
+          <span className="lpAnswerTileHead">
+            What&rsquo;s on tonight
+            <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
+          </span>
           <span className="lpAnswerTileLine">{answers.tonight.line}</span>
           <span className="lpAnswerTileStamp">{answers.tonight.stamp}</span>
         </Link>

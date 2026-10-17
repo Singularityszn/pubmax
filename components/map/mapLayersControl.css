@@ -56,10 +56,13 @@
   --shared-press-scale: 1;
 }
 
+/* Open is a state, not an action: it reads in ink. As a coral fill it became a
+   second painted primary beside the toolbar's Plan, outside the three places
+   the map keeps coral (__tests__/mapCoralEconomy.test.ts). */
 .mapLayersFab.isActive {
-  background: var(--color-accent);
-  color: var(--color-on-accent-strong);
-  border-color: transparent;
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  border-color: var(--state-selected-border);
 }
 
 .mapLayersFab:focus-visible {
@@ -116,10 +119,19 @@
   height: 44px;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+  /* A quiet way out, like every other close on the map: it rested on a coral
+     wash, which read as the panel's action. */
+  background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
   touch-action: manipulation;
+}
+
+@media (hover: hover) {
+  .mapLayersClose:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
 }
 
 .mapLayersHint {
