@@ -19,8 +19,11 @@ export type OutQuery = {
  * `status` is the reader-visible fact and the whole of it. The upstream error
  * text stays in the server log: this body is public and CDN-cacheable, and an
  * upstream diagnostic string is not something a stranger is owed.
+ *
+ * `deferred` is a configured lane this answer did not ask, because the browser
+ * read of /api/out asks it. It is never not-configured: the key is there.
  */
-type OutProviderStatus = "ready" | "degraded" | "not-configured";
+type OutProviderStatus = "ready" | "degraded" | "not-configured" | "deferred";
 
 export type OutProviderReport = {
   name: string;

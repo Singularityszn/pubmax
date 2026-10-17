@@ -55,7 +55,13 @@ export default async function OutPage({
   const request = new Request("https://pubmaxxing.com/out", { headers: await headers() });
   try {
     if (!(await isOutLimited(request))) {
-      body = await buildOutResponse({ city: DEFAULT_CITY_ID, day: apiDay }, { now: servedAt });
+      // The document holds the bundled and served listings and never waits on a
+      // live provider. Its seed is never ready while a configured lane is
+      // unasked, so the browser reads /api/out for the full answer.
+      body = await buildOutResponse(
+        { city: DEFAULT_CITY_ID, day: apiDay },
+        { now: servedAt, deferLiveProviders: true },
+      );
     }
   } catch {
     // A failed public read is distinct from a day with no listings.

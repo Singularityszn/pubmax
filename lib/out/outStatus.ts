@@ -50,10 +50,10 @@ export type OutEmptyWay = "map" | "retry";
 /**
  * What the surface may show for the day currently on screen.
  *
- * An answer is held WITH the day it is about, and there is no answer at all
- * until the first read lands. Both cases are PENDING: the previous day's cards
- * may not render under a newly pressed chip, and a reader opening the page must
- * not meet the heading and the day chips over a blank area either.
+ * A held answer, including a server seed, belongs to one day. Without a matching
+ * answer, the view is pending until a read settles. The previous day's cards
+ * must not appear under a new day chip. A pending view needs a loading state
+ * beneath the heading and day chips.
  */
 export function outAnswerView<T>(
   held: { day: string; body: T | null; failed: boolean } | null,

@@ -1,8 +1,10 @@
 // Per-IP rate limiting for the public Out listing surface (/out and /api/out).
 //
-// Both entries can reach event providers on a cache miss. The API also reads
-// open plans through a Postgres RPC. An unauthenticated caller
-// must not drive unbounded outbound fan-out. It gets its OWN key/budget:
+// The document reads the served listings store and never asks a live provider.
+// The API reads the same store, asks the live event providers on a cache miss
+// and reads open plans through a Postgres RPC. Both entries spend ONE shared
+// budget, so an unauthenticated caller cannot double its reads by switching
+// between them or drive unbounded outbound fan-out. Out gets its OWN key/budget:
 // /api/events/tonight (lib/eventsLiveRateLimit.ts) is a different surface
 // talking to a different upstream, and sharing a budget means one hammered
 // surface exhausts the other for the same IP.
