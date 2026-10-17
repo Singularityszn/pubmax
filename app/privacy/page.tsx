@@ -737,7 +737,8 @@ export default function PrivacyPage() {
               go back to or rated, what you drink, what you usually pay for a
               pint, the vibes you tag and the pubs you saved. Our server keeps
               that read in memory for two minutes at most and never writes it
-              to a database. Nothing else about you
+              to a database. Turn the taste read off on your Pal&rsquo;s page
+              and none of your logs are read for it. Nothing else about you
               goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that

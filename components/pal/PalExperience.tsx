@@ -13,6 +13,7 @@ import {
   MapPinned,
   Mic,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Volume2,
   VolumeX,
@@ -30,6 +31,7 @@ import {
   PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
+  palTasteAllowed,
   readPalOnboardingDraft,
   subscribePalOnboardingDraft,
   writePalOnboardingDraft,
@@ -197,6 +199,27 @@ function ChoiceButton({
       <span>{title}</span>
       {note && <small>{note}</small>}
       {selected && <Check size={17} aria-hidden="true" />}
+    </button>
+  );
+}
+
+/** The taste-read opt-out. On means the Pal may read the owner's own logs. */
+function PalTasteToggle({
+  on,
+  disabled,
+  onToggle,
+}: {
+  on: boolean;
+  disabled: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <button type="button" disabled={disabled} onClick={() => onToggle(!on)} aria-pressed={on}>
+      <Sparkles />
+      <span>
+        <strong>Taste read {on ? "on" : "off"}</strong>
+        <small>{on ? "Picks lean on the pubs and pints you log" : "Pal won't read your diary, drops or saves"}</small>
+      </span>
     </button>
   );
 }
@@ -589,7 +612,7 @@ export default function PalExperience() {
     }
   };
 
-  const updateProposalPreference = async (kind: "memories" | "routes", enabled: boolean) => {
+  const updateProposalPreference = async (kind: "memories" | "routes" | "taste", enabled: boolean) => {
     if (!pal || controlSavingRef.current || palMutationRef.current) return;
     const ownerId = pal.ownerId;
     const lock = { ownerId, requestId: ++controlRequestIdRef.current };
@@ -777,6 +800,7 @@ export default function PalExperience() {
   if (mode === "home" && pal && user && pal.ownerId === user.id) {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
     const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
+    const controlsLocked = controlSaving || saving;
     return (
       <main id="main" className="palExperience palHome">
         <div className="palTopbar">
@@ -802,23 +826,24 @@ export default function PalExperience() {
             <p>Your Pal only talks when you ask. It only remembers facts you&apos;ve approved.</p>
           </div>
           <div className="palControlGrid">
-            <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ muted: !pal.muted })} aria-pressed={pal.muted}>
+            <button type="button" disabled={controlsLocked} onClick={() => void updateControl({ muted: !pal.muted })} aria-pressed={pal.muted}>
               {pal.muted ? <VolumeX /> : <Volume2 />}
               <span><strong>{pal.muted ? "Muted" : "Voice allowed"}</strong><small>{pal.muted ? "Tap to allow voice" : "Tap to mute everywhere"}</small></span>
             </button>
-            <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ hidden: !pal.hidden })} aria-pressed={pal.hidden}>
+            <button type="button" disabled={controlsLocked} onClick={() => void updateControl({ hidden: !pal.hidden })} aria-pressed={pal.hidden}>
               {pal.hidden ? <EyeOff /> : <Eye />}
               <span><strong>{pal.hidden ? "Hidden" : "Visible"}</strong><small>{pal.hidden ? "Pal shortcuts are off" : "Pal can appear in shortcuts"}</small></span>
             </button>
-            <button type="button" disabled={controlSaving || saving} onClick={() => void updateProposalPreference("memories", !proposalPreferences.memories)} aria-pressed={proposalPreferences.memories}>
+            <button type="button" disabled={controlsLocked} onClick={() => void updateProposalPreference("memories", !proposalPreferences.memories)} aria-pressed={proposalPreferences.memories}>
               <ShieldCheck />
               <span><strong>Memory proposals {proposalPreferences.memories ? "on" : "off"}</strong><small>{proposalPreferences.memories ? "Every suggestion still needs your approval" : "Pal won't suggest facts to remember"}</small></span>
             </button>
-            <button type="button" disabled={controlSaving || saving} onClick={() => void updateProposalPreference("routes", !proposalPreferences.routes)} aria-pressed={proposalPreferences.routes}>
+            <button type="button" disabled={controlsLocked} onClick={() => void updateProposalPreference("routes", !proposalPreferences.routes)} aria-pressed={proposalPreferences.routes}>
               <MapPinned />
               <span><strong>Route proposals {proposalPreferences.routes ? "on" : "off"}</strong><small>{proposalPreferences.routes ? "Only suggests. You confirm every change" : "Pal won't suggest route changes"}</small></span>
             </button>
-            <button className="palDanger" type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>
+            <PalTasteToggle on={palTasteAllowed(proposalPreferences)} disabled={controlsLocked} onToggle={(next) => void updateProposalPreference("taste", next)} />
+            <button className="palDanger" type="button" disabled={controlsLocked} onClick={() => void removePal()}>
               <Trash2 />
               <span><strong>Delete {pal.name}</strong><small>Deletes the Pal and every confirmed memory</small></span>
             </button>

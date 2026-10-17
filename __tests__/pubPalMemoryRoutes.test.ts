@@ -38,12 +38,27 @@ describe("Pub Pal memory ownership HTTP contract", () => {
 
   it("persists proposal preferences and lets the owner disable either proposal channel", async () => {
     const pal = await createPal();
-    expect(pal.proposalPreferences).toEqual({ memories: true, routes: false });
+    // The taste read is opt-out, so a Pal created without the key has it on.
+    expect(pal.proposalPreferences).toEqual({ memories: true, routes: false, taste: true });
     const response = await PATCH_PAL(auth("/api/pub-pal", {
       proposalPreferences: { memories: false, routes: true },
     }, "pal-owner", "PATCH"));
     expect(response.status).toBe(200);
-    expect((await response.json()).pal.proposalPreferences).toEqual({ memories: false, routes: true });
+    expect((await response.json()).pal.proposalPreferences).toEqual({ memories: false, routes: true, taste: true });
+  });
+
+  it("lets the owner turn the taste read off and keeps it off across other changes", async () => {
+    await createPal();
+    const off = await PATCH_PAL(auth("/api/pub-pal", {
+      proposalPreferences: { memories: true, routes: false, taste: false },
+    }, "pal-owner", "PATCH"));
+    expect(off.status).toBe(200);
+    expect((await off.json()).pal.proposalPreferences).toEqual({ memories: true, routes: false, taste: false });
+
+    const other = await PATCH_PAL(auth("/api/pub-pal", {
+      proposalPreferences: { memories: false },
+    }, "pal-owner", "PATCH"));
+    expect((await other.json()).pal.proposalPreferences).toEqual({ memories: false, routes: false, taste: false });
   });
 
   it("corrects, exports, and explicitly deletes only the owner's confirmed memory", async () => {
