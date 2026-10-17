@@ -11,6 +11,7 @@ import { MapPin } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { ZONE_IDS, parseZoneParam, type ZonePintIndex } from "@/lib/zones";
 
 import "./zonePicker.css";
@@ -76,8 +77,13 @@ export default function ZonePicker({
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useDismissOnEscape(open && variant === "toolbar", () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, rootRef);
 
-  // Close the toolbar popover on outside click / Escape.
+  // Close the toolbar popover on outside click.
   useEffect(() => {
     if (variant !== "toolbar" || !open) return;
     function onDown(event: MouseEvent) {
@@ -85,18 +91,9 @@ export default function ZonePicker({
         setOpen(false);
       }
     }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        // Claim the key so the map-level Escape (close drawer) doesn't also fire.
-        event.preventDefault();
-        setOpen(false);
-      }
-    }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
     };
   }, [open, variant]);
 
@@ -125,6 +122,7 @@ export default function ZonePicker({
     <div className="zonePicker" ref={rootRef}>
       <button
         type="button"
+        ref={triggerRef}
         className={open || active !== null ? "zonePickerBtn isActive" : "zonePickerBtn"}
         aria-pressed={active !== null}
         aria-expanded={open}

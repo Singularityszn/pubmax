@@ -23,6 +23,7 @@ import {
   primaryNavLabel,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import {
   themeSwitchLabel,
   toggleThemeChoice,
@@ -221,6 +222,7 @@ export default function SiteNav({
 
   return (
     <nav
+      {...(isMap ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : {})}
       className={isMap ? "siteNavBar siteNavBarFloating" : "siteNavBar"}
       role="navigation"
       aria-label="Site navigation"
