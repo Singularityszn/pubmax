@@ -1,22 +1,22 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-17T13:57:54.435Z",
+  "generatedAt": "2026-10-17T14:16:33.028Z",
   "rowsPath": "/data/uk_prices/rows.json",
   "counts": {
-    "rows": 7701,
-    "venues": 3235,
+    "rows": 7731,
+    "venues": 3238,
     "byStanding": {
       "estimate": 2950,
-      "listed": 4751
+      "listed": 4781
     },
     "byLane": {
       "estimate": 2950,
-      "site-harvest": 3191,
+      "site-harvest": 3221,
       "drink-price-update": 1560
     }
   },
   "notes": [
-    "site-harvest: 3212 row(s) read from data/uk_prices/site_harvest.jsonl",
+    "site-harvest: 3242 row(s) read from data/uk_prices/site_harvest.jsonl",
     "drink-price-update: 1563 row(s) considered",
     "estimate: 38122 UK pub(s) offered to the engine, 35168 with no basis",
     "dropped: 0 on a host refused on permission, 3 demo fixture(s), 2 with no resolvable venue, 0 failing the row shape, 19 evidenced category contradiction(s)"

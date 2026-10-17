@@ -9605,6 +9605,102 @@
         "rowCount": 7701,
         "siteHarvestRows": 3191
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-deliciobexleyheath-co-uk-home-menu.json",
+      "sourceEvidenceSha256": "54ad8a9898964b452fea47b185522fc1257e188b7fa8ba4034f7e383dec109bf",
+      "sourceUrl": "https://www.deliciobexleyheath.co.uk/Home/Menu",
+      "sourceObservedAt": "2026-10-17T13:47:45.718Z",
+      "addedRows": 12,
+      "currentLedger": {
+        "sha256": "8bb039a52823d83be62b9a8a68366c0f141c4f95ca206dd71738bbae688a6daa",
+        "rowCount": 3224,
+        "rowIdentitySetSha256": "ca34d0151a192edb1b4136e6bc7cd359a1464d72a960636df1666096e66dca63"
+      },
+      "currentBundle": {
+        "rowCount": 7713,
+        "siteHarvestRows": 3203
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-harrys-co-uk-pdf-a-la-cart-menu-pdf.json",
+      "sourceEvidenceSha256": "44708759e11d51e8eaf4efa28ae24aa3ee8ea918b6fbac0dbe77a2d7aeee53ee",
+      "sourceUrl": "http://harrys.co.uk/pdf/a_la_cart_menu.pdf",
+      "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "8bcf619e088b0b4f55ceb5fc04d95d1e0e98fa5e74131741226b273c273493ab",
+        "rowCount": 3226,
+        "rowIdentitySetSha256": "e241e8f4177d590b0f67354759f5f0213622932e453baedd946ce1a09632e7ec"
+      },
+      "currentBundle": {
+        "rowCount": 7715,
+        "siteHarvestRows": 3205
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-harrys-co-uk-pdf-drinks-menu-pdf.json",
+      "sourceEvidenceSha256": "c2c0e1b90bad7736c9263a66a1fb8c16d1cad3a62000624c27a06c7a2bcf9512",
+      "sourceUrl": "http://harrys.co.uk/pdf/drinks_menu.pdf",
+      "sourceObservedAt": "2026-10-17T13:52:05.594Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "055af734548241b2d5ef625325e7be9e3fecb2a658d858b414ad5740d7e8e549",
+        "rowCount": 3228,
+        "rowIdentitySetSha256": "5432b933e27415fbef24fc4dddf6ca533b5d841ace778dab23b9c9eb5ab1d56f"
+      },
+      "currentBundle": {
+        "rowCount": 7717,
+        "siteHarvestRows": 3207
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-tapelia-co-uk-menu2025.json",
+      "sourceEvidenceSha256": "b578f84cdded3da65dc4d4c10520c4f19e1a93358285cf7db2001a034bcec361",
+      "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+      "sourceObservedAt": "2026-10-17T13:54:39.220Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "424a3538dbda639abf93530714c6d871b77828ab5d222854d4fb7730f8f18be0",
+        "rowCount": 3232,
+        "rowIdentitySetSha256": "91c57cc5238f09e1c1d08f9746860683c27a629b4564fe3767b333eb14944b6e"
+      },
+      "currentBundle": {
+        "rowCount": 7721,
+        "siteHarvestRows": 3211
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-thenorthcote-co-uk-menus.json",
+      "sourceEvidenceSha256": "281f34db41037b9a4b862196aae8d97ea571318457948015aa9d29a914fa6451",
+      "sourceUrl": "https://www.thenorthcote.co.uk/menus",
+      "sourceObservedAt": "2026-10-17T14:03:47.079Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "ef5a69ad55fc9b5ea88eab80a1555cc60742c52d2f824cad8ef82e5fd7dbe8c9",
+        "rowCount": 3240,
+        "rowIdentitySetSha256": "3a60984a52de5724c0dea4f6729b67671f35bb724f19e76105575e122fac08d8"
+      },
+      "currentBundle": {
+        "rowCount": 7729,
+        "siteHarvestRows": 3219
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-tattoo-bar-co-uk-menu.json",
+      "sourceEvidenceSha256": "d2b394f116306aff51a7bd807975ba6b3f83089e3b11d53d492687a6189bc684",
+      "sourceUrl": "https://tattoo-bar.co.uk/menu",
+      "sourceObservedAt": "2026-10-17T14:11:25.414Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "388a8b864c47d58985e4292de38d920001a48798e91a71b5b846d91fa595bcf3",
+        "rowCount": 3242,
+        "rowIdentitySetSha256": "c95a848f2360cf94483aab1e5623d9e1d9f9d16af3e4ebb75d94f817da2be5d0"
+      },
+      "currentBundle": {
+        "rowCount": 7731,
+        "siteHarvestRows": 3221
+      }
     }
   ]
 }
