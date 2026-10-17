@@ -102,6 +102,8 @@ URL in [`data/uk_prices/later_publications/`](../../../data/uk_prices/later_publ
 named by date and URL. Each file names the `harvest:uk-prices` command that read
 the page and holds the soft-drink rows whose ledger key was new. It also lists
 the rows withheld under a reviewed withdrawal reason.
+The Roof East file also quotes the page lines it priced (`pageText`); its
+host joined the lane as a curated London venue's own stated website.
 Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 

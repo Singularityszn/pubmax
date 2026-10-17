@@ -9589,6 +9589,22 @@
         "rowCount": 7692,
         "siteHarvestRows": 3182
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-17-roofeast-com-food-and-drink-roof-east-bars.json",
+      "sourceEvidenceSha256": "0ee9e970e03708c22063f60a3ff7724fdd188655d72bb7033c28241ade79b3f2",
+      "sourceUrl": "https://www.roofeast.com/food-and-drink/roof-east-bars",
+      "sourceObservedAt": "2026-10-17T13:27:10.082Z",
+      "addedRows": 9,
+      "currentLedger": {
+        "sha256": "3a86cda0a30a5a880f9a76b33e771c0c91a5cf1ba4ad4579cc04f38a26cb74c3",
+        "rowCount": 3212,
+        "rowIdentitySetSha256": "81fcd54c454a28cb86aa929e7ebeb8b0f947762bb8598306d0f50abe209178e5"
+      },
+      "currentBundle": {
+        "rowCount": 7701,
+        "siteHarvestRows": 3191
+      }
     }
   ]
 }
