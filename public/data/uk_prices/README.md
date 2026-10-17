@@ -34,6 +34,13 @@ printed drink name (`scripts/build_uk_price_bundle.mjs` via `lib/bundleDrinkFiel
 When a lane only states a category, both fields stay absent. `drinkSubtype` is
 never guessed without a label that classifies.
 
+`lat`, `lng` and `londonBorough` are optional and come together. Only a listed
+`venue-uk-` row with a `drinkSubtype` carries them, stamped from the ledger
+row's own point, and only when that point lies in a London borough. A base pub
+has no curated record to place it, so this is how a London subtype view (the
+Lucia 🐐 lens on `/soft-drinks-and-water`) can rank it beside curated pubs. The
+builder never places a curated row, and never places a pub outside London.
+
 `servingSize` is optional source-stated serving text on listed rows, carried
 through from the producing lane. An absent field means unknown size. `Btl`
 records a bottle label without inventing its volume. The builder and runtime
@@ -90,6 +97,20 @@ prefix. Each entry identifies its source evidence file and hash, source URL,
 observation time, added rows, and resulting ledger hashes and bundle counts.
 The Thirsty Bear's retained evidence is in
 [`accepted-prices.json`](../../../data/enrichment/firecrawl/london/accepted-prices.json).
+The 2026-10-17 London named-soft-drink re-read has one evidence file per source
+URL in [`data/uk_prices/later_publications/`](../../../data/uk_prices/later_publications/),
+named by date and URL. Each file names the `harvest:uk-prices` command that read
+the page and holds the soft-drink rows whose ledger key was new. It also lists
+the rows withheld under a reviewed withdrawal reason.
+The Roof East file also quotes the page lines it priced (`pageText`); its
+host joined the lane as a curated London venue's own stated website.
+The curated-website sweep files (Delicio, Harry's Bar, Tapelia, The Northcote,
+Tattoo Bar) also list `notSelected` rows: a label that names no drink, or a
+mixer flavour from a mixer list, which were not published.
+The `-beer-wine` files and the Bunch of Grapes, Curtains Up and Frederick's
+files hold the same sweep's beer and wine rows; a beer the page lists as a
+bottle, can or alcohol-free serve is left out so it cannot read as the pub's
+draught price.
 Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 
@@ -103,6 +124,11 @@ Before keying or publication, `normalizeSiteHarvestLedgerRow` in
 `lib/siteHarvestLedgerCore.ts` splits a trailing wine measure from a legacy name
 when no serving field exists. "Merlot 175ml" and "Merlot" with `175ml` therefore
 share a key; this does not change the observation date.
+It first drops a leading Markdown heading mark (`#` to `######`) from a name.
+That fixes the 284 Greene King rows from the 2026-09-21 rendered read, written
+before the reader treated Markdown as layout. "## Margarita" publishes as
+"Margarita". The ledger lines stay as written, because the reconciliation's
+fingerprints cover them.
 
 The crawl's own findings, including everything it read and found nothing on,
 are in `data/uk_prices/harvest_report.json` and

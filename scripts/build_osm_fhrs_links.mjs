@@ -15,6 +15,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RAW_DIR = path.join(ROOT, "data", "osm", "uk", "raw");
 const CHUNKS_PATH = path.join(ROOT, "data", "osm", "uk", "chunks.json");
 const SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const ALIASES_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "osm_fhrs", "london.json");
 
 async function main() {
@@ -23,7 +24,8 @@ async function main() {
   const manifest = JSON.parse(await readFile(CHUNKS_PATH, "utf8"));
   const seed = JSON.parse(await readFile(SEED_PATH, "utf8"));
   if (typeof manifest.generatedAt !== "string") throw new Error(`${CHUNKS_PATH} carries no generatedAt`);
-  const pack = buildOsmFhrsLinks({ chunks, seedPubs: seed.pubs, fetchedAt: manifest.generatedAt });
+  const venueAliases = JSON.parse(await readFile(ALIASES_PATH, "utf8")).aliases ?? {};
+  const pack = buildOsmFhrsLinks({ chunks, seedPubs: seed.pubs, fetchedAt: manifest.generatedAt, venueAliases });
   console.log(JSON.stringify(pack.counts));
   if (process.argv.includes("--dry-run")) return;
   // One link per line keeps the diff of a refresh readable.

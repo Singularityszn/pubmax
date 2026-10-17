@@ -255,7 +255,10 @@ describe.each([
     aliases.fail = false;
     const resolved = await render(page, defined(mergedId));
     expect(resolved).not.toContain("We could not load this pub");
-    expect(resolved).toContain(mergedCanonical.name);
+    // Compared as React writes it, so a name with an apostrophe still matches.
+    expect(resolved).toContain(
+      mergedCanonical.name.replace(/&/g, "&amp;").replace(/'/g, "&#x27;").replace(/"/g, "&quot;"),
+    );
   });
 });
 

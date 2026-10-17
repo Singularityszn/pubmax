@@ -2,110 +2,471 @@
   "version": 1,
   "generatedBy": "scripts/canonicalize_venue_dataset.mjs",
   "note": "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
-  "aliasCount": 93,
+  "aliasCount": 124,
   "aliases": {
-    "venue-j71x23": "venue-1eyb3zz",
-    "venue-1sw9ofl": "venue-eltcmh",
+    "venue-1r0yf7r": "venue-s68ndf",
+    "venue-1gnufko": "venue-16xmzi7",
+    "venue-13wpw9e": "venue-gv8lwa",
+    "venue-4lt7c6": "venue-c0r9ym",
+    "venue-1hq7rkl": "venue-1yiyopd",
+    "venue-1hd5y0u": "venue-18x41hr",
+    "venue-1pzhx7d": "venue-qw9l0q",
+    "venue-jlqlve": "venue-hvsgg4",
+    "venue-172mx8n": "venue-168ndjw",
+    "venue-oyallt": "venue-cgh71l",
+    "venue-ydvsco": "venue-6bh8l6",
+    "venue-ttu2zy": "venue-l6qdob",
+    "venue-9otpi8": "venue-x49k8g",
+    "venue-w1qzhg": "venue-13z79s7",
+    "venue-bb2v2w": "venue-1xmac",
+    "venue-67akji": "venue-pzbwmw",
+    "venue-6hsjmi": "venue-1b9434y",
+    "venue-g295gw": "venue-698bu3",
+    "venue-1i9h4wb": "venue-x8tw9t",
+    "venue-11mu12n": "venue-o98nz5",
+    "venue-1g7sv3b": "venue-y78jw5",
+    "venue-1brmot5": "venue-whwqzo",
+    "venue-lkjwk4": "venue-68ns7y",
+    "venue-806vol": "venue-mz6byd",
+    "venue-kkpnq8": "venue-9e93hd",
+    "venue-1fudad7": "venue-14alocj",
+    "venue-204w0t": "venue-bdf9cy",
+    "venue-1r6x415": "venue-1c7e71q",
+    "venue-1n7o6gw": "venue-1qb9nzj",
+    "venue-cxy85g": "venue-1gy9xkj",
+    "venue-1clnw4x": "venue-1lj3hj4",
+    "venue-10ae8zp": "venue-vtgxk6",
+    "venue-10jw1vr": "venue-16ze6b1",
+    "venue-10n8xmn": "venue-194uq0b",
+    "venue-10zhewm": "venue-txfgkc",
     "venue-11h1ycl": "venue-1g0tt6c",
     "venue-130gm9m": "venue-13nqwf3",
-    "venue-ob350x": "venue-d7vcn6",
-    "venue-lqsslz": "venue-2k9hok",
-    "venue-1rca8ry": "venue-16ze6b1",
-    "venue-8u51dx": "venue-17hwv2n",
-    "venue-1x5xdqq": "venue-1dydno",
-    "venue-1oofxdb": "venue-15hi94a",
-    "venue-1ads6jm": "venue-gk759w",
-    "venue-lrknik": "venue-djy3xd",
-    "venue-vm2x07": "venue-snbr0l",
-    "venue-18bj60": "venue-t3ii33",
     "venue-13yg8pf": "venue-phqazo",
-    "venue-1aul9g3": "venue-163qaii",
-    "venue-1jfltbe": "venue-164nra2",
-    "venue-acpje": "venue-1ykl8jq",
-    "venue-3xz47e": "venue-gvz1hf",
-    "venue-topz9e": "venue-1sst5t4",
-    "venue-10jw1vr": "venue-16ze6b1",
-    "venue-1gs68ga": "venue-16ze6b1",
-    "venue-41nyuw": "venue-1e6ogfb",
-    "venue-1eqf2e5": "venue-1pf9vt5",
-    "venue-bdasst": "venue-1dosq7b",
-    "venue-nxfoov": "venue-1dosq7b",
-    "venue-1j4rs86": "venue-64ymvx",
-    "venue-w42man": "venue-10jffb0",
-    "venue-157ewj0": "venue-1451o7c",
-    "venue-1echfld": "venue-1bckkxz",
-    "venue-xg4k2j": "venue-yl1a48",
-    "venue-vmted7": "venue-164nra2",
-    "venue-rhpttv": "venue-qky1h5",
-    "venue-1ffe6u": "venue-1qwm0di",
-    "venue-1pe2dsh": "venue-17m0t8h",
-    "venue-1wn2oun": "venue-17rj45g",
-    "venue-m07t50": "venue-1fde856",
-    "venue-x2i8ai": "venue-jfkv2h",
-    "venue-1m1dmc5": "venue-136xtuu",
-    "venue-1xx7zno": "venue-1jhq3s4",
-    "venue-thm3tm": "venue-1ros0mx",
-    "venue-oiqrsa": "venue-cee7f9",
-    "venue-1q5c8ff": "venue-gvz1hf",
-    "venue-19g8xwk": "venue-1tmuwrp",
-    "venue-1xrz3dn": "venue-1rzudoh",
     "venue-14i11vw": "venue-3zgjrk",
-    "venue-e4t5m3": "venue-1pvqxca",
-    "venue-1mr5its": "venue-10mil9j",
-    "venue-1tfxg3g": "venue-myhgdk",
-    "venue-vm2exh": "venue-zottpx",
-    "venue-6kf8ts": "venue-dmli42",
-    "venue-1r5qszr": "venue-1bb3t97",
-    "venue-d4bi3v": "venue-2xghrm",
-    "venue-g5zwb8": "venue-2xghrm",
-    "venue-1r8zf1b": "venue-1hq7rkl",
-    "venue-7hax2l": "venue-1eqhj8d",
-    "venue-10ae8zp": "venue-vtgxk6",
-    "venue-j5fmw5": "venue-1dyrfr0",
-    "venue-8eceak": "venue-ndc1rt",
+    "venue-157ewj0": "venue-1451o7c",
     "venue-15g7bz0": "venue-1mc221y",
-    "venue-1b4y2r4": "venue-a31bnk",
-    "venue-owvpwc": "venue-1lisyr9",
-    "venue-edzuzk": "venue-1duinu2",
-    "venue-1la3fsq": "venue-lbm3ws",
-    "venue-6jhiht": "venue-1g1ttqf",
-    "venue-1ys6lb7": "venue-1ae0qgz",
-    "venue-1oizrwi": "venue-1ogexf4",
-    "venue-1l19dv5": "venue-11tttn4",
-    "venue-b8uey5": "venue-15v64k2",
-    "venue-np3kin": "venue-vey5le",
-    "venue-1uvkcpu": "venue-1gnw3uj",
-    "venue-1mloe4": "venue-1khnupq",
-    "venue-10zhewm": "venue-txfgkc",
-    "venue-rfu9p9": "venue-gdlj1b",
-    "venue-10n8xmn": "venue-194uq0b",
-    "venue-3nj2os": "venue-194uq0b",
-    "venue-bos6ly": "venue-1oz2l6e",
-    "venue-hq42d9": "venue-1beqe9l",
-    "venue-1qktspi": "venue-1beqe9l",
-    "venue-z8dc3b": "venue-ekvkuv",
-    "venue-1rtz3rm": "venue-1oolo7w",
     "venue-16nkuhy": "venue-1oa8eys",
-    "venue-2hpyl9": "venue-12qgqym",
-    "venue-5vxlmk": "venue-qz6pcy",
-    "venue-1n5b2v8": "venue-1g5u0d8",
-    "venue-1uqwaup": "venue-oj2cg",
+    "venue-18bj60": "venue-t3ii33",
+    "venue-19g8xwk": "venue-1tmuwrp",
+    "venue-1ads6jm": "venue-gk759w",
+    "venue-1aul9g3": "venue-163qaii",
+    "venue-1b4y2r4": "venue-a31bnk",
     "venue-1cq1l8z": "venue-1hsf01d",
-    "venue-dy1d7d": "venue-1lpbgp3",
-    "venue-udq7rd": "venue-1dqfi1i",
-    "venue-4xt9gm": "venue-1l86ijg",
+    "venue-1echfld": "venue-1bckkxz",
+    "venue-1eqf2e5": "venue-1pf9vt5",
+    "venue-1ffe6u": "venue-1qwm0di",
+    "venue-1gs68ga": "venue-16ze6b1",
+    "venue-1j4rs86": "venue-64ymvx",
+    "venue-1jfltbe": "venue-164nra2",
+    "venue-1l19dv5": "venue-11tttn4",
+    "venue-1la3fsq": "venue-lbm3ws",
     "venue-1m0bktp": "venue-1fabngq",
+    "venue-1m1dmc5": "venue-136xtuu",
+    "venue-1m7so6h": "venue-1ad37ry",
+    "venue-1mloe4": "venue-1khnupq",
+    "venue-1mr5its": "venue-10mil9j",
+    "venue-1n5b2v8": "venue-1g5u0d8",
+    "venue-1oizrwi": "venue-1ogexf4",
+    "venue-1oofxdb": "venue-15hi94a",
+    "venue-1pe2dsh": "venue-17m0t8h",
+    "venue-1q5c8ff": "venue-gvz1hf",
+    "venue-1qktspi": "venue-1beqe9l",
+    "venue-1r5qszr": "venue-1bb3t97",
+    "venue-1r8zf1b": "venue-1yiyopd",
+    "venue-1rca8ry": "venue-16ze6b1",
+    "venue-1rtz3rm": "venue-1oolo7w",
+    "venue-1sw9ofl": "venue-eltcmh",
+    "venue-1tfxg3g": "venue-myhgdk",
+    "venue-1uqwaup": "venue-oj2cg",
+    "venue-1uvkcpu": "venue-1gnw3uj",
+    "venue-1wn2oun": "venue-17rj45g",
+    "venue-1x5xdqq": "venue-1dydno",
+    "venue-1xrz3dn": "venue-1rzudoh",
+    "venue-1xx7zno": "venue-1jhq3s4",
+    "venue-1ys6lb7": "venue-1ae0qgz",
+    "venue-2hpyl9": "venue-12qgqym",
+    "venue-3nj2os": "venue-194uq0b",
+    "venue-3xz47e": "venue-gvz1hf",
+    "venue-41nyuw": "venue-1e6ogfb",
     "venue-4rj5un": "venue-1y5lg8a",
-    "venue-1m7so6h": "venue-1ad37ry"
+    "venue-4xt9gm": "venue-1l86ijg",
+    "venue-5vxlmk": "venue-qz6pcy",
+    "venue-6jhiht": "venue-1g1ttqf",
+    "venue-6kf8ts": "venue-dmli42",
+    "venue-7hax2l": "venue-1eqhj8d",
+    "venue-8eceak": "venue-ndc1rt",
+    "venue-8u51dx": "venue-17hwv2n",
+    "venue-acpje": "venue-1ykl8jq",
+    "venue-b8uey5": "venue-15v64k2",
+    "venue-bdasst": "venue-1dosq7b",
+    "venue-bos6ly": "venue-1oz2l6e",
+    "venue-d4bi3v": "venue-2xghrm",
+    "venue-dy1d7d": "venue-1lpbgp3",
+    "venue-e4t5m3": "venue-1pvqxca",
+    "venue-edzuzk": "venue-1duinu2",
+    "venue-g5zwb8": "venue-2xghrm",
+    "venue-hq42d9": "venue-1beqe9l",
+    "venue-j5fmw5": "venue-1dyrfr0",
+    "venue-j71x23": "venue-1eyb3zz",
+    "venue-lqsslz": "venue-2k9hok",
+    "venue-lrknik": "venue-djy3xd",
+    "venue-m07t50": "venue-1fde856",
+    "venue-np3kin": "venue-vey5le",
+    "venue-nxfoov": "venue-1dosq7b",
+    "venue-ob350x": "venue-d7vcn6",
+    "venue-oiqrsa": "venue-cee7f9",
+    "venue-owvpwc": "venue-1lisyr9",
+    "venue-rfu9p9": "venue-gdlj1b",
+    "venue-rhpttv": "venue-qky1h5",
+    "venue-thm3tm": "venue-1ros0mx",
+    "venue-topz9e": "venue-1sst5t4",
+    "venue-udq7rd": "venue-1dqfi1i",
+    "venue-vm2exh": "venue-zottpx",
+    "venue-vm2x07": "venue-snbr0l",
+    "venue-vmted7": "venue-164nra2",
+    "venue-w42man": "venue-10jffb0",
+    "venue-x2i8ai": "venue-jfkv2h",
+    "venue-xg4k2j": "venue-yl1a48",
+    "venue-z8dc3b": "venue-ekvkuv"
   },
   "clusters": [
     {
-      "canonicalId": "venue-1eyb3zz",
-      "canonicalName": "The Marquis of Cornwallis",
+      "canonicalId": "venue-s68ndf",
+      "canonicalName": "Green Man",
       "mergedFrom": [
         {
-          "id": "venue-j71x23",
-          "name": "Maruquis of Cornwallis",
+          "id": "venue-1r0yf7r",
+          "name": "Greene Man",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-16xmzi7",
+      "canonicalName": "Ye Olde London",
+      "mergedFrom": [
+        {
+          "id": "venue-1gnufko",
+          "name": "Ye Olde London City",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-gv8lwa",
+      "canonicalName": "Anchor",
+      "mergedFrom": [
+        {
+          "id": "venue-13wpw9e",
+          "name": "Anchor - Bankside (Southwark)",
+          "rows": 8
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-c0r9ym",
+      "canonicalName": "Flowers of the Forest",
+      "mergedFrom": [
+        {
+          "id": "venue-4lt7c6",
+          "name": "Flowes of the Forest",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1yiyopd",
+      "canonicalName": "The Windsor",
+      "mergedFrom": [
+        {
+          "id": "venue-1hq7rkl",
+          "name": "Windsor Fenchurch",
+          "rows": 8
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-18x41hr",
+      "canonicalName": "Ye Olde Watling",
+      "mergedFrom": [
+        {
+          "id": "venue-1hd5y0u",
+          "name": "Yeh Olde Watling",
+          "rows": 2
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-qw9l0q",
+      "canonicalName": "The Castle Inn",
+      "mergedFrom": [
+        {
+          "id": "venue-1pzhx7d",
+          "name": "The Castle Inn, Ealing",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-hvsgg4",
+      "canonicalName": "Cricketers Enfield",
+      "mergedFrom": [
+        {
+          "id": "venue-jlqlve",
+          "name": "Cricketers Arms",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-168ndjw",
+      "canonicalName": "Crown & Horseshoe",
+      "mergedFrom": [
+        {
+          "id": "venue-172mx8n",
+          "name": "Crown & Horseshoes (Enfield)",
+          "rows": 9
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-cgh71l",
+      "canonicalName": "The Alma",
+      "mergedFrom": [
+        {
+          "id": "venue-oyallt",
+          "name": "The Alma Newington Green",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-6bh8l6",
+      "canonicalName": "The Kings Tun",
+      "mergedFrom": [
+        {
+          "id": "venue-ydvsco",
+          "name": "The King's Tun - JD Wetherspoon",
+          "rows": 10
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-l6qdob",
+      "canonicalName": "The Prince Albert",
+      "mergedFrom": [
+        {
+          "id": "venue-ttu2zy",
+          "name": "Price Albert",
+          "rows": 7
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-x49k8g",
+      "canonicalName": "O’Neill’s",
+      "mergedFrom": [
+        {
+          "id": "venue-9otpi8",
+          "name": "O'Neills",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-13z79s7",
+      "canonicalName": "Churchills",
+      "mergedFrom": [
+        {
+          "id": "venue-w1qzhg",
+          "name": "Churchills, Clapham",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1xmac",
+      "canonicalName": "The Grapes SW18",
+      "mergedFrom": [
+        {
+          "id": "venue-bb2v2w",
+          "name": "The Grapes",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-pzbwmw",
+      "canonicalName": "Cask Pub & Kitchen",
+      "mergedFrom": [
+        {
+          "id": "venue-67akji",
+          "name": "Cask",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1b9434y",
+      "canonicalName": "The Footman",
+      "mergedFrom": [
+        {
+          "id": "venue-6hsjmi",
+          "name": "The Only Running Footman",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-698bu3",
+      "canonicalName": "The Old Spades",
+      "mergedFrom": [
+        {
+          "id": "venue-g295gw",
+          "name": "The Old Shades",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-x8tw9t",
+      "canonicalName": "Cock Tavern",
+      "mergedFrom": [
+        {
+          "id": "venue-1i9h4wb",
+          "name": "The Cock, Fulham",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-o98nz5",
+      "canonicalName": "J.J. Moon's - JD Wetherspoon",
+      "mergedFrom": [
+        {
+          "id": "venue-11mu12n",
+          "name": "J.J. Moons",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-y78jw5",
+      "canonicalName": "McGlynn’s Bar",
+      "mergedFrom": [
+        {
+          "id": "venue-1g7sv3b",
+          "name": "Mc Glynn's Bar",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-whwqzo",
+      "canonicalName": "The Queens Head",
+      "mergedFrom": [
+        {
+          "id": "venue-1brmot5",
+          "name": "Queens Head Winchmore Hill",
+          "rows": 8
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-68ns7y",
+      "canonicalName": "Ye Old Mitre",
+      "mergedFrom": [
+        {
+          "id": "venue-lkjwk4",
+          "name": "Ye Olde Mitre",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-mz6byd",
+      "canonicalName": "The Ship",
+      "mergedFrom": [
+        {
+          "id": "venue-806vol",
+          "name": "The Ship Soho",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-9e93hd",
+      "canonicalName": "The Guard House",
+      "mergedFrom": [
+        {
+          "id": "venue-kkpnq8",
+          "name": "The Guardhouse",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-14alocj",
+      "canonicalName": "Richard I",
+      "mergedFrom": [
+        {
+          "id": "venue-1fudad7",
+          "name": "Richard the First",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-bdf9cy",
+      "canonicalName": "The Temperance",
+      "mergedFrom": [
+        {
+          "id": "venue-204w0t",
+          "name": "Temperance Billiard Hall, Fulham",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1c7e71q",
+      "canonicalName": "The Cross Keys",
+      "mergedFrom": [
+        {
+          "id": "venue-1r6x415",
+          "name": "The Cross Keys, Hammersmith",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1qb9nzj",
+      "canonicalName": "The Fox",
+      "mergedFrom": [
+        {
+          "id": "venue-1n7o6gw",
+          "name": "The Fox, Palmers Green",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1gy9xkj",
+      "canonicalName": "The Queens",
+      "mergedFrom": [
+        {
+          "id": "venue-cxy85g",
+          "name": "Queens, Crouch End",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1lj3hj4",
+      "canonicalName": "The Trafalgar",
+      "mergedFrom": [
+        {
+          "id": "venue-1clnw4x",
+          "name": "Trafalgar Tavern",
           "rows": 1
         }
       ]
