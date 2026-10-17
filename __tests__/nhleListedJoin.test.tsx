@@ -18,7 +18,13 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildListings, serialise } from "@/scripts/build_heritage_listings.mjs";
+import {
+  buildListings,
+  parseRead,
+  serialise,
+  serialiseRead,
+  VERIFIED_LISTINGS,
+} from "@/scripts/build_heritage_listings.mjs";
 import { baseRowOwners, baseVenueIdFor, LONDON_BOX, londonBaseVenues } from "@/scripts/lib/heritageBaseVenues.mjs";
 import { heritageReadLabel, sanitizeHeritageFacts } from "@/lib/heritageFacts";
 import { resolveObservedAt } from "@/lib/freshness";
@@ -126,6 +132,43 @@ describe("the London base pubs the join reads", () => {
     expect(doc.$retrievedAt).toBe("2026-10-16T09:00:00.000Z");
     expect(doc.$licence).toBe("Open Government Licence v3.0");
     expect(() => serialise({}, "")).toThrow(/day it was read/);
+  });
+
+  it("finds a pinned listing for a venue whose kept name lost the listing's name, only on the venue", () => {
+    const [[venueId, listEntry]] = Object.entries(VERIFIED_LISTINGS);
+    const point = { listEntry, name: "OLD SHADES PUBLIC HOUSE", grade: "II", listDate: null, lat: 51.5, lng: -0.1 };
+    const near = buildListings([{ id: venueId, name: "Unrelated Name", lat: 51.50001, lng: -0.10001 }], [point]);
+    expect(near[venueId]).toMatchObject({ listEntry, grade: "II", name: "Old Shades Public House" });
+    // A pin names a list entry, never a place: a point off the venue is no match.
+    const far = buildListings([{ id: venueId, name: "Unrelated Name", lat: 51.51, lng: -0.1 }], [point]);
+    expect(far).toEqual({});
+  });
+});
+
+describe("the committed NHLE read", () => {
+  const read = JSON.parse(readFileSync(join(ROOT, "data/heritage/nhle_london_points.json"), "utf8"));
+  const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+
+  it("is the read the pack was built from", () => {
+    expect(read.$retrievedAt).toBe(pack.$retrievedAt);
+    const byEntry = new Map(parseRead(read).points.map((point) => [point.listEntry, point]));
+    for (const listing of Object.values(pack.listings) as Array<{ listEntry: number; grade: string }>) {
+      expect(byEntry.get(listing.listEntry)?.grade.trim()).toBe(listing.grade);
+    }
+  });
+
+  it("round-trips one sorted row a line", () => {
+    const points = [
+      { listEntry: 2, name: "B", grade: "II", listDate: 0, lat: 51.5, lng: -0.1 },
+      { listEntry: 1, name: "A", grade: "I", listDate: null, lat: 51.4, lng: -0.2 },
+    ];
+    const text = serialiseRead(points, "2026-10-17T00:00:00.000Z");
+    expect(text).toContain('\n    [1,"A","I",null,51.4,-0.2],\n    [2,"B","II",0,51.5,-0.1]\n');
+    expect(parseRead(JSON.parse(text))).toEqual({
+      retrievedAt: "2026-10-17T00:00:00.000Z",
+      points: [points[1], points[0]],
+    });
+    expect(() => serialiseRead(points, "")).toThrow(/day it was read/);
   });
 });
 

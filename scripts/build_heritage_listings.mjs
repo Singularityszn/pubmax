@@ -8,7 +8,9 @@
 //
 // What it does (a deterministic, provenance-honest JOIN):
 //   1. Fetch London-bbox listed-building points from the NHLE FeatureServer
-//      (paged, WGS84), OR read a pre-downloaded cache with --cache <path>.
+//      (paged, WGS84) and commit what was read to data/heritage/
+//      nhle_london_points.json, OR rebuild from that committed read (--offline)
+//      or another pre-downloaded cache (--cache <path>).
 //   2. Load public/data/pint_prices_app_dataset.json, group rows into venues by
 //      the SAME key the app uses (venueGroupingKey → stableVenueIdFromKey), so
 //      output keys are the exact venue-… ids the map + /api/heritage link by.
@@ -30,15 +32,24 @@
 // key-sorted and pretty-printed with a trailing newline, so re-running with the
 // same inputs is byte-identical.
 //
+// THE READ IS COMMITTED AS EVIDENCE. A routine refresh changes no builder and
+// no input, only the NHLE. So a live read also writes the points it read to
+// data/heritage/nhle_london_points.json, one sorted row a line, stamped with
+// the same `$retrievedAt` as the pack. That file is an input of the
+// heritage_listings lane in scripts/check_review_scope.mjs: a refresh carries
+// it and passes, and a hand edit of the pack alone is still refused. A
+// reviewer re-runs `--offline` and compares.
+//
 // Run:
 //   node scripts/build_heritage_listings.mjs                 # fetch live NHLE
+//   node scripts/build_heritage_listings.mjs --offline       # from the committed read
 //   node scripts/build_heritage_listings.mjs --cache pts.json --retrieved-at 2026-10-16
 //                                                       # from a cache, read that day
 //   node scripts/build_heritage_listings.mjs --dry-run       # print, don't write
 // Judged pass (requires TYPESAFE_API_KEY; structure Noul + same-pub Noul):
 //   node --import tsx scripts/build_heritage_listings.mjs --judged
 
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,6 +58,8 @@ import { baseRowOwners, LONDON_BOX, londonBaseVenues } from "./lib/heritageBaseV
 import {
   bestMatch,
   buildFactText,
+  haversineMeters,
+  STRONG_MATCH_M,
   titleCaseName,
 } from "./lib/heritageMatch.mjs";
 
@@ -56,6 +69,7 @@ const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.
 const OUT_PATH = path.join(ROOT, "public", "data", "heritage_listings.json");
 const UK_SEED_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const UK_BASE_MANIFEST_PATH = path.join(ROOT, "public", "data", "uk_base", "manifest.json");
+export const NHLE_READ_PATH = path.join(ROOT, "data", "heritage", "nhle_london_points.json");
 
 // The NHLE FeatureServer's row in lib/harvest/sourcePolicy.ts. THE TABLE OWNS
 // THE HOST: the query URL comes from `openDataSourceUrl`, never from here.
@@ -210,12 +224,37 @@ function listedYearOf(listDate) {
   return Number.isFinite(year) ? year : null;
 }
 
+// A curated venue whose kept name no longer carries the listing's core name,
+// so the name matcher cannot find a listing it found before. Each one is a
+// duplicate pair canonicalize:venues merged on 17 Oct 2026 (commit 7b19ec84,
+// VERIFIED_VENUE_ALIASES in scripts/lib/venueCanonicalization.mjs): the
+// merged-away record carried the official name and matched, and the record
+// kept carries the street address and a shorter or misspelt name. The pin
+// names the list entry only. Grade, name and year still come from the NHLE
+// read, and the point must still sit within STRONG_MATCH_M of the venue.
+export const VERIFIED_LISTINGS = Object.freeze({
+  "venue-168ndjw": 1079501, // Crown & Horseshoe, EN2 <- Crown & Horseshoes
+  "venue-1lj3hj4": 1078950, // The Trafalgar, Park Row SE10 <- Trafalgar Tavern
+  "venue-1xmac": 1065528, // The Grapes SW18 <- The Grapes
+  "venue-698bu3": 1267004, // The Old Spades, 37 Whitehall <- The Old Shades
+  "venue-68ns7y": 1078281, // Ye Old Mitre, EC1N 6SJ <- Ye Olde Mitre
+});
+
+function verifiedMatch(venue, candidates) {
+  const listEntry = VERIFIED_LISTINGS[venue.id];
+  if (listEntry === undefined) return null;
+  const listing = candidates.find((point) => Number(point.listEntry) === listEntry);
+  if (!listing) return null;
+  const distanceM = haversineMeters(venue.lat, venue.lng, listing.lat, listing.lng);
+  return distanceM <= STRONG_MATCH_M ? { listing, distanceM } : null;
+}
+
 export function buildListings(venues, points) {
   const grid = indexPoints(points);
   const listings = {};
   for (const venue of venues) {
     const candidates = candidatesFor(grid, venue.lat, venue.lng);
-    const match = bestMatch(venue, candidates);
+    const match = bestMatch(venue, candidates) ?? verifiedMatch(venue, candidates);
     if (!match) continue;
     const { listing, distanceM } = match;
     const fact = buildFactText(listing.grade, listing.name);
@@ -251,6 +290,64 @@ export function serialise(listings, retrievedAt) {
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
 
+/**
+ * The committed NHLE read: one `[listEntry, name, grade, listDate, lat, lng]`
+ * row a line, sorted by list entry, so a refresh diffs as the listings that
+ * moved.
+ */
+export function serialiseRead(points, retrievedAt) {
+  if (!Number.isFinite(Date.parse(retrievedAt))) {
+    throw new Error("The NHLE read needs the day it was read.");
+  }
+  const rows = points
+    .map((p) => [p.listEntry, p.name, p.grade, p.listDate ?? null, p.lat, p.lng])
+    .sort((a, b) => Number(a[0]) - Number(b[0]));
+  const head = {
+    $attribution: ATTRIBUTION,
+    $source: "Historic England — National Heritage List for England (NHLE), Listed Building points, Greater London box",
+    $licence: "Open Government Licence v3.0",
+    $retrievedAt: retrievedAt,
+    $columns: ["listEntry", "name", "grade", "listDate", "lat", "lng"],
+  };
+  const headLines = Object.entries(head).map(
+    ([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)},`,
+  );
+  const body = rows.map((row) => `    ${JSON.stringify(row)}`).join(",\n");
+  return `{\n${headLines.join("\n")}\n  "points": [\n${body}\n  ]\n}\n`;
+}
+
+/**
+ * Points from a cache: the committed read (`{ $retrievedAt, points: rows }`)
+ * or a bare array of `{ listEntry, name, grade, listDate, lat, lng }`.
+ */
+export function parseRead(doc) {
+  if (Array.isArray(doc)) {
+    return {
+      retrievedAt: null,
+      points: doc.map((p) => ({
+        listEntry: p.listEntry,
+        name: p.name,
+        grade: p.grade,
+        listDate: p.listDate,
+        lat: p.lat,
+        lng: p.lng,
+      })),
+    };
+  }
+  const rows = Array.isArray(doc?.points) ? doc.points : [];
+  return {
+    retrievedAt: typeof doc?.$retrievedAt === "string" ? doc.$retrievedAt : null,
+    points: rows.map(([listEntry, name, grade, listDate, lat, lng]) => ({
+      listEntry,
+      name,
+      grade,
+      listDate,
+      lat,
+      lng,
+    })),
+  };
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const dryRun = argv.includes("--dry-run");
@@ -274,29 +371,25 @@ async function main() {
       `(${ownedBy.size} base rows owned by a curated venue).\n`,
   );
 
-  // The day the NHLE was read. A live read is today; a cache states its own.
+  // The day the NHLE was read. A live read is today; a cache states its own,
+  // in its `$retrievedAt` or with --retrieved-at.
+  const offline = argv.includes("--offline");
+  const readPath = offline ? NHLE_READ_PATH : cachePath ? path.resolve(cachePath) : null;
   const retrievedIdx = argv.indexOf("--retrieved-at");
   const statedDay = retrievedIdx === -1 ? "" : (argv[retrievedIdx + 1] ?? "");
-  const retrievedAt = cachePath
-    ? Number.isFinite(Date.parse(statedDay)) ? new Date(statedDay).toISOString() : ""
-    : new Date().toISOString();
-  if (!retrievedAt) throw new Error("A cached NHLE read needs --retrieved-at <the day it was read>.");
 
   let points;
-  if (cachePath) {
-    process.stderr.write(`Reading NHLE points from cache ${cachePath}\n`);
-    points = await loadJson(path.resolve(cachePath));
-    // Cache may use lat/lng directly or the raw fetch shape — normalise.
-    points = points.map((p) => ({
-      listEntry: p.listEntry,
-      name: p.name,
-      grade: p.grade,
-      listDate: p.listDate,
-      lat: p.lat,
-      lng: p.lng,
-    }));
+  let retrievedAt;
+  if (readPath) {
+    process.stderr.write(`Reading NHLE points from ${path.relative(ROOT, readPath)}\n`);
+    const read = parseRead(await loadJson(readPath));
+    points = read.points;
+    const day = statedDay || read.retrievedAt || "";
+    retrievedAt = Number.isFinite(Date.parse(day)) ? new Date(day).toISOString() : "";
+    if (!retrievedAt) throw new Error("A cached NHLE read needs --retrieved-at <the day it was read>.");
   } else {
     process.stderr.write("Fetching NHLE London listed-building points...\n");
+    retrievedAt = new Date().toISOString();
     points = await fetchListedPoints();
   }
   process.stderr.write(`Have ${points.length} listed-building points.\n`);
@@ -318,8 +411,9 @@ async function main() {
     const grid = indexPoints(points);
     for (const venue of venues) {
       const candidates = candidatesFor(grid, venue.lat, venue.lng);
-      const { match, review: rows } = await judgedBestMatch(venue, candidates);
-      review.push(...rows);
+      const judgedResult = await judgedBestMatch(venue, candidates);
+      review.push(...judgedResult.review);
+      const match = judgedResult.match?.listing ? judgedResult.match : verifiedMatch(venue, candidates);
       if (!match?.listing) continue;
       const fact = buildFactText(match.listing.grade, match.listing.name);
       if (!fact) continue;
@@ -352,6 +446,11 @@ async function main() {
   if (dryRun) {
     process.stdout.write(output);
     return;
+  }
+  if (!readPath) {
+    await mkdir(path.dirname(NHLE_READ_PATH), { recursive: true });
+    await writeFile(NHLE_READ_PATH, serialiseRead(points, retrievedAt));
+    process.stderr.write(`Wrote ${path.relative(ROOT, NHLE_READ_PATH)} (${points.length} points).\n`);
   }
   await writeFile(OUT_PATH, output);
   process.stderr.write(`Wrote ${path.relative(ROOT, OUT_PATH)} (${matched} listed pubs).\n`);

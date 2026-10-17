@@ -2,7 +2,7 @@
   "$attribution": "Listed-building data from Historic England's National Heritage List for England (NHLE), © Historic England, licensed under the Open Government Licence v3.0.",
   "$source": "Historic England — National Heritage List for England (NHLE), Listed Building points",
   "$licence": "Open Government Licence v3.0",
-  "$retrievedAt": "2026-10-17T14:17:29.823Z",
+  "$retrievedAt": "2026-10-17T22:19:18.915Z",
   "listings": {
     "venue-106ibh7": {
       "listEntry": 1184658,
@@ -148,6 +148,15 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1080313",
       "distanceM": 7
     },
+    "venue-168ndjw": {
+      "listEntry": 1079501,
+      "grade": "II",
+      "listedYear": 1974,
+      "name": "The Crown And Horseshoes Public House",
+      "fact": "Grade II listed public house.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1079501",
+      "distanceM": 1
+    },
     "venue-16pnwmm": {
       "listEntry": 1357505,
       "grade": "II",
@@ -174,15 +183,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1214365",
       "distanceM": 3
-    },
-    "venue-168ndjw": {
-      "listEntry": 1079501,
-      "grade": "II",
-      "listedYear": 1974,
-      "name": "The Crown And Horseshoes Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1079501",
-      "distanceM": 8
     },
     "venue-1744sjn": {
       "listEntry": 1389397,
@@ -308,15 +308,6 @@
       "name": "The Angel Ph",
       "fact": "Grade II listed building.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1422617",
-      "distanceM": 2
-    },
-    "venue-1lj3hj4": {
-      "listEntry": 1078950,
-      "grade": "II",
-      "listedYear": 1973,
-      "name": "The Trafalgar Tavern",
-      "fact": "Grade II listed tavern.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1078950",
       "distanceM": 2
     },
     "venue-1cqvy8g": {
@@ -606,6 +597,15 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1079584",
       "distanceM": 7
+    },
+    "venue-1lj3hj4": {
+      "listEntry": 1078950,
+      "grade": "II",
+      "listedYear": 1973,
+      "name": "The Trafalgar Tavern",
+      "fact": "Grade II listed tavern.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1078950",
+      "distanceM": 52
     },
     "venue-1lpbgp3": {
       "listEntry": 1078300,
@@ -994,6 +994,15 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1066857",
       "distanceM": 2
     },
+    "venue-1xmac": {
+      "listEntry": 1065528,
+      "grade": "II",
+      "listedYear": 1983,
+      "name": "The Grapes Public House",
+      "fact": "Grade II listed public house.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1065528",
+      "distanceM": 1
+    },
     "venue-1ya67fi": {
       "listEntry": 1065804,
       "grade": "II",
@@ -1182,6 +1191,24 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1078892",
       "distanceM": 4
+    },
+    "venue-68ns7y": {
+      "listEntry": 1078281,
+      "grade": "II",
+      "listedYear": 1951,
+      "name": "Ye Olde Mitre Public House",
+      "fact": "Grade II listed public house.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1078281",
+      "distanceM": 2
+    },
+    "venue-698bu3": {
+      "listEntry": 1267004,
+      "grade": "II",
+      "listedYear": 1970,
+      "name": "Old Shades Public House",
+      "fact": "Grade II listed public house.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1267004",
+      "distanceM": 6
     },
     "venue-6aew7z": {
       "listEntry": 1065499,
@@ -1372,15 +1399,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1064662",
       "distanceM": 2
     },
-    "venue-1xmac": {
-      "listEntry": 1065528,
-      "grade": "II",
-      "listedYear": 1983,
-      "name": "The Grapes Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1065528",
-      "distanceM": 2
-    },
     "venue-bdyva2": {
       "listEntry": 1113130,
       "grade": "II",
@@ -1560,15 +1578,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1192979",
       "distanceM": 37
-    },
-    "venue-698bu3": {
-      "listEntry": 1267004,
-      "grade": "II",
-      "listedYear": 1970,
-      "name": "Old Shades Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1267004",
-      "distanceM": 2
     },
     "venue-gjzd9u": {
       "listEntry": 1378372,
@@ -1803,15 +1812,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1078872",
       "distanceM": 3
-    },
-    "venue-68ns7y": {
-      "listEntry": 1078281,
-      "grade": "II",
-      "listedYear": 1951,
-      "name": "Ye Olde Mitre Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1078281",
-      "distanceM": 2
     },
     "venue-lrlyh8": {
       "listEntry": 1192681,
