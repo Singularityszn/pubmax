@@ -109,14 +109,16 @@ describe("every source is a decision with evidence", () => {
   it("registers the open-data APIs, and hands their builders only their own host", () => {
     expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
       "fsa-fhrs-api",
+      "historic-england-nhle",
       "wikidata-query-service",
     ]);
     for (const source of harvestSourcesOfKind("open-data")) {
       // An open-data API states facts about businesses it does not own.
       expect(source.firstParty, source.id).toBe(false);
       expect(new URL(source.url).protocol, source.id).toBe("https:");
-      // Each row says what was not read live, so the first networked run knows to.
-      expect(source.access.evidence, source.id).toMatch(/NOT read live/);
+      // Each row says the day its terms were read live, or what was not read
+      // live, so the first networked run knows to.
+      expect(source.access.evidence, source.id).toMatch(/NOT read live|Read live on \d{1,2} [A-Z][a-z]{2} \d{4}/);
     }
     expect(openDataSourceUrl("fsa-fhrs-api", "/Establishments/1").href).toBe(
       "https://api.ratings.food.gov.uk/Establishments/1",
@@ -127,6 +129,9 @@ describe("every source is a decision with evidence", () => {
     expect(() => openDataSourceUrl("fsa-fhrs-api", "//example.com/x")).toThrow(/is not fsa-fhrs-api/);
     expect(() => openDataSourceUrl("fsa-fhrs-api", "http://api.ratings.food.gov.uk/x")).toThrow(/is not/);
     expect(() => openDataSourceUrl("wikidata-query-service", "https://evil.example/sparql")).toThrow(/is not/);
+    expect(openDataSourceUrl("historic-england-nhle", "?f=json").href).toBe(
+      "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query?f=json",
+    );
     expect(() => openDataSourceUrl("nope", "/")).toThrow(/no open-data source/);
     // Only an open-data row hands out a URL, however permitted another row is.
     expect(() => openDataSourceUrl("wetherspoon-food-drink", "/")).toThrow(/no open-data source/);

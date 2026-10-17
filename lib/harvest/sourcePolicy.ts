@@ -452,6 +452,23 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     notes:
       "Read by scripts/build_wikidata_history_pack.mjs into public/data/wikidata_history/london.json: batches of 100 items one second apart, a descriptive User-Agent, and a 429 or 5xx retried with a doubling wait because the service does not reliably send Retry-After.",
   },
+  {
+    id: "historic-england-nhle",
+    label: "Historic England - National Heritage List for England (Listed Building points)",
+    url: "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query",
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException:
+      "Historic England keeps the statutory List of buildings of special architectural or historic interest, so its record IS the listing. Take the list entry number, name, grade and list date of listed-building points inside the Greater London box, and keep one only where scripts/lib/heritageMatch.mjs matches it to a pub by name and place; never a description, an era or a construction date.",
+    access: {
+      allowed: true,
+      evidence:
+        "Registered 17 Oct 2026, when the builder's own hard-coded FeatureServer URL moved into this table. Read live on 17 Oct 2026: the layer's service metadata, whose copyright text reads \"© Crown Copyright 2026. Contains Ordnance Survey data © Crown copyright and database right 2026. Released under OGL.\", and its ArcGIS item (owner gis_historicengland), whose licence field names the Historic England Open Data Hub Terms and Conditions and whose data was last edited on 15 Oct 2026. NOT read live: that terms page on historicengland.org.uk, which answered every request from the building environment with a Cloudflare challenge (HTTP 403), and no earlier dated read of it is recorded in this tree. The Open Government Licence v3.0 credit in lib/dataCredits.ts stands on the service's own statement above.",
+      checkedOn: "2026-10-17",
+    },
+    notes:
+      "Read by scripts/build_heritage_listings.mjs into public/data/heritage_listings.json: one page of 1,000 points at a time (the layer allows 2,000), redirects refused, and a failed page stops the run and writes nothing.",
+  },
 ];
 
 const BY_ID = new Map(HARVEST_SOURCES.map((source) => [source.id, source]));
