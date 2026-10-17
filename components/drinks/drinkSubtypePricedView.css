@@ -136,3 +136,28 @@
   text-align: center;
   background: var(--paper);
 }
+
+/* London McDonald's under the Lucia lens (LuciaMcDonaldsSection.tsx). */
+.softDrinksWater__mcdonalds {
+  margin-top: 32px;
+}
+
+.softDrinksWater__sectionTitle {
+  margin: 0;
+  font-family: var(--font-display, var(--serif));
+  font-size: var(--text-lg, 1.25rem);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.softDrinksWater__sectionLede,
+.softDrinksWater__sectionNote {
+  margin: 6px 0 14px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.softDrinksWater__sectionNote {
+  font-weight: 650;
+}

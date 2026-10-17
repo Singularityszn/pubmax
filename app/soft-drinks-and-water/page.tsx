@@ -52,6 +52,7 @@ export default async function SoftDrinksAndWaterPage({ searchParams }: PageProps
         activeSubtypeId={payload.subtypeId}
         rows={payload.rows}
         observedCounts={payload.observedCounts}
+        mcdonalds={payload.mcdonalds}
       />
     </main>
   );

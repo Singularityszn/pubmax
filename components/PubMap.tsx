@@ -285,6 +285,11 @@ const LondonRestaurantSheet = dynamic(
   () => import("@/components/map/LondonRestaurantSheet"),
   { ssr: false },
 );
+// Only ever mounted for a linked London fast-food counter (the Lucia 🐐 lens).
+const LondonFoodPlaceSheet = dynamic(
+  () => import("@/components/map/LondonFoodPlaceSheet"),
+  { ssr: false },
+);
 // Only ever mounted when the coffee lens could not read the pilot.
 const CoffeePilotLoadFailed = dynamic(
   () => import("@/components/map/CoffeePilotLoadFailed"),
@@ -417,6 +422,7 @@ import {
   useReleaseLondonVenueSelection,
 } from "@/components/map/useCoffeePilotCafes";
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
+import { useLondonFoodSelection } from "@/components/map/useLondonFoodPlaces";
 import {
   londonRestaurantLayerShown,
   londonRestaurantPackWanted,
@@ -3239,6 +3245,15 @@ export default function PubMap({
   });
   const selectedCoffeeCafe = londonPlacePick.cafe;
   const selectedLondonRestaurant = londonPlacePick.restaurant;
+  // A London fast-food counter has no pin: it opens only from a link (the
+  // soft drinks page's "Add a price"), so its small pack is read only for a
+  // `venue-osm-` selection, and on every London map whatever lens is on.
+  const londonFoodPick = useLondonFoodSelection({
+    isLondon,
+    selectedVenueId,
+    otherSourcesRelease: londonPlacePick.release,
+  });
+  const selectedLondonFoodPlace = londonFoodPick.place;
   // The map's filters narrow the layer as they narrow curated pins, and a
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
   const filteredLondonRestaurants = useMemo(
@@ -3518,6 +3533,7 @@ export default function PubMap({
         selectedBasePub,
         selectedCoffeeCafe,
         selectedLondonRestaurant,
+        selectedLondonFoodPlace,
         venueById,
         isPubVenue,
         lookupFailed: selectedDetailStatus === "unavailable",
@@ -3526,6 +3542,7 @@ export default function PubMap({
       selectedBasePub,
       selectedCoffeeCafe,
       selectedDetailStatus,
+      selectedLondonFoodPlace,
       selectedLondonRestaurant,
       selectedVenue,
       selectedVenueId,
@@ -3743,6 +3760,7 @@ export default function PubMap({
   const basePubOpen = mapSelection.basePubOpen;
   const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
   const londonRestaurantOpen = mapSelection.londonRestaurantOpen;
+  const londonFoodPlaceOpen = mapSelection.londonFoodPlaceOpen;
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -5379,7 +5397,7 @@ export default function PubMap({
   // can open (off the coffee lens or off the restaurant layer, not held, or not
   // read) has no sheet to open: let it go rather than hold a skeleton.
   useReleaseLondonVenueSelection(
-    londonPlacePick.release,
+    londonFoodPick.release,
     selectedVenueId,
     rejectMapSelection,
     setSelectedVenueId,
@@ -6088,6 +6106,16 @@ export default function PubMap({
     if (selectedCoffeeCafe) return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
     if (selectedLondonRestaurant) {
       return <LondonRestaurantSheet restaurant={selectedLondonRestaurant} />;
+    }
+    if (selectedLondonFoodPlace) {
+      return (
+        <LondonFoodPlaceSheet
+          place={selectedLondonFoodPlace}
+          communityPrices={communityPrices}
+          logRequested={hasReactiveLogIntent}
+          onLogRequestConsumed={clearLogIntent}
+        />
+      );
     }
     return renderVenuePanel();
   }
@@ -7094,7 +7122,9 @@ export default function PubMap({
                     ? selectedCoffeeCafe?.name ?? "Cafe"
                     : londonRestaurantOpen
                       ? selectedLondonRestaurant?.name ?? "Restaurant"
-                      : selectedVenue?.name ?? selectedVenueLabels.detailLabel
+                      : londonFoodPlaceOpen
+                        ? selectedLondonFoodPlace?.name ?? "Fast food"
+                        : selectedVenue?.name ?? selectedVenueLabels.detailLabel
                 : planningOpen
                   ? "Plan an outing"
                   : activeLandmark?.name ?? "Landmark"

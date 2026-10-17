@@ -205,6 +205,11 @@ export type CommunityPricesState = {
     /** The photo of the bill. Required on every new price (captain 7 Sept
      *  2026); the route refuses the write without it. */
     receiptPhoto?: File | null;
+    /**
+     * Which soft drink the figure is about. Only a London fast-food counter
+     * asks it (lib/londonFoodPlaces.ts), and only a soft-drink price carries it.
+     */
+    drinkSubtype?: string;
   }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
@@ -1068,6 +1073,9 @@ export function useCommunityPrices(): CommunityPricesState {
             priceGbp,
             ...(drinkCategory === "beer"
               ? { measure, ...(measureLabel ? { measureLabel } : {}) }
+              : {}),
+            ...(drinkCategory === "soft-drink" && input.drinkSubtype
+              ? { drinkSubtype: input.drinkSubtype }
               : {}),
           },
           pintPhoto || receiptPhoto ? { pintPhoto, receiptPhoto } : undefined,

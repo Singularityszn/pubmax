@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef } from "react";
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
 import EmptyState from "@/components/ui/empty-state";
+import LuciaMcDonaldsSection from "@/components/drinks/LuciaMcDonaldsSection";
 import SoftDrinkSubtypeMiniMap from "@/components/drinks/SoftDrinkSubtypeMiniMap";
 import { PricedLandingPublisher } from "@/components/drinks/PricedLandingRows";
 import { trackEvent } from "@/lib/analytics";
@@ -20,6 +21,7 @@ import {
   type SubtypePricedVenueRow,
 } from "@/lib/drinkSubtypeObservedPrice";
 import { findSubtype } from "@/lib/drinkSubtypes";
+import type { LuciaMcDonaldsSection as McDonaldsSection } from "@/lib/londonFoodPlaces";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import type { PricedLandingRow } from "@/lib/pricedLanding";
 import { isUkBaseId } from "@/lib/ukBasePubs";
@@ -34,6 +36,8 @@ export type DrinkSubtypePricedViewProps = {
   activeSubtypeId: string;
   rows: readonly SubtypePricedVenueRow[];
   observedCounts: Record<string, number>;
+  /** London McDonald's and their community price; the Lucia 🐐 lens only. */
+  mcdonalds?: McDonaldsSection | null;
 };
 
 function publisherRow(
@@ -70,6 +74,7 @@ export default function DrinkSubtypePricedView({
   activeSubtypeId,
   rows,
   observedCounts,
+  mcdonalds = null,
 }: DrinkSubtypePricedViewProps) {
   const router = useRouter();
   const openedRef = useRef(false);
@@ -221,6 +226,8 @@ export default function DrinkSubtypePricedView({
 
           <SoftDrinkSubtypeMiniMap subtypeId={activeSubtypeId} rows={rows} />
         </div>
+
+        {mcdonalds ? <LuciaMcDonaldsSection section={mcdonalds} /> : null}
       </Screen>
     </div>
   );
