@@ -54,6 +54,21 @@ async function joinInvited(host: Awaited<ReturnType<typeof createPlan>>, name = 
 }
 
 describe("Plan collaboration HTTP contract", () => {
+  it.each(["arrived", "skipped"])("allows an invited collaborator to record %s", async (type) => {
+    const host = await createPlan();
+    const joined = await joinInvited(host);
+    const guest = await joined.json() as { memberToken: string; collaborationAuthorized: boolean };
+    expect(guest.collaborationAuthorized).toBe(true);
+    const response = await ACTION(new Request(URL + "/" + host.plan.plan.id + "/actions", {
+      method: "POST", headers: { "idempotency-key": "invited-action-" + type },
+      body: JSON.stringify({ memberToken: guest.memberToken, type, stopPosition: 0 }),
+    }), ctx(host.plan.plan.id));
+    expect(response.status).toBe(201);
+    expect((await response.json() as { actions: unknown[] }).actions).toEqual([
+      expect.objectContaining({ type, stopPosition: 0 }),
+    ]);
+  });
+
   it.each(["wine", "cocktail"] as const)("keeps verified %s evidence when a guest proposal is accepted", async (category) => {
     const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     const created = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": `proposal-price-host-${category}` }, body: JSON.stringify({

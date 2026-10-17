@@ -1,3 +1,4 @@
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({
@@ -28,6 +29,7 @@ import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 describe("POST /api/pub-pal/chat", () => {
@@ -43,6 +45,128 @@ describe("POST /api/pub-pal/chat", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it.each(QUALIFIED_PRICE_REQUESTS)("refuses qualified item comparisons through chat: $query", async ({ query, wording }) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    const body = await response.json();
+    expect(body.answer).toMatch(wording);
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "somewhere cheap and quiet",
+    "Somewhere cheap in Soho",
+  ])("review regression: accepts implicit pub discovery through chat: %s", async (query) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+    expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
+  });
+
+  it.each(VIBE_CHIPS)("accepts the actual $label starter question keylessly", async (chip) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const expectedTool = {
+      bender: "propose_plan", lit: "whats_on", quiet: "search_venues", cheeky: "search_venues",
+      match: "whats_on", quiz: "whats_on", date: "search_venues",
+    }[chip.id];
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: chip.ask, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual([expectedTool]);
+    if (["lit", "match", "quiz"].includes(chip.id)) {
+      const occasion = { lit: /live-music nights? tonight/i, match: /live-sport screenings? tonight/i, quiz: /quiz nights? tonight/i }[chip.id as "lit" | "match" | "quiz"];
+      expect(body.answer).toMatch(occasion);
+      expect(body.cards.every((card: { provenance?: { kind: string } }) => card.provenance?.kind === "whats-on")).toBe(true);
+    }
+
+    if (["quiet", "cheeky", "date"].includes(chip.id)) {
+      expect(body.cards.length).toBeGreaterThan(0);
+      expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue" }));
+      expect(body.cards.every((card: { price: number; provenance?: { kind: string } }) => typeof card.price === "number" && card.provenance?.kind === "directory")).toBe(true);
+      if (chip.id === "cheeky") expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+      if (chip.id === "quiet") expect(body.cards.some((card: { note: string }) => /calmer fit/i.test(card.note))).toBe(true);
+      if (chip.id === "date") expect(body.cards.some((card: { note: string }) => /calmer fit|date-night fit/i.test(card.note))).toBe(true);
+    }
+
+    expect(body.answer).not.toMatch(/not prices for that item|can't compare/i);
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("turns the Big one tonight request into a sourced plan keylessly", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const query = "Plan a big night for four of us, with cheap pints and a lively route";
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["propose_plan"]);
+    expect(body.cards).toHaveLength(3);
+    expect(body.proposals).toContainEqual(expect.objectContaining({
+      kind: "draft_plan", query, stopIds: body.cards.map((card: { venueId: string }) => card.venueId),
+    }));
+    expect(body.answer).toContain("Open in Plan");
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("finds cheap quiet pubs without treating quiet as a priced item", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: "Find cheap quiet pubs in Soho", cityId: "london" }),
+    }));
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
+    expect(body.answer).not.toMatch(/can't compare|not prices for that item/i);
+  });
+
+  it.each([
+    ["Cheapest vegan food in Camden", /meal prices|dietary/i],
+    ["Cheapest wine in Soho", /other drinks across pubs/i],
+  ])("explains keyless price coverage for %s without substituting pints", async (query, wording) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    const fetchMock = vi.fn(offlineFetch);
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toMatch(wording);
+    expect(body.cards).toEqual([]);
+    expect(body.proposals).toEqual([]);
+    expect(body.toolsUsed).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -31,11 +31,25 @@
   gap: 0.75rem;
 }
 
+/* A kicker: sentence case in the body face, never spaced caps (caps are
+   stamps). */
 .visitReportLabel {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
   color: var(--color-text-muted, var(--muted, #6b6b6b));
+}
+
+/* The heading keeps its line and the action drops under it when the two do
+   not fit side by side; squeezed, "Visits, written up" broke after its second
+   word beside "Sign in to contribute" on a 390px phone. */
+.visitReportHead {
+  flex-wrap: wrap;
+}
+
+.visitReportHead > div {
+  flex: 1 1 auto;
+  min-width: min(100%, 10rem);
 }
 
 .visitReportTitle {

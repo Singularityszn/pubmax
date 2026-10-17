@@ -143,10 +143,13 @@
   touch-action: manipulation;
 }
 
+/* The chosen sort is a selection, not an action, so it reads in ink
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). In coral it out-shouted the
+   unchosen chip and read as the list's primary. */
 .mapVenueListSortChip[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .mapVenueListSortChip:focus-visible {
@@ -190,18 +193,18 @@
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
+/* A group title is a kicker: sentence case in the body face and muted, never
+   spaced caps (caps are stamps) and never coral. The unverified groups used to
+   print theirs in --brass, which coloured a standing (trust is a word, never a
+   tone) and read 2.5:1 on the light sheet; their aria-label and the rows' own
+   missing price already say what they are. */
 .mapVenueListGroupTitle {
   margin: 0;
-  padding: 10px 16px 4px;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.mapVenueListGroup--unverified .mapVenueListGroupTitle {
-  color: var(--brass);
+  padding: 12px 16px 4px;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
 }
 
 .mapVenueListItems {
@@ -227,8 +230,13 @@
   touch-action: manipulation;
 }
 
-.mapVenueListItem:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+/* A pointer's hover only, in the same quiet ink tint as the close button: on a
+   phone an ungated :hover stuck to the last row a thumb touched and painted it
+   coral, which read as a chosen row. */
+@media (hover: hover) {
+  .mapVenueListItem:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .mapVenueListItem:focus-visible {

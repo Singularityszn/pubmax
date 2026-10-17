@@ -1,4 +1,5 @@
 import { publicApiError } from "@/lib/apiError";
+import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
@@ -51,7 +52,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
     answer: outcome.message,
     cards: outcome.cards,
     proposals: outcome.proposals,
-    sources: [],
+    sources: askCardSources(outcome.cards),
     status: "ready",
     toolsUsed: outcome.toolsUsed,
     conversationId: outcome.conversationId,

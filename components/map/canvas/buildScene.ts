@@ -1858,8 +1858,9 @@ export function buildRouteStops(ctx: SceneCtx) {
     },
   });
   // Pub-name plaque (owner bug: numbered discs alone don't say WHICH pub stop 2
-  // is, while ordinary basemap POIs around them are labelled). Engraved-brass
-  // text riding beside each numbered disc — a strong paper/ink halo carries it
+  // is, while ordinary basemap POIs around them are labelled). Ink text, like
+  // every other map label (coral is spent on the one primary and the create
+  // disc, docs/DESIGN_SYSTEM.md), riding beside each numbered disc — a strong paper/ink halo carries it
   // over the pale Liberty basemap and the night land without a background box.
   // Collision-tolerant: text-variable-anchor lets the plaque flip side to dodge
   // neighbours and the default placement drops the odd label in a dense cluster
@@ -1886,7 +1887,7 @@ export function buildRouteStops(ctx: SceneCtx) {
       "text-max-width": 9,
     },
     paint: {
-      "text-color": dark ? tokens.brassBright : tokens.brass,
+      "text-color": tokens.ink,
       "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-width": 2,
       "text-halo-blur": 0.4,

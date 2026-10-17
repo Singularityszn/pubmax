@@ -28,9 +28,21 @@ function readEnvVoiceId(key: string): string | null {
  * Pal's species (legacy species borrow their onboarding counterpart's voice),
  * and null (agent default) when neither is set.
  */
-export function resolveElevenLabsVoiceIdForPal(pal: PubPal): string | null {
+export type PalVoiceSelection = {
+  voiceId: string | null;
+  voiceSource: "selected" | "species" | "agent-default";
+};
+
+export function resolveElevenLabsVoiceForPal(pal: PubPal): PalVoiceSelection {
   const picked = readEnvVoiceId(PICKED_VOICE_ENV_KEYS[pal.voice.id]);
-  if (picked) return picked;
+  if (picked) return { voiceId: picked, voiceSource: "selected" };
   const species = onboardingPalSpecies(pal.appearance.species);
-  return species ? readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species)) : null;
+  const speciesVoice = species ? readEnvVoiceId(elevenLabsVoiceEnvKeyForSpecies(species)) : null;
+  return speciesVoice
+    ? { voiceId: speciesVoice, voiceSource: "species" }
+    : { voiceId: null, voiceSource: "agent-default" };
+}
+
+export function resolveElevenLabsVoiceIdForPal(pal: PubPal): string | null {
+  return resolveElevenLabsVoiceForPal(pal).voiceId;
 }

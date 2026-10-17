@@ -3,7 +3,9 @@
 Pub Pal typed chat answers keylessly via `/api/pub-pal/chat` (the same grounded
 `runAsk` tools as map Ask, no OpenRouter). Voice and the hosted-LLM typed path
 share one ElevenLabs agent when the four values below are set and the agent
-script has run. Map Ask still answers keylessly via `/api/ask`.
+script has run. [ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministic
+menu and price routing that precedes provider selection.
+Map Ask still answers keylessly via `/api/ask`.
 
 Nothing here changes what the Pal may SAY. Text and voice run the same
 source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
@@ -15,7 +17,7 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | Yes | `/api/pub-pal/chat` via deterministic `runAsk` when ElevenLabs is off; same agent as voice in text-only mode when it is on |
+| `/pal/chat` text ask | Yes | `/api/pub-pal/chat`. Provider selection follows ADR 0014 |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
 | Model tool selection | Keyless regex | With ElevenLabs, the hosted LLM on the agent picks webhook tools; neither path calls OpenRouter |
@@ -55,6 +57,71 @@ npm run pubpal:design-voices
 ```
 
 Generated preview audio and the voice id env lines land in `artifacts/pubpal-voices/`, which git ignores. Each id is appended to `artifacts/pubpal-voices/elevenlabs-voice-ids.env` as soon as its voice is saved, and a species whose `ELEVENLABS_VOICE_<SPECIES>` is already set, in the environment or in that file, is skipped, so a re-run after a failure only designs what is still missing.
+
+---
+
+## Changing only transcript deletion
+
+The captain can use the deletion-only command after separately approving a live operation.
+Privacy applies to the whole agent across every branch. ElevenLabs permits this update only on Main.
+A private branch does not establish traffic isolation.
+
+The release owner must provide an attestation file for the exact executing agent and Main branch.
+The file must contain these fields with the approved identities and explicit `true` values:
+
+```json
+{
+  "agent_id": "agent_APPROVED_TARGET",
+  "branch_id": "APPROVED_MAIN_BRANCH",
+  "target_is_main": true,
+  "whole_agent_traffic_isolated": true,
+  "executing_binding_verified": true,
+  "remote_exclusive_writer_verified": true,
+  "live_operation_approved": true
+}
+```
+
+This file records owner attestations. The command cannot establish remote isolation or writer ownership itself.
+Neither source approval nor synthetic tests authorise a provider operation.
+
+```bash
+npm run pubpal:agent -- --privacy-delete-only \
+  --agent-id agent_APPROVED_TARGET \
+  --branch-id APPROVED_MAIN_BRANCH \
+  --privacy-attestation path/to/owner-attestation.json
+```
+
+This command uses the existing `ELEVENLABS_API_KEY` environment value.
+It does not load local environment files, discover agents, or read or write workspace tools and secrets.
+It rejects `--check` and `--dry-run` combinations before any request.
+The existing provisioner retains its own check and dry-run behaviour.
+
+The command requires matching agent, branch and Main identities in the scoped pre-read.
+It validates the complete writable configuration against the pinned update-input models.
+It preserves optional presence, nulls, false values, zeros, array order, settings and opaque credential references.
+It publishes the explicit current procedure versions, including an established empty map.
+Missing procedure membership or unpublished versions cause refusal before PATCH.
+
+The closed contract is in `scripts/pubpal/privacy-delete-only.mjs`.
+Its 435 normalised models derive from the public OpenAPI snapshot with SHA-256
+`46ac8c4c216f924978560b0aafb81ef9fa642da6ef44a924f817d02d3bf71668`.
+The acquisition contract has SHA-256
+`3673443de6adc846ae7425e19f879af6b4f948c7adc2ff7132f74dd23ea958f2`.
+The separately documented typed configuration roots constrain the endpoint's generic maps.
+Schema defaults never create absent fields.
+Unknown named fields, unsupported input variants and unpreservable values cause refusal.
+The operation excludes response-only identity, metadata, platform safety and read-only hold-audio fields from PATCH.
+It refuses inline shareable tokens, static SIP headers and inline request headers except Content-Type.
+The pinned response contract cannot establish that these sensitive inline values are unmasked.
+Prompt text does not undergo a redaction-word heuristic.
+
+A successful mutation makes at most one scoped GET, one PATCH and one GET.
+Only `platform_settings.privacy.delete_transcript_and_pii` changes to `true`.
+The post-read must retain the same identities and every untargeted writable value.
+An already enabled, validated target needs only the pre-read and makes no write.
+HTTP failures, ambiguous failures and readback differences cause failure without retries or extra writes.
+The command prints no provider payload, prompt, credential or error response.
+The owner must reconcile a failed or ambiguous operation before another attempt.
 
 ---
 
@@ -108,8 +175,9 @@ normal update and drift check.
 The [tool identity CLI proof](proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
 
-Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
-proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
+Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
+The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
+Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
@@ -197,6 +265,16 @@ AudioWorklet files were not copied. `npm run prepare:maplibre-worker` (the first
 step of `npm run dev` and `npm run build`) writes them to `public/vendor/elevenlabs/`, and the voice session
 passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
 `blob:` or `data:` back into `script-src`.
+
+---
+
+## Diagnosing typed-chat failures
+
+`lib/palElevenLabsChat.server.ts` emits private `pub_pal.chat_failed` warnings
+with a failure code, stage, elapsed milliseconds and an optional signed-session reason.
+Caller cancellation does not emit this warning.
+The diagnostic excludes prompts, transcripts, URLs, headers, secrets and personal data.
+It does not change the public error response or establish a provider failure's cause.
 
 ---
 

@@ -6,13 +6,12 @@ import {
   runAskTool,
   type AskToolArgs,
 } from "@/lib/ask/tools";
-import type { AskToolName } from "@/lib/ask/types";
 import { isAskToolName } from "@/lib/ask/types";
 import {
   pubPalGetHomeRegisterAnswer,
   resolvePubPalFenceIntent,
 } from "@/lib/pubPalLlmFence";
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { isIndependentAskTool, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   readPubPalToolTurn,
@@ -32,8 +31,7 @@ export function resolvePubPalToolQuery(input: {
   const fromTurn = input.turnQuery?.trim() ?? "";
   const fromArgs =
     typeof input.args.query === "string" ? input.args.query.trim() : "";
-  if (fromTurn.length >= fromArgs.length) return fromTurn || fromArgs;
-  return fromArgs || fromTurn;
+  return fromTurn || fromArgs;
 }
 
 export function enrichPubPalToolArgs(
@@ -139,7 +137,23 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const toolResult = await runAskTool(input.toolName as AskToolName, args, {
+  const unsupported = unsupportedPriceComparison(query);
+  if (unsupported && !isIndependentAskTool(input.toolName)) {
+    if (input.conversationId) {
+      await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
+    }
+    return {
+      result: {
+        ok: false,
+        code: unsupported.code,
+        answerHint: unsupported.answer,
+        cards: [],
+        proposals: [],
+      },
+    };
+  }
+
+  const toolResult = await runAskTool(input.toolName, args, {
     cityId,
     query,
     skipModel: true,
@@ -150,7 +164,7 @@ export async function invokePubPalAskTool(input: {
       cards: toolResult.cards,
       proposals: toolResult.proposals,
       hints: toolResult.answerHint ? [toolResult.answerHint] : [],
-      toolsUsed: [input.toolName],
+      toolsUsed: [toolResult.tool],
     });
   }
 
@@ -168,6 +182,8 @@ export async function invokePubPalAskTool(input: {
       tool: toolResult.tool,
       answerHint: spokenHint,
       cards: toolResult.cards,
+      ...(toolResult.priceEvidence ? { priceEvidence: toolResult.priceEvidence } : {}),
+      sources: toolResult.provenance,
       proposals: toolResult.proposals,
       degraded: toolResult.degraded ?? false,
     },

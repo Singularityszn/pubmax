@@ -263,16 +263,17 @@ describe("static asset prefixes", () => {
     ).toBe(false);
   });
 
-  it("still runs the proxy on every document, /pal included", () => {
+  // The five CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`) are
+  // the one deliberate exception, and __tests__/cdnDocumentEdge.test.ts owns it.
+  it("still runs the proxy on every nonced document, /pal included", () => {
     for (const path of [
-      "/",
-      "/map",
       "/pal",
       "/pal/chat",
       "/login",
-      "/tonight",
+      "/places",
       "/u/you",
       "/offline.html",
+      "/map/london",
     ]) {
       expect(
         unstable_doesMiddlewareMatch({

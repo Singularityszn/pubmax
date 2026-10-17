@@ -58,7 +58,7 @@ describe("Pub Pal voice prompt register", () => {
     const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     expect(prompt).toContain(PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE);
     const overrides = buildPalVoiceOverrides(pal);
-    expect(Object.keys(overrides).sort()).toEqual(["firstMessage", "voiceId"]);
+    expect(Object.keys(overrides).sort()).toEqual(["firstMessage", "voiceId", "voiceSource"]);
     expect(overrides.firstMessage).toContain("Ripley");
   });
 
