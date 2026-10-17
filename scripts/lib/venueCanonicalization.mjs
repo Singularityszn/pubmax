@@ -28,6 +28,7 @@
  */
 
 import { haversineMeters } from "./geo.mjs";
+import { OPERATOR_SUFFIX_RE, hasOperatorSuffix } from "../../lib/venueOperatorSuffix.mjs";
 
 export { haversineMeters };
 
@@ -58,15 +59,12 @@ export function stableVenueIdFromKey(key) {
 // --- normalization -----------------------------------------------------------
 
 // Operator / brewery marketing suffixes that mark a duplicate lineage of the
-// SAME physical pub. Matches "- JD Wetherspoon", "(Wetherspoons)", "- Greene
-// King", "- Young's", … Used to (a) collapse names for duplicate detection and
-// (b) prefer the clean, brewery-neutral pub name as the canonical identity.
-const OPERATOR_SUFFIX_RE =
-  /\s*[-–—(]\s*(jd\s+)?wetherspoons?\b.*$|\s*[-–—]\s*(greene\s+king|nicholson'?s|young'?s|fuller'?s|sam(uel)?\s+smith'?s?|mitchells?\s*&?\s*butlers?|m\s*&\s*b|stonegate)\b.*$/i;
-
-export function hasOperatorSuffix(name) {
-  return OPERATOR_SUFFIX_RE.test(String(name ?? ""));
-}
+// SAME physical pub ("- JD Wetherspoon", "(Wetherspoons)", "- Greene King", …).
+// The pattern is lib/venueOperatorSuffix.mjs, shared with the reader-facing name
+// (lib/venueDisplay.ts#displayVenueName). Used here to (a) collapse names for
+// duplicate detection and (b) prefer the clean, brewery-neutral pub name as the
+// canonical identity.
+export { hasOperatorSuffix };
 
 // Normalize a pub name for duplicate detection: drop the operator suffix and
 // any parenthetical locality qualifier ("(Southwark)"), fold "&"→"and", strip

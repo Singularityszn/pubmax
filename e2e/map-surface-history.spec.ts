@@ -9,6 +9,7 @@ import {
   expectMapToolbarReady,
   selectFirstToolbarVenue,
 } from "./helpers/mapToolbar";
+import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
@@ -59,7 +60,7 @@ async function openMap(page: Page, path = "/map"): Promise<void> {
   expect(response?.status()).toBe(200);
   const viewport = page.viewportSize();
   if (viewport && viewport.width <= 640) {
-    await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 60_000 });
+    await expectMobileMapShellReady(page, 60_000);
     return;
   }
   await expectMapToolbarReady(page);

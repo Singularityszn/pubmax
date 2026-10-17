@@ -251,7 +251,7 @@ export default function VenuePhotoComposer({
           </label>
 
           <p className="venuePhotoComposerHint">
-            Photos you post here also appear on the Drink Wall.
+            Photos you post here also appear on the photo wall.
           </p>
         </>
       ) : null}

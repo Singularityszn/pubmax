@@ -9,14 +9,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { pdfIsWorthReading, readPdfText } from "../lib/harvest/pdfText.ts";
+import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import {
   cheapestPerCategory,
   pageStatesADrinksList,
   readVenueDrinkPrices,
 } from "../lib/harvest/ukPriceCrawl.ts";
-import { isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
+import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../lib/harvest/sourcePolicy.ts";
 
 const ROOT = process.cwd();
 const ROWS_PATH = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
@@ -38,26 +40,51 @@ function loadRows() {
     .map((line) => JSON.parse(line));
 }
 
-async function fetchBody(url) {
+/**
+ * Re-read one first-party menu URL, asking permission first and again about
+ * wherever a redirect landed.
+ *
+ * A PDF IS BYTES, NOT TEXT. Decoding one through `response.text()` corrupts the
+ * binary, and handing that string to `pdfIsWorthReading(byteLength)` compared a
+ * string with a number, so every PDF answered "not worth reading" and
+ * `readPdfText` was never reached. The bytes are read as bytes and passed on.
+ */
+export async function fetchBody(url, { fetchImpl = fetch, robots = createRobotsChecker({ fetchImpl }) } = {}) {
+  if (!isHarvestableOperatorUrl(url)) return { ok: false, body: "", reason: "refused" };
+  const permitted = await robots(url);
+  if (!permitted.allowed) return { ok: false, body: "", reason: permitted.reason };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const response = await fetchImpl(url, {
       headers: { accept: "text/html,application/xhtml+xml,application/pdf", "user-agent": USER_AGENT },
       signal: controller.signal,
       redirect: "follow",
     });
-    if (!response.ok) return { ok: false, body: "" };
-    const type = response.headers.get("content-type") ?? "";
-    const body = await response.text();
-    if (/pdf/i.test(type) || url.toLowerCase().includes(".pdf")) {
-      if (!pdfIsWorthReading(body)) return { ok: false, body: "" };
-      const text = await readPdfText(body);
-      return { ok: Boolean(text), body: text ?? "", sourceFormat: "text" };
+    const landing = harvestRedirectLanding(url, response.url);
+    if (landing.outcome === "refused") {
+      await response.body?.cancel?.();
+      return { ok: false, body: "", reason: "redirect-refused" };
     }
-    return { ok: true, body, sourceFormat: "html" };
+    if (landing.outcome === "redirected" && !(await robots(landing.url)).allowed) {
+      await response.body?.cancel?.();
+      return { ok: false, body: "", reason: "redirect-robots-refused" };
+    }
+    if (!response.ok) {
+      await response.body?.cancel?.();
+      return { ok: false, body: "", reason: `http-${response.status}` };
+    }
+    const type = response.headers.get("content-type") ?? "";
+    if (/pdf/i.test(type) || landing.url.toLowerCase().includes(".pdf")) {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!pdfIsWorthReading(bytes.byteLength)) return { ok: false, body: "", reason: "pdf-not-worth-reading" };
+      const text = await readPdfText(bytes);
+      return { ok: Boolean(text), body: text ?? "", sourceFormat: "text", landedUrl: landing.url };
+    }
+    const body = await response.text();
+    return { ok: true, body, sourceFormat: "html", landedUrl: landing.url };
   } catch {
-    return { ok: false, body: "" };
+    return { ok: false, body: "", reason: "network" };
   } finally {
     clearTimeout(timer);
   }
@@ -79,15 +106,12 @@ async function main() {
   );
 
   const cache = new Map();
+  const robots = createRobotsChecker();
   for (const url of slice) {
     try {
-    if (!isHarvestableOperatorUrl(url)) {
-      console.log(`  skip refused ${url}`);
-      continue;
-    }
-    const fetched = await fetchBody(url);
+    const fetched = await fetchBody(url, { robots });
     if (!fetched.ok) {
-      console.log(`  skip unreadable ${url}`);
+      console.log(`  skip ${fetched.reason ?? "unreadable"} ${url}`);
       continue;
     }
     cache.set(url, pricedRowsFromSource(fetched.body, fetched.sourceFormat));
@@ -115,4 +139,6 @@ async function main() {
   }
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

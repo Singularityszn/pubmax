@@ -1,4 +1,5 @@
 import { publicApiError } from "@/lib/apiError";
+import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
@@ -14,6 +15,15 @@ function missing(): Response {
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
+  // An <img> carries no bearer, so this is the resume-cookie lane's main door:
+  // every answer hands back the token it rotated, refusals included.
+  return withAuthResumeCookie(await serve(access, context), access.resumeCookie);
+}
+
+async function serve(
+  access: Awaited<ReturnType<typeof requireVerifiedSocialActor>>,
+  context: Context,
+): Promise<Response> {
   if (!access.ok) return missing();
   const limitKey = `social-media-sign:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey, 120, 60_000)) return missing();

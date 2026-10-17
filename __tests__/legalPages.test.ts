@@ -39,7 +39,8 @@ describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
     expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
     expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
-    expect(landing).toMatch(/CONTACT_MAILTO/);
+    // A plain Contact link names the brand inbox (lib/siteContact.mjs).
+    expect(landing).toMatch(/HELLO_MAILTO/);
   });
 
   it("is discoverable in the sitemap", () => {
@@ -488,8 +489,8 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
     expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
     expect(privacy).toMatch(/stored\s+subscription\s+row\s+stays/);
-    expect(privacy).toMatch(/Step Out weekly nudge is off by default/i);
-    expect(privacy).toMatch(/at most one\s+place-bound push a week/i);
+    expect(privacy).toMatch(/weekly nudge is off by default/i);
+    expect(privacy).toMatch(/at most one push a week/i);
     expect(privacy).not.toMatch(/a push subscription is held\s+by your own browser/);
   });
 
@@ -515,7 +516,7 @@ describe("legal content pages", () => {
     // authored reason, a server timestamp, and a server-derived actor token.
     // Current community prices also carry an account-owned public handle;
     // anonymity is reserved for legacy price rows without one.
-    expect(privacy).toMatch(/Recommendations, and Night\s+Memories/);
+    expect(privacy).toMatch(/Recommendations, and your\s+memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
     expect(privacy).toMatch(/needs a signed-in account/);
     expect(privacy).toMatch(/stable private profile key/);

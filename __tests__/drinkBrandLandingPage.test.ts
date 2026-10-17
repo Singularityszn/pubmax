@@ -123,7 +123,10 @@ describe("governed drink brand landing page", () => {
     // name on a bare span is prohibited so an aria-label there is dropped.
     expect(html).not.toContain('aria-label="Rank');
     expect(html).toMatch(/class="drinkBrandDirectory__rank" aria-hidden="true"/);
-    expect(html).toContain("J.J. Moon's - JD Wetherspoon");
+    // The pub reads by its own name; the operator suffix the dataset files is
+    // dropped (lib/venueDisplay.ts#displayVenueName).
+    expect(html).toContain('"name":"J.J. Moon\'s"');
+    expect(html).not.toContain("J.J. Moon's - JD Wetherspoon");
     expect(html).toContain("Pint Prices");
     expect(html).toContain("href=\"https://www.pint-prices.com/pub/");
     expect(html.match(/href="\/ledger\//g)).toHaveLength(20);

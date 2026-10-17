@@ -314,7 +314,6 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/admin",
     "/admin/community-prices",
     "/plan",
-    "/out",
     "/places",
     "/pal",
     "/map/london",
@@ -810,6 +809,82 @@ describe("the proxy export Next.js actually runs", () => {
     expect(
       unstable_doesMiddlewareMatch({ config, url: "https://pubmaxxing.com/map" }),
     ).toBe(true);
+  });
+
+  // `Purpose: prefetch` (and `Sec-Purpose: prefetch;prerender`) is the
+  // BROWSER's word for a document it fetches ahead of a navigation: a
+  // <link rel=prefetch> or a speculation-rules prerender from app/layout.tsx
+  // (`/social`, `/crawls`, `/borough/*`). That document is the one the reader
+  // is then shown, so it needs its CSP, Clerk and every redirect and gate.
+  // Next's own router prefetch is `next-router-prefetch`, an RSC fetch.
+  const BROWSER_PREFETCH_HEADERS: Array<Record<string, string>> = [
+    { purpose: "prefetch" },
+    { "sec-purpose": "prefetch;prerender" },
+    { "sec-purpose": "prefetch" },
+  ];
+
+  it.each(BROWSER_PREFETCH_HEADERS)(
+    "runs on a browser document prefetch or prerender (%o)",
+    (purposeHeaders) => {
+      for (const path of ["/social", "/crawls", "/borough/camden", "/login"]) {
+        expect(
+          unstable_doesMiddlewareMatch({
+            config,
+            url: `https://pubmaxxing.com${path}`,
+            headers: { accept: "text/html,application/xhtml+xml", ...purposeHeaders },
+          }),
+          path,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each(BROWSER_PREFETCH_HEADERS)(
+    "ships the nonce CSP to a browser document prefetch or prerender (%o)",
+    (purposeHeaders) => {
+      const response = securityProxy(
+        new NextRequest("https://pubmaxxing.com/social", {
+          headers: {
+            host: "pubmaxxing.com",
+            accept: "text/html,application/xhtml+xml",
+            ...purposeHeaders,
+          },
+        }),
+      );
+      const policy = response.headers.get("Content-Security-Policy") ?? "";
+      expect(directive(policy, "script-src")).toMatch(/'nonce-[^']+'/);
+    },
+  );
+
+  it("still keeps Next's own router prefetch (an RSC fetch) out of the CSP work", () => {
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://pubmaxxing.com/social",
+        headers: { "next-router-prefetch": "1", accept: "*/*" },
+      }),
+    ).toBe(false);
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/social", {
+        headers: { host: "pubmaxxing.com", "next-router-prefetch": "1", accept: "*/*" },
+      }),
+    );
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
+  });
+
+  it("never lets a router-prefetch header strip the CSP off a document request", () => {
+    // A request that asks for HTML is a document, whatever else it carries.
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/social", {
+        headers: {
+          host: "pubmaxxing.com",
+          "next-router-prefetch": "1",
+          accept: "text/html,application/xhtml+xml",
+        },
+      }),
+    );
+    const policy = response.headers.get("Content-Security-Policy") ?? "";
+    expect(directive(policy, "script-src")).toMatch(/'nonce-[^']+'/);
   });
 });
 

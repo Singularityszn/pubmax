@@ -38,7 +38,9 @@ export type LedgerEntry = {
   provenance: Provenance;
 };
 
-// en-GB long date for the ruled logbook line, e.g. "3 June 2024". Returns null
+// en-GB long date for the ruled logbook line, e.g. "3 June 2024", read on the
+// London calendar so a drop logged at 00:30 BST is not dated the day before on a
+// UTC server. Returns null
 // for an unparseable/missing timestamp rather than throwing — the entry still
 // renders, just without a date.
 export function formatLedgerDate(iso: string): string | null {
@@ -48,6 +50,7 @@ export function formatLedgerDate(iso: string): string | null {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/London",
   });
 }
 

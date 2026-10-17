@@ -343,11 +343,11 @@ export function deskCollapsedChainsAttributes(
 }
 
 export function deskEmptyLine(): string {
-  return "No desks logged near here yet. Add a spot.";
+  return "No work spots logged near here yet. Add one.";
 }
 
 export function deskLoadFailedLine(): string {
-  return "Could not check desks near here.";
+  return "Could not check work spots near here.";
 }
 
 /** Why a desk answer is about an area rather than about the reader. */
@@ -389,7 +389,7 @@ export function deskAnswerHeadline(input: {
   const place = input.patchLabel ?? null;
   if (place) return `Somewhere to sit around ${place}`;
   return input.scope === "widened"
-    ? "Nearest desks a bit further out"
+    ? "Nearest work spots, a bit further out"
     : "Somewhere to sit near you";
 }
 

@@ -190,10 +190,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         canSend: body.canSend === true,
         maxPerWeek: 1,
       });
-      setNotice("Step Out is on. At most one place-bound push a week.");
+      setNotice("Weekly nudge is on. At most one push a week.");
     } catch {
       setNotice(
-        offlineOrMessage("Could not turn Step Out on. Try again.")
+        offlineOrMessage("Could not turn the weekly nudge on. Try again.")
       );
     } finally {
       setBusy(false);
@@ -209,7 +209,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(
-          offlineOrMessage(errorMessageFrom(body, "Could not turn Step Out off. Try again."))
+          offlineOrMessage(errorMessageFrom(body, "Could not turn the weekly nudge off. Try again."))
         );
         return;
       }
@@ -220,10 +220,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         canSend: false,
         maxPerWeek: 1,
       });
-      setNotice("Step Out is off. No weekly nudge will be sent.");
+      setNotice("Weekly nudge is off. Nothing will be sent.");
     } catch {
       setNotice(
-        offlineOrMessage("Could not turn Step Out off. Try again.")
+        offlineOrMessage("Could not turn the weekly nudge off. Try again.")
       );
     } finally {
       setBusy(false);
@@ -238,9 +238,8 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       <div id="notifications-settings" data-testid="step-out-nudge-pref">
         <h3>Notifications</h3>
         <p>
-          Step Out is a weekly, opt-in nudge for a Wanted pub near your patch, an
-          open Soft Plan, or a sourced deal. Sign in to turn it on. Off by default.
-          At most one push a week.
+          One push a week at most, about a pub on your list near you, a plan
+          for tonight, or a deal ending soon. Off until you sign in and turn it on.
         </p>
       </div>
     );
@@ -252,10 +251,10 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     <div id="notifications-settings" data-testid="step-out-nudge-pref">
       <h3>Notifications</h3>
       <p>
-        Step Out sends at most one place-bound push a week when something is
-        owed to you: a Wanted pub near your patch, an open Soft Plan for tonight,
-        or a sourced deal ending soon. Off by default. No streaks, and no
-        pressure to drink more.
+        At most one push a week, and only when there is something real to say:
+        a pub on your list near you, a plan for tonight that is still open, or
+        a sourced deal ending soon. Off by default. No streaks, and no pressure
+        to drink more.
       </p>
       {needsInstall ? (
         <p className="accountHubNightProfile" data-testid="step-out-ios-install-note">
@@ -265,33 +264,33 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       ) : null}
       {inNativeApp && !enabled ? (
         <p className="accountHubNightProfile" data-testid="step-out-native-note">
-          Step Out alerts are not available in the app yet; they work on the web
+          Weekly nudges are not available in the app yet; they work on the web
           in Chrome, Edge or Firefox on a computer or an Android phone, or from
           the Home Screen on an iPhone.
         </p>
       ) : gate ? (
         <ContributionGateDoor
           status={gate}
-          subject="turn Step Out on"
+          subject="turn the weekly nudge on"
           onAsserted={() => setGate(null)}
         />
       ) : (
         <div className="accountHubActions">
           {enabled ? (
             <Button variant="secondary" type="button" onClick={() => void withdraw()} disabled={busy}>
-              {busy ? "Updating…" : "Turn Step Out off"}
+              {busy ? "Updating…" : "Turn weekly nudge off"}
             </Button>
           ) : (
             <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
-              {busy ? "Updating…" : "Turn Step Out on"}
+              {busy ? "Updating…" : "Turn weekly nudge on"}
             </Button>
           )}
         </div>
       )}
       <p className="accountHubConsentStatus" role="status">
         {enabled
-          ? "Step Out on · one push a week maximum."
-          : "Step Out off."}
+          ? "Weekly nudge on · one push a week maximum."
+          : "Weekly nudge off."}
       </p>
       {notice ? (
         <small className="accountHubReferralNotice" role="status">

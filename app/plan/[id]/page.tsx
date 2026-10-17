@@ -98,8 +98,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // A read we could not run is not a plan that has gone. It is never indexed
   // either way, so the unfurl says the neutral thing and the page below says
   // the honest one.
-  if (read.status === "unavailable") return { title: "Plan · PUBMAXXING", robots: PLAN_INVITE_ROBOTS };
-  if (read.status === "absent") return { title: "Plan not found · PUBMAXXING", robots: PLAN_INVITE_ROBOTS };
+  if (read.status === "unavailable") return { title: "Plan", robots: PLAN_INVITE_ROBOTS };
+  if (read.status === "absent") return { title: "Plan not found", robots: PLAN_INVITE_ROBOTS };
   const state = read.state;
   // Vibe stamp on the unfurl (share loop, issue #438): a valid ?vibe= on the
   // shared link pins the stamp the sharer saw; otherwise the crew's live top
@@ -115,7 +115,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const vibe = shareVibeSlug(query.vibe, tally?.top ?? null);
   const card = `/api/plan-card?id=${encodeURIComponent(id)}${vibe ? `&vibe=${encodeURIComponent(vibe)}` : ""}`;
   return {
-    title: `${safeTitle} · PUBMAXXING`,
+    title: safeTitle,
     description,
     robots: PLAN_INVITE_ROBOTS,
     openGraph: {

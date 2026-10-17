@@ -108,6 +108,27 @@ describe("POST /api/ratings — writes", () => {
     }
     expect(last).toBe(429);
   });
+
+  it("429s one IP minting a fresh handle per vote", async () => {
+    // A new handle is a new per-handle budget, so only the per-IP one bounds
+    // this loop. Its own address keeps the other cases' budget untouched.
+    const statuses: number[] = [];
+    for (let i = 0; i < 45; i++) {
+      const res = await POST(
+        new Request(URL_BASE, {
+          method: "POST",
+          headers: { "x-forwarded-for": "203.0.113.77" },
+          body: JSON.stringify({ kind: "venue", ref: "v-stuffed", handle: freshHandle(), rating: 1 }),
+        }),
+      );
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 40).every((status) => status === 200)).toBe(true);
+    expect(statuses.slice(40).every((status) => status === 429)).toBe(true);
+    const summary = await get("kind=venue&refs=v-stuffed");
+    const body = (await summary.json()) as { summaries: Record<string, RatingSummary> };
+    expect(defined(body.summaries["v-stuffed"]).count).toBe(40);
+  });
 });
 
 describe("GET /api/ratings", () => {

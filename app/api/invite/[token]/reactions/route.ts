@@ -11,13 +11,26 @@ import { isLimited } from "@/lib/pintDrops";
 import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
 import { UnknownPlanError, reactionStore } from "@/lib/planInviteRsvpStore";
 import { isReactionKey } from "@/lib/reactions";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
 const REACTION_LIMIT = 40;
 const REACTION_WINDOW_MS = 60_000;
+// submitterId comes from the body, so rotating it is a fresh submitter budget
+// every time. Like the RSVP route, an IP budget and a per-invite budget sit
+// beside it, so one caller cannot inflate one plan's counts without bound.
+const REACTION_IP_LIMIT = 60;
+const REACTION_TOKEN_LIMIT = REACTION_LIMIT * 4;
+const REACTION_READ_IP_LIMIT = 120;
+
+function tooMany(): Response {
+  return publicApiError("Too many reactions, slow down.", "RATE_LIMITED", 429, { retryable: true });
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }): Promise<Response> {
+  const readKey = `invite-reaction-read:${hashIp(clientIp(request))}`;
+  if (await isLimited(readKey, readKey, REACTION_READ_IP_LIMIT, REACTION_WINDOW_MS)) return tooMany();
+
   const { token } = await params;
   const resolved = await resolveClassicInvitePlan(token);
   if ("response" in resolved) return resolved.response;
@@ -38,6 +51,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
+  const ipKey = `invite-reaction-ip:${hashIp(clientIp(request))}`;
+  if (await isLimited(ipKey, ipKey, REACTION_IP_LIMIT, REACTION_WINDOW_MS)) return tooMany();
+
   const { token } = await params;
   const resolved = await resolveClassicInvitePlan(token);
   if ("response" in resolved) return resolved.response;
@@ -55,10 +71,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const submitterId = readString(body.submitterId);
   if (!submitterId) return publicApiError("Couldn't save that reaction.", "INVALID_REQUEST", 400);
   const submitterHash = hashActor(submitterId);
+  const tokenHash = hashActor(token);
   if (
-    await isLimited(`invite-reaction:${submitterHash}`, `invite-reaction:${submitterHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)
+    (await isLimited(`invite-reaction:${submitterHash}`, `invite-reaction:${submitterHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)) ||
+    (await isLimited(`invite-reaction-token:${tokenHash}`, `invite-reaction-token:${tokenHash}`, REACTION_TOKEN_LIMIT, REACTION_WINDOW_MS))
   ) {
-    return publicApiError("Too many reactions, slow down.", "RATE_LIMITED", 429, { retryable: true });
+    return tooMany();
   }
 
   try {

@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
 test("the drink wall page loads and names itself", async ({ page }) => {
   const response = await page.goto("/wall");
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: "Drink Wall", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Photos from drinkers", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: "All London" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Near me" })).toBeVisible();
 });

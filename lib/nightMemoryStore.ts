@@ -1179,6 +1179,17 @@ export async function upsertStoryContributor(
     : "contributor";
   const current = await getContributors(storyId);
   if (!profileId || !canEditNightStory(actorId, current)) return null;
+  // An invitation never rewrites a seat somebody already holds. The write below
+  // resets the row to invited, so aimed at the host it would lock them out of
+  // their own draft, and aimed at an accepted member it would demote them.
+  // Nobody may re-invite the host, and only the host may re-invite an accepted
+  // member (to change their role).
+  const existing = current.find((item) => item.profileId === profileId);
+  const actorIsHost = current.some(
+    (item) => item.profileId === actorId && item.role === "host" && item.status === "accepted",
+  );
+  if (existing?.role === "host") return null;
+  if (existing?.status === "accepted" && !actorIsHost) return null;
   const contributor: StoryContributor = {
     storyId,
     profileId,

@@ -158,7 +158,7 @@ the module is what the test measures.
 >
 > Plan the night
 >
-> - Describe the outing and get a crawl route back in order, with the walking kept honest.
+> - Say where, how many and what budget, and get a pub crawl back in order, with the walking kept honest.
 > - What is on tonight, from named sources, with the date we read them.
 > - The last train, so the night has an ending you chose.
 >
@@ -423,16 +423,16 @@ scroll past the third shot, so the first three carry the listing.
 | 3 | `/crawls` | A crawl you can walk. | The differentiator, and the reason someone keeps the app. |
 | 4 | `/tonight` | What is on across London tonight. | Recurring use. |
 | 5 | `/pint-index` | Pint prices, month by month. | The receipt. Nobody else publishes this. |
-| 6 | `/plan` | Describe the outing. Get it in order. | The planner, in the words the screen itself uses. |
+| 6 | `/plan` | Plan a pub crawl. | The planner, in the words the screen itself uses. |
 
 **Change requested, for the worker who owns `SHOTS`:**
 
 - Shot 3 caption: "A crawl you can actually walk." to "A crawl you can walk."
   Shot 2 already says "actually" and two captions in a row leaning on the same
   word reads as one voice tic rather than two claims.
-- Shot 6 caption: "Describe the night. Get it in order." to "Describe the
-  outing. Get it in order." The screen's own heading is "Describe the outing.
-  We'll put it in order." (`docs/design/LAUNCH_SCREENS.md`), and a caption that
+- Shot 6 caption: "Describe the night. Get it in order." to "Plan a pub
+  crawl." The screen's own heading is "Plan a pub crawl"
+  (`docs/design/LAUNCH_SCREENS.md`), and a caption that
   paraphrases the screen it sits beside is a small lie a reviewer can see.
 - **Add a seventh shot: `/pal`, caption "Your Pub Pal knows the round."** Pub
   Pal is the landing page's secondary action and seven rendered forms as of

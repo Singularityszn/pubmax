@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The production service worker registers on /places and then answers basemap
 // requests itself, past page.route(), so the refused raster tiles never fail.
@@ -136,7 +136,7 @@ for (const width of [390, 768, 1440]) {
       await expect(page.locator(".maplibregl-ctrl-attrib-inner")).toBeVisible();
       await page.locator(".maplibregl-ctrl-attrib-button").click();
       if (width === 390) {
-        const more = page.getByRole("button", { name: "More map controls" });
+        const more = await mobileMapShellControl(page, "more");
         await expectClearControl(page, more, consentTop);
         await expect(async () => {
           await more.click();

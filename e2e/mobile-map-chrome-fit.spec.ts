@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -187,9 +187,9 @@ async function openPhoneMap(
   await expect(
     page.getByRole("group", { name: "Venue types" }),
   ).toHaveCount(0);
-  await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
+  await expect(await mobileMapShellControl(page, "nearMe")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Describe the outing" }),
+    page.getByRole("button", { name: "Plan a pub crawl" }),
   ).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
@@ -632,10 +632,9 @@ for (const viewport of VIEWPORTS) {
     page,
   }) => {
     await openPhoneMap(page, viewport);
-    const topbar = page.locator(".mobileMapTopbar");
     await tapRenderedCentre(
       page,
-      topbar.getByRole("button", { name: /^Filters/ }),
+      await mobileMapShellControl(page, "filters"),
       viewport.width,
       "Filters",
     );
@@ -677,7 +676,7 @@ for (const viewport of VIEWPORTS) {
 
     // Near me before Search: MapEdgeControls unmount while search owns the
     // overlay, and Back from the layers sheet restores search when it was open.
-    const nearMe = page.locator(".mobileMapLocateFab");
+    const nearMe = await mobileMapShellControl(page, "nearMe");
     await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
     await expect(nearMe).toHaveAttribute("aria-label", /^Nearby \d+$/, {
       timeout: 20_000,
@@ -686,7 +685,7 @@ for (const viewport of VIEWPORTS) {
       await dismissSheet(page);
     }
 
-    const search = topbar.getByRole("button", { name: "Search the map" });
+    const search = await mobileMapShellControl(page, "search");
     await tapRenderedCentre(page, search, viewport.width, "Search");
     const searchField = page.getByRole("combobox", { name: "Search pubs" });
     await expect(searchField).toBeVisible();
@@ -694,14 +693,14 @@ for (const viewport of VIEWPORTS) {
     await expect(searchField).toHaveCount(0);
     await expect(search).toHaveAttribute("aria-expanded", "false");
 
-    const more = topbar.getByRole("button", { name: "More map controls" });
+    const more = await mobileMapShellControl(page, "more");
     await tapRenderedCentre(page, more, viewport.width, "More map controls");
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
 
-    const filters = topbar.getByRole("button", { name: /^Filters/ });
+    const filters = await mobileMapShellControl(page, "filters");
     await tapRenderedCentre(page, filters, viewport.width, "Filters");
     const sheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
@@ -772,9 +771,8 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
     "the place name is not truncated at 320px",
   ).toBeLessThanOrEqual(areaFit.clientWidth);
 
-  const filters = topbar.getByRole("button", {
-    name: "Filters: drinks active",
-  });
+  const filters = await mobileMapShellControl(page, "filters");
+  await expect(filters).toHaveAccessibleName("Filters: drinks active");
   await expect(filters.locator(".mobileMapTopbarBadge")).toHaveText("1");
   await tapRenderedCentre(
     page,
@@ -789,7 +787,7 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   ).toHaveCount(1);
   await dismissSheet(page);
 
-  const nearMe = page.getByRole("button", { name: "Near me" });
+  const nearMe = await mobileMapShellControl(page, "nearMe");
   await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
   await expect(page.getByRole("button", { name: /^Nearby \d+$/ })).toBeVisible({
     timeout: 20_000,
@@ -883,9 +881,7 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   await openPhoneMap(page, viewport, "no-preference");
   await page.waitForTimeout(500);
 
-  const filters = page
-    .locator(".mobileMapTopbar")
-    .getByRole("button", { name: /^Filters/ });
+  const filters = await mobileMapShellControl(page, "filters");
   await tapRenderedCentre(page, filters, viewport.width, "Filters");
   const filtersSheet = page.locator(
     '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
@@ -1425,8 +1421,8 @@ test.describe("story and credit placement", () => {
 //
 // THE CARD IS EARNED, NOT MET ON ARRIVAL (lib/consentAnswerMoment.ts). It no
 // longer mounts on first paint, so this case performs one real first-answer
-// event before it measures anything. /out carries no pin and no venue sheet,
-// and the surface under test has to STAY /out because that is where the map
+// event before it measures anything. /places carries no pin and no venue sheet,
+// and the surface under test has to STAY /places because that is where the map
 // members are absent and the berth is the default one, so the answer here is
 // the reader reaching a second route - which is what a list tap, a card link
 // and a tab all come out as.
@@ -1447,7 +1443,7 @@ for (const viewport of VIEWPORTS) {
 
     // Route one. `domcontentloaded` returns before React has hydrated, so the
     // first route is polled for rather than assumed: leaving too early would
-    // leave it unrecorded and /out would be read as the first route instead.
+    // leave it unrecorded and /places would be read as the first route instead.
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect
       .poll(
@@ -1457,11 +1453,11 @@ for (const viewport of VIEWPORTS) {
       )
       .not.toBeNull();
 
-    // Route two, and the surface this case measures.
-    const response = await page.goto("/out");
+    // Route two, and the surface this case measures. /out used to be this
+    // off-map route; it 308s to /tonight now (Oct 2026), so the city picker,
+    // an ordinary off-map page with the dock and the create action, stands in.
+    const response = await page.goto("/places");
     expect(response?.status()).toBe(200);
-    // /out streams behind its loading skeleton, and until React swaps the page
-    // in the document holds the skeleton's tab bar and the page's own.
     await expectStreamedPageSettled(page);
 
     const prompt = page.locator(".analyticsConsentPrompt");
@@ -1512,8 +1508,8 @@ for (const viewport of VIEWPORTS) {
       "the card sits on the reserved tab-bar lane",
     ).toBeLessThanOrEqual(1);
 
-    // And it covers nothing the reader came for. /out leads with its own
-    // listings, so the first one is what the card may never stand over.
+    // And it covers nothing the reader came for: the first link in the page's
+    // main is what the card may never stand over.
     const firstListing = page.locator("main a").first();
     if (await firstListing.count() > 0) {
       const listingBox = await firstListing.boundingBox();
@@ -1558,10 +1554,9 @@ for (const viewport of VIEWPORTS) {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     });
 
-    const response = await page.goto("/out");
+    // An ordinary off-map page (/out 308s to /tonight since Oct 2026).
+    const response = await page.goto("/places");
     expect(response?.status()).toBe(200);
-    // /out streams behind its loading skeleton, and until React swaps the page
-    // in the document holds the skeleton's tab bar and the page's own.
     await expectStreamedPageSettled(page);
 
     const create = page.getByTestId("create-fab");
@@ -1581,9 +1576,8 @@ for (const viewport of VIEWPORTS) {
       "the create action parks above the tab bar",
     ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
 
-    // Every row of its sheet keeps the tap floor. Scope to the sheet: /out's
-    // own empty state links to /plan under the same name, so a page-wide
-    // lookup is ambiguous rather than wrong.
+    // Every row of its sheet keeps the tap floor. Scope to the sheet, so a
+    // page link under the same name can never answer for a row.
     await create.click();
     const createMenu = page.locator(".createFabMenu");
     for (const label of ["Post a moment", "Log a price", "Start a plan"]) {
@@ -1705,26 +1699,27 @@ for (const viewport of VIEWPORTS) {
 }
 
 // The phone dock leads with the loop, not Social (13 Sep 2026 audit, lane 2).
-// Tonight is the dock's first door and Social is never a dock tab: it answers a
-// stranger with "Sign in to use Social.", so its doors are the desktop More
-// menu and the signed-in You hub. The count-driven row must close over the
-// WHOLE primary set at every supported phone width.
+// Map is the dock's first door (the five-door row, Oct 2026 UX audit), Tonight
+// is in it, and Social is in it once, after Plan (captain, 16 Oct 2026). The
+// count-driven row must close over the WHOLE primary set at every supported
+// phone width.
 //
 // The total is read from the nav model rather than typed, because it is not
-// what this test is about: it grew from five to six when Places landed, and a
+// what this test is about: it grew from five to six when Places landed and fell
+// to four when Out and Places folded, then rose to five with Social, and a
 // number written here fails the day the row changes for a reason this file has
 // no opinion on. What it holds is that the row is the primary set entire, that
-// Social is not in it, and that every column still clears the tap floor.
+// Map leads it, and that every column still clears the tap floor.
 for (const viewport of VIEWPORTS) {
-  test(`${viewport.width}px phone chrome leads with Tonight, never Social`, async ({
+  test(`${viewport.width}px phone chrome leads with Map, Social after Plan`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
 
     const primary = page.getByRole("navigation", { name: "Primary" });
-    await expect(primary.locator("a").first()).toHaveAttribute("href", "/tonight");
+    await expect(primary.locator("a").first()).toHaveAttribute("href", "/map");
     await expect(primary.getByRole("link", { name: "Tonight", exact: true })).toHaveCount(1);
-    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
     await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length);
     for (const tab of await primary.locator("a").all()) {
       const box = await tab.boundingBox();

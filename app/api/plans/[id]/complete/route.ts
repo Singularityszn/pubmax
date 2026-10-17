@@ -8,6 +8,7 @@ import { CREW_NIGHT_MIN_PARTICIPANTS } from "@/lib/crew";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
+import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
 import { cleanText } from "@/lib/textClean";
 import { completionLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
@@ -60,12 +61,20 @@ function verifiedCompletionResponse(
   }
 }
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
+// §4.10: the completion carries the route snapshot, where the night ended and
+// when the crew arrived, so only a host/guest capability reads it. The plan id
+// travels in share links, OG cards and push URLs, so anyone else gets the same
+// preview answer the Plan, getin and recap routes give: whether it ended.
+export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   const [planLookup, completionLookup] = await Promise.all([planStateResult(id), planCompletionResult(id)]);
   if (!planLookup.ok || !completionLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
   if (!planLookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  const projection = await resolvePlanProjection({ request, planId: id, state: planLookup.plan });
+  if (projection.visibility !== "member") {
+    return jsonNoStore({ visibility: "preview", completed: completionLookup.completion !== null });
+  }
   return jsonNoStore({ completion: completionLookup.completion });
 }
 

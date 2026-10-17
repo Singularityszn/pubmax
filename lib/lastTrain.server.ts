@@ -57,15 +57,18 @@ import {
   type LastTrainResult,
   type NearestPub,
   type NextDepartures,
+  type WalkBasis,
 } from "@/lib/tfl";
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
+import { chooseByStreetWalk, streetWalkMetres } from "@/lib/stationWalkAccess";
 import { tflGet } from "@/lib/tflClient.server";
 import { peekPricedVenues } from "@/lib/venuePriceIndex";
 import { cachedLastTrainValue } from "@/lib/lastTrainStableCache.server";
+import { lastTrainServiceRank } from "@/lib/tonightGetHome";
 
 const STATION_RADIUS_M = 1500;
 // Broad coverage: metro + national-rail stations, across the modes a Londoner
@@ -75,6 +78,11 @@ const MODES = "tube,dlr,elizabeth-line,overground";
 // Cap the timetable fan-out so a busy interchange (many lines) can't blow the
 // keyless rate limit; four lines is plenty for a "head home" glance.
 const LINE_CAP = 4;
+
+// TfL lists stations nearest first along the straight line. The route keeps
+// the first few so lib/stationWalkAccess can pick the shortest street walk
+// among them; the answer is still one station.
+const STATION_CANDIDATES = 5;
 // --- Minimal shapes for just the fields we read off the TfL responses. ---
 
 type StopPointLine = { id?: string; name?: string };
@@ -172,11 +180,12 @@ async function nearestStation(
         timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
         signal,
       });
-      return stops?.stopPoints?.[0] ?? null;
+      return (stops?.stopPoints ?? []).filter((stop) => Boolean(stop.id)).slice(0, STATION_CANDIDATES);
     }),
-    (station) => Boolean(station?.id),
+    (stations) => stations.length > 0,
   );
-  return awaitCachedValueForRequest(producer, signal, null);
+  const candidates = await awaitCachedValueForRequest(producer, signal, []);
+  return chooseByStreetWalk({ lat, lng }, candidates);
 }
 
 // TfL Arrivals: one entry per vehicle currently predicted for this stop.
@@ -359,12 +368,31 @@ async function nextDeparturesForLine(
     .map(({ clock }) => ({ clock }));
 }
 
+// Mirrors lib/tfl.ts's SERVICE_DAY_ROLLBACK_HOUR (not exported there): before
+// 04:00 London the night still belongs to the previous calendar day's service.
+const SERVICE_DAY_ROLLBACK_HOUR = 4;
+const MINUTES_PER_DAY = 24 * 60;
+
+// "Now" in the SERVICE-DAY frame that timetable ranks use. TfL writes a
+// past-midnight journey as hour >= 24 on the prior day's schedule, so 00:28 is
+// rank 1468. The raw wall clock at 00:20 is 20, which would make every evening
+// rank look upcoming; in the service frame it is 1460. `londonWall` is a Date
+// whose local fields are London wall-clock time (see londonNow below).
+export function serviceFrameNowMinutes(londonWall: Date): number {
+  const minutes = londonWall.getHours() * 60 + londonWall.getMinutes();
+  return londonWall.getHours() < SERVICE_DAY_ROLLBACK_HOUR
+    ? minutes + MINUTES_PER_DAY
+    : minutes;
+}
+
 // Timetable-based fallback for "next departures" when live Arrivals is empty for
 // a line (e.g. after the last live vehicle but before we've given up on the
 // night, or Arrivals is temporarily quiet). Reuses the same schedules the
 // last-train lookup already collected, with no extra TfL calls, and picks the
-// smallest-rank journeys that are still >= "now" (in minutes-since-midnight),
-// falling back further to today's lastJourney alone if nothing else matches.
+// smallest-rank journeys that are still >= "now". `nowMinutes` MUST be in the
+// service-day frame (serviceFrameNowMinutes), the frame the ranks are in. When
+// nothing is still to come it returns none: a departed train is never listed as
+// a next departure, and the caller drops a line with no times.
 export function nextFromSchedulesAfter(
   schedules: Schedule[],
   dayType: DayType,
@@ -377,11 +405,10 @@ export function nextFromSchedulesAfter(
     const rank = journeyRank(schedule.lastJourney);
     if (rank !== null) ranked.push(rank);
   }
-  const upcoming = ranked.filter((r) => r >= nowMinutes).sort((a, b) => a - b);
-  const chosen = (upcoming.length > 0 ? upcoming : ranked.sort((a, b) => a - b)).slice(
-    0,
-    DEPARTURES_PER_LINE,
-  );
+  const chosen = ranked
+    .filter((r) => r >= nowMinutes)
+    .sort((a, b) => a - b)
+    .slice(0, DEPARTURES_PER_LINE);
   return chosen.map((rank) => {
     const { clock } = formatLastJourney({ hour: Math.floor(rank / 60), minute: rank % 60 });
     return { clock };
@@ -497,6 +524,7 @@ function londonNow(instant: Date): Date {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
   }).formatToParts(instant);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
@@ -506,20 +534,65 @@ function londonNow(instant: Date): Date {
     Number(get("day")),
     Number(get("hour")),
     Number(get("minute")),
+    Number(get("second")),
   );
 }
 
-function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): Response {
-  const { status = 200, cache = false } = opts;
+// Shared-cache lifetime for the stable scope. Its `departures` are "next after
+// now" and its `trains` are the current service day's timetable, so neither may
+// outlive a couple of minutes, and the whole lifetime (fresh plus stale) ends at
+// or before the next 04:00 London service-day rollover, when the day type and so
+// the timetable change. The server's in-memory TfL caches still absorb the load.
+const STABLE_SHARED_MAX_AGE_S = 60;
+const STABLE_STALE_WHILE_REVALIDATE_S = 60;
+
+export function stableCacheControl(londonWall: Date): string {
+  const rolloverMinutes = MINUTES_PER_DAY + SERVICE_DAY_ROLLBACK_HOUR * 60;
+  const untilRollover =
+    (rolloverMinutes - serviceFrameNowMinutes(londonWall)) * 60 - londonWall.getSeconds();
+  const maxAge = Math.min(STABLE_SHARED_MAX_AGE_S, untilRollover);
+  if (maxAge <= 0) return "no-store";
+  const swr = Math.min(STABLE_STALE_WHILE_REVALIDATE_S, untilRollover - maxAge);
+  return swr > 0
+    ? `public, s-maxage=${maxAge}, stale-while-revalidate=${swr}`
+    : `public, s-maxage=${maxAge}`;
+}
+
+function json(
+  body: unknown,
+  opts: { status?: number; cacheControl?: string } = {},
+): Response {
+  const { status = 200, cacheControl = "no-store" } = opts;
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": cache
-        ? "public, s-maxage=3600, stale-while-revalidate=86400"
-        : "no-store",
+      "cache-control": cacheControl,
     },
   });
+}
+
+// Walk estimate: venue (the point the card was called with) → station, at a
+// brisk walking pace. Inside the street-walk area it follows the streets
+// (lib/stationWalkAccess); everywhere else it is the straight line. The
+// response's `walkBasis` says which, so the card never passes one off as the
+// other.
+function walkToStation(
+  from: { lat: number; lng: number },
+  station: StopPoint,
+): { walkMinutesEstimate: number; walkBasis: WalkBasis } {
+  if (typeof station.lat !== "number" || typeof station.lon !== "number") {
+    return { walkMinutesEstimate: walkMinutesForKm(0), walkBasis: "straight" };
+  }
+  const to = { lat: station.lat, lng: station.lon };
+  const streetMetres = streetWalkMetres(from, { ...to, name: station.commonName });
+  if (streetMetres !== null) {
+    return { walkMinutesEstimate: walkMinutesForKm(streetMetres / 1_000), walkBasis: "street" };
+  }
+  return {
+    walkMinutesEstimate: walkMinutesForKm(haversineKm([from.lng, from.lat], [to.lng, to.lat])),
+    walkBasis: "straight",
+  };
 }
 
 export async function runLastTrainRoute(request: Request): Promise<Response> {
@@ -624,7 +697,10 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   // hour>=24 on the prior day's schedule). Resolve the timetable against that
   // service day-type, not the raw weekday, or we drop the real last train.
   const dayType = serviceDayTypeForDate(now);
+  // Raw wall-clock minutes, for minutesUntilDeparture's own frame handling.
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  // Service-day frame (00:20 is 1460), the frame timetable ranks are in.
+  const serviceNowMinutes = serviceFrameNowMinutes(now);
 
   // 2) Unique serving lines, capped, resolved concurrently.
   const seen = new Set<string>();
@@ -657,7 +733,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
               line.name ?? (line.id as string),
               nearest.id as string,
               dayType,
-              nowMinutes,
+              serviceNowMinutes,
               routeController.signal,
             )
           : departuresForLine(
@@ -665,7 +741,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
               line.name ?? (line.id as string),
               nearest.id as string,
               dayType,
-              nowMinutes,
+              serviceNowMinutes,
               routeController.signal,
             ),
       ),
@@ -686,10 +762,11 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
       : [];
 
   // Keep only lines we actually resolved; sort earliest-departing first so the
-  // most urgent "leave now" line is at the top.
+  // most urgent "leave now" line is at the top. Ranked in the service-day frame:
+  // a string sort puts "00:15" before "23:50".
   const trains: LastTrain[] = lastTrainResults
     .filter((t): t is LastTrain => t !== null)
-    .sort((a, b) => a.clock.localeCompare(b.clock));
+    .sort((a, b) => lastTrainServiceRank(a) - lastTrainServiceRank(b));
 
   const departures: NextDepartures[] = departureResults.filter((d) => d.times.length > 0);
 
@@ -706,18 +783,12 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
         nearestPubs,
         generatedAt: new Date().toISOString(),
       },
-      { cache: trains.length > 0 },
+      // An empty answer (TfL gave no timetable) is never shared-cached.
+      { cacheControl: trains.length > 0 ? stableCacheControl(now) : "no-store" },
     );
   }
 
-  // Walk estimate: venue (the point the card was called with) → station,
-  // straight-line haversine at a brisk walking pace. Labeled as straight-line in
-  // the response shape so the card can be honest about it (no routed distance).
-  const walkKm =
-    typeof nearest.lat === "number" && typeof nearest.lon === "number"
-      ? haversineKm([lng, lat], [nearest.lon, nearest.lat])
-      : 0;
-  const walkMinutesEstimate = walkMinutesForKm(walkKm);
+  const { walkMinutesEstimate, walkBasis } = walkToStation({ lat, lng }, nearest);
 
   // Minutes until the last train that matters: the LATEST across all resolved
   // lines (any one of them gets the drinker home), measured from "now" by ACTUAL
@@ -764,6 +835,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     decision,
     nearestPubs,
     generatedAt: new Date().toISOString(),
+    walkBasis,
   };
   return json(result);
   } finally {

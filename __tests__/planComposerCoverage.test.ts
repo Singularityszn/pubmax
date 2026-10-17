@@ -694,6 +694,10 @@ describe("PlanComposer route preview seam", () => {
       venueId: "a", venueName: "A", selectedDrinkPriceEvidence: wine,
     });
     expect(selectedDrinkPriceDescription(routeStopsFromGenerated([{ venueId: "c", venueName: "C", selectedDrinkPriceEvidence: null }])[0]?.selectedDrinkPriceEvidence)).toBeNull();
+    // The report date is the London calendar day, not the UTC one (LIB-D8): a
+    // report at 23:30Z on a BST night was made after midnight in London.
+    expect(selectedDrinkPriceDescription({ category: "wine", pence: 550, serving: null, source: "community", reportedAt: "2026-09-25T23:30:00.000Z" }))
+      .toBe("Wine £5.50, community report 26 Sept 2026. Serving size not recorded.");
   });
 
   it("cycles a grounded swap while retaining the previous venue as an alternative", () => {

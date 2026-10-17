@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   GROUP_PREF_ATMOSPHERE_CHIPS,
@@ -55,12 +55,30 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   const [status, setStatus] = useState("");
   const [pending, setPending] = useState(false);
   const [shared, setShared] = useState(false);
+  // Only the newest read may paint: a poll that left before a save and lands
+  // after it carries the old picks, and the next save would build on them.
+  const refreshRequestRef = useRef<{ generation: number; controller: AbortController } | null>(null);
+  // A write in flight owns the picks: a poll that starts or lands while it is
+  // out would paint the picks from before it.
+  const writingRef = useRef(false);
+
+  // Abort the read in flight and retire its generation, so it can never paint.
+  const supersedeRefresh = useCallback(() => {
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    refreshRequestRef.current = { generation, controller: new AbortController() };
+  }, []);
 
   const refresh = useCallback(async () => {
-    if (!memberToken) return;
+    if (!memberToken || writingRef.current) return;
+    const generation = (refreshRequestRef.current?.generation ?? 0) + 1;
+    refreshRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    refreshRequestRef.current = { generation, controller };
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         cache: "no-store",
+        signal: controller.signal,
         headers: { authorization: `Bearer ${memberToken}` },
       });
       if (!response.ok) {
@@ -68,6 +86,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       const body = await response.json() as { prefs?: MatePreference[]; overlap?: GroupPrefsOverlap };
+      if (controller.signal.aborted || refreshRequestRef.current?.generation !== generation) return;
       setPrefs(Array.isArray(body.prefs) ? body.prefs : []);
       setOverlap(body.overlap && typeof body.overlap === "object" ? body.overlap : EMPTY_OVERLAP);
       const mine = Array.isArray(body.prefs) ? body.prefs.find((pref) => pref.mateId === memberId) : null;
@@ -85,6 +104,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
+      refreshRequestRef.current?.controller.abort();
     };
   }, [refresh]);
 
@@ -114,6 +134,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     }
     setPending(true);
     setStatus("");
+    writingRef.current = true;
+    supersedeRefresh();
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         method: "POST",
@@ -140,13 +162,17 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
+      const saved = body.pref;
+      if (saved) setPrefs((current) => [...current.filter((pref) => pref.mateId !== saved.mateId), saved]);
       setShared(true);
       setDraft({});
       setStatus("Saved and shared with this plan.");
+      writingRef.current = false;
       await refresh();
     } catch {
       setStatus("Could not share these picks yet.");
     } finally {
+      writingRef.current = false;
       setPending(false);
     }
   }
@@ -154,6 +180,8 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
   async function clearPrefs() {
     setPending(true);
     setStatus("");
+    writingRef.current = true;
+    supersedeRefresh();
     try {
       const response = await fetch(`/api/plans/${planId}/group-prefs`, {
         method: "DELETE",
@@ -165,13 +193,16 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
+      setPrefs((current) => current.filter((pref) => pref.mateId !== memberId));
       setShared(false);
       setDraft({});
       setStatus("Shared picks cleared.");
+      writingRef.current = false;
       await refresh();
     } catch {
       setStatus("Could not clear shared picks.");
     } finally {
+      writingRef.current = false;
       setPending(false);
     }
   }

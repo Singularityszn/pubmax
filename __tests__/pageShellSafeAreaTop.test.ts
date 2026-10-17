@@ -24,7 +24,6 @@ const PAGE_SHELLS_UNDER_THE_STANDARD_BAR: ReadonlyArray<{
   shellClass: string;
   mounts: string;
 }> = [
-  { stylesheet: "app/out/out.css", shellClass: "outPage", mounts: "app/out/OutClient.tsx" },
   { stylesheet: "app/today/today.css", shellClass: "todayPage", mounts: "app/today/TodayClient.tsx" },
   { stylesheet: "app/tonight/tonight.css", shellClass: "tonightPage", mounts: "app/tonight/TonightClient.tsx" },
   { stylesheet: "app/plan/plan.css", shellClass: "planPage", mounts: "app/plan/page.tsx" },
