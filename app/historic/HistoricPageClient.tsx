@@ -21,7 +21,10 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
+import DesktopRail from "@/components/desktop/DesktopRail";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import { boroughPlacePhoto, pubPlacePhoto } from "@/components/listing/placePhoto";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
@@ -42,6 +45,97 @@ import HistoricFilters from "./HistoricFilters";
 
 import "@/components/listing/listing.css";
 import "./historic.css";
+
+/** The whole index, counted on the server, for the desktop side pane. */
+export type HistoricIndexSummary = {
+  total: number;
+  boroughs: number;
+  listed: number;
+  oldest: { name: string; slug: string; dateLabel: string } | null;
+  /** The pub the lead photograph shows, when we hold a photograph of one. */
+  leadPub: {
+    name: string;
+    slug: string;
+    venueId: string | null;
+    dateLabel: string | null;
+    listed: string | null;
+  } | null;
+};
+
+// "Founded 1520" reads "founded 1520" inside a sentence.
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+// The side pane beside the register at desktop widths (the DesktopRail
+// pattern, components/desktop/DesktopRail.tsx). A phone never shows it: the
+// register is the page there, and the pane's photograph would push the first
+// entry under the fold. Two things only: a photograph and the index in four
+// figures.
+//
+// The photograph is honest by construction (components/listing/placePhoto.ts):
+// with a borough chosen it is that borough's own photograph, captioned with
+// the place it shows; otherwise it is The Black Friar, a listed pub on this
+// register, named and linked to its own entry. A borough we hold no
+// photograph of gets no photograph, never a stand-in.
+function HistoricPane({
+  summary,
+  borough,
+}: {
+  summary: HistoricIndexSummary;
+  borough: string | null;
+}) {
+  const lead = summary.leadPub;
+  const photo = borough ? boroughPlacePhoto(borough) : pubPlacePhoto(lead?.venueId);
+  const leadFacts = lead
+    ? [lead.dateLabel, listedBadge(lead.listed)].filter(Boolean).join(", ")
+    : "";
+  return (
+    <DesktopRail className="historicPane" ariaLabel="About this index">
+      {photo ? (
+        <PlacePhoto
+          className="historicPanePhoto"
+          photo={photo}
+          sizes="18rem"
+          caption={
+            !borough && lead ? (
+              <p className="historicPaneLead">
+                <Link href={`/historic/${lead.slug}`}>{lead.name}</Link>
+                {leadFacts ? <span>{leadFacts}</span> : null}
+              </p>
+            ) : null
+          }
+        />
+      ) : null}
+      <section className="historicPaneIndex" aria-labelledby="historicPaneHeading">
+        <h2 id="historicPaneHeading" className="historicPaneHeading">
+          The whole index
+        </h2>
+        <dl className="historicPaneFigures">
+          <div>
+            <dt>Pubs on record</dt>
+            <dd>{summary.total}</dd>
+          </div>
+          <div>
+            <dt>Boroughs</dt>
+            <dd>{summary.boroughs}</dd>
+          </div>
+          <div>
+            <dt>Listed buildings</dt>
+            <dd>{summary.listed}</dd>
+          </div>
+        </dl>
+        {summary.oldest ? (
+          <p className="historicPaneOldest">
+            The oldest stated date is{" "}
+            <Link href={`/historic/${summary.oldest.slug}`}>{summary.oldest.name}</Link>,{" "}
+            {lowerFirst(summary.oldest.dateLabel)}.
+          </p>
+        ) : null}
+      </section>
+    </DesktopRail>
+  );
+}
 
 // The date column: the stated value as the figure and what it dates as the
 // word under it. "Founded 1520" becomes 1520 over Founded. When the label does
@@ -64,6 +158,7 @@ export default function HistoricPageClient({
   filters,
   page,
   totalPages,
+  summary,
 }: {
   pubs: HistoricPub[];
   totalPubs: number;
@@ -72,6 +167,7 @@ export default function HistoricPageClient({
   filters: HistoricFilterQuery;
   page: number;
   totalPages: number;
+  summary: HistoricIndexSummary;
 }): React.JSX.Element {
   const filtersActive =
     filters.borough !== null || filters.listedOnly || filters.hasDate;
@@ -103,88 +199,100 @@ export default function HistoricPageClient({
             the cheap pints are.
           </EmptyState>
         ) : (
-          <>
-            <HistoricFilters boroughs={boroughs} filters={filters} />
+          <div className="historicLayout">
+            <div className="historicColumn">
+              <HistoricFilters boroughs={boroughs} filters={filters} />
 
-            <p className="historicCount" role="status" aria-live="polite">
-              {historicCountLine({ firstShown, lastShown, matchingPubs, totalPubs })}
-            </p>
+              <p className="historicCount" role="status" aria-live="polite">
+                {historicCountLine({ firstShown, lastShown, matchingPubs, totalPubs })}
+              </p>
 
-            {pubs.length === 0 ? (
-              <EmptyState
-                title="Nothing matches those filters."
-                action={
-                  filtersActive ? <Link href="/historic">Clear filters</Link> : undefined
-                }
-              >
-                We only show pubs we can cite. Nothing is invented to fill the gap.
-              </EmptyState>
-            ) : (
-              <ol className="historicList">
-                {pubs.map((pub) => {
-                  const href = citationHref(pub);
-                  const date = dateParts(pub);
-                  // A date the column cannot split keeps its whole label.
-                  const looseDate = date ? null : (pub.dateLabel ?? pub.era);
-                  const grade = listedBadge(pub.listed);
-                  const status = venueStatusBadge(pub.venueStatus);
-                  const meta = [pub.borough, looseDate, grade, status].filter(Boolean).join(", ");
-                  return (
-                    <li key={pub.slug} className="historicEntry">
-                      <p className="historicDate">
-                        {date ? (
-                          <>
-                            <span className="historicDateKind">{date.kind}</span>{" "}
-                            <span className="historicDateFigure">{date.figure}</span>
-                          </>
-                        ) : null}
-                      </p>
-                      <div className="historicEntryBody">
-                        <h2 className="historicEntryName">
-                          <Link href={`/historic/${pub.slug}`}>{pub.name}</Link>
-                        </h2>
-                        {meta ? <p className="historicEntryMeta">{meta}</p> : null}
-                        <p className="historicHook">{pub.hook}</p>
-                        <p className="historicProvenance">
-                          {href ? (
-                            <a
-                              className="historicCite"
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {citationLabel(href)}
-                              <ExternalLink size={12} aria-hidden="true" />
-                            </a>
-                          ) : null}
-                          {pub.venueId ? (
-                            <Link prefetch={false}
-                              className="historicMapLink"
-                              href={`/map?sel=${pub.venueId}`}
-                              aria-label={`See ${pub.name} on the map`}
-                            >
-                              On the map
-                            </Link>
+              {pubs.length === 0 ? (
+                <EmptyState
+                  title="Nothing matches those filters."
+                  action={
+                    filtersActive ? <Link href="/historic">Clear filters</Link> : undefined
+                  }
+                >
+                  We only show pubs we can cite. Nothing is invented to fill the gap.
+                </EmptyState>
+              ) : (
+                <ol className="historicList">
+                  {pubs.map((pub) => {
+                    const href = citationHref(pub);
+                    const date = dateParts(pub);
+                    // A date the column cannot split keeps its whole label.
+                    const looseDate = date ? null : (pub.dateLabel ?? pub.era);
+                    const grade = listedBadge(pub.listed);
+                    const status = venueStatusBadge(pub.venueStatus);
+                    const meta = [pub.borough, looseDate, grade, status].filter(Boolean).join(", ");
+                    // Only a photograph OF this pub, matched by venue id.
+                    const photo = pubPlacePhoto(pub.venueId);
+                    return (
+                      <li key={pub.slug} className="historicEntry">
+                        <p className="historicDate">
+                          {date ? (
+                            <>
+                              <span className="historicDateKind">{date.kind}</span>{" "}
+                              <span className="historicDateFigure">{date.figure}</span>
+                            </>
                           ) : null}
                         </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-            {totalPages > 1 ? (
-              <nav className="historicPagination" aria-label="Historic pub pages">
-                {page > 1 ? (
-                  <Link href={historicIndexHref(filters, page - 1)}>Previous</Link>
-                ) : <span />}
-                <span>Page {page} of {totalPages}</span>
-                {page < totalPages ? (
-                  <Link href={historicIndexHref(filters, page + 1)}>Next</Link>
-                ) : <span />}
-              </nav>
-            ) : null}
-          </>
+                        <div className="historicEntryBody">
+                          <h2 className="historicEntryName">
+                            <Link href={`/historic/${pub.slug}`}>{pub.name}</Link>
+                          </h2>
+                          {meta ? <p className="historicEntryMeta">{meta}</p> : null}
+                          <p className="historicHook">{pub.hook}</p>
+                          {photo ? (
+                            <PlacePhoto
+                              className="historicEntryPhoto"
+                              photo={photo}
+                              sizes="(min-width: 561px) 16rem, calc(100vw - 4rem)"
+                            />
+                          ) : null}
+                          <p className="historicProvenance">
+                            {href ? (
+                              <a
+                                className="historicCite"
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {citationLabel(href)}
+                                <ExternalLink size={12} aria-hidden="true" />
+                              </a>
+                            ) : null}
+                            {pub.venueId ? (
+                              <Link prefetch={false}
+                                className="historicMapLink"
+                                href={`/map?sel=${pub.venueId}`}
+                                aria-label={`See ${pub.name} on the map`}
+                              >
+                                On the map
+                              </Link>
+                            ) : null}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+              {totalPages > 1 ? (
+                <nav className="historicPagination" aria-label="Historic pub pages">
+                  {page > 1 ? (
+                    <Link href={historicIndexHref(filters, page - 1)}>Previous</Link>
+                  ) : <span />}
+                  <span>Page {page} of {totalPages}</span>
+                  {page < totalPages ? (
+                    <Link href={historicIndexHref(filters, page + 1)}>Next</Link>
+                  ) : <span />}
+                </nav>
+              ) : null}
+            </div>
+            <HistoricPane summary={summary} borough={filters.borough} />
+          </div>
         )}
       </Screen>
     </main>

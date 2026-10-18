@@ -4,6 +4,8 @@ import { ExternalLink } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import { pubPlacePhoto } from "@/components/listing/placePhoto";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import ShareBar from "@/components/share/ShareBar";
 import EmptyState from "@/components/ui/empty-state";
@@ -143,6 +145,9 @@ export default function HistoricPubDetail({
   // names its source, and a fact another fact already says is printed once.
   const record = historicRecord(pub);
   const lede = pub.hook ? sentenceStart(pub.hook) : undefined;
+  // A photograph OF this pub, matched by venue id, or none. Never a picture of
+  // its street or borough under its name (components/listing/placePhoto.ts).
+  const photo = pubPlacePhoto(pub.venueId);
 
   return (
     <>
@@ -174,6 +179,14 @@ export default function HistoricPubDetail({
       >
         {listedPint !== undefined ? (
           <HistoricListedPint venueId={pub.venueId} listedPint={listedPint} />
+        ) : null}
+
+        {photo ? (
+          <PlacePhoto
+            className="hdPhoto"
+            photo={photo}
+            sizes="(min-width: 720px) 40rem, calc(100vw - 2.75rem)"
+          />
         ) : null}
 
         {/* THE EVIDENCE IS ONE SECTION UNDER ONE HEADING (taste plan, 18 Oct

@@ -386,3 +386,22 @@ export function landingPhotoScrimContrast(
     foreground > surface ? [foreground, surface] : [surface, foreground];
   return (lighter + 0.05) / (darker + 0.05);
 }
+
+// ── Where a street photograph was taken ─────────────────────────────────────
+//
+// A listing page may lead a crawl with a photograph of the patch its route
+// walks through (components/listing/placePhoto.ts). That needs to know WHERE a
+// photograph was taken, so a route is matched by distance and never by a name
+// in its title. Only a photograph of a PLACE has a spot. A photograph of one
+// pub (The Black Friar, the Cutty Sark, the Old Red Lion) has none, because a
+// route that only passes near it must never borrow that pub's front door; nor
+// does the City skyline, which is a view taken from across the river.
+
+/** Photograph id to where it was taken, [latitude, longitude]. */
+export const LANDING_PHOTO_SPOTS: Readonly<Record<string, readonly [number, number]>> = {
+  "piccadilly-circus": [51.5101, -0.1342],
+  "camden-lock": [51.5414, -0.1462],
+  "borough-market": [51.5055, -0.091],
+  "brick-lane": [51.5215, -0.0718],
+  brixton: [51.463, -0.1137],
+};
