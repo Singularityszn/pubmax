@@ -83,15 +83,10 @@ export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
 
   if (viewerSession.unresolved) return null;
 
-  if (viewerSession.signedOut) {
-    return (
-      <div>
-        <p className="messagesThreadEyebrow">Messages</p>
-        <h2>Your conversations show here.</h2>
-        <p>One thread for each person you go out with, kept to the two of you.</p>
-      </div>
-    );
-  }
+  // Somebody with no account has no thread to choose, so the pane says nothing:
+  // the inbox column carries the page's one empty state and one door, and the
+  // two-pane frame folds away around it (app/messages/messages.css).
+  if (viewerSession.signedOut) return null;
 
   return (
     <div>
@@ -335,7 +330,7 @@ export default function MessagesInboxClient({
   return (
     <Screen
       as="section"
-      className="messagesScreen"
+      className={viewerSession.signedOut ? "messagesScreen messagesScreen--signedOut" : "messagesScreen"}
       title="Messages"
       titleId="messages-title"
       primary={
@@ -348,14 +343,6 @@ export default function MessagesInboxClient({
         )
       }
     >
-      {/* The one line about what messaging needs. Shown to somebody who is
-          not signed in; a signed-in inbox is a list of people, not a notice. */}
-      {viewerSession.signedOut ? (
-        <p className="messagesCourtesyNote">
-          Messages need a signed-in account. Keep it low-key, and report anything off.
-        </p>
-      ) : null}
-
       {!viewerSession.signedOut && user ? (
         <>
           <label className="messagesInboxSearch">
@@ -393,9 +380,10 @@ export default function MessagesInboxClient({
         // read the way a signed-in list does. It used to sit behind "With you
         // in a sec." until auth bootstrap re-keyed the read, about a second
         // after the courtesy note above had already said the same thing.
-        <EmptyState title="Sign in to message">
-          Private messages need a signed-in account, so each message carries
-          the right handle.
+        // It says what this place is and how it fills, once; the head's door
+        // is the only sign-in on the page (taste plan, 18 Oct 2026).
+        <EmptyState title="Your conversations show here.">
+          One thread for each person you go out with, kept to the two of you.
         </EmptyState>
       ) : !accountDataReady ? (
         <p className="conversationPreview">With you in a sec.</p>
