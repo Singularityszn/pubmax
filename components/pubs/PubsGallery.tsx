@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, MapPinned } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { firstHttps } from "@/lib/httpUrl";
 
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
@@ -8,12 +8,15 @@ import PubsFilters, {
   type PubsFilterKey,
 } from "@/components/pubs/PubsFilters";
 import VenueImage from "@/components/media/VenueImage";
+import PriceBadge from "@/components/PriceBadge";
 import { LANDING_RECEIPT_LABEL, pintDropDoorHref } from "@/lib/landingHero";
 import {
   SCRAPED_SOURCE_LABELS,
   type ScrapedPub,
 } from "@/lib/scrapedPubs";
 import { formatPrice } from "@/lib/venues";
+import { priceBand } from "@/lib/priceBand";
+import { VENUE_IMAGE_PROVENANCE_LABEL } from "@/lib/venueImages";
 import { pubsIndexHref } from "@/lib/pageFilters";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { resolveBookingAction } from "@/lib/venueExternalActions";
@@ -49,24 +52,30 @@ export function pubsCountLabel({
 // The chain's own photograph of the pub, and nothing painted over it. The card
 // used to lay a drink glyph and a word ("Shots", "Whisky", "Alcohol-free") on
 // top, picked by hashing the venue id: decoration that read as a fact about
-// what the pub pours, so it is gone.
+// what the pub pours, so it is gone. So is the dark wash, and the "Photo: pub
+// website" pill that sat on the picture: the credit is a caption UNDER it
+// (taste plan, 18 Oct 2026). VenueImage still prints its own on-image label,
+// which pubsGallery.css hides here because this caption says the same thing;
+// a photo that fails to load shows VenueImage's own "No photo yet", and the
+// caption hides with it.
 function PubPhoto({ photoUrl }: { photoUrl: string }) {
   return (
-    <div className="pubsCardArt">
-      <VenueImage
-        className="pubsCardPhoto"
-        sources={[{ url: photoUrl, provenance: "chain" }]}
-        alt=""
-        fill
-        // The card art is one column at 420 and under, two up to 640, and a
-        // 240-400px cell above that. Capped at 640 because this picture sits
-        // under a wash at 0.88 opacity: it is the card's background, and a 3x
-        // phone has no use for a third pass of pixels over it.
-        sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"
-        maxWidth={640}
-      />
-      <div className="pubsCardArtWash" aria-hidden="true" />
-    </div>
+    <figure className="pubsCardFigure">
+      <div className="pubsCardArt">
+        <VenueImage
+          className="pubsCardPhoto"
+          sources={[{ url: photoUrl, provenance: "chain" }]}
+          alt=""
+          fill
+          // One column at 420 and under, two up to 640, and a column of at
+          // most 344px above that. Capped at 640: a 3x phone has no use for a
+          // third pass of pixels over a card photograph.
+          sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"
+          maxWidth={640}
+        />
+      </div>
+      <figcaption className="pubsCardCredit">{VENUE_IMAGE_PROVENANCE_LABEL.chain}</figcaption>
+    </figure>
   );
 }
 
@@ -142,24 +151,26 @@ export default function PubsGallery({
             <li key={pub.id} id={`pubsCard-${pub.id}`} className={cardClassName}>
               {pub.photoUrl ? <PubPhoto photoUrl={pub.photoUrl} /> : null}
               <div className="pubsCardBody">
-                <div className="pubsCardMeta">
-                  <span className="pubsSource" data-source={pub.source}>
-                    {pub.sourceLabel}
-                  </span>
-                  {pub.borough ? <span className="pubsBorough">{pub.borough}</span> : null}
-                  {pub.zone !== null ? (
-                    <span className="pubsZone" title="Nearest station's fare zone">
-                      Zone {pub.zone}
-                    </span>
-                  ) : null}
-                </div>
                 <h2 className="pubsCardName">{pub.name}</h2>
+                {/* One meta line in one style: chain, borough, fare zone. It
+                    was a tinted chain pill, a plain borough and a zone pill
+                    sharing a line. */}
+                <p className="pubsCardMeta">
+                  {[pub.sourceLabel, pub.borough || null, pub.zone !== null ? `Zone ${pub.zone}` : null]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
                 <p className="pubsCardPrice">
                   {pub.cheapestPrice != null ? (
-                    `From ${formatPrice(pub.cheapestPrice)}`
+                    <>
+                      <span className="listingFrom">from</span>
+                      <PriceBadge variant="current" band={priceBand(pub.cheapestPrice, { city: "london" })}>
+                        {formatPrice(pub.cheapestPrice)}
+                      </PriceBadge>
+                    </>
                   ) : (
                     <>
-                      No listed price here yet.{" "}
+                      <span className="pubsCardNoPrice">No listed price yet.</span>{" "}
                       <Link
                         className="pubsCardLog"
                         href={pintDropDoorHref(pub.id)}
@@ -171,11 +182,13 @@ export default function PubsGallery({
                   )}
                 </p>
                 {/* THE CARD IS ONE DOOR: the whole card opens the pub on the
-                    map. "See on map" is the card's own link, stretched over the
+                    map. "On the map" is the card's own link, stretched over the
                     card (`.pubsMapLink::after`), and it carries the pub's name
                     so twenty cards are not twenty identical links to a screen
-                    reader. Menu and booking are small text links that sit above
-                    the stretch, so they still open their own pages.
+                    reader. It is a quiet ink link, not a tinted button: the
+                    tint was the "you are here" state, on every card. Menu and
+                    booking sit above the stretch, so they still open their own
+                    pages.
 
                     A plain Link that PREFETCHES NOTHING, which is the same rule
                     IntentLink states and the only way to state it from a server
@@ -187,16 +200,15 @@ export default function PubsGallery({
                     prefetches a Link on sight and each of these pulls /map's own
                     chunks in front of this page's answer. `prefetch={false}`
                     costs nothing and warms nothing. */}
-                <Link
-                  className="pubsMapLink"
-                  href={venueMapUrl(pub.id)}
-                  prefetch={false}
-                  aria-label={`See ${pub.name} on the map`}
-                >
-                  <MapPinned size={14} aria-hidden="true" />
-                  See on map
-                </Link>
                 <div className="pubsCardLinks">
+                  <Link
+                    className="pubsMapLink"
+                    href={venueMapUrl(pub.id)}
+                    prefetch={false}
+                    aria-label={`See ${pub.name} on the map`}
+                  >
+                    On the map
+                  </Link>
                   {menuUrl ? (
                     <a
                       className="pubsMenuLink"

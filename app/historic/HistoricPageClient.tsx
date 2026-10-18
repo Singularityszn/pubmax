@@ -1,21 +1,27 @@
-// Flagship "Historic Pubs" discovery surface. Cards stay server-rendered so
+// Flagship "Historic Pubs" discovery surface. Entries stay server-rendered so
 // sourced heritage text and links are present in the first document without
 // serialising the full venue dataset into a client boundary. Filter controls
 // own URL state in HistoricFilters.tsx.
 //
-// Honest by construction: every card renders only what the record carries — an
-// era chip only when era is present, a grade badge only when listed, the hook
-// verbatim, and a citation link derived strictly from the data's own sourceRef.
-// Nothing is fabricated; the lede names the sources and the count out loud.
+// The index reads like a register, oldest first (taste plan, 18 Oct 2026): a
+// date column down the left, and beside it the pub's name, where it is, its
+// grade, its cited sentence in full and where that sentence came from. It was
+// three columns of identical cards, each with a truncated hook, a "Show more",
+// two coral pills and coral date chips.
+//
+// Honest by construction: every entry renders only what the record carries: a
+// date only when one is stated, and always with what it dates ("Founded",
+// "Built"), a grade only when listed, the hook verbatim, and a citation link
+// derived strictly from the data's own sourceRef. Nothing is fabricated; the
+// lede names the sources and the count out loud.
 //
 // The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md): the map is
 // the one primary action and a crawl is the quiet way onward.
 
 import Link from "next/link";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
-import { ProseDisclosure } from "@/components/Disclosure";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
@@ -34,7 +40,21 @@ import {
 } from "@/lib/pageFilters";
 import HistoricFilters from "./HistoricFilters";
 
+import "@/components/listing/listing.css";
 import "./historic.css";
+
+// The date column: the stated value as the figure and what it dates as the
+// word under it. "Founded 1520" becomes 1520 over Founded. When the label does
+// not end in its value, the whole label stays together in the meta line
+// instead, so a year never stands bare (lib/heritageDate.mjs).
+function dateParts(pub: HistoricPub): { figure: string; kind: string } | null {
+  const label = pub.dateLabel ?? null;
+  const value = pub.dateValue ?? null;
+  if (!label || !value || !label.endsWith(value)) return null;
+  const kind = label.slice(0, label.length - value.length).trim();
+  if (!kind) return null;
+  return { figure: value.replace(/ century$/, " c."), kind };
+}
 
 export default function HistoricPageClient({
   pubs,
@@ -59,7 +79,7 @@ export default function HistoricPageClient({
   const lastShown = matchingPubs === 0 ? 0 : firstShown + pubs.length - 1;
 
   return (
-    <main id="main" className="historicPage">
+    <main id="main" className="historicPage listingShell">
       <SiteNav active="historic" />
 
       <Screen
@@ -100,77 +120,58 @@ export default function HistoricPageClient({
                 We only show pubs we can cite. Nothing is invented to fill the gap.
               </EmptyState>
             ) : (
-              <ul className="historicGrid">
+              <ol className="historicList">
                 {pubs.map((pub) => {
                   const href = citationHref(pub);
-                  // The date chip states what the date is OF, never a bare
-                  // year (lib/heritageDate.mjs).
-                  const dateLabel = pub.dateLabel ?? pub.era;
+                  const date = dateParts(pub);
+                  // A date the column cannot split keeps its whole label.
+                  const looseDate = date ? null : (pub.dateLabel ?? pub.era);
                   const grade = listedBadge(pub.listed);
                   const status = venueStatusBadge(pub.venueStatus);
+                  const meta = [pub.borough, looseDate, grade, status].filter(Boolean).join(", ");
                   return (
-                    <li key={pub.slug} className="historicCard">
-                      <div className="historicCardMeta">
-                        {dateLabel ? (
-                          <span className="historicEra">{dateLabel}</span>
+                    <li key={pub.slug} className="historicEntry">
+                      <p className="historicDate">
+                        {date ? (
+                          <>
+                            <span className="historicDateKind">{date.kind}</span>{" "}
+                            <span className="historicDateFigure">{date.figure}</span>
+                          </>
                         ) : null}
-                        {grade ? (
-                          <span className="historicGrade">{grade}</span>
-                        ) : null}
-                        {status ? (
-                          <span className="historicGrade">{status}</span>
-                        ) : null}
-                      </div>
-
-                      <h2 className="historicCardName">{pub.name}</h2>
-
-                      {pub.borough ? (
-                        <p className="historicBorough">{pub.borough}</p>
-                      ) : null}
-
-                      <div className="historicHook">
-                        <ProseDisclosure text={pub.hook} />
-                      </div>
-
-                      <div className="historicProvenance">
-                        <span className="historicFactCount">
-                          {pub.facts.length} on record
-                        </span>
-                        {href ? (
-                          <a
-                            className="historicCite"
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {citationLabel(href)}
-                            <ExternalLink size={12} aria-hidden="true" />
-                          </a>
-                        ) : null}
-                      </div>
-
-                      <div className="historicActions">
-                        <Link
-                          className="historicMapLink pressable"
-                          href={`/historic/${pub.slug}`}
-                        >
-                          Read the story
-                          <ArrowUpRight size={14} aria-hidden="true" />
-                        </Link>
-                        {pub.venueId ? (
-                          <Link prefetch={false}
-                            className="historicMapLink pressable"
-                            href={`/map?sel=${pub.venueId}`}
-                          >
-                            See on map
-                            <ArrowUpRight size={14} aria-hidden="true" />
-                          </Link>
-                        ) : null}
+                      </p>
+                      <div className="historicEntryBody">
+                        <h2 className="historicEntryName">
+                          <Link href={`/historic/${pub.slug}`}>{pub.name}</Link>
+                        </h2>
+                        {meta ? <p className="historicEntryMeta">{meta}</p> : null}
+                        <p className="historicHook">{pub.hook}</p>
+                        <p className="historicProvenance">
+                          {href ? (
+                            <a
+                              className="historicCite"
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {citationLabel(href)}
+                              <ExternalLink size={12} aria-hidden="true" />
+                            </a>
+                          ) : null}
+                          {pub.venueId ? (
+                            <Link prefetch={false}
+                              className="historicMapLink"
+                              href={`/map?sel=${pub.venueId}`}
+                              aria-label={`See ${pub.name} on the map`}
+                            >
+                              On the map
+                            </Link>
+                          ) : null}
+                        </p>
                       </div>
                     </li>
                   );
                 })}
-              </ul>
+              </ol>
             )}
             {totalPages > 1 ? (
               <nav className="historicPagination" aria-label="Historic pub pages">

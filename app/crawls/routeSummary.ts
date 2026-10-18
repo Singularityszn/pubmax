@@ -47,11 +47,6 @@ export function buildCrawlRouteSummary(
   return { totalKm, totalMinutes, points };
 }
 
-/** "24 min walk · 1.8 km, straight-line" — same framing as lib/routeLegs. */
-export function formatCrawlRouteSummary(summary: CrawlRouteSummary): string {
-  return `${summary.totalMinutes} min walk · ${summary.totalKm.toFixed(1)} km, straight-line`;
-}
-
 export type CrawlPriceRange = { minGbp: number; maxGbp: number };
 
 /**
@@ -72,9 +67,10 @@ export function crawlPriceRange(
   return { minGbp: Math.min(...prices), maxGbp: Math.max(...prices) };
 }
 
-/** "£4.20–£6.50", collapsing to "£4.20" when min === max. */
+/** "£4.20-£6.50", collapsing to "£4.20" when min === max. A hyphen, never an
+ * en dash (docs/VOICE.md, "The em-dash law"). */
 export function formatPriceRange(range: CrawlPriceRange): string {
   return range.minGbp === range.maxGbp
     ? formatGbp(range.minGbp)
-    : `${formatGbp(range.minGbp)}–${formatGbp(range.maxGbp)}`;
+    : `${formatGbp(range.minGbp)}-${formatGbp(range.maxGbp)}`;
 }

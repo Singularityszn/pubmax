@@ -247,7 +247,10 @@ describe("national yardstick: the presentation fence", () => {
   });
 
   it("says on the page that the figures are not ours", () => {
-    const dek = page.slice(page.indexOf("nationalHeading"), page.indexOf("zoneHeading"));
+    // The national block follows London's own figures (taste plan, 18 Oct
+    // 2026), so its dek is read from its heading to the end of its section.
+    const start = page.indexOf("nationalHeading");
+    const dek = page.slice(start, page.indexOf("</section>", start));
     expect(dek).toMatch(/None of these figures are ours/);
   });
 });

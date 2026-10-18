@@ -1,8 +1,10 @@
-/* Zone pint index. Role-tokened per #328: a PRICED zone cell is a brass-plaque
-   price surface (price-plaque and accent-price tokens), a SELECTED cell is the quiet
-   --state-active-* "you are here" tint, and interaction feedback routes through
-   --accent-action — the loud coral is never a resting wash. Both themes via CSS
-   variables; 390×844 first (cells wrap), 44px touch targets, ≤250ms ease-out. */
+/* Zone pint index. Two shapes (components/zones/ZonePintIndexStrip.tsx):
+   on /pint-index a dot plot on one price axis (.zoneDotPlot, at the foot of
+   this file), and in the map's zone picker a row of filter buttons. A priced
+   picker cell wears its price band; a SELECTED cell reads in ink
+   (--state-selected-*), and nothing here is coral (taste plan, 18 Oct 2026:
+   coral is the one primary action's alone). Both themes via CSS variables;
+   390x844 first, 44px touch targets, motion behind the reduced-motion guard. */
 
 .zonePintIndex {
   display: flex;
@@ -41,11 +43,16 @@
   font: inherit;
   text-align: center;
   width: 100%;
-  transition:
-    background var(--duration-base) var(--ease-out),
-    border-color var(--duration-base) var(--ease-out),
-    color var(--duration-base) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zonePintCell {
+    transition:
+      background var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      color var(--duration-base) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
 }
 
 /* Priced zones ARE price data, so a cell wears the price BAND of its median
@@ -62,7 +69,7 @@
 /* Interactive price plaques share the zone filter's neutral resting border.
    The active class below is the only border that says a fare zone is selected. */
 button.zonePintCell.isPriced:not(.isActive) {
-  border-color: color-mix(in srgb, var(--line) 70%, var(--accent-action) 30%);
+  border-color: var(--hairline-strong);
 }
 
 .zonePintCell.isThin {
@@ -74,20 +81,17 @@ button.zonePintCell {
   cursor: pointer;
 }
 
-button.zonePintCell:focus-visible {
-  border-color: var(--accent-action);
-  color: var(--ink);
-}
-
 @media (hover: hover) and (pointer: fine) {
   button.zonePintCell:hover {
-    border-color: var(--accent-action);
+    border-color: var(--state-selected-border);
     color: var(--ink);
   }
 }
 
 button.zonePintCell:focus-visible {
-  outline: 2px solid var(--accent-action);
+  border-color: var(--state-selected-border);
+  color: var(--ink);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
@@ -96,11 +100,11 @@ button.zonePintCell:active {
   --shared-press-scale: 1;
 }
 
-/* Selected cell: the quiet active tint wins over the plaque — "you are here". */
+/* Selected cell: a selection reads in ink and wins over the plaque. */
 .zonePintCell.isActive {
-  border-color: var(--state-active-border);
-  background: var(--state-active-surface);
-  color: var(--state-active-ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
   box-shadow: none;
 }
 
@@ -216,13 +220,13 @@ button.zonePintCell:active {
 }
 
 .zonePintIndex.isCompact button.zonePintCell:focus-visible {
-  background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+  background: var(--panel);
   color: var(--ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .zonePintIndex.isCompact button.zonePintCell:hover {
-    background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+    background: var(--panel);
     color: var(--ink);
   }
 }
@@ -264,5 +268,120 @@ button.zonePintCell:active {
 @media (max-width: 420px) {
   .zonePintIndex.isCompact .zonePintIndexRow {
     grid-template-columns: none;
+  }
+}
+
+/* ── The /pint-index chart: Zone 1 to 6 on one price axis ────────────────────
+   Six rows in zone order. Each row: the zone's name, a track with the median
+   as a dot on the SHARED axis, and the figure at the row's end in its price
+   band. No filled track and no box per zone: a faint rule through each row is
+   the grid, and the axis labels sit under the last row in the data face.
+   Position carries the value; the dot is ink, because the band already rides
+   the figure beside it and a coloured dot would say it twice. */
+
+.zoneDotPlot {
+  --zone-dot-label: 4.5rem;
+  --zone-dot-value: 5.5rem;
+  display: grid;
+  gap: 0;
+  max-width: var(--content-max);
+}
+
+.zoneDotRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.zoneDotRow,
+.zoneDotAxis {
+  display: grid;
+  grid-template-columns: var(--zone-dot-label) minmax(0, 1fr) var(--zone-dot-value);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.zoneDotRow {
+  min-height: 40px;
+}
+
+.zoneDotLabel {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.zoneDotTrack,
+.zoneDotAxisTrack {
+  position: relative;
+  height: 100%;
+  min-height: 24px;
+  /* Room for the dot at either end of the axis. */
+  margin-inline: 6px;
+}
+
+/* The row's own rule: recessive, the grid and nothing more. */
+.zoneDotTrack::before {
+  content: "";
+  position: absolute;
+  inset-inline: -6px;
+  top: 50%;
+  border-top: 1px solid var(--line-soft);
+}
+
+.zoneDotMark {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-text);
+  /* A ring of the surface so the dot reads off its rule. */
+  box-shadow: 0 0 0 2px var(--paper);
+  transform: translate(-50%, -50%);
+}
+
+.zoneDotRow.isThin .zoneDotLabel {
+  color: var(--color-text-muted);
+}
+
+.zoneDotValue {
+  justify-self: end;
+}
+
+.zoneDotThin {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.zoneDotAxis {
+  margin-top: var(--space-1);
+}
+
+.zoneDotAxisTrack {
+  grid-column: 2;
+  min-height: 18px;
+}
+
+.zoneDotTick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .zoneDotPlot {
+    --zone-dot-label: 3.75rem;
+    --zone-dot-value: 4.5rem;
+  }
+
+  .zoneDotRow,
+  .zoneDotAxis {
+    gap: var(--space-2);
   }
 }

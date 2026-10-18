@@ -1,0 +1,92 @@
+/* The listing and data pages' shell (taste plan, 18 Oct 2026): /borough,
+   /historic, /pubs, /crawls, /pint-index, /price-pulse, /spoons-value and
+   /places.
+
+   Before this, each page set its own column, so the left edge of the heading
+   sat anywhere from 132px to 372px at 1440 wide, and a reader moving between
+   them watched the page jump. Now every one of them has the same edge:
+
+   - The Screen head (components/ui/screen.tsx) owns the gutter
+     (--page-gutter) and the outer width. Under `.listingShell` that width is
+     the DATA column, --listing-max, plus the gutter on each side.
+   - --listing-max is 60rem (960px). It is wider than the reading column
+     (--content-max, 640px) because a data page carries a table, a chart or a
+     grid of photographs that needs the room, and narrower than the page
+     (--content-max-wide, 1240px) because a price at the far end of a 1240px
+     row is too far from the name it belongs to.
+   - Prose and single-column lists inside it keep --content-max, from the same
+     left edge, so a list is never wider than the heading above it.
+
+   A section a page renders outside its Screen uses `.listingSection` and gets
+   the same edge. */
+
+.listingShell,
+.listingSection {
+  --listing-max: 60rem;
+  color: var(--color-text);
+}
+
+.listingShell > .screen,
+.listingSection {
+  width: min(calc(var(--listing-max) + 2 * var(--page-gutter)), 100%);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+/* The reading column inside the data column: prose, a one-column list. */
+.listingRead {
+  max-width: var(--content-max);
+}
+
+/* A section heading under the Screen head. One size, one face, sentence case. */
+.listingSectionTitle {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+}
+
+.listingSectionDek {
+  margin: 0 0 var(--space-4);
+  max-width: var(--content-max);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+/* A quiet text link: ink, underlined. Coral is the Screen primary's alone
+   (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
+.listingLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--hairline-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .listingLink:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* A figure's unit or a "from" before a price: the word, not the figure. */
+.listingFrom {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* No figure to show. Words, so the body face. */
+.listingNoFigure {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
