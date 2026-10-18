@@ -75,6 +75,7 @@ export const ANALYTICS_EVENTS = {
   user_signed_in: [],
   user_signed_out: [],
   plan_started: [],
+  plan_one_tap: ["outcome"],
   stop_added: ["surface"],
   crawl_locked: ["stops"],
   route_opened: ["surface"],
@@ -422,6 +423,12 @@ export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
 
 export const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
 export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
+/**
+ * What the one tap on /plan's empty page did: planned the area this device
+ * last chose, planned the crawl-ready area the reader is standing in, or could
+ * not, because there was no fix or no crawl-ready area near it.
+ */
+const PLAN_ONE_TAP_OUTCOMES = ["remembered", "located", "no-location", "out-of-range"] as const;
 export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
@@ -589,6 +596,7 @@ const SAFE_STRING_VALUES = new Set([
   // Journey events: the closed surfaces, reasons, channels and error kinds.
   ...STOP_ADDED_SURFACES,
   ...ROUTE_OPENED_SURFACES,
+  ...PLAN_ONE_TAP_OUTCOMES,
   ...VOICE_END_REASONS,
   ...CONTENT_SHARE_CHANNELS,
   ...CONTENT_SHARE_SURFACES,
@@ -656,6 +664,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   voice_ended: ["reason"],
   content_shared: ["channel", "surface"],
   error_shown: ["surface", "kind"],
+  plan_one_tap: ["outcome"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -911,6 +920,9 @@ function isAllowedJourneyProp(
   }
   if (name === "route_opened" && key === "surface") {
     return includesValue(ROUTE_OPENED_SURFACES, value);
+  }
+  if (name === "plan_one_tap" && key === "outcome") {
+    return includesValue(PLAN_ONE_TAP_OUTCOMES, value);
   }
   if (name === "pub_viewed" && key === "layer") {
     return includesValue(VENUE_SHEET_LAYERS, value);

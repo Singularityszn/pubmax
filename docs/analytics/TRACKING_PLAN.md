@@ -302,6 +302,7 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `plan_generated` | A route came back. |
 | `plan_started` | A generation request produced a route the reader can review. |
+| `plan_one_tap` | The one tap on the empty /plan page, and what it did: planned the remembered area, planned the crawl-ready area the reader stood in, found no location, or found no crawl-ready area near. |
 | `stop_added` | A pub joined the crawl being built, and on which surface. |
 | `route_opened` | A route of two or more stops was drawn on the Map, and from which surface. |
 | `crawl_locked` | A plan was locked, with its stop count. Unsigned, so it counts plans `plan_accepted` cannot. |
