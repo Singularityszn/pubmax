@@ -37,6 +37,7 @@ import {
 import SiteNav from "@/components/nav/SiteNav";
 import { moveTablistFocus } from "@/components/ui/tabs";
 import AdminSessionEntry from "./AdminSessionEntry";
+import VenueSubmissionModeration, { type AdminRequest } from "./VenueSubmissionModeration";
 
 import "./admin.css";
 
@@ -183,12 +184,13 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
   };
 }
 
-type AdminTab = "moderation" | "import" | "operators";
+type AdminTab = "moderation" | "import" | "operators" | "pubs";
 
 const ADMIN_TABS: ReadonlyArray<{ key: AdminTab; label: string }> = [
   { key: "moderation", label: "Moderation" },
   { key: "import", label: "Import note" },
   { key: "operators", label: "Operators" },
+  { key: "pubs", label: "Added pubs" },
 ];
 
 function AdminTabs({ tab, onSelect }: { tab: AdminTab; onSelect: (next: AdminTab) => void }) {
@@ -703,6 +705,15 @@ export default function AdminClient() {
     }
     return { kind: "response", response: await request() };
   }, [ensureAdminSession]);
+
+  // The added-pubs lane asks through the same session door as every queue here;
+  // null is a session that could not be reopened.
+  const adminRequest = useCallback<AdminRequest>(async (path, init) => {
+    const session = await ensureAdminSession();
+    if (session.status !== "open") return null;
+    const result = await retryWithFreshSession(() => fetch(path, { ...SESSION_FETCH, ...init }));
+    return result.kind === "response" ? result.response : null;
+  }, [ensureAdminSession, retryWithFreshSession]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);
@@ -2429,6 +2440,8 @@ export default function AdminClient() {
             )}
           </div>
         </>
+      ) : tab === "pubs" ? (
+        <VenueSubmissionModeration request={adminRequest} />
       ) : (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
