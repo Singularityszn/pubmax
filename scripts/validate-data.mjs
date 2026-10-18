@@ -1,3 +1,4 @@
+import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 // Build-time data validation for the bundled datasets shipped in public/data.
 //
 // The app is deliberately keyless/offline and reads these JSON files directly,
@@ -1337,7 +1338,7 @@ function validateSlimVenues() {
       lng: Number(first.longitude),
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
       borough: String(first.primary_borough || ""),
-      kind: undefined,
+      kind: legacyOsmVenueKind(prices),
       priceBand: undefined,
     });
   }
