@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Send } from "lucide-react";
 
 import { discardBody } from "@/lib/responseBody";
-import type { PalAnimationState } from "@/lib/pubPal";
+import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 
 // The session half carries the ElevenLabs SDK, so it is fetched when the probe
@@ -131,10 +131,11 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-function VoiceAvailabilityGate({ onStateChange, palName, signal }: {
+function VoiceAvailabilityGate({ onStateChange, palName, signal, appearance }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
   signal?: PalVoiceSignal;
+  appearance?: PubPalAppearance;
 }) {
   const availability = useVoiceAvailability();
 
@@ -157,7 +158,9 @@ function VoiceAvailabilityGate({ onStateChange, palName, signal }: {
 
   if (availability === "unavailable") return <PalVoiceOffline />;
 
-  return <PubPalVoiceSession onStateChange={onStateChange} palName={palName} signal={signal} />;
+  return (
+    <PubPalVoiceSession onStateChange={onStateChange} palName={palName} signal={signal} appearance={appearance} />
+  );
 }
 
 export default function PubPalVoice({
@@ -165,6 +168,7 @@ export default function PubPalVoice({
   onStateChange,
   palName,
   signal,
+  appearance,
 }: {
   muted?: boolean;
   onStateChange?: (state: PalAnimationState) => void;
@@ -172,7 +176,11 @@ export default function PubPalVoice({
   palName?: string;
   /** Where the live levels go, so the portrait can react to the voice. */
   signal?: PalVoiceSignal;
+  /** The Pal's look, for the small live head inside the panel on a phone. */
+  appearance?: PubPalAppearance;
 }) {
   if (muted) return <PalVoiceMuted />;
-  return <VoiceAvailabilityGate onStateChange={onStateChange} palName={palName} signal={signal} />;
+  return (
+    <VoiceAvailabilityGate onStateChange={onStateChange} palName={palName} signal={signal} appearance={appearance} />
+  );
 }

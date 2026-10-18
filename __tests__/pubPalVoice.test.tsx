@@ -1171,3 +1171,33 @@ describe("Pub Pal voice transcript", () => {
   });
 });
 
+describe("the live head in the voice panel", () => {
+  it("draws the Pal's face for a species with a rendered master", async () => {
+    await act(async () => {
+      root?.render(createElement(PubPalVoice, {
+        palName: "Ripley",
+        appearance: { species: "robin", signalAffinity: "beer", material: "hologram", accessory: "none" },
+      }));
+    });
+    await settle();
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    expect(container.querySelector(".palVoiceFace")).not.toBeNull();
+    expect(container.querySelector(".palVoiceFace")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("draws no face for a legacy species with no master", async () => {
+    await act(async () => {
+      root?.render(createElement(PubPalVoice, {
+        palName: "Ripley",
+        appearance: { species: "bot", signalAffinity: "beer", material: "hologram", accessory: "none" },
+      }));
+    });
+    await settle();
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
+    expect(container.querySelector(".palVoiceFace")).toBeNull();
+  });
+});
+

@@ -327,7 +327,7 @@ function PalHomeScreen({
           <h1 id="pal-home-title" tabIndex={-1}>{pal.name}</h1>
           <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species}, set up for your nights out. You decide what it can do.</p>
           <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} />
+          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} />
         </div>
       </section>
       <section className="palControls" aria-labelledby="pal-controls-title">

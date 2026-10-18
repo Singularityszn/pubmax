@@ -117,6 +117,16 @@ for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
     await mkdir(SHOTS, { recursive: true });
     const socket = await openLiveVoice(page);
 
+    // On a phone the panel carries its own live head; on a desktop the big
+    // portrait stays in view beside the panel, so the small one is hidden.
+    const face = page.locator(".palVoiceFace");
+    if (width === 390) {
+      await expect(face).toBeVisible();
+      await expect(face).toHaveAttribute("data-head-3d", "live");
+    } else {
+      await expect(face).toBeHidden();
+    }
+
     // The portrait is a 3D head that lifts and nods on the Pal's own voice.
     // Off screen its loop sleeps, so the head is brought into view first.
     const head = page.locator(".palHomePortrait");
@@ -160,6 +170,13 @@ test("Stay here keeps the person on the Pal, and the Pal's own words never open 
   await page.setViewportSize({ width: 390, height: 844 });
   const socket = await openLiveVoice(page);
   say(socket, "Shall I show you the map?");
+  // The panel's own head lifts on the Pal's voice while the big one is off screen.
+  const face = page.locator(".palVoiceFace");
+  await expect.poll(
+    () => face.evaluate((element) => Number.parseFloat(getComputedStyle(element).getPropertyValue("--pal-lift")) || 0),
+    { timeout: 5_000, intervals: [50] },
+  ).toBeGreaterThan(0.5);
+  await page.locator(".palVoice").screenshot({ path: `${SHOTS}/390-5-panel-face-speaking.png` });
   const log = page.getByRole("log", { name: "Voice chat transcript" });
   await expect(log).toContainText("Shall I show you the map?");
   await page.waitForTimeout(2_000);

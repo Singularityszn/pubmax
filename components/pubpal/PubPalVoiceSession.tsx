@@ -33,6 +33,7 @@ import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
 
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
+import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 
@@ -42,7 +43,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import type { PalAnimationState } from "@/lib/pubPal";
+import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
 import {
@@ -149,7 +150,7 @@ type VoiceTranscript = {
   setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
 };
 
-function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal }: {
+function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance }: {
   onStateChange?: (state: PalAnimationState) => void;
   resetPendingSession: (error: string | null) => void;
   text: string;
@@ -159,6 +160,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   palName: string;
   transcript: VoiceTranscript;
   signal?: PalVoiceSignal;
+  appearance?: PubPalAppearance;
 }) {
   const router = useRouter();
   const {
@@ -532,6 +534,11 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     : live
       ? isSpeaking ? "speaking" : "listening"
       : "idle";
+  const faceState: PalAnimationState = voiceConnecting
+    ? "noticing"
+    : live
+      ? isSpeaking ? "speaking" : awaitingPal ? "thinking" : "listening"
+      : "idle";
 
   // The portrait beside the panel reads the same levels the meter does.
   useEffect(() => {
@@ -543,6 +550,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   return (
     <div className="palVoice" data-mode={meterMode}>
       <div className="palVoiceHead">
+        {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} /> : null}
         <div className="palVoiceStatus" role="status">
           <i className={live ? "isLive" : ""} />
           {isStarting
@@ -629,10 +637,12 @@ export default function PubPalVoiceSession({
   onStateChange,
   palName = "Pal",
   signal,
+  appearance,
 }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
   signal?: PalVoiceSignal;
+  appearance?: PubPalAppearance;
 }) {
   const [sdkGeneration, setSdkGeneration] = useState(0);
   // The transcript outlives an SDK reset and a session that ended, so the
@@ -657,6 +667,7 @@ export default function PubPalVoiceSession({
         palName={palName}
         transcript={{ lines, setLines }}
         signal={signal}
+        appearance={appearance}
       />
     </ConversationProvider>
   );

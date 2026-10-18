@@ -349,6 +349,27 @@ body:has(.palExperience) {
 .palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
 .palVoiceHead { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .palVoiceStatus { display: flex; align-items: center; gap: .45rem; font-weight: 600; }
+/* The Pal's live head in the panel (PalVoiceFace): phone width only, where
+   the big portrait has scrolled away. It turns on the same CSS properties as
+   the big head, scaled down so a 56px face does not lunge at the reader. */
+.palVoiceFace { display: none; flex: none; width: 3.5rem; height: 3.5rem; }
+.palVoiceFaceImg { width: 100%; height: 100%; display: block; border-radius: 50%; overflow: hidden; }
+.palVoiceFace[data-head-3d="live"] { perspective: 14rem; }
+.palVoiceFace[data-head-3d="live"] .palVoiceFaceImg {
+  transform:
+    translateY(calc(var(--pal-lift, 0px) * -.35))
+    translateZ(calc(var(--pal-lean, 0px) * .35))
+    rotateY(var(--pal-yaw, 0deg))
+    rotateX(var(--pal-pitch, 0deg))
+    rotateZ(var(--pal-roll, 0deg))
+    scale(var(--pal-scale, 1));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--voice-tone) 70%, transparent);
+  will-change: transform;
+}
+@media (max-width: 760px) {
+  .palVoiceFace { display: block; }
+}
+
 .palVoiceStatus i { width: .5rem; height: .5rem; flex: none; border-radius: 50%; background: var(--pal-line); }
 .palVoiceStatus i.isLive { background: var(--pal-accent); animation: palVoicePulse 1.6s ease-in-out infinite; }
 /* The level meter: each bar is driven by --level from the live audio. */
