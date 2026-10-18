@@ -181,39 +181,6 @@ body:has(.palExperience) {
 .palPortraitSignalMark { width: 54%; aspect-ratio: 1; border: 1px solid currentColor; border-radius: 38% 62% 54% 46%; transform: rotate(24deg); }
 .palPortraitScan { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 .42rem, color-mix(in srgb, var(--signal) 12%, transparent) .45rem .49rem); mix-blend-mode: screen; }
 .palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
-/* The head in 3D (components/pal/usePalHead3D.ts). The photograph itself
-   turns, leans and nods; the glow behind it and the echo sit deeper and the
-   accessory sits nearer, so a turn reads as a head and not a flat card. Set
-   only while the frame loop runs, so reduced motion keeps the still portrait.
-   `isolation: isolate` would flatten the layers, so it gives way here. */
-.palHomePortrait[data-head-3d="live"] { perspective: 62rem; }
-.palHomePortrait[data-head-3d="live"] .palPortrait {
-  isolation: auto;
-  transform-style: preserve-3d;
-  transform:
-    translateY(calc(var(--pal-lift, 0px) * -1))
-    translateZ(var(--pal-lean, 0px))
-    rotateY(var(--pal-yaw, 0deg))
-    rotateX(var(--pal-pitch, 0deg))
-    rotateZ(var(--pal-roll, 0deg))
-    scale(var(--pal-scale, 1));
-  will-change: transform;
-}
-.palHomePortrait[data-head-3d="live"] .palPortraitField { translate: 0 0 -5rem; }
-.palHomePortrait[data-head-3d="live"] .palPortraitEcho { translate: 0 0 -2.5rem; }
-.palHomePortrait[data-head-3d="live"] .palPortraitCore { translate: 0 0 2rem; }
-.palHomePortrait[data-head-3d="live"] .palPortraitAccessory { translate: 0 0 3.5rem; }
-/* A fixed light: as the head turns, its sheen slides across the photograph. */
-.palHomePortrait[data-head-3d="live"] .palPortraitCore::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  border-radius: inherit;
-  background: radial-gradient(circle at var(--pal-sheen-x, 50%) var(--pal-sheen-y, 30%), rgb(255 255 255 / .2), transparent 55%);
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-}
 .palPortrait-chrome .palPortraitCore { background: linear-gradient(135deg, rgba(251, 251, 254, .25), color-mix(in srgb, var(--signal) 10%, transparent) 46%, rgba(251, 251, 254, .06)); }
 /* Glass is a tint, not a blur: backdrop blur outside the sheet material is on
    the template-pattern ban list (docs/VOICE.md). */
@@ -408,6 +375,40 @@ body:has(.palExperience) {
 @keyframes palVoiceWordIn { from { opacity: 0; transform: translateY(.25rem); filter: blur(2px); } }
 @keyframes palVoiceDot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @keyframes palVoiceCountdown { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* The head in 3D (components/pal/usePalHead3D.ts). The photograph itself
+   turns, leans and nods; the glow behind it and the echo sit deeper and the
+   accessory sits nearer, so a turn reads as a head and not a flat card. Set
+   only while the frame loop runs, so reduced motion keeps the still portrait.
+   `isolation: isolate` would flatten the layers, so it gives way here. */
+.palHomePortrait[data-head-3d="live"] { perspective: 62rem; }
+.palHomePortrait[data-head-3d="live"] .palPortrait {
+  isolation: auto;
+  transform-style: preserve-3d;
+  transform:
+    translateY(calc(var(--pal-lift, 0px) * -1))
+    translateZ(var(--pal-lean, 0px))
+    rotateY(var(--pal-yaw, 0deg))
+    rotateX(var(--pal-pitch, 0deg))
+    rotateZ(var(--pal-roll, 0deg))
+    scale(var(--pal-scale, 1));
+  will-change: transform;
+}
+.palHomePortrait[data-head-3d="live"] .palPortraitField { translate: 0 0 -5rem; }
+.palHomePortrait[data-head-3d="live"] .palPortraitEcho { translate: 0 0 -2.5rem; }
+.palHomePortrait[data-head-3d="live"] .palPortraitCore { translate: 0 0 2rem; }
+.palHomePortrait[data-head-3d="live"] .palPortraitAccessory { translate: 0 0 3.5rem; }
+/* A fixed light: as the head turns, its sheen slides across the photograph. */
+.palHomePortrait[data-head-3d="live"] .palPortraitCore::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--pal-sheen-x, 50%) var(--pal-sheen-y, 30%), rgb(255 255 255 / .2), transparent 55%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
 .palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
 .palVoiceActions > button, .palVoiceActions label { min-height: 2.9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); }
 .palVoiceActions > button { padding: 0 .85rem; cursor: pointer; }
