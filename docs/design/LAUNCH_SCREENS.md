@@ -57,7 +57,7 @@ Rules the table obeys:
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
 | `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
-| `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
+| `/login` | Sign in | Welcome back (a returning session), Make an account (the New here door), or Sign in or create your account (a first visit, which may not be greeted as a return: `lib/loginPageFraming.ts`) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/places` | Places | Pick a city. | Open London | Browse pubs across the UK |
 | `/pubs` | Pubs | Pub chains in London (the count rides in the lede) | Open the map | Find my pint |
 | `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |

@@ -11,13 +11,9 @@
     max(1rem, env(safe-area-inset-right))
     max(1.5rem, env(safe-area-inset-bottom))
     max(1rem, env(safe-area-inset-left));
-  background:
-    radial-gradient(
-      120% 80% at 50% -10%,
-      color-mix(in srgb, var(--brass) 14%, transparent),
-      transparent 55%
-    ),
-    var(--paper);
+  /* Plain paper. A coral wash behind the head spent the accent on decoration
+     (docs/DESIGN_SYSTEM.md "Coral is spent twice"); the submit is the coral. */
+  background: var(--paper);
   color: var(--ink);
 }
 
@@ -35,24 +31,35 @@
   padding-inline: 0;
 }
 
+/* The form-screen head (no painted primary) is a plain header: kicker,
+   heading, lede, spaced the way the Screen head spaces them. */
+header.loginPageHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
 .loginPageInner .loginPageHead .screenHead {
   padding-top: 0;
 }
 
+/* Balanced, so a two-line heading never leaves "account" alone on its line,
+   and a lede that ends on a whole phrase rather than "lands.". */
 .loginPageHead .loginPageTitle {
   margin: 0;
-  font-size: clamp(1.75rem, 6vw, 2.15rem);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  font-size: clamp(var(--text-xl), 6vw, var(--text-2xl));
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   font-weight: 800;
+  text-wrap: balance;
 }
 
 .loginPageLead {
   margin: 0;
   max-width: 36ch;
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.45;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
 .loginPageNotice {
@@ -292,7 +299,32 @@
 
 /* The email form's own submit is the page's ONE painted control (captain's
    ruling, 7 Sep 2026), so it keeps the accent fill app/auth/auth.css gives it;
-   the head paints nothing while the form is on screen. */
+   the head paints nothing while the form is on screen.
+
+   NOT READY READS AS NOT READY, NEVER AS AN ERROR. Until the field holds an
+   address (and while a link is sending or sent) the submit is disabled, and
+   the shared `.authSignIn:disabled` dims the deep coral to 60%: a muddy maroon
+   with a white label under 3:1 that read like a fault. Here it takes the
+   neutral control surface instead, with a muted label that still clears AA,
+   and the coral arrives the moment the address is valid. */
+.loginPage .authSignIn.authMagicLinkButton:disabled {
+  opacity: 1;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+/* Every control on the page is one height (the --control-height row): the
+   provider buttons measured 36px beside the 44px field and submit above the
+   phone breakpoint, where app/auth/auth.css only floors them at 44px below
+   480px. */
+.loginPage .authSignIn {
+  min-height: var(--control-height);
+}
+
+.loginPage .authMagicLinkLabel {
+  font-size: var(--text-sm);
+}
 
 .loginPageSignOut {
   width: 100%;
@@ -341,15 +373,17 @@
 .loginPageLegal {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
+/* A link inside a sentence keeps the sentence's own spacing. The old 44px
+   minimum WIDTH centred "terms" in a box wider than the word, so it printed
+   with a gap on each side. The tap height stays. */
 .loginPageLegal a {
   display: inline-flex;
   align-items: center;
-  min-width: 44px;
-  justify-content: center;
   min-height: 44px;
   vertical-align: middle;
   color: inherit;
