@@ -633,6 +633,13 @@ describe("validate-data.mjs slim venue index validation", () => {
     const arena = payload.rows.find((row: { id: string }) => row.id === "venue-16cduf6");
     expect(arena.kind).toBe("bar");
     expect(runValidate(scriptsDir).code).toBe(0);
+    expect(arena.legacyOsmBar).toBe(true);
+    delete arena.legacyOsmBar;
+    writeScratchFile(slimPath, JSON.stringify(payload), "utf8");
+    const missingLineage = runValidate(scriptsDir);
+    expect(missingLineage.code).toBe(1);
+    expect(missingLineage.stdout).toContain("legacyOsmBar does not match recorded OSM lineage");
+    arena.legacyOsmBar = true;
     arena.kind = "pub";
     writeScratchFile(slimPath, JSON.stringify(payload), "utf8");
     const result = runValidate(scriptsDir);

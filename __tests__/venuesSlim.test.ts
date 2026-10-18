@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   filterVenues,
@@ -17,7 +17,8 @@ import {
 } from "@/lib/cuisineTags";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { CITIES } from "@/lib/cities";
-import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
+import { loadSlimVenuesFromPathResult, SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
+import { offlineCache } from "@/lib/offlineCache";
 import {
   expectedSlimFamousCounts,
   famousSeedLapsedAt,
@@ -81,55 +82,17 @@ const fullVenuesById = new Map(
 const VALID_COORDS = { minLat: -90, maxLat: 90, minLng: -180, maxLng: 180 };
 const LONDON = { lat: 51.5, lng: -0.12 };
 
-function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
-  const kind =
-    row.kind === undefined ||
-    ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
-  const priceBand =
-    row.priceBand === undefined ||
-    row.priceBand === 0 ||
-    row.priceBand === 1 ||
-    row.priceBand === 2;
-  const anchor =
-    row.anchorLabel === undefined ||
-    (typeof row.anchorLabel === "string" &&
-      row.anchorLabel.length > 0 &&
-      typeof row.anchorObservedAt === "string" &&
-      row.anchorObservedAt.length > 0 &&
-      typeof row.anchorSourceUrl === "string" &&
-      row.anchorSourceUrl.length > 0);
-  return kind && priceBand && anchor;
-}
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
-function isSlimVenue(value: unknown): value is SlimVenue {
-  if (typeof value !== "object" || value === null) return false;
-  const row = value as Record<string, unknown>;
-  const price = row.cheapestPrice;
-  const hints = row.filterHints as Record<string, unknown> | undefined;
-  const amenities = hints?.amenities as Record<string, unknown> | undefined;
-  const curation = hints?.curation as Record<string, unknown> | undefined;
-  return (
-    typeof row.id === "string" &&
-    row.id.length > 0 &&
-    typeof row.name === "string" &&
-    row.name.length > 0 &&
-    typeof row.borough === "string" &&
-    typeof row.lat === "number" &&
-    Number.isFinite(row.lat) &&
-    typeof row.lng === "number" &&
-    Number.isFinite(row.lng) &&
-    (price === null || (typeof price === "number" && Number.isFinite(price))) &&
-    typeof hints?.searchText === "string" &&
-    typeof amenities?.food === "boolean" &&
-    typeof amenities?.cocktails === "boolean" &&
-    typeof amenities?.beerGarden === "boolean" &&
-    typeof amenities?.liveSports === "boolean" &&
-    typeof amenities?.nonAlcoholic === "boolean" &&
-    typeof curation?.nearWater === "boolean" &&
-    typeof curation?.hasStory === "boolean" &&
-    typeof hints?.canonical === "boolean" &&
-    hasValidFamousVenueFields(row)
-  );
+function serveSlimPayload(payload: unknown) {
+  vi.spyOn(offlineCache, "get").mockReset().mockResolvedValue(null);
+  vi.spyOn(offlineCache, "set").mockReset().mockResolvedValue(true);
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => payload });
+  vi.stubGlobal("fetch", fetcher);
+  return fetcher;
 }
 
 function makeFilters(overrides: Partial<Filters> = {}): Filters {
@@ -177,6 +140,102 @@ function matchingIdsFromFull(filters: Filters): string[] {
     .map((venue) => venue.id)
     .sort();
 }
+
+describe("slim legacy and curated price boundaries", () => {
+  it("marks only bars derived from the committed legacy records", () => {
+    const marked = slim.filter((row) => row.legacyOsmBar === true);
+    expect(marked).toHaveLength(147);
+    for (const row of slim) {
+      expect(row.legacyOsmBar, row.id).toBe(
+        fullVenuesById.get(row.id)?.kind === "bar" ? true : undefined,
+      );
+    }
+  });
+
+  it.each(["venue-1uvk466", "venue-8rf7pi", "venue-fw3cy8"])("preserves %s evidence through normalization and offline reads", async (id) => {
+    const row = defined(slim.find((row) => row.id === id));
+    const payload = { revision: "legacy-roundtrip", rows: [row] };
+    const url = "/data/legacy-roundtrip.json";
+    let stored: unknown = null;
+    serveSlimPayload(payload);
+    vi.mocked(offlineCache.set).mockImplementation(async (_key, value) => {
+      stored = value;
+      return true;
+    });
+    expect(await loadSlimVenuesFromPathResult(url, { expectedRevision: payload.revision }))
+      .toEqual({ rows: [row], status: "ready" });
+    expect(stored).toEqual(payload);
+    vi.mocked(offlineCache.get).mockImplementation(async <T>() => stored as T);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    expect(await loadSlimVenuesFromPathResult(url, { expectedRevision: payload.revision }))
+      .toEqual({ rows: [row], status: "ready" });
+  });
+
+  it.each([
+    { legacyOsmBar: undefined },
+    { legacyOsmBar: false },
+    { legacyOsmBar: "true" },
+    { priceSource: undefined },
+    { priceSource: " " },
+    { priceObservedAt: undefined },
+    { priceObservedAt: "invalid" },
+    { priceBand: 0 },
+    { anchorLabel: "Pint" },
+    { anchorObservedAt: "2026-07-18" },
+    { anchorSourceUrl: "https://example.com/menu" },
+    { anchorCourse: "main" },
+    { kind: "pub" },
+    { kind: "food" },
+    { kind: "restaurant" },
+    { id: "bar-unverified" },
+  ])("rejects unsupported legacy price claims: %j", async (claim) => {
+    const legacy = defined(slim.find((row) => row.id === "venue-1uvk466"));
+    const payload = { revision: "legacy-invalid", rows: [{ ...legacy, ...claim }] };
+    const fetcher = serveSlimPayload(payload);
+    expect(await loadSlimVenuesFromPathResult("/data/legacy-invalid.json", {
+      expectedRevision: payload.revision,
+    })).toEqual({ rows: [], status: "unavailable" });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(offlineCache.set).not.toHaveBeenCalled();
+  });
+
+  it.each(["bar", "food", "restaurant"])("preserves complete %s anchors and rejects malformed anchors", async (kind) => {
+    const row = defined(slim.find((row) => row.kind === kind && row.anchorLabel !== undefined));
+    const payload = { revision: "curated-anchor", rows: [row] };
+    serveSlimPayload(payload);
+    expect(await loadSlimVenuesFromPathResult("/data/curated-valid.json", {
+      expectedRevision: payload.revision,
+    })).toEqual({ rows: [row], status: "ready" });
+    const withoutAnchor = { ...row };
+    delete withoutAnchor.anchorLabel;
+    delete withoutAnchor.anchorCourse;
+    delete withoutAnchor.anchorObservedAt;
+    delete withoutAnchor.anchorSourceUrl;
+    const invalid: unknown[] = [
+      withoutAnchor,
+      { ...withoutAnchor, legacyOsmBar: true },
+      { ...row, anchorLabel: undefined },
+      { ...row, anchorObservedAt: undefined },
+      { ...row, anchorSourceUrl: undefined },
+      { ...row, anchorLabel: " " },
+      { ...row, anchorObservedAt: " " },
+      { ...row, anchorSourceUrl: " " },
+      { ...row, anchorLabel: 42 },
+      { ...row, anchorObservedAt: 42 },
+      { ...row, anchorSourceUrl: 42 },
+      { ...row, anchorCourse: "invalid" },
+    ];
+    if (kind === "restaurant") invalid.push({ ...row, anchorCourse: undefined });
+    for (const broken of invalid) {
+      const fetcher = serveSlimPayload({ ...payload, rows: [broken] });
+      expect(await loadSlimVenuesFromPathResult("/data/curated-invalid.json", {
+        expectedRevision: payload.revision,
+      }), JSON.stringify(broken)).toEqual({ rows: [], status: "unavailable" });
+      expect(fetcher).toHaveBeenCalledTimes(2);
+      expect(offlineCache.set).not.toHaveBeenCalled();
+    }
+  });
+});
 
 describe("slim listed price evidence", () => {
   it("keeps the exact cheapest row's publisher and source read on the shipped projection", () => {
@@ -232,6 +291,7 @@ describe("venues_slim.json", () => {
                 // The day the cheapest figure was last read (lib/priceReadDay.mjs).
                 "priceObservedAt",
                 "kind",
+                "legacyOsmBar",
                 "priceBand",
                 "anchorLabel",
                 "anchorCourse",
@@ -245,10 +305,46 @@ describe("venues_slim.json", () => {
     expect(badKeySets).toEqual([]);
   });
 
-  it("every row matches the SlimVenue shape", () => {
-    const rows = slim as unknown[];
-    const bad = rows.filter((row) => !isSlimVenue(row));
-    expect(bad).toEqual([]);
+  it("loads every shipped row through the public parser", async () => {
+    serveSlimPayload(slimPayload);
+    const result = await loadSlimVenuesFromPathResult(SLIM_VENUES_PATH, {
+      expectedRevision: (slimPayload as { revision: string }).revision,
+    });
+    expect(result.status).toBe("ready");
+    expect(result.rows.map((row) => row.id)).toEqual(slim.map((row) => row.id));
+  });
+
+  it.each([
+    ["51.500_0.000", 21, "venue-1uvk466"],
+    ["51.500_0.025", 8, "venue-8rf7pi"],
+    ["51.575_-0.100", 22, "venue-fw3cy8"],
+  ])("keeps every venue in cold cell %s", async (cell, count, barId) => {
+    const url = `/data/venues_slim.cell.${cell}.json`;
+    const payload = JSON.parse(readFileSync(path.join(ROOT, "public", url), "utf8")) as {
+      revision: string;
+      rows: SlimVenue[];
+    };
+    const fetcher = serveSlimPayload(payload);
+    expect(payload.rows).toHaveLength(count);
+    const parsed = await loadSlimVenuesFromPathResult(url);
+    expect.soft(parsed.status).toBe("ready");
+    expect.soft(parsed.rows.map((row) => row.id)).toEqual(payload.rows.map((row) => row.id));
+    const cold = await loadSlimVenuesFromPathResult(url, { expectedRevision: payload.revision });
+    expect.soft(cold.status).toBe("ready");
+    expect.soft(cold.rows.map((row) => row.id)).toEqual(payload.rows.map((row) => row.id));
+    for (const source of payload.rows) {
+      const loaded = cold.rows.find((row) => row.id === source.id);
+      expect.soft(loaded, source.id).toMatchObject({
+        id: source.id,
+        lat: source.lat,
+        lng: source.lng,
+        cheapestPrice: source.cheapestPrice,
+        ...(source.priceSource ? { priceSource: source.priceSource } : {}),
+        ...(source.priceObservedAt ? { priceObservedAt: source.priceObservedAt } : {}),
+      });
+    }
+    expect.soft(cold.rows.find((row) => row.id === barId)?.kind).toBe("bar");
+    expect.soft(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("carries complete anchor provenance for famous non-pub venues", () => {
@@ -258,9 +354,9 @@ describe("venues_slim.json", () => {
     );
     expect(famous).toHaveLength(expectedSlimFamousCounts().total);
     for (const row of famous) {
-      expect(hasValidFamousVenueFields(row as Record<string, unknown>)).toBe(
-        true,
-      );
+      expect(row.anchorLabel?.trim()).toBeTruthy();
+      expect(row.anchorObservedAt?.trim()).toBeTruthy();
+      expect(row.anchorSourceUrl?.trim()).toBeTruthy();
     }
   });
 

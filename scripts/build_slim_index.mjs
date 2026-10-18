@@ -942,6 +942,7 @@ async function main() {
     slim.push({
       id,
       kind,
+      ...(kind === "bar" ? { legacyOsmBar: true } : {}),
       name: String(first.pub_name),
       lat,
       lng,

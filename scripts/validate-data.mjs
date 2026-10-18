@@ -1332,13 +1332,15 @@ function validateSlimVenues() {
       .filter(isLivePriceRow)
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
+    const kind = legacyOsmVenueKind(prices);
     expected.set(stableVenueIdFromKey(key), {
       name: String(first.pub_name),
       lat: Number(first.latitude),
       lng: Number(first.longitude),
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
       borough: String(first.primary_borough || ""),
-      kind: legacyOsmVenueKind(prices),
+      kind,
+      legacyOsmBar: kind === "bar" ? true : undefined,
       priceBand: undefined,
     });
   }
@@ -1464,6 +1466,9 @@ function validateSlimVenues() {
       errs.add(
         `${where} (${id}): kind ${row.kind} does not match expected ${exp.kind}`,
       );
+    }
+    if (row.legacyOsmBar !== exp.legacyOsmBar) {
+      errs.add(`${where} (${id}): legacyOsmBar does not match recorded OSM lineage`);
     }
     if (row.priceBand !== exp.priceBand) {
       errs.add(
