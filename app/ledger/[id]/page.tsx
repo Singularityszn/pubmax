@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
+import { BRAND_NAME } from "@/lib/brandNaming";
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
 import { buildVenueClaims } from "@/lib/ledger";
 import { CITIES } from "@/lib/cities";
@@ -68,7 +69,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
   const { venue } = read;
 
-  const title = `The Ledger: ${venue.name}. PUBMAXX`;
+  // The layout's template adds the brand to the document title. The share
+  // card is not templated, so it keeps the branded form.
+  const title = `The Ledger: ${venue.name}`;
+  const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
   // URL points at the one indexable venue permalink.
@@ -78,8 +82,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates: { canonical },
-    openGraph: { title, description, type: "article", url: canonical },
-    twitter: { card: "summary", title, description },
+    openGraph: { title: cardTitle, description, type: "article", url: canonical },
+    twitter: { card: "summary", title: cardTitle, description },
   };
 }
 

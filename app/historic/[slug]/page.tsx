@@ -8,6 +8,7 @@ import {
   loadHistoricPubs,
   type HistoricPub,
 } from "@/lib/historic";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import HistoricPubDetail from "./HistoricPubDetail";
@@ -63,12 +64,15 @@ export async function generateMetadata({
 
   if (!pub) {
     return {
-      title: "Historic pub. PUBMAXX",
+      title: "Historic pub",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${pub.name}. Historic London pub | PUBMAXX`;
+  // The layout's template adds the brand to the document title. The share
+  // card is not templated, so it keeps the branded form.
+  const title = `${pub.name}. Historic London pub`;
+  const cardTitle = `${title} | ${BRAND_NAME}`;
   const description = metaDescription(pub);
   const canonical = `/historic/${pub.slug}`;
 
@@ -77,12 +81,12 @@ export async function generateMetadata({
     description,
     alternates: { canonical },
     openGraph: {
-      title,
+      title: cardTitle,
       description,
       url: canonical,
       type: "article",
     },
-    twitter: { card: "summary_large_image", title, description },
+    twitter: { card: "summary_large_image", title: cardTitle, description },
   };
 }
 

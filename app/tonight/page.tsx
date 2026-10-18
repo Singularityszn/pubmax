@@ -20,7 +20,7 @@ import TonightClient from "./TonightClient";
 // The server composes the public listing answer through the same readers as
 // Today. The browser revalidates it through the shared map and Out API readers.
 export const metadata: Metadata = {
-  title: "Tonight in London · PUBMAXX",
+  title: "Tonight in London",
   description:
     "Check sourced London pub listings for tonight on PUBMAXX, with map links when available.",
   alternates: { canonical: "/tonight" },
