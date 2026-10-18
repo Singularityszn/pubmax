@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-18T21:38:01.693Z",
+  "generatedAt": "2026-10-18T22:47:26.805Z",
   "snapshot": {
     "pubs": 38122,
     "statedWebsite": 1860,
@@ -24,7 +24,7 @@
     },
     "chainMenuSourcesOmitted": true
   },
-  "hostsKnown": 1765,
+  "hostsKnown": 1855,
   "overlayMenuUrls": {
     "inputRead": true,
     "held": 0,
@@ -34,53 +34,53 @@
   },
   "exaSites": {
     "inputRead": true,
-    "held": 666,
-    "crawlable": 666,
-    "considered": 666,
-    "seededOnKnownHost": 239,
-    "hostsAdded": 214,
-    "sharedHost": 38,
-    "estateHost": 2,
-    "alreadyPublished": 4
+    "held": 994,
+    "crawlable": 994,
+    "considered": 994,
+    "seededOnKnownHost": 350,
+    "hostsAdded": 304,
+    "sharedHost": 80,
+    "estateHost": 4,
+    "alreadyPublished": 9
   },
-  "hostsCrawledThisRun": 5,
-  "hostsInLedger": 222,
-  "pagesRead": 19,
+  "hostsCrawledThisRun": 106,
+  "hostsInLedger": 328,
+  "pagesRead": 338,
   "pdfs": {
-    "seen": 0,
-    "read": 0,
+    "seen": 10,
+    "read": 10,
     "unreadable": 0
   },
   "pageBudget": 20000,
   "outcomes": {
-    "priced": 8,
-    "robots-disallowed": 0,
-    "robots-unreadable": 24,
+    "priced": 11,
+    "robots-disallowed": 1,
+    "robots-unreadable": 31,
     "policy-refused-host": 0,
-    "unreachable": 16,
-    "no-menu-page-found": 12,
-    "menu-states-no-price": 107,
+    "unreachable": 31,
+    "no-menu-page-found": 19,
+    "menu-states-no-price": 141,
     "estate-page-names-no-pub": 0,
-    "exa-site-unbound": 55
+    "exa-site-unbound": 94
   },
   "robotsFiles": {
-    "rules-file": 173,
-    "absent": 13,
-    "challenge-page": 5,
-    "http-refused": 19,
-    "unreachable": 4,
-    "html-page": 8
+    "rules-file": 254,
+    "absent": 20,
+    "challenge-page": 6,
+    "http-refused": 25,
+    "unreachable": 10,
+    "html-page": 13
   },
-  "pubsOnPricedHosts": 8,
+  "pubsOnPricedHosts": 11,
   "drops": {
-    "no-price-on-page": 291,
-    "no-category-word-nearby": 574,
-    "mixer-serve-not-one-drink": 30,
-    "outside-category-band": 216,
-    "offer-not-a-menu-price": 259,
-    "page-is-not-a-drinks-list": 8,
-    "food-word-nearby": 69,
-    "item-name-ambiguous": 90,
+    "no-price-on-page": 377,
+    "no-category-word-nearby": 662,
+    "mixer-serve-not-one-drink": 31,
+    "outside-category-band": 244,
+    "offer-not-a-menu-price": 320,
+    "page-is-not-a-drinks-list": 16,
+    "food-word-nearby": 75,
+    "item-name-ambiguous": 94,
     "half-measure-not-a-pint": 20,
     "bottled-measure-not-a-pint": 9
   },
@@ -96,5 +96,5 @@
       "checkedOn": "2026-09-22"
     }
   ],
-  "elapsedSeconds": 7
+  "elapsedSeconds": 106
 }

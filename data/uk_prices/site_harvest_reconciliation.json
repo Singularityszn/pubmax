@@ -9941,6 +9941,54 @@
         "rowCount": 8020,
         "siteHarvestRows": 3490
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thecottonmillpub-com.json",
+      "sourceEvidenceSha256": "c28ac3170da7a2925bc28168e8424abdd27f8b815b8c4eb85d49ebc71dc653ed",
+      "sourceUrl": "https://thecottonmillpub.com",
+      "sourceObservedAt": "2026-10-18T22:46:13.457Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "36fbc5331632fc86c410ed6c50b56a98c8e9a644dd8d1fb1437ca445830299da",
+        "rowCount": 3521,
+        "rowIdentitySetSha256": "1d51fbd739056b2cedb8bd544790bfafd0df786fe10506c622dbd9c9b907f582"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thebluemonklondon-com-bar.json",
+      "sourceEvidenceSha256": "ff9891528507519114a5e9c508d725af62290f7a0b4f8b5d591c8dbe0990966a",
+      "sourceUrl": "https://www.thebluemonklondon.com/bar",
+      "sourceObservedAt": "2026-10-18T22:46:37.618Z",
+      "addedRows": 40,
+      "currentLedger": {
+        "sha256": "aadd7ce7f4f8f1cc55a29559950de1767c63e456e780e9286cd7949995433d4a",
+        "rowCount": 3561,
+        "rowIdentitySetSha256": "ca8536f9d364a5fedd23ae0354b7df616438ce3acf6e1d4c5e601fc34137c46a"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-exale-uk-wines.json",
+      "sourceEvidenceSha256": "692601e52eca6e8cefe5bf6ee376f9a5f45c4a7d9e5150ca64e45424d6726001",
+      "sourceUrl": "https://www.exale.uk/wines",
+      "sourceObservedAt": "2026-10-18T22:46:43.301Z",
+      "addedRows": 6,
+      "currentLedger": {
+        "sha256": "be436f90949c1a0d89512bbd8bafa977baf61a2d49bedb74b90d948c752bd394",
+        "rowCount": 3567,
+        "rowIdentitySetSha256": "5790ff102cdba9feeaaaeb49337a5bc1d0ed85691caaa853c890b6e26a3aaec7"
+      },
+      "currentBundle": {
+        "rowCount": 8072,
+        "siteHarvestRows": 3542
+      }
     }
   ]
 }
