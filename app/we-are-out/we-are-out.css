@@ -1,6 +1,6 @@
 /* "We're out" check-in composer (Social Loop v1). Mobile-first, role-tokened. */
 .weAreOut {
-  padding-bottom: var(--mobile-tab-clearance, 96px);
+  padding-bottom: var(--space-6);
 }
 
 /* Stack the OUT TONIGHT pill above the title. The shared feed eyebrow is

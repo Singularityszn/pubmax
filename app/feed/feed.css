@@ -1384,7 +1384,7 @@
        the standard bar's top offset. 10px + the bar's own env(safe-area) margin
        matches the landing/map bars' shared top inset, so the bar lands on the
        identical rect page-to-page. */
-    padding: 10px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
+    padding: 10px var(--page-gutter) var(--space-12);
     gap: 10px;
   }
 
