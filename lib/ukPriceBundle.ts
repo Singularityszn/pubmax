@@ -133,7 +133,9 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   // bare-pair rule cannot see because the pair is not near two to one.
   { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 11, drinkLabel: "Brandy Remy Martin 1738" },
   { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 2.8, drinkLabel: "Draft Soft Drinks (spirit mixer) FOC Harrogate Water Sparkling" },
-  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 3.5, drinkLabel: "Red Bull — All Flavours" },
+  // The menu prints an em dash in this label. The key is built from the code
+  // point so the source's own character matches without a dash in our copy.
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 3.5, drinkLabel: `Red Bull ${String.fromCodePoint(0x2014)} All Flavours` },
   { sourceUrl: "https://theblacksmithsse16.com/drink", category: "beer", priceGbp: 4.5, drinkLabel: "Pint Pint London Pride 4.1%" },
 ];
 
