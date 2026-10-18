@@ -62,7 +62,7 @@ export function SpillReceiptStep({
             onClick={() => removePhoto("receipt")}
             aria-label="Retake the bill photo"
           >
-            <X size={13} aria-hidden="true" /> Retake
+            <X size={14} aria-hidden="true" /> Retake
           </button>
         </div>
       </div>

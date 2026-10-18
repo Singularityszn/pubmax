@@ -214,7 +214,7 @@ export default function TodayGetThereStrip() {
             onClick={requestLocation}
             disabled={locationStatus === "requesting"}
           >
-            <LocateFixed size={15} aria-hidden="true" />
+            <LocateFixed size={16} aria-hidden="true" />
             {locationStatus === "requesting"
               ? LOCATION_FINDING_LABEL
               : locationStatus === "unavailable"
@@ -239,7 +239,7 @@ export default function TodayGetThereStrip() {
                   className="todayAreaChip"
                   onClick={() => pickArea(patch)}
                 >
-                  <MapPin size={12} aria-hidden="true" />
+                  <MapPin size={14} aria-hidden="true" />
                   {patch.label}
                 </button>
               ))}

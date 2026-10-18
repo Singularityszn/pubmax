@@ -715,7 +715,7 @@ export default function TonightClient({
                 <>
                   <div className="tonightRowMeta">
                     <span className="tonightRowKind" data-kind={row.kind}>
-                      <KindIcon size={12} aria-hidden="true" />
+                      <KindIcon size={14} aria-hidden="true" />
                       {meta.label}
                     </span>
                     {newSinceLastLook[groupIndex] ? <NewSinceMarker /> : null}
@@ -730,7 +730,7 @@ export default function TonightClient({
                   </div>
                   <h2 className="tonightRowTitle">{row.title}</h2>
                   <p className="tonightRowPlace">
-                    <MapPin size={13} aria-hidden="true" />
+                    <MapPin size={14} aria-hidden="true" />
                     <span>{row.placeName}</span>
                   </p>
                   <div className="tonightRowFacts">
@@ -740,7 +740,7 @@ export default function TonightClient({
                     ) : null}
                     {walk ? (
                       <span className="tonightRowWalk">
-                        <Footprints size={12} aria-hidden="true" />
+                        <Footprints size={14} aria-hidden="true" />
                         {walk}
                       </span>
                     ) : null}
@@ -754,12 +754,12 @@ export default function TonightClient({
                       {link.external ? (
                         <>
                           {sourceLabel}
-                          <ExternalLink size={13} aria-hidden="true" />
+                          <ExternalLink size={14} aria-hidden="true" />
                         </>
                       ) : (
                         <>
                           Open on map
-                          <ArrowRight size={13} aria-hidden="true" />
+                          <ArrowRight size={14} aria-hidden="true" />
                         </>
                       )}
                     </span>
@@ -803,7 +803,7 @@ export default function TonightClient({
                       onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
                     >
                       Open on map
-                      <ArrowRight size={13} aria-hidden="true" />
+                      <ArrowRight size={14} aria-hidden="true" />
                     </Link>
                   ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
@@ -839,7 +839,7 @@ export default function TonightClient({
                               : null;
                           const altPlace = (
                             <span className="tonightRowMorePlace">
-                              <MapPin size={12} aria-hidden="true" />
+                              <MapPin size={14} aria-hidden="true" />
                               {alt.placeName}
                             </span>
                           );
@@ -1090,7 +1090,7 @@ export default function TonightClient({
             aria-expanded={locationExpanded}
             onClick={() => setLocationOpen((open) => !open)}
           >
-            <LocateFixed size={15} aria-hidden="true" />
+            <LocateFixed size={16} aria-hidden="true" />
             <span className="tonightLocationToggleLabel">
               Walk times and last train
             </span>
@@ -1118,7 +1118,7 @@ export default function TonightClient({
                   className="tonightLocationButton"
                   onClick={clearLocation}
                 >
-                  <X size={15} aria-hidden="true" />
+                  <X size={16} aria-hidden="true" />
                   {LOCATION_REMOVE_LABEL}
                 </button>
               ) : (
@@ -1128,7 +1128,7 @@ export default function TonightClient({
                   onClick={requestLocation}
                   disabled={locationStatus === "requesting"}
                 >
-                  <LocateFixed size={15} aria-hidden="true" />
+                  <LocateFixed size={16} aria-hidden="true" />
                   {locationStatus === "requesting"
                     ? LOCATION_FINDING_LABEL
                     : locationStatus === "unavailable"

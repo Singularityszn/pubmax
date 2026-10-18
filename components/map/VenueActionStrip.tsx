@@ -10,11 +10,11 @@ import type { Venue } from "@/lib/venues";
 import "./venueActionStrip.css";
 
 function ActionIcon({ kind }: { kind: VenueExternalAction["kind"] }) {
-  if (kind === "book") return <CalendarDays size={15} aria-hidden="true" />;
+  if (kind === "book") return <CalendarDays size={16} aria-hidden="true" />;
   if (kind === "menu" || kind === "order") {
-    return <UtensilsCrossed size={15} aria-hidden="true" />;
+    return <UtensilsCrossed size={16} aria-hidden="true" />;
   }
-  return <ExternalLink size={15} aria-hidden="true" />;
+  return <ExternalLink size={16} aria-hidden="true" />;
 }
 
 type VenueActionStripProps = {
@@ -67,7 +67,7 @@ export default function VenueActionStrip({ venue, className, omitKinds }: VenueA
         >
           <ActionIcon kind={action.kind} />
           <span>{action.label}</span>
-          <ExternalLink size={12} className="venueActionStrip__ext" aria-hidden="true" />
+          <ExternalLink size={14} className="venueActionStrip__ext" aria-hidden="true" />
         </a>
       ))}
     </div>

@@ -178,7 +178,7 @@ export default function GardenTonightCard() {
     >
       <div className="gardenTonightCard">
         <p className="gardenTonightKicker">
-          <Sun size={13} aria-hidden="true" />
+          <Sun size={14} aria-hidden="true" />
           <span>Garden weather</span>
         </p>
         <h2 id="gardenTonight-title" className="gardenTonightHeadline">
@@ -197,7 +197,7 @@ export default function GardenTonightCard() {
                   <span className="gardenTonightPubMeta">
                     {pub.area ? (
                       <span className="gardenTonightPubArea">
-                        <MapPin size={11} aria-hidden="true" />
+                        <MapPin size={14} aria-hidden="true" />
                         {pub.area}
                       </span>
                     ) : null}
@@ -220,7 +220,7 @@ export default function GardenTonightCard() {
                     prefetch={false}
                   >
                     Map
-                    <ArrowUpRight size={13} aria-hidden="true" />
+                    <ArrowUpRight size={14} aria-hidden="true" />
                   </Link>
                 ) : null}
               </li>

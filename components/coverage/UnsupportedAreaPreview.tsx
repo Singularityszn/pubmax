@@ -135,7 +135,7 @@ export default function UnsupportedAreaPreview({
                 className="uapPrimary"
                 onClick={() => onPickPatch(nearest.patch)}
               >
-                <MapPin size={15} aria-hidden="true" /> Show {nearest.patch.label}
+                <MapPin size={16} aria-hidden="true" /> Show {nearest.patch.label}
               </button>
             </div>
           ) : (

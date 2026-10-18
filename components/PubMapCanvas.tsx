@@ -4866,7 +4866,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           <strong>{activePoi.name}</strong>
           <span className="poiKind">{POI_CATEGORY_META[activePoi.category].label}</span>
           <button type="button" onClick={() => setActivePoi(null)} aria-label="Dismiss">
-            <X size={12} />
+            <X size={14} />
           </button>
         </div>
       ) : null}

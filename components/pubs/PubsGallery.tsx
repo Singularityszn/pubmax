@@ -217,7 +217,7 @@ export default function PubsGallery({
                       rel="noopener noreferrer"
                     >
                       Menu
-                      <ExternalLink size={12} aria-hidden="true" />
+                      <ExternalLink size={14} aria-hidden="true" />
                     </a>
                   ) : null}
                   <a
@@ -230,7 +230,7 @@ export default function PubsGallery({
                     data-venue-id={pub.id}
                   >
                     {booking.label}
-                    <ExternalLink size={12} aria-hidden="true" />
+                    <ExternalLink size={14} aria-hidden="true" />
                   </a>
                 </div>
               </div>

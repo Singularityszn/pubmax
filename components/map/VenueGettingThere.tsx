@@ -119,7 +119,7 @@ export default function VenueGettingThere({
       <div className="venueGettingThere__routes" aria-live="polite">
         {journey.walkMinutes !== null ? (
           <span className="venueGettingThere__route">
-            <Footprints size={15} aria-hidden="true" />
+            <Footprints size={16} aria-hidden="true" />
             <strong>Walk</strong>
             <span aria-hidden="true">·</span>
             <span>~{journey.walkMinutes} min</span>
@@ -127,7 +127,7 @@ export default function VenueGettingThere({
         ) : null}
         {londonTransit ? (
           <span className="venueGettingThere__route venueGettingThere__route--tfl">
-            <TrainFront size={15} aria-hidden="true" />
+            <TrainFront size={16} aria-hidden="true" />
             <strong>TfL</strong>
             <span aria-hidden="true">·</span>
             <span>

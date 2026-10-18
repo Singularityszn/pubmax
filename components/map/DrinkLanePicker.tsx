@@ -59,11 +59,11 @@ export default function DrinkLanePicker({
           is no chrome above it. */}
       {variant === "sheet" ? null : (
         <div className="drinkLanePickerHead">
-          <GlassWater size={15} aria-hidden="true" />
+          <GlassWater size={16} aria-hidden="true" />
           <span>What are you drinking?</span>
           {onClose ? (
             <IconButton variant="ghost" className="drinkLanePickerClose" aria-label="Close drink choices" onClick={onClose}>
-              <X size={17} aria-hidden="true" />
+              <X size={16} aria-hidden="true" />
             </IconButton>
           ) : null}
         </div>

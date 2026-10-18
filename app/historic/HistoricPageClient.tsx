@@ -154,7 +154,7 @@ export default function HistoricPageClient({
                               rel="noopener noreferrer"
                             >
                               {citationLabel(href)}
-                              <ExternalLink size={12} aria-hidden="true" />
+                              <ExternalLink size={14} aria-hidden="true" />
                             </a>
                           ) : null}
                           {pub.venueId ? (

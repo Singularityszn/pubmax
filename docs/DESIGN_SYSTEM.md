@@ -66,6 +66,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
 | A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
+| An icon draws at one of four sizes and at Lucide's own stroke | Spacing, radius, shadow > Icons; `lib/iconScale.ts` | `__tests__/iconScale.test.ts` |
 | The browser bar matches the page under it, in each theme | Day/night coherence; `lib/browserBarColor.ts` | `__tests__/browserBarColor.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
@@ -552,6 +553,19 @@ contrast, or missing backdrop-filter support. `app/globals.css` and
 `app/theme.css` own the material roles; map and mobile sheet styles only consume
 them. This is a functional depth cue for movable overlays, not permission to
 add decorative glass elsewhere.
+
+### Icons
+
+One icon set (Lucide) at one scale, written down in `lib/iconScale.ts`:
+14 beside small text (meta lines, chips, captions), 16 beside body text and
+inside a labelled button, field or heading, 20 for an icon alone in a control
+(close, overflow, header and tab bar icons) and 24 for the few large controls
+(the create disc, full-screen viewer chrome). Every icon keeps Lucide's own
+stroke of 2 and passes no `strokeWidth`: at 14 and 16px it draws the same stem
+as the Inter beside it, where 1.75 drew thinner than the words. A selected tab
+reads by its ink, its label weight and the gliding well, not by a heavier
+stroke. The only icons off the scale are the named display marks in that file,
+glyphs that stand in for a picture or open an empty state.
 
 ## Motion
 

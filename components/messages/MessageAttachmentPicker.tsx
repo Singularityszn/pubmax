@@ -274,7 +274,7 @@ const MessageAttachmentPicker = forwardRef<
                     onClick={() => select(kind)}
                   >
                     <span className="messageAttachIcon" aria-hidden="true">
-                      <Icon size={22} />
+                      <Icon size={20} />
                     </span>
                     <span className="messageAttachLabel">{label}</span>
                   </button>
@@ -294,7 +294,7 @@ const MessageAttachmentPicker = forwardRef<
                         }}
                       >
                         <span className="messageAttachIcon" aria-hidden="true">
-                          <Icon size={22} />
+                          <Icon size={20} />
                         </span>
                         <span className="messageAttachLabel">{label}</span>
                       </button>

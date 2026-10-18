@@ -41,7 +41,7 @@ export default function ThemeToggle({ floating = false }: { floating?: boolean }
       aria-label={label}
       title={label}
     >
-      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+      {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
     </button>
   );
 }
