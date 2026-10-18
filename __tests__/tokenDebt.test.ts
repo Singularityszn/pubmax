@@ -73,7 +73,7 @@ describe("token debt", () => {
   const CEILINGS = {
     "raw font sizes": { pattern: /font-size:\s*[0-9.]+(?:px|rem)\b/g, max: 489 },
     "raw corners": { pattern: /border-radius:\s*(?!0[\s;])[0-9.]+(?:px|rem)\b/g, max: 30 },
-    "raw shadows": { pattern: /box-shadow:\s*(?:inset\s+)?-?[0-9]/g, max: 136 },
+    "raw shadows": { pattern: /box-shadow:\s*(?:inset\s+)?-?[0-9]/g, max: 109 },
     "var() fallbacks": { pattern: /var\(--[\w-]+\s*,/g, max: 291 },
   } as const;
 

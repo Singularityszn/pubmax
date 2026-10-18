@@ -5,9 +5,9 @@ them within the phone map's resting-layer contract below.
 
 | Tier | Surface | Treatment |
 |---|---|---|
-| 1 | **Near me** | The only primary-weight chip (`.mobileMapChipPrimary`, filled accent); on phone a round map-edge FAB |
+| 1 | **Near me** | The map's locate control. On a phone it is a round map-edge FAB on the same quiet surface as the bar: the raised panel, a hairline edge, no accent. |
 | 2 | **Filters** | Quiet icon-button in the one top bar. The refinement count is the badge. The drink lane has its own control and sheet. |
-| 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge). |
+| 3 | **TfL** | Not a resting control. Its everyday home is the Transit tab of More map controls. A compact 44px icon-button joins `.mobileMapUtilityCorner` (fixed, right edge, head of the column) only while a tube line is badly disrupted, and it wears that count. |
 
 The [phone map resting-layer contract](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
 owns Tonight's placement, List access, the bottom card and the TfL badge policy.

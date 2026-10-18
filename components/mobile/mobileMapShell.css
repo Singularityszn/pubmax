@@ -241,7 +241,9 @@
   }
 
   /* COLLAPSED, the credit is one control and it takes this lane's own shape:
-     a 44px circle on the raised surface, exactly like the compass below it.
+     a 44px circle on the raised surface, exactly like the compass below it,
+     with the same hairline edge as Near me and the bar, because a licence
+     credit is the quietest thing on the map, never an outlined button.
      MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
      floor overflowed its own container and read as a white blob. */
   .appShell .mapStage
@@ -252,7 +254,7 @@
     height: var(--mobile-map-credit-size);
     min-height: var(--mobile-map-credit-size);
     padding: 0;
-    border: 1px solid var(--ink-soft);
+    border: 1px solid var(--hairline);
     border-radius: 50%;
     background: var(--color-surface-raised);
     box-shadow: var(--map-overlay-shadow-tight);
@@ -273,7 +275,7 @@
        a white blob read as a rendering defect rather than a control. */
     background-repeat: no-repeat;
     background-position: center;
-    background-size: 24px 24px;
+    background-size: 20px 20px;
     background-color: transparent;
     border-radius: 50%;
   }
@@ -408,7 +410,7 @@
     border-radius: var(--control-radius);
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     font: inherit;
     font-size: var(--text-sm);
     font-weight: 700;
@@ -458,7 +460,7 @@
     border-radius: var(--control-radius);
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     font: inherit;
     font-size: var(--text-sm);
     font-weight: 700;
@@ -542,9 +544,11 @@
   .mobileMapCredits p { margin: 0; }
   .mobileMapCredits a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-  /* The map edge owns the two controls the bar cannot hold: TfL at the top,
-     Near me at the thumb. Both keep clear of the chrome, the plan pill, and
-     the right map edge, in the one published corner lane. */
+  /* The map edge owns the control the bar cannot hold: Near me at the thumb.
+     TfL joins it at the top only while a line is badly disrupted, so the
+     column packs to the foot and TfL alone pushes itself to the head. Both
+     keep clear of the chrome, the plan pill, and the right map edge, in the
+     one published corner lane. */
   .mobileMapUtilityCorner {
     position: fixed;
     right: var(--mobile-map-corner-inset);
@@ -555,15 +559,16 @@
     z-index: var(--z-map-toolbar);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-end;
     gap: 10px;
     pointer-events: none;
   }
 
-  /* Near me is the map's one primary action, so it leads on weight, not on the
-     accent: coral belongs to the landing CTA, the selected pin ring and the
-     active tab glyph alone (design judgement 2026-08-01, finding 2.1). */
+  /* Near me leads on place, not on weight or the accent: coral belongs to the
+     one primary and the create disc alone (design judgement 2026-08-01,
+     finding 2.1). It wears the same quiet surface as the bar and the drink
+     chip: the raised panel, a hairline edge and the tight map shadow. */
   .mobileMapLocateFab {
     position: relative;
     flex: 0 0 auto;
@@ -574,11 +579,11 @@
     place-items: center;
     width: var(--map-corner-locate-size);
     height: var(--map-corner-locate-size);
-    border: 1px solid var(--ink-soft);
+    border: 1px solid var(--hairline);
     border-radius: 50%;
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     pointer-events: auto;
     cursor: pointer;
   }
@@ -604,12 +609,15 @@
     min-width: var(--mobile-map-corner-btn);
     min-height: 44px;
     pointer-events: auto;
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
   }
   /* The status suffix ("?") rides inside the pill rather than spilling
-     past its edge: the icon size is a floor here, not a fixed width. */
+     past its edge: the icon size is a floor here, not a fixed width. The
+     auto margin holds TfL at the head of the column while Near me stays at
+     the thumb. */
   .mobileMapUtilityCorner > .mobileMapTflButton {
     width: auto;
+    margin-bottom: auto;
     padding-inline: 7px;
   }
   .mobileMapCornerSuffix { font-size: var(--text-2xs); font-weight: 700; margin-left: 2px; }

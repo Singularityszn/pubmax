@@ -39,13 +39,20 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
 ];
 
 /**
- * The map edge: London shows TfL at the top, with Near me at the thumb.
+ * The map edge: Near me at the thumb, and TfL at the top ONLY while a tube
+ * line is badly disrupted.
  *
  * Near me is a round FAB rather than a bar chip because that is what a map
  * reader already knows a locate control looks like, and because the one top
  * bar has no room left at 320px (design judgement 2026-08-01, finding 2.3).
  * Its state stays in the accessible name: "Near me", "Locating", "Nearby 12",
  * "Try near me".
+ *
+ * TfL is not a resting control (taste pass, 18 Oct 2026: nine controls floated
+ * over the phone map). Its everyday home is the Transit tab of More map
+ * controls, the same panel the TfL sheet shows. It comes back to the map edge
+ * only with something urgent to say, because a closed or suspended line is
+ * news a reader needs before they set out, not after they think to look.
  */
 function MapEdgeControls({
   tfl,
@@ -106,13 +113,20 @@ function contextualSheetKind(
     : null;
 }
 
-function tflCornerForCity(
+/**
+ * The TfL control the map edge paints: London's, and only while its badge has
+ * something urgent to count. A routine, clear or unavailable feed rests in
+ * More map controls, Transit.
+ */
+function tflEdgeForCity(
   cityId: CityId,
   status: "checking" | "clear" | "issues" | "unavailable",
   count: number,
   urgentCount: number,
 ): CornerUtilityModel | null {
-  return cityId === "london" ? buildTflCorner(status, count, urgentCount) : null;
+  if (cityId !== "london") return null;
+  const corner = buildTflCorner(status, count, urgentCount);
+  return corner.badge ? corner : null;
 }
 
 /** The sheets that open at full height; every other kind opens at half. */
@@ -367,7 +381,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     savedOnlyActive,
     openNowActive,
   });
-  const tflCorner = tflCornerForCity(cityId, tflStatus, tflCount, tflUrgentCount);
+  const tflOnMap = tflEdgeForCity(cityId, tflStatus, tflCount, tflUrgentCount);
   const planPill = planActivationPill({ planActive, planStopCount, builtStopCount });
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
   // The plan door and the bottom card it rides in stand down for everything
@@ -503,14 +517,15 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </button>
         </div>
       ) : null}
-      {/* The map edge: London shows TfL at the top, Near me at the thumb.
-          Near me is a round FAB rather than a bar chip because that is what a
-          map reader already knows a locate control looks like, and because the
-          bar has no room left at 320px. Its state stays in the accessible
-          name ("Near me", "Locating", "Nearby 12", "Try near me"). */}
+      {/* The map edge: Near me at the thumb, and TfL at the top only while a
+          line is badly disrupted (its everyday home is More map controls,
+          Transit). Near me is a round FAB rather than a bar chip because that
+          is what a map reader already knows a locate control looks like, and
+          because the bar has no room left at 320px. Its state stays in the
+          accessible name ("Near me", "Locating", "Nearby 12", "Try near me"). */}
       {overlay !== "search" ? (
         <MapEdgeControls
-          tfl={tflCorner}
+          tfl={tflOnMap}
           tflOpen={overlay === "tfl"}
           onOpenTfl={() => set("tfl")}
           nearMe={nearMe}
