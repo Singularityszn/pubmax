@@ -2,15 +2,12 @@
    --ink-soft, --muted, --line, --panel, --panel-raised, --radius), so it themes
    with the rest of the page.
 
-   Deliberately NOT brass. Brass is this page's colour for figures we hold the
-   evidence for: the average column, the rank, the CSV button. These figures are
-   other people's, so they read in plain ink on a plain panel. The difference is
-   the point, not a styling accident. */
+   These figures are other people's, so they read in plain ink, as rows with
+   a hairline between them and no box around them (the de-box rule), and the
+   measure each one counted is a sentence-case label, not spaced capitals. */
 
 .nationalPint {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
+  max-width: var(--content-max);
 }
 
 .nationalPintList {
@@ -19,21 +16,15 @@
 }
 
 .nationalPintRow {
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-}
-
-.nationalPintRow:last-child {
-  border-bottom: 0;
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line-soft);
 }
 
 .nationalPintMeasure {
   margin: 0;
-  color: var(--ink-soft);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .nationalPintValue {
@@ -98,7 +89,7 @@
 }
 
 .nationalPintSource a:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
   border-radius: 2px;
 }
