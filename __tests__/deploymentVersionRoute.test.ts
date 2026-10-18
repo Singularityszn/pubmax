@@ -177,7 +177,7 @@ describe("deployment version route", () => {
   });
 
   // Stale tabs call this route with no credential and compare deploymentId.
-  // The commit, its source and the build time stay behind the cron check.
+  // The commit is public. Its source and build time require the cron credential.
   it("gives the stale-tab reload a non-empty deployment id when Vercel set one", async () => {
     const deploymentKeys = [
       "NEXT_DEPLOYMENT_ID",
@@ -202,7 +202,7 @@ describe("deployment version route", () => {
       expect(seen).toBe("dpl_public_skew");
       expect(body.deploymentId).toBe("dpl_public_skew");
       expect(body.deploymentId.length).toBeGreaterThan(0);
-      expect(body).not.toHaveProperty("gitCommitSha");
+      expect(body.gitCommitSha).toBe(SHA);
       expect(body).not.toHaveProperty("gitCommitShaSource");
       expect(body).not.toHaveProperty("builtAt");
     } finally {
@@ -216,13 +216,13 @@ describe("deployment version route", () => {
   // The defect this route is answering for: the sha was read at REQUEST time
   // from a variable Vercel sets only on a build its Git integration owns, so a
   // CLI deploy served null for ever. The build decides; the request only reports.
-  it("hides build metadata from callers without the cron credential", async () => {
+  it("names the built commit publicly while protecting operational metadata", async () => {
     process.env.CRON_SECRET = "deploy-marker-secret";
     process.env.PUBMAX_BUILD_COMMIT_SHA = SHA;
 
     const body = await GET().json();
     expect(body.ok).toBe(true);
-    expect(body).not.toHaveProperty("gitCommitSha");
+    expect(body.gitCommitSha).toBe(SHA);
     expect(body).not.toHaveProperty("gitCommitShaSource");
     expect(body).not.toHaveProperty("builtAt");
   });

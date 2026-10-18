@@ -79,14 +79,14 @@ describe("security audit F-05 — /api/version reconnaissance", () => {
     delete process.env.PUBMAX_BUILD_TIME;
   });
 
-  it("returns the deployment id and hides build metadata from anonymous callers", async () => {
+  it("returns public identity and protects operational metadata from anonymous callers", async () => {
     process.env.CRON_SECRET = "cron-test-secret";
     process.env.PUBMAX_BUILD_COMMIT_SHA = "abc";
     const response = versionGet();
     const body = await response.json();
     expect(body.ok).toBe(true);
     expect(body).toHaveProperty("deploymentId");
-    expect(body).not.toHaveProperty("gitCommitSha");
+    expect(body.gitCommitSha).toBeNull();
     expect(body).not.toHaveProperty("gitCommitShaSource");
     expect(body).not.toHaveProperty("builtAt");
   });
