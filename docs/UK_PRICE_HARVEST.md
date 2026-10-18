@@ -87,7 +87,13 @@ npm run harvest:uk-pubs -- --london --enrich      # Exa, London pubs (EXA_API_KE
 npm run harvest:uk-exa-sites                      # cut data/uk_prices/exa_site_candidates.json
 npm run harvest:uk-prices -- --london --exa-sites data/uk_prices/exa_site_candidates.json --exa-sites-only
 npm run build:uk-price-bundle
+npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
 ```
+
+The last step records the new rows in `data/uk_prices/site_harvest_reconciliation.json`,
+one later publication per source page, each with an evidence file the page's own
+words were re-read into. `__tests__/siteHarvestReconciliation.test.ts` fails
+until it runs.
 
 A site only Exa named gives a price only when one of its pages states the pub's
 own OSM postcode or house number and street. A namesake's site never binds and

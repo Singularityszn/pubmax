@@ -9813,6 +9813,54 @@
         "rowCount": 7828,
         "siteHarvestRows": 3298
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-enidstreettavern-com-taplist.json",
+      "sourceEvidenceSha256": "c698d406d032c9706329cd4568a9de9d5cca426d36df7479b3493b7452f7bbfe",
+      "sourceUrl": "https://enidstreettavern.com/taplist",
+      "sourceObservedAt": "2026-10-18T20:49:30.822Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "2102e487a1c3e12d6e4f5341f183be9c359f2f982f8de82ec23429faa589a1c1",
+        "rowCount": 3334,
+        "rowIdentitySetSha256": "ca8308c7d31878ad06936ff630051d0a2e79f1d9c8a1ff5465ccaf748162ee9b"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thebeaufortpub-co-uk-menus.json",
+      "sourceEvidenceSha256": "59615a49612e36ad0a559956dcce4a841fc1cacaf5819dc2840b92221bbc66aa",
+      "sourceUrl": "https://www.thebeaufortpub.co.uk/menus/",
+      "sourceObservedAt": "2026-10-18T20:49:54.288Z",
+      "addedRows": 4,
+      "currentLedger": {
+        "sha256": "fb0e076edff15631c6b9aacc67db5b0a5939feb2d5c4a79c7d4a5cf35f0f1dd5",
+        "rowCount": 3338,
+        "rowIdentitySetSha256": "ad362d41305afaf6b8061d96945543d9add23a8be0a4baefa80e4cc638fc8741"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-watermanstw9-co-uk-menu.json",
+      "sourceEvidenceSha256": "22e7bb0b5fd4ff38a6234081cbb47919391606b5887822eafae44e765e03416e",
+      "sourceUrl": "https://watermanstw9.co.uk/menu",
+      "sourceObservedAt": "2026-10-18T20:50:36.867Z",
+      "addedRows": 19,
+      "currentLedger": {
+        "sha256": "56d25a3129b3f0d3e4ddd7116ba801260e1ce0e107d522438315d5d867883416",
+        "rowCount": 3357,
+        "rowIdentitySetSha256": "ec73c018dd33e45c4beff3a19ebe262ed5e69f08bb31e1afa03373f3499b1ebb"
+      },
+      "currentBundle": {
+        "rowCount": 7866,
+        "siteHarvestRows": 3336
+      }
     }
   ]
 }
