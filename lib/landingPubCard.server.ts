@@ -9,6 +9,10 @@ import {
   buildLandingPubCard,
   type LandingPubCardData,
 } from "@/lib/landingPubCard";
+import {
+  buildLondonCollageAreaPrices,
+  type LondonCollageAreaPrice,
+} from "@/lib/landingLondonCollage";
 import { pintPriceAverages, type PintPriceAverages } from "@/lib/pintSavings";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
@@ -24,6 +28,12 @@ export type LandingHeroData = {
    * to mean anything (lib/pintSavings.ts).
    */
   averages: PintPriceAverages | null;
+  /**
+   * The cheapest listed pint within a short walk of each photographed patch in
+   * the founder collage, from this same read. An area with no priced pub nearby
+   * is absent, so its tile prints no figure.
+   */
+  collagePrices: Record<string, LondonCollageAreaPrice>;
 };
 
 // The landing document is prerendered (app/page.tsx, force-static), so this
@@ -45,13 +55,14 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
           typeof venue.cheapestPrice === "number" ? [venue.cheapestPrice] : [],
         ),
       );
-      return { card, archive, rail, averages };
+      const collagePrices = buildLondonCollageAreaPrices(venues);
+      return { card, archive, rail, averages, collagePrices };
     })
     .catch(() => {
       // A failed read renders no card rather than an invented one, and the
       // next build gets a fresh attempt.
       cached = null;
-      return { card: null, archive: {}, rail: [], averages: null };
+      return { card: null, archive: {}, rail: [], averages: null, collagePrices: {} };
     });
   return cached;
 }
