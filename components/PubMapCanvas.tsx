@@ -9,6 +9,7 @@ import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
+import { createPalMapMarker, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import {
   Crosshair,
   MapPinned,
@@ -1205,6 +1206,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     filteredVenueCountRef.current = filteredVenueCount;
   }, [filteredVenueCount, venues]);
   const selectedIdRef = useRef(selectedVenueId);
+  // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
+  const palMarkerRef = useRef<PalMapMarker | null>(null);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
   // (settleSceneReady when the D2 tile-paint gate never armed, else that
   // gate's revealPins), and driven off the shared entrance/dash/pulse RAF loop
@@ -3597,6 +3600,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
       enabled: useDomDonutClusters,
     });
+    palMarkerRef.current = createPalMapMarker(map);
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
@@ -3764,6 +3768,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
+      palMarkerRef.current?.destroy();
+      palMarkerRef.current = null;
       removePaintedPinProbe();
       removeMapCameraProbe();
       removeMapReaderPositionProbe();
@@ -4112,6 +4118,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       pendingUpdatesRef.current.set("pois:filters", run);
     }
   }, [poiHidden, mapReady]);
+
+  // The Pal perches beside the selected pin, and steps off with no selection.
+  useEffect(() => {
+    if (!mapReady) return;
+    const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
+    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null);
+  }, [selectedVenueId, venues, mapReady]);
 
   // Route + selection ring → sources/filter.
   useEffect(() => {

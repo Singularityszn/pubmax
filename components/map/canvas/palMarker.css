@@ -1,0 +1,47 @@
+/* The Pal on the map (palMarker.ts). One small, decorative marker beside the
+   selected pin: it takes no pointer events, so the pins under it stay
+   tappable, and under reduced motion it lands and stays still. */
+.palMapMarker {
+  width: 2.375rem;
+  height: 2.375rem;
+  pointer-events: none;
+  z-index: 2;
+}
+.palMapMarkerBody {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 2px solid var(--panel-raised, #fffdf9);
+  box-shadow: 0 .35rem .8rem color-mix(in srgb, var(--ink-deep, #0c0c0e) 35%, transparent);
+  background: var(--ink-deep, #0c0c0e);
+  transform-origin: 50% 100%;
+}
+.palMapMarkerBody img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The Pal genome holds the avatar here as it does on /pal. */
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
+.palMapMarker[data-pal-state="sleeping"] .palMapMarkerBody img { filter: brightness(.72); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .palMapMarker.isLanding .palMapMarkerBody { animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both; }
+  .palMapMarker:not([data-pal-state="sleeping"]) .palMapMarkerBody { animation: palMapBob 3.2s ease-in-out .6s infinite; }
+  .palMapMarker.isLanding:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both, palMapBob 3.2s ease-in-out .6s infinite;
+  }
+}
+@keyframes palMapLand {
+  0% { opacity: 0; transform: translateY(-1.6rem) scale(.6); }
+  60% { opacity: 1; transform: translateY(0) scale(1.08, .9); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes palMapBob {
+  50% { transform: translateY(-.18rem); }
+}
