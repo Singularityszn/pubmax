@@ -137,6 +137,19 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   // point so the source's own character matches without a dash in our copy.
   { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 3.5, drinkLabel: `Red Bull ${String.fromCodePoint(0x2014)} All Flavours` },
   { sourceUrl: "https://theblacksmithsse16.com/drink", category: "beer", priceGbp: 4.5, drinkLabel: "Pint Pint London Pride 4.1%" },
+  // The Blue Monk lists cans, 0% beers and Cantillon lambics side by side, and
+  // the keyless reader filed them under the wrong heading. An unlabelled row is
+  // matched by its figure: the page states that figure only for the drink named.
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "alcohol-free", priceGbp: 5.25, drinkLabel: "Freddie's Hard Iced Tea Lemon" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "alcohol-free", priceGbp: 5.5, drinkLabel: "Pabst Blue Ribbon" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "alcohol-free", priceGbp: 5.5, drinkLabel: "Warsteiner Pilsener" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "beer", priceGbp: 3.75 },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "beer", priceGbp: 4.5, drinkLabel: "Athletic Run Wild IPA" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "cocktail", priceGbp: 6.5 },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "cocktail", priceGbp: 7.2, drinkLabel: "Newbarns Blackcurrant & Lemon Sour 1/2pint 4%" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 16.4, drinkLabel: "Cantillon Gueuze" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15, drinkLabel: "Cantillon Rose de Gambrinus 37.5cl" },
+  { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15 },
 ];
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
