@@ -434,10 +434,8 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             // denied, and a socket that never opened are all sessions that
             // never started. `connectedAt` is null until here, so it is also
             // the latch: a reconnect on the same attempt reports once.
-            if (attempt.connectedAt === null) {
-              trackEvent("voice_started");
-              playPalVoiceSound("start");
-            }
+            if (attempt.connectedAt === null) playPalVoiceSound("start");
+            if (attempt.connectedAt === null) trackEvent("voice_started");
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {
