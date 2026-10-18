@@ -248,6 +248,7 @@ it("renews a read-only login and backs up all five schemas and private Storage t
 const RESTORE_SOURCE = "restore_source";
 const SESSION_FIXTURE = path.join(ROOT, "scripts/rls/session-fixture.sql");
 const MIGRATIONS = path.join(ROOT, "supabase/migrations");
+const RESTORE_REALTIME_POLICIES = path.join(ROOT, "scripts/db/restore-realtime-policies.sql");
 const USER_ID = "00000000-0000-4000-8000-000000000001";
 const PROFILE_ID = "00000000-0000-4000-8000-000000000002";
 
@@ -258,6 +259,17 @@ const PLATFORM_ONLY_SCHEMAS = [
   "extensions", // pgcrypto and friends. Installed by Supabase, not by us.
   "realtime", // Realtime's channel table. Its messages are transient.
 ];
+
+/**
+ * The application policies on the platform's realtime schema, in full. The dump
+ * leaves that schema out, so scripts/db/restore-realtime-policies.sql puts them
+ * back, and this is what it must match.
+ */
+function realtimePolicies(target: Psql, database: string) {
+  return rows(target, database, `
+    select format('%I.%I.%I|%s|%s|%s', schemaname, tablename, policyname, cmd, roles::text, qual)
+    from pg_policies where schemaname = 'realtime' order by 1`);
+}
 
 // The restore runs without --exit-on-error, as docs/DR_RUNBOOK.md section 2
 // says, so it reports every statement that failed. A fresh Supabase project
@@ -381,6 +393,17 @@ it("restores the dump into a fresh cluster, failing only where a fresh Supabase 
     expect(source.triggers.length).toBeGreaterThan(0);
     // Every application table, row count, policy and trigger, nothing more or less.
     expect(restored).toEqual(source);
+
+    // The realtime policies (0148, 0171) do not come back from the dump, and
+    // the restored ledger says those migrations ran, so the runbook's
+    // post-restore script is what puts them back, exactly as migrated.
+    const sourceRealtime = realtimePolicies(pg, RESTORE_SOURCE);
+    expect(sourceRealtime.length).toBeGreaterThan(0);
+    expect(realtimePolicies(target, "postgres")).toEqual([]);
+    target.applyFile(RESTORE_REALTIME_POLICIES);
+    expect(realtimePolicies(target, "postgres")).toEqual(sourceRealtime);
+    target.applyFile(RESTORE_REALTIME_POLICIES);
+    expect(realtimePolicies(target, "postgres")).toEqual(sourceRealtime);
   } finally {
     await target?.stop();
     pg.sql(`drop database ${RESTORE_SOURCE}`);
