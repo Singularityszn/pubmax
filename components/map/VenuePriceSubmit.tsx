@@ -1,7 +1,5 @@
 "use client";
 
-import PalCheer from "@/components/pal/PalCheer";
-import { announcePalMoment } from "@/lib/palMoments";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Camera, Tag } from "lucide-react";
 
@@ -60,6 +58,8 @@ import {
   type PriceEvidenceMissionReason,
 } from "@/lib/priceEvidenceMissions";
 import { scrollMotionBehavior } from "@/lib/scrollMotion";
+import PalCheer from "@/components/pal/PalCheer";
+import { announcePalMoment } from "@/lib/palMoments";
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;

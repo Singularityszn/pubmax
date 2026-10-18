@@ -73,7 +73,6 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-
 /** The marker's markup, as plain DOM: the map's markers live outside React. */
 export function palMarkerElement(pal: PubPal): HTMLElement | null {
   const slug = pubPalMascotSlugFor(pal.appearance.species);

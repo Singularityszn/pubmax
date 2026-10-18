@@ -19,8 +19,6 @@
 // Mounted once in the app shell (app/layout.tsx). Renders nothing unless a plan
 // is active and undismissed — so it costs nothing on every other night.
 
-import PalCheer from "@/components/pal/PalCheer";
-import { announcePalMoment } from "@/lib/palMoments";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -124,6 +122,8 @@ import {
   type VenueCoord,
 } from "@/components/night/nightModeSheetModel";
 import "./nightMode.css";
+import PalCheer from "@/components/pal/PalCheer";
+import { announcePalMoment } from "@/lib/palMoments";
 
 const SWIPE_DISMISS_PX = 72;
 
