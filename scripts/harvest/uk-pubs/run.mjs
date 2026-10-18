@@ -31,6 +31,7 @@ import {
   writeCompact,
 } from "../../lib/overpassClient.mjs";
 import { buildGrid, chunkFileName } from "../../lib/ukOsmSeed.mjs";
+import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
 import {
   EXA_PACE_MS,
   ODBL_ATTRIBUTION,
@@ -102,12 +103,27 @@ function parseArgs(argv) {
     fromOsmRaw: flags.has("--from-osm-raw"),
     allowStale: flags.has("--allow-stale"),
     bars: flags.has("--bars"),
+    london: flags.has("--london"),
     limit: Number(valueOf("limit", "0")) || 0,
     chunk: valueOf("chunk"),
   };
 }
 
-function harvestPaths(bars) {
+function harvestPaths(bars, london = false) {
+  if (london && !bars) {
+    // London-first pub lane: the Greater London subset of the pub seed, with
+    // its own shards and progress, so it never shifts the all-UK resume offset.
+    return {
+      lane: "pubs",
+      label: "london pubs",
+      subsetOf: SEED_PATH,
+      seed: path.join(HARVEST_DIR, "uk_pubs_seed.london.jsonl"),
+      enrichSeed: path.join(HARVEST_DIR, "uk_pubs_seed.london.enriching.jsonl"),
+      sample: SAMPLE_PATH,
+      enriched: path.join(HARVEST_DIR, "london-enriched"),
+      progressDir: path.join(HARVEST_DIR, "london-enriched"),
+    };
+  }
   if (bars) {
     return {
       lane: "plain-bars",
@@ -247,6 +263,14 @@ async function loadSeed(paths) {
 }
 
 async function loadSeedForEnrich(paths) {
+  if (paths.subsetOf && !existsSync(paths.enrichSeed) && !existsSync(paths.seed)) {
+    if (!existsSync(paths.subsetOf)) return [];
+    const london = (await readJsonl(paths.subsetOf)).filter(
+      (row) => typeof row.lat === "number" && typeof row.lng === "number" && inGreaterLondon(row),
+    );
+    await writeJsonlAtomic(paths.seed, london);
+    console.log(`wrote ${london.length} Greater London seed rows → ${path.relative(ROOT, paths.seed)}`);
+  }
   if (!existsSync(paths.enrichSeed) && existsSync(paths.seed)) {
     await copyFile(paths.seed, paths.enrichSeed);
     console.log(`froze enrich seed → ${path.relative(ROOT, paths.enrichSeed)}`);
@@ -383,7 +407,10 @@ async function enrichSeed(rows, { mock, startedAt, seedCount, paths }) {
 export async function main(argv = process.argv.slice(2)) {
   loadEnv();
   const args = parseArgs(argv);
-  const paths = harvestPaths(args.bars);
+  const paths = harvestPaths(args.bars, args.london);
+  if (args.london && args.enumerate) {
+    throw new Error("--london reads the existing pub seed. Run --enumerate without --london first, then --london --enrich.");
+  }
   const startedAt = new Date().toISOString();
   await mkdir(HARVEST_DIR, { recursive: true });
 
