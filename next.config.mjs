@@ -94,7 +94,7 @@ const feedDataFiles = withRuntimeDataPacks(
 // runtime of a `vercel deploy` from a CLI, so reading it at request time made
 // /api/version answer null on exactly the deploys a verifier most needs to
 // identify. Ask git for the working tree instead, ONCE, here: the source is
-// uploaded with its .git directory on a CLI deploy, and a build with no
+// uploaded without its .git directory on a CLI deploy, and a build with no
 // repository around it still answers honestly (null) rather than guessing.
 // lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
 const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
