@@ -26,6 +26,7 @@ import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
+import { moveTablistFocus } from "@/components/ui/tabs";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -379,8 +380,10 @@ function DoorSwitch({
           role="tab"
           className="loginPageDoor"
           aria-selected={intent === option}
+          tabIndex={intent === option ? 0 : -1}
           data-selected={intent === option ? "" : undefined}
           onClick={() => onChoose(option)}
+          onKeyDown={(event) => moveTablistFocus(event)}
         >
           {DOORS[option].tab}
         </button>

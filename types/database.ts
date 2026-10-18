@@ -4511,6 +4511,39 @@ export type Database = {
           },
         ];
       };
+      social_mutes: {
+        Row: {
+          muter_profile_id: string;
+          muted_profile_id: string;
+          created_at: string;
+        };
+        Insert: {
+          muter_profile_id: string;
+          muted_profile_id: string;
+          created_at?: string;
+        };
+        Update: {
+          muter_profile_id?: string;
+          muted_profile_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_mutes_muted_profile_id_fkey";
+            columns: ["muted_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_mutes_muter_profile_id_fkey";
+            columns: ["muter_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_notifications: {
         Row: {
           id: string;
@@ -4700,6 +4733,78 @@ export type Database = {
           },
           {
             foreignKeyName: "social_post_edit_audit_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_post_extra_photos: {
+        Row: {
+          media_id: string;
+          post_id: string;
+          owner_profile_id: string;
+          position: number;
+          object_key: string;
+          sha256: string;
+          width: number;
+          height: number;
+          byte_size: number;
+          alt_text: string;
+          moderation_state: string;
+          attempts: number;
+          next_attempt_at: string;
+          lease_token: string | null;
+          lease_until: string | null;
+          created_at: string;
+        };
+        Insert: {
+          media_id: string;
+          post_id: string;
+          owner_profile_id: string;
+          position: number;
+          object_key: string;
+          sha256: string;
+          width: number;
+          height: number;
+          byte_size: number;
+          alt_text: string;
+          moderation_state?: string;
+          attempts?: number;
+          next_attempt_at?: string;
+          lease_token?: string | null;
+          lease_until?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          media_id?: string;
+          post_id?: string;
+          owner_profile_id?: string;
+          position?: number;
+          object_key?: string;
+          sha256?: string;
+          width?: number;
+          height?: number;
+          byte_size?: number;
+          alt_text?: string;
+          moderation_state?: string;
+          attempts?: number;
+          next_attempt_at?: string;
+          lease_token?: string | null;
+          lease_until?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_post_extra_photos_owner_profile_id_fkey";
+            columns: ["owner_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_extra_photos_post_id_fkey";
             columns: ["post_id"];
             isOneToOne: false;
             referencedRelation: "social_posts";
@@ -5000,6 +5105,45 @@ export type Database = {
           },
         ];
       };
+      social_post_reviews: {
+        Row: {
+          post_id: string;
+          author_profile_id: string;
+          rating: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          post_id: string;
+          author_profile_id: string;
+          rating: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          post_id?: string;
+          author_profile_id?: string;
+          rating?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_post_reviews_author_profile_id_fkey";
+            columns: ["author_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_reviews_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: true;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_post_tag_events: {
         Row: {
           id: string;
@@ -5110,6 +5254,67 @@ export type Database = {
           },
         ];
       };
+      social_post_videos: {
+        Row: {
+          post_id: string;
+          author_profile_id: string;
+          upload_id: string;
+          object_key: string;
+          content_type: string;
+          byte_size: number;
+          duration_seconds: number | null;
+          review_state: string;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          post_id: string;
+          author_profile_id: string;
+          upload_id: string;
+          object_key: string;
+          content_type: string;
+          byte_size: number;
+          duration_seconds?: number | null;
+          review_state?: string;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          post_id?: string;
+          author_profile_id?: string;
+          upload_id?: string;
+          object_key?: string;
+          content_type?: string;
+          byte_size?: number;
+          duration_seconds?: number | null;
+          review_state?: string;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_post_videos_author_profile_id_fkey";
+            columns: ["author_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_videos_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: true;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_post_videos_upload_id_fkey";
+            columns: ["upload_id"];
+            isOneToOne: true;
+            referencedRelation: "social_video_uploads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_posts: {
         Row: {
           id: string;
@@ -5196,6 +5401,41 @@ export type Database = {
             columns: ["photo_media_id"];
             isOneToOne: false;
             referencedRelation: "social_post_media";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_pub_rankings: {
+        Row: {
+          author_profile_id: string;
+          venue_id: string;
+          band: string;
+          rank_key: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          author_profile_id: string;
+          venue_id: string;
+          band: string;
+          rank_key: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          author_profile_id?: string;
+          venue_id?: string;
+          band?: string;
+          rank_key?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_pub_rankings_author_profile_id_fkey";
+            columns: ["author_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -5328,6 +5568,54 @@ export type Database = {
             columns: ["post_id"];
             isOneToOne: false;
             referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_video_uploads: {
+        Row: {
+          id: string;
+          owner_profile_id: string;
+          object_key: string;
+          content_type: string;
+          declared_bytes: number;
+          claimed_post_id: string | null;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_profile_id: string;
+          object_key: string;
+          content_type: string;
+          declared_bytes: number;
+          claimed_post_id?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_profile_id?: string;
+          object_key?: string;
+          content_type?: string;
+          declared_bytes?: number;
+          claimed_post_id?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_video_uploads_claimed_post_id_fkey";
+            columns: ["claimed_post_id"];
+            isOneToOne: false;
+            referencedRelation: "social_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_video_uploads_owner_profile_id_fkey";
+            columns: ["owner_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -6308,6 +6596,49 @@ export type Database = {
         };
         Returns: boolean;
       };
+      attach_social_post_extra_photo: {
+        Args: {
+          p_post_id: string | null;
+          p_owner_profile_id: string | null;
+          p_media_id: string | null;
+          p_position: number | null;
+          p_sha256: string | null;
+          p_width: number | null;
+          p_height: number | null;
+          p_byte_size: number | null;
+          p_alt_text: string | null;
+        };
+        Returns: {
+          media_id: string;
+          object_key: string;
+          moderation_state: string;
+        }[];
+      };
+      attach_social_post_review: {
+        Args: {
+          p_post_id: string | null;
+          p_author_profile_id: string | null;
+          p_rating: number | null;
+        };
+        Returns: {
+          post_id: string;
+          rating: number;
+          updated_at: string;
+        }[];
+      };
+      attach_social_post_video: {
+        Args: {
+          p_post_id: string | null;
+          p_owner_profile_id: string | null;
+          p_upload_id: string | null;
+          p_byte_size: number | null;
+          p_duration_seconds: number | null;
+        };
+        Returns: {
+          post_id: string;
+          review_state: string;
+        }[];
+      };
       charge_round_price_line: {
         Args: {
           p_actor: string | null;
@@ -6360,6 +6691,19 @@ export type Database = {
           p_now: string | null;
         };
         Returns: Json;
+      };
+      claim_social_extra_photo_moderation: {
+        Args: {
+          p_limit: number | null;
+        };
+        Returns: {
+          media_id: string;
+          post_id: string;
+          object_key: string;
+          alt_text: string;
+          attempts: number;
+          lease_token: string;
+        }[];
       };
       claim_social_interaction_moderation_jobs: {
         Args: {
@@ -6465,6 +6809,15 @@ export type Database = {
           p_completed_at: string | null;
         };
         Returns: string;
+      };
+      complete_social_extra_photo_moderation: {
+        Args: {
+          p_media_id: string | null;
+          p_lease_token: string | null;
+          p_decision: string | null;
+          p_retry_at: string | null;
+        };
+        Returns: boolean;
       };
       complete_social_interaction_moderation: {
         Args: {
@@ -6718,6 +7071,17 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      create_social_video_upload: {
+        Args: {
+          p_owner_profile_id: string | null;
+          p_content_type: string | null;
+          p_declared_bytes: number | null;
+        };
+        Returns: {
+          upload_id: string;
+          object_key: string;
+        }[];
       };
       decide_plan_route_proposal_atomic: {
         Args: {
@@ -7021,6 +7385,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      place_social_pub_ranking: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_venue_id: string | null;
+          p_band: string | null;
+          p_above_venue_id: string | null;
+          p_below_venue_id: string | null;
+        };
+        Returns: {
+          venue_id: string;
+          band: string;
+          rank_key: number;
+        }[];
+      };
       prepay_pub_pal_voice_grant: {
         Args: {
           p_owner_id: string | null;
@@ -7080,6 +7458,61 @@ export type Database = {
           p_accepted_at: string | null;
         };
         Returns: Json;
+      };
+      read_held_social_post_videos: {
+        Args: {
+          p_limit: number | null;
+        };
+        Returns: {
+          post_id: string;
+          author_profile_id: string;
+          object_key: string;
+          content_type: string;
+          byte_size: number;
+          created_at: string;
+        }[];
+      };
+      read_lot_social_pub_ranking: {
+        Args: {
+          p_viewer_profile_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          venue_id: string;
+          average_rating: number;
+          rater_count: number;
+          rater_handles: string[];
+          last_reviewed_at: string;
+        }[];
+      };
+      read_lot_venue_social_reviews: {
+        Args: {
+          p_viewer_profile_id: string | null;
+          p_venue_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          post_id: string;
+          author_profile_id: string;
+          author_handle: string;
+          rating: number;
+          body: string;
+          photo_media_id: string;
+          photo_alt_text: string;
+          created_at: string;
+        }[];
+      };
+      read_own_social_pub_ranking: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          post_id: string;
+          venue_id: string;
+          rating: number;
+          reviewed_at: string;
+        }[];
       };
       read_private_referral_status: {
         Args: {
@@ -7248,6 +7681,28 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      read_social_post_extra_photo_object: {
+        Args: {
+          p_viewer_profile_id: string | null;
+          p_media_id: string | null;
+        };
+        Returns: {
+          object_key: string;
+        }[];
+      };
+      read_social_post_extra_photos: {
+        Args: {
+          p_post_ids: string[] | null;
+          p_viewer_profile_id: string | null;
+        };
+        Returns: {
+          post_id: string;
+          media_id: string;
+          slot: number;
+          alt_text: string;
+          moderation_state: string;
+        }[];
+      };
       read_social_post_feed: {
         Args: {
           p_viewer_profile_id: string | null;
@@ -7356,6 +7811,40 @@ export type Database = {
           post_id: string;
           proposal_id: string;
           handle: string;
+        }[];
+      };
+      read_social_post_videos: {
+        Args: {
+          p_post_ids: string[] | null;
+          p_viewer_profile_id: string | null;
+        };
+        Returns: {
+          post_id: string;
+          object_key: string;
+          content_type: string;
+          duration_seconds: number;
+          review_state: string;
+        }[];
+      };
+      read_social_pub_rankings: {
+        Args: {
+          p_author_profile_id: string | null;
+        };
+        Returns: {
+          venue_id: string;
+          band: string;
+          rank_key: number;
+          updated_at: string;
+        }[];
+      };
+      read_social_relationship: {
+        Args: {
+          p_actor: string | null;
+          p_target: string | null;
+        };
+        Returns: {
+          blocked: boolean;
+          muted: boolean;
         }[];
       };
       read_social_report_queue: {
@@ -7569,6 +8058,13 @@ export type Database = {
         };
         Returns: boolean;
       };
+      remove_social_pub_ranking: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_venue_id: string | null;
+        };
+        Returns: boolean;
+      };
       rename_pubmaxx_handle: {
         Args: {
           p_user_id: string | null;
@@ -7700,6 +8196,13 @@ export type Database = {
         };
         Returns: boolean;
       };
+      review_social_post_video: {
+        Args: {
+          p_post_id: string | null;
+          p_decision: string | null;
+        };
+        Returns: boolean;
+      };
       revoke_plan_invite_atomic: {
         Args: {
           p_plan_id: string | null;
@@ -7752,6 +8255,14 @@ export type Database = {
           p_kind: string | null;
           p_active: boolean | null;
           p_actor_handle?: string | null;
+        };
+        Returns: boolean;
+      };
+      set_social_mute: {
+        Args: {
+          p_actor: string | null;
+          p_target: string | null;
+          p_active: boolean | null;
         };
         Returns: boolean;
       };

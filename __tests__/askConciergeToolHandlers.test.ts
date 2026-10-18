@@ -104,6 +104,17 @@ beforeEach(() => {
   state.desk = { venues: [], status: "ready" };
 });
 
+describe("original-question tool authority", () => {
+  it("keeps the original listing kind and area despite a provider rewrite", async () => {
+    const result = await runAskTool("whats_on", { query: "Quiz tonight in Soho" },
+      ctx({ query: "Live music tonight in Camden" }));
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({ kind: "music", area: "Camden" });
+    expect(result.answerHint).toMatch(/live[- ]music.*Camden/i);
+    expect(result.answerHint).not.toMatch(/Soho|quiz/i);
+  });
+});
+
 describe("cheapest_pint_near", () => {
   it("ranks the listed pints round a named pub and leaves the anchor out", async () => {
     state.venues = [
@@ -418,6 +429,157 @@ describe("tonight_now", () => {
 });
 
 describe("venue_drinks", () => {
+  it.each(["Drink prices at The Lamb", "Drink prices at The Lamb later?", "Drink prices this evening at The Lamb?"])("preserves the generic named-pub drink list: %s", async (query) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [price({ drinkCategory: "wine", priceGbp: 8 })], degraded: false };
+    const result = await runAskTool("venue_drinks", { venueName: "The Lamb" }, ctx({ query }));
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.cards.map((card) => card.price)).toEqual([8, 5]);
+  });
+
+  it.each([
+    "Wine prices at The Lamb", "Prices for wine at The Lamb", "Wine costs at The Lamb", "Costs of wine at The Lamb",
+    "Wine prices at The Lamb this evening?", "Wine prices now at The Lamb?", "Wine later prices at The Lamb?",
+  ])("routes raw provider-selected pint pricing to recorded wine for %s", async (query) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [price({ drinkCategory: "wine", priceGbp: 8 })], degraded: false };
+    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.cards.map((card) => card.price)).toEqual([8]);
+    expect(result.priceEvidence).toMatchObject([{ category: "wine", priceGbp: 8, serving: null }]);
+  });
+
+  it.each([
+    "How much is a pint and food at The Lamb?",
+    "How much is a pint with food at The Lamb?",
+    "Burger costs in Camden",
+  ])("refuses unsupported mixed, brand or serving claims at the raw tool seam: %s", async (query) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
+    expect(result).toMatchObject({ ok: false, cards: [], proposals: [], priceEvidence: [] });
+    expect(result.answerHint).toMatch(/can't|cannot|not prices for that item/i);
+  });
+
+  it("reads soft-drink category evidence without treating it as a named brand or pint", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = {
+      prices: [price({ drinkCategory: "beer", priceGbp: 5.4 }), price({ drinkCategory: "soft-drink", priceGbp: 2 })],
+      degraded: false,
+    };
+    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query: "How much is a soft drink at The Lamb?" }));
+    expect(result.tool).toBe("venue_drinks");
+    expect(result.cards.map((card) => card.price)).toEqual([2]);
+    expect(result).toMatchObject({ priceEvidence: [{
+      kind: "community-category",
+      venueId: "v1",
+      category: "soft-drink",
+      priceGbp: 2,
+      source: "community-price",
+      reportedAt: NOW - 86_400_000,
+      serving: null,
+    }] });
+  });
+
+  it.each(["How much is a pint at The Lamb?", "How much is a pint at The Lamb now?", "How much is a pint later at The Lamb?"])("preserves named pint prices and excludes wine evidence: %s", async (query) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = {
+      prices: [
+        price({ drinkCategory: "beer", priceGbp: 5.4, submittedAt: Date.now() }),
+        price({ drinkCategory: "wine", priceGbp: 8, submittedAt: Date.now() }),
+      ],
+      degraded: false,
+    };
+    const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx({ query }));
+    expect(result.tool).toBe("venue_prices");
+    expect(result.cards.map((card) => card.price)).toEqual([5.4, 5]);
+    expect(result).toMatchObject({ priceEvidence: [
+      { kind: "community-category", category: "beer", priceGbp: 5.4, serving: null },
+      { kind: "listed-pint", category: "beer", priceGbp: 5, serving: "pint", reportedAt: null },
+    ] });
+  });
+
+  it("requires recorded food availability for a cheapest-pint request with food", async () => {
+    state.venues = [
+      venue({ id: "no-food", name: "The Ship", cheapestPrice: 3 }),
+      venue({ id: "food", name: "The Lamb", cheapestPrice: 5, amenities: {
+        food: true, beerGarden: false, cocktails: false, liveSports: false, liveMusic: false,
+      } }),
+    ];
+    const result = await runAskTool("cheapest_pint_near", { area: "Camden" }, ctx({ query: "Cheapest pint with food in Camden" }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["food"]);
+    expect(result).toMatchObject({ priceEvidence: [{ kind: "listed-pint", priceGbp: 5, serving: "pint" }] });
+  });
+
+  it("returns only recorded wine figures for an explicit wine-price lookup", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = {
+      prices: [
+        price({ drinkCategory: "beer", priceGbp: 5.4 }),
+        price({ drinkCategory: "wine", priceGbp: 8, corroborations: 1 }),
+      ],
+      degraded: false,
+    };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
+    expect(result.cards.map((card) => card.price)).toEqual([8]);
+    expect(result.cards[0]?.provenance?.kind).toBe("community-price");
+    expect(result.data).toMatchObject({ listedPint: null, drinks: [{ category: "wine", priceGbp: 8 }] });
+    expect(result.answerHint).toBe("The Lamb: 1 people-logged wine figure. No accepted published drink prices match this category.");
+    expect(result.provenance.some((source) => source.kind === "directory")).toBe(false);
+  });
+
+  it("states missing wine coverage instead of supplying an available pint", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [price({ drinkCategory: "beer", priceGbp: 5.4 })], degraded: false };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
+    expect(result.cards).toEqual([]);
+    expect(result.data).toMatchObject({ drinks: [], listedPint: null });
+    expect(result.answerHint).toBe("No people-logged wine prices recorded at The Lamb yet. No accepted published drink prices match this category.");
+    expect(result.proposals).toMatchObject([{ kind: "open_venue", venueId: "v1" }]);
+  });
+
+  it("states an unavailable category read without claiming no records", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [], degraded: true };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "wine" }, ctx());
+    expect(result.cards).toEqual([]);
+    expect(result.degraded).toBe(true);
+    expect(result.answerHint).toBe("I couldn't read people-logged wine prices at The Lamb. No accepted published drink prices match this category.");
+    expect(result.proposals).toMatchObject([{ kind: "open_venue", venueId: "v1" }]);
+  });
+
+  it.each([false, true])("keeps beer's people-logged count separate from its listed pint when degraded=%s", async (degraded) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = {
+      prices: [price({ drinkCategory: "beer", priceGbp: 5.4 }), price({ drinkCategory: "wine", priceGbp: 8 })],
+      degraded,
+    };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "beer" }, ctx());
+    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb. " : ""}The Lamb: 1 people-logged beer figure. Listed pint: £5.00. No accepted published drink prices match this category.`);
+    expect(result.cards.map((card) => [card.price, card.provenance?.kind])).toEqual([[5.4, "community-price"], [5, "directory"]]);
+    expect(result.priceEvidence).toMatchObject([
+      { kind: "community-category", category: "beer", priceGbp: 5.4, reportedAt: NOW - 86_400_000, serving: null },
+      { kind: "listed-pint", category: "beer", priceGbp: 5, reportedAt: null, serving: "pint" },
+    ]);
+  });
+
+  it.each([false, true])("retains a listed pint without claiming a people-logged figure when degraded=%s", async (degraded) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [], degraded };
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "beer" }, ctx());
+    expect(result.answerHint).toBe(`${degraded ? "I couldn't read people-logged beer prices at The Lamb." : "No people-logged beer prices recorded at The Lamb yet."} Listed pint: £5.00. No accepted published drink prices match this category.`);
+    expect(result.cards).toMatchObject([{ price: 5, provenance: { kind: "directory" } }]);
+    expect(result.data).toMatchObject({ status: degraded ? "unavailable" : "ready", drinks: [], listedPint: 5 });
+  });
+
+  it("refuses a brand passed as a category instead of silently reading all drinks", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    const result = await runAskTool("venue_drinks", { venueId: "v1", drinkCategory: "Coke" }, ctx());
+    expect(result.ok).toBe(false);
+    expect(result.cards).toEqual([]);
+    expect(result.data).toBeNull();
+    expect(result.answerHint).toMatch(/category is not supported/i);
+  });
+
   it("prints one row per drink with its own tag, figure and standing", async () => {
     state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
     state.prices = {

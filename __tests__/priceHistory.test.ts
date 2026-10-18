@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // A HISTORICAL PRICE IS HISTORY. IT MAY NEVER ANSWER "WHAT DOES A PINT COST HERE NOW".
 //
 // public/data/price_history/london.json holds dated, sourced prices from years
@@ -11,20 +13,31 @@
 //
 //   1. IDENTITY  — every row names a venue the app actually ships, carries a
 //      real past day, an http(s) source, and a price in pint range.
-//   2. IMPORTS   — lib/priceHistory.ts and its loader are imported by the venue
-//      sheet block and nothing else. No current-price module may reach them.
+//   2. AUTHORITY: loaded history prints as history and as nothing else. The
+//      venue sheet sets it beside today's figure without making it one, the
+//      landing ranks by today's price, and every reader of today's price
+//      (pins, bands, sourced merges, community submissions, the Pint Index)
+//      refuses a historical row or answers exactly as it does without one.
 //   3. DATA      — no historical figure is written into any current-price feed,
 //      and the freshness registry does not carry this file as a price feed.
-//
-// Part 2 is the one that rots quietly, so it is asserted against the real source
-// tree rather than a hand-kept list of suspects.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { priceBucket, pubsToGeoJSON } from "@/components/map/canvas/geojson";
+import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import registry from "@/data/freshness_registry.json";
+import { validateCommunityPrice } from "@/lib/communityPrice";
+import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
+import { buildLandingAnchorRail, buildLandingArchiveIndex, buildLandingPubCard } from "@/lib/landingPubCard";
+import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
+import { buildLeagueTable, validatePintIndexSnapshot, type PintIndexSnapshot } from "@/lib/pintIndex";
 import {
   formatObservedDay,
   formatObservedMonth,
@@ -32,10 +45,16 @@ import {
   isValidObservedOn,
   isValidPriceHistoryObservation,
   parsePriceHistory,
+  sameComparisonItem,
   venuePriceArc,
+  type PriceComparisonItem,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
+import { loadPriceHistory, resetPriceHistoryLoader } from "@/lib/priceHistoryLoader";
+import { PRICE_NOT_COMPARED_LINE } from "@/lib/priceMovementLine";
+import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import type { Venue } from "@/lib/venues";
 
 const ROOT = resolve(__dirname, "..");
 const HISTORY_FILE = join(ROOT, "public/data/price_history/london.json");
@@ -76,18 +95,199 @@ function slimVenuesWithCurrentPrice(): Set<string> {
   return ids;
 }
 
-function walkSource(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry.startsWith(".")) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walkSource(full, out);
-    else if (/\.(ts|tsx|mts|mjs)$/.test(entry)) out.push(full);
-  }
-  return out;
+const NOW = Date.UTC(2026, 9, 17, 12);
+const HISTORY_PATH = "/data/price_history/london.json";
+const noop = () => {};
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const roots: Root[] = [];
+
+afterEach(() => {
+  for (const root of roots.splice(0)) act(() => root.unmount());
+  resetPriceHistoryLoader();
+  vi.unstubAllGlobals();
+});
+
+function historyBody(rows: Array<{ venueId: string; priceGbp: number; observedOn: string }>) {
+  return {
+    version: 1,
+    generatedAt: "2026-07-27",
+    observations: rows.map((row) => ({
+      ...row,
+      venueName: "Test",
+      source: {
+        label: "beerintheevening.com",
+        url: `https://www.beerintheevening.com/pubs/${row.venueId}`,
+        licence: "quoted with attribution",
+      },
+    })),
+  };
 }
 
-const SOURCE_DIRS = ["app", "components", "lib", "scripts"].map((d) => join(ROOT, d));
-const sourceFiles = SOURCE_DIRS.flatMap((d) => walkSource(d));
+function stubHistory(body: unknown): void {
+  resetPriceHistoryLoader();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) =>
+      String(input) === HISTORY_PATH && body !== null
+        ? new Response(JSON.stringify(body), { status: 200 })
+        : new Response("{}", { status: 503 }),
+    ),
+  );
+}
+
+function currentVenue(id: string, name: string, over: Partial<Venue> = {}): Venue {
+  return {
+    id,
+    name,
+    address: "1 Test Street",
+    latitude: 51.5,
+    longitude: -0.12,
+    primaryBorough: "Camden",
+    visibleBoroughs: ["Camden"],
+    prices: [],
+    cheapestPrice: 5.4,
+    cheapestPint: "Lager",
+    averagePrice: 5.4,
+    hasStory: false,
+    latestContributorPrice: null,
+    latestContributorAt: null,
+    amenities: {
+      food: false,
+      cocktails: false,
+      beerGarden: false,
+      liveSports: false,
+      liveMusic: false,
+      pubQuiz: false,
+      darts: false,
+      pool: false,
+      happyHour: false,
+      karaoke: false,
+      nonAlcoholic: false,
+    },
+    website: "",
+    bookingLink: "",
+    imageUrl: "",
+    description: "",
+    dataQualityNotes: [],
+    sourceDatasets: [],
+    curation: {},
+    kind: "pub",
+    zone: 2,
+    ...over,
+  };
+}
+
+function todayVenues(): Venue[] {
+  return [
+    currentVenue("venue-dear", "Dear Arms", { cheapestPrice: 6.5, averagePrice: 6.5 }),
+    currentVenue("venue-cheap", "Cheap Tavern", { cheapestPrice: 3.2, averagePrice: 3.2 }),
+    currentVenue("venue-unpriced", "Quiet Inn", { cheapestPrice: null, averagePrice: null }),
+  ];
+}
+
+const todayHistory = historyBody([
+  { venueId: "venue-dear", priceGbp: 2, observedOn: "2012-01-01" },
+  { venueId: "venue-cheap", priceGbp: 4.5, observedOn: "2016-01-01" },
+  { venueId: "venue-unpriced", priceGbp: 1.5, observedOn: "2011-01-01" },
+]);
+
+function communityPrices(venueId: string): CommunityPricesState {
+  return {
+    byVenueId: new Map([[venueId, []]]),
+    signalsByVenueId: new Map(),
+    freshestByVenueId: new Map(),
+    noAlcoholIndexStatus: "idle",
+    loadNoAlcoholIndex: noop,
+    loadDrinkCategoryIndex: noop,
+    drinkCategoryIndexStatus: new Map(),
+    provisionalBaseVenueIds: new Set(),
+    loadProvisionalBaseVenues: noop,
+    loadVenue: noop,
+    venuePriceStatus: new Map([[venueId, "ready"]]),
+    submit: async () => ({
+      ok: true,
+      attribution: { status: "anonymous" },
+      price: null,
+      pintTrust: null,
+      confirmationOutcome: null,
+    }),
+    submitVenueSignal: async () => ({ ok: true }),
+    submitting: false,
+    reportPrice: noop,
+    reportedIds: new Set(),
+  };
+}
+
+async function showOverview(venue: Venue, history: unknown): Promise<HTMLElement> {
+  stubHistory(history);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () => {
+    root.render(
+      createElement(VenueOverviewTab, {
+        venue,
+        tab: "overview",
+        onOpenVisitReports: noop,
+        cityId: "london",
+        mode: "suggest",
+        inCrawl: false,
+        latestContributorPrice: null,
+        dropReadStatus: "ready",
+        communityPrices: communityPrices(venue.id),
+        experienceLens: "all",
+        onToggleStop: noop,
+        presenceState: "idle",
+        markPresenceHere: noop,
+        userLocation: null,
+        locationRequestStatus: "idle",
+        onRequestLocation: noop,
+        onClearLocation: noop,
+        onLogTonightPrice: noop,
+        priceEntryAllowed: false,
+        priceSignInRequested: false,
+        priceAuthLoading: false,
+        priceFocusRequest: 0,
+      }),
+    );
+  });
+  for (let i = 0; i < 6; i += 1) await act(async () => Promise.resolve());
+  return container;
+}
+
+function pintIndexEdition(): PintIndexSnapshot {
+  return {
+    schemaVersion: 1,
+    snapshotId: "history-fence-v1",
+    status: "published",
+    generatedAt: "2026-07-16T12:00:00.000Z",
+    observationWindow: { start: "2026-07-01T00:00:00.000Z", end: "2026-07-15T23:59:59.000Z" },
+    classification: {
+      version: LONDON_BOROUGH_CLASSIFIER_VERSION,
+      method: "point_in_polygon",
+      sourceArtifact: "data/london_boroughs_simplified.json",
+      licence: "OGL v3",
+    },
+    sources: [
+      {
+        id: "community-1",
+        kind: "confirmed_pint_drop",
+        publisher: "PUBMAXX contributor",
+        sourceUrl: "https://pubmaxxing.com/evidence/1",
+        licence: null,
+        confirmationId: "drop-confirmation-1",
+        reviewState: "confirmed",
+      },
+    ],
+    observations: [
+      { venueId: "a", pubName: "Cheap A", boroughCode: "camden", boroughName: "Camden", pricePence: 580, observedAt: "2026-07-10T12:00:00.000Z", sourceId: "community-1" },
+      { venueId: "b", pubName: "Cheap B", boroughCode: "camden", boroughName: "Camden", pricePence: 640, observedAt: "2026-07-11T12:00:00.000Z", sourceId: "community-1" },
+    ],
+    excluded: [],
+  };
+}
 
 describe("price archaeology: identity", () => {
   it("ships a usable, non-trivial set", () => {
@@ -187,23 +387,80 @@ describe("price archaeology: identity", () => {
   });
 });
 
-describe("price archaeology: the venue-sheet gate", () => {
-  const overviewTab = readFileSync(
-    join(ROOT, "components/map/inspector/VenueOverviewTab.tsx"),
-    "utf8",
+describe("price archaeology: the venue sheet", () => {
+  const PUB_ID = "venue-moon";
+  const history = historyBody([{ venueId: PUB_ID, priceGbp: 2.89, observedOn: "2013-04-24" }]);
+  const elsewhere = historyBody([{ venueId: "venue-elsewhere", priceGbp: 2.89, observedOn: "2013-04-24" }]);
+  const pub = () => currentVenue(PUB_ID, "The Moon on the Hill");
+
+  it("prints a pub's dated pint beside today's figure without becoming it", async () => {
+    const view = await showOverview(pub(), history);
+    const block = view.querySelector(".venuePriceThen");
+    expect(block?.querySelector(".vptThen")?.textContent).toBe("£2.89");
+    expect(block?.querySelector(".vptNow")?.textContent).toBe("£5.40");
+    expect(block?.textContent).toContain("April 2013.");
+    expect(block?.querySelector(".vptSource a")?.getAttribute("href")).toBe(
+      "https://www.beerintheevening.com/pubs/venue-moon",
+    );
+    expect(block?.querySelector(".vptSource")?.textContent).toBe("beerintheevening.com, 24 April 2013");
+    expect(block?.querySelector(".vptMovement")).toBeNull();
+    expect(block?.textContent).toContain(PRICE_NOT_COMPARED_LINE);
+    const summary = view.querySelector(".contributorPrice")?.textContent ?? "";
+    expect(summary).toContain("£5.40");
+    expect(summary).not.toContain("£2.89");
+  });
+
+  it("reads today's figure the same with no history row or no readable file, and prints no then block", async () => {
+    const withHistory = await showOverview(pub(), history);
+    const today = withHistory.querySelector(".contributorPrice")?.textContent;
+    expect(today).toContain("£5.40");
+    for (const body of [elsewhere, null]) {
+      const view = await showOverview(pub(), body);
+      expect(view.querySelector(".venuePriceThen")).toBeNull();
+      expect(view.textContent).not.toContain("£2.89");
+      expect(view.querySelector(".contributorPrice")?.textContent).toBe(today);
+    }
+  });
+
+  it("prints the dated pint alone where today's price is unknown", async () => {
+    const view = await showOverview(
+      currentVenue(PUB_ID, "The Moon on the Hill", { cheapestPrice: null, averagePrice: null }),
+      history,
+    );
+    const block = view.querySelector(".venuePriceThen");
+    expect(block?.querySelector(".vptThen")?.textContent).toBe("£2.89");
+    expect(block?.querySelector(".vptNow")).toBeNull();
+    expect(block?.querySelector(".vptNote")).toBeNull();
+  });
+
+  it.each(["bar", "food", "restaurant"] as const)(
+    "never sets a %s anchor price against the old pint as today's",
+    async (kind) => {
+      const view = await showOverview(
+        currentVenue(PUB_ID, "The Moon on the Hill", {
+          kind,
+          anchorLabel: "Negroni",
+          cheapestPrice: 11,
+          averagePrice: 11,
+        } as Partial<Venue>),
+        history,
+      );
+      const block = view.querySelector(".venuePriceThen");
+      expect(block?.querySelector(".vptThen")?.textContent).toBe("£2.89");
+      expect(block?.querySelector(".vptNow")).toBeNull();
+      expect(block?.querySelector(".vptNote")).toBeNull();
+      expect(block?.textContent).not.toContain("£11.00");
+    },
   );
 
-  it("withholds 'now' from a venue whose current price is not a pint", () => {
-    // A bar or food venue's cheapestPrice is an anchor price: a cocktail, a
-    // doner, a signature dish. Setting an old PINT against it would read as a
-    // pint-to-pint comparison and be a lie in the one place this feature is
-    // supposed to be evidence. Every shipped history venue happens to be a pub
-    // today, so nothing in the data exercises this branch: it is the source
-    // that has to hold it.
-    const start = overviewTab.indexOf("<VenuePriceThen");
-    expect(start, "VenueOverviewTab must render the then-and-now block").toBeGreaterThan(-1);
-    const element = overviewTab.slice(start, overviewTab.indexOf("/>", start) + 2);
-    expect(element).toMatch(/currentPriceGbp=\{[\s\S]*isPubVenue\(venue\)[\s\S]*:\s*null[\s\S]*\}/);
+  it("keeps a bar's own anchor figure on the sheet beside the old pint", async () => {
+    const view = await showOverview(
+      currentVenue(PUB_ID, "The Moon on the Hill", { kind: "bar", anchorLabel: "Negroni", cheapestPrice: 11 } as Partial<Venue>),
+      history,
+    );
+    expect(view.textContent).toContain("Negroni");
+    expect(view.textContent).toContain("£11.00");
+    expect(view.querySelector(".venuePriceThen .vptThen")?.textContent).toBe("£2.89");
   });
 
   it("renders only the historical line when there is no price to compare against", () => {
@@ -228,55 +485,73 @@ describe("price archaeology: the venue-sheet gate", () => {
   });
 });
 
-describe("price archaeology: the import fence", () => {
-  // The only two places allowed to know historical prices exist.
-  const ALLOWED = new Set([
-    "lib/priceHistory.ts",
-    "lib/priceHistoryLoader.ts",
-    "components/map/VenuePriceThen.tsx",
-    // The landing's one real pub prints a dated, sourced archive line as
-    // history (issue #1354). Its current price is passed in from the priced
-    // venue index; the builder never derives one from this lane.
-    "lib/landingPubCard.ts",
-  ]);
-
-  it("is reached by the venue-sheet block and nothing else", () => {
-    const importers = sourceFiles
-      .filter((file) => /from\s+["']@\/lib\/priceHistory(Loader)?["']/.test(readFileSync(file, "utf8")))
-      .map((file) => relative(ROOT, file));
-    expect(new Set(importers)).toEqual(new Set([...ALLOWED].filter((f) => f !== "lib/priceHistory.ts")));
+describe("price archaeology: the landing pick", () => {
+  it("ranks by today's listed price, never by an archived one", () => {
+    expect(buildLandingPubCard(todayVenues(), todayHistory, { now: NOW })).toMatchObject({
+      id: "venue-cheap",
+      priceGbp: 3.2,
+      then: { priceGbp: 4.5, observedOn: "2016-01-01" },
+    });
   });
 
-  it("is not reached by any module that answers a price today", () => {
-    // The surfaces the brief names: bands and pin colour, the pin price label,
-    // cheapest-pint buckets, the Pint Index, the freshness spine, and every
-    // current-price merge.
-    const CURRENT_PRICE_MODULES = [
-      "components/map/canvas/geojson.ts",
-      "components/map/canvas/buildScene.ts",
-      "components/map/canvas/filters.ts",
-      "components/map/communityPriceSignals.ts",
-      "lib/venues.ts",
-      "lib/priceUpdates.ts",
-      "lib/drinkPriceUpdates.ts",
-      "lib/foodPriceUpdates.ts",
-      "lib/communityPrice.ts",
-      "lib/communityPriceStore.ts",
-      "lib/venuePriceIndex.ts",
-      "lib/mapPriceLegend.ts",
-      "lib/pintIndex.ts",
-      "lib/pintIndexArchive.ts",
-      "lib/freshness.ts",
-    ];
-    for (const modulePath of CURRENT_PRICE_MODULES) {
-      let source: string;
-      try {
-        source = readFileSync(join(ROOT, modulePath), "utf8");
-      } catch {
-        continue; // a module that no longer exists cannot import anything
-      }
-      expect(source, `${modulePath} must not read historical prices`).not.toMatch(/priceHistory/);
+  it("never stands an archived figure in for a missing price today", () => {
+    const venues = todayVenues();
+    expect(buildLandingPubCard(venues.slice(2), todayHistory, { now: NOW })).toBeNull();
+    const archive = buildLandingArchiveIndex(venues, todayHistory, NOW);
+    expect(Object.keys(archive).sort()).toEqual(["venue-cheap", "venue-dear"]);
+    const rail = buildLandingAnchorRail(venues, { id: "venue-cheap", primaryBorough: "Camden" }, archive);
+    expect(rail.map((row) => [row.id, row.priceGbp, row.hasThen])).toEqual([["venue-dear", 6.5, true]]);
+  });
+});
+
+describe("price archaeology: today's price readers", () => {
+  it("paints the same pins, bands and labels before and after the history loads", async () => {
+    stubHistory(todayHistory);
+    const pins = () => pubsToGeoJSON(todayVenues(), new Map(), null).features.map((feature) => feature.properties);
+    const before = pins();
+    const loaded = await loadPriceHistory();
+    expect(loaded.get("venue-unpriced")?.map((row) => row.priceGbp)).toEqual([1.5]);
+    const after = pins();
+    expect(after).toEqual(before);
+    expect(after.map((props) => [props?.id, props?.bucket, props?.priceLabel ?? null])).toEqual([
+      ["venue-dear", 2, "£6.50"],
+      ["venue-cheap", priceBucket(3.2), "£3.20"],
+      ["venue-unpriced", 3, null],
+    ]);
+  });
+
+  it("refuses a historical row in every sourced pint, drink and food merge", () => {
+    for (const body of [todayHistory, todayHistory.observations, rawShipped, rawShipped.observations]) {
+      expect(parsePriceUpdates(body, NOW)).toEqual([]);
+      expect(parseDrinkPriceUpdates(body, NOW)).toEqual([]);
+      expect(parseFoodPriceUpdates(body, NOW)).toEqual([]);
     }
+    const merged = mergePriceUpdates(
+      todayVenues(),
+      parsePriceUpdates(todayHistory.observations, NOW),
+      (venue) => venue.id,
+    );
+    expect(merged.map((venue) => [venue.id, venue.cheapestPrice, venue.sourcedPrice])).toEqual([
+      ["venue-dear", 6.5, null],
+      ["venue-cheap", 3.2, null],
+      ["venue-unpriced", null, null],
+    ]);
+  });
+
+  it("turns no historical row into a community price", () => {
+    for (const row of [...todayHistory.observations, ...shipped]) {
+      expect(validateCommunityPrice(row).ok).toBe(false);
+    }
+  });
+
+  it("admits no historical row to the Pint Index", () => {
+    const edition = pintIndexEdition();
+    expect(validatePintIndexSnapshot(edition).ok).toBe(true);
+    expect(buildLeagueTable(edition).map((row) => [row.name, row.averageGbp])).toEqual([["Camden", 6.1]]);
+    for (const row of [todayHistory.observations[0], shipped[0]]) {
+      expect(validatePintIndexSnapshot({ ...edition, observations: [...edition.observations, row] }).ok).toBe(false);
+    }
+    expect(validatePintIndexSnapshot(rawShipped).ok).toBe(false);
   });
 
   it("exposes nothing a current-price merge could mistake for today's price", () => {
@@ -373,7 +648,9 @@ describe("price archaeology: the module", () => {
     const arc = venuePriceArc([newer, older], 6.2, asOf);
     expect(arc?.then.observedOn).toBe("2009-06-14");
     expect(arc?.nowGbp).toBe(6.2);
-    expect(arc?.deltaGbp).toBeCloseTo(3.4, 2);
+    // Neither figure states what it is a price for, so both stand and no
+    // movement is said between them.
+    expect(arc?.deltaGbp).toBeNull();
     expect(arc?.years).toBe(17);
 
     const noCurrent = venuePriceArc([older], null, asOf);
@@ -394,5 +671,78 @@ describe("price archaeology: the module", () => {
     expect(formatObservedMonth("2013-07-14")).toBe("July 2013");
     expect(formatObservedDay("2013-07-14")).toBe("14 July 2013");
     expect(formatObservedMonth("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("price archaeology: then against now", () => {
+  // Two true dated prices are not a trend. A movement says ONE thing got
+  // dearer or cheaper, so both figures must state the same drink, the same
+  // serving and an ordinary price, and nothing less will do.
+  const asOf = Date.parse("2026-10-17T00:00:00.000Z");
+  const budLight: PriceComparisonItem = { drink: "Bud Light", measure: "pint", terms: "standard" };
+  const unstated: PriceHistoryObservation = {
+    venueId: "venue-moon",
+    venueName: "The Moon on the Hill",
+    priceGbp: 2.89,
+    observedOn: "2013-04-24",
+    source: { label: "beerintheevening.com", url: "https://example.com/moon", licence: "Quoted." },
+  };
+  const stated: PriceHistoryObservation = { ...unstated, item: budLight };
+
+  it("says the movement when both figures state the same pint at an ordinary price", () => {
+    const arc = venuePriceArc([stated], 2.43, asOf, { drink: " bud  LIGHT ", measure: "pint", terms: "standard" });
+    expect(arc?.deltaGbp).toBe(-0.46);
+    expect(arc?.years).toBe(13);
+  });
+
+  it("keeps both figures and says no movement when either side states no item", () => {
+    const arcs = [
+      venuePriceArc([unstated], 2.43, asOf, budLight),
+      venuePriceArc([stated], 2.43, asOf),
+      venuePriceArc([unstated], 2.43, asOf),
+    ];
+    for (const arc of arcs) {
+      expect(arc?.then.priceGbp).toBe(2.89);
+      expect(arc?.then.observedOn).toBe("2013-04-24");
+      expect(arc?.nowGbp).toBe(2.43);
+      expect(arc?.deltaGbp).toBeNull();
+    }
+  });
+
+  it("says no movement for another drink, another serving or a generic name", () => {
+    const todays: PriceComparisonItem[] = [
+      { drink: "Bud Light Lime", measure: "pint", terms: "standard" },
+      { drink: "Budweiser", measure: "pint", terms: "standard" },
+      { drink: "Bud Light", measure: "half", terms: "standard" },
+    ];
+    for (const today of todays) {
+      expect(venuePriceArc([stated], 2.43, asOf, today)?.deltaGbp).toBeNull();
+    }
+    const other: PriceComparisonItem = { drink: "Bud Light", measure: "other", terms: "standard" };
+    expect(sameComparisonItem(other, other)).toBe(false);
+    const lager: PriceComparisonItem = { drink: "Lager", measure: "pint", terms: "standard" };
+    expect(sameComparisonItem(lager, { ...lager, drink: "lager" })).toBe(false);
+  });
+
+  it("says no movement against a promotional price or an unstated serving", () => {
+    expect(sameComparisonItem(budLight, { drink: "Bud Light", measure: "pint", terms: "happy hour" })).toBe(false);
+    expect(sameComparisonItem(budLight, { drink: "Bud Light", terms: "standard" })).toBe(false);
+    expect(sameComparisonItem({}, {})).toBe(false);
+    expect(sameComparisonItem(null, undefined)).toBe(false);
+    expect(sameComparisonItem(budLight, { ...budLight })).toBe(true);
+  });
+
+  it("reads an item only where a row states all of it, never out of its words", () => {
+    const parsed = parsePriceHistory(
+      [
+        { ...unstated, drink: "a pint of Bud Light", quote: "£2.89 for a pint of Bud Light." },
+        { ...unstated, observedOn: "2014-01-01", item: { drink: "Bud Light", measure: "pint", terms: "promotion" } },
+        { ...unstated, observedOn: "2015-01-01", item: budLight },
+      ],
+      asOf,
+    );
+    // A row whose item states too little keeps its dated fact and loses only the item.
+    expect(parsed).toHaveLength(3);
+    expect(parsed.map((row) => row.item ?? null)).toEqual([null, null, budLight]);
   });
 });

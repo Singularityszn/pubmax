@@ -236,11 +236,24 @@ export function validatePintDrop(input: unknown): ValidationResult {
 // validation/provenance/moderation logic above is storage-agnostic and unchanged.
 const drops = new Map<string, PintDrop[]>();
 
-// Naive per-handle rate limit (in-memory), enough to stop one actor flooding a
-// demo. Move to Redis/Supabase counters if this ever ships.
-const rateWindow = new Map<string, number[]>();
+// Per-key sliding window (in-memory): the fallback for every durable budget.
+// It compares before it records, so a refused hit is not appended and a key's
+// window never holds more than `limit` stamps however hard it is flooded
+// (LIB-S3). A key whose every hit has left its own window is swept at most
+// once a minute, so a flood of distinct keys cannot leave one entry per key
+// for the life of the instance. Same shape as lib/ingestRateLimit.ts.
+const rateWindow = new Map<string, { hits: number[]; windowMs: number }>();
 const RATE_LIMIT = 8;
 const RATE_WINDOW_MS = 60_000;
+let rateSweptAt = 0;
+
+function sweepExpiredRateKeys(now: number): void {
+  if (now - rateSweptAt < RATE_WINDOW_MS) return;
+  rateSweptAt = now;
+  for (const [key, entry] of rateWindow) {
+    if (entry.hits.every((t) => now - t >= entry.windowMs)) rateWindow.delete(key);
+  }
+}
 
 export function isRateLimited(
   handle: string,
@@ -248,17 +261,18 @@ export function isRateLimited(
   limit = RATE_LIMIT,
   windowMs = RATE_WINDOW_MS,
 ): boolean {
+  sweepExpiredRateKeys(now);
   const key = handle.toLowerCase();
-  const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
-  if (hits.length === 0) rateWindow.delete(key);
-  hits.push(now);
-  rateWindow.set(key, hits);
-  return hits.length > limit;
+  const hits = (rateWindow.get(key)?.hits ?? []).filter((t) => now - t < windowMs);
+  const limited = hits.length >= limit;
+  if (!limited) hits.push(now);
+  rateWindow.set(key, { hits, windowMs });
+  return limited;
 }
 
 /**
- * Like isRateLimited, but a refused call leaves the window untouched, so a
- * caller that retries a refused charge does not keep its own window full.
+ * The round-price budget's name for isRateLimited: a refused charge leaves the
+ * window untouched, so a retried refusal does not keep its own window full.
  */
 export function consumeRateLimit(
   handle: string,
@@ -266,15 +280,7 @@ export function consumeRateLimit(
   limit: number,
   windowMs: number,
 ): boolean {
-  const key = handle.toLowerCase();
-  const hits = (rateWindow.get(key) ?? []).filter((t) => now - t < windowMs);
-  if (hits.length >= limit) {
-    rateWindow.set(key, hits);
-    return true;
-  }
-  hits.push(now);
-  rateWindow.set(key, hits);
-  return false;
+  return isRateLimited(handle, now, limit, windowMs);
 }
 
 /** Cap applied when the durable limiter is configured but unavailable. */

@@ -106,11 +106,12 @@ describe("clusterAtZoom", () => {
 // app's own painted-pin probe), with their positions on screen. The engine's
 // ids, centres and placement are the ground truth the build has to meet.
 const ENGINE_PHONE_FRAME = [
-  { id: 418, x: 65.5, y: 398.7, lng: -0.14255404472351074, lat: 51.5232037932133 },
-  { id: 257, x: 45.8, y: 476.3, lng: -0.1447749137878418, lat: 51.51288236796347 },
-  { id: 161, x: 119.7, y: 471.8, lng: -0.13253331184387207, lat: 51.513456583717186 },
-  { id: 609, x: 150.8, y: 534.7, lng: -0.12709379196166992, lat: 51.50571073833211 },
-  { id: 513, x: 58.5, y: 523.9, lng: -0.14203906059265137, lat: 51.50700625590363 },
+  { id: 414, x: 66.2, y: 399.5, lng: -0.14241456985473633, lat: 51.52309698578392 },
+  { id: 253, x: 46.5, y: 474.2, lng: -0.1446998119354248, lat: 51.51314276902778 },
+  { id: 157, x: 119.9, y: 471.8, lng: -0.13251185417175293, lat: 51.5134499068314 },
+  { id: 2206, x: 126.5, y: 578.8, lng: -0.1307201385498047, lat: 51.50061512375089 },
+  { id: 605, x: 150.6, y: 535.6, lng: -0.12711524963378906, lat: 51.50560388987785 },
+  { id: 509, x: 58.5, y: 523.9, lng: -0.14203906059265137, lat: 51.50700625590363 },
 ] as const;
 
 describe("projectAtCamera", () => {
@@ -144,9 +145,10 @@ describe("openingPreviewDiscs over the shipped eager cell", () => {
     for (const painted of ENGINE_PHONE_FRAME) {
       const disc = discs.find((candidate) => candidate.id === painted.id);
       expect(disc, `cluster ${painted.id}`).toBeDefined();
-      // The engine hands a centre back through its tile grid: a few millionths of a degree.
-      expect(disc!.lng).toBeCloseTo(painted.lng, 5);
-      expect(disc!.lat).toBeCloseTo(painted.lat, 5);
+      // The engine hands a centre back through its tile grid: a few millionths
+      // of a degree (5.2e-6 measured on 2026-10-17), well under a pixel here.
+      expect(Math.abs(disc!.lng - painted.lng)).toBeLessThan(1e-5);
+      expect(Math.abs(disc!.lat - painted.lat)).toBeLessThan(1e-5);
     }
   });
 

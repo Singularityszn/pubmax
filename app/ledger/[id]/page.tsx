@@ -1,35 +1,26 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
-import {
-  buildFamilyTableEntries,
-  buildLedgerEntries,
-  buildVenueClaims,
-  ledgerClaimDrops,
-  resolveFamilyTableDisplay,
-  type RedactedFamilyEntry,
-  type FamilyTableEntry,
-} from "@/lib/ledger";
-import { type ViewerContext } from "@/lib/pintDrops";
-import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
+import { buildVenueClaims } from "@/lib/ledger";
 import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
-import { isSupabaseConfigured } from "@/lib/supabase";
-import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import JsonLd from "@/components/seo/JsonLd";
 import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
-import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
+import {
+  LedgerLiveProvider,
+  LedgerLogSections,
+  LedgerReadAloud,
+} from "@/components/ledger/LedgerLive";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
-import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
+import { LEDGER_READ_UNAVAILABLE } from "./ledgerReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
 import "./ledger.css";
@@ -40,44 +31,29 @@ import "./ledger.css";
 // module app/api/venue/[id] calls, plus the same Pint Drop store the API
 // route reads (lib/pintDropsStore), reused, not rebuilt.
 //
-// A server component: no client fetch, so the first paint already carries the
-// whole logbook. The only client-side sliver is the optional "Read this page"
-// button (components/ledger/ReadLedgerButton), which is feature-detected and
-// degrades to nothing when speechSynthesis is unsupported.
+// THIS DOCUMENT IS PRERENDERED (task vercel-f2-seo-cdn, option a; proxy.ts
+// CDN_CACHED_DOCUMENT_ROUTES). It carries only what the bundled dataset knows
+// about the pub: its name, address, listed-building record, structured data and
+// curated story line. It reads no cookie, no header and no search param, and
+// NOTHING a drinker wrote is in it, because one copy is handed to every
+// visitor. The logbook, the drop-derived story lines and the Family Table are
+// read per request by GET /api/ledger/[id] and drawn after load
+// (components/ledger/LedgerLive.tsx), so moderation, withdrawal and erasure
+// reach the page the moment the store stops returning a drop.
+// `__tests__/cdnCachedDocuments.test.ts` holds both rules.
+export const dynamic = "force-static";
+// The bundled dataset changes only on a deploy, so an hour is the same quiet
+// ceiling `/map` takes.
+export const revalidate = 3600;
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// missing is the not-found card. unavailable is the read-unavailable surface.
-// lookupVenueDetail does not cache a failed read, so the next request reads again.
-
-function pintDropStoreFor() {
-  return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
-}
-
-// Same posture as /p/[id]: JWT-derived viewer preferred; ?viewer= is
-// development/test fallback only (never unlocks Family Table in production).
-async function resolveViewer(
-  searchParams?: PageProps["searchParams"],
-): Promise<ViewerContext | undefined> {
-  const h = await headers();
-  const auth = h.get("authorization") ?? "";
-  const reqHeaders: Record<string, string> = {};
-  if (auth) reqHeaders.Authorization = auth;
-  const request = new Request("http://localhost/ledger", { headers: reqHeaders });
-  const params = searchParams ? await searchParams : undefined;
-  const raw = params?.viewer;
-  const queryViewer = Array.isArray(raw) ? raw[0] : raw;
-  return resolveViewerContextFromRequest(request, queryViewer);
-}
-
-function isFullFamilyEntry(
-  entry: FamilyTableEntry | RedactedFamilyEntry,
-): entry is FamilyTableEntry {
-  return "note" in entry;
-}
+// missing is the not-found card, and it may be held: the dataset only changes
+// on a deploy. A read we could not RUN is never held: the page throws, so ISR
+// keeps the last good copy (or holds nothing) and the next request reads
+// again, and app/ledger/[id]/error.tsx draws the read-unavailable card.
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
@@ -195,39 +171,14 @@ function NotInTheLedger() {
   );
 }
 
-function LedgerReadUnavailable({ id }: { id: string }) {
-  return (
-    <main id="main" className="ledgerPage ledgerPage--empty">
-      <div className="ledgerEmptyCard">
-        <Link className="ledgerHomeLink" href="/">
-          PUBMAXX
-        </Link>
-        <VenueReadUnavailable
-          eyebrow="The Ledger"
-          classNames={{
-            eyebrow: "ledgerEyebrow",
-            title: "ledgerEmptyTitle",
-            body: "ledgerEmptyBody",
-            action: "ledgerPrimaryLink",
-          }}
-          href={`/ledger/${encodeURIComponent(id)}`}
-        />
-      </div>
-    </main>
-  );
-}
-
-export default async function LedgerPage({ params, searchParams }: PageProps) {
+export default async function LedgerPage({ params }: PageProps) {
   const { id } = await params;
-  const viewer = await resolveViewer(searchParams);
   // Three answers, and the order is the rule: a read we could not run is
   // answered BEFORE the not-found card, or the card swallows it.
   const read = await lookupVenueDetail(id);
-  if (read.status === "unavailable") return <LedgerReadUnavailable id={id} />;
+  if (read.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
   if (read.status !== "found") return <NotInTheLedger />;
   const { venue } = read;
-  // Per-request CSP nonce (proxy.ts) for the JSON-LD block.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
   // Everything below reads/links off the canonical venue id (D1) so a merged
   // alias URL and the surviving canonical URL share the same logbook, Family
   // Table, and ratings, never the raw route param, which may be a losing
@@ -239,57 +190,6 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // venue id, feeds the BarOrPub JSON-LD description below. null for the many
   // pubs that are not listed.
   const listedBuilding = await getListedBuilding(canonicalId);
-  const drops = await pintDropStoreFor().listVisible(canonicalId);
-  const claimDrops = ledgerClaimDrops(
-    drops.map((d) => ({
-      id: d.id,
-      handle: d.handle,
-      drink: d.drink,
-      priceGbp: d.priceGbp,
-      passedDownNote: d.passedDownNote,
-      era: d.era,
-      provenance: d.provenance,
-      createdAt: d.createdAt,
-    })),
-  );
-  const claims = buildVenueClaims(curation, claimDrops);
-  const entries = buildLedgerEntries(
-    drops.map((d) => ({
-      id: d.id,
-      handle: d.handle,
-      drink: d.drink,
-      priceGbp: d.priceGbp,
-      passedDownNote: d.passedDownNote,
-      era: d.era,
-      provenance: d.provenance,
-      createdAt: d.createdAt,
-    })),
-  );
-
-  // The Family Table (issue #27): LEGACY drops, read via the ledger-only
-  // listLegacyForVenue capability (issue #29), deliberately a SEPARATE store
-  // call from listVisible above, never a filter over `drops`, so a legacy row
-  // can never accidentally end up rendered in the public logbook above.
-  const legacyDrops = await pintDropStoreFor().listLegacyForVenue(canonicalId);
-  const legacySources = legacyDrops.map((d) => ({
-    id: d.id,
-    handle: d.handle,
-    drink: d.drink,
-    priceGbp: d.priceGbp,
-    passedDownNote: d.passedDownNote,
-    era: d.era,
-    provenance: d.provenance,
-    createdAt: d.createdAt,
-  }));
-  // F4: public page redacts legacy rows unless the self-asserted viewer is the
-  // drop's author (?viewer=, same courtesy curtain as /p/[id]). Everyone else
-  // sees initials-style attribution and a generic family-table line, no price
-  // or note body.
-  const familyEntries = resolveFamilyTableDisplay(
-    buildFamilyTableEntries(legacySources),
-    legacySources,
-    viewer?.handle,
-  );
   // The Ledger's own canonical link, for the share actions below. Relative,
   // like every other in-app link on this page (venueMapUrl), because the deployed
   // origin is added by the browser/mail client itself. A future "email this
@@ -297,189 +197,72 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   // want an absolute URL and should add a proper site-origin helper then.
   const ledgerUrl = `/ledger/${encodeURIComponent(canonicalId)}`;
 
-  // Text handed to the "Read this page" button: name, heritage note, then the
-  // newest few entries, kept short and skimmable for a screen reader / TTS
-  // pass rather than reading the entire ledger aloud.
-  const speechParts = [
+  // The opening of the "Read this page" text: name and heritage note. The
+  // newest few logbook entries join it once the live read lands.
+  const speechIntro = [
     `The Ledger for ${venue.name}, ${venueAreaLabel(venue)}.`,
     curation.heritageNote ? curation.heritageNote : "",
-    ...entries
-      .slice(0, 5)
-      .map((entry) =>
-        entry.dateLabel
-          ? `${entry.dateLabel}: ${entry.note}`
-          : entry.note,
-      ),
-  ].filter(Boolean);
+  ];
 
   return (
     <main id="main" className="ledgerPage">
-      <JsonLd data={venueJsonLd(venue, listedBuilding)} nonce={nonce} />
-      <header className="ledgerHead">
-        <Link className="ledgerHomeLink" href="/">
-          PUBMAXX
-        </Link>
-        <p className="ledgerEyebrow">The Ledger</p>
-        <h1 className="ledgerTitle">{venue.name}</h1>
-        <p className="ledgerAddress">
-          {venue.address ? `${venue.address} · ` : ""}
-          {venueAreaLabel(venue)}
+      <JsonLd data={venueJsonLd(venue, listedBuilding)} />
+      <LedgerLiveProvider venueId={canonicalId}>
+        <header className="ledgerHead">
+          <Link className="ledgerHomeLink" href="/">
+            PUBMAXX
+          </Link>
+          <p className="ledgerEyebrow">The Ledger</p>
+          <h1 className="ledgerTitle">{venue.name}</h1>
+          <p className="ledgerAddress">
+            {venue.address ? `${venue.address} · ` : ""}
+            {venueAreaLabel(venue)}
+          </p>
+
+          {/* Listed-building brass plaque (Historic England NHLE). Rendered only
+              when the pub is on the official register; the citation link is the
+              attribution required by the Open Government Licence. */}
+          {listedBuilding ? (
+            <a
+              className="ledgerListedPlaque"
+              href={listedBuilding.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span className="ledgerListedFact">{listedBuilding.fact}</span>
+              <span className="ledgerListedSource">Historic England</span>
+            </a>
+          ) : null}
+          {listedBuilding ? <DataCreditsLink className="ledgerCredits" /> : null}
+
+          <div className="ledgerHeadActions">
+            <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
+              Open on the map
+            </Link>
+            <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
+              See the bar tab
+            </Link>
+            <LedgerReadAloud intro={speechIntro} />
+            <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
+          </div>
+
+          {/* Individual, dated Visit Reports. No score or aggregate verdict. */}
+          <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
+
+          {/* The pub's community photo wall - the same one the map sheet shows. */}
+          <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
+        </header>
+
+        <p className="ledgerLaneNote">
+          Public notes go in the logbook. Legacy notes stay at the Family Table below.
         </p>
 
-        {/* Listed-building brass plaque (Historic England NHLE). Rendered only
-            when the pub is on the official register; the citation link is the
-            attribution required by the Open Government Licence. */}
-        {listedBuilding ? (
-          <a
-            className="ledgerListedPlaque"
-            href={listedBuilding.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span className="ledgerListedFact">{listedBuilding.fact}</span>
-            <span className="ledgerListedSource">Historic England</span>
-          </a>
-        ) : null}
-        {listedBuilding ? <DataCreditsLink className="ledgerCredits" /> : null}
-
-        <div className="ledgerHeadActions">
-          <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
-            Open on the map
-          </Link>
-          <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
-            See the bar tab
-          </Link>
-          <ReadLedgerButton text={speechParts.join(" ")} />
-          <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
-        </div>
-
-        {/* Individual, dated Visit Reports. No score or aggregate verdict. */}
-        <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
-
-        {/* The pub's community photo wall - the same one the map sheet shows. */}
-        <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
-      </header>
-
-      <p className="ledgerLaneNote">
-        Public notes go in the logbook. Legacy notes stay at the Family Table below.
-      </p>
-
-      {claims.length > 0 ? (
-        <section className="ledgerSection" aria-labelledby="ledgerClaimsHeading">
-          <h2 id="ledgerClaimsHeading" className="ledgerSectionTitle">
-            The pub&rsquo;s story
-          </h2>
-          <ul className="ledgerClaimList">
-            {claims.map((claim, index) => (
-              <li className="ledgerClaim" key={`${claim.kind}-${index}`}>
-                <span className={`ledgerProvenance ledgerProvenance--${claim.kind}`}>
-                  {claim.label}
-                </span>
-                <p className="ledgerClaimBody">
-                  {claim.content}
-                  {claim.era ? <span className="ledgerClaimEra"> · {claim.era}</span> : null}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section className="ledgerSection" aria-labelledby="ledgerEntriesHeading">
-        <h2 id="ledgerEntriesHeading" className="ledgerSectionTitle">
-          Logbook
-        </h2>
-        {entries.length === 0 ? (
-          <p className="ledgerEmptyEntries">
-            No entries logged yet. The first Pint Drop here will open the logbook.
-          </p>
-        ) : (
-          <ol className="ledgerEntries" aria-label={`Logbook entries for ${venue.name}`}>
-            {entries.map((entry) => (
-              <li className="ledgerEntry" key={entry.id}>
-                <article aria-label={`Logbook entry, ${entry.dateLabel || "undated"}`}>
-                  <div className="ledgerEntryMeta">
-                    {entry.dateLabel ? (
-                      <time className="ledgerEntryDate" dateTime={entry.createdAt}>
-                        {entry.dateLabel}
-                      </time>
-                    ) : (
-                      <span className="ledgerEntryDate">Undated</span>
-                    )}
-                    <span
-                      className={`ledgerProvenance ledgerProvenance--${entry.provenance}`}
-                    >
-                      {entry.provenance === "demo" ? "Demo" : entry.handle}
-                    </span>
-                  </div>
-                  <p className="ledgerEntryNote">{entry.note}</p>
-                  {entry.priceLabel ? (
-                    <p className="ledgerEntryPrice">
-                      <span className="ledgerEntryPriceLabel">Paid</span>{" "}
-                      <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
-                    </p>
-                  ) : null}
-                </article>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      <section className="ledgerSection ledgerFamilySection" aria-labelledby="ledgerFamilyHeading">
-        <div className="ledgerFamilyHead">
-          <h2 id="ledgerFamilyHeading" className="ledgerSectionTitle">
-            The Family Table
-          </h2>
-          <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} />
-        </div>
-        <p className="ledgerFamilyIntro">
-          Some stories aren&rsquo;t for the feed. Kept here for whoever in the family reads them next.
-        </p>
-        {familyEntries.length === 0 ? (
-          <p className="ledgerFamilyEmpty">
-            Some stories are kept for the family table. Log a pint and choose Legacy to leave one.
-          </p>
-        ) : (
-          <ol
-            className="ledgerFamilyEntries"
-            aria-label={`Family table entries for ${venue.name}`}
-          >
-            {familyEntries.map((entry) => (
-              <li className="ledgerFamilyEntry" key={entry.id}>
-                <article aria-label={`Family table entry, ${entry.dateLabel || "undated"}`}>
-                  <div className="ledgerFamilyEntryMeta">
-                    {entry.dateLabel ? (
-                      <time className="ledgerFamilyEntryDate" dateTime={entry.createdAt}>
-                        {entry.dateLabel}
-                      </time>
-                    ) : (
-                      <span className="ledgerFamilyEntryDate">Undated</span>
-                    )}
-                    <span className="ledgerFamilyEntryHandle">
-                      {entry.handle}
-                      {entry.era ? <span className="ledgerClaimEra"> · {entry.era}</span> : null}
-                    </span>
-                  </div>
-                  {isFullFamilyEntry(entry) ? (
-                    <>
-                      <p className="ledgerFamilyEntryNote">{entry.note}</p>
-                      {entry.priceLabel ? (
-                        <p className="ledgerEntryPrice">
-                          <span className="ledgerEntryPriceLabel">Paid</span>{" "}
-                          <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
-                        </p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <p className="ledgerFamilyEntryNote">A story kept for the family table.</p>
-                  )}
-                </article>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+        <LedgerLogSections
+          venueName={venue.name}
+          ledgerUrl={ledgerUrl}
+          curatedClaims={buildVenueClaims(curation)}
+        />
+      </LedgerLiveProvider>
 
       {/* Operator rail (Wayfinder 3.5): a quiet door for the person who runs the
           pub. Signed-in users can verify they run it; verified operators propose

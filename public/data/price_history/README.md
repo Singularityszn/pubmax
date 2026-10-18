@@ -12,14 +12,15 @@ and grows slowly rather than being generated.
 
 **A historical price is history. It never answers "what does a pint cost here now".**
 
-It may not enter price bands, pin colour, the pin price label, cheapest-pint
-buckets, the Pint Index, the freshness registry's current-price feeds, the
-community price merge, or the drink/food price-update overlays. The rule and its
-reasoning live at the top of `lib/priceHistory.ts`; `__tests__/priceHistory.test.ts`
-pins the import fence, the data fence and the row schema.
+The current-price isolation rule lives at the top of
+[`lib/priceHistory.ts`](../../../lib/priceHistory.ts).
+[`__tests__/priceHistory.test.ts`](../../../__tests__/priceHistory.test.ts)
+checks row identity, current-price isolation and the committed data boundary.
 
-The only consumer is `components/map/VenuePriceThen.tsx`, the venue sheet's
-"What it used to cost" block, fed at runtime by `lib/priceHistoryLoader.ts`.
+The venue sheet's `components/map/VenuePriceThen.tsx` reads history through
+`lib/priceHistoryLoader.ts`. The homepage's `components/landing/LandingHero.tsx`
+receives its archive through `lib/landingPubCard.server.ts` and
+`lib/landingPubCard.ts` at build time.
 
 ## Schema
 
@@ -43,6 +44,16 @@ The only consumer is `components/map/VenuePriceThen.tsx`, the venue sheet's
 `observedOn` is a day rather than a timestamp on purpose: archival evidence is
 dated to the day at best, and a fabricated hour would be a lie in the schema.
 
+An optional `item` records comparison metadata stated by the source. For example,
+a source that names Doom Bar, a pint serving and an ordinary bar price supports this `item` value:
+
+```json
+{ "drink": "Doom Bar", "measure": "pint", "terms": "standard" }
+```
+
+The quoted Fountains Abbey example above does not establish this metadata.
+The parser omits an incomplete or invalid `item` without discarding the dated price.
+
 ## What earns a row
 
 Every one of these, or the row does not ship:
@@ -57,13 +68,26 @@ Every one of these, or the row does not ship:
   street/locality inside the venue's own borough. A match that did not hold was
   dropped, not guessed.
 
-At most one figure per venue per day, the cheapest named that day, so the
-comparison lines up with the price the sheet already shows.
+At most one figure per venue per day, the cheapest named that day.
 
 And one archived page is evidence about **one** pub: citing the same source URL
 for two venue ids ships the same dated fact twice. The only exception is a pub
 the app's own venue index holds under more than one id, which is named with its
 reason in the identity fence in `__tests__/priceHistory.test.ts`.
+
+## Then against now
+
+When a current price is available, both figures print. A movement claim requires
+matching drink identity, serving and ordinary-price conditions stated in both
+items. `sameComparisonItem` in `lib/priceHistory.ts` owns the matching rule.
+A row's `drink` and `quote` are display text and cannot substitute for an `item`.
+Never add an `item` the source does not state.
+
+Both entry points use `venuePriceArc` in `lib/priceHistory.ts` for that decision.
+The shipped callers do not supply complete current-item metadata, so they show
+the sourced figures without movement claims. The landing archive also binds any
+permitted movement to its current figure through `archiveMovementLine` in
+`lib/landingHero.ts`, so another current-price read cannot reuse it.
 
 ## Where wave one came from
 
@@ -88,8 +112,8 @@ Restate it from the shipped file whenever rows are added or dropped.
 - 183 of those 602 pages (30%) named both a price and a pint, giving 134
   candidate figures across 103 venues.
 - **103 observations across 90 venues, 2012 to 2023**, shipped. **50 of those
-  venues also carry a current price** and so show the full then-and-now
-  comparison; the rest show the historical fact alone.
+  venues also carry a current price** and so show both figures side by side;
+  the rest show the historical fact alone.
 - So of 641 venues attempted, **90 produced usable evidence: a 14% yield.**
 
 Candidates were dropped by hand for hedges ("around £4 a pint"), promotions and

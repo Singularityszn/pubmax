@@ -101,3 +101,35 @@ describe("estimatePlanWalking", () => {
     expect(estimate.walkingMinutesFromPrevious[1]).toBe(legMinutes(haversineKm(A, B)));
   });
 });
+
+describe("estimatePlanWalking street legs", () => {
+  const streetWalkKm = (from: string, to: string) => ([from, to].sort().join("|") === "a|b" ? 1.5 : null);
+  const stops = [
+    { ...stop(A), venueId: "a" },
+    { ...stop(B), venueId: "b" },
+    { ...stop(C), venueId: "c" },
+  ];
+
+  it("keeps the street walk on a leg ORS does not route, and says the total is mixed", async () => {
+    const estimate = await estimatePlanWalking(stops, streetWalkKm);
+    expect(estimate.legs.map((leg) => leg.source)).toEqual(["street", "straight"]);
+    expect(estimate.legs[0]!.distanceKm).toBe(1.5);
+    expect(estimate.walkingMinutesFromPrevious[1]).toBe(legMinutes(1.5));
+    expect(estimate.estimatedWalkingMinutes).toBe(legMinutes(1.5) + legMinutes(haversineKm(B, C)));
+    // A total with one straight leg in it is not a street total.
+    expect(estimate.distanceBasis).toBe("straight-line");
+    // The straight-line figure stays the straight line.
+    expect(estimate.straightLineWalkingKm).toBeCloseTo(haversineKm(A, B) + haversineKm(B, C), 9);
+  });
+
+  it("calls a total of street legs a street total", async () => {
+    const estimate = await estimatePlanWalking(stops.slice(0, 2), streetWalkKm);
+    expect(estimate.distanceBasis).toBe("street");
+  });
+
+  it("measures every leg along the straight line without venue ids or a lookup", async () => {
+    const estimate = await estimatePlanWalking(stops);
+    expect(estimate.legs.every((leg) => leg.source === "straight")).toBe(true);
+    expect(estimate.distanceBasis).toBe("straight-line");
+  });
+});

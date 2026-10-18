@@ -36,7 +36,7 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "area-buzz-camden": { expectedTools: ["area_buzz", "venue_prices"] },
   "hampstead-quiet": { expectedTools: ["search_venues"] },
   "food-midnight-covent": { expectedTools: ["search_venues"] },
-  "wine-lamb-honest": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
+  "wine-lamb-honest": { expectedTools: ["venue_drinks"], answerIncludes: ["No people-logged wine prices recorded", "The Lamb"] },
   "dearest-soho-honest": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
   "report-crowd-lamb": { expectedTools: ["report_occupancy"] },
   "journey-lamb": { expectedTools: ["journey"] },
@@ -165,36 +165,8 @@ async function whatsOnFields(
   return hit;
 }
 
-/** Data-derived fields for answer-key.json. Does not call runAsk or runAskTool. */
-async function resolveGeneratedAnswerKeyFields(
-  caseDef: PalEvalPublicCase,
-  ctx: ResolveAnswerKeyContext,
-): Promise<Partial<PalEvalAnswerExpectations>> {
-  const cityId = caseDef.cityId ?? "london";
-  // A short follow-up ("cheaper") is asked in the place of the prior user turn,
-  // exactly as runAsk refines it, so multi-turn cases resolve the same question.
-  const priorUser = [...(caseDef.turns ?? [])].reverse().find((turn) => turn.role === "user");
-  const query = refineRoutedAskQuery(caseDef.query, priorUser?.content);
-
-  switch (caseDef.id) {
-    case "cheapest-camden":
-    case "desk-then-cheapest": {
-      const hit = await cheapestInBorough("Camden", cityId);
-      return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
-    }
-    case "cheapest-near-lamb": {
-      const hit = await cheapestNearVenueName("The Lamb", cityId);
-      return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
-    }
-    case "venue-drinks-lamb": {
-      const venues = await loadConciergeVenues(cityId as "london");
-      const venue = matchVenueByNameKeyless(venues, "The Lamb");
-      return venue ? cardFields(venue.id, venue.cheapestPrice) : { expectEmpty: true };
-    }
-    case "quiz-camden":
-    case "quiz-islington":
-    case "football-whats-on":
-      return whatsOnFields(query, ctx.now);
+function staticAnswerKeyFields(caseId: string): Partial<PalEvalAnswerExpectations> | null {
+  switch (caseId) {
     case "manchester-outscope":
     case "paris-outscope":
     case "cheapest-no-anchor":
@@ -216,6 +188,43 @@ async function resolveGeneratedAnswerKeyFields(
     case "heritage-lamb":
     case "heritage-bank":
       return { minCards: 1 };
+    default:
+      return null;
+  }
+}
+
+/** Data-derived fields for answer-key.json. Does not call runAsk or runAskTool. */
+async function resolveGeneratedAnswerKeyFields(
+  caseDef: PalEvalPublicCase,
+  ctx: ResolveAnswerKeyContext,
+): Promise<Partial<PalEvalAnswerExpectations>> {
+  const cityId = caseDef.cityId ?? "london";
+  // A short follow-up ("cheaper") is asked in the place of the prior user turn,
+  // exactly as runAsk refines it, so multi-turn cases resolve the same question.
+  const priorUser = [...(caseDef.turns ?? [])].reverse().find((turn) => turn.role === "user");
+  const query = refineRoutedAskQuery(caseDef.query, priorUser?.content);
+  const staticFields = staticAnswerKeyFields(caseDef.id);
+  if (staticFields) return staticFields;
+
+  switch (caseDef.id) {
+    case "cheapest-camden":
+    case "desk-then-cheapest": {
+      const hit = await cheapestInBorough("Camden", cityId);
+      return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
+    }
+    case "cheapest-near-lamb": {
+      const hit = await cheapestNearVenueName("The Lamb", cityId);
+      return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
+    }
+    case "venue-drinks-lamb": {
+      const venues = await loadConciergeVenues(cityId as "london");
+      const venue = matchVenueByNameKeyless(venues, "The Lamb");
+      return venue ? cardFields(venue.id, venue.cheapestPrice) : { expectEmpty: true };
+    }
+    case "quiz-camden":
+    case "quiz-islington":
+    case "football-whats-on":
+      return whatsOnFields(query, ctx.now);
     case "quiet-bank":
     case "hampstead-quiet":
     case "food-midnight-covent":

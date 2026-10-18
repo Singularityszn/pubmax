@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.redlionhoxton.co.uk/drinks-1",
+  "observedAt": "2026-10-17T12:43:40.047Z",
+  "evidence": ".00 Prosecco £ 23.00 £ 50.00 Moet £ 50.00 £ 70.00 Veuve Clicquot £ 70.00 Soft Drinks £ 3.50 Red Bull £ 3.50 £ 2.20 Ginger Beer £ 2.20 £ 2.20 Coke £ 2.20 £ 2.20 Diet Coke £ 2.20 £ 2.30 J2O £ 2.30 £ 2.10 Perrier Water £ 2.10 £ 1.30 Mineral Water £ 1.30 “It’s surprising to find a bar in the uber-trendy Shoreditch that isn’t overpriced and full of businessmen but The Red Lion is hidden well enough to ensure the relaxed a",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "redlionhoxton.co.uk",
+      "venueId": "venue-uk-w209257299",
+      "osmId": "way/209257299",
+      "name": "Red Lion",
+      "postcode": "N1 6NH",
+      "lat": 51.5280823,
+      "lng": -0.080238,
+      "category": "soft-drink",
+      "priceGbp": 2.2,
+      "drinkLabel": "Diet Coke",
+      "sourceUrl": "https://www.redlionhoxton.co.uk/drinks-1",
+      "observedAt": "2026-10-17T12:43:40.047Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 84
+    }
+  ]
+}

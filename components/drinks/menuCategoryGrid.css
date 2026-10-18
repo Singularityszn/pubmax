@@ -1,4 +1,4 @@
-/* Venue Menu hub — 2-column visual tiles (alcohol-first). */
+/* Venue Menu hub uses the same food and drink doors. */
 
 .menuHub {
   display: grid;
@@ -31,11 +31,25 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
 .menuHub__item--primary {
+  grid-column: 1 / -1;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary {
+  grid-column: auto;
+  grid-row: 1;
+}
+
+.menuHub__item--recorded-food {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.menuHub__grid--food-only .menuHub__item--recorded-food {
   grid-column: 1 / -1;
 }
 
@@ -97,6 +111,23 @@
   width: 96px;
   min-height: 148px;
   flex: 0 0 auto;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__tile {
+  min-height: 132px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding-right: 0;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__media {
+  width: 100%;
+  min-height: 88px;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__meta {
+  padding: 10px 12px;
 }
 
 .menuHub__media--drinks {
@@ -164,16 +195,20 @@
   color: var(--ink);
 }
 
+/* An empty state's one QUIET way onward, read off the text-button row: a
+   secondary. It was a coral pill, a second painted primary on the sheet beside
+   the peek's plan door, in a radius no other text button wears. */
 .menuHubEmptyAction {
-  min-height: 44px;
+  min-height: var(--control-height, 44px);
   margin-top: 6px;
-  padding: 9px 16px;
-  border: 1px solid var(--brass);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--brass);
-  color: var(--color-on-accent-strong);
+  padding: 8px var(--control-pad-x, 16px);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: var(--control-secondary-surface, var(--panel-raised));
+  color: var(--ink);
   font: inherit;
-  font-weight: 700;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
   cursor: pointer;
 }
 

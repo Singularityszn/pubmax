@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SignInButton from "@/components/auth/SignInButton";
 
 const auth = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/usePublicProfileCard", () => ({ usePublicProfileCard: () => null }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/places" }));
 

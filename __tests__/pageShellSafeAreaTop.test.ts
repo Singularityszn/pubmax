@@ -43,7 +43,31 @@ function shellBlocks(stylesheet: string, shellClass: string): string[] {
 describe("a page shell under the standard bar does not add the top inset the bar already adds", () => {
   it("is measuring the bar that really carries the inset", () => {
     const nav = readFileSync(join(ROOT, "components/nav/siteNav.css"), "utf8");
-    expect(nav).toContain("margin-top: env(safe-area-inset-top, 0px);");
+    expect(nav).toContain(
+      "--topbar-inset: calc(env(safe-area-inset-top, 0px) + var(--topbar-gap));",
+    );
+    expect(nav).toContain(
+      "margin-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));",
+    );
+  });
+
+  // THE BAR OWNS ITS WHOLE TOP OFFSET, so a shell that opens on the bar pads
+  // nothing above it, whatever its own padding says. Without this the bar sat
+  // at a different height on every tab (0px on /social, 48px on desktop /plan).
+  // The shell pays it as padding, not the bar as margin, because a first
+  // child's margin collapses through an unpadded parent and showed the body's
+  // colour above /plan's own background.
+  it("hands the offset to any shell that opens on the bar, as padding", () => {
+    const nav = readFileSync(join(ROOT, "components/nav/siteNav.css"), "utf8").replace(
+      /\/\*[\s\S]*?\*\//g,
+      "",
+    );
+    expect(nav).toMatch(
+      /:is\(body, main, div\):has\(> \.siteNavBar:not\(\.siteNavBarFloating\):first-child\) \{\s*padding-top: var\(--topbar-inset, calc\(env\(safe-area-inset-top, 0px\) \+ 10px\)\);\s*\}/,
+    );
+    expect(nav).toMatch(
+      /:is\(body, main, div\) > \.siteNavBar:not\(\.siteNavBarFloating\):first-child \{\s*margin-top: 0;\s*\}/,
+    );
   });
 
   for (const page of PAGE_SHELLS_UNDER_THE_STANDARD_BAR) {

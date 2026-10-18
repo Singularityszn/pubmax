@@ -1,12 +1,35 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+
+const bundle = vi.hoisted(() => ({ status: "ready" as "ready" | "empty" | "unavailable" }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/pintPriceLandingDataset.server", () => ({ loadPintPriceLandingVenues: async () => [] }));
 vi.mock("@/lib/priceUpdates.server", () => ({ allDrinkPriceUpdates: async () => [] }));
 vi.mock("@/lib/ukPriceBundle.server", () => ({
-  allUkPriceBundleRows: async () => ({
-    status: "ready",
-    rows: [{ venueId: "outside-london", category: "soft-drink", drinkSubtype: "soft-drink-coke-zero", standing: "listed" }],
+  ukPriceBundleRowsByVenue: async () => ({
+    status: bundle.status,
+    byVenue: bundle.status === "unavailable" ? new Map() : new Map([
+      [
+        "outside-london",
+        [
+          {
+            venueId: "outside-london",
+            name: "Outside London",
+            category: "soft-drink",
+            priceGbp: 2.2,
+            lane: "site-harvest",
+            standing: "listed",
+            sourceUrl: "https://example.com/menu",
+            publisher: "example.com",
+            observedAt: "2026-09-04T13:40:04.870Z",
+            basis: null,
+            sampleSize: null,
+            drinkLabel: "Coke Zero",
+            drinkSubtype: "soft-drink-coke-zero",
+          },
+        ],
+      ],
+    ]),
   }),
 }));
 
@@ -16,4 +39,32 @@ it("does not count UK bundle venues absent from the London view", async () => {
   const view = await loadSoftDrinksWaterView("soft-drink-coke-zero");
   expect(view?.rows).toEqual([]);
   expect(view?.observedCounts["soft-drink-coke-zero"]).toBe(0);
+});
+
+it("opens on the Lucia lens and counts it beside the other launch chips", async () => {
+  const view = await loadSoftDrinksWaterView("soft-drink-lucia-special");
+  expect(view?.subtypeId).toBe("soft-drink-lucia-special");
+  expect(view?.subtypeLabel).toBe("Coke Zero and Diet Coke");
+  expect(view?.observedCounts).toEqual({
+    "soft-drink-lucia-special": 0,
+    "soft-drink-zero-sugar-cola": 0,
+    "soft-drink-still-water": 0,
+  });
+});
+
+afterEach(() => {
+  bundle.status = "ready";
+});
+
+it("says the listed prices could not be read, rather than that there are none", async () => {
+  bundle.status = "unavailable";
+  const view = await loadSoftDrinksWaterView("soft-drink-lucia-special");
+  expect(view?.listedPricesUnavailable).toBe(true);
+  expect(view?.observedCounts["soft-drink-lucia-special"]).toBe(0);
+});
+
+it("reads an empty bundle as a real answer, not a failed read", async () => {
+  bundle.status = "empty";
+  const view = await loadSoftDrinksWaterView("soft-drink-lucia-special");
+  expect(view?.listedPricesUnavailable).toBe(false);
 });

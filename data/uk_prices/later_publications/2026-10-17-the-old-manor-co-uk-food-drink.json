@@ -1,0 +1,110 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only the-old-manor.co.uk",
+  "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+  "sourceObservedAt": "2026-10-17T12:41:10.457Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "the-old-manor.co.uk",
+      "venueId": "venue-uk-w42452556",
+      "osmId": "way/42452556",
+      "name": "The Old Manor",
+      "postcode": null,
+      "lat": 51.6966415,
+      "lng": -0.1936945,
+      "category": "soft-drink",
+      "priceGbp": 3.85,
+      "drinkLabel": "Raspberry & Rose Fever-Tree Raspberry & Rose Lemonade",
+      "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:41:10.457Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 52
+    },
+    {
+      "host": "the-old-manor.co.uk",
+      "venueId": "venue-uk-w42452556",
+      "osmId": "way/42452556",
+      "name": "The Old Manor",
+      "postcode": null,
+      "lat": 51.6966415,
+      "lng": -0.1936945,
+      "category": "soft-drink",
+      "priceGbp": 3.75,
+      "drinkLabel": "Raspberry & Rose Lemonade",
+      "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:41:10.457Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 52
+    },
+    {
+      "host": "the-old-manor.co.uk",
+      "venueId": "venue-uk-w42452556",
+      "osmId": "way/42452556",
+      "name": "The Old Manor",
+      "postcode": null,
+      "lat": 51.6966415,
+      "lng": -0.1936945,
+      "category": "soft-drink",
+      "priceGbp": 3.75,
+      "drinkLabel": "Sicilian Lemonade",
+      "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:41:10.457Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 52
+    },
+    {
+      "host": "the-old-manor.co.uk",
+      "venueId": "venue-uk-w42452556",
+      "osmId": "way/42452556",
+      "name": "The Old Manor",
+      "postcode": null,
+      "lat": 51.6966415,
+      "lng": -0.1936945,
+      "category": "soft-drink",
+      "priceGbp": 4.25,
+      "drinkLabel": "TRIP Basil & Lemon Magnesium, Lion's Mane, Ashwagandha",
+      "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:41:10.457Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 52
+    },
+    {
+      "host": "the-old-manor.co.uk",
+      "venueId": "venue-uk-w42452556",
+      "osmId": "way/42452556",
+      "name": "The Old Manor",
+      "postcode": null,
+      "lat": 51.6966415,
+      "lng": -0.1936945,
+      "category": "soft-drink",
+      "priceGbp": 4.35,
+      "drinkLabel": "TRIP Elderflower mInt Magnesium, Lion's Mane, Lemon Balm",
+      "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:41:10.457Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 52
+    }
+  ],
+  "withheld": [
+    {
+      "reason": "malformed-label-contains-price",
+      "row": {
+        "host": "the-old-manor.co.uk",
+        "venueId": "venue-uk-w42452556",
+        "osmId": "way/42452556",
+        "name": "The Old Manor",
+        "postcode": null,
+        "lat": 51.6966415,
+        "lng": -0.1936945,
+        "category": "soft-drink",
+        "priceGbp": 4.85,
+        "drinkLabel": "4.85 Cranberry & Mint Cranberry, Moroccan & English Mint, Fever-Tree Ginger Ale",
+        "sourceUrl": "https://www.the-old-manor.co.uk/food-drink/",
+        "observedAt": "2026-10-17T12:41:10.457Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 52
+      }
+    }
+  ]
+}

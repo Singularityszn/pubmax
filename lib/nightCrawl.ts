@@ -192,6 +192,12 @@ export function nightCrawlActionNote(
   if (outcome === "offline" && options?.queued) {
     return "Held on this phone. We'll try again when you've got signal.";
   }
+  if (outcome === "forbidden") {
+    return "You do not have permission to update this plan. Ask the host to check in or skip the stop.";
+  }
+  if (outcome === "rejected") {
+    return "That update was rejected. Open the full plan to check the route.";
+  }
   return "That did not save. Try again when you have signal.";
 }
 

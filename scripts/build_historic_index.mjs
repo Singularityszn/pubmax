@@ -153,6 +153,18 @@ export const VENUE_ID_BY_CACHE_KEY = {
   "the black friar, blackfriars": "venue-eltcmh",
   "the george inn": "venue-16ze6b1",
   "owl and pussycat": "venue-t3ii33",
+  // Merged into their duplicates by canonicalize:venues on 2026-10-17.
+  "anchor - bankside (southwark)": "venue-gv8lwa",
+  "crown & horseshoes (enfield)": "venue-168ndjw",
+  "queens, crouch end": "venue-1gy9xkj",
+  "temperance billiard hall, fulham": "venue-bdf9cy",
+  "the cock, fulham": "venue-x8tw9t",
+  "the fox, palmers green": "venue-1qb9nzj",
+  "the old shades": "venue-698bu3",
+  "the only running footman": "venue-1b9434y",
+  "ye olde mitre": "venue-68ns7y",
+  "the cross keys, hammersmith": "venue-1c7e71q",
+  "trafalgar tavern": "venue-1lj3hj4",
 };
 
 function resolveVenueAlias(venueId, aliases) {

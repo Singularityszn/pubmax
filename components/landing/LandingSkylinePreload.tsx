@@ -3,11 +3,11 @@ import {
   LANDING_SKYLINE_HERO_SIZES,
 } from "@/lib/landingSkylineHero";
 
-/** Desktop-only preload: on a phone the answer card owns LCP, not the Thames band. */
+/** Desktop-only preload: on a phone a pub card's own photograph owns LCP, not the Thames band. */
 const LANDING_SKYLINE_PRELOAD_MEDIA = "(min-width: 960px)";
 
 type LandingSkylinePreloadProps = {
-  /** When the priced answer card renders, phone LCP is the pub photo; otherwise Thames stays LCP on every width. */
+  /** True when the answer card stands on its pub's own photograph, the phone's LCP. A text card leaves Thames the LCP on every width. */
   phoneAnswerOwnsLcp: boolean;
 };
 

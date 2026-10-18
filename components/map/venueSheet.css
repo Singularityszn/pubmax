@@ -220,9 +220,14 @@
   border-bottom-color: var(--state-selected-border);
 }
 
-/* A hair of warmth under a hovered inactive tab — a hint the strip is alive. */
-.venueTab:not(.active):hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
+/* A hair of warmth under a hovered inactive tab — a hint the strip is alive.
+   A pointer's hover only: on a phone it stuck to whichever tab a thumb last
+   touched, often one it only began a scroll on, and drew a second box beside
+   the chosen tab. */
+@media (hover: hover) {
+  .venueTab:not(.active):hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 /* Visible keyboard focus on tabs. The outline sits INSIDE the tab: an offset
@@ -320,6 +325,16 @@
    matches, so we preserve the exact look here (no globals.css edit needed). */
 .venueAddress {
   color: var(--muted);
+}
+
+/* A quiet text door to the pub's own page, under the address. */
+.venuePubPageLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 
 /* Respect reduced-motion: none of the above motion is essential. */
@@ -694,6 +709,16 @@
      footer bar. */
   .mobileSharedSheet .venueInspector {
     padding-bottom: 8px;
+    /* ONE GUTTER. The shared sheet's body already pads 16px, which is where
+       the price row above sits. The 18px above was for the inline drawer's
+       content flush at x=0, and with the tab panel's own 12px it stacked to
+       46px, so the tabs sat 18px and their content 30px inside the price row
+       on every phone. The desktop drawer keeps one gutter the same way. */
+    padding-inline: 0;
+  }
+
+  .mobileSharedSheet .venueTabPanel {
+    padding-inline: 0;
   }
 
   /* ONE handle. The portal sheet draws its own grab bar in the header and owns
@@ -855,10 +880,12 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     transform var(--duration-fast) var(--ease-out);
 }
 
-.venueTab:hover,
-.venueTab:not(.active):hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+@media (hover: hover) {
+  .venueTab:hover,
+  .venueTab:not(.active):hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
 }
 
 /* Selection is the fill and a 2px INK underline, so it marks the tab without
@@ -1540,7 +1567,9 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   min-height: 44px; /* 44px-safe tap target on the citation link */
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--brass);
+  /* Coral as a WORD takes the accent ink: --brass is 2.5:1 as text on the
+     light sheet. */
+  color: var(--color-accent-ink);
   text-decoration: none;
 }
 

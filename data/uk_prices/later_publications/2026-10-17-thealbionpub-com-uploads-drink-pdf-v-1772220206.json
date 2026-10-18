@@ -1,0 +1,94 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only thealbionpub.com",
+  "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+  "sourceObservedAt": "2026-10-17T12:41:23.643Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "thealbionpub.com",
+      "venueId": "venue-uk-n9205363977",
+      "osmId": "node/9205363977",
+      "name": "The Albion",
+      "postcode": "W14 0QL",
+      "lat": 51.4944109,
+      "lng": -0.2127554,
+      "category": "soft-drink",
+      "priceGbp": 4,
+      "drinkLabel": "COLA",
+      "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+      "observedAt": "2026-10-17T12:41:23.643Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thealbionpub.com",
+      "venueId": "venue-uk-n9205363977",
+      "osmId": "node/9205363977",
+      "name": "The Albion",
+      "postcode": "W14 0QL",
+      "lat": 51.4944109,
+      "lng": -0.2127554,
+      "category": "soft-drink",
+      "priceGbp": 3.5,
+      "drinkLabel": "CRANBERRY 200 ML WATER",
+      "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+      "observedAt": "2026-10-17T12:41:23.643Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thealbionpub.com",
+      "venueId": "venue-uk-n9205363977",
+      "osmId": "node/9205363977",
+      "name": "The Albion",
+      "postcode": "W14 0QL",
+      "lat": 51.4944109,
+      "lng": -0.2127554,
+      "category": "soft-drink",
+      "priceGbp": 4,
+      "drinkLabel": "JUICE",
+      "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+      "observedAt": "2026-10-17T12:41:23.643Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    },
+    {
+      "host": "thealbionpub.com",
+      "venueId": "venue-uk-n9205363977",
+      "osmId": "node/9205363977",
+      "name": "The Albion",
+      "postcode": "W14 0QL",
+      "lat": 51.4944109,
+      "lng": -0.2127554,
+      "category": "soft-drink",
+      "priceGbp": 3.8,
+      "drinkLabel": "STILL OR SPARKLING 330 ML FEVER TREE",
+      "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+      "observedAt": "2026-10-17T12:41:23.643Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 69
+    }
+  ],
+  "withheld": [
+    {
+      "reason": "label-names-alcohol-or-mix",
+      "row": {
+        "host": "thealbionpub.com",
+        "venueId": "venue-uk-n9205363977",
+        "osmId": "node/9205363977",
+        "name": "The Albion",
+        "postcode": "W14 0QL",
+        "lat": 51.4944109,
+        "lng": -0.2127554,
+        "category": "soft-drink",
+        "priceGbp": 1.9,
+        "drinkLabel": "EMONADE MIX YOUR SPIRITS WITH DRAFT COKE , COKE ZERO , LEMONADE OR A SODA WATER",
+        "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
+        "observedAt": "2026-10-17T12:41:23.643Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 69
+      }
+    }
+  ]
+}
