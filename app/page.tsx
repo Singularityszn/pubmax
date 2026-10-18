@@ -88,7 +88,7 @@ export default async function Home() {
   // price archive. A null card renders no card and the plain receipt door,
   // never an invented pub. Passed as plain serialisable props into the client
   // LandingPage.
-  const [{ card, archive, rail, averages }, answers] = await Promise.all([
+  const [{ card, archive, rail, averages, priceReadLine }, answers] = await Promise.all([
     loadLandingHeroData(),
     // What is on today and what is on tonight, read at prerender from the same
     // lanes /today and /tonight read. Both fail soft to an honest line, so a
@@ -118,6 +118,7 @@ export default async function Home() {
         archive={archive}
         rail={rail}
         averages={averages}
+        priceReadLine={priceReadLine}
         answers={answers}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />

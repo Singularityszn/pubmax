@@ -6,7 +6,7 @@ import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { metadata as homeMetadata } from "@/app/page";
 import { loadAboutStats } from "@/lib/aboutStats";
 import { HOME_CARD_SUPPORT } from "@/lib/homeOgCard";
-import { loadLandingHeroData } from "@/lib/landingPubCard.server";
+import { landingPriceReadLine, loadLandingHeroData } from "@/lib/landingPubCard.server";
 
 // Site review, 18 Oct 2026: "The numbers disagree with each other. Homepage:
 // average listed pint £5.54 across 950 London pubs. About page: average £5.72."
@@ -34,5 +34,27 @@ describe("the homepage and /about print one historic-pub count", () => {
     expect(HOME_CARD_SUPPORT).toContain(`${stats.historicPubsCited} historic pubs`);
     expect(homeMetadata.openGraph?.description).toBe(HOME_CARD_SUPPORT);
     expect(homeMetadata.twitter?.description).toBe(HOME_CARD_SUPPORT);
+  });
+});
+
+describe("the homepage dates the prices behind its average", () => {
+  // Site review, 18 Oct 2026: "Freshness is quiet ... Surface 'last price
+  // logged' stamps where people land." The line names the oldest read as well
+  // as the newest, because it covers every price in the average.
+  it("prints the read range of the shipped dataset", async () => {
+    const hero = await loadLandingHeroData();
+    expect(hero.priceReadLine).toMatch(
+      /^Prices read (between \d{1,2} \w+ \d{4} and \d{1,2} \w+ \d{4}|on \d{1,2} \w+ \d{4})\.( [\d,]+ of the [\d,]+ records? no read day\.)?$/,
+    );
+  });
+
+  it("counts the prices that record no read day rather than hiding them", () => {
+    const dated = { name: "A", cheapestPrice: 5, prices: [{ price_gbp: 5, scraped_at_values: "2026-10-02T11:00:00Z" }] };
+    const undated = { name: "B", cheapestPrice: 6, prices: [{ price_gbp: 6 }] };
+    expect(landingPriceReadLine([dated] as never)).toBe("Prices read on 2 October 2026.");
+    expect(landingPriceReadLine([dated, undated] as never)).toBe(
+      "Prices read on 2 October 2026. 1 of the 2 records no read day.",
+    );
+    expect(landingPriceReadLine([undated] as never)).toBeNull();
   });
 });

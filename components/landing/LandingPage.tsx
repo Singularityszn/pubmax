@@ -51,6 +51,7 @@ export default function LandingPage({
   archive = {},
   rail = [],
   averages = null,
+  priceReadLine = null,
   answers = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
@@ -63,6 +64,8 @@ export default function LandingPage({
   rail?: LandingRailRow[];
   /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
   averages?: PintPriceAverages | null;
+  /** When the prices behind that average were read (lib/landingPubCard.server.ts). */
+  priceReadLine?: string | null;
   /** What is on today and what is on tonight, one sentence each. */
   answers?: LandingAnswers | null;
   socialFriendsLaunchEnabled?: boolean;
@@ -130,7 +133,13 @@ export default function LandingPage({
             one real pub and three next-cheapest rows. The DOM order is the
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
-        <LandingHero card={card} archive={archive} rail={rail} averages={averages} />
+        <LandingHero
+          card={card}
+          archive={archive}
+          rail={rail}
+          averages={averages}
+          priceReadLine={priceReadLine}
+        />
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 

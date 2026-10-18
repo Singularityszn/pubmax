@@ -9,6 +9,8 @@ import {
   buildLandingPubCard,
   type LandingPubCardData,
 } from "@/lib/landingPubCard";
+import { formatObservedDate } from "@/lib/dataFreshness";
+import { pintFactStats } from "@/lib/pintFacts";
 import { pintPriceAverages, pubCheapestPrices, type PintPriceAverages } from "@/lib/pintSavings";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
@@ -24,6 +26,15 @@ export type LandingHeroData = {
    * to mean anything (lib/pintSavings.ts).
    */
   averages: PintPriceAverages | null;
+  /**
+   * When the prices behind that average were read, as one line ("Prices read
+   * between 3 July 2026 and 2 October 2026."), from the same pubs. A line that
+   * covers many prices names the oldest read as well as the newest, and it
+   * counts the prices that record no read day rather than letting the range
+   * stand for them (the borough fact block's rule, lib/pintFacts.ts). Null when
+   * no price records a read. Site review, 18 Oct 2026: "Freshness is quiet."
+   */
+  priceReadLine: string | null;
 };
 
 // The landing document is prerendered (app/page.tsx, force-static), so this
@@ -41,13 +52,38 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
       const archive = buildLandingArchiveIndex(venues, history);
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
       const averages = pintPriceAverages(pubCheapestPrices(venues));
-      return { card, archive, rail, averages };
+      const priceReadLine = averages ? landingPriceReadLine(venues) : null;
+      return { card, archive, rail, averages, priceReadLine };
     })
     .catch(() => {
       // A failed read renders no card rather than an invented one, and the
       // next build gets a fresh attempt.
       cached = null;
-      return { card: null, archive: {}, rail: [], averages: null };
+      return { card: null, archive: {}, rail: [], averages: null, priceReadLine: null };
     });
   return cached;
+}
+
+/**
+ * The read range of the pubs the landing average is taken over. Each pub's day
+ * is the read of its own cheapest pint (`pintFactStats`), never the day the
+ * list was rebuilt.
+ */
+export function landingPriceReadLine(
+  venues: Parameters<typeof pintFactStats>[0],
+): string | null {
+  const stats = pintFactStats(venues, "London", "london");
+  if (stats.pubCount === 0) return null;
+  if (!stats.oldestObservedAt || !stats.newestObservedAt) return null;
+  const oldest = formatObservedDate(new Date(stats.oldestObservedAt));
+  const newest = formatObservedDate(new Date(stats.newestObservedAt));
+  const range =
+    oldest === newest ? `Prices read on ${newest}.` : `Prices read between ${oldest} and ${newest}.`;
+  if (stats.undatedCount === 0) return range;
+  // The borough fact block's own wording (lib/pintFacts.ts): the range dates
+  // the prices that record a read, and the rest are counted, never hidden.
+  const undated = stats.undatedCount.toLocaleString("en-GB");
+  return `${range} ${undated} of the ${stats.pubCount.toLocaleString("en-GB")} ${
+    stats.undatedCount === 1 ? "records" : "record"
+  } no read day.`;
 }

@@ -82,6 +82,7 @@ describe("landing hero rhythm", () => {
         { id: "venue-3", name: "The Sir John Hawkshaw", area: "City of London", primaryBorough: "City of London", priceGbp: 3.49, hasThen: false },
       ],
       averages: { averageGbp: 5.54, cheapAverageGbp: 4.17, sampleSize: 950 },
+      priceReadLine: "Prices read between 3 July 2026 and 2 October 2026.",
     }),
   );
 
@@ -106,7 +107,7 @@ describe("landing hero rhythm", () => {
     // The figures are the ones handed in (lib/pintSavings.ts measures them from
     // the priced read), never typed into the hero.
     expect(hero).toContain(
-      '<p class="screenLede">The average listed pint across 950 London pubs is £5.54. In the cheapest third it&#x27;s £4.17. That&#x27;s £1.37 a pint you keep.</p>',
+      '<p class="screenLede">The average listed pint across 950 London pubs is £5.54. In the cheapest third it&#x27;s £4.17. That&#x27;s £1.37 a pint you keep. <span class="lpLedeReads">Prices read between 3 July 2026 and 2 October 2026.</span></p>',
     );
     expect(hero).toContain('alt="Tower Bridge and the Thames in London from above"');
     expect(hero).toContain('/landing/hero-thames-1600.avif');

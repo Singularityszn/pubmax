@@ -746,6 +746,16 @@ a.lpPubPint:hover { color: var(--ink); }
 
 /* ── Today and tonight: two answers, one sentence each ──────────────────── */
 
+/* The read range under the saving line: the same paragraph, so the average and
+   its dates are one claim, set in the data face a dated figure uses
+   elsewhere on this page. */
+.lpLedeReads {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font: 550 var(--text-xs)/1.4 var(--font-data);
+}
+
 .lpAnswers {
   width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
   margin: 0 auto;
