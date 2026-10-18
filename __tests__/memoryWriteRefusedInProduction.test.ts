@@ -76,6 +76,34 @@ describe("a write that meets a missing table", () => {
     expect(memoryMarkRead).not.toHaveBeenCalled();
   });
 
+  it("refuses to open a conversation in production, so no memory id reaches send", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    const memoryOpen = vi.spyOn(memoryMessagesStore, "openConversation");
+    await expect(supabaseMessagesStore.openConversation("ripley", "fox")).resolves.toBeNull();
+    expect(memoryOpen).not.toHaveBeenCalled();
+  });
+
+  it("refuses to open or leave a group in production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    const memoryGroup = vi.spyOn(memoryMessagesStore, "openGroupConversation");
+    const memoryLeave = vi.spyOn(memoryMessagesStore, "leaveGroupConversation");
+    await expect(
+      supabaseMessagesStore.openGroupConversation("ripley", ["ripley", "fox", "otter"], "Friday"),
+    ).resolves.toEqual({ status: "unavailable" });
+    await expect(supabaseMessagesStore.leaveGroupConversation(CONVERSATION, "ripley")).resolves.toBe(
+      "unavailable",
+    );
+    expect(memoryGroup).not.toHaveBeenCalled();
+    expect(memoryLeave).not.toHaveBeenCalled();
+  });
+
+  it("still opens a conversation in memory off production", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const memoryOpen = vi.spyOn(memoryMessagesStore, "openConversation");
+    await supabaseMessagesStore.openConversation("ripley", "fox");
+    expect(memoryOpen).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses a rating in production", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
     reply = MISSING_RATINGS;

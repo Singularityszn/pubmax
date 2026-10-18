@@ -698,7 +698,11 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("openConversation", err);
-        return memoryMessagesStore.openConversation(a, b);
+        // A memory id would also send every later write down the memory fast
+        // path in `send`, past that method's own guard, so this door refuses too.
+        return memoryWriteOffProduction("openConversation", null, () =>
+          memoryMessagesStore.openConversation(a, b),
+        );
       }
       console.error(
         "[messages] openConversation failed:",
@@ -747,7 +751,11 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingGroupSchema(err)) {
         warnMemoryFallback("openGroupConversation", err);
-        return memoryMessagesStore.openGroupConversation(owner, handles, title);
+        return memoryWriteOffProduction<GroupOpenOutcome>(
+          "openGroupConversation",
+          { status: "unavailable" },
+          () => memoryMessagesStore.openGroupConversation(owner, handles, title),
+        );
       }
       console.error(
         "[messages] openGroupConversation failed:",
@@ -783,7 +791,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingGroupSchema(err)) {
         warnMemoryFallback("leaveGroupConversation", err);
-        return memoryMessagesStore.leaveGroupConversation(conversationId, me);
+        return memoryWriteOffProduction<GroupLeaveOutcome>("leaveGroupConversation", "unavailable", () =>
+          memoryMessagesStore.leaveGroupConversation(conversationId, me),
+        );
       }
       console.error(
         "[messages] leaveGroupConversation failed:",
