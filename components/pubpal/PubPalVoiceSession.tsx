@@ -34,6 +34,7 @@ import { Mic, MicOff, Send } from "lucide-react";
 
 import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
+import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -192,6 +193,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const openMap = useCallback((): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     setMapPending(true);
+    playPalVoiceSound("map");
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
       router.push(PAL_VOICE_MAP_HREF);
@@ -283,6 +285,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     if (!ownsAttempt(attempt)) return;
     const wasCurrent = activeAttemptRef.current === attempt;
     const resetSdk = attempt.sdkSessionStarted && attempt.connectedAt === null;
+    if (attempt.connectedAt !== null) playPalVoiceSound("end");
     attempt.cancelled = true;
     startController.cancel();
     setIsStarting(false);
@@ -425,7 +428,10 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             // denied, and a socket that never opened are all sessions that
             // never started. `connectedAt` is null until here, so it is also
             // the latch: a reconnect on the same attempt reports once.
-            if (attempt.connectedAt === null) trackEvent("voice_started");
+            if (attempt.connectedAt === null) {
+              trackEvent("voice_started");
+              playPalVoiceSound("start");
+            }
             attempt.connectedAt = Date.now();
             clearCapTimer(attempt);
             attempt.capTimer = window.setTimeout(() => {
@@ -435,6 +441,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
           onDisconnect: () => {
             attempt.voiceEndReason ??= "disconnect";
             if (!ownsAttempt(attempt)) return;
+            if (attempt.connectedAt !== null) playPalVoiceSound("end");
             conversationIdRef.current = null;
             startController.settle();
             setIsStarting(false);

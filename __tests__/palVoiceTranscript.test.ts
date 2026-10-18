@@ -1,4 +1,8 @@
+import { existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { PAL_VOICE_SOUND_SRC } from "@/components/pubpal/palVoiceSounds";
 
 import {
   appendPalVoiceLine,
@@ -77,5 +81,17 @@ describe("the voice transcript", () => {
     expect(tentativeUserTranscriptFrom({ type: "ping" })).toBeNull();
     expect(tentativeUserTranscriptFrom(null)).toBeNull();
     expect(tentativeUserTranscriptFrom({ type: "tentative_user_transcript" })).toBeNull();
+  });
+});
+
+describe("the voice panel cues", () => {
+  it("ships every cue it plays, as a small same-origin file", () => {
+    for (const src of Object.values(PAL_VOICE_SOUND_SRC)) {
+      expect(src.startsWith("/sounds/pal/")).toBe(true);
+      const file = join(process.cwd(), "public", src);
+      expect(existsSync(file), src).toBe(true);
+      // A cue is a blip, not a track: anything larger was not trimmed.
+      expect(statSync(file).size, src).toBeLessThan(40_000);
+    }
   });
 });

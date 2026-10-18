@@ -25,6 +25,10 @@ const navigation = vi.hoisted(() => ({
   push: vi.fn(),
 }));
 
+const sounds = vi.hoisted(() => ({
+  play: vi.fn(),
+}));
+
 vi.mock("@elevenlabs/react", () => ({
   ConversationProvider: ({ children }: { children: ReactNode }) => children,
   useConversationControls: () => ({
@@ -46,6 +50,10 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: navigation.push }),
+}));
+
+vi.mock("@/components/pubpal/palVoiceSounds", () => ({
+  playPalVoiceSound: sounds.play,
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
@@ -132,6 +140,7 @@ beforeEach(() => {
   requests.authedActionFetch.mockReset();
   analytics.trackEvent.mockReset();
   navigation.push.mockReset();
+  sounds.play.mockReset();
   requests.authedActionFetch.mockResolvedValue(new Response(null, { status: 204 }));
 
   vi.stubGlobal(
@@ -1093,9 +1102,28 @@ describe("Pub Pal voice transcript", () => {
       session.onMessage?.({ role: "user", message: "Can you show me the map?" });
     });
     expect(container.querySelector(".palVoiceMapCard")?.textContent).toContain("Opening the map");
+    expect(sounds.play).toHaveBeenLastCalledWith("map");
     expect(navigation.push).not.toHaveBeenCalled();
     await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
+  });
+
+  it("chimes once when the line opens and once when it closes", async () => {
+    const session = await startLiveSession();
+    expect(sounds.play.mock.calls).toEqual([["start"]]);
+    await act(async () => {
+      session.onConnect?.();
+    });
+    expect(sounds.play.mock.calls).toEqual([["start"]]);
+    await act(async () => {
+      [...container.querySelectorAll("button")].find((button) => button.textContent?.includes("End"))?.click();
+      await Promise.resolve();
+    });
+    expect(sounds.play.mock.calls).toEqual([["start"], ["end"]]);
+    await act(async () => {
+      session.onDisconnect?.();
+    });
+    expect(sounds.play.mock.calls).toEqual([["start"], ["end"]]);
   });
 
   it("never moves on the Pal's own words", async () => {
