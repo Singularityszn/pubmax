@@ -84,7 +84,10 @@ describe("tonight lane headings", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/whats-on?kind=music&window=tonight&limit=8");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/whats-on?kind=music&window=tonight&limit=8",
+      expect.any(Object),
+    );
     expect(Array.from(container!.querySelectorAll(".dealsTonightCard strong"), (card) => card.textContent))
       .toEqual(["Acoustic set 0", "Acoustic set 1", "Acoustic set 2", "Acoustic set 3"]);
     expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 23 Sept");
