@@ -180,10 +180,10 @@ function WhereYourSixGoes() {
           style={{ gridTemplateColumns: `${taxGbp}fr ${split.restGbp}fr` }}
         >
           <span className="pulseSplitLabel">
-            Tax <b>{formatPintMoney(taxGbp)}</b>
+            Tax <b className="pulseSplitLabelFigure">{formatPintMoney(taxGbp)}</b>
           </span>
           <span className="pulseSplitLabel">
-            Everything else <b>{formatPintMoney(split.restGbp)}</b>
+            Everything else <b className="pulseSplitLabelFigure">{formatPintMoney(split.restGbp)}</b>
           </span>
         </div>
         <div className="pulseSplitBar">

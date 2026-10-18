@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { priceBand } from "@/lib/priceBand";
 import Link from "next/link";
 
@@ -80,7 +80,7 @@ export default async function BoroughIndexPage() {
                 <RowListItem
                   key={borough.slug}
                   className="boroughRow createFabLane"
-                  href={`/borough/${borough.slug}`}
+                  href={`/borough/${borough.slug}` as Route}
                   title={borough.name}
                   meta={
                     <>

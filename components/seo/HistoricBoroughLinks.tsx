@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { ReactElement } from "react";
 
 import { RowList, RowListItem } from "@/components/ui/row-list";
@@ -46,7 +47,7 @@ export default function HistoricBoroughLinks({
           <RowListItem
             key={row.slug}
             className="historicBoroughLink"
-            href={`/borough/${row.slug}#boroughHeritageHeading`}
+            href={`/borough/${row.slug}#boroughHeritageHeading` as Route}
             title={row.borough}
             meta={
               <>

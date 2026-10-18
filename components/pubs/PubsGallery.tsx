@@ -67,10 +67,10 @@ function PubPhoto({ photoUrl }: { photoUrl: string }) {
           sources={[{ url: photoUrl, provenance: "chain" }]}
           alt=""
           fill
-          // One column at 420 and under, two up to 640, and a 260-300px cell
-          // above that. Capped at 640: a 3x phone has no use for a third pass
-          // of pixels over a card photograph.
-          sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 320px"
+          // One column at 420 and under, two up to 640, and a column of at
+          // most 344px above that. Capped at 640: a 3x phone has no use for a
+          // third pass of pixels over a card photograph.
+          sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"
           maxWidth={640}
         />
       </div>

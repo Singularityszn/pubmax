@@ -175,7 +175,7 @@
   white-space: nowrap;
 }
 
-.pulseSplitLabel b {
+.pulseSplitLabelFigure {
   margin-left: var(--space-1);
   color: var(--color-text);
   font-family: var(--font-data);

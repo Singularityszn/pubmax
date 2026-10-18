@@ -435,7 +435,7 @@ export default async function BoroughPage({ params }: PageProps) {
                 return (
                   <RowListItem
                     key={pub.slug}
-                    href={`/historic/${pub.slug}`}
+                    href={`/historic/${pub.slug}` as Route}
                     title={pub.name}
                     meta={facts || undefined}
                   />
