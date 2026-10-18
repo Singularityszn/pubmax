@@ -758,7 +758,7 @@
 }
 .planIntake__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .planIntake__palEntry { margin: 10px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
-.planIntake__palEntry a { display: inline-flex; align-items: center; min-height: 44px; color: var(--plan-accent-strong); font-weight: 750; text-underline-offset: 3px; }
+.planIntake__palEntry a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 600; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 @media (hover: hover) {
   .planIntake__palEntry a:hover { color: var(--ink); }
 }
@@ -810,12 +810,13 @@
 
 /* Quiet secondary intake buttons when disabled. */
 .planIntake button:disabled { opacity: 0.5; cursor: not-allowed; }
-/* M3: Continue primary — coral fill @ 0.58 (beats `button:disabled` specificity). */
+/* A Continue that cannot act yet is the neutral surface, as the composer's
+   submit is (M3 above): pale coral read as a broken primary (taste pass). */
 .planIntake button.planIntake__continue:disabled {
-  border-color: var(--accent-action);
-  background: var(--accent-action);
-  color: var(--color-on-accent);
-  opacity: 0.58;
+  border-color: var(--line);
+  background: var(--panel-raised);
+  color: var(--color-text-muted);
+  opacity: 1;
   cursor: not-allowed;
   filter: none;
 }
@@ -842,7 +843,10 @@
   letter-spacing: -0.035em;
 }
 .planIntake__stage h2:focus {
-  outline: 3px solid color-mix(in srgb, var(--plan-accent) 60%, transparent);
+  outline: none;
+}
+.planIntake__stage h2:focus-visible {
+  outline: 2px solid var(--state-selected-border);
   outline-offset: 6px;
   border-radius: 4px;
 }
@@ -896,7 +900,7 @@
 /* One choice of three, read down the step: the label, then its note on the
    same line. Three cards side by side was the template tell (taste pass). */
 .planIntake__choices--cards { display: grid; grid-template-columns: minmax(0, 1fr); }
-.planIntake__choices--cards button { min-height: 52px; display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); text-align: left; }
+.planIntake__choices--cards button { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); text-align: left; }
 .planIntake__choices--cards small { color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 500; line-height: 1.35; }
 .planIntake__exactTime { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 6px; color: var(--ink-soft); font-size: 0.78rem; }
 .planIntake__exactTime input { width: min(100%, 270px); }
