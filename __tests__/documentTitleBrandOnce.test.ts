@@ -29,9 +29,7 @@ const BRAND_IS_THE_SUBJECT = new Map<string, string>([
 
 // Titles another open pull request already rewrites. Each row names its owner,
 // and the list may only shrink.
-const PENDING_IN_OPEN_PR = new Map<string, string>([
-  ["app/pint-index/page.tsx", "#2135 rewrites the Pint Index title and description."],
-]);
+const PENDING_IN_OPEN_PR = new Map<string, string>([]);
 
 function pageFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
