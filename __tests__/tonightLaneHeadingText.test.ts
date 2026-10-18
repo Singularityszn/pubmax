@@ -3,13 +3,14 @@
 import { createElement, type ComponentType, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import TonightOnTonightSummary from "@/app/tonight/TonightOnTonightSummary";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane, { type MusicTonightLaneProps } from "@/components/discovery/MusicTonightLane";
 import TonightMapPointer from "@/components/discovery/TonightMapPointer";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -47,6 +48,9 @@ afterEach(() => {
   container?.remove();
   container = null;
   root = null;
+  clearSurfaceCache();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function headingText(element: ReactElement, headingId: string): string | null | undefined {
@@ -60,6 +64,32 @@ function headingText(element: ReactElement, headingId: string): string | null | 
 }
 
 describe("tonight lane headings", () => {
+  it("renders self-fetched music cards with their oldest observation date", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    const rows = Array.from({ length: 4 }, (_, index) => ({
+      ...musicRow,
+      id: `music-${index}`,
+      title: `Acoustic set ${index}`,
+      startsAt: new Date(NOW).toISOString(),
+      observedAt: index === 1 ? "2026-09-23T12:00:00Z" : musicRow.observedAt,
+    }));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
+      rows: [...rows, { ...musicRow, id: "invalid", title: "Invalid listing", source: null }],
+      asOf: "2026-09-07T12:00:00Z",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await act(async () => {
+      headingText(createElement(MusicTonightLane), "music-tonight-title");
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/whats-on?kind=music&window=tonight&limit=8");
+    expect(Array.from(container!.querySelectorAll(".dealsTonightCard strong"), (card) => card.textContent))
+      .toEqual(["Acoustic set 0", "Acoustic set 1", "Acoustic set 2", "Acoustic set 3"]);
+    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 23 Sept");
+  });
+
   it("dates the music cards from their own observations, not a different feed", () => {
     headingText(createElement(MusicTonightLane as ComponentType<MusicTonightLaneProps>, {
       rows: [{ ...musicRow, title: "ABBA Voyage", observedAt: "2026-10-18T10:00:00Z" }],

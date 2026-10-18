@@ -49,7 +49,7 @@ export default function MusicTonightLane({ rows: providedRows }: MusicTonightLan
       },
       (body) => {
         const rows = (Array.isArray(body.rows) ? body.rows : [])
-          .filter(isValidWhatsOnRow)
+          .filter((row) => isValidWhatsOnRow(row))
           .slice(0, 8);
         setState({ rows });
       },
