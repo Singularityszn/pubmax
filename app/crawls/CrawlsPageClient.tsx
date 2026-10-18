@@ -4,25 +4,24 @@ import type { Route } from "next";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import Link from "next/link";
-import { Check, Copy, MapPin, Flag } from "lucide-react";
+import { Check, Copy, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
-import { bandById } from "@/lib/storyBands";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
 import Screen from "@/components/ui/screen";
-import RouteThumbnail from "./RouteThumbnail";
+import { plainDashes } from "@/components/listing/displayCase";
 import {
   buildCrawlRouteSummary,
   crawlPriceRange,
-  formatCrawlRouteSummary,
   formatPriceRange,
 } from "./routeSummary";
+import "@/components/listing/listing.css";
 import "./crawls.css";
 
 // The landmark a crawl starts at (story 27) — "starts at Big Ben"-style chip.
@@ -167,7 +166,7 @@ export default function CrawlsPageClient({ pack, encodedStory }: {
   return (
     <main
       id="main"
-      className="crawlsShell"
+      className="crawlsShell listingShell"
       aria-busy={venueIndexStatus === "loading"}
       data-venue-index-status={venueIndexStatus}
     >
@@ -186,7 +185,7 @@ export default function CrawlsPageClient({ pack, encodedStory }: {
           kicker="Crawls"
           title="London pub crawl routes"
           titleId="crawlsHeading"
-          lede="Pub stories mapped into walks. Share a London pub crawl with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
+          lede="Pub stories mapped into walks, each with its stops, prices and the walk between them. Pick one, or start your own on the map."
           primary={
             <Link
               prefetch={false}
@@ -275,9 +274,10 @@ export default function CrawlsPageClient({ pack, encodedStory }: {
   );
 }
 
-// The one full-width card at the top of the empty state — keeps the route
-// thumbnail + honest metrics that made the old grid nice, minus the
-// repetition of shipping 15 of them.
+// The one featured crawl, said in four things (taste plan, 18 Oct 2026): its
+// name, its one line, a meta line and one quiet link. It used to stack eight
+// treatments: a coral caps style pill, the name, the line, a 58px route glyph,
+// the walk, "Pints from", a flag chip, the stop count and a coral link.
 function FeaturedCrawlCard({
   crawl,
   slimById,
@@ -286,38 +286,30 @@ function FeaturedCrawlCard({
   slimById: ReadonlyMap<string, SlimVenue>;
 }) {
   const originName = startLandmarkName(crawl);
-  const placeStory = crawl.placeStoryBandId ? bandById(crawl.placeStoryBandId) : undefined;
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
   const priceRange = crawlPriceRange(crawl.venueIds, slimById);
+  const stops = crawl.venueIds.length;
+  const meta = [
+    `${stops} stop${stops === 1 ? "" : "s"}${originName ? ` from ${originName}` : ""}`,
+    routeSummary ? `${routeSummary.totalMinutes} min walk` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="curatedFeaturedWrap">
       <p className="crawlEyebrow curatedFeaturedEyebrow">Featured crawl</p>
       <article key={crawl.id} id={crawl.id} className="curatedCard curatedFeaturedCard">
-        <span className="curatedBadge">{styleLabel(crawl.crawlStyle)}</span>
         <h2 className="curatedName">{crawl.name}</h2>
-        <p className="curatedBlurb">{crawl.blurb}</p>
-        {routeSummary ? (
-          <div className="curatedRoute">
-            <RouteThumbnail points={routeSummary.points} className="curatedRouteThumb" />
-            <span className="curatedRouteMeta">{formatCrawlRouteSummary(routeSummary)}</span>
-          </div>
-        ) : null}
-        {priceRange ? (
-          <span className="curatedPriceFrom">Pints from {formatPriceRange(priceRange)}</span>
-        ) : null}
-        {originName ? (
-          <span className="curatedOriginChip">
-            <Flag size={12} aria-hidden="true" /> Starts at {originName}
-          </span>
-        ) : null}
-        {placeStory ? (
-          <span className="curatedOriginChip curatedPlaceStoryChip">
-            Place story · {placeStory.title}
-          </span>
-        ) : null}
+        <p className="curatedBlurb">{plainDashes(crawl.blurb)}</p>
         <p className="curatedMeta">
-          {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+          {meta}
+          {priceRange ? (
+            <>
+              {". Pints "}
+              <span className="curatedPriceRange">{formatPriceRange(priceRange)}</span>
+            </>
+          ) : null}
         </p>
         <Link
           prefetch={false}
@@ -325,7 +317,7 @@ function FeaturedCrawlCard({
           className="curatedPlanBtn"
           aria-label={`Plan the ${crawl.name} crawl on the map`}
         >
-          Plan this crawl →
+          Plan this crawl
         </Link>
       </article>
     </div>
@@ -362,9 +354,9 @@ function CompactCrawlRow({
           <span className="crawlCompactStops">
             {stopCount} stop{stopCount === 1 ? "" : "s"}
           </span>
-          <span className="crawlCompactPrice">
-            {priceRange ? formatPriceRange(priceRange) : "–"}
-          </span>
+          {priceRange ? (
+            <span className="crawlCompactPrice">{formatPriceRange(priceRange)}</span>
+          ) : null}
         </span>
       </Link>
     </li>
@@ -389,7 +381,7 @@ function CrawlPoster({
   // the surface, the heading is the story's own name, the one primary starts
   // the crawl on the map and the quiet way onward is the bare map.
   return (
-    <article className="crawlPoster">
+    <article className="crawlPoster listingSection">
       <Screen
         as="section"
         className="crawlPosterHead"
@@ -429,7 +421,7 @@ function CrawlPoster({
                 {stop.note ? <p className="crawlStopNote">{stop.note}</p> : null}
               </div>
               <span className="crawlStopPrice">
-                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
+                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "No price"}
               </span>
             </li>
           ))}
