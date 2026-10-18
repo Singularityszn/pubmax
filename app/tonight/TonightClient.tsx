@@ -172,6 +172,11 @@ function areaNewsSlug(
   return area?.slug ?? null;
 }
 
+function TonightUnmatchedNotice({ out }: { out: TonightOutAnswer }): ReactNode {
+  if (!out.body?.events.some((row) => !row.venueId)) return null;
+  return <p className="tonightProvenance">Some event listings are not matched to a pub.</p>;
+}
+
 // Presentation order is independent of grouping: Deals/Music full lanes follow
 // the main list on phones. Desktop keeps a compact rail summary instead
 // (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
@@ -918,6 +923,7 @@ export default function TonightClient({
           are about. A stamp is a footnote on the data, and nobody shares a list
           they have not read yet. */}
       <div className="tonightHeadCredits">
+        <TonightUnmatchedNotice out={outAnswer} />
         {ready || empty ? (
           <TonightProvenanceLines
             provenance={provenance}

@@ -16,27 +16,23 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./dealsTonightLane.css";
 
-type MusicState = { rows: WhatsOnRow[]; asOf: string | null };
+type MusicState = { rows: WhatsOnRow[] };
 
 export type MusicTonightLaneProps = {
   /** When provided, render from these already-loaded rows (music families are
    *  filtered out here) and skip the self-fetch, so a host that already loaded the
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover. */
   rows?: WhatsOnRow[];
-  /** Freshest confirmation for MUSIC specifically. This lane is about one
-   *  source, so it may not borrow the page's freshest date: if only July
-   *  evidence exists for live music, July is what this line says however
-   *  recently another feed was rebuilt. Absent means we cannot date it, and
-   *  checkedLabel says exactly that. */
+  /** Compatibility input. The rendered cards own their observation dates. */
   asOf?: string | null;
 };
 
 /** Below this count we label coverage as thin rather than implying a full guide. */
 const THIN_COVERAGE_MAX = 4;
 
-export default function MusicTonightLane({ rows: providedRows, asOf: providedAsOf }: MusicTonightLaneProps = {}) {
+export default function MusicTonightLane({ rows: providedRows }: MusicTonightLaneProps = {}) {
   const provided = providedRows !== undefined;
-  const [state, setState] = useState<MusicState>({ rows: [], asOf: null });
+  const [state, setState] = useState<MusicState>({ rows: [] });
 
   useEffect(() => {
     if (provided) return; // reuse mode: the host already loaded the spine.
@@ -55,19 +51,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
         const rows = (Array.isArray(body.rows) ? body.rows : [])
           .filter(isValidWhatsOnRow)
           .slice(0, 8);
-        // Self-fetch mode asks for kind=music alone, so the response-level
-        // freshness IS this source's freshness; kindObservedAt.music is the
-        // same answer and is preferred when the server sends it.
-        const musicObservedAt = (body.kindObservedAt as Record<string, unknown> | undefined)?.music;
-        setState({
-          rows,
-          asOf:
-            typeof musicObservedAt === "string"
-              ? musicObservedAt
-              : typeof body.asOf === "string"
-                ? body.asOf
-                : null,
-        });
+        setState({ rows });
       },
     );
     return () => controller.abort();
@@ -76,7 +60,12 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
   const rows = provided
     ? providedRows.filter((row) => row.kind === "music").slice(0, 8)
     : state.rows;
-  const asOf = provided ? (providedAsOf ?? null) : state.asOf;
+  // A merged lane can contain Out rows that the music feed never observed.
+  // Date the cards themselves, using the oldest check that covers every row.
+  const checks = rows.map((row) => Date.parse(row.observedAt));
+  const asOf = checks.length > 0 && checks.every(Number.isFinite)
+    ? new Date(Math.min(...checks)).toISOString()
+    : null;
 
   if (rows.length === 0) return null;
 

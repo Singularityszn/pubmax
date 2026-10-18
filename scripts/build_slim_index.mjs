@@ -36,6 +36,7 @@ import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -174,7 +175,7 @@ const FAMOUS_SLIM_KINDS = new Set(["bar", "food", "restaurant"]);
 function shippedFamousVenueIds(payload) {
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
   return rows
-    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind))
+    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind) && (row.anchorLabel || !row.id?.startsWith("venue-")))
     .map((row) => row.id);
 }
 
@@ -937,8 +938,10 @@ async function main() {
     if (zone === null) zoneUnknown += 1;
     else zoneCounts[zone] = (zoneCounts[zone] ?? 0) + 1;
 
+    const kind = legacyOsmVenueKind(groupRows);
     slim.push({
       id,
+      kind,
       name: String(first.pub_name),
       lat,
       lng,

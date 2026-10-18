@@ -61,6 +61,8 @@ const TICKETMASTER_ROWS = Array.from({ length: 24 }, (_, index) => ({
   confidence: "listed",
 })) as WhatsOnRow[];
 
+const OUT_EVENTS: WhatsOnRow[] = [];
+
 const HYPED: HypedPub[] = [
   {
     name: "The Pelican Rise",
@@ -105,7 +107,7 @@ vi.mock("@/components/map/useWhatsOnTonight", () => ({
 }));
 vi.mock("@/components/out/useOutListings", () => ({
   useOutListings: () => ({
-    body: { status: "ready", listingsStatus: "ready", events: [], reason: undefined },
+    body: { status: "ready", listingsStatus: "ready", events: OUT_EVENTS, reason: undefined },
     failed: false,
     pending: false,
     retry: () => {},
@@ -127,6 +129,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  OUT_EVENTS.length = 0;
 });
 
 async function mount(props: Record<string, unknown> = {}): Promise<void> {
@@ -143,6 +146,12 @@ function ledeText(): string {
 }
 
 describe("the tonight lede, hydrated", () => {
+  it("explains why event listings without a pub match are absent", async () => {
+    OUT_EVENTS.push({ ...TICKETMASTER_ROWS[0]!, id: "unmatched-arena", venueId: undefined });
+    await mount();
+    expect(container.textContent).toContain("Some event listings are not matched to a pub.");
+  });
+
   it("keeps every Wetherspoon and Ticketmaster row out of the lede region", async () => {
     await mount();
     const lede = ledeText();
