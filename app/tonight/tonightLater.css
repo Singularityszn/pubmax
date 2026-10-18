@@ -6,7 +6,7 @@
 .tonightLater,
 .tonightOpenPlans,
 .tonightWallLine {
-  margin: 0 0 22px;
+  margin: 0 0 var(--space-6);
 }
 
 .outDayChips {
@@ -56,9 +56,13 @@ html[data-text-scale="large"] .outDayChip {
   border-radius: calc(var(--radius-lg) - 2px);
 }
 
+/* The chosen day is a selection, so it reads in ink, never a coral fill: the
+   page's one coral is its primary (docs/DESIGN_SYSTEM.md "Coral is spent
+   twice"). The weight step keeps colour from being the only cue. */
 .outDayChip[aria-pressed="true"] {
-  background: var(--brass);
-  color: var(--color-on-accent, var(--paper));
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+  font-weight: 800;
 }
 
 .outDayChip:focus-visible {
@@ -326,12 +330,11 @@ html[data-text-scale="large"] .outDayChip {
   gap: 8px;
 }
 
+/* A label, not a stamp: sentence case in muted ink. */
 .outListingPubPairLabel {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-accent-ink);
+  color: var(--color-text-muted);
 }
 
 .outListingPubPairName {
@@ -362,7 +365,7 @@ html[data-text-scale="large"] .outDayChip {
 
 @media (hover: hover) and (pointer: fine) {
   .outListingPubPairLink:hover {
-    border-color: var(--state-active-border, var(--brass));
+    border-color: var(--state-selected-border);
     color: var(--ink);
   }
 }

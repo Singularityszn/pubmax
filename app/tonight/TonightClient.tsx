@@ -20,15 +20,15 @@ import {
   Footprints,
   LocateFixed,
   MapPin,
-  Route as RouteIcon,
-  TrainFront,
   Tv,
   X,
 } from "lucide-react";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
+import PriceBadge from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
+import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
@@ -149,8 +149,14 @@ type LocationStatus = "idle" | "requesting" | "unavailable";
 // answer, and NEVER `asOf`: that field is the freshest of the bundled
 // artifacts and the rows, so a quiet night took its date off a snapshot file
 // and told a phone the night was checked two weeks ago (captain 6 Sep 2026).
+//
+// A read with no observed day is undated too. `checkedLabel(null)` answers the
+// sentence "No date on this yet", and set inside the chain it printed "No
+// events listed · No date on this yet · via what's-on" on a phone (taste
+// plan, 18 Oct 2026); null hands it to the one undated sentence instead.
 function freshnessLabel(kind: TonightFreshnessKind, observedAt: string | null): string | null {
-  return kind === "unknown" ? null : checkedLabel(observedAt);
+  if (kind === "unknown" || !observedAt) return null;
+  return checkedLabel(observedAt);
 }
 
 // The sourced pub suggestions are counted once: the credit row and the empty
@@ -194,7 +200,6 @@ function isThinNight(empty: boolean, ready: boolean, listingCount: number): bool
 
 type QuietAlternative = {
   href: Route;
-  icon: typeof TrainFront;
   title: string;
   sub: string;
 };
@@ -205,13 +210,11 @@ type QuietAlternative = {
 const QUIET_ALTERNATIVES: QuietAlternative[] = [
   {
     href: "/map",
-    icon: TrainFront,
     title: "Check your last train home",
     sub: "Open a pub's Getting Home tab on the map",
   },
   {
     href: "/crawls",
-    icon: RouteIcon,
     title: "Browse crawls",
     sub: "Multi-stop routes worth planning around",
   },
@@ -603,8 +606,11 @@ export default function TonightClient({
       <SiteNav active="tonight" />
       <NowSegment current="tonight" />
 
-      {/* Screen composition follows docs/design/LAUNCH_SCREENS.md. The
-          answer-before-actions contract belongs to
+      {/* Screen composition follows docs/design/LAUNCH_SCREENS.md: the one
+          painted primary, "See them on the map", sits in the head with its one
+          quiet secondary beside it. The head is short enough now (no credits,
+          no chips above the list) that the first pub still clears a phone's
+          tab bar with the row in it; the rule and its measure are in
           docs/rules/app-landing-city-and-listing-pages.md. */}
       <Screen
         as="div"
@@ -622,7 +628,6 @@ export default function TonightClient({
             Find my pint
           </Link>
         }
-        actionsAfterContent
       >
       <div className="tonightPrimary" data-status={listingsStatus}>
       {/* The lede membership follows the Tonight rule in
@@ -714,10 +719,13 @@ export default function TonightClient({
                       {meta.label}
                     </span>
                     {newSinceLastLook[groupIndex] ? <NewSinceMarker /> : null}
+                    {/* A listing's figure is a deal's or a meal's, never a
+                        pint's, so its badge stays neutral: a band is a claim
+                        about a pint alone (lib/priceBand.ts). */}
                     {barePrice !== null ? (
-                      <span className="tonightRowPrice">
+                      <PriceBadge className="tonightRowPrice">
                         £{barePrice.toFixed(2)}
-                      </span>
+                      </PriceBadge>
                     ) : null}
                   </div>
                   <h2 className="tonightRowTitle">{row.title}</h2>
@@ -997,7 +1005,9 @@ export default function TonightClient({
               </VibeChipLink>
             ),
           )}
-          {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => (
+          {/* In a quiet hour the Ideas list below carries these same three
+              plans as rows, so the chips do not say them a second time. */}
+          {(softPlansWindow ? [] : TONIGHT_SOFT_PLAN_CHIPS).map((chip) => (
             <VibeChipLink
               key={chip.id}
               href={planOccasionHref(chip.id, { src: "tonight-vibes" })}
@@ -1050,29 +1060,21 @@ export default function TonightClient({
       ) : null}
 
       {thinNight ? (
-        <section className="tonightQuiet" aria-label="More ways to plan tonight">
-          <p className="tonightQuietLede">
-            More ways to plan tonight:
-          </p>
-          <ul className="tonightQuietList">
-            {QUIET_ALTERNATIVES.map((alt) => {
-              const Icon = alt.icon;
-              return (
-                <li key={alt.title} className="tonightQuietRow">
-                  <Link prefetch={false} href={alt.href} className="tonightQuietLink pressable">
-                    <span className="tonightQuietIcon" aria-hidden="true">
-                      <Icon size={17} />
-                    </span>
-                    <span className="tonightQuietBody">
-                      <span className="tonightQuietTitle">{alt.title}</span>
-                      <span className="tonightQuietSub">{alt.sub}</span>
-                    </span>
-                    <ArrowRight size={15} aria-hidden="true" className="tonightQuietArrow" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <section className="tonightQuiet tonightSection" aria-labelledby="tonight-quiet-title">
+          <h2 className="tonightQuietLede tonightSectionTitle" id="tonight-quiet-title">
+            More ways to plan tonight
+          </h2>
+          <RowList className="tonightQuietList">
+            {QUIET_ALTERNATIVES.map((alt) => (
+              <RowListItem
+                key={alt.title}
+                className="tonightQuietRow createFabLane"
+                href={alt.href}
+                title={alt.title}
+                meta={alt.sub}
+              />
+            ))}
+          </RowList>
         </section>
       ) : null}
 

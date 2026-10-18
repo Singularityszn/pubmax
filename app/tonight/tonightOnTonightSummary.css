@@ -54,16 +54,18 @@
     gap: 6px;
     min-height: 40px;
     margin: 0 0 10px;
-    color: var(--color-accent-ink);
+    color: var(--ink);
     font-size: 0.82rem;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: var(--hairline-strong);
+    text-underline-offset: 3px;
   }
 
   @media (hover: hover) and (pointer: fine) {
     .tonightOnTonightSummaryEnding:hover {
-      text-decoration: underline;
+      text-decoration-color: currentColor;
     }
   }
 
@@ -103,15 +105,17 @@
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-    color: var(--color-accent-ink);
+    color: var(--ink);
     font-size: 0.82rem;
     font-weight: 650;
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-color: var(--hairline-strong);
+    text-underline-offset: 3px;
   }
 
   @media (hover: hover) and (pointer: fine) {
     .tonightOnTonightSummaryLink:hover {
-      text-decoration: underline;
+      text-decoration-color: currentColor;
     }
   }
 

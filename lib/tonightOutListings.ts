@@ -670,7 +670,7 @@ export function tonightProvenanceCredits(input: {
     ? "No events listed"
     : whatsOnLaneLabel(lanes.whatsOnCount);
   const whatsOn = creditsWhatsOn
-    ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
+    ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : ""} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
   const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;

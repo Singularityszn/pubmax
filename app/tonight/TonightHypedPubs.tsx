@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { ChevronDown, ExternalLink, MapPin } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
+import { RowList } from "@/components/ui/row-list";
 import { formatObservedDate, formatObservedDayShort } from "@/lib/dataFreshness";
 import {
   hypedPubCredit,
@@ -11,7 +13,6 @@ import {
   HYPED_PUBS_VISIBLE,
   type HypedPub,
 } from "@/lib/hypedPubs";
-import { formatPrice } from "@/lib/venues";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
 /**
@@ -24,20 +25,32 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
  *
  * Pubs the map can open come first. A pub we have not got on the map yet
  * still shows, after them, and says so, rather than being dropped for the
- * failing of our own index. Every card reads the same compact way: the name,
- * the area with its listed pint and day, then one row holding "Why this pub"
- * (the reason and its credit, folded) and the way onto the map. Compact because the
- * first card has to clear a short phone's docked consent card whole, and
- * one shape for every card because a list that folds only its first row
- * reads as broken.
+ * failing of our own index.
+ *
+ * ONE LIST, NOT A SHELF OF CARDS (taste plan, 18 Oct 2026). Each pub is a row
+ * of the shared RowList shape (components/ui/row-list.tsx): the name is the
+ * row's one link onto the map, so the whole row is the tap target and no
+ * coral "Open on map" repeats down the page; the area sits under it, the
+ * listed pint with its day takes the trailing cell, and "Why this pub" folds
+ * the reason and its credit under the name. The fold sits above the row's
+ * link layer, so opening it never opens the map. The rows are written out
+ * rather than through `RowListItem` because a row carries a test id and a
+ * disclosure the primitive has no slot for.
  */
 export default function TonightHypedPubs({
   rows = [],
   selectableVenueIds,
+  nested = false,
 }: {
   rows?: readonly HypedPub[];
   /** Eager-shard ids the map can open, or null when that index is unreadable. */
   selectableVenueIds?: ReadonlySet<string> | null;
+  /**
+   * Hosted inside a section that already has a heading (/today's picks), so
+   * the list's own title steps down to the line under that heading rather
+   * than stacking a second heading on the first.
+   */
+  nested?: boolean;
 }) {
   if (rows.length === 0) return null;
   const ordered = hypedPubsMapFirst(rows, selectableVenueIds);
@@ -45,28 +58,36 @@ export default function TonightHypedPubs({
   const rest = ordered.slice(HYPED_PUBS_VISIBLE);
 
   return (
-    <section className="tonightHyped" aria-labelledby="tonight-hyped-title">
-      <h2 className="tonightHypedTitle" id="tonight-hyped-title">
-        {HYPED_PUBS_TITLE}
-      </h2>
-      <ul className="tonightHypedList" data-testid="tonight-hyped-list">
-        {lead.map((row) => (
-          <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
-        ))}
-      </ul>
-      {rest.length > 0 ? (
-        <details className="tonightHypedMore">
-          <summary className="tonightHypedMoreToggle">
-            <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
-            {rest.length === 1 ? "One more pub" : `${rest.length} more pubs`}
-          </summary>
-          <ul className="tonightHypedList">
-            {rest.map((row) => (
-              <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
-            ))}
-          </ul>
-        </details>
-      ) : null}
+    <section className="tonightHyped tonightSection" aria-labelledby="tonight-hyped-title">
+      {nested ? (
+        <h3 className="tonightHypedTitle tonightHypedTitle--nested" id="tonight-hyped-title">
+          {HYPED_PUBS_TITLE}
+        </h3>
+      ) : (
+        <h2 className="tonightHypedTitle tonightSectionTitle" id="tonight-hyped-title">
+          {HYPED_PUBS_TITLE}
+        </h2>
+      )}
+      <div data-testid="tonight-hyped-list">
+        <RowList className="tonightHypedList">
+          {lead.map((row) => (
+            <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
+          ))}
+        </RowList>
+        {rest.length > 0 ? (
+          <details className="tonightHypedMore">
+            <summary className="tonightHypedMoreToggle">
+              <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
+              {rest.length === 1 ? "One more pub" : `${rest.length} more pubs`}
+            </summary>
+            <RowList className="tonightHypedList">
+              {rest.map((row) => (
+                <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
+              ))}
+            </RowList>
+          </details>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -86,29 +107,35 @@ function HypedRow({
   const credit = hypedPubCredit(row);
   const pint = row.listedPint;
   return (
-    <li className="tonightHypedRow createFabLane" data-testid="tonight-hyped-row">
-      <h3 className="tonightHypedName">{row.name}</h3>
-      <p className="tonightHypedArea">
-        <MapPin size={13} aria-hidden="true" />
-        <span>{row.area}</span>
-        {pint ? (
-          // The same figure the cheapest-pints list and the pub's own card
-          // read, never without the day it was listed.
-          <span className="tonightHypedPrice" data-testid="tonight-hyped-price">
-            {" · "}
-            <span className="tonightHypedSr">Cheapest listed pint </span>
-            <strong className="tonightHypedPriceFigure">{formatPrice(pint.priceGbp)}</strong>
-            {" · listed "}
-            <time
-              dateTime={pint.observedAt}
-              title={formatObservedDate(new Date(pint.observedAt))}
-            >
-              {formatObservedDayShort(new Date(pint.observedAt))}
-            </time>
-          </span>
-        ) : null}
-      </p>
-      <div className="tonightHypedActions">
+    <li
+      className={
+        mapHref
+          ? "rowListItem rowListItem--link tonightHypedRow createFabLane"
+          : "rowListItem tonightHypedRow createFabLane"
+      }
+      data-testid="tonight-hyped-row"
+    >
+      <span className="rowListBody">
+        {mapHref ? (
+          <Link
+            prefetch={false}
+            href={mapHref}
+            className="rowListTitle rowListTitleLink tonightHypedName"
+          >
+            {row.name}
+          </Link>
+        ) : (
+          <span className="rowListTitle tonightHypedName">{row.name}</span>
+        )}
+        <span className="rowListMeta tonightHypedArea">
+          {row.area}
+          {mapHref ? null : (
+            <span className="tonightHypedUnmatched">
+              {" · "}
+              {HYPED_PUB_UNMATCHED_LINE}
+            </span>
+          )}
+        </span>
         <details className="tonightHypedReason">
           <summary className="tonightHypedReasonToggle">
             <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
@@ -130,16 +157,24 @@ function HypedRow({
             </p>
           ) : null}
         </details>
-        {mapHref ? (
-          // No trailing arrow: at 320px the two actions share a row beside the
-          // create disc's lane only without it.
-          <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
-            Open on map
-          </Link>
-        ) : (
-          <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
-        )}
-      </div>
+      </span>
+      {pint ? (
+        // The same figure the cheapest-pints list and the pub's own card
+        // read, banded, and never without the day it was listed.
+        <span className="rowListTrailing tonightHypedPrice" data-testid="tonight-hyped-price">
+          <span className="tonightHypedSr">Cheapest listed pint </span>
+          <PintPriceBadge priceGbp={pint.priceGbp} venueId={row.venueId} />
+          <span className="tonightHypedListed">
+            {"listed "}
+            <time
+              dateTime={pint.observedAt}
+              title={formatObservedDate(new Date(pint.observedAt))}
+            >
+              {formatObservedDayShort(new Date(pint.observedAt))}
+            </time>
+          </span>
+        </span>
+      ) : null}
     </li>
   );
 }
