@@ -381,5 +381,22 @@ describe("the Pal on the map", () => {
     announcePalMoment({ kind: "crawl-finished", stops: 2 });
     expect(element.classList.contains("isVictory")).toBe(false);
   });
+
+  it("hops for joy where it stands for a price the reader added", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(5);
+    const [instance] = markerHarness.instances;
+    const element = instance!.options.element;
+    const at = instance!.lngLat;
+    announcePalMoment({ kind: "price-added" });
+    expect(element.classList.contains("isCheering")).toBe(true);
+    expect(element.classList.contains("isVictory")).toBe(false);
+    // It keeps walking the crawl; the hop does not send it anywhere.
+    expect(element.dataset.palWalk).toBe("walking");
+    expect(instance!.lngLat).toEqual(at);
+    marker.destroy();
+  });
 });
 

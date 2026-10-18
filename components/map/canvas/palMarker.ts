@@ -4,7 +4,7 @@ import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { pubPalMascotSlugFor, pubPalMascotSrc } from "@/lib/pubPalMascot";
 import type { PubPal } from "@/lib/pubPal";
 import { readLocalPal } from "@/lib/localPal";
-import { subscribePalMoments } from "@/lib/palMoments";
+import { palMomentIsFinish, subscribePalMoments } from "@/lib/palMoments";
 import { palVisitMs, palWalkAt, palWalkPlan, palWalkPointAt, type LngLat, type PalWalkPlan } from "./palWalk";
 import "./palMarker.css";
 
@@ -24,7 +24,8 @@ import "./palMarker.css";
 //   backwards if it must, and jumps for joy beside it. A still Pal (reduced
 //   motion, or muted) steps straight there instead;
 // - when the reader finishes a crawl or a planned night (lib/palMoments.ts) it
-//   runs to the last stop and celebrates with a burst of sparks, once;
+//   runs to the last stop and celebrates with a burst of sparks, once; for a
+//   price the reader added it hops for joy where it stands;
 // - it sits up and to the right of the pin, never over it, and takes no
 //   pointer events, so every pin under it stays tappable and the painted-pin
 //   probe still finds the pin it names;
@@ -334,8 +335,13 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
   };
 
   // A finished crawl or night: on a crawl, run to the last stop first.
-  const unsubscribe = subscribePalMoments(() => {
+  const unsubscribe = subscribePalMoments((moment) => {
     if (!marker) return;
+    if (!palMomentIsFinish(moment)) {
+      // A kept price: a happy hop where it stands.
+      restartClass("isCheering");
+      return;
+    }
     if (walk) {
       const last = walk.stops.length - 1;
       const there = !walk.visit && walk.restAt === last && walk.elapsed >= walk.plan.durationMs;

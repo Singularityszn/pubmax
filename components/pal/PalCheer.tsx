@@ -10,16 +10,17 @@ import type { PubPal } from "@/lib/pubPal";
 import "./palCheer.css";
 
 /** The line the Pal says for a moment: what happened, never a score. */
-export function palCheerLine(name: string, moment: PalMomentKind, stops: number): string {
+export function palCheerLine(name: string, moment: PalMomentKind, stops = 0): string {
+  if (moment === "price-added") return `${name} says thanks. Every price helps the next person.`;
   if (moment === "night-finished") return `${name} saw the whole night through with you.`;
   return stops > 1 ? `${name} walked all ${stops} stops with you.` : `${name} walked it with you.`;
 }
 
 // The person's own Pal, jumping for joy inside a celebration (the crawl's
-// "You walked it", a planned night's ending). It is the same rendered avatar,
+// "You walked it", a planned night's ending, a kept price). It is the same rendered avatar,
 // held by the Pal's genome; a hidden Pal, or none, shows nothing. It jumps once
 // and only when the person allows motion; a muted Pal is still.
-export default function PalCheer({ moment, stops }: { moment: PalMomentKind; stops: number }) {
+export default function PalCheer({ moment, stops }: { moment: PalMomentKind; stops?: number }) {
   const [pal, setPal] = useState<PubPal | null>(null);
   useEffect(() => {
     const stored = readLocalPal();

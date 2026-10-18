@@ -67,8 +67,10 @@ describe("Pal moments", () => {
     window.dispatchEvent(new CustomEvent("pubmax:pal-moment", { detail: { kind: "level-up", stops: 3 } }));
     window.dispatchEvent(new CustomEvent("pubmax:pal-moment", { detail: { kind: "crawl-finished", stops: -1 } }));
     announcePalMoment({ kind: "crawl-finished", stops: 2.5 });
+    window.dispatchEvent(new CustomEvent("pubmax:pal-moment", { detail: { kind: "price-added", stops: 9, priceGbp: 4 } }));
     stop();
-    expect(heard).toEqual([]);
+    // A price moment carries nothing about the price or the pub.
+    expect(heard).toEqual([{ kind: "price-added" }]);
   });
 
   it("says what happened, never a score", () => {
@@ -77,6 +79,8 @@ describe("Pal moments", () => {
     expect(palCheerLine("Ripley", "night-finished", 4)).toBe("Ripley saw the whole night through with you.");
     expect(palSummonCheerLine({ kind: "crawl-finished", stops: 3 })).toBe("Walked all 3 stops");
     expect(palSummonCheerLine({ kind: "night-finished", stops: 3 })).toBe("That's the night");
+    expect(palSummonCheerLine({ kind: "price-added" })).toBe("Thanks for the price");
+    expect(palCheerLine("Ripley", "price-added")).toBe("Ripley says thanks. Every price helps the next person.");
     for (const line of [palCheerLine("Ripley", "crawl-finished", 3), palSummonCheerLine({ kind: "crawl-finished", stops: 3 })]) {
       expect(line).not.toMatch(/\b(level|xp|points?|streak|score)\b/i);
     }

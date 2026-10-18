@@ -19,6 +19,7 @@ export function shouldShowPubPalSummon(pathname: string): boolean {
 
 /** What the chip says while it celebrates: what happened, never a score. */
 export function palSummonCheerLine(moment: PalMoment): string {
+  if (moment.kind === "price-added") return "Thanks for the price";
   if (moment.kind === "night-finished") return "That's the night";
   return moment.stops > 1 ? `Walked all ${moment.stops} stops` : "Walked it";
 }
