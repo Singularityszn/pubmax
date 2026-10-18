@@ -237,9 +237,9 @@ const venueSubmissionRow = {
     id: "file-1",
     submissionId: "submission-1",
     ownerUserId: USER,
-    objectKey: `venue-submissions/${USER}/submission-1/file-1.pdf`,
-    kind: "pdf",
-    contentType: "application/pdf",
+    objectKey: `venue-submissions/${USER}/submission-1/file-1.jpg`,
+    kind: "image",
+    contentType: "image/jpeg",
     byteSize: 2048,
     sha256: "a".repeat(64),
     createdAt: "2026-10-17T12:01:00.000Z",
@@ -434,7 +434,7 @@ describe("buildAccountExport", () => {
       expect.objectContaining({
         id: "submission-1",
         name: "The Missing Crown",
-        files: [{ kind: "pdf", byteSize: 2048, createdAt: "2026-10-17T12:01:00.000Z" }],
+        files: [{ kind: "image", byteSize: 2048, createdAt: "2026-10-17T12:01:00.000Z" }],
       }),
     ]);
     expect(JSON.stringify(document.venueSubmissions)).not.toContain("venue-submissions/");

@@ -675,7 +675,7 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   shapes. JSON proposes one pub the map does not have: a name, a street
   address, an optional postcode and map position, an optional website and menu
   link, opening hours and a note as free text, and up to 20 prices the drinker
-  saw. Multipart `{ submission, file }` attaches ONE menu photo or PDF to the
+  saw. Multipart `{ submission, file }` attaches ONE menu photo to the
   account's own pending submission, up to three. The route also exports an
   owner-only `GET` list, which is not a mutating verb and answers an unmet age
   or handle gate as `{ status, error }` at 200. `POST
@@ -694,11 +694,13 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   vocabulary inside the community price envelope. Before storing, the route
   asks the curated and UK base indexes for the same name and answers 409
   `POSSIBLE_MATCH` with the candidates until the drinker sends `confirmNew`.
-  A file is a JPEG, PNG or WebP photo (metadata stripped and re-encoded as JPEG
-  by `prepareUploadedImage`) or a PDF checked by its lead bytes and stored as
-  sent, at most 4 MB, keyed under `venue-submissions/<owner>/<submission>/`,
-  which migration 0189's CHECK holds. A row refused after its bytes landed
-  takes the bytes back out.
+  A file is a JPEG, PNG or WebP photo, at most 4 MB. `prepareUploadedImage`
+  checks its magic bytes, strips its metadata and re-encodes it as JPEG. It is
+  keyed under `venue-submissions/<owner>/<submission>/`, which migration 0189's
+  CHECK holds. A PDF is refused with 400 `INVALID_TYPE` and nothing is stored,
+  until a PDF sanitiser exists (owner decision, 18 Oct 2026). The 0189 kind
+  CHECK names `image` alone, so taking PDFs back is a migration. A row
+  refused after its bytes landed takes the bytes back out.
 - **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
   (`venue-submission:${actor}:${ipHash}`) on every write, then six proposals
   (`venue-submission-create:${actor}`) and twenty files

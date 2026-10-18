@@ -14,7 +14,9 @@
 //     `lib/harvest/sourcePolicy.ts`, like every other URL.
 //   - prices: what the submitter says they saw. They carry no Price Standing; a
 //     reviewer checks each figure before any of it enters a price lane.
-//   - menu files: photos and PDFs a reviewer reads, kept in the private bucket.
+//   - menu files: photos a reviewer reads, kept in the private bucket. A PDF is
+//     refused until a PDF sanitiser exists (owner decision, 18 Oct 2026),
+//     because a PDF would be stored as sent, with its metadata.
 //
 // Browser-safe leaf: the form and the route share ONE validator, so the client
 // can answer instantly and the server's answer is still the only one trusted.
@@ -31,7 +33,7 @@ import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
 export const VENUE_SUBMISSION_STATUSES = ["pending", "accepted", "declined", "duplicate"] as const;
 export type VenueSubmissionStatus = (typeof VENUE_SUBMISSION_STATUSES)[number];
 
-export const VENUE_SUBMISSION_FILE_KINDS = ["image", "pdf"] as const;
+export const VENUE_SUBMISSION_FILE_KINDS = ["image"] as const;
 export type VenueSubmissionFileKind = (typeof VENUE_SUBMISSION_FILE_KINDS)[number];
 
 export const VENUE_SUBMISSION_NAME_MAX = 120;
@@ -48,8 +50,11 @@ export const VENUE_SUBMISSION_FILE_MAX_BYTES = UPLOAD_PHOTO_MAX_BYTES;
 /** More open proposals than this from one account is a backlog, not a pub. */
 export const VENUE_SUBMISSION_MAX_PENDING_PER_ACCOUNT = 10;
 
-/** What the file picker offers and the route accepts. HEIC is converted by the browser. */
-export const VENUE_SUBMISSION_FILE_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+/**
+ * What the file picker offers and the route accepts. HEIC is converted by the
+ * browser. No PDF until a PDF sanitiser exists (owner decision, 18 Oct 2026).
+ */
+export const VENUE_SUBMISSION_FILE_ACCEPT = "image/jpeg,image/png,image/webp";
 export const VENUE_SUBMISSION_FILE_TYPES: ReadonlySet<string> = new Set(
   VENUE_SUBMISSION_FILE_ACCEPT.split(","),
 );
@@ -76,8 +81,10 @@ export function venueSubmissionFileKey(
   fileId: string,
   kind: VenueSubmissionFileKind,
 ): string {
-  const extension = kind === "pdf" ? "pdf" : "jpg";
-  return `${venueSubmissionObjectPrefix(ownerUserId)}/${submissionId}/${fileId}.${extension}`;
+  // One kind today, so one extension. The parameter stays so a second kind is a
+  // compile error here rather than a key the 0189 CHECK refuses.
+  const extension: Record<VenueSubmissionFileKind, string> = { image: "jpg" };
+  return `${venueSubmissionObjectPrefix(ownerUserId)}/${submissionId}/${fileId}.${extension[kind]}`;
 }
 
 /** Great Britain's bounding box, the same one the 0189 position CHECK uses. */
@@ -116,7 +123,7 @@ export type VenueSubmissionFile = {
   ownerUserId: string;
   objectKey: string;
   kind: VenueSubmissionFileKind;
-  contentType: "image/jpeg" | "application/pdf";
+  contentType: "image/jpeg";
   byteSize: number;
   sha256: string;
   createdAt: string;
@@ -370,22 +377,9 @@ export function validateVenueSubmission(
   };
 }
 
-/** A file's kind from its declared type, or null when the route refuses it. */
+/** A file's kind from its declared type, or null when the route refuses it (a PDF among them). */
 export function venueSubmissionFileKind(contentType: string): VenueSubmissionFileKind | null {
-  if (!VENUE_SUBMISSION_FILE_TYPES.has(contentType)) return null;
-  return contentType === "application/pdf" ? "pdf" : "image";
-}
-
-/** "%PDF-" at byte zero. A PDF is stored as sent, so this is its whole type check. */
-export function looksLikePdf(bytes: Uint8Array): boolean {
-  return (
-    bytes.length >= 5
-    && bytes[0] === 0x25
-    && bytes[1] === 0x50
-    && bytes[2] === 0x44
-    && bytes[3] === 0x46
-    && bytes[4] === 0x2d
-  );
+  return VENUE_SUBMISSION_FILE_TYPES.has(contentType) ? "image" : null;
 }
 
 /** The drink choices the form offers, in the vocabulary's own order. */

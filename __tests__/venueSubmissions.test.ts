@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
 import {
   cleanSubmittedUrl,
-  looksLikePdf,
   normaliseUkPostcode,
   validateVenueSubmission,
   validateVenueSubmissionDecision,
+  VENUE_SUBMISSION_FILE_ACCEPT,
   VENUE_SUBMISSION_FILE_KINDS,
+  VENUE_SUBMISSION_FILE_TYPES,
   VENUE_SUBMISSION_MAX_PRICES,
   VENUE_SUBMISSION_STATUSES,
   venueSubmissionFileKey,
@@ -125,19 +126,20 @@ describe("small readers", () => {
 
   it("names a file's kind from its declared type", () => {
     expect(venueSubmissionFileKind("image/png")).toBe("image");
-    expect(venueSubmissionFileKind("application/pdf")).toBe("pdf");
+    expect(venueSubmissionFileKind("image/jpeg")).toBe("image");
+    expect(venueSubmissionFileKind("image/webp")).toBe("image");
     expect(venueSubmissionFileKind("image/heic")).toBeNull();
     expect(venueSubmissionFileKind("text/html")).toBeNull();
   });
 
-  it("knows a PDF by its first five bytes", () => {
-    expect(looksLikePdf(new TextEncoder().encode("%PDF-1.7\n"))).toBe(true);
-    expect(looksLikePdf(new TextEncoder().encode("<html>"))).toBe(false);
-    expect(looksLikePdf(new Uint8Array())).toBe(false);
+  it("refuses a PDF until a PDF sanitiser exists (owner decision, 18 Oct 2026)", () => {
+    expect(venueSubmissionFileKind("application/pdf")).toBeNull();
+    expect(VENUE_SUBMISSION_FILE_KINDS).toEqual(["image"]);
+    expect(VENUE_SUBMISSION_FILE_TYPES.has("application/pdf")).toBe(false);
+    expect(VENUE_SUBMISSION_FILE_ACCEPT).not.toMatch(/pdf/i);
   });
 
   it("keys a file inside its owner's submission folder", () => {
-    expect(venueSubmissionFileKey(OWNER, "sub", "f1", "pdf")).toBe(`venue-submissions/${OWNER}/sub/f1.pdf`);
     expect(venueSubmissionFileKey(OWNER, "sub", "f1", "image")).toBe(`venue-submissions/${OWNER}/sub/f1.jpg`);
   });
 });
@@ -164,8 +166,10 @@ describe("the closed sets match migration 0189", () => {
     expect(MIGRATION).toContain(`check (status in (${statuses}))`);
   });
 
-  it("mirrors the file kind CHECK", () => {
+  it("mirrors the file kind CHECK, which names no PDF", () => {
     for (const kind of VENUE_SUBMISSION_FILE_KINDS) expect(MIGRATION).toContain(`kind = '${kind}'`);
+    expect(MIGRATION).not.toContain("kind = 'pdf'");
+    expect(MIGRATION).not.toContain("application/pdf");
   });
 
   it("stores only drink categories the vocabulary knows", () => {

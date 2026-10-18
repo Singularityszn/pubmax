@@ -4,22 +4,22 @@ import "server-only";
 //
 // A PHOTO takes the shared owned-image journey (`prepareUploadedImage`): type,
 // size, magic bytes, metadata strip, rotate, resize inside a box big enough to
-// keep a menu's small print legible, then JPEG. A PDF is stored as sent, so its
-// whole check is the declared type, the size and the "%PDF-" lead bytes. It is
-// never rendered by the app: only a moderator opens it, through a short-lived
-// signed URL, and the offline harvest reads its text layer.
+// keep a menu's small print legible, then JPEG. Only a moderator opens it,
+// through a short-lived signed URL.
+//
+// A PDF is REFUSED, with the same INVALID_TYPE envelope as any other wrong type,
+// and nothing is stored. A PDF would be kept as sent, author and software
+// metadata included, and nothing here can strip it. It stays refused until a PDF
+// sanitiser exists (owner decision, 18 Oct 2026).
 //
 // No safety scan. The scan exists for photos strangers see on a wall; these
 // files are seen by moderators alone and never published, so the paid call
 // would buy nothing.
 
-import { createHash } from "node:crypto";
-
 import { log } from "@/lib/log";
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { prepareUploadedImage, uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 import {
-  looksLikePdf,
   VENUE_SUBMISSION_FILE_MAX_BYTES,
   venueSubmissionFileKind,
   type VenueSubmissionFileKind,
@@ -46,13 +46,13 @@ export class VenueSubmissionFileError extends Error {
 
 export type PreparedMenuFile = {
   kind: VenueSubmissionFileKind;
-  contentType: "image/jpeg" | "application/pdf";
+  contentType: "image/jpeg";
   bytes: Buffer;
   byteSize: number;
   sha256: string;
 };
 
-const WRONG_TYPE = "A menu must be a photo (JPEG, PNG or WebP) or a PDF.";
+const WRONG_TYPE = "A menu must be a photo (JPEG, PNG or WebP), not a PDF.";
 const TOO_LARGE = `A menu file must be ${Math.round(VENUE_SUBMISSION_FILE_MAX_BYTES / (1024 * 1024))} MB or smaller.`;
 
 export async function prepareMenuFile(file: File): Promise<PreparedMenuFile> {
@@ -60,20 +60,6 @@ export async function prepareMenuFile(file: File): Promise<PreparedMenuFile> {
   if (!kind) throw new VenueSubmissionFileError("INVALID_TYPE", WRONG_TYPE);
   if (!Number.isFinite(file.size) || file.size < 1 || file.size > VENUE_SUBMISSION_FILE_MAX_BYTES) {
     throw new VenueSubmissionFileError("TOO_LARGE", TOO_LARGE);
-  }
-
-  if (kind === "pdf") {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    if (bytes.byteLength !== file.size || !looksLikePdf(bytes)) {
-      throw new VenueSubmissionFileError("INVALID_TYPE", WRONG_TYPE);
-    }
-    return {
-      kind,
-      contentType: "application/pdf",
-      bytes,
-      byteSize: bytes.byteLength,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-    };
   }
 
   const prepared = await prepareUploadedImage(file, {

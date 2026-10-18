@@ -196,7 +196,8 @@ function pricesFromRow(value: unknown): VenueSubmissionPrice[] {
 }
 
 function fileFromRow(row: Record<string, unknown>): VenueSubmissionFile | null {
-  const kind = row.kind === "pdf" ? "pdf" : row.kind === "image" ? "image" : null;
+  // One kind: the 0189 CHECK refuses any other, and a PDF is refused at the route.
+  const kind = row.kind === "image" ? "image" : null;
   const id = readText(row.id);
   const objectKey = readText(row.object_key);
   if (!kind || !id || !objectKey) return null;
@@ -206,7 +207,7 @@ function fileFromRow(row: Record<string, unknown>): VenueSubmissionFile | null {
     ownerUserId: readText(row.owner_user_id),
     objectKey,
     kind,
-    contentType: kind === "pdf" ? "application/pdf" : "image/jpeg",
+    contentType: "image/jpeg",
     byteSize: Number(row.byte_size) || 0,
     sha256: readText(row.sha256),
     createdAt: readText(row.created_at) || new Date(0).toISOString(),

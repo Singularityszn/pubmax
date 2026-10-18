@@ -18,9 +18,11 @@
 -- by the app. A harvest may read one only after the owner records it as a
 -- source, through `lib/harvest/sourcePolicy.ts` like every other URL.
 --
--- WHAT A FILE IS. A menu photo (stripped of metadata and re-encoded as JPEG) or
--- a PDF, in the private bucket under `venue-submissions/<owner>/<submission>/`.
--- The CHECK holds the key inside its owner's folder, so a service-role signed
+-- WHAT A FILE IS. A menu photo, stripped of metadata and re-encoded as JPEG, in
+-- the private bucket under `venue-submissions/<owner>/<submission>/`. A PDF is
+-- refused until a PDF sanitiser exists (owner decision, 18 Oct 2026), so the
+-- kind CHECK names one kind. Adding PDFs back is a migration.
+-- The key CHECK holds the key inside its owner's folder, so a service-role signed
 -- URL can never be pointed at another lane's object, and account deletion
 -- removes the folder through the Storage API before the auth row goes.
 --
@@ -102,10 +104,7 @@ create table if not exists public.venue_submission_files (
   sha256         text not null,
   created_at     timestamptz not null default now(),
   constraint venue_submission_files_kind_check
-    check (
-      (kind = 'image' and content_type = 'image/jpeg' and object_key ~ '\.jpg$')
-      or (kind = 'pdf' and content_type = 'application/pdf' and object_key ~ '\.pdf$')
-    ),
+    check (kind = 'image' and content_type = 'image/jpeg' and object_key ~ '\.jpg$'),
   constraint venue_submission_files_key_check
     check (
       starts_with(

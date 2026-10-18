@@ -96,11 +96,11 @@ export default function AddPubForm({
     const next = [...files];
     for (const file of Array.from(chosen)) {
       if (next.length >= VENUE_SUBMISSION_MAX_FILES) {
-        setError(`Add up to ${VENUE_SUBMISSION_MAX_FILES} menu files.`);
+        setError(`Add up to ${VENUE_SUBMISSION_MAX_FILES} menu photos.`);
         break;
       }
       if (!VENUE_SUBMISSION_FILE_TYPES.has(file.type)) {
-        setError(`${file.name} isn't a photo or a PDF.`);
+        setError(`${file.name} isn't a photo. We take JPEG, PNG or WebP, not a PDF.`);
         continue;
       }
       if (file.size > VENUE_SUBMISSION_FILE_MAX_BYTES) {
@@ -236,7 +236,7 @@ export default function AddPubForm({
       <fieldset className="addPubFieldset" disabled={sending}>
         <legend className="addPubSectionTitle">The menu</legend>
         <label className="addPubField">
-          <span>Menu photos or a PDF</span>
+          <span>Menu photos</span>
           <input
             type="file"
             accept={VENUE_SUBMISSION_FILE_ACCEPT}
@@ -249,7 +249,7 @@ export default function AddPubForm({
           />
         </label>
         <p className="addPubHint">
-          Up to {VENUE_SUBMISSION_MAX_FILES} files, {UPLOAD_PHOTO_MAX_LABEL} each. A clear photo of the drinks board works.
+          Up to {VENUE_SUBMISSION_MAX_FILES} photos, {UPLOAD_PHOTO_MAX_LABEL} each. A clear photo of the drinks board works.
         </p>
         {files.length > 0 ? (
           <ul className="addPubFiles">

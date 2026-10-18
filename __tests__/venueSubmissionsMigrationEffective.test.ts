@@ -93,7 +93,7 @@ function folder(owner: string, submissionId: string): string {
 }
 
 describe.skipIf(skipReason !== null)("0189 venue submissions", () => {
-  it("takes a submission with prices and a menu photo and a PDF from the service role", async () => {
+  it("takes a submission with prices and two menu photos from the service role", async () => {
     const alice = await db().attempt(asServiceRole(submission(ALICE_USER, {
       id: ALICE_SUBMISSION,
       website: "https://missingcrown.example",
@@ -104,10 +104,8 @@ describe.skipIf(skipReason !== null)("0189 venue submissions", () => {
     expect(bob.ok, bob.said).toBe(true);
     const photo = await db().attempt(asServiceRole(file(ALICE_USER, ALICE_SUBMISSION, `${folder(ALICE_USER, ALICE_SUBMISSION)}/p1.jpg`)));
     expect(photo.ok, photo.said).toBe(true);
-    const pdf = await db().attempt(asServiceRole(
-      file(ALICE_USER, ALICE_SUBMISSION, `${folder(ALICE_USER, ALICE_SUBMISSION)}/m1.pdf`, "pdf", "application/pdf"),
-    ));
-    expect(pdf.ok, pdf.said).toBe(true);
+    const second = await db().attempt(asServiceRole(file(ALICE_USER, ALICE_SUBMISSION, `${folder(ALICE_USER, ALICE_SUBMISSION)}/p2.jpg`)));
+    expect(second.ok, second.said).toBe(true);
     const bobFile = await db().attempt(asServiceRole(file(BOB_USER, BOB_SUBMISSION, `${folder(BOB_USER, BOB_SUBMISSION)}/b1.jpg`)));
     expect(bobFile.ok, bobFile.said).toBe(true);
   });
@@ -136,7 +134,7 @@ describe.skipIf(skipReason !== null)("0189 venue submissions", () => {
     expect(duplicate.ok, duplicate.said).toBe(true);
   });
 
-  it("keeps every file inside its owner's own folder and its declared kind", async () => {
+  it("keeps every file inside its owner's own folder and its declared kind, and refuses a PDF", async () => {
     const own = folder(ALICE_USER, ALICE_SUBMISSION);
     const refusals: [string, RegExp][] = [
       [file(ALICE_USER, ALICE_SUBMISSION, `${folder(BOB_USER, ALICE_SUBMISSION)}/x.jpg`), /venue_submission_files_key_check/],
@@ -144,6 +142,8 @@ describe.skipIf(skipReason !== null)("0189 venue submissions", () => {
       [file(ALICE_USER, ALICE_SUBMISSION, `${own}/../x.jpg`), /venue_submission_files_key_check/],
       [file(ALICE_USER, ALICE_SUBMISSION, `venue-photos/${own}/x.jpg`), /venue_submission_files_key_check/],
       [file(ALICE_USER, ALICE_SUBMISSION, `${own}/x.pdf`), /venue_submission_files_kind_check/],
+      // No PDF until a PDF sanitiser exists (owner decision, 18 Oct 2026).
+      [file(ALICE_USER, ALICE_SUBMISSION, `${own}/m1.pdf`, "pdf", "application/pdf"), /venue_submission_files_kind_check/],
       [file(ALICE_USER, ALICE_SUBMISSION, `${own}/x.jpg`, "pdf", "application/pdf"), /venue_submission_files_kind_check/],
       [file(ALICE_USER, ALICE_SUBMISSION, `${own}/x.png`, "image", "image/png"), /venue_submission_files_kind_check/],
       [file(ALICE_USER, ALICE_SUBMISSION, `${own}/p1.jpg`), /venue_submission_files_object_key_key|duplicate key/],

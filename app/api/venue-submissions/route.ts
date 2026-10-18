@@ -6,7 +6,7 @@
 //          openingHours?, note?, prices?, confirmNew? }
 //                                                -> 201 { submission };
 //                                                   409 POSSIBLE_MATCH { details: { matches } } until confirmNew
-//   POST multipart { submission: <id>, file: <menu photo or PDF> }
+//   POST multipart { submission: <id>, file: <menu photo> }   (a PDF is refused, 400)
 //                                                -> 201 { file: { id, kind } } (the owner's own pending submission)
 //
 // A SUBMISSION IS A PROPOSAL. Nothing here writes a venue, a pin or a price

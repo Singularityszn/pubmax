@@ -40,7 +40,7 @@ export type ModeratorVenueSubmission = {
   reviewerNote: string | null;
   reviewedAt: string | null;
   createdAt: string;
-  files: { id: string; kind: "image" | "pdf"; byteSize: number; url: string | null }[];
+  files: { id: string; kind: "image"; byteSize: number; url: string | null }[];
 };
 
 export type AdminRequest = (path: string, init?: RequestInit) => Promise<Response | null>;
@@ -56,7 +56,7 @@ const STATUS_HEADING: Record<VenueSubmissionStatus, string> = {
 
 function fileLabel(file: ModeratorVenueSubmission["files"][number], index: number): string {
   const size = `${Math.max(1, Math.round(file.byteSize / 1024))} KB`;
-  return `${file.kind === "pdf" ? "Menu PDF" : "Menu photo"} ${index + 1} (${size})`;
+  return `Menu photo ${index + 1} (${size})`;
 }
 
 export default function VenueSubmissionModeration({ request }: { request: AdminRequest }) {

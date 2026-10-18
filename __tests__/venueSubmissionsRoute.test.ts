@@ -122,8 +122,11 @@ async function pngFile(name = "menu.png"): Promise<File> {
   return new File([new Uint8Array(bytes)], name, { type: "image/png" });
 }
 
-function pdfFile(text = "%PDF-1.4\n%menu\n"): File {
-  return new File([text], "menu.pdf", { type: "application/pdf" });
+const PDF_BYTES = "%PDF-1.4\n%menu\n";
+
+/** A real PDF. Refused until a PDF sanitiser exists (owner decision, 18 Oct 2026). */
+function pdfFile(type = "application/pdf"): File {
+  return new File([PDF_BYTES], "menu.pdf", { type });
 }
 
 beforeEach(() => {
@@ -196,57 +199,75 @@ describe("POST /api/venue-submissions (create)", () => {
 });
 
 describe("POST /api/venue-submissions (menu files)", () => {
-  it("stores a photo as a stripped JPEG and a PDF as sent, inside the owner's folder", async () => {
+  it("stores a photo as a stripped JPEG inside the owner's folder", async () => {
     const id = await submit();
     const photo = await POST(postFile(id, await pngFile()));
     expect(photo.status).toBe(201);
     expect((await photo.json()).file.kind).toBe("image");
-    const pdf = await POST(postFile(id, pdfFile()));
-    expect(pdf.status).toBe(201);
 
     const keys = [...storage.objects.keys()];
-    expect(keys).toHaveLength(2);
-    for (const key of keys) expect(key.startsWith(`venue-submissions/${ALICE_ACCOUNT}/${id}/`)).toBe(true);
-    const jpeg = [...storage.objects.values()].find((object) => object.contentType === "image/jpeg");
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(new RegExp(`^venue-submissions/${ALICE_ACCOUNT}/${id}/[0-9a-f-]+\\.jpg$`));
+    const jpeg = storage.objects.get(keys[0] ?? "");
+    expect(jpeg?.contentType).toBe("image/jpeg");
     expect(jpeg?.bytes.subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
 
     const stored = await memoryVenueSubmissionStore.getById(id);
-    expect(stored?.files.map((file) => file.kind).sort()).toEqual(["image", "pdf"]);
+    expect(stored?.files.map((file) => file.kind)).toEqual(["image"]);
   });
 
-  it("refuses a file that is not a menu photo or a PDF, and a PDF that is not one", async () => {
+  it("refuses a PDF with the type envelope and stores nothing, until a PDF sanitiser exists", async () => {
+    const id = await submit();
+    const res = await POST(postFile(id, pdfFile()));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "INVALID_TYPE", retryable: false });
+    expect(storage.objects.size).toBe(0);
+    expect((await memoryVenueSubmissionStore.getById(id))?.files).toEqual([]);
+  });
+
+  it("refuses PDF bytes sent under a photo's type, by their magic bytes", async () => {
+    const id = await submit();
+    for (const type of ["image/jpeg", "image/png", "image/webp"]) {
+      const res = await POST(postFile(id, pdfFile(type)));
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ code: "INVALID_TYPE" });
+    }
+    expect(storage.objects.size).toBe(0);
+    expect((await memoryVenueSubmissionStore.getById(id))?.files).toEqual([]);
+  });
+
+  it("refuses a file that is not a menu photo", async () => {
     const id = await submit();
     const html = new File(["<html></html>"], "menu.html", { type: "text/html" });
     expect((await POST(postFile(id, html))).status).toBe(400);
-    expect((await POST(postFile(id, pdfFile("<html>not a pdf")))).status).toBe(400);
     expect(storage.objects.size).toBe(0);
   });
 
   it("refuses a file for another account's submission or an unknown one", async () => {
     const id = await submit();
     signIn(BOB_ACCOUNT, "bob");
-    expect((await POST(postFile(id, pdfFile()))).status).toBe(404);
-    expect((await POST(postFile("not-a-uuid", pdfFile()))).status).toBe(404);
+    expect((await POST(postFile(id, await pngFile()))).status).toBe(404);
+    expect((await POST(postFile("not-a-uuid", await pngFile()))).status).toBe(404);
     expect(storage.objects.size).toBe(0);
   });
 
   it("stops at the file cap and closes a decided submission to new files", async () => {
     const id = await submit();
     for (let i = 0; i < VENUE_SUBMISSION_MAX_FILES; i += 1) {
-      expect((await POST(postFile(id, pdfFile()))).status).toBe(201);
+      expect((await POST(postFile(id, await pngFile()))).status).toBe(201);
     }
-    expect((await POST(postFile(id, pdfFile()))).status).toBe(409);
+    expect((await POST(postFile(id, await pngFile()))).status).toBe(409);
 
     const other = await submit({ name: "Another Pub" });
     await memoryVenueSubmissionStore.decide(other, { status: "declined", note: null });
-    expect((await POST(postFile(other, pdfFile()))).status).toBe(404);
+    expect((await POST(postFile(other, await pngFile()))).status).toBe(404);
   });
 
   it("refuses an extra form part, and answers 503 when storage refuses the bytes", async () => {
     const id = await submit();
-    expect((await POST(postFile(id, pdfFile(), { owner: BOB_ACCOUNT }))).status).toBe(400);
+    expect((await POST(postFile(id, await pngFile(), { owner: BOB_ACCOUNT }))).status).toBe(400);
     storage.failUpload = true;
-    const res = await POST(postFile(id, pdfFile()));
+    const res = await POST(postFile(id, await pngFile()));
     expect(res.status).toBe(503);
     expect((await memoryVenueSubmissionStore.getById(id))?.files).toEqual([]);
   });
@@ -260,7 +281,7 @@ describe("/api/admin/venue-submissions", () => {
 
   it("lists the queue with signed file links and without the submitter", async () => {
     const id = await submit();
-    await POST(postFile(id, pdfFile()));
+    expect((await POST(postFile(id, await pngFile()))).status).toBe(201);
     moderatorState.moderator = true;
     const res = await adminGET(admin("GET"));
     expect(res.status).toBe(200);
