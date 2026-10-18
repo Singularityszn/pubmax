@@ -335,6 +335,31 @@ describe("a still-mounted email form after its native start loses ownership", ()
     await expectNoEmailStarted();
   });
 
+  it.each(["rejected", "errored"] as const)("keeps a cancelled form quiet when its held session lookup is %s", async (failure) => {
+    await mountPage();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let holding = false;
+    vi.spyOn(h.realAuth!.auth, "getSession").mockImplementationOnce(async () => {
+      holding = true;
+      await held;
+      if (failure === "rejected") throw new Error("lookup failed");
+      return { data: { session: null }, error: new AuthError("lookup failed") };
+    });
+    try {
+      await submit();
+      await vi.waitFor(() => expect(holding).toBe(true), { timeout: 1000 });
+      expect(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!.textContent).toBe("Sending…");
+      await act(async () => { window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true })); });
+    } finally { await act(async () => { release(); }); }
+    await expectQuietForm();
+    expect(emailField().disabled).toBe(false);
+    expect(container.textContent).not.toContain("Your sign-in state could not be confirmed");
+    await expectNoEmailStarted();
+    expect(h.persist).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["restored page", "sent"], ["restored page", "failed"], ["provider start", "sent"], ["provider start", "failed"],
   ] as const)("keeps the form quiet when a %s takes over before a held %s email response settles", async (change, outcome) => {
