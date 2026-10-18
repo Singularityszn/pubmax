@@ -202,6 +202,8 @@ export type ArtifactRead =
 export interface RowExpiryReading {
   /** Rows that carry a parseable expiry at the declared path. */
   readonly rows: number;
+  /** Rows whose expiry is at or before the reading's `now`: they may not be served. */
+  readonly expired: number;
   /** The latest of those expiries, or null when no row carries one. */
   readonly latestExpiresAt: string | null;
 }
@@ -217,11 +219,12 @@ export interface StampResolution {
 
 /**
  * Walk a `rowExpiry` path through parsed artifact JSON and keep the latest
- * parseable expiry. `*` walks an array or an object's values; any other segment
- * is a key. A value that is not a parseable date is not a row with an expiry.
+ * parseable expiry, counting the rows already past theirs at `now`. `*` walks an
+ * array or an object's values; any other segment is a key. A value that is not
+ * a parseable date is not a row with an expiry.
  * Mirrored dependency-free in scripts/check_freshness.mjs.
  */
-export function readRowExpiry(path: string, json: unknown): RowExpiryReading {
+export function readRowExpiry(path: string, json: unknown, now: Date = new Date()): RowExpiryReading {
   let nodes: unknown[] = [json];
   for (const segment of path.split(".")) {
     const next: unknown[] = [];
@@ -236,13 +239,15 @@ export function readRowExpiry(path: string, json: unknown): RowExpiryReading {
     nodes = next;
   }
   let rows = 0;
+  let expired = 0;
   let latest: string | null = null;
   for (const value of nodes) {
     if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) continue;
     rows += 1;
+    if (Date.parse(value) <= now.getTime()) expired += 1;
     if (latest === null || Date.parse(value) > Date.parse(latest)) latest = value;
   }
-  return { rows, latestExpiresAt: latest };
+  return { rows, expired, latestExpiresAt: latest };
 }
 
 /**
@@ -556,6 +561,17 @@ export function evaluateDataset(
     }
   }
 
+  // A PARTLY LAPSED ROW SET IS NAMED IN THE DETAIL, NEVER HIDDEN, NEVER AN ALARM.
+  //
+  // Captain ruling 2026-10-17: while any row is still servable the status is
+  // the file's own (fresh, snapshot, stale on budget), and the detail says how
+  // many rows the readers refuse. A partial lapse is a review owed, not a
+  // breach, so it moves no status and no gate.
+  const lapsed =
+    dataset.rowExpiry !== undefined && rowExpiry !== undefined && rowExpiry.expired > 0
+      ? ` ${rowExpiry.expired} of ${rowExpiry.rows} rows past their own expiry, so they may not be served.`
+      : "";
+
   if (dataset.stalenessBudgetHours === null) {
     // A lane DECLARED a snapshot and given no budget is one nothing may
     // lawfully advance, so there is nothing for it to be late for: it reports
@@ -574,14 +590,15 @@ export function evaluateDataset(
         status: "snapshot",
         detail:
           `Aged ${ageHours}h. A declared snapshot with no staleness budget: it reports ` +
-          "the day it was collected, and no refresh is owed.",
+          "the day it was collected, and no refresh is owed." +
+          lapsed,
       };
     }
     return {
       ...base,
       ageHours,
       status: "untracked",
-      detail: "Intentionally not budgeted (episodic / user-cadence).",
+      detail: "Intentionally not budgeted (episodic / user-cadence)." + lapsed,
     };
   }
 
@@ -590,7 +607,7 @@ export function evaluateDataset(
       ...base,
       ageHours,
       status: "stale",
-      detail: `Aged ${ageHours}h, over the ${dataset.stalenessBudgetHours}h budget.`,
+      detail: `Aged ${ageHours}h, over the ${dataset.stalenessBudgetHours}h budget.${lapsed}`,
     };
   }
 
@@ -605,7 +622,7 @@ export function evaluateDataset(
       status: "snapshot",
       detail:
         `Aged ${ageHours}h, within the ${dataset.stalenessBudgetHours}h budget but over ` +
-        `${SNAPSHOT_AFTER_DAYS} days old: a snapshot of its collection day, not a current reading.`,
+        `${SNAPSHOT_AFTER_DAYS} days old: a snapshot of its collection day, not a current reading.${lapsed}`,
     };
   }
 
@@ -613,7 +630,7 @@ export function evaluateDataset(
     ...base,
     ageHours,
     status: "fresh",
-    detail: `Aged ${ageHours}h, within the ${dataset.stalenessBudgetHours}h budget.`,
+    detail: `Aged ${ageHours}h, within the ${dataset.stalenessBudgetHours}h budget.${lapsed}`,
   };
 }
 
