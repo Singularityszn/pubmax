@@ -12,8 +12,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { bandAnchors } from "@/lib/storyBandGeometry";
 import type { StoryBand } from "@/lib/storyBands";
-import type { Venue } from "@/lib/venues";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import { truncateStopName } from "@/lib/routeStopLabel";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import { pintTrustPinStanding } from "@/lib/pintTrust";
@@ -127,7 +126,7 @@ function pinPriceStack(
     signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
   return {
     price: bandPrice ?? signals?.latestDemoPrice ?? null,
-    sourcedPrice: isPubVenueKind(venue.kind) ? bandPrice : null,
+    sourcedPrice: hasPintPriceSemantics(venue) ? bandPrice : null,
   };
 }
 
@@ -370,6 +369,7 @@ export function pubsToGeoJSON(
           id: venue.id,
           name: venue.name,
           kind: venue.kind ?? "pub",
+          ...(venue.legacyOsmBar === true ? { legacyOsmBar: true } : {}),
           bucket,
           story: venue.hasStory,
           drops:

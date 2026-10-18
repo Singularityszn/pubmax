@@ -1,6 +1,6 @@
 import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
 import { priceBand, priceBandAreaForVenue, priceBandClass, type PriceBand } from "@/lib/priceBand";
-import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
+import { formatFreshness, formatObservedAt, hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import {
@@ -185,7 +185,7 @@ export function hoverCardCopy(
       pendingNote: "",
     };
   }
-  if (isPubVenueKind(kind)) {
+  if (hasPintPriceSemantics(hoverDetail ?? mapVenue ?? {})) {
     const line = hoverPriceLine(mapVenue, signal, hoverDetail);
     return {
       venueTypeLabel,
@@ -193,8 +193,8 @@ export function hoverCardCopy(
       priceBand: pintBandFor(line.price, mapVenue, hoverDetail),
       priceSuffix: "cheapest pint",
       provenance: line.provenance,
-      detailLabel: "pub detail",
-      pendingNote: provisional ? COMMUNITY_PROVISIONAL_SHORT_NOTE : "",
+      detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
+      pendingNote: provisional && isPubVenueKind(kind) ? COMMUNITY_PROVISIONAL_SHORT_NOTE : "",
     };
   }
 

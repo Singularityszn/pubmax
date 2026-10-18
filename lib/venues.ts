@@ -1,4 +1,6 @@
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
+import { legacyCheapestPriceEvidence } from "@/lib/legacyPriceEvidence.mjs";
+import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
@@ -164,6 +166,13 @@ export function isVenueKind(value: unknown): value is VenueKind {
   return typeof value === "string" && (VENUE_KINDS as readonly string[]).includes(value);
 }
 
+export function hasPintPriceSemantics(
+  venue: { kind?: VenueKind; legacyOsmBar?: unknown },
+): boolean {
+  return isPubVenueKind(venue.kind) ||
+    (venue.kind === "bar" && venue.legacyOsmBar === true);
+}
+
 export type Venue = {
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
   /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
@@ -260,6 +269,8 @@ export type Venue = {
   filterHints?: VenueFilterHints;
   /** Famous-venue taxonomy. Absent is a pub for legacy/cache compatibility. */
   kind?: VenueKind;
+  legacyOsmBar?: true;
+  priceSource?: string;
   /** Type-relative price band computed at build time (cheap/mid/dear). */
   priceBand?: 0 | 1 | 2;
   /**
@@ -663,9 +674,17 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       .find(Boolean);
 
     const kind = legacyOsmVenueKind(groupRows);
+    const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
+    const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
+    const priceObservedAt = kind ? cheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
-      ...(kind ? { kind } : {}),
+      ...(kind ? {
+        kind,
+        legacyOsmBar: true as const,
+        ...(priceSource ? { priceSource } : {}),
+        ...(priceObservedAt ? { priceObservedAt } : {}),
+      } : {}),
       name: displayVenueName(first.pub_name),
       ...venueSourceNameField(first.pub_name),
       address: displayVenueAddress(first.address),
@@ -675,7 +694,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       ...(locality ? { locality } : {}),
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
-      cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
+      cheapestPrice,
       cheapestPint: sortedPrices[0]?.pint_name ?? "",
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
@@ -1282,7 +1301,7 @@ export function filterVenues(
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
     const matchesPrice =
-      (venue.kind !== undefined && venue.kind !== "pub") ||
+      !hasPintPriceSemantics(venue) ||
       venue.cheapestPrice === null ||
       venue.cheapestPrice <= filters.maxPrice;
 

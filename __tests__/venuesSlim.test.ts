@@ -15,7 +15,7 @@ import {
   CURATED_CUISINE_BY_VENUE_ID,
   normaliseCuisineTags,
 } from "@/lib/cuisineTags";
-import { slimVenueToPin } from "@/lib/slimPins";
+import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
 import { CITIES } from "@/lib/cities";
 import { loadSlimVenuesFromPathResult, SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 import { offlineCache } from "@/lib/offlineCache";
@@ -158,6 +158,17 @@ describe("slim legacy and curated price boundaries", () => {
     }
   });
 
+  it("keeps all 147 legacy markers valid after pin serialization", async () => {
+    const marked = slim.filter((row) => row.legacyOsmBar === true);
+    const rows = pinsToSlimVenues(marked.map(slimVenueToPin));
+    expect(rows.filter((row) => row.legacyOsmBar === true)).toHaveLength(147);
+    const payload = { revision: "all-legacy-roundtrip", rows };
+    serveSlimPayload(payload);
+    expect(await loadSlimVenuesFromPathResult("/data/all-legacy-roundtrip.json", {
+      expectedRevision: payload.revision,
+    })).toMatchObject({ status: "ready", rows });
+  });
+
   it.each(["venue-1uvk466", "venue-8rf7pi", "venue-fw3cy8"])("preserves %s evidence through normalization and offline reads", async (id) => {
     const row = defined(slim.find((row) => row.id === id));
     const payload = { revision: "legacy-roundtrip", rows: [row] };
@@ -175,6 +186,51 @@ describe("slim legacy and curated price boundaries", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     expect(await loadSlimVenuesFromPathResult(url, { expectedRevision: payload.revision }))
       .toEqual({ rows: [row], status: "ready" });
+  });
+
+  it.each(["venue-1uvk466", "venue-8rf7pi", "venue-fw3cy8"])("preserves %s evidence through pin and resume conversions", async (id) => {
+    const row = defined(slim.find((row) => row.id === id));
+    if (row.cheapestPrice === null) throw new Error(`expected a recorded pint price for ${id}`);
+    const pin = slimVenueToPin(row);
+    expect(pin).toMatchObject({
+      kind: "bar",
+      legacyOsmBar: true,
+      priceSource: row.priceSource,
+      priceObservedAt: row.priceObservedAt,
+      cheapestPrice: row.cheapestPrice,
+    });
+    for (const venue of [pin, defined(fullVenuesById.get(id))]) {
+      const rows = pinsToSlimVenues([venue]);
+      expect(rows[0]).toMatchObject({
+        id: row.id,
+        kind: "bar",
+        legacyOsmBar: true,
+        priceSource: row.priceSource,
+        priceObservedAt: row.priceObservedAt,
+        cheapestPrice: row.cheapestPrice,
+        lat: row.lat,
+        lng: row.lng,
+      });
+      const payload = { revision: "resume-roundtrip", rows };
+      serveSlimPayload(payload);
+      const result = await loadSlimVenuesFromPathResult("/data/resume-roundtrip.json", {
+        expectedRevision: payload.revision,
+      });
+      expect(result).toMatchObject({ status: "ready", rows: [rows[0]] });
+      const resumed = slimVenueToPin(defined(result.rows[0]));
+      expect(filterVenues([resumed], makeFilters({ maxPrice: row.cheapestPrice - 0.5 }))).toEqual([]);
+      expect(hoverCardCopy(resumed, undefined, venue)).toMatchObject({
+        price: row.cheapestPrice, priceSuffix: "cheapest pint", detailLabel: "venue detail",
+      });
+    }
+  });
+
+  it.each([undefined, false, "true", 1])("does not promote an unsupported marker %j during pin conversion", (marker) => {
+    const row = { ...defined(slim.find((row) => row.id === "venue-8rf7pi")), legacyOsmBar: marker } as unknown as SlimVenue;
+    const pin = slimVenueToPin(row);
+    expect(pin.legacyOsmBar).toBeUndefined();
+    expect(pinsToSlimVenues([pin])[0]?.legacyOsmBar).toBeUndefined();
+    expect(pinsToSlimVenues([{ ...pin, legacyOsmBar: marker } as unknown as typeof pin])[0]?.legacyOsmBar).toBeUndefined();
   });
 
   it.each([
@@ -257,9 +313,9 @@ describe("slim listed price evidence", () => {
 
 describe("legacy bar pint map semantics", () => {
   const legacyPrices = [
-    { id: "venue-8rf7pi", price: 6, pinLabel: "£6", listLabel: "£6.00" },
-    { id: "venue-1uvk466", price: 5, pinLabel: "£5", listLabel: "£5.00" },
-    { id: "venue-fw3cy8", price: 3.6, pinLabel: "£3.60", listLabel: "£3.60" },
+    { id: "venue-8rf7pi", price: 6, pinLabel: "£6", listLabel: "£6.00", band: "average" },
+    { id: "venue-1uvk466", price: 5, pinLabel: "£5", listLabel: "£5.00", band: "cheap" },
+    { id: "venue-fw3cy8", price: 3.6, pinLabel: "£3.60", listLabel: "£3.60", band: "cheap" },
   ];
 
   describe.each(["full", "slim"] as const)("%s records", (representation) => {
@@ -294,10 +350,11 @@ describe("legacy bar pint map semantics", () => {
       });
     });
 
-    it.each(legacyPrices)("shows and sorts the pint price in lists at $id", ({ id, price, listLabel }) => {
+    it.each(legacyPrices)("shows and sorts the pint price in lists at $id", ({ id, price, listLabel, band }) => {
       const venue = venueFor(id);
       expect.soft(buildMapVenueListModel([venue], null).rows[0]).toMatchObject({
         kind: "bar", priceLabel: listLabel, anchor: null,
+        priceBand: band,
       });
       expect.soft(mapVenueListCheapest([venue])).toEqual({ venue, priceGbp: price });
       expect.soft(buildLogNearbyCandidates([venue])[0]).toMatchObject({
@@ -309,6 +366,20 @@ describe("legacy bar pint map semantics", () => {
   it("applies a GBP5.50 maximum to Tattoo Bar's GBP6 pint", () => {
     const venue = slimVenueToPin(defined(slim.find((row) => row.id === "venue-8rf7pi")));
     expect(filterVenues([venue], makeFilters({ maxPrice: 5.5 }))).toEqual([]);
+  });
+
+  it("keeps legacy presence records unpriced and outside pub-only filters", () => {
+    const row = defined(slim.find((row) => row.legacyOsmBar === true && row.cheapestPrice === null));
+    const venue = slimVenueToPin(row);
+    expect(filterVenues([venue], makeFilters({ maxPrice: 0 }))).toEqual([venue]);
+    expect(filterVenues([venue], makeFilters({ requirePintDrops: true }), () => true)).toEqual([]);
+    expect(hoverCardCopy(venue, undefined, null)).toMatchObject({ price: null, priceBand: null });
+    const data = pubsToGeoJSON([venue], new Map(), null);
+    expect(data.features[0]?.properties?.priceLabel).toBeUndefined();
+    expect(data.features[0]?.properties?.clusterPrice).toBeUndefined();
+    expect(buildMapVenueListModel([venue], null).rows[0]).toMatchObject({ priceLabel: "Price TBD", anchor: null });
+    expect(mapVenueListCheapest([venue])).toBeNull();
+    expect(buildLogNearbyCandidates([venue])[0]).toMatchObject({ priceLabel: "Price TBD", anchor: null });
   });
 
   it("retains curated bar anchor semantics", () => {
@@ -329,6 +400,28 @@ describe("legacy bar pint map semantics", () => {
     });
     expect(buildLogNearbyCandidates([venue])[0]).toMatchObject({
       priceLabel: "£25.00", anchor: { label: "Welcome to The Savoy" },
+    });
+  });
+
+  it.each(["bar", "food", "restaurant"])("retains the curated %s price unit after pin serialization", (kind) => {
+    const row = defined(slim.find((row) => row.kind === kind && row.anchorLabel !== undefined));
+    const venue = slimVenueToPin(defined(pinsToSlimVenues([slimVenueToPin(row)])[0]));
+    expect(venue.legacyOsmBar).toBeUndefined();
+    expect(filterVenues([venue], makeFilters({ maxPrice: 0 }))).toEqual([venue]);
+    expect(hoverCardCopy(venue, undefined, null)).toMatchObject({
+      price: row.cheapestPrice, priceSuffix: row.anchorLabel, priceBand: null,
+    });
+    const data = pubsToGeoJSON([venue], new Map(), null);
+    expect(data.features[0]?.properties?.priceLabel).toBeUndefined();
+    expect(data.features[0]?.properties?.clusterPrice).toBeUndefined();
+    expect(deriveMapRenderedState(data, { brass: "brass" }, null)).toMatchObject({
+      priceBands: [{ meaning: "type-relative", bucket: row.priceBand }], clusterPrices: false,
+    });
+    expect(buildMapVenueListModel([venue], null).rows[0]).toMatchObject({
+      anchor: { label: row.anchorLabel, sourceUrl: row.anchorSourceUrl }, priceBand: null,
+    });
+    expect(buildLogNearbyCandidates([venue])[0]).toMatchObject({
+      anchor: { label: row.anchorLabel, sourceUrl: row.anchorSourceUrl },
     });
   });
 });

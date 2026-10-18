@@ -5,13 +5,10 @@ import {
   compactVenueAnchor,
   type CompactVenueAnchor,
 } from "@/lib/venueAnchorPresentation";
-import {
-  isPubVenueKind,
-  venueKindLabel,
-} from "@/lib/venueKindFilters";
+import { venueKindLabel } from "@/lib/venueKindFilters";
 import type { PriceBand } from "@/lib/priceBand";
 import type { DrinkCategory } from "@/lib/drinks";
-import type { VenueKind } from "@/lib/venues";
+import { hasPintPriceSemantics, type VenueKind } from "@/lib/venues";
 
 type ResolveMapLogIntentInput = {
   hasLogIntent: boolean;
@@ -58,6 +55,7 @@ type LogNearbyVenue = {
   latitude?: number;
   longitude?: number;
   kind?: VenueKind;
+  legacyOsmBar?: true;
   anchorLabel?: string;
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
@@ -112,7 +110,7 @@ function priceLabelFor(
   }
   return typeof venue.cheapestPrice === "number" &&
     Number.isFinite(venue.cheapestPrice) &&
-    (isPubVenueKind(venue.kind) || anchor !== null)
+    (hasPintPriceSemantics(venue) || anchor !== null)
     ? formatGbp(venue.cheapestPrice)
     : "Price TBD";
 }
