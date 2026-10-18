@@ -129,6 +129,50 @@ export function hoverPriceLine(
   return { price: null, provenance: "Tap for detail" };
 }
 
+function experienceHoverCardCopy(
+  kind: Venue["kind"],
+  venueTypeLabel: string,
+  experiencePrice: MapLensPrice | null,
+  lensNoun: string | null,
+  lensStatus: CategoryPriceIndexStatus,
+): HoverCardCopy {
+  if (experiencePrice === null) {
+    const noun = lensNoun?.trim() || null;
+    return {
+      venueTypeLabel,
+      price: null,
+      priceBand: null,
+      priceSuffix: noun ? `for ${noun}` : "for this view",
+      provenance: noun
+        ? drinkLensUnknownSentence(noun, lensStatus)
+        : "No price logged for this view",
+      detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
+      pendingNote: "",
+    };
+  }
+  const provenance =
+    experiencePrice.source === "community"
+      ? ["Community", formatFreshness(experiencePrice.submittedAt)]
+          .filter(Boolean)
+          .join(" · ")
+      : [
+          "Sourced",
+          anchorMonthLabel(experiencePrice.observedAt),
+          anchorSourceLabel(experiencePrice.sourceUrl),
+        ]
+          .filter(Boolean)
+          .join(" · ");
+  return {
+    venueTypeLabel,
+    price: experiencePrice.priceGbp,
+    priceBand: lensBandFor(experiencePrice),
+    priceSuffix: experiencePrice.categoryLabel,
+    provenance,
+    detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
+    pendingNote: "",
+  };
+}
+
 export function hoverCardCopy(
   mapVenue: Venue | undefined,
   signal: VenueSignal | undefined,
@@ -149,41 +193,13 @@ export function hoverCardCopy(
   const kind = hoverDetail?.kind ?? mapVenue?.kind;
   const venueTypeLabel = venueKindLabel(kind);
   if (experiencePrice !== undefined) {
-    if (experiencePrice === null) {
-      const noun = lensNoun?.trim() || null;
-      return {
-        venueTypeLabel,
-        price: null,
-        priceBand: null,
-        priceSuffix: noun ? `for ${noun}` : "for this view",
-        provenance: noun
-          ? drinkLensUnknownSentence(noun, lensStatus)
-          : "No price logged for this view",
-        detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
-        pendingNote: "",
-      };
-    }
-    const provenance =
-      experiencePrice.source === "community"
-        ? ["Community", formatFreshness(experiencePrice.submittedAt)]
-            .filter(Boolean)
-            .join(" · ")
-        : [
-            "Sourced",
-            anchorMonthLabel(experiencePrice.observedAt),
-            anchorSourceLabel(experiencePrice.sourceUrl),
-          ]
-            .filter(Boolean)
-            .join(" · ");
-    return {
+    return experienceHoverCardCopy(
+      kind,
       venueTypeLabel,
-      price: experiencePrice.priceGbp,
-      priceBand: lensBandFor(experiencePrice),
-      priceSuffix: experiencePrice.categoryLabel,
-      provenance,
-      detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
-      pendingNote: "",
-    };
+      experiencePrice,
+      lensNoun,
+      lensStatus,
+    );
   }
   if (hasPintPriceSemantics(hoverDetail ?? mapVenue ?? {})) {
     const line = hoverPriceLine(mapVenue, signal, hoverDetail);

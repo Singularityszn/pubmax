@@ -822,16 +822,7 @@ async function readBundleSoftDrinkSubtypes() {
   return byVenue;
 }
 
-async function main() {
-  const rawText = await readFile(RAW_PATH, "utf8");
-  const rows = JSON.parse(rawText);
-  if (!Array.isArray(rows)) {
-    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
-  }
-
-  const scrapedIds = await readScrapedIds();
-  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
-
+function groupLondonRows(rows) {
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
   // Map preserves insertion order and reads name/coords/borough off `first`
@@ -850,6 +841,20 @@ async function main() {
     if (bucket) bucket.push(row);
     else grouped.set(key, [row]);
   }
+  return { grouped, droppedOob };
+}
+
+async function main() {
+  const rawText = await readFile(RAW_PATH, "utf8");
+  const rows = JSON.parse(rawText);
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  const scrapedIds = await readScrapedIds();
+  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
+
+  const { grouped, droppedOob } = groupLondonRows(rows);
   if (droppedOob > 0) {
     console.log(`dropped ${droppedOob} row(s) outside Greater London bounds`);
   }
