@@ -303,8 +303,9 @@ export default async function AboutPage() {
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
           boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
           <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>. The average is{" "}
-          <span className="aboutPriceStamp">{average}</span>.
+          <span className="aboutPriceStamp">{dearest}</span>. The average of
+          all <strong>{fmtInt(stats.pintPricesObserved)}</strong> logged prices
+          is <span className="aboutPriceStamp">{average}</span>.
         </p>
       </section>
 

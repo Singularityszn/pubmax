@@ -27,7 +27,13 @@ export type AboutStats = {
   cheapestPint: number | null;
   /** Dearest observed pint (GBP), or null when no priced row exists. */
   dearestPint: number | null;
-  /** Mean observed pint (GBP, rounded to pence), or null when none. */
+  /**
+   * Mean of every accepted price READING (GBP, rounded to pence), or null when
+   * none, so a pub with five listed pints counts five times. The landing's
+   * "average listed pint across N pubs" (lib/pintSavings.ts) is a different
+   * cohort, the mean of each pub's cheapest pint, so the figures differ and
+   * each sentence names what it averages.
+   */
   averagePint: number | null;
   /** Distinct London boroughs & named neighbourhoods present in the data. */
   boroughsCovered: number;
