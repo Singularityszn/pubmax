@@ -56,6 +56,12 @@ type SocialPostFeedPage = {
 export type SocialPostServerProjection = {
   post: SocialPostDTO;
   authorProfileId: string;
+  /**
+   * The author's REAL handle, even when the post hides it. Server-only: it is
+   * how a list built from this projection checks a withdrawn author before
+   * the name comes off, and it never reaches a viewer.
+   */
+  authorHandle: string;
 };
 
 export type SocialPostModerationAdapter = {
@@ -215,17 +221,14 @@ export function socialPostFromRow(value: unknown): SocialPost {
 }
 
 export function socialPostServerProjectionFromRow(value: unknown): SocialPostServerProjection {
-  const post = socialPostFromRow(value);
-  return {
-    post: socialPostDTO(post),
-    authorProfileId: post.authorProfileId,
-  };
+  return serverProjection(socialPostFromRow(value));
 }
 
 function serverProjection(post: SocialPost): SocialPostServerProjection {
   return {
     post: socialPostDTO(post),
     authorProfileId: post.authorProfileId,
+    authorHandle: post.authorHandle,
   };
 }
 
