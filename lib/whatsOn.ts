@@ -112,9 +112,7 @@ export function whatsOnBarePriceGbp(row: Pick<WhatsOnRow, "kind" | "priceGbp">):
  * Freshest confirmation per listing kind.
  *
  * The page-level source time is the freshest thing a whole answer can show. A
- * surface about ONE source may not borrow it: the live-music lane is dated by
- * the music feed, and if only July evidence exists for music then July is what
- * that lane says, however recently the deals feed was rebuilt. A kind with no
+ * stamp about one source may not borrow another source's date. A kind with no
  * datable evidence is ABSENT rather than null-filled, so a reader is told "no
  * date on this yet" instead of somebody else's day.
  */

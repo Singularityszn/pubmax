@@ -583,9 +583,6 @@ export default function TonightClient({
   const secondaryLanes = (
     <>
       <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
-      {/* The music lane is dated by the MUSIC feed, never by the freshest thing
-          on the page: the deals feed is rebuilt far more often, and borrowing
-          its date would claim gigs were confirmed on a day nobody looked. */}
       <MusicTonightLane rows={secondaryHeroes} asOf={kindObservedAt.music} />
     </>
   );
