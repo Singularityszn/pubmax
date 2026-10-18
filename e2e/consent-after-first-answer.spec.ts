@@ -315,9 +315,14 @@ for (const viewport of WIDTHS) {
         .toBe("denied");
       if (arrival.path === "/tonight") {
         const firstPub = page.locator(".tonightHypedRow").first();
-        const mapAction = firstPub.getByRole("link", { name: "Open on map" });
+        // The way onto the map is the row itself since the taste pass (18 Oct
+        // 2026): the pub's name is the row's one link and its ::after covers
+        // the whole row (components/ui/row-list.tsx), so a thumb lands on the
+        // row's box rather than on a separate "Open on map" button.
+        const mapAction = firstPub.locator(".rowListTitleLink");
         await expect(mapAction).toBeVisible();
-        const actionBox = await mapAction.boundingBox();
+        await expect(mapAction).toHaveAttribute("href", /\/map/);
+        const actionBox = await firstPub.boundingBox();
         expect(actionBox?.height).toBeGreaterThanOrEqual(44);
         expect(boxesOverlap(actionBox as Box, box)).toBe(false);
         // Every card reads the same compact way: the reason folds behind "Why

@@ -112,10 +112,22 @@ test.describe("Today mobile block geometry", () => {
     await page.goto("/today");
     await expect(page.getByTestId("today-screen")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
-    const actions = page.locator(".todayFoot a");
-    await actions.last().scrollIntoViewIfNeeded();
-    await expect(actions).toHaveCount(3);
-    await expect(actions.last()).toBeVisible();
+    // Every way onward is reachable on a desktop with no tab bar. The foot
+    // carried three links until the taste pass (18 Oct 2026) said each way
+    // once: Tonight is the Now pair at the top, the map is the head's own
+    // secondary, and the foot keeps the one way that is said nowhere else.
+    const screen = page.getByTestId("today-screen");
+    for (const [scope, href] of [
+      [page.locator(".nowSegment"), "/tonight"],
+      [screen.locator("[data-primary-action]"), "/near?locate=1"],
+      [screen.locator(".screenSecondary"), "/map"],
+      [page.locator(".todayFoot"), "/plan"],
+    ] as const) {
+      const action = scope.locator(`a[href="${href}"]`);
+      await expect(action, `${href} is a way onward from /today`).toHaveCount(1);
+      await action.scrollIntoViewIfNeeded();
+      await expect(action).toBeVisible();
+    }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
     ).toBeLessThanOrEqual(1);
