@@ -66,6 +66,7 @@ import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
 } from "@/lib/pubPalVoiceSession";
+import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
@@ -998,3 +999,145 @@ describe("Pub Pal voice controls", () => {
     expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("");
   });
 });
+
+type LiveSession = {
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  onMessage?: (message: { role: string; message: string }) => void;
+  onAgentResponseCorrection?: (event: { original_agent_response: string; corrected_agent_response: string }) => void;
+  onDebug?: (event: unknown) => void;
+};
+
+async function startLiveSession(): Promise<LiveSession> {
+  getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+  requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+    signedUrl: "wss://voice.example/session",
+    conversationId: "conv_voiceSession1",
+  }));
+  await act(async () => {
+    root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+  });
+  await settle();
+  await act(async () => { await vi.dynamicImportSettled(); });
+  await settle();
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>("button")?.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  const session = defined(voice.startSession.mock.calls[0])[0] as LiveSession;
+  voice.status = "connected";
+  voice.isListening = true;
+  await act(async () => {
+    session.onConnect?.();
+    root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+  });
+  await settle();
+  return session;
+}
+
+function transcriptLines(): string[] {
+  return [...container.querySelectorAll(".palVoiceLine:not(.palVoiceLine--live):not(.palVoiceMapCard)")]
+    .map((line) => line.textContent ?? "");
+}
+
+describe("Pub Pal voice transcript", () => {
+  it("prints what the person said and what the Pal answered, by name", async () => {
+    const session = await startLiveSession();
+    expect(container.textContent).toContain("Talk to Ripley.");
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "Evening. Where are we drinking?" });
+      session.onMessage?.({ role: "user", message: "Cheap pints near Soho" });
+    });
+    expect(container.querySelector('[role="log"]')?.getAttribute("aria-label")).toBe("Voice chat transcript");
+    expect(transcriptLines()).toEqual(["RipleyEvening. Where are we drinking?", "YouCheap pints near Soho"]);
+    // The person's line landed and the Pal has not answered: it shows it is thinking.
+    expect(container.textContent).toContain("Ripley is thinking");
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "The Toucan has a listed pint at £5.20." });
+    });
+    expect(transcriptLines()).toHaveLength(3);
+    expect(container.textContent).not.toContain("Ripley is thinking");
+  });
+
+  it("cuts a Pal line to what it said before the person talked over it", async () => {
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "There are three pubs on Greek Street and one more." });
+      session.onAgentResponseCorrection?.({
+        original_agent_response: "There are three pubs on Greek Street and one more.",
+        corrected_agent_response: "There are three pubs",
+      });
+    });
+    expect(transcriptLines()).toEqual(["RipleyThere are three pubs"]);
+  });
+
+  it("shows the partial words the provider has heard so far", async () => {
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onDebug?.({ type: "tentative_user_transcript", tentative_user_transcription_event: { user_transcript: "cheap pints near" } });
+    });
+    expect(container.querySelector(".palVoiceLine--live")?.textContent).toContain("cheap pints near");
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Cheap pints near Soho" });
+    });
+    expect(container.textContent).not.toContain("cheap pints near");
+    expect(transcriptLines()).toEqual(["YouCheap pints near Soho"]);
+  });
+
+  it("opens the map when the person asks for it out loud", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Can you show me the map?" });
+    });
+    expect(container.querySelector(".palVoiceMapCard")?.textContent).toContain("Opening the map");
+    expect(navigation.push).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
+  });
+
+  it("never moves on the Pal's own words", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "Shall I show you the map?" });
+    });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    expect(container.querySelector(".palVoiceMapCard")).toBeNull();
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  it("stays on the Pal when the person taps Stay here", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Open the map" });
+    });
+    await act(async () => {
+      [...container.querySelectorAll("button")].find((button) => button.textContent === "Stay here")?.click();
+    });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    expect(container.querySelector(".palVoiceMapCard")).toBeNull();
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  it("opens the map from a typed ask without a voice session", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await mountAvailable();
+    await typeAndSend("show me the map");
+    expect(voice.sendUserMessage).not.toHaveBeenCalled();
+    expect(transcriptLines()[0]).toContain("show me the map");
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
+  });
+
+  it("prints a typed line in a live session and marks it typed", async () => {
+    await startLiveSession();
+    await typeAndSend("Somewhere quiet for two");
+    expect(voice.sendUserMessage).toHaveBeenCalledExactlyOnceWith("Somewhere quiet for two");
+    expect(transcriptLines()).toEqual(["You typedSomewhere quiet for two"]);
+  });
+});
+

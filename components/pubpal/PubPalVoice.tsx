@@ -130,7 +130,10 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+function VoiceAvailabilityGate({ onStateChange, palName }: {
+  onStateChange?: (state: PalAnimationState) => void;
+  palName?: string;
+}) {
   const availability = useVoiceAvailability();
 
   // Tri-state: while the probe is out the control claims neither, because
@@ -152,16 +155,19 @@ function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalA
 
   if (availability === "unavailable") return <PalVoiceOffline />;
 
-  return <PubPalVoiceSession onStateChange={onStateChange} />;
+  return <PubPalVoiceSession onStateChange={onStateChange} palName={palName} />;
 }
 
 export default function PubPalVoice({
   muted = false,
   onStateChange,
+  palName,
 }: {
   muted?: boolean;
   onStateChange?: (state: PalAnimationState) => void;
+  /** The name the transcript prints beside the Pal's lines. */
+  palName?: string;
 }) {
   if (muted) return <PalVoiceMuted />;
-  return <VoiceAvailabilityGate onStateChange={onStateChange} />;
+  return <VoiceAvailabilityGate onStateChange={onStateChange} palName={palName} />;
 }

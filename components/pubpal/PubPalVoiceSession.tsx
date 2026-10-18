@@ -14,7 +14,14 @@
 // ever reached through the `available` branch.
 
 import type { Route } from "next";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   ConversationProvider,
   useConversationControls,
@@ -24,6 +31,9 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mic, MicOff, Send } from "lucide-react";
+
+import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVoiceMeter";
+import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 
 import { trackEvent } from "@/lib/analytics";
 import type { VoiceEndReason } from "@/lib/analyticsEvents";
@@ -46,6 +56,16 @@ import {
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
 } from "@/lib/pubPalVoiceSession";
+import {
+  appendPalVoiceLine,
+  correctPalVoiceLine,
+  palAsksForMap,
+  palVoiceLine,
+  PAL_VOICE_MAP_DELAY_MS,
+  PAL_VOICE_MAP_HREF,
+  tentativeUserTranscriptFrom,
+  type PalVoiceLine,
+} from "@/lib/palVoiceTranscript";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
@@ -119,18 +139,40 @@ async function releaseVoiceSession(conversationId: string | null): Promise<void>
   }
 }
 
-function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError }: {
+const silentVolume = (): number => 0;
+const silentSpectrum = (): Uint8Array => new Uint8Array(0);
+
+type VoiceTranscript = {
+  lines: PalVoiceLine[];
+  setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
+};
+
+function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript }: {
   onStateChange?: (state: PalAnimationState) => void;
   resetPendingSession: (error: string | null) => void;
   text: string;
   setText: (text: string) => void;
   error: string | null;
   setError: (error: string | null) => void;
+  palName: string;
+  transcript: VoiceTranscript;
 }) {
   const router = useRouter();
-  const { startSession, endSession, sendUserMessage } = useConversationControls();
+  const {
+    startSession,
+    endSession,
+    sendUserMessage,
+    getInputVolume = silentVolume,
+    getOutputByteFrequencyData = silentSpectrum,
+  } = useConversationControls();
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
+  const { lines, setLines } = transcript;
+  const [hearing, setHearing] = useState(false);
+  const [tentative, setTentative] = useState("");
+  const [awaitingPal, setAwaitingPal] = useState(false);
+  const [mapPending, setMapPending] = useState(false);
+  const mapTimerRef = useRef<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
   const [usingFallbackVoice, setUsingFallbackVoice] = useState(false);
@@ -138,6 +180,42 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const [startController] = useState(createPubPalVoiceStartController);
+
+  const stayHere = useCallback((): void => {
+    if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
+    mapTimerRef.current = null;
+    setMapPending(false);
+  }, []);
+
+  // The person asked for the map in their own words. Leaving /pal ends the
+  // voice session through the unmount below, so the allowance is released.
+  const openMap = useCallback((): void => {
+    if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
+    setMapPending(true);
+    mapTimerRef.current = window.setTimeout(() => {
+      mapTimerRef.current = null;
+      router.push(PAL_VOICE_MAP_HREF);
+    }, PAL_VOICE_MAP_DELAY_MS);
+  }, [router]);
+  const openMapRef = useRef(openMap);
+  useEffect(() => {
+    openMapRef.current = openMap;
+  }, [openMap]);
+  useEffect(() => () => {
+    if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (status === "connected" && !isSpeaking) return;
+    queueMicrotask(() => {
+      if (isSpeaking) setAwaitingPal(false);
+      if (status !== "connected") {
+        setHearing(false);
+        setTentative("");
+        setAwaitingPal(false);
+      }
+    });
+  }, [isSpeaking, status]);
 
   const ownsAttempt = useCallback((attempt: VoiceSessionAttempt): boolean => (
     activeAttemptRef.current === attempt &&
@@ -296,13 +374,34 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
           libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
           onMessage: ({ role, message }) => {
             if (!ownsAttempt(attempt)) return;
-            const conversationId = conversationIdRef.current;
             const content = message.trim();
-            if (!conversationId || !content || role !== "user") return;
+            if (!content) return;
+            if (role !== "user") {
+              setLines((current) => appendPalVoiceLine(current, palVoiceLine("pal", content)));
+              setAwaitingPal(false);
+              return;
+            }
+            setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", content)));
+            setTentative("");
+            setAwaitingPal(true);
+            if (palAsksForMap(content)) openMapRef.current();
+            const conversationId = conversationIdRef.current;
+            if (!conversationId) return;
             void syncVoiceToolTurn({
               conversationId,
               threadTurn: { role: "user", content },
             });
+          },
+          onAgentResponseCorrection: ({ original_agent_response, corrected_agent_response }) => {
+            if (!ownsAttempt(attempt)) return;
+            setLines((current) =>
+              correctPalVoiceLine(current, original_agent_response, corrected_agent_response),
+            );
+          },
+          onDebug: (event: unknown) => {
+            if (!ownsAttempt(attempt)) return;
+            const heard = tentativeUserTranscriptFrom(event);
+            if (heard !== null) setTentative(heard);
           },
           overrides: overrides
             ? {
@@ -387,6 +486,12 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const send = () => {
     const value = text.trim();
     if (!value || voiceConnecting) return;
+    if (palAsksForMap(value)) {
+      setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
+      setText("");
+      openMap();
+      return;
+    }
     if (status !== "connected") {
       // No live conversation: sendUserMessage would throw and the Pal would
       // sit on "thinking" forever. Ask the written Pal instead.
@@ -395,6 +500,8 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       return;
     }
     onStateChange?.("thinking");
+    setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
+    setAwaitingPal(true);
     sendUserMessage(value);
     const conversationId = conversationIdRef.current;
     if (conversationId) {
@@ -406,16 +513,41 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     setText("");
   };
 
+  const live = status === "connected";
+  const meterMode: PalVoiceMeterMode = voiceConnecting
+    ? "connecting"
+    : live
+      ? isSpeaking ? "speaking" : "listening"
+      : "idle";
+
   return (
-    <div className="palVoice">
-      <div className="palVoiceStatus" role="status">
-        <i className={status === "connected" ? "isLive" : ""} />
-        {isStarting
-          ? "Starting voice"
-          : status === "connected"
-            ? "Pal is listening"
-            : "Voice ready when you are"}
+    <div className="palVoice" data-mode={meterMode}>
+      <div className="palVoiceHead">
+        <div className="palVoiceStatus" role="status">
+          <i className={live ? "isLive" : ""} />
+          {isStarting
+            ? "Starting voice"
+            : live
+              ? isSpeaking ? "Pal is talking" : "Pal is listening"
+              : "Voice ready when you are"}
+        </div>
+        <PalVoiceMeter
+          mode={meterMode}
+          getInputVolume={getInputVolume}
+          getOutputByteFrequencyData={getOutputByteFrequencyData}
+          onVoiceActivity={setHearing}
+        />
       </div>
+      <PalVoiceTranscript
+        lines={lines}
+        palName={palName}
+        hearing={hearing && !isSpeaking}
+        tentative={isSpeaking ? "" : tentative}
+        thinking={awaitingPal && live && !isSpeaking}
+        live={live}
+        mapPending={mapPending}
+        onStayHere={stayHere}
+      />
       <div className="palVoiceActions">
         {status === "connected" ? (
           <button type="button" onClick={stopCurrentAttempt}>
@@ -475,10 +607,15 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
 /** The writing draft outlives a provider whose pending startup was cancelled. */
 export default function PubPalVoiceSession({
   onStateChange,
+  palName = "Pal",
 }: {
   onStateChange?: (state: PalAnimationState) => void;
+  palName?: string;
 }) {
   const [sdkGeneration, setSdkGeneration] = useState(0);
+  // The transcript outlives an SDK reset and a session that ended, so the
+  // person can read back what was said. It lives in this tab only.
+  const [lines, setLines] = useState<PalVoiceLine[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const resetPendingSession = useCallback((nextError: string | null) => {
@@ -495,6 +632,8 @@ export default function PubPalVoiceSession({
         setText={setText}
         error={error}
         setError={setError}
+        palName={palName}
+        transcript={{ lines, setLines }}
       />
     </ConversationProvider>
   );

@@ -307,8 +307,53 @@ body:has(.palExperience) {
 .palMemoryList .palSecondary { background: transparent; color: var(--pal-paper); }
 .palMemoryEmpty { min-height: 6rem; padding: 1rem; border: 1px dashed var(--pal-line); border-radius: .9rem; display: flex; align-items: center; gap: .75rem; color: var(--pal-soft); }
 .palMemoryEmpty p { margin: 0; }
-.palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
+.palVoice { --voice-tone: var(--pal-line); margin-top: 1rem; padding: 1rem; border: 1px solid var(--voice-tone); border-radius: .9rem; background: var(--panel-raised); transition: border-color .3s ease, box-shadow .3s ease; }
+/* The panel's edge says who has the floor: coral while the Pal talks, ink
+   while it listens. Solid surface, no blur: this is a card, not chrome. */
+.palVoice[data-mode="listening"] { --voice-tone: color-mix(in srgb, var(--pal-paper) 38%, var(--pal-line)); }
+.palVoice[data-mode="speaking"] { --voice-tone: var(--pal-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pal-accent) 14%, transparent); }
+.palVoice[data-mode="connecting"] { --voice-tone: color-mix(in srgb, var(--pal-accent) 45%, var(--pal-line)); }
 .palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
+.palVoiceHead { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.palVoiceStatus { display: flex; align-items: center; gap: .45rem; font-weight: 600; }
+.palVoiceStatus i { width: .5rem; height: .5rem; flex: none; border-radius: 50%; background: var(--pal-line); }
+.palVoiceStatus i.isLive { background: var(--pal-accent); animation: palVoicePulse 1.6s ease-in-out infinite; }
+/* The level meter: each bar is driven by --level from the live audio. */
+.palVoiceMeter { height: 2rem; flex: 0 1 8.5rem; min-width: 5rem; display: flex; align-items: center; justify-content: center; gap: 2px; }
+.palVoiceMeter span { --level: 0; width: 3px; height: 100%; border-radius: 2px; background: var(--pal-line); transform: scaleY(calc(.1 + var(--level) * .9)); transform-origin: center; }
+.palVoiceMeter[data-mode="listening"] span { background: var(--pal-paper); }
+.palVoiceMeter[data-mode="speaking"] span { background: var(--pal-accent); }
+.palVoiceMeter[data-mode="connecting"] span { background: var(--pal-accent); animation: palVoiceWave 1.1s calc(var(--bar) * -45ms) ease-in-out infinite; }
+
+/* The transcript: a short conversation that scrolls itself. */
+.palVoiceEmpty { margin: .85rem 0 0; display: grid; gap: .3rem; color: var(--pal-soft); font-size: .84rem; line-height: 1.5; }
+.palVoiceEmpty span { color: var(--color-text-muted); font-size: .76rem; }
+.palVoiceLog { max-height: min(22rem, 46vh); margin: .85rem 0 0; padding: 0 .1rem .1rem 0; list-style: none; display: flex; flex-direction: column; gap: .6rem; overflow-y: auto; overscroll-behavior: contain; scroll-padding-bottom: .5rem; }
+.palVoiceLine { max-width: 88%; display: grid; gap: .2rem; animation: palVoiceLineIn .32s cubic-bezier(.16, 1, .3, 1) backwards; }
+.palVoiceLine p { margin: 0; padding: .55rem .8rem; border-radius: .95rem; font-size: .92rem; line-height: 1.45; overflow-wrap: anywhere; color: var(--pal-paper); }
+.palVoiceSpeaker { display: flex; align-items: center; gap: .35rem; color: var(--color-text-muted); font-size: .68rem; font-weight: 700; letter-spacing: .02em; }
+.palVoiceSpeaker small { display: inline-flex; align-items: center; gap: .2rem; font-weight: 500; }
+.palVoiceLine--you { align-self: flex-end; justify-items: end; }
+.palVoiceLine--you p { border-bottom-right-radius: .3rem; background: var(--panel); }
+.palVoiceLine--pal { align-self: flex-start; }
+.palVoiceLine--pal p { border-bottom-left-radius: .3rem; background: color-mix(in srgb, var(--pal-accent) 13%, var(--panel-raised)); }
+.palVoiceLine--live p { color: var(--pal-soft); font-style: italic; }
+.palVoiceWord { display: inline-block; animation: palVoiceWordIn .38s calc(var(--w) * 55ms) ease-out backwards; }
+.palVoiceDots { display: inline-flex; gap: 3px; margin-left: .3rem; vertical-align: middle; }
+.palVoiceDots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: palVoiceDot 1.1s ease-in-out infinite; }
+.palVoiceDots i:nth-child(2) { animation-delay: .15s; }
+.palVoiceDots i:nth-child(3) { animation-delay: .3s; }
+.palVoiceMapCard { max-width: 100%; align-self: stretch; padding: .65rem .7rem .65rem .85rem; border-radius: .8rem; display: flex; align-items: center; gap: .6rem; background: var(--panel); color: var(--pal-paper); }
+.palVoiceMapCard p { flex: 1; padding: 0; font-weight: 700; background: none; }
+.palVoiceMapCard p::after { content: ""; display: block; height: 2px; margin-top: .35rem; border-radius: 2px; background: var(--pal-accent); transform-origin: left; animation: palVoiceCountdown var(--map-delay, 1.4s) linear both; }
+.palVoiceMapCard button { min-height: 2.75rem; padding: 0 .9rem; border: 1px solid var(--pal-line); border-radius: .7rem; background: var(--panel-raised); color: var(--pal-paper); font-weight: 600; cursor: pointer; }
+.palVoice .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@keyframes palVoicePulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--pal-accent) 22%, transparent); } }
+@keyframes palVoiceWave { 50% { transform: scaleY(.65); } }
+@keyframes palVoiceLineIn { from { opacity: 0; transform: translateY(.45rem) scale(.98); } }
+@keyframes palVoiceWordIn { from { opacity: 0; transform: translateY(.25rem); filter: blur(2px); } }
+@keyframes palVoiceDot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@keyframes palVoiceCountdown { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
 .palVoiceActions > button, .palVoiceActions label { min-height: 2.9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); }
 .palVoiceActions > button { padding: 0 .85rem; cursor: pointer; }
