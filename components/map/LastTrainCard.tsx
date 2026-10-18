@@ -31,6 +31,7 @@ import {
   readLastTrainDestination,
   writeLastTrainDestination,
 } from "@/lib/lastTrainDestination";
+import { openExternalTab } from "@/lib/openExternalTab";
 import { safeSessionStorage } from "@/lib/safeStorage";
 import { nearestStaticStation } from "@/lib/staticStations";
 import {
@@ -232,8 +233,7 @@ async function dispatchCrewShare(shareText: string): Promise<CrewShareOutcome> {
     }
   }
   if (typeof window === "undefined") return "error";
-  const opened = window.open(lastPintShareHref(shareText), "_blank", "noopener,noreferrer");
-  return opened ? "shared" : "error";
+  return openExternalTab(lastPintShareHref(shareText)) ? "shared" : "error";
 }
 
 function readSessionDestination(): string {

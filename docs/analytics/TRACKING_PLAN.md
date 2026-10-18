@@ -334,7 +334,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_redeemed` | A guest unlocked collaboration with it. The k-factor pair. |
 | `plan_invite_sent` | An invite left through a channel. |
 | `content_shared` | Something left through a share channel, and which surface it came from. |
-| `plan_invite_opened` | An invite was opened. |
+| `plan_invite_opened` | An invite was opened by someone other than the host. The host's own landing after Lock is not counted. |
 | `plan_invite_link_copied` | The link was copied. |
 | `plan_invite_link_rotated` | The link was rotated. |
 | `invite_page_viewed` | The public invite page was seen, and whether it already had replies. |
