@@ -128,5 +128,37 @@ test.describe("the Pal on the map", () => {
     await page.waitForTimeout(300);
     await page.screenshot({ path: `${SHOTS}/pal-visited-390.png` });
   });
+
+  test("cheers everywhere when the reader finishes the crawl", async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedPal(page);
+    await page.goto(`/map?mode=build&pubs=${CRAWL}`);
+    const marker = page.locator(".palMapMarker");
+    await expect(marker).toHaveAttribute("data-pal-walk", /walking|rested/, { timeout: 60_000 });
+
+    // Open the route panel from the plan pill, as a phone reader does.
+    const panel = page.locator(".mapDrawer .routePanel");
+    const pill = page.getByRole("button", { name: /stop plan/ });
+    await expect(async () => {
+      if (!(await panel.isVisible())) await pill.first().click();
+      await expect(panel).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await panel.getByRole("button", { name: "Start this crawl", exact: true }).click();
+    await panel.getByRole("button", { name: "Mark complete", exact: true }).click();
+
+    // The celebration card: the person's Pal jumps with its line.
+    const cheer = page.getByTestId("crawl-celebration").getByTestId("pal-cheer");
+    await expect(cheer).toHaveText("Ripley walked all 3 stops with you.");
+    // The Pal on the map runs to the last stop and celebrates there.
+    await expect(marker).toHaveAttribute("data-pal-moment", "victory", { timeout: 10_000 });
+    await expect(marker).toHaveClass(/isVictory/);
+    // The summon chip says so too, if it is on screen.
+    const chip = page.locator(".palSummon");
+    if (await chip.isVisible()) await expect(chip).toContainText("Walked all 3 stops");
+    await mkdir(SHOTS, { recursive: true });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${SHOTS}/pal-crawl-finished-390.png` });
+  });
 });
 

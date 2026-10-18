@@ -38,6 +38,7 @@ vi.mock("maplibre-gl", () => ({
 
 import { createPalMapMarker, palMarkerElement } from "@/components/map/canvas/palMarker";
 import { palWalkPlan, type LngLat } from "@/components/map/canvas/palWalk";
+import { announcePalMoment } from "@/lib/palMoments";
 import type { PubPal } from "@/lib/pubPal";
 
 const map = {} as maplibregl.Map;
@@ -338,6 +339,47 @@ describe("the Pal on the map", () => {
     const [instance] = markerHarness.instances;
     expect(instance!.options.element.dataset.palWalk).toBe("visited");
     expect(instance!.lngLat).toEqual(crawl[1]);
+  });
+
+  it("celebrates a finished crawl beside the last stop, running there first", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(5);
+    const [instance] = markerHarness.instances;
+    const element = instance!.options.element;
+    expect(element.querySelectorAll(".palMapSparks i")).toHaveLength(8);
+
+    announcePalMoment({ kind: "crawl-finished", stops: 3 });
+    expect(element.dataset.palWalk).toBe("visiting");
+    expect(element.dataset.palMoment).toBeUndefined();
+    runFrames(200);
+    expect(instance!.lngLat).toEqual(crawl[2]);
+    expect(element.dataset.palMoment).toBe("victory");
+    expect(element.classList.contains("isVictory")).toBe(true);
+
+    // Already beside the last stop: the victory plays where it stands.
+    element.classList.remove("isVictory");
+    announcePalMoment({ kind: "night-finished", stops: 3 });
+    expect(frames).toHaveLength(0);
+    expect(element.classList.contains("isVictory")).toBe(true);
+    marker.destroy();
+  });
+
+  it("celebrates beside a perched pub, and not at all once gone", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    // Not on the map yet: nothing to celebrate with.
+    announcePalMoment({ kind: "crawl-finished", stops: 2 });
+    expect(markerHarness.instances).toHaveLength(0);
+    marker.perch([-0.1, 51.5]);
+    announcePalMoment({ kind: "crawl-finished", stops: 2 });
+    const element = markerHarness.instances[0]!.options.element;
+    expect(element.classList.contains("isVictory")).toBe(true);
+    marker.destroy();
+    element.classList.remove("isVictory");
+    announcePalMoment({ kind: "crawl-finished", stops: 2 });
+    expect(element.classList.contains("isVictory")).toBe(false);
   });
 });
 

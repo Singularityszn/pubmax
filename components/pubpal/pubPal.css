@@ -170,6 +170,27 @@
   font-size: 9px;
   color: var(--muted);
 }
+/* A finished crawl or night (lib/palMoments.ts): the chip lights up and the
+   Pal jumps, once, while the line says what happened. */
+.palSummon.isCheering {
+  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
+}
+.palSummon.isCheering small {
+  color: var(--ink);
+  font-weight: 700;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .palSummon.isCheering:not([data-pal-state="sleeping"]) .palAvatar {
+    animation: palSummonCheer 1s cubic-bezier(.3, .7, .4, 1) both;
+  }
+}
+@keyframes palSummonCheer {
+  0% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(2px) scale(1.1, .86); }
+  50% { transform: translateY(-12px) scale(1.12) rotate(-12deg); }
+  75% { transform: translateY(0) scale(1.08, .92) rotate(8deg); }
+  100% { transform: translateY(0) scale(1); }
+}
 @media (max-width: 640px) {
   /* On the phone map the plan pill is full width and the Near me FAB owns the
      right edge, so the summon pill stops short of that lane. */

@@ -7,6 +7,7 @@ import { Check, Footprints } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import PalCheer from "@/components/pal/PalCheer";
 import type { CrawlProgressEntry } from "@/lib/crawlCompletion";
 
 type CrawlProgressSectionProps = {
@@ -82,6 +83,7 @@ export default function CrawlProgressSection({
           role="status"
           data-testid="crawl-celebration"
         >
+          <PalCheer moment="crawl-finished" stops={crawlProgress?.stopIds.length ?? 0} />
           <p className="crawlCelebrationTitle">You walked it</p>
           <p className="crawlCelebrationCopy">
             {placeStoryBandId

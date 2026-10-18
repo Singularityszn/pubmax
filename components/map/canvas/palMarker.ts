@@ -3,7 +3,8 @@ import * as maplibregl from "maplibre-gl";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { pubPalMascotSlugFor, pubPalMascotSrc } from "@/lib/pubPalMascot";
 import type { PubPal } from "@/lib/pubPal";
-import { safeLocalStorage } from "@/lib/safeStorage";
+import { readLocalPal } from "@/lib/localPal";
+import { subscribePalMoments } from "@/lib/palMoments";
 import { palVisitMs, palWalkAt, palWalkPlan, palWalkPointAt, type LngLat, type PalWalkPlan } from "./palWalk";
 import "./palMarker.css";
 
@@ -22,6 +23,8 @@ import "./palMarker.css";
 // - when the reader taps a crawl stop it walks along the route to that stop,
 //   backwards if it must, and jumps for joy beside it. A still Pal (reduced
 //   motion, or muted) steps straight there instead;
+// - when the reader finishes a crawl or a planned night (lib/palMoments.ts) it
+//   runs to the last stop and celebrates with a burst of sparks, once;
 // - it sits up and to the right of the pin, never over it, and takes no
 //   pointer events, so every pin under it stays tappable and the painted-pin
 //   probe still finds the pin it names;
@@ -29,7 +32,6 @@ import "./palMarker.css";
 //   never a drawing, and it is decorative, so assistive tech skips it;
 // - with no Pal, or a Pal the reader hid, it is never made.
 
-const PAL_STORAGE_KEY = "pubmax_pub_pal_v1";
 const MARKER_PX = 38;
 // Perched: up and to the right of the pin. Walking: standing on the line.
 const PERCH_OFFSET: [number, number] = [14, -12];
@@ -70,17 +72,6 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-function storedPal(): PubPal | null {
-  try {
-    const raw = safeLocalStorage()?.getItem(PAL_STORAGE_KEY);
-    if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<PubPal> | null;
-    if (!value || typeof value !== "object" || !value.id || !value.appearance) return null;
-    return value as PubPal;
-  } catch {
-    return null;
-  }
-}
 
 /** The marker's markup, as plain DOM: the map's markers live outside React. */
 export function palMarkerElement(pal: PubPal): HTMLElement | null {
@@ -103,12 +94,20 @@ export function palMarkerElement(pal: PubPal): HTMLElement | null {
   image.decoding = "async";
   image.draggable = false;
   body.append(image);
-  element.append(body);
+  // The victory burst: eight sparks that fly out once (palMarker.css).
+  const sparks = document.createElement("span");
+  sparks.className = "palMapSparks";
+  for (let index = 0; index < 8; index += 1) {
+    const spark = document.createElement("i");
+    spark.style.setProperty("--spark", String(index));
+    sparks.append(spark);
+  }
+  element.append(body, sparks);
   return element;
 }
 
 export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
-  const pal = storedPal();
+  const pal = readLocalPal();
   if (!pal || pal.hidden) return NO_PAL;
   const element = palMarkerElement(pal);
   if (!element) return NO_PAL;
@@ -134,6 +133,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
   let lastFrameAt = 0;
   let pausedAt: number | null = null;
   let cancelStart: (() => void) | null = null;
+  let victoryPending = false;
 
   const restartClass = (name: string) => {
     // A reflow between removing and adding the class restarts its animation.
@@ -153,7 +153,14 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     }
   };
 
+  const victory = () => {
+    victoryPending = false;
+    element.dataset.palMoment = "victory";
+    restartClass("isVictory");
+  };
+
   const stopWalking = () => {
+    victoryPending = false;
     cancelStart?.();
     cancelStart = null;
     if (frame) cancelAnimationFrame(frame);
@@ -177,6 +184,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     perchedAt = null;
     place(walk.stops[stop]!, PERCH_OFFSET);
     restartClass(state === "visited" ? "isCheering" : "isLanding");
+    if (victoryPending) victory();
   };
 
   const step = (now: number) => {
@@ -216,7 +224,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     frame = requestAnimationFrame(step);
   };
 
-  return {
+  const api: PalMapMarker = {
     perch: (lngLat) => {
       if (walk) {
         stopWalking();
@@ -317,10 +325,28 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
       frame = requestAnimationFrame(step);
     },
     destroy: () => {
+      unsubscribe();
       stopWalking();
       marker?.remove();
       marker = null;
       perchedAt = null;
     },
   };
+
+  // A finished crawl or night: on a crawl, run to the last stop first.
+  const unsubscribe = subscribePalMoments(() => {
+    if (!marker) return;
+    if (walk) {
+      const last = walk.stops.length - 1;
+      const there = !walk.visit && walk.restAt === last && walk.elapsed >= walk.plan.durationMs;
+      if (!there) {
+        victoryPending = true;
+        api.visit(last);
+        return;
+      }
+    }
+    victory();
+  });
+
+  return api;
 }

@@ -19,6 +19,8 @@
 // Mounted once in the app shell (app/layout.tsx). Renders nothing unless a plan
 // is active and undismissed — so it costs nothing on every other night.
 
+import PalCheer from "@/components/pal/PalCheer";
+import { announcePalMoment } from "@/lib/palMoments";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -831,6 +833,8 @@ function NightModeSheet({
           );
         }
         setPlan(canonical);
+        // The night really ended: every Pal on screen cheers (lib/palMoments.ts).
+        announcePalMoment({ kind: "night-finished", stops: canonical.stops.length });
         // The ending really saved, so the food half of the shortlist ratio is
         // countable. It rides the SAVED selection rather than the tap, because
         // a refused save leaves the night exactly where it was. Only the hours
@@ -1030,6 +1034,7 @@ function NightModeSheet({
         />
         {recap ? (
           <div className="nightCard__recapInvite">
+            <PalCheer moment="night-finished" stops={stops.length} />
             <p className="nightCard__recapLede">
               That&rsquo;s the night. Keep it as a private Memory. The
               route and any words you add, nothing posted.
