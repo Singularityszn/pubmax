@@ -10,6 +10,7 @@ import * as maplibregl from "maplibre-gl";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import { createPalMapMarker, type PalMapMarker } from "@/components/map/canvas/palMarker";
+import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
   Crosshair,
   MapPinned,
@@ -4119,13 +4120,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     }
   }, [poiHidden, mapReady]);
 
-  // The Pal perches beside the selected pin, and steps off with no selection.
-  useEffect(() => {
-    if (!mapReady) return;
-    const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
-    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null);
-  }, [selectedVenueId, venues, mapReady]);
-
   // Route + selection ring → sources/filter.
   useEffect(() => {
     routeLineRef.current = routeToLine(route);
@@ -4278,6 +4272,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         if (!body || body.source !== "ors" || !body.line?.features?.length) return;
         routeLineRef.current = body.line;
         applyRouteData();
+        const stops = palWalkStopsFromKey(routeCoordKey);
+        palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: palWalkPathFrom(body.line), road: true });
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -4291,6 +4287,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       controller.abort();
     };
   }, [routeCoordKey, mapReady, applyRouteData]);
+
+  // The Pal walks a crawl route of two or more stops (the road line takes over
+  // above once routed); with no crawl it perches beside the selected pin.
+  useEffect(() => {
+    if (!mapReady) return;
+    const stops = palWalkStopsFromKey(routeCoordKey);
+    if (stops.length > 1) {
+      palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: stops });
+      return;
+    }
+    const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
+    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null);
+  }, [routeCoordKey, selectedVenueId, venues, mapReady]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {

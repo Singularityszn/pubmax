@@ -27,6 +27,9 @@
   transform-origin: 50% 55%;
   transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
   rotate: var(--genome-tilt, 0deg);
+  /* On a crawl the Pal turns to face the way it walks. */
+  scale: var(--pal-facing, 1) 1;
+  transition: scale .18s ease-out;
 }
 .palMapMarker[data-pal-state="sleeping"] .palMapMarkerBody img { filter: brightness(.72); }
 
@@ -36,11 +39,19 @@
   .palMapMarker.isLanding:not([data-pal-state="sleeping"]) .palMapMarkerBody {
     animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both, palMapBob 3.2s ease-in-out .6s infinite;
   }
+  /* Walking a crawl: a quick step bounce in place of the idle bob. */
+  .palMapMarker.isWalking .palMapMarkerBody,
+  .palMapMarker.isWalking:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapStep .34s ease-in-out infinite;
+  }
 }
 @keyframes palMapLand {
   0% { opacity: 0; transform: translateY(-1.6rem) scale(.6); }
   60% { opacity: 1; transform: translateY(0) scale(1.08, .9); }
   100% { transform: translateY(0) scale(1); }
+}
+@keyframes palMapStep {
+  50% { transform: translateY(-.22rem) rotate(2deg); }
 }
 @keyframes palMapBob {
   50% { transform: translateY(-.18rem); }

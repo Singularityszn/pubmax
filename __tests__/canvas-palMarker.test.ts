@@ -25,6 +25,11 @@ vi.mock("maplibre-gl", () => ({
       return this;
     }
 
+    setOffset(offset: [number, number]) {
+      this.options.offset = offset;
+      return this;
+    }
+
     addTo() {
       return this;
     }
@@ -32,6 +37,7 @@ vi.mock("maplibre-gl", () => ({
 }));
 
 import { createPalMapMarker, palMarkerElement } from "@/components/map/canvas/palMarker";
+import { palWalkPlan, type LngLat } from "@/components/map/canvas/palWalk";
 import type { PubPal } from "@/lib/pubPal";
 
 const map = {} as maplibregl.Map;
@@ -60,14 +66,46 @@ function store(value: unknown) {
   window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify(value));
 }
 
+// A frame clock the test turns by hand.
+let frames: Array<(now: number) => void> = [];
+let clock = 0;
+function runFrames(count: number, stepMs = 50) {
+  for (let index = 0; index < count && frames.length; index += 1) {
+    clock += stepMs;
+    const due = frames;
+    frames = [];
+    for (const callback of due) callback(clock);
+  }
+}
+
+function reducedMotion(reduce: boolean) {
+  vi.stubGlobal("matchMedia", (query: string) => ({ matches: reduce && query.includes("reduce") }));
+}
+
 beforeEach(() => {
   markerHarness.instances.length = 0;
   window.localStorage.clear();
+  frames = [];
+  clock = 0;
+  vi.stubGlobal("requestAnimationFrame", (callback: (now: number) => void) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  vi.stubGlobal("cancelAnimationFrame", () => {
+    frames = [];
+  });
+  vi.spyOn(performance, "now").mockImplementation(() => clock);
+  reducedMotion(false);
 });
 
 afterEach(() => {
   window.localStorage.clear();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+const crawl: LngLat[] = [[-0.1, 51.5], [-0.09, 51.5], [-0.095, 51.505]];
+const crawlKey = crawl.map((stop) => stop.join(",")).join(";");
 
 describe("the Pal on the map", () => {
   it("makes no marker without a stored Pal, or for one the reader hid", () => {
@@ -116,4 +154,107 @@ describe("the Pal on the map", () => {
     marker.destroy();
     expect(markerHarness.instances[1]!.remove).toHaveBeenCalledTimes(1);
   });
+
+  it("walks a crawl once, standing on the line, then rests beside the last stop", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    const [instance] = markerHarness.instances;
+    const element = instance!.options.element;
+    expect(element.dataset.palWalk).toBe("walking");
+    expect(element.classList.contains("isWalking")).toBe(true);
+    expect(instance!.options.offset).toEqual([-19, 4]);
+    const early = instance!.lngLat!;
+    expect(early[0]).toBeGreaterThan(crawl[0]![0]);
+    expect(early[0]).toBeLessThan(crawl[1]![0]);
+
+    // The same route again does not restart the walk.
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    expect(instance!.lngLat).toEqual(early);
+
+    runFrames(1_000);
+    expect(frames).toHaveLength(0);
+    expect(element.dataset.palWalk).toBe("rested");
+    expect(element.classList.contains("isWalking")).toBe(false);
+    expect(instance!.lngLat).toEqual(crawl[2]);
+    expect(instance!.options.offset).toEqual([14, -12]);
+    expect(markerHarness.instances).toHaveLength(1);
+  });
+
+  it("carries on along the road line at the same point of the walk", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(20);
+    const road: LngLat[] = [crawl[0]!, [-0.095, 51.4995], crawl[1]!, [-0.093, 51.503], crawl[2]!];
+    marker.walk({ key: crawlKey, stops: crawl, path: road, road: true });
+    runFrames(1);
+    const at = markerHarness.instances[0]!.lngLat!;
+    // Still on the first leg, now on the road's bend south of the straight line.
+    expect(at[0]).toBeLessThan(crawl[1]![0]);
+    expect(at[1]).toBeLessThan(51.5);
+    // A straight line never replaces the road line.
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1);
+    expect(markerHarness.instances[0]!.lngLat![1]).toBeLessThan(51.5);
+  });
+
+  it("never walks under reduced motion, or for a sleeping Pal: it waits at the first stop", () => {
+    reducedMotion(true);
+    store(pal());
+    createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl });
+    reducedMotion(false);
+    store(pal({ muted: true }));
+    createPalMapMarker(map).walk({ key: crawlKey, stops: crawl, path: crawl });
+    expect(frames).toHaveLength(0);
+    for (const instance of markerHarness.instances) {
+      expect(instance.lngLat).toEqual(crawl[0]);
+      expect(instance.options.element.dataset.palWalk).toBe("waiting");
+      expect(instance.options.element.classList.contains("isWalking")).toBe(false);
+    }
+  });
+
+  it("ends the walk when the crawl goes and a pub is perched on instead", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(3);
+    marker.perch([-0.2, 51.4]);
+    expect(frames).toHaveLength(0);
+    const [instance] = markerHarness.instances;
+    expect(instance!.lngLat).toEqual([-0.2, 51.4]);
+    expect(instance!.options.offset).toEqual([14, -12]);
+    expect(instance!.options.element.dataset.palWalk).toBeUndefined();
+  });
+
+  it("holds its place through a held frame, so a hidden tab never jumps it ahead", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1, 60_000);
+    const plan = palWalkPlan(crawl, crawl)!;
+    expect(plan.durationMs).toBeGreaterThan(100);
+    expect(markerHarness.instances[0]!.options.element.dataset.palWalk).toBe("walking");
+  });
+
+  it("waits for the map to finish loading before the first step", () => {
+    store(pal());
+    const handlers: Array<() => void> = [];
+    const loading = {
+      loaded: () => false,
+      once: (_event: string, handler: () => void) => handlers.push(handler),
+      off: vi.fn(),
+    } as unknown as maplibregl.Map;
+    createPalMapMarker(loading).walk({ key: crawlKey, stops: crawl, path: crawl });
+    const [instance] = markerHarness.instances;
+    expect(instance!.lngLat).toEqual(crawl[0]);
+    expect(instance!.options.element.dataset.palWalk).toBe("setting-off");
+    expect(frames).toHaveLength(0);
+    handlers.forEach((handler) => handler());
+    expect(frames).toHaveLength(1);
+    runFrames(2);
+    expect(instance!.lngLat![0]).toBeGreaterThan(crawl[0]![0]);
+  });
 });
+
