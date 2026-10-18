@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { NEAR_PRICE_TRUST_CAPTION } from "../lib/nearPriceTrust";
 import { uiUxChromiumProjectUse } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
-import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // The painted-map shots below need a real WebGL context, so this file launches
 // with the same SwiftShader arguments chromium-gl uses, the way
@@ -440,7 +440,7 @@ for (const layout of LAYOUTS) {
           await expectMobileMapShellReady(page);
           await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 
-          await press(layout, page.getByRole("button", { name: "Near me", exact: true }));
+          await press(layout, await mobileMapShellControl(page, "nearMe"));
           const nearMeSheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
           await expect(nearMeSheet).toBeVisible({ timeout: 20_000 });
           const answer = nearMeSheet.locator("section.nmn");
@@ -538,7 +538,7 @@ for (const layout of LAYOUTS) {
           expect(response?.status()).toBe(200);
           await expectMobileMapShellReady(page);
           await waitForLoadedMap(page);
-          await press(layout, page.getByRole("button", { name: "Near me", exact: true }));
+          await press(layout, await mobileMapShellControl(page, "nearMe"));
           const nearMeSheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
           await expect(nearMeSheet).toBeVisible({ timeout: 20_000 });
           await expect(nearMeSheet.locator(".nmnCard .nmnCardView").first()).toBeVisible({
