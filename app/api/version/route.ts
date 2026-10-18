@@ -30,14 +30,16 @@ const VERSION_CACHE_HEADERS = {
 
 export function GET(request: Request = new Request("http://localhost/api/version")): NextResponse {
   // A stale tab compares this id with no credential (lib/deploymentSkewRecovery).
-  // The browser already holds the same value as NEXT_DEPLOYMENT_ID. The commit,
-  // its source and the build time stay behind the cron check.
+  // The browser already holds the same value as NEXT_DEPLOYMENT_ID. The commit
+  // is public for release checks. Its source and build time remain protected.
   const deploymentId = currentDeploymentId();
-  if (!isCronAuthorized(request)) {
-    return NextResponse.json({ ok: true, deploymentId }, { headers: VERSION_CACHE_HEADERS });
-  }
-
   const build = currentBuildStamp();
+  if (!isCronAuthorized(request)) {
+    return NextResponse.json(
+      { ok: true, deploymentId, gitCommitSha: build.commitSha },
+      { headers: VERSION_CACHE_HEADERS },
+    );
+  }
 
   return NextResponse.json(
     {

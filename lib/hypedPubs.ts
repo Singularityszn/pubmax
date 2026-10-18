@@ -255,13 +255,19 @@ export type HypedPubsForPageOptions = {
 /**
  * The loudest FRESH rows, each carrying only the credit its card prints and
  * the listed pint we hold for it.
+ *
+ * Rows pinned to a venue take the page first, and an unpinned row only fills
+ * a place the pinned rows leave empty. A card that ends in "Not on our map
+ * yet" cannot be opened, so it must not hold a place a pub we can open could
+ * take (site review, 18 Oct 2026, over Simmons on `/tonight`). The pack keeps
+ * every row; only the page's choice of twelve changes.
  */
 export function hypedPubsForPage(
   rows: readonly HypedPub[],
   { now, limit = HYPED_PUBS_PAGE_LIMIT, prices }: HypedPubsForPageOptions,
 ): HypedPub[] {
-  return orderHypedPubs(rows)
-    .filter((row) => hypedPubIsFresh(row, now))
+  const fresh = orderHypedPubs(rows).filter((row) => hypedPubIsFresh(row, now));
+  return [...fresh.filter((row) => row.venueId), ...fresh.filter((row) => !row.venueId)]
     .slice(0, Math.max(0, Math.floor(limit)))
     .map((row) => {
       const credit = hypedPubCredit(row);
