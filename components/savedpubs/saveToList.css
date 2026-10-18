@@ -25,7 +25,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .saveToListToggle:hover {
-    border-color: var(--brass);
+    border-color: var(--hairline-strong);
   }
 }
 
@@ -54,15 +54,15 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .saveToListChip:hover:not(:disabled) {
-    border-color: var(--brass);
+    border-color: var(--hairline-strong);
     color: var(--ink);
   }
 }
 /* A saved chip says so: filled in the brass wash with a tick, and the pressed
    state is announced (aria-pressed), so it is not colour alone. */
 .saveToListChip[aria-pressed="true"] {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
   color: var(--ink);
   font-weight: 650;
 }
@@ -92,9 +92,9 @@
 .saveToListCreate {
   padding: 6px 12px;
   border-radius: var(--radius);
-  border: none;
-  background: var(--brass);
-  color: var(--panel-raised);
+  border: 1px solid var(--control-secondary-border);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
@@ -107,7 +107,7 @@
 .saveToListToast {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .saveToListClose {

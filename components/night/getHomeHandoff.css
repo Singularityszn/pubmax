@@ -39,8 +39,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .getHomeHandoff__link:hover {
-    border-color: color-mix(in srgb, var(--brass) 56%, var(--line));
-    background: color-mix(in srgb, var(--brass) 5%, var(--panel));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel));
   }
 }
 

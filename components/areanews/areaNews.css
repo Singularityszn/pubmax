@@ -79,8 +79,8 @@
    invitation, not a warning. Colour is a hint, never the whole signal — the
    label text always says the kind too. */
 .areaNewsChip[data-kind="award"] {
-  color: var(--brass);
-  border-color: var(--brass);
+  color: var(--color-text-muted);
+  border-color: var(--hairline-strong);
 }
 .areaNewsChip[data-kind="threat"],
 .areaNewsChip[data-kind="closure"] {

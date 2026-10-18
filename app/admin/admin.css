@@ -68,10 +68,10 @@
 
 .admin-btn {
   padding: 0.55rem 0.9rem;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--radius-sm);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
   cursor: pointer;
 }
@@ -124,10 +124,10 @@
 .admin-empty .admin-retry {
   justify-self: start;
   padding: 0.45rem 0.8rem;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -135,7 +135,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .admin-empty .admin-retry:hover {
-    background: color-mix(in srgb, var(--brass) 12%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -145,9 +145,10 @@
 }
 
 .admin-empty a {
-  color: var(--brass);
+  color: var(--ink);
   font-weight: 800;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .admin-list {
@@ -363,7 +364,7 @@
 }
 
 .admin-import-status-queued {
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .admin-import-status-dismissed {

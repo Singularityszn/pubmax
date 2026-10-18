@@ -74,8 +74,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .routeEndingCard__choice:hover {
-    border-color: color-mix(in srgb, var(--brass) 56%, var(--line));
-    background: color-mix(in srgb, var(--brass) 5%, var(--panel));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel));
   }
 }
 
@@ -90,8 +90,8 @@
 }
 
 .routeEndingCard__choice[data-recommended="true"] {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+  border-color: var(--hairline-strong);
+  background: var(--panel);
 }
 
 .routeEndingCard__choiceTop {
@@ -112,8 +112,9 @@
   flex: 0 0 auto;
   padding: 3px 7px;
   border-radius: var(--radius-pill);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  border: 1px solid var(--badge-border);
+  background: var(--badge-surface);
+  color: var(--ink);
   font-size: var(--text-2xs);
   font-weight: 750;
   letter-spacing: 0.02em;
@@ -128,7 +129,7 @@
 }
 
 .routeEndingCard__action {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: var(--text-xs);
   font-weight: 750;
   line-height: var(--leading-snug);

@@ -375,8 +375,8 @@ html[data-theme="dark"] .messagesPage {
   height: 1.25rem;
   padding: 0 0.4rem;
   border-radius: var(--radius-pill);
-  background: var(--messages-accent, var(--brass));
-  color: var(--color-on-accent);
+  background: var(--ink);
+  color: var(--paper);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
@@ -573,9 +573,11 @@ html[data-theme="dark"] .messagesPage {
 }
 
 /* Own messages use the launch accent; received messages use the neutral surface. */
+/* Mine is ink, not coral: coral is spent on the send button
+   (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
 .messageBubbleMine {
-  background: var(--messages-accent, var(--brass));
-  color: var(--color-on-accent);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* theirs: left, a panel fill and no edge */
@@ -618,9 +620,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageMention {
-  color: var(--brass);
+  color: inherit;
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .messageBubbleMine .messageMention {
@@ -906,7 +909,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageBubbleTheirs .messageVenueCardPrice {
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 /* ── composer ─────────────────────────────────────────────────────────────── */
@@ -1014,8 +1017,8 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .composerAttach[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
-  color: var(--tint-ink-accent);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .composerAttach:disabled {
@@ -1178,7 +1181,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 @media (hover: hover) and (pointer: fine) {
   .composerSend:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--messages-accent, var(--brass)) 85%, var(--ink-deep));
+    background: color-mix(in srgb, var(--ink) 6%, var(--ink-deep));
   }
 }
 
@@ -1215,7 +1218,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .composerPendingIcon {
   flex-shrink: 0;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .composerPendingLabel {
@@ -1340,10 +1343,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   min-height: 44px;
   min-width: 44px;
   padding: 0 0.95rem;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius);
   background: transparent;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
@@ -1352,7 +1355,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 @media (hover: hover) and (pointer: fine) {
   .profileMessageBtn:hover {
-    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -1786,7 +1789,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messagesNewGroupResult[aria-pressed="true"] .messagesNewGroupResultCheck {
   border-color: transparent;
-  background: var(--messages-accent, var(--brass));
+  background: var(--state-selected-surface);
 }
 
 .messagesNewGroupResultName,
@@ -2039,5 +2042,5 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messagesNewGroupOpened {
   font-size: var(--text-sm);
-  color: var(--color-accent-ink);
+  color: var(--color-text-muted);
 }
