@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Check, Copy, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
-import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
 import { formatGbp } from "@/lib/formatGbp";
@@ -16,10 +16,13 @@ import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
 import Screen from "@/components/ui/screen";
 import { plainDashes } from "@/components/listing/displayCase";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
 import {
   buildCrawlRouteSummary,
   crawlPriceRange,
   formatPriceRange,
+  visibleCuratedCrawls,
 } from "./routeSummary";
 import "@/components/listing/listing.css";
 import "./crawls.css";
@@ -92,18 +95,21 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-export default function CrawlsPageClient({ pack, encodedStory }: {
+export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null }: {
   pack?: string;
   encodedStory?: string | null;
+  /**
+   * The featured crawl's lead photograph, resolved on the server
+   * (components/listing/placePhoto.ts): the patch every stop is a short walk
+   * from, or null when no photograph we hold is honestly of its route.
+   */
+  featuredPhoto?: PlacePhotoData | null;
 }) {
   // The server passes query values on each navigation. No Suspense placeholder
   // hides the directory from a reader whose JavaScript cannot run.
   const activePackId = pack;
   const activePack = activePackId ? getRoutePack(activePackId) : undefined;
-  const activePackCrawlIds = activePack ? new Set(activePack.crawlIds) : null;
-  const visibleCrawls = activePackCrawlIds
-    ? curatedCrawls.filter((crawl) => activePackCrawlIds.has(crawl.id))
-    : curatedCrawls;
+  const visibleCrawls = visibleCuratedCrawls(activePackId);
 
   // The server supplies ?s= again on navigation. Invalid values fall through
   // to the directory because decodeCrawlStory never throws.
@@ -200,74 +206,79 @@ export default function CrawlsPageClient({ pack, encodedStory }: {
             </Link>
           }
         >
-          <nav className="routePackNav" aria-labelledby="routePacksHeading">
-            <p className="crawlEyebrow" id="routePacksHeading">
-              Jump to a route pack
-            </p>
-            <ul className="routePackChipRow">
-              {routePacks.map((pack) => {
-                const browseHref: Route = `/crawls?pack=${encodeURIComponent(pack.id)}`;
-                const isBrowsing = activePackId === pack.id;
-                const n = pack.crawlIds.length;
-                return (
-                  <li key={pack.id}>
-                    <Link
-                      href={browseHref}
-                      className={isBrowsing ? "routePackChip isActive" : "routePackChip"}
-                      aria-current={isBrowsing ? "true" : undefined}
-                      title={pack.blurb}
-                    >
-                      {pack.title}
-                      <span className="routePackChipCount">{n}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            {activePack ? (
-              <p className="routePackActiveNote">
-                Showing {activePack.title} routes.{" "}
-                <Link href="/crawls">Show all crawls</Link>
+          {/* One column, and from 1100px the featured crawl beside it as a
+              sticky pane (crawls.css). The pane is a grid placement of the
+              same element, so the reading and tab order stay the DOM's. */}
+          <div className="crawlLayout">
+            <nav className="routePackNav" aria-labelledby="routePacksHeading">
+              <p className="crawlEyebrow" id="routePacksHeading">
+                Jump to a route pack
               </p>
+              <ul className="routePackChipRow">
+                {routePacks.map((pack) => {
+                  const browseHref: Route = `/crawls?pack=${encodeURIComponent(pack.id)}`;
+                  const isBrowsing = activePackId === pack.id;
+                  const n = pack.crawlIds.length;
+                  return (
+                    <li key={pack.id}>
+                      <Link
+                        href={browseHref}
+                        className={isBrowsing ? "routePackChip isActive" : "routePackChip"}
+                        aria-current={isBrowsing ? "true" : undefined}
+                        title={pack.blurb}
+                      >
+                        {pack.title}
+                        <span className="routePackChipCount">{n}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              {activePack ? (
+                <p className="routePackActiveNote">
+                  Showing {activePack.title} routes.{" "}
+                  <Link href="/crawls">Show all crawls</Link>
+                </p>
+              ) : null}
+            </nav>
+
+            {featuredCrawl ? (
+              <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} photo={featuredPhoto} />
             ) : null}
-          </nav>
 
-          {featuredCrawl ? (
-            <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} />
-          ) : null}
-
-          {compactGroups.length ? (
-            <div className="crawlCompactGroups">
-              {compactGroups.map(([groupLabel, crawlsInGroup]) => (
-                <section
-                  key={groupLabel}
-                  className="crawlCompactGroup"
-                  aria-labelledby={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
-                >
-                  <h3
-                    id={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
-                    className="crawlCompactGroupHeading"
+            {compactGroups.length ? (
+              <div className="crawlCompactGroups">
+                {compactGroups.map(([groupLabel, crawlsInGroup]) => (
+                  <section
+                    key={groupLabel}
+                    className="crawlCompactGroup"
+                    aria-labelledby={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
                   >
-                    {groupHead(groupLabel)}
-                  </h3>
-                  <ul className="crawlCompactList" aria-label={`${groupLabel} crawls`}>
-                    {crawlsInGroup.map((crawl) => (
-                      <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          ) : null}
+                    <h3
+                      id={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
+                      className="crawlCompactGroupHeading"
+                    >
+                      {groupHead(groupLabel)}
+                    </h3>
+                    <ul className="crawlCompactList" aria-label={`${groupLabel} crawls`}>
+                      {crawlsInGroup.map((crawl) => (
+                        <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : null}
 
-          <RoundStarter />
+            <RoundStarter />
 
-          <p className="crawlEmptyBody crawlOwnLead">
-            Or build your own. Pick the pubs, pass the round on.
-          </p>
-          <Link prefetch={false} href="/map" className="crawlSecondaryBtn">
-            <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
-          </Link>
+            <p className="crawlEmptyBody crawlOwnLead">
+              Or build your own. Pick the pubs, pass the round on.
+            </p>
+            <Link prefetch={false} href="/map" className="crawlSecondaryBtn">
+              <MapPin size={16} aria-hidden="true" /> Build your own crawl on the map
+            </Link>
+          </div>
         </Screen>
       )}
     </main>
@@ -278,12 +289,18 @@ export default function CrawlsPageClient({ pack, encodedStory }: {
 // name, its one line, a meta line and one quiet link. It used to stack eight
 // treatments: a coral caps style pill, the name, the line, a 58px route glyph,
 // the walk, "Pints from", a flag chip, the stop count and a coral link.
+//
+// When a photograph we hold is honestly of the patch the route walks through,
+// it leads the card, captioned with the place it shows and its credit. A route
+// with no such photograph gets none, never a stand-in.
 function FeaturedCrawlCard({
   crawl,
   slimById,
+  photo,
 }: {
   crawl: CuratedCrawl;
   slimById: ReadonlyMap<string, SlimVenue>;
+  photo: PlacePhotoData | null;
 }) {
   const originName = startLandmarkName(crawl);
   const routeSummary = buildCrawlRouteSummary(crawl.venueIds, slimById);
@@ -299,7 +316,18 @@ function FeaturedCrawlCard({
   return (
     <div className="curatedFeaturedWrap">
       <p className="crawlEyebrow curatedFeaturedEyebrow">Featured crawl</p>
-      <article key={crawl.id} id={crawl.id} className="curatedCard curatedFeaturedCard">
+      <article
+        key={crawl.id}
+        id={crawl.id}
+        className={photo ? "curatedCard curatedFeaturedCard curatedCard--photo" : "curatedCard curatedFeaturedCard"}
+      >
+        {photo ? (
+          <PlacePhoto
+            className="curatedPhoto"
+            photo={photo}
+            sizes="(min-width: 1100px) 18rem, (min-width: 700px) 40rem, calc(100vw - 2.75rem)"
+          />
+        ) : null}
         <h2 className="curatedName">{crawl.name}</h2>
         <p className="curatedBlurb">{plainDashes(crawl.blurb)}</p>
         <p className="curatedMeta">

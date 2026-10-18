@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getCrawlStoryBySlug } from "@/lib/crawlStoryStore";
+import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhoto";
+import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
+import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatGbp } from "@/lib/formatGbp";
 import CrawlStoryPoster from "./CrawlStoryPoster";
 
@@ -65,6 +67,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+// The story's lead photograph, where one is honest: a photograph of the patch
+// EVERY stop is a short walk from (components/listing/placePhoto.ts). A stop
+// the dataset cannot place could be anywhere, so then there is none.
+async function storyPhoto(story: DurableStory): Promise<PlacePhoto | null> {
+  if (story.stops.length === 0) return null;
+  const venues = await loadGroupedVenues();
+  const byId = new Map(venues.map((venue) => [venue.id, venue]));
+  const points = story.stops.flatMap((stop) => {
+    const venue = byId.get(stop.venueId);
+    return venue ? [{ lat: venue.latitude, lng: venue.longitude }] : [];
+  });
+  return points.length === story.stops.length ? routePlacePhoto(points) : null;
+}
+
 export default async function CrawlStoryPage({ params }: PageProps) {
   const { slug } = await params;
   const story = await getCrawlStoryBySlug(slug);
@@ -82,7 +98,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
         </Link>
       </nav>
 
-      <CrawlStoryPoster story={story} slug={slug} />
+      <CrawlStoryPoster story={story} slug={slug} photo={await storyPhoto(story)} />
     </main>
   );
 }

@@ -7,7 +7,9 @@
 // invented ones. Mirrors lib/routeLegs semantics ("straight-line", ceil to a
 // whole minute, never "0 min") without importing the Venue-typed leg builder.
 
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { formatGbp } from "@/lib/formatGbp";
+import { getRoutePack } from "@/lib/routePacks";
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -73,4 +75,17 @@ export function formatPriceRange(range: CrawlPriceRange): string {
   return range.minGbp === range.maxGbp
     ? formatGbp(range.minGbp)
     : `${formatGbp(range.minGbp)}-${formatGbp(range.maxGbp)}`;
+}
+
+/**
+ * The curated crawls a /crawls view lists, in order: every one, or a route
+ * pack's own (?pack=id). The first is the featured crawl. One function, so the
+ * server page that picks the featured crawl's photograph and the client page
+ * that renders it cannot disagree about which crawl that is.
+ */
+export function visibleCuratedCrawls(packId: string | undefined): CuratedCrawl[] {
+  const pack = packId ? getRoutePack(packId) : undefined;
+  if (!pack) return curatedCrawls;
+  const ids = new Set(pack.crawlIds);
+  return curatedCrawls.filter((crawl) => ids.has(crawl.id));
 }

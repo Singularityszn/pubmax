@@ -89,6 +89,13 @@
   align-items: flex-start;
 }
 
+/* The patch the route walks through, when we hold an honest photograph of it
+   (components/listing/placePhoto.ts). It leads the poster under the head and
+   carries its place and credit under it. */
+.storyPhoto {
+  margin-top: var(--space-5);
+}
+
 /* Vibe tags as small neutral stamps (the badge trio). */
 .storyTags {
   list-style: none;
