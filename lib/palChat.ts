@@ -21,7 +21,9 @@
 // Which grounded source a card came from. `directory` = our own first-party
 // venue index (deterministic rank); `whats-on` = a verified What's-On row that
 // carries its own attributable {label, url} source.
-type PalProvenanceKind = "directory" | "whats-on";
+import type { AskMenuEvidence } from "@/lib/ask/types";
+
+type PalProvenanceKind = "directory" | "whats-on" | "published-menu";
 
 type PalProvenance = {
   // The chip label a reader sees. Never blank — a card is not rendered without
@@ -46,6 +48,7 @@ export type PalCard = {
   price: number | null;
   // Non-negotiable: every card keeps its provenance label.
   provenance: PalProvenance;
+  menuEvidence?: AskMenuEvidence;
   // What's-On rows carry a confidence grade; directory rows do not.
   confidence?: string;
   // What's-On start time (ISO-8601) for display; directory rows omit it.

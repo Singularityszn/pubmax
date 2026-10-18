@@ -63,6 +63,18 @@ describe("Pub Pal domain", () => {
     expect(setItem).toHaveBeenCalledTimes(1);
   });
 
+  it("reads a saved onboarding draft with no memory choice as proposals on", () => {
+    (globalThis as { window?: { localStorage: Storage } }).window = { localStorage: memoryStorage() };
+    window.localStorage.setItem(palOnboardingDraftKey("user-1"), JSON.stringify({
+      version: 1,
+      savedAt: new Date(0).toISOString(),
+      step: 3,
+      draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Nova" },
+      privacy: { visible: true, muted: false },
+    }));
+    expect(readPalOnboardingDraft("user-1")?.privacy.proposeMemories).toBe(true);
+  });
+
   it("records route-first Pal eligibility without route or location context", () => {
     (globalThis as { window?: { localStorage: Storage; dispatchEvent: (event: Event) => boolean } }).window = { localStorage: memoryStorage(), dispatchEvent: () => true };
     expect(hasPalRouteActivation()).toBe(false);
@@ -80,9 +92,15 @@ describe("Pub Pal domain", () => {
       savedAt: new Date(0).toISOString(),
       step: 4,
       draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Nova" },
-      privacy: { proposeMemories: true, visible: true, muted: false },
+      privacy: { proposeMemories: false, visible: false, muted: true },
     }));
-    expect(migrateLegacyPalOnboardingDraft("user-1")).toMatchObject({ step: 0, draft: { name: "Nova", adultConfirmed: false }, privacy: { proposeMemories: false } });
+    // The old key was shared by every browser user, so its privacy choices
+    // were someone else's: the migrated draft starts from the defaults.
+    expect(migrateLegacyPalOnboardingDraft("user-1")).toMatchObject({
+      step: 0,
+      draft: { name: "Nova", adultConfirmed: false },
+      privacy: { proposeMemories: true, visible: true, muted: false },
+    });
     expect(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY)).toBeNull();
     expect(readPalOnboardingDraft("user-1")).toMatchObject({ step: 0, draft: { adultConfirmed: false } });
   });

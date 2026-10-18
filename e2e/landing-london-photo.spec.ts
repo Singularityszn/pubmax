@@ -1,11 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { landingPhotoFor } from "@/lib/landingImagery";
+
 // The landing pages show London (captain 6 Sep 2026). What a browser proves
 // that a unit test cannot: the photograph really paints, its credit is really
 // on screen, the card's own scrim is really the alpha the contrast contract is
 // proved at, and adding a picture did not push the landing's one primary
 // action under the fold at 390x844, the law e2e/landing-find-my-pint.spec.ts
 // owns, and the reason the picture is the card's backdrop rather than a band.
+//
+// The home card stands on a photograph only when lib/landingImagery.ts keys
+// one on that card's own venue id. Which pub the card names moves with the
+// dataset, so a spec reads the venue id off the card's map link and asks the
+// same table, never the picture that happened to render.
 
 async function open(
   page: Page,
@@ -22,11 +29,41 @@ async function open(
   expect(response?.status()).toBe(200);
 }
 
-test("the landing card stands on a photograph that really loaded", async ({ page }) => {
+/** The venue id the home card names, read off its pub name's map link. */
+async function homeCardVenueId(page: Page): Promise<string> {
+  const href = await page.locator("#lp-answer-name a").getAttribute("href");
+  const venueId = new URL(href ?? "/", "http://localhost").searchParams.get("sel");
+  expect(venueId, "the home card links its pub on the map").toBeTruthy();
+  return venueId as string;
+}
+
+test("the landing card shows its own pub's photograph, or no photograph at all", async ({ page }) => {
+  const cardPhotoRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/landing/london/")) cardPhotoRequests.push(request.url());
+  });
   await open(page, "/", { width: 390, height: 844 });
 
-  const card = page.locator(".lpPubCard--photo");
+  const card = page.locator(".lpAnswerCard");
   await expect(card).toHaveCount(1);
+  const resolved = landingPhotoFor({ venueId: await homeCardVenueId(page) });
+
+  if (resolved.scope !== "pub") {
+    // We hold no photograph of this pub, so the card is its name, price and
+    // source as text. No view of another place stands in, none is credited,
+    // and none is fetched.
+    await expect(card.locator("img")).toHaveCount(0);
+    await expect(card.locator(".landingPhotoCredit")).toHaveCount(0);
+    await expect(card).not.toContainText("Photo:");
+    await expect(card.locator("#lp-answer-name a")).toBeVisible();
+    await expect(card.locator(".lpPubPrice")).toContainText(/£\d+\.\d{2}/);
+    await expect(card.locator(".lpPubSource")).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "Tower Bridge and the Thames in London from above" }),
+    ).toBeVisible();
+    expect(cardPhotoRequests).toEqual([]);
+    return;
+  }
 
   const image = card.locator(".landingPhoto__img");
   await expect(image).toBeVisible();
@@ -40,23 +77,29 @@ test("the landing card stands on a photograph that really loaded", async ({ page
   });
   expect(decoded.w).toBeGreaterThan(300);
   expect(decoded.h).toBeGreaterThan(150);
-  expect(decoded.src).toContain("/landing/london/");
+  // The picture is the one keyed on this pub, never any other London view.
+  expect(decoded.src).toContain(`/landing/london/${resolved.photo.id}-`);
+  await expect(image).toHaveAttribute("alt", resolved.photo.alt);
 
   // The credit the licence requires is on the card, not hidden behind a hover.
   const credit = card.locator(".landingPhotoCredit");
   await expect(credit).toBeVisible();
   await expect(credit).toContainText(/Photo: .+, (CC |Public domain|PDM)/);
+  await expect(credit).toContainText(resolved.photo.credit.author);
 });
 
 test.describe("responsive London skyline", () => {
   test.use({ deviceScaleFactor: 2 });
 
-  for (const { viewport, sourceWidth } of [
-    { viewport: { width: 320, height: 568 }, sourceWidth: 1024 },
-    { viewport: { width: 390, height: 844 }, sourceWidth: 1024 },
-    { viewport: { width: 768, height: 1024 }, sourceWidth: 1024 },
-    { viewport: { width: 1150, height: 900 }, sourceWidth: 1024 },
-    { viewport: { width: 1440, height: 900 }, sourceWidth: 1600 },
+  // A phone's photograph spends the height above its tab bar (and, on a short
+  // phone, the consent lane) across the figure's whole width, so its crop may
+  // be wider than 3:2 but never taller. Wider screens keep a 3:2 box.
+  for (const { viewport, sourceWidth, phoneCrop } of [
+    { viewport: { width: 320, height: 568 }, sourceWidth: 1024, phoneCrop: true },
+    { viewport: { width: 390, height: 844 }, sourceWidth: 1024, phoneCrop: true },
+    { viewport: { width: 768, height: 1024 }, sourceWidth: 1024, phoneCrop: false },
+    { viewport: { width: 1150, height: 900 }, sourceWidth: 1024, phoneCrop: false },
+    { viewport: { width: 1440, height: 900 }, sourceWidth: 1600, phoneCrop: false },
   ]) {
     test(`reserves photo space and fetches the right width at ${viewport.width}`, async ({ page }) => {
       const requested = new Set<string>();
@@ -77,7 +120,15 @@ test.describe("responsive London skyline", () => {
       try {
         expect(reserved).not.toBeNull();
         expect(reserved!.width).toBeGreaterThan(0);
-        expect(reserved!.width / reserved!.height).toBeCloseTo(1.5, 2);
+        expect(reserved!.height).toBeGreaterThan(0);
+        if (phoneCrop) {
+          const figure = await page.locator(".lpHero .lpLondonFigure").boundingBox();
+          expect(figure).not.toBeNull();
+          expect(reserved!.width).toBeCloseTo(figure!.width, 0);
+          expect(reserved!.height).toBeLessThanOrEqual((reserved!.width * 2) / 3 + 1);
+        } else {
+          expect(reserved!.width / reserved!.height).toBeCloseTo(1.5, 2);
+        }
         expect(await photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(0);
         expect(before).not.toBeNull();
       } finally {
@@ -104,14 +155,30 @@ test.describe("responsive London skyline", () => {
   }
 });
 
-test("the card's scrim ships the alpha the contrast contract is proved at", async ({ page }) => {
+test("text over a landing photograph ships the alpha the contrast contract is proved at", async ({ page }) => {
   await open(page, "/", { width: 390, height: 844 });
-  const alpha = await page.locator(".lpPubCard--photo .landingPhoto__scrim").evaluate((node) => {
-    const background = getComputedStyle(node).backgroundImage;
-    return [...background.matchAll(/rgba?\([^)]*?,\s*([0-9.]+)\s*\)/g)].map((m) => Number(m[1]));
+  const card = page.locator(".lpAnswerCard");
+  const resolved = landingPhotoFor({ venueId: await homeCardVenueId(page) });
+  if (resolved.scope === "pub") {
+    const alpha = await card.locator(".landingPhoto__scrim").evaluate((node) => {
+      const background = getComputedStyle(node).backgroundImage;
+      return [...background.matchAll(/rgba?\([^)]*?,\s*([0-9.]+)\s*\)/g)].map((m) => Number(m[1]));
+    });
+    expect(alpha.length).toBeGreaterThan(0);
+    for (const value of alpha) expect(value).toBeGreaterThanOrEqual(0.72);
+  } else {
+    // A text card has no photograph under its words, so it carries no scrim.
+    await expect(card.locator(".landingPhoto__scrim")).toHaveCount(0);
+  }
+
+  // A borough band's credit sits over its photograph on every run, so the
+  // contract is proved in a browser whichever pub the home card names.
+  await open(page, "/borough/camden", { width: 390, height: 844 });
+  const creditAlpha = await page.locator(".landingPhoto--band .landingPhotoCredit").evaluate((node) => {
+    const match = getComputedStyle(node).backgroundColor.match(/rgba?\([^)]*?,\s*([0-9.]+)\s*\)/);
+    return match ? Number(match[1]) : 1;
   });
-  expect(alpha.length).toBeGreaterThan(0);
-  for (const value of alpha) expect(value).toBeGreaterThanOrEqual(0.72);
+  expect(creditAlpha).toBeGreaterThanOrEqual(0.72);
 });
 
 test("the picture costs the primary action nothing: it stays above the fold", async ({ page }) => {

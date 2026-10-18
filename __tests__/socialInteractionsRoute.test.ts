@@ -16,6 +16,8 @@ const store = {
   listDerivatives: vi.fn(),
   processModerationQueue: vi.fn(),
   setBlock: vi.fn(),
+  setMute: vi.fn(),
+  relationship: vi.fn(),
   notifications: vi.fn(),
   markNotificationRead: vi.fn(),
   updateFeatureRequest: vi.fn(),
@@ -33,6 +35,15 @@ vi.mock("@/lib/socialAccessServer", () => ({
 vi.mock("@/lib/socialInteractionStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/socialInteractionStore")>()),
   socialInteractionStore: () => store,
+}));
+vi.mock("@/lib/profileStore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/profileStore")>()),
+  profileStore: () => ({
+    getByHandle: vi.fn(async (handle: string) =>
+      handle === "bob" ? { id: "22222222-2222-4222-8222-222222222222", handle: "bob" }
+        : handle === "alice" ? { id: "profile-a", handle: "alice" }
+          : null),
+  }),
 }));
 vi.mock("@/lib/opsFreeze", () => ({ socialFreezeResponse: vi.fn(() => null) }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => false) }));
@@ -67,6 +78,41 @@ describe("Social interactions route", () => {
     }));
     expect(deleted.status).toBe(200);
     expect(store.setDesired).toHaveBeenLastCalledWith(actor, "11111111-1111-4111-8111-111111111111", "cheer", false);
+  });
+
+  it("mutes and blocks by handle or profile id, and reads back only the viewer's own choices", async () => {
+    const { GET, PUT, DELETE } = await import("@/app/api/social/interactions/route");
+    const BOB = "22222222-2222-4222-8222-222222222222";
+    const send = (method: "PUT" | "DELETE", body: unknown) => (method === "PUT" ? PUT : DELETE)(new Request(URL, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+
+    expect((await send("PUT", { action: "mute", targetHandle: "@Bob" })).status).toBe(200);
+    expect(store.setMute).toHaveBeenLastCalledWith(actor, BOB, true);
+    expect((await send("DELETE", { action: "mute", targetProfileId: BOB })).status).toBe(200);
+    expect(store.setMute).toHaveBeenLastCalledWith(actor, BOB, false);
+    expect((await send("PUT", { action: "block", targetHandle: "bob" })).status).toBe(200);
+    expect(store.setBlock).toHaveBeenLastCalledWith(actor, BOB, true);
+    expect((await send("DELETE", { action: "block", targetProfileId: BOB })).status).toBe(200);
+    expect(store.setBlock).toHaveBeenLastCalledWith(actor, BOB, false);
+
+    expect((await send("PUT", { action: "mute", targetHandle: "nobody" })).status).toBe(404);
+    expect((await send("PUT", { action: "mute", targetProfileId: "not-a-uuid" })).status).toBe(400);
+    expect((await send("PUT", { action: "mute", targetHandle: "bob", targetProfileId: BOB })).status).toBe(400);
+    expect((await send("PUT", { action: "mute", targetHandle: "bob", actor: "profile-z" })).status).toBe(400);
+    expect(store.setMute).toHaveBeenCalledTimes(2);
+
+    store.relationship.mockResolvedValue({ blocked: false, muted: true });
+    const read = await GET(new Request(`${URL}?view=relationship&handle=bob`));
+    expect(read.status).toBe(200);
+    expect(read.headers.get("cache-control")).toBe("private, no-store");
+    expect(await read.json()).toEqual({ relationship: { blocked: false, muted: true } });
+    expect(store.relationship).toHaveBeenCalledWith(actor, BOB);
+    expect((await GET(new Request(`${URL}?view=relationship&handle=alice`))).status).toBe(400);
+    expect((await GET(new Request(`${URL}?view=relationship&handle=nobody`))).status).toBe(404);
+    expect((await GET(new Request(`${URL}?view=relationship`))).status).toBe(400);
   });
 
   it("requires stable idempotency headers for comments and ignores body keys", async () => {

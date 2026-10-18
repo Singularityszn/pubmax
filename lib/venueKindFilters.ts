@@ -147,8 +147,8 @@ export function filterVenuesByKind(
  * The desktop chips live behind one Filters control, so the badge on the closed
  * control and the chips inside it must count the SAME set: a badge that counted
  * a kind the open panel never offers would say a filter is on over a control
- * nobody can reach. `MAP_EXPERIENCE_LENS` narrows the offer, so the rule takes
- * the lens rather than assuming all four.
+ * nobody can reach. Every view offers all four curated kinds. The experience
+ * lens decides which venues qualify within those kinds.
  */
 const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
   "pub",
@@ -160,9 +160,9 @@ const CURATED_VENUE_KIND_ORDER: readonly CuratedVenueKind[] = [
 export function offeredVenueKinds(
   experienceLens: string,
 ): readonly CuratedVenueKind[] {
-  return experienceLens === "food"
-    ? (["food", "restaurant"] as const)
-    : CURATED_VENUE_KIND_ORDER;
+  // Keep the shared count/reset call contract while every lens offers this set.
+  void experienceLens;
+  return CURATED_VENUE_KIND_ORDER;
 }
 
 /** How many of the offered kinds the reader has switched off. */

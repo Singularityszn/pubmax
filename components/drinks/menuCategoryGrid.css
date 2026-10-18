@@ -1,4 +1,4 @@
-/* Venue Menu hub — 2-column visual tiles (alcohol-first). */
+/* Venue Menu hub uses the same food and drink doors. */
 
 .menuHub {
   display: grid;
@@ -31,11 +31,25 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
 .menuHub__item--primary {
+  grid-column: 1 / -1;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary {
+  grid-column: auto;
+  grid-row: 1;
+}
+
+.menuHub__item--recorded-food {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.menuHub__grid--food-only .menuHub__item--recorded-food {
   grid-column: 1 / -1;
 }
 
@@ -97,6 +111,23 @@
   width: 96px;
   min-height: 148px;
   flex: 0 0 auto;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__tile {
+  min-height: 132px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding-right: 0;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__media {
+  width: 100%;
+  min-height: 88px;
+}
+
+.menuHub__grid--with-food .menuHub__item--primary .menuHub__meta {
+  padding: 10px 12px;
 }
 
 .menuHub__media--drinks {

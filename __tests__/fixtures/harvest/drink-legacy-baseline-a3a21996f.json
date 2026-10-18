@@ -1,0 +1,72 @@
+{
+  "base": "a3a21996f",
+  "rawCount": 1563,
+  "parsedCount": 1563,
+  "sourceRowsSha256": "7e683040de5745fbb8b70928289dba08b12b7864829c762e56245128fb8cf3b5",
+  "ratingIdsSha256": "d0c4a0299465a3ba043fb79df7a4543a576b4f3ffbb7ebffd3fb894919820d82",
+  "statedServingRows": [
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Lucky Saint 0.5%",
+      "category": "beer",
+      "servingSize": "330ml bottle",
+      "id": "drink-14eicaz"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Elderflower Spritz 0.0",
+      "category": "cocktail",
+      "servingSize": "highball",
+      "id": "drink-ak2vdz"
+    },
+    {
+      "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
+      "drinkName": "Wapping Old Fashioned",
+      "category": "cocktail",
+      "servingSize": "single",
+      "id": "drink-279gx0"
+    },
+    {
+      "venueKey": "bundobust|6, mill hill, leeds, ls1 5dq|53.79548|-1.54556",
+      "drinkName": "PYTHON Premium Lager",
+      "category": "beer",
+      "servingSize": "pint",
+      "id": "drink-18239h7"
+    },
+    {
+      "venueKey": "bundobust|6, mill hill, leeds, ls1 5dq|53.79548|-1.54556",
+      "drinkName": "CHACHA Chai Stout",
+      "category": "beer",
+      "servingSize": "pint",
+      "id": "drink-v4xrd1"
+    },
+    {
+      "venueKey": "bundobust|6, mill hill, leeds, ls1 5dq|53.79548|-1.54556",
+      "drinkName": "KOPRA DDH Pale Ale",
+      "category": "beer",
+      "servingSize": "pint",
+      "id": "drink-x45lx6"
+    },
+    {
+      "venueKey": "bundobust|6, mill hill, leeds, ls1 5dq|53.79548|-1.54556",
+      "drinkName": "NIMBU PANI RADLER",
+      "category": "beer",
+      "servingSize": "pint",
+      "id": "drink-hk8kps"
+    },
+    {
+      "venueKey": "bundobust|6, mill hill, leeds, ls1 5dq|53.79548|-1.54556",
+      "drinkName": "Rotating Cask Collaboration",
+      "category": "beer",
+      "servingSize": "pint",
+      "id": "drink-1ddx4am"
+    },
+    {
+      "venueKey": "bundobust|6, mill hill, leeds, ls1 5dq|53.79548|-1.54556",
+      "drinkName": "ROSÉ CIDER Hibiscus & Ginger",
+      "category": "beer",
+      "servingSize": "pint",
+      "id": "drink-t8h9od"
+    }
+  ]
+}

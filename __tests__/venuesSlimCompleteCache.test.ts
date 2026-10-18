@@ -81,4 +81,13 @@ describe("loadSlimVenues caches only complete payloads", () => {
       status: "ready",
     });
   });
+  it("preserves the minimum price's own evidence through live and offline reads", async () => {
+    const path = "/data/slim-price-receipts.json";
+    const row = { ...VALID_ROW, priceSource: "Pint Prices", priceObservedAt: "2026-07-03T23:10:47.000Z" };
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => [row] }) as typeof fetch;
+    await expect(loadSlimVenuesFromPathResult(path)).resolves.toEqual({ rows: [row], status: "ready" });
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as typeof fetch;
+    await expect(loadSlimVenuesFromPathResult(path)).resolves.toEqual({ rows: [row], status: "ready" });
+  });
+
 });

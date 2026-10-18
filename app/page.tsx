@@ -4,6 +4,7 @@ import LandingPage from "@/components/landing/LandingPage";
 import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
+import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
@@ -98,10 +99,15 @@ export default async function Home() {
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
   const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  // A phone's largest paint is the pub card's photograph only when the card
+  // stands on its pub's own one. A text card leaves the skyline the largest
+  // paint on every width, so its preload is not gated to desktop.
+  const cardHasOwnPhoto =
+    card !== null && landingPhotoFor({ venueId: card.id }).scope === "pub";
 
   return (
     <>
-      <LandingSkylinePreload phoneAnswerOwnsLcp={card !== null} />
+      <LandingSkylinePreload phoneAnswerOwnsLcp={cardHasOwnPhoto} />
       {/* The only route the entry decision may rewrite (issue #439): shell
           opens (Capacitor wrap, installed PWA) land on /tonight, a genuine
           native first-run opens onboarding until Skip or Plan my night, browser visits

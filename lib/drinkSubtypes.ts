@@ -446,7 +446,15 @@ const SUBTYPE_TABLE: DrinkSubtype[] = [
       "still / sparkling",
     ],
   },
-  // This subtype is a query lens only; never classify a printed menu label as a brand family.
+  // The two family lenses below are query lenses only; never classify a printed
+  // menu label as a brand family. Lucia's lens is the Coca-Cola pair alone.
+  {
+    id: "soft-drink-lucia-special",
+    category: "soft-drink",
+    label: "Lucia 🐐",
+    longLabel: "Coke Zero and Diet Coke",
+    tokens: [],
+  },
   {
     id: "soft-drink-zero-sugar-cola",
     category: "soft-drink",
@@ -480,7 +488,10 @@ export function findSubtype(id: string | null | undefined): DrinkSubtype | null 
   return BY_ID.get(id.trim().toLowerCase()) ?? null;
 }
 
+// A leaf in two families folds to the FIRST one listed here, so a Coke Zero or
+// Diet Coke link lands on Lucia's lens and a Pepsi link on the wider family.
 const DRINK_SUBTYPE_FAMILY_MEMBERS: Readonly<Record<string, readonly DrinkSubtypeId[]>> = {
+  "soft-drink-lucia-special": ["soft-drink-coke-zero", "soft-drink-diet-coke"],
   "soft-drink-zero-sugar-cola": [
     "soft-drink-coke-zero",
     "soft-drink-diet-coke",

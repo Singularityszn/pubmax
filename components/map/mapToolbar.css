@@ -119,6 +119,29 @@
   }
 }
 
+/* From 1024px a pub opens as a right drawer from the toolbar's top line down,
+   and the zoom column was on the far side of it: under the drawer from 1024 to
+   1371 (measured at 1280, zoom at 1224-1280 against a drawer from 691), and in
+   the corner beside the nav from 1372, which the drawer now reaches since the
+   toolbar docks at 88px. While a pub is open the column moves to the drawer's
+   published left edge, under the toolbar's published berth, in the map lane
+   the drawer leaves. */
+@media (min-width: 1024px) {
+  .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
+    top: max(
+      calc(
+        var(--map-overlay-top) + var(--map-camera-stack-height, 0px) +
+          var(--map-chrome-gap, 6px)
+      ),
+      calc(
+        var(--map-top-clearance) + var(--map-toolbar-resting-height) +
+          var(--map-chrome-gap, 6px)
+      )
+    );
+    right: calc(var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px));
+  }
+}
+
 .mapToolbarSearch {
   position: relative;
   min-width: 0;
@@ -478,7 +501,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   min-height: 28px;
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px dashed color-mix(in srgb, var(--line) 60%, var(--brass) 40%);
+  border: 1px dashed var(--hairline-strong);
   background: color-mix(in srgb, var(--panel-raised) 70%, transparent);
   color: var(--ink-soft);
   font-size: 0.7rem;
@@ -501,7 +524,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
 .drinkSubtypeChip:hover,
 .drinkSubtypeChip:focus-visible {
-  border-color: var(--brass);
+  border-color: var(--hairline-strong);
   color: var(--ink);
 }
 
@@ -512,21 +535,24 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
 .drinkSubtypeChip.isOn {
   border-style: solid;
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 /* Top shelf cuts across families, so it reads as a distinct affordance
-   rather than one more subtype in the same row. */
+   rather than one more subtype in the same row: a solid outline at rest
+   where the subtypes are dashed. Chosen, it is a selection like any other
+   chip, in ink, never a coral fill (Coral is spent twice). */
 .drinkSubtypeChip.isTopShelf {
   border-style: solid;
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  border-color: var(--hairline-strong);
 }
 
 .drinkSubtypeChip.isTopShelf.isOn {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 /* An open venue drawer is its own map-chrome state (D3). The drawer owns the
@@ -795,4 +821,20 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
 .mapToolbar[data-drawer-lane] .mapSearchSuggestPanel {
   max-width: 100%;
+}
+
+/* The desktop bar is the shared map surface width, and its controls are
+   content-sized, so at 1440 the row ended some 390px short of the bar's own
+   right edge: an empty capsule beside a search field held to 388px. From the
+   width that seats the full desktop row, search takes the spare lane instead
+   (the tablet band below already does). It still shrinks first when a drawer
+   narrows the row, since the open-drawer rules above keep its min-width 0. */
+@media (min-width: 901px) {
+  .mapToolbarSearch {
+    flex: 1 1 auto;
+  }
+
+  .mapToolbarSearch .mapSearchSuggest--toolbar {
+    width: 100%;
+  }
 }

@@ -569,7 +569,7 @@ export const CONCIERGE_TOOL_DEFINITIONS = [
     function: {
       name: "venue_drinks" as const,
       description:
-        "Every drink people have logged at one listed pub, each with its own tag, figure and day, plus the listed pint when that pub carries one. A corroborated price reaches the map only where the map has a lens for that drink.",
+        "Accepted named food and drink menu facts at one pub, with published prices, servings, calories and dietary labels only where recorded. Keep field evidence and unknown availability. Also reads people-logged category prices and the listed pint separately. Use the original question. Never compare unsupported meal or non-pint prices across pubs.",
       parameters: {
         type: "object",
         properties: {

@@ -12,7 +12,7 @@ import { defined } from "@/__tests__/helpers/defined";
 const ROOT = process.cwd();
 
 describe("check:freshness advisory lanes", () => {
-  // late_food_evidence's exemption lapses, so freshnessTemporaryAdvisory.test.ts owns it.
+  // late_food_evidence is not an advisory lane: a stale finding there fails the gate.
   it.each(["area_news", "google_places_content"])("does not fail the gate when only %s is stale", async (id) => {
     const now = new Date("2099-06-01T12:00:00.000Z");
     const base = JSON.parse(readFileSync(join(ROOT, "data/freshness_registry.json"), "utf8"));

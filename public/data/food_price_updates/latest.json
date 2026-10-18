@@ -1,7 +1,7 @@
 {
-  "$comment": "Food price updates from permissible first-party sources (Greene King official menus). Attributed use only.",
+  "$comment": "Food price observations from permissible first-party official menus. Attributed price facts with per-row observation dates.",
   "version": 1,
-  "generatedAt": "2026-07-11T12:20:13.677Z",
+  "generatedAt": "2026-10-13T09:43:11.553Z",
   "updates": [
     {
       "venueKey": "barlow croft|manchester, m20 5pg|53.41080|-2.21848",
@@ -30821,6 +30821,1233 @@
         "licence": "All rights reserved — first-party publisher of its own pub menus/prices; attributed use only. No republishing of the source's own copy, only the price fact + observedAt + link back."
       },
       "observedAt": "2026-07-11T12:13:25.106259+00:00"
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Foccacia",
+      "category": "other",
+      "priceGbp": 3.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 351
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork and Black Pudding Scotch Egg",
+      "category": "other",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 426
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Mini Chicken Pie",
+      "category": "other",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 381
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Anchovy, Olive and Pickle Pintxos",
+      "category": "bar-snacks",
+      "priceGbp": 5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 132
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Olives",
+      "category": "bar-snacks",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 163
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Green Peppers stuffed with Cream Cheese",
+      "category": "bar-snacks",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 257
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork and Black Pudding Sausage Roll",
+      "category": "bar-snacks",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 426
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Youngs Original glazed Pork Ribs",
+      "category": "bar-snacks",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 642
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Roasted Parsnip Soup",
+      "category": "starters",
+      "priceGbp": 7.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 418
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Mackerel Pate",
+      "category": "starters",
+      "priceGbp": 8.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 390
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Beetroot Carpaccio",
+      "category": "starters",
+      "priceGbp": 7.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 53
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Prawn Cocktail",
+      "category": "starters",
+      "priceGbp": 11,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 422
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork Shoulder, Ham Hock and Pear Terrine",
+      "category": "starters",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 325
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Ox Cheek Croquettes",
+      "category": "starters",
+      "priceGbp": 10,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 260
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "The Eagle Chicken Sharer",
+      "category": "sharers",
+      "priceGbp": 28,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 2671
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "1kg Brewhouse Pork Ribs",
+      "category": "sharers",
+      "priceGbp": 40,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 3102
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Ruby Betroot Hummus",
+      "category": "sharers",
+      "priceGbp": 16,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 867
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "The Eagle Beef Burger",
+      "category": "mains",
+      "priceGbp": 18.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 1281
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Plant Burger",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 1056
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Aspall Cider Battered Haddock",
+      "category": "mains",
+      "priceGbp": 19.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 1090
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "10oz West Country Ribeye Steak",
+      "category": "mains",
+      "priceGbp": 44,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 776
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Pork and Black Pudding Sausage and Mash",
+      "category": "mains",
+      "priceGbp": 17,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 762
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Roast Pumpkin and Spiced Ricotta Ravioli",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 579
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Roasted Bedloom Heritage Squash",
+      "category": "mains",
+      "priceGbp": 16,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 821
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Beef and Kidney Suet Pudding",
+      "category": "mains",
+      "priceGbp": 24,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 708
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Wild Mushroom Risotto",
+      "category": "mains",
+      "priceGbp": 16.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 700
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Half Roast Chicken",
+      "category": "mains",
+      "priceGbp": 22,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 1750
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Cyder Battered Haddock",
+      "category": "mains",
+      "priceGbp": 19.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 1090
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Braised Cavolo Nero",
+      "category": "sides",
+      "priceGbp": 4,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 42
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Truffle Fries",
+      "category": "sides",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 872
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Tenderstem Broccoli",
+      "category": "sides",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 85
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Blooming Onion",
+      "category": "sides",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 565
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Hasselback Mids",
+      "category": "sides",
+      "priceGbp": 5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 564
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Bitter Leaf Salad",
+      "category": "sides",
+      "priceGbp": 4,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 14
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Sticky Toffee Pudding",
+      "category": "desserts",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 534
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Blue Cheese",
+      "category": "desserts",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 411
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Chocolate Brownie",
+      "category": "desserts",
+      "priceGbp": 8,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 753
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Ice cream",
+      "category": "desserts",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 238
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Affogato",
+      "category": "desserts",
+      "priceGbp": 4.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 43
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Apple and Blackberry Crumble",
+      "category": "desserts",
+      "priceGbp": 9,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 409
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Mango sorbet (2 scoops)",
+      "category": "desserts",
+      "priceGbp": 3.5,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 52
+    },
+    {
+      "venueKey": "the eagle|215 askew rd, london w12 9az, uk|51.50060|-0.23933",
+      "itemName": "Black Forest Berry Trifle",
+      "category": "desserts",
+      "priceGbp": 7,
+      "source": {
+        "label": "The Eagle - official published menu",
+        "url": "https://www.theeaglew12.co.uk/food-drink",
+        "licence": "All rights reserved - first-party publisher of its own pub menu. Attributed menu price and calorie facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T06:51:38.364Z",
+      "caloriesKcal": 500
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Mixed Olives",
+      "category": "other",
+      "priceGbp": 5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 163,
+      "dietary": [
+        "vegan",
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Homemade Focaccia",
+      "category": "other",
+      "priceGbp": 6,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 790
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Padron Peppers",
+      "category": "other",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 104,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Classic sausage roll",
+      "category": "other",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 314
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Caramelized Goats Cheese Salad",
+      "category": "starters",
+      "priceGbp": 9,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 459,
+      "dietary": [
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Buttermilk Buffalo Wings",
+      "category": "starters",
+      "priceGbp": 8.5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 655
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Spiced Pork Belly Bites",
+      "category": "starters",
+      "priceGbp": 8,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 488
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Red Pepper Hummus",
+      "category": "starters",
+      "priceGbp": 7.5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 391,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "New Inn Scotch Egg",
+      "category": "starters",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z"
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Pea & Mint Soup",
+      "category": "starters",
+      "priceGbp": 7,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 355,
+      "dietary": [
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "The New Inn Bar Board",
+      "category": "sharers",
+      "priceGbp": 25,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 1915
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Somerset baked camembert",
+      "category": "sharers",
+      "priceGbp": 19,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 867
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "New Inn Beef Burger",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 1388
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Plant burger",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 1211,
+      "dietary": [
+        "vegan",
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Fish & Chips",
+      "category": "mains",
+      "priceGbp": 19,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 1017
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Cumberland Sausages & Mash",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 923
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Roasted Cauliflower Salad",
+      "category": "mains",
+      "priceGbp": 15,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 329,
+      "dietary": [
+        "vegan",
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Chicken Caesar Salad",
+      "category": "mains",
+      "priceGbp": 17,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 700
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "8oz Bavette steak",
+      "category": "mains",
+      "priceGbp": 23,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 1394
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Dingley Dell Pork Chop",
+      "category": "mains",
+      "priceGbp": 19,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 897
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "New Inn Signature Pie",
+      "category": "mains",
+      "priceGbp": 20,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 1341
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Smoked Salmon and Anchovy Salad",
+      "category": "mains",
+      "priceGbp": 19,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 427
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "French  Fries",
+      "category": "sides",
+      "priceGbp": 5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 997,
+      "dietary": [
+        "vegan",
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Triple cooked chips",
+      "category": "sides",
+      "priceGbp": 5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 996
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Tenderstem Broccoli and Chili",
+      "category": "sides",
+      "priceGbp": 6.5,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 172,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Mac & Cheese",
+      "category": "sides",
+      "priceGbp": 7,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 901
+    },
+    {
+      "venueKey": "the new inn|62 st mary's rd, london w5 5ex, uk|51.50500|-0.30568",
+      "itemName": "Chargrilled Corn On the Cob",
+      "category": "sides",
+      "priceGbp": 6,
+      "source": {
+        "label": "The New Inn - official published menu",
+        "url": "https://www.newinnealing.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.443Z",
+      "caloriesKcal": 109,
+      "dietary": [
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Crispy hake bites",
+      "category": "other",
+      "priceGbp": 10,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 292
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Scotch egg",
+      "category": "other",
+      "priceGbp": 6,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 274
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Halloumi salad",
+      "category": "other",
+      "priceGbp": 10,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 505,
+      "dietary": [
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Chicken karaage",
+      "category": "other",
+      "priceGbp": 10,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 440
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Sun dried tomato dip",
+      "category": "other",
+      "priceGbp": 8.5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 695,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Salt & pepper calamari",
+      "category": "other",
+      "priceGbp": 9,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 339
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Chicken & herb bake",
+      "category": "other",
+      "priceGbp": 9,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 403
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Fish and chips",
+      "category": "mains",
+      "priceGbp": 19.5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 1137
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Narrowboat beef burger",
+      "category": "mains",
+      "priceGbp": 18.5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 1330
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Bavette steak",
+      "category": "mains",
+      "priceGbp": 23,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 739
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Pan roasted trout",
+      "category": "mains",
+      "priceGbp": 20,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 526
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Grilled peach & burrata salad",
+      "category": "mains",
+      "priceGbp": 20,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 516,
+      "dietary": [
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Chicken caesar salad",
+      "category": "mains",
+      "priceGbp": 17.5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 812
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Sausage and crushed potatoes",
+      "category": "mains",
+      "priceGbp": 16,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 1077
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Sun dried tomato salad",
+      "category": "mains",
+      "priceGbp": 18,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 910,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Chicken schnitzel",
+      "category": "mains",
+      "priceGbp": 16,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 604
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Onion rings",
+      "category": "sides",
+      "priceGbp": 5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 662,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Battered sausage",
+      "category": "sides",
+      "priceGbp": 5.5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 340
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Padron peppers",
+      "category": "sides",
+      "priceGbp": 6,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 98,
+      "dietary": [
+        "vegan"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Halloumi fries",
+      "category": "sides",
+      "priceGbp": 9,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 683,
+      "dietary": [
+        "vegetarian"
+      ]
+    },
+    {
+      "venueKey": "the narrowboat|119 st peter's st, london n1 8pz|51.53310|-0.09691",
+      "itemName": "Chips/fries",
+      "category": "sides",
+      "priceGbp": 5,
+      "source": {
+        "label": "The Narrowboat - official published menu",
+        "url": "https://www.thenarrowboatpub.com/food-and-drink",
+        "licence": "All rights reserved - first-party menu publisher. Attributed menu price, calorie and explicitly labelled dietary facts only, with the observation date and link. No publisher descriptions are republished."
+      },
+      "observedAt": "2026-10-13T09:43:11.553Z",
+      "caloriesKcal": 421,
+      "dietary": [
+        "vegan"
+      ]
     }
   ]
 }

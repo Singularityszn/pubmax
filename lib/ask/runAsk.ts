@@ -1,6 +1,6 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { recordedDrinkComparison, refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { routeAsk } from "@/lib/ask/routerJudged";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
@@ -167,6 +167,7 @@ export type RunAskInput = {
  */
 export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   const query = input.query.trim().slice(0, 500);
+  const unsupported = unsupportedPriceComparison(query);
   const cityId = resolveAskCityId(input.cityId);
   const turns = normaliseTurns(input.turns);
   const ctx: AskToolContext = {
@@ -177,10 +178,13 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     ...(input.now !== undefined ? { now: input.now } : {}),
   };
 
-  let toolResults: AskToolResult[] = [];
+  const recordedDrinks = recordedDrinkComparison(query);
+  let toolResults: AskToolResult[] = recordedDrinks || unsupported
+    ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
+    : [];
 
   const allowModel =
-    !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !unsupported && !recordedDrinks && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({
@@ -195,7 +199,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     }
   }
 
-  if (toolResults.length === 0) {
+  if (toolResults.length === 0 && !unsupported) {
     // Incorporate last user refinement phrases into the routed query when the
     // current ask is short ("cheaper", "closer to the Tube").
     const priorUser = [...turns].reverse().find((t) => t.role === "user");
@@ -223,7 +227,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const merged = mergeToolResults(toolResults);
   return {
-    answer: composeAnswer(merged.hints, merged.cards, merged.toolsUsed),
+    answer: composeAnswer(unsupported ? [unsupported.answer, ...merged.hints] : merged.hints, merged.cards, merged.toolsUsed),
     cards: merged.cards,
     proposals: merged.proposals,
     sources: merged.sources,

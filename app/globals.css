@@ -768,10 +768,20 @@ button {
    drawers that slide in over it (see .mapDrawer). No grid — the map is never
    boxed into a column. */
 .appShell {
-  /* Desktop stacks Tonight arc below nav, then search toolbar. The previous
-     92px offset covered the venue-kind chip rail that starts at 80px. */
-  --map-top-clearance: 159px;
-  --map-overlay-top: 108px;
+  /* THE TOOLBAR DOCKS ONE GAP UNDER THE NAV. The floating nav ends at 76px
+     (12px top, 64px tall), and the toolbar starts 12px below it. This was
+     159px, a band kept for the Tonight arc and the venue-kind chip rail; both
+     left it (the chips are inside Filters, the Tonight chip docks under the
+     toolbar) and the band stood as 83px of map between two cards. The drawers,
+     banners and the desktop rail all read this, so they rise with it. The
+     phone and 641-900 bands set their own values below. */
+  --map-top-clearance: 88px;
+  /* The transient lane (Recenter, a tapped POI's name, "Updating map", the
+     "Drink like" card) sat IN that band at 108px. It now sits one gap under
+     the toolbar's PUBLISHED height, the way the tablet band already places it,
+     so a toolbar grown by an open panel pushes it down rather than covering
+     it. The persona card used to open over the toolbar's left end here. */
+  --map-overlay-top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height, 60px) + 12px);
   --mobile-tab-clearance: calc(58px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
   --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
@@ -2811,10 +2821,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   text-align: center;
 }
 
+/* The footnote type stays small, but the tap area is the house 44px: the
+   toggle measured 91x14 on a phone, a third of the floor every other control
+   on the map keeps. Inline-flex grows the box, not the word. */
 .mapFallbackDisclosureToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   max-width: 340px;
   margin: 0 auto;
-  padding: 0;
+  padding: 0 var(--space-3);
   border: 0;
   background: none;
   font: inherit;

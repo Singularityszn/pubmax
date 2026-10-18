@@ -62,6 +62,7 @@ import {
 } from "./lib/ukBaseGrid.mjs";
 import { readPromotionLedger } from "./lib/londonOsmPromotion.mjs";
 import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
+import { stableVenueIdFromKey, venueGroupingKey } from "./lib/venueCanonicalization.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import {
   planUkBaseVenueIdAliases,
@@ -83,6 +84,8 @@ const DRINK_PACK_PATH = path.join(
 );
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
 const LONDON_SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+const LONDON_VENUE_ALIASES_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
+const LONDON_DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
 const LONDON_PROMOTION_LEDGER_PATH = path.join(ROOT, "data", "london_osm_promotion", "ledger.json");
 
@@ -179,11 +182,20 @@ async function loadCuratedVenueOwners() {
   for (const venue of londonVenues) {
     owners.set(ownerKey("curated-london-slim", venue.id), venue.id);
   }
+  // canonicalize:venues merges duplicate curated records and keeps the old id
+  // as an alias. A pub annotated with the merged-away id is owned by the venue
+  // that kept it, or it would draw a second pin beside that venue.
+  const venueAliases =
+    JSON.parse(await readFile(LONDON_VENUE_ALIASES_PATH, "utf8")).aliases ?? {};
+  const drawable = new Set(londonVenues.map((venue) => venue.id));
+  for (const [from, to] of Object.entries(venueAliases)) {
+    if (drawable.has(to)) owners.set(ownerKey("curated-london-slim", from), to);
+  }
   curatedVenues.push(...londonVenues);
 
   const outerPack = JSON.parse(await readFile(OUTER_LONDON_PATH, "utf8"));
   for (const pub of Array.isArray(outerPack?.pubs) ? outerPack.pubs : []) {
-    const venueId = outerLondonOwnerForPub(pub, londonVenues) ?? "";
+    const venueId = outerLondonOwnerForPub(pub, londonVenues, venueAliases) ?? "";
     if (venueId) {
       owners.set(ownerKey("outer-london-osm-seed", pub.osmId), venueId);
     }
@@ -193,10 +205,22 @@ async function loadCuratedVenueOwners() {
   // (scripts/promote_london_osm_pubs.mjs) are owned by their own OSM id, the
   // exact identity, so the seed pack never has to be re-annotated or refetched
   // to stop a promoted pub drawing twice. The curated row is found by the same
-  // name-and-distance rule the outer-London seed uses.
+  // name-and-distance rule the outer-London seed uses, after the dataset row
+  // the promotion wrote (`appPriceId`): canonicalize:venues may since have
+  // merged that row into a venue with another name, and the row follows it.
+  const venueIdByAppPriceId = new Map(
+    JSON.parse(await readFile(LONDON_DATASET_PATH, "utf8")).map((row) => [
+      row.app_price_id,
+      stableVenueIdFromKey(venueGroupingKey(row)),
+    ]),
+  );
   const ledger = await readPromotionLedger(LONDON_PROMOTION_LEDGER_PATH);
   for (const entry of Array.isArray(ledger?.promotions) ? ledger.promotions : []) {
-    const venueId = outerLondonOwnerForPub(entry, londonVenues) ?? "";
+    const rowVenueId = venueIdByAppPriceId.get(entry.appPriceId);
+    const venueId =
+      (rowVenueId && drawable.has(rowVenueId) ? rowVenueId : null) ??
+      outerLondonOwnerForPub(entry, londonVenues, venueAliases) ??
+      "";
     if (venueId) ownersByOsmId.set(String(entry.osmId), venueId);
   }
 

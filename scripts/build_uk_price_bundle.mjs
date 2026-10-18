@@ -82,6 +82,7 @@ const DRINK_UPDATES = path.join(
 );
 const BOUNDARIES = path.join(ROOT, "data/london_boroughs_simplified.json");
 const LONDON_SLIM = path.join(ROOT, "public/data/venues_slim.json");
+const VENUE_ALIASES = path.join(ROOT, "public/data/venue_id_aliases.json");
 const HARVEST_LEDGER_ROWS = path.join(
   ROOT,
   "data-harvest/uk_prices/rows.jsonl",
@@ -253,6 +254,8 @@ function collectRows(report) {
     new Set(pubs.map((pub) => pub.ref)),
     push,
     report,
+    existsSync(BOUNDARIES) ? read(BOUNDARIES) : null,
+    existsSync(VENUE_ALIASES) ? read(VENUE_ALIASES).aliases ?? {} : {},
   );
   notes.push(
     harvest.from
@@ -283,8 +286,20 @@ function collectRows(report) {
   return { rows, notes, harvest };
 }
 
+// A base pub has no curated record to carry its place, so a subtype view that
+// ranks London pubs could not place it. Its own ledger row states the point the
+// pub was read at; the borough is that point's, and a point outside every
+// London borough gets nothing, which is what keeps the view to London.
+function londonBasePlace(venueId, row, drinkFields, boundaries) {
+  if (!boundaries || !venueId.startsWith("venue-uk-") || !drinkFields.drinkSubtype) return {};
+  const lat = Number(row.lat);
+  const lng = Number(row.lng);
+  const londonBorough = boroughNameForPoint(lat, lng, boundaries);
+  return londonBorough ? { lat, lng, londonBorough } : {};
+}
+
 /** Lane one: the prices a pub's or a chain's own site stated. */
-function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
+function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report, boundaries, venueAliases = {}) {
   for (const ledgerRow of harvestRows) {
     const row = normalizeSiteHarvestLedgerRow(ledgerRow);
     if (!isHarvestableDrinkUpdateUrl(row.sourceUrl ?? "")) {
@@ -303,11 +318,18 @@ function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
       row.venueId.startsWith("venue-uk-") &&
       !servedRefs.has(osmRef) &&
       !owners.has(osmRef);
-    const venueId = (osmRef && owners.get(osmRef)) || row.venueId;
+    // A curated id canonicalize:venues merged away resolves to the venue that
+    // kept the pub, so the append-only ledger never has to be rewritten.
+    const ownedId = (osmRef && owners.get(osmRef)) || row.venueId;
+    const venueId = venueAliases[ownedId] ?? ownedId;
     if (leftTheBase || typeof venueId !== "string" || venueId.length === 0) {
       report.droppedUnresolvedVenue += 1;
       continue;
     }
+    const drinkFields = bundleDrinkFieldsFromPrintedName(
+      row.drinkLabel ?? row.drinkName ?? null,
+      row.category,
+    );
     push({
       venueId,
       name: row.name ?? null,
@@ -321,10 +343,8 @@ function addSiteHarvestRows(harvestRows, owners, servedRefs, push, report) {
       basis: null,
       sampleSize: null,
       ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
-      ...bundleDrinkFieldsFromPrintedName(
-        row.drinkLabel ?? row.drinkName ?? null,
-        row.category,
-      ),
+      ...drinkFields,
+      ...londonBasePlace(venueId, row, drinkFields, boundaries),
     });
   }
 }

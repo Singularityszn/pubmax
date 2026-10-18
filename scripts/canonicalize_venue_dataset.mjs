@@ -131,8 +131,11 @@ async function main() {
   if (aliasesChanged) {
     await writeAtomic(ALIASES_PATH, nextAliasText);
   }
-  if (stats.duplicateClusters > 0) {
-    await writeAtomic(DATASET_PATH, JSON.stringify(newRows));
+  // A cleared borrowed website is a dataset change too, even on a run that
+  // merged nothing.
+  const datasetChanged = stats.duplicateClusters > 0 || stats.borrowedWebsitesCleared > 0;
+  if (datasetChanged) {
+    await writeAtomic(DATASET_PATH, `${JSON.stringify(newRows)}\n`);
   }
 
   console.log(
@@ -140,7 +143,10 @@ async function main() {
       `(${stats.duplicateClusters} duplicate clusters, ${stats.mergedRecords} merged records this run; ` +
       `${Object.keys(mergedAliases).length} total aliases)`,
   );
-  if (stats.duplicateClusters === 0) {
+  if (stats.borrowedWebsitesCleared > 0) {
+    console.log(`canonicalize: cleared ${stats.borrowedWebsitesCleared} borrowed website(s)`);
+  }
+  if (!datasetChanged) {
     console.log("canonicalize: dataset already canonical — dataset left unchanged");
   }
 }

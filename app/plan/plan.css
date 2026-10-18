@@ -444,15 +444,16 @@
 .planComposer__submit { background: var(--accent-action); color: var(--color-on-accent); }
 .planComposer__submit:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-action-strong); }
 .planCrew__join button:disabled { opacity: 0.58; cursor: wait; }
-/* M3: disabled primary CTAs stay coral (accent-action) at ~0.58 opacity —
-   never a muddy brick hue that reads "broken" next to vivid enabled coral. */
+/* M3: a disabled primary CTA is a neutral raised surface, and coral arrives
+   only when it can act. Coral at reduced opacity read as a muddy brick on the
+   dark canvas, an error button rather than one still waiting on a field. */
 .planComposer__submit:disabled,
 .planComposer__submit[aria-disabled="true"],
 .planComposer__conciergeInput button:disabled,
 .planComposer__conciergeInput button[aria-disabled="true"] {
-  background: var(--accent-action);
-  color: var(--color-on-accent);
-  opacity: 0.58;
+  background: var(--panel-raised);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-soft);
   cursor: wait;
   filter: none;
 }
@@ -679,19 +680,10 @@
 .planDescribeFirst__chip::first-letter { text-transform: uppercase; }
 .planDescribeFirst__chip:hover,
 .planDescribeFirst__chip:focus-visible { border-color: var(--state-selected-border); color: var(--state-selected-ink); outline: none; }
-/* Culture Crawl lane. It reads as its own offer above the plain examples
-   through its lead line alone: its chips are the same neutral outline as the
-   examples, because a suggestion is never a second primary action and coral
-   is spent on the one primary (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
-.planDescribeFirst__culture { margin: var(--space-3) 0 0; }
-.planDescribeFirst__cultureLead {
-  margin: 0 0 10px;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.45;
-}
-.planDescribeFirst__cultureChips { display: flex; flex-wrap: wrap; gap: 8px; }
+/* The Culture Crawl example sits in the same row as the pub nights, in the same
+   neutral outline, because a suggestion is never a second primary action and
+   coral is spent on the one primary (docs/DESIGN_SYSTEM.md "Coral is spent
+   twice"). `--culture` is a hook for tests and analytics, not a style. */
 
 /* Progressive Plan intake. This is inline, resumable planning context rather
    than an interruptive prompt, so it never competes for the shared prompt
@@ -1498,7 +1490,6 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     margin-top: 0;
   }
 
-  .planDescribeFirst__culture,
   .planDescribeFirst__chips {
     grid-column: 1 / -1;
   }
@@ -1540,7 +1531,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   margin-top: var(--space-3);
 }
 .planComposer > .planRouteMiniMap,
-.planComposer > [data-testid="plan-route-strip-pending"] {
+.planComposer > [data-testid="plan-route-strip-pending"],
+.planComposer > .planResult__provenance {
   grid-column: 1 / -1;
 }
 
@@ -1560,10 +1552,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   color: var(--ink);
   text-wrap: balance;
 }
+/* Prose with figures in it ("3 stops", "each for pints"), so the UI sans with
+   tabular figures: monospace is for figures alone (docs/DESIGN_SYSTEM.md). */
 .planResult__summary {
   min-width: 0;
   margin: 0;
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-size: 0.9375rem;
   font-weight: 700;
   line-height: 1.35;
@@ -1993,6 +1987,14 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 .planComposer[data-result="true"] .planComposer__submit {
   min-height: 52px;
   touch-action: manipulation;
+}
+/* "Your name" seated in the bar: label and field on one row, so the bar grows
+   by one line, not a stacked form. */
+.planComposer__lock[data-name-seat="true"] .planComposer__field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* A new route cross-fades in (opacity only). Reduced motion keeps the fade,

@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "15 October 2026";
+const LAST_UPDATED = "17 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -730,9 +730,18 @@ export default function PrivacyPage() {
               provider that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
               configured). With Pub Pal, the memories you confirmed for your
-              Pal (up to eight short preferences, such as a drink you like or
-              an access need) go with each chat or voice call too, so it can
-              use them. Nothing else about you goes with it. We do not keep
+              Pal go with each chat or voice call too, so it can use them:
+              every one of those short preferences, such as a drink you like or
+              an access need, up to forty, with the ones about what you just
+              asked first. Past forty, the ones about what you asked go and the
+              oldest of the rest wait for a question about them. So does a short read of your taste that we work out
+              from what you logged yourself: your usual patches, the pubs you
+              go back to or rated, what you drink, what you usually pay for a
+              pint, the vibes you tag and the pubs you saved. Our server keeps
+              that read in memory for two minutes at most and never writes it
+              to a database. Turn the taste read off on your Pal&rsquo;s page
+              and none of your logs are read for it. Nothing else about you
+              goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that
               runs every minute.
@@ -821,7 +830,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Backups:</strong>{" "}data you delete, including a deleted
             account, can remain in our backups for up to 8 weeks before it is
-            removed.
+            removed. We never delete our only complete backup, so if newer
+            backups fail, that one is kept past 8 weeks until a newer backup
+            completes. A failed backup sends us an alert so we can fix it.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account

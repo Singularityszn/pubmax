@@ -53,7 +53,7 @@ const NO_EGRESS_DOORS: ReadonlyArray<readonly [string, RegExp]> = [
   ["a URL", /\b(URLSearchParams|history\.(push|replace)State)\b/],
   ["storage", /\b(localStorage|sessionStorage)\b/],
   ["a log line", /\bconsole\.\w+\s*\(/],
-  ["the resume viewport", /\bwriteMapResume\s*\(/],
+  ["the resume viewport", /\b(writeMapResume|createMapResumeWriter)\s*\(/],
   ["the opening-location store", /\bwriteMapOpeningLocation\s*\(/],
 ];
 
