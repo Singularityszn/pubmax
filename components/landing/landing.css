@@ -76,7 +76,7 @@ body:has(.lp) {
   align-items: center;
   border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
 }
@@ -199,7 +199,7 @@ body:has(.lp) {
 .lpPubCard--photo {
   position: relative;
   isolation: isolate;
-  background: var(--ink-deep, #0c0a09);
+  background: var(--ink-deep);
 }
 
 /* The credit the licence requires, as the card's own last line rather than a
@@ -356,7 +356,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   align-items: center;
   gap: 7px;
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 5px;
@@ -420,7 +420,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
    than leaving its padding behind as a blank gap. */
 .lpDrops:empty { display: none; }
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
 .dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-body); }
 .dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 /* The skeleton is decoration behind aria-hidden, so it must not be a scroll
@@ -434,7 +434,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 .dropStripLead { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
 .dropStripPrice { flex: 0 0 auto; }
-.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }
+.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: var(--text-sm); line-height: 1.55; }
 .dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
 .provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
@@ -446,7 +446,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 .lpFooterInner { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(40px, 6vw, 92px); }
 .lpFooterBrand { max-width: 520px; }
 .lpFooterBrand .lpWordmark { color: var(--ink); }
-.lpFooterProvenance { margin: 20px 0 0; max-width: 640px; color: var(--ink-soft); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
+.lpFooterProvenance { margin: 20px 0 0; max-width: 640px; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.55; text-wrap: pretty; }
 .lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-body); letter-spacing: .01em; }
@@ -545,7 +545,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 960px) {
   .lpNav { gap: 10px; padding-left: 12px; }
   .lpPrimaryNav { gap: 0; }
-  .lpPrimaryNav a { padding: 0 6px; font-size: 0.74rem; }
+  .lpPrimaryNav a { padding: 0 6px; font-size: var(--text-xs); }
 }
 
 /* Under 641px the six-tab dock owns primary navigation, so the link row goes. */
@@ -586,7 +586,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 @media (max-width: 700px) {
   /* Shared top-bar FRAME (siteNav.css :root --topbar-*): on a phone the landing
-     bar takes the same 52px height, 14px radius and tight shadow as the in-app
+     bar takes the same 52px height, --topbar-radius corner and tight shadow as the in-app
      bars so landing to app never jumps. The top offset keeps its max() literal. */
   .lpNav {
     top: max(10px, env(safe-area-inset-top));
@@ -594,7 +594,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
     min-height: var(--topbar-h, 52px);
     padding: 3px var(--topbar-pad-x, 10px);
     gap: 8px;
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
     box-shadow: var(--topbar-shadow, var(--shadow-sm));
   }
   /* Paper fill from the viewport top through the bar's offset so a coral hero
@@ -609,13 +609,13 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
     background: var(--paper);
     pointer-events: none;
   }
-  .lpWordmark { font-size: 12px; }
+  .lpWordmark { font-size: var(--text-xs); }
   .lpPubCard { width: 100%; padding: var(--space-4) var(--space-5); }
   .lpWorth,
   .lpFaq { padding: 48px 0 12px; }
   .lpWorth h2,
   .lpWorth p,
-  .lpFaqAnswer { font-size: 16px; }
+  .lpFaqAnswer { font-size: var(--text-base); }
   /* Full-bleed the rail to the section's own gutters symmetrically (negative
      margin then re-pad) so the first and last card line up with the content
      edges and nothing overflows the viewport on one side. */
@@ -629,7 +629,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 /* Mobile legibility floor: every visible micro-label rides at least 12px on a
    phone. Desktop keeps the tighter display sizes. */
 @media (max-width: 700px) {
-  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: 12px; }
+  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: var(--text-xs); }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
 }
 
@@ -770,7 +770,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpHero .lpLondonPhoto {
     height: min(100cqi * 2 / 3, calc(
       (100svh - var(--tabbar-h, 64px) - env(safe-area-inset-bottom, 0px)
-        - var(--analytics-consent-mobile-clearance, 56px)) * .22
+        - var(--analytics-consent-mobile-clearance)) * .22
     ));
   }
 }
@@ -866,7 +866,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 .lpAnswerTileLine {
   color: var(--ink-soft);
-  font-size: 16px;
+  font-size: var(--text-base);
   line-height: 1.5;
 }
 

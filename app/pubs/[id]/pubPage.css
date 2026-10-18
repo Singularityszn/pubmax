@@ -80,7 +80,7 @@
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -112,7 +112,7 @@
 
 .pubPage__section h2 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: var(--text-md);
 }
 
 .pubPage__pints {
@@ -168,7 +168,7 @@
 .pubPage__chips li {
   padding: 6px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--text-sm);
 }
 
@@ -248,5 +248,5 @@
   max-width: 320px;
   aspect-ratio: 4 / 5;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }

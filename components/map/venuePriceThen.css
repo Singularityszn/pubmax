@@ -29,7 +29,7 @@
 .venuePriceThen .vptLine {
   margin: 6px 0 0;
   color: var(--ink);
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.4;
   /* A price is a number to be compared, so the figures line up. */
@@ -58,7 +58,7 @@
 .venuePriceThen .vptMovement {
   margin: 3px 0 0;
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

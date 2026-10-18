@@ -111,7 +111,7 @@ html[data-theme="dark"] .mapOpeningPreviewDisc {
 
 .mapOpeningPreviewFrom,
 .mapOpeningPreviewFigure {
-  font-family: "Noto Sans", var(--font-body, sans-serif);
+  font-family: "Noto Sans", var(--font-body);
   line-height: 1;
 }
 
@@ -133,7 +133,7 @@ html[data-theme="dark"] .mapOpeningPreviewDisc {
    decides it there. */
 @media not ((max-width: 640px) or (pointer: coarse)) {
   .mapOpeningPreviewFigure {
-    font-family: var(--font-data, ui-monospace, monospace);
+    font-family: var(--font-data);
   }
 }
 

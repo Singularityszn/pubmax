@@ -27,14 +27,14 @@
 }
 
 .venuePhotoWallTitle {
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 650;
   margin: 0;
 }
 
 .venuePhotoWallCount {
-  color: var(--ink-soft, #6b6257);
-  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
 }
 
 .venuePhotoGrid {
@@ -53,7 +53,7 @@
   position: relative;
   display: block;
   margin: 0;
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--paper-sunk, rgba(0, 0, 0, 0.06));
   aspect-ratio: 4 / 5;
@@ -78,7 +78,7 @@
   padding: 20px 8px 6px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0));
   color: #fff;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   line-height: 1.2;
 }
 
@@ -101,7 +101,7 @@
 .venuePhotoBylineFounding {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
-  color: var(--brass, #c8a24a);
+  color: var(--brass);
   font-weight: 650;
 }
 
@@ -115,11 +115,11 @@
   min-width: 44px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.62);
   color: #fff;
   font: inherit;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -133,23 +133,23 @@
   top: 6px;
   left: 6px;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.62);
   color: #fff;
-  font-size: 0.6875rem;
+  font-size: var(--text-2xs);
   line-height: 1.4;
 }
 
 .venuePhotoCaption {
   margin: 6px 2px 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
-  color: var(--ink, inherit);
+  color: var(--ink);
 }
 
 .venuePhotoWallEmpty {
-  color: var(--ink-soft, #6b6257);
-  font-size: 0.875rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   margin: 0;
 }
 
@@ -163,9 +163,9 @@
 .venuePhotoWallButton {
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
-  background: var(--paper, #fff);
+  background: var(--paper);
   color: inherit;
   font: inherit;
   font-weight: 600;
@@ -176,9 +176,9 @@
    Cancel, and sitting last so a person working top to bottom reaches it after
    the drink and the caption rather than before them. */
 .venuePhotoWallPrimary {
-  background: var(--ink, #241f1a);
-  border-color: var(--ink, #241f1a);
-  color: var(--paper, #fff);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
 }
 
 .venuePhotoWallButton:disabled {
@@ -204,8 +204,8 @@
 }
 
 .venuePhotoWallStatus {
-  font-size: 0.8125rem;
-  color: var(--ink-soft, #6b6257);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
   margin: 0;
 }
 
@@ -221,7 +221,7 @@
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .venuePhotoComposerFile {
@@ -248,7 +248,7 @@
   display: block;
   width: min(100%, 11rem);
   height: auto;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--paper-sunk, rgba(0, 0, 0, 0.06));
 }
 
@@ -266,7 +266,7 @@
 
 .venuePhotoComposerField label,
 .venuePhotoComposerLegend {
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -282,19 +282,19 @@
 .venuePhotoComposerTag {
   min-height: 36px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
 /* Selected is the launch accent wash, as on the map's chips, not a black pill. */
 .venuePhotoComposerTag[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised, #fff));
-  color: var(--tint-ink-accent, var(--ink));
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  color: var(--tint-ink-accent);
   border-color: var(--brass);
   font-weight: 700;
 }
@@ -302,9 +302,9 @@
 .venuePhotoComposerCaption {
   min-height: 44px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.16));
-  background: var(--paper, #fff);
+  background: var(--paper);
   color: inherit;
   font: inherit;
   resize: vertical;
@@ -314,7 +314,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   min-height: 44px;
 }
 
@@ -329,8 +329,8 @@
    size of the buttons beside it. It is a caption under the share box. */
 .venuePhotoComposerHint {
   margin: 0;
-  color: var(--ink-soft, #6b6257);
-  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 

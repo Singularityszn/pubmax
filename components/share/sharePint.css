@@ -7,12 +7,12 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1, 4px) var(--space-2, 8px);
+  gap: var(--space-1) var(--space-2);
 }
 
 .sharePintStatus {
   color: var(--muted);
-  font-size: var(--text-xs, 0.75rem);
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 

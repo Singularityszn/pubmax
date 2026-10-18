@@ -25,17 +25,17 @@
 
 /* Text buttons read the --control-* row (docs/DESIGN_SYSTEM.md). */
 .firstActionsLink {
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
-  background: var(--control-secondary-surface, var(--panel-raised));
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   text-decoration: none;
   text-align: center;
 }

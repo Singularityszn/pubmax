@@ -442,7 +442,8 @@ adding the class is optional, additive polish.
 --radius        8px      default corner (cards, inputs)
 --radius-sm     6px      tight corner (descriptive chips and pills)
                          A TEXT BUTTON OR CONTROL CHIP TAKES --control-radius
-                         (14px), never this - see Launch tokens > Text buttons.
+                         (the role token, = --radius 8px), never this - see
+                         Launch tokens > Text buttons. Four sizes, no 14px.
 --radius-lg    18px      sheets / bottom-drawer corners
 --radius-pill 999px      pills, avatar-style chips
 ```

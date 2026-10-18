@@ -116,16 +116,16 @@
 .starterPacks__summary {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
 }
 
 .starterPacks__follow {
   justify-self: start;
   min-height: 44px;
   padding: 0.55rem 0.9rem;
-  border: 1px solid var(--control-secondary-border, var(--line));
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--control-secondary-surface, var(--panel-raised));
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
   font-size: var(--text-sm);
@@ -163,16 +163,16 @@
 }
 
 .starterPacks__outcome {
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
   white-space: nowrap;
 }
 
 .starterPacks__outcome--problem {
-  color: var(--color-negative, var(--brick));
+  color: var(--color-negative);
 }
 
 .starterPacks__problem {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--color-negative, var(--brick));
+  color: var(--color-negative);
 }

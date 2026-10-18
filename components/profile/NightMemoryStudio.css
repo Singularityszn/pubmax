@@ -7,13 +7,13 @@
   margin: 0 0 1.25rem;
   padding: 1.1rem 1.25rem;
   border: 1px dashed var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 85%, var(--panel) 15%);
 }
 
 .memoryStudioFirstRunTitle {
   margin: 0 0 0.4rem;
-  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 750;
   color: var(--ink);
@@ -22,7 +22,7 @@
 .memoryStudioFirstRunBody {
   margin: 0 0 1rem;
   max-width: 52ch;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -38,17 +38,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
   border: 1px solid color-mix(in srgb, var(--brass) 50%, var(--line));
   /* One family on this surface: these two are <Link>s rather than buttons, so
      they cannot be the primitive, and they read the same --control-* row it
      reads instead of a 999px pill at weight 750. */
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
   color: var(--ink);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   text-decoration: none;
   transition: border-color 0.16s ease, background 0.16s ease;
 }
@@ -70,14 +70,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   text-decoration: none;
   transition: border-color 0.16s ease, color 0.16s ease;
 }
@@ -114,7 +114,7 @@
   min-width: 0;
   margin-top: 1rem;
   padding-top: .85rem;
-  border-top: 1px solid var(--line-soft, var(--line));
+  border-top: 1px solid var(--line-soft);
 }
 
 .memoryKeepShelf h4 {
@@ -136,12 +136,12 @@
 .memoryKeepList--moments {
   margin-top: .35rem;
   padding-left: .75rem;
-  border-left: 2px solid var(--line-soft, var(--line));
+  border-left: 2px solid var(--line-soft);
 }
 
 .memoryKeepList li {
   min-width: 0;
-  border-bottom: 1px solid var(--line-soft, var(--line));
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .memoryKeepList li[data-active] {
@@ -188,20 +188,20 @@
 .memoryKeepRow small {
   flex: 0 0 auto;
   color: var(--muted);
-  font-size: .76rem;
+  font-size: var(--text-xs);
 }
 
 .memoryKeepRemove {
   flex: 0 0 auto;
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: var(--control-font-size, .82rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
 }
 
@@ -217,19 +217,19 @@
   flex: 1 1 100%;
   margin: 0;
   color: var(--ink-soft);
-  font-size: .82rem;
+  font-size: var(--text-sm);
 }
 
 .memoryKeepConfirm button {
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
   border: 0;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--ink);
   color: var(--paper);
   font: inherit;
-  font-size: var(--control-font-size, .82rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
 }
 

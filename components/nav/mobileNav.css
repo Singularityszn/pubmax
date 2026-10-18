@@ -223,8 +223,8 @@ body:has(.mobileMapUtilityCorner) {
 .routeLoadingShellBar,
 .routeLoadingShellCard {
   display: block;
-  border-radius: var(--radius-sm, 10px);
-  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised, var(--paper)));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised));
   animation: routeLoadingPulse 1.4s ease-in-out infinite;
 }
 .routeLoadingShellBar {
@@ -435,12 +435,12 @@ body:has(.mobileMapUtilityCorner) {
     min-height: 44px;
     padding: 4px 2px;
     border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
-    color: var(--muted, var(--ink-soft));
+    color: var(--muted);
     text-decoration: none;
     /* iOS-convention tab labels — floored at 11px (the one sub-12px exception),
        ellipsis preserved by .mobileTabLabel. Idle words stay a step lighter
        so the page you are on is the one that carries weight. */
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     letter-spacing: 0.01em;
     line-height: 1.05;
@@ -500,7 +500,7 @@ body:has(.mobileMapUtilityCorner) {
     width: 0.35rem;
     height: 0.35rem;
     border-radius: 50%;
-    background: var(--brass, currentcolor);
+    background: currentcolor;
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */
@@ -563,7 +563,7 @@ body:has(.mobileMapUtilityCorner) {
   .mobileTab {
     /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
        the 11px floor (iOS-convention exception) to fit five tabs across ~340px. */
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     padding: 2px 0;
     min-height: 44px;
   }

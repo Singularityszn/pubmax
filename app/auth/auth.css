@@ -79,18 +79,18 @@
   width: 100%;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 0.7rem;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
 }
 
 /* iOS Safari zooms focused controls below 16px. Keep desktop density and
    raise this component selector only for coarse pointers. */
 @media (pointer: coarse) {
   .authMagicLinkInput {
-    font-size: 16px;
+    font-size: var(--text-base);
   }
 }
 
@@ -141,7 +141,7 @@
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -155,7 +155,7 @@
 .authMagicLink .authError {
   margin: 0;
   max-width: 25rem;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
 }
 
@@ -169,14 +169,14 @@
      the notice sat on top of the nav links and hid them while it was up. */
   top: calc(max(1rem, env(safe-area-inset-top)) + 4.75rem);
   left: 50%;
-  z-index: var(--z-modal, 60);
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   gap: 0.75rem;
   width: min(32rem, calc(100vw - 2rem));
   padding: 0.75rem 0.9rem;
   border: 1px solid color-mix(in srgb, var(--brick) 35%, var(--line));
-  border-radius: 0.8rem;
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--ink);
   box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
@@ -223,7 +223,7 @@
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -231,7 +231,7 @@
   min-height: 44px;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -256,7 +256,7 @@
 .authBannedNoticeLink:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .authSignIn {
@@ -270,7 +270,7 @@
   max-width: 100%;
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -318,7 +318,7 @@
 @container auth-options (max-width: 32rem) {
   .authSignIn {
     padding: 0.5rem 0.65rem;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     gap: 0.35rem;
   }
 
@@ -383,7 +383,7 @@
 @media (max-width: 720px) {
   .authSignIn {
     padding: 0.5rem 0.65rem;
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
     gap: 0.35rem;
   }
 
@@ -499,15 +499,15 @@
   min-height: 44px;
   padding: 0 0.85rem;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
   /* The control row's type. On a phone this trigger is a Link, and a link
      keeps the browser's underline unless the rule says otherwise: the landing
      bar painted "Sign in" underlined at 600 (site audit 13 Sep 2026, D7). */
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -555,13 +555,13 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: var(--z-modal, 60);
+  z-index: var(--z-modal);
   display: grid;
   gap: 0.4rem;
   width: min(22rem, calc(100vw - 2rem));
   padding: 0.5rem;
   border: 1px solid var(--line);
-  border-radius: 0.9rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
 }
@@ -646,7 +646,7 @@
   flex: 0 0 auto;
   width: 44px;
   height: 44px;
-  border-radius: 999px;
+  border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -670,7 +670,7 @@
 }
 
 .authAccountName {
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
   overflow: hidden;
@@ -679,7 +679,7 @@
 }
 
 .authAccountHandle {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--brass);
   overflow: hidden;
@@ -699,7 +699,7 @@
   align-items: center;
   min-height: 44px;
   padding-inline: 0.55rem;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   color: var(--ink);
   font-size: 0.9rem;
   font-weight: 600;
@@ -733,7 +733,7 @@
   min-height: 44px;
   padding-inline: 0.55rem;
   border: 0;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: none;
   color: var(--ink);
   font: inherit;
@@ -788,7 +788,7 @@
   min-height: 44px;
   padding: 0.25rem 0.55rem;
   border: 0;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: none;
   color: var(--ink);
   font: inherit;
@@ -812,7 +812,7 @@
   flex: 0 0 auto;
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -834,7 +834,7 @@
 }
 
 .authSwitcherHandle {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--brass);
   overflow: hidden;
@@ -848,7 +848,7 @@
   margin-left: auto;
   padding-left: 0.4rem;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -858,7 +858,7 @@
   align-items: center;
   min-height: 44px;
   padding-inline: 0.55rem;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   color: var(--brass);
   font-size: 0.9rem;
   font-weight: 600;
@@ -874,7 +874,7 @@
 .authSwitcherError {
   margin: 0;
   padding-inline: 0.55rem;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 /* The second way out. Same shape as the first so neither reads as the safe one,
@@ -890,7 +890,7 @@
   /* Quiet, not faint. This is still the address a person signs in with, so it
      keeps a readable contrast rather than an opacity that dims it below one. */
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -916,7 +916,7 @@
   max-width: 16rem;
   padding: 0.4rem 0.6rem;
   border: 1px solid color-mix(in srgb, var(--brick) 35%, var(--line));
-  border-radius: 0.6rem;
+  border-radius: var(--radius);
   background: var(--panel-raised);
 }
 
@@ -971,7 +971,7 @@
 .authAvatar {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -983,7 +983,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 50%;
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--brass) 12%, transparent);
   color: var(--brass);
@@ -993,7 +993,7 @@
 }
 
 .authName {
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink);
   max-width: 12ch;
@@ -1005,11 +1005,11 @@
 .authSignOut {
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -1063,7 +1063,7 @@
   width: min(100%, 26rem);
   padding: 1.35rem 1.4rem 1.25rem;
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
   box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
@@ -1083,7 +1083,7 @@
 
 .claimNightTitle {
   margin: 0 0 0.45rem;
-  font-size: 1.35rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -1113,11 +1113,11 @@
 .claimNightError {
   margin: 0 0 0.85rem;
   padding: 0.65rem 0.75rem;
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
   border: 1px solid color-mix(in srgb, var(--brick) 35%, var(--line));
   background: color-mix(in srgb, var(--brick) 8%, var(--panel));
   color: var(--tint-ink-negative);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -1132,7 +1132,7 @@
 .claimNightLegend {
   padding: 0;
   margin: 0 0 0.35rem;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1146,7 +1146,7 @@
   align-items: start;
   padding: 0.7rem 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
   background: var(--panel);
   cursor: pointer;
   transition:
@@ -1173,7 +1173,7 @@
 .claimNightOptionHint {
   display: block;
   margin-top: 0.15rem;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
   font-weight: 500;
 }
@@ -1189,9 +1189,9 @@
 .claimNightConfirm,
 .claimNightSkip {
   padding: 0.55rem 0.95rem;
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 650;
   line-height: 1;
   cursor: pointer;
@@ -1328,7 +1328,7 @@
 .clerkAccountNote {
   margin: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   text-wrap: pretty;
   overflow-wrap: anywhere;

@@ -35,7 +35,7 @@
   min-height: 44px;
   padding: 0.4rem 0.75rem;
   border: none;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -68,11 +68,11 @@
   min-width: 44px;
   padding: 0 0.6rem;
   border: none;
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius);
   background: none;
   color: var(--ink);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;

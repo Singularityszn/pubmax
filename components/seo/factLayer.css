@@ -11,8 +11,8 @@
 
 .factBlockTitle {
   margin: 0 0 6px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--ink);
 }
@@ -36,7 +36,7 @@
 /* The observation-window sentence reads quieter — it's a provenance stamp, not
    a headline. Never says "live". */
 .factBlockProse .factBlockStamp {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -45,7 +45,7 @@
   border-collapse: collapse;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
@@ -53,7 +53,7 @@
 .factStatTable caption {
   text-align: left;
   padding: 12px 14px 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -63,7 +63,7 @@
   font-weight: 600;
   color: var(--ink-soft);
   border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .factStatTable td {
@@ -72,7 +72,7 @@
   color: var(--ink);
   border-bottom: 1px solid var(--line);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .factStatTable tr:last-child th[scope="row"],
@@ -88,8 +88,8 @@
 
 .faqBlockTitle {
   margin: 0 0 14px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--ink);
 }
@@ -131,7 +131,7 @@
   content: "+";
   color: var(--color-text-muted);
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--text-md);
   line-height: 1;
 }
 
@@ -150,14 +150,14 @@
   margin: 0;
   padding: 0 16px 14px;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.55;
 }
 
 .faqItem summary:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: -2px;
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 /* --- internal cross-links (Wave S3.5) ------------------------------------- */
@@ -191,10 +191,10 @@
   min-height: 44px;
   padding: 6px 13px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
 }

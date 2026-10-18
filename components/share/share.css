@@ -14,7 +14,7 @@
 .shareBar__label {
   font-family: var(--serif);
   font-style: italic;
-  font-size: 13px;
+  font-size: var(--text-sm);
   letter-spacing: 0.02em;
   color: var(--muted);
   margin-right: 2px;
@@ -33,7 +33,7 @@
   /* A circular icon control keeps the pill (owner ruling 2026-07-23), the
      shape the header's own icon controls wear; a 6px square was the one
      third shape on the profile. */
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel);
   color: var(--ink-soft);
   cursor: pointer;

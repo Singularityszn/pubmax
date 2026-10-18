@@ -145,7 +145,7 @@
   align-items: center;
   gap: 9px;
   border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(16px);

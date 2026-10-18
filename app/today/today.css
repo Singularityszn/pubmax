@@ -80,7 +80,7 @@
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-caution, var(--amber)) 16%, var(--panel-raised));
+  background: color-mix(in srgb, var(--color-caution) 16%, var(--panel-raised));
   font-size: var(--text-sm);
   line-height: 1.45;
   color: var(--ink);
@@ -120,16 +120,16 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   width: fit-content;
-  padding: var(--space-2) var(--control-pad-x, 16px);
+  padding: var(--space-2) var(--control-pad-x);
   border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
   background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--control-font-size, var(--text-sm));
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   /* The daily card's action is a Link, so it arrives underlined from the
      global anchor rule. The control is a button, not a sentence. */
   text-decoration: none;
@@ -170,7 +170,7 @@
 
 .todayTextButton:first-child,
 .todayGetThere > .todayTextButton {
-  margin-inline-start: calc(-1 * var(--control-pad-x, 16px));
+  margin-inline-start: calc(-1 * var(--control-pad-x));
 }
 
 .todaySrOnly {
@@ -474,7 +474,7 @@
 
 @media (min-width: 1024px) {
   .todayPage {
-    max-width: var(--content-max-wide, 1240px);
+    max-width: var(--content-max-wide);
     padding-inline: var(--page-gutter);
   }
 

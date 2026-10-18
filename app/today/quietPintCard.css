@@ -86,7 +86,7 @@
 }
 
 .todayTextButton:first-child {
-  margin-inline-start: calc(-1 * var(--control-pad-x, 16px));
+  margin-inline-start: calc(-1 * var(--control-pad-x));
 }
 
 /* A provenance word is a stamp, so it wears the neutral badge trio: a coral

@@ -14,7 +14,7 @@
   margin-inline: auto;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
-  border-radius: var(--radius-sm, 10px);
+  border-radius: var(--radius-sm);
   background: var(--panel-raised);
   box-shadow: var(--shadow);
   color: var(--ink);
@@ -63,8 +63,8 @@
 
 .logIntentFallback strong {
   display: block;
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.02rem;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--ink);
@@ -72,8 +72,8 @@
 
 .logIntentFallback .description {
   margin: 6px 0 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.88rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -126,7 +126,7 @@
   gap: 8px;
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

@@ -13,7 +13,7 @@
 }
 
 .diaryRatingLabel {
-  color: var(--color-text, var(--ink, #1a1a1a));
+  color: var(--color-text);
   font-size: 0.8rem;
   font-weight: 650;
 }
@@ -32,8 +32,8 @@
 }
 
 .diaryRatingValue {
-  color: var(--color-text-muted, var(--muted, #6b6b6b));
-  font-size: 0.84rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .diaryRatingClear {
@@ -41,7 +41,7 @@
   border: 0;
   padding: 0 0.5rem;
   background: transparent;
-  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  color: var(--color-text-muted);
   font: inherit;
   font-size: 0.8rem;
   text-decoration: underline;
@@ -70,7 +70,7 @@
   margin: 0 0 0.85rem;
   font-size: 0.9rem;
   line-height: 1.4;
-  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  color: var(--color-text-muted);
 }
 
 .diaryList {
@@ -87,9 +87,9 @@
   min-width: 0;
   gap: 0.4rem;
   padding: 0.75rem;
-  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.12)));
-  border-radius: var(--radius-sm, 10px);
-  background: var(--color-surface-raised, var(--panel-raised, rgba(0, 0, 0, 0.025)));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
 }
 
 .diaryRow__head {
@@ -104,21 +104,21 @@
 .diaryRow__venue {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: var(--color-text, var(--ink, #1a1a1a));
-  font-size: 0.98rem;
+  color: var(--color-text);
+  font-size: var(--text-base);
   font-weight: 700;
 }
 
 .diaryRow__date {
-  color: var(--color-text-muted, var(--muted, #6b6b6b));
-  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
 .diaryRow__review {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: var(--color-text, var(--ink, #1a1a1a));
+  color: var(--color-text);
   font-size: 0.92rem;
   line-height: 1.45;
 }
@@ -135,24 +135,24 @@
 }
 
 .diaryRow__action {
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   min-width: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.14)));
-  border-radius: var(--control-radius, 14px);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
   background: transparent;
-  color: var(--color-text, var(--ink, #1a1a1a));
+  color: var(--color-text);
   font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   line-height: 1.15;
   cursor: pointer;
 }
 
 .diaryRow__action--primary {
-  border-color: var(--brass, #b08d57);
-  background: var(--brass, #b08d57);
-  color: var(--color-on-accent, #fff);
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
 }
 
 .diaryRow__action:disabled {
@@ -173,6 +173,6 @@
 
 .diaryRow__error {
   margin: 0;
-  color: var(--brick, #a3352c);
-  font-size: 0.84rem;
+  color: var(--brick);
+  font-size: var(--text-sm);
 }

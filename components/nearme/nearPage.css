@@ -17,7 +17,7 @@
   width: 100%;
   max-width: min(560px, 100%);
   margin: 0 auto;
-  padding: var(--space-6, 24px) 0 var(--space-10, 48px);
+  padding: var(--space-6) 0 var(--space-10);
   box-sizing: border-box;
 }
 
@@ -81,7 +81,7 @@
     align-items: start;
     justify-content: center;
     column-gap: 48px;
-    max-width: var(--content-max-wide, 1240px);
+    max-width: var(--content-max-wide);
   }
 
   /* The answer and its arrival note lead the primary column. */

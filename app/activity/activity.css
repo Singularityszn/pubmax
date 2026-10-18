@@ -28,8 +28,8 @@
 .activitySkelChip {
   width: 64px;
   height: 36px;
-  border-radius: 999px;
-  background: var(--line-soft, var(--line));
+  border-radius: var(--radius-pill);
+  background: var(--line-soft);
 }
 .activitySkelChip:first-child {
   width: 48px;
@@ -43,8 +43,8 @@
 .activitySkelLine {
   display: block;
   height: 12px;
-  border-radius: 6px;
-  background: var(--line-soft, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--line-soft);
 }
 .activitySkelLine.activitySkelLineShort {
   width: 45%;
@@ -55,9 +55,9 @@
   .activitySkelLine {
     background: linear-gradient(
       100deg,
-      var(--line-soft, var(--line)) 30%,
+      var(--line-soft) 30%,
       color-mix(in srgb, var(--line) 55%, var(--panel-raised) 45%) 50%,
-      var(--line-soft, var(--line)) 70%
+      var(--line-soft) 70%
     );
     background-size: 220% 100%;
     animation: activityShimmer 1.9s linear infinite;

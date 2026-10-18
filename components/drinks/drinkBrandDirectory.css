@@ -135,7 +135,7 @@
 .drinkBrandDirectory__primary {
   padding: 0 18px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-action);
   color: var(--color-on-accent);
   font-weight: 800;
@@ -207,7 +207,7 @@
   min-width: 0;
   padding: 10px 12px 10px 10px;
   border: 1px solid var(--hairline-strong);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
 }
 
@@ -217,7 +217,7 @@
   height: 30px;
   place-items: center;
   border: 1px solid var(--badge-border);
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--badge-surface);
   color: var(--badge-ink);
   font-family: var(--font-data);
@@ -425,7 +425,7 @@
     grid-template-columns: 30px minmax(0, 1fr) max-content;
     gap: 8px;
     padding: 8px 8px 8px 6px;
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
   }
 
   .drinkBrandDirectory .drinkBrandDirectory__details {

@@ -40,7 +40,7 @@
 }
 
 .tonightRowMoreChevron {
-  transition: transform 160ms var(--ease-out, ease);
+  transition: transform 160ms var(--ease-out);
 }
 .tonightRowMore[open] .tonightRowMoreChevron {
   transform: rotate(180deg);
@@ -74,10 +74,10 @@
   gap: 12px;
   min-height: 40px;
   padding: 6px 10px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   color: var(--ink);
   text-decoration: none;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 @media (hover: hover) and (pointer: fine) {
   a.tonightRowMoreLink:hover {
@@ -102,7 +102,7 @@ a.tonightRowMoreLink:focus-visible {
 
 .tonightRowMoreWalk {
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -115,7 +115,7 @@ a.tonightRowMoreLink:focus-visible {
   background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 750;
   cursor: pointer;
 }

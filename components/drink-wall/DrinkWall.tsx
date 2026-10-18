@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import EmptyState from "@/components/ui/empty-state";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
@@ -49,6 +50,8 @@ function isPage(value: unknown): value is DrinkWallPage {
 
 export default function DrinkWall() {
   const { user, handle, configured } = useAuth();
+  // A null user is not sign-out: the sign-in door waits for the live session.
+  const { signedOut } = useViewerSession();
   const [category, setCategory] = useState<DrinkWallCategory | "all">("all");
   const [scope, setScope] = useState<Scope>("all");
   const [nearVenueIds, setNearVenueIds] = useState<string[]>([]);
@@ -245,12 +248,12 @@ export default function DrinkWall() {
               <button type="button" className="venuePhotoWallButton" onClick={() => setComposerOpen(true)}>
                 Add a photo
               </button>
-            ) : (
+            ) : signedOut ? (
               <p className="drinkWallSignInPrompt">
                 {DRINK_WALL_SIGN_IN_LINE}{" "}
                 <Link href={drinkWallSignInHref("/wall")}>Sign in</Link>
               </p>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -295,9 +298,9 @@ export default function DrinkWall() {
                   <button type="button" onClick={() => setComposerOpen(true)}>
                     Add a photo
                   </button>
-                ) : (
+                ) : signedOut ? (
                   <Link href={drinkWallSignInHref("/wall")}>Sign in to add one</Link>
-                )
+                ) : undefined
               }
             >
               Share a pint, a pub or a London view.

@@ -117,7 +117,7 @@ button.zonePintCell:active {
 }
 
 .zonePintCellValue {
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -136,7 +136,7 @@ button.zonePintCell:active {
 
 .zonePintIndexTax {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink);
 }
@@ -155,18 +155,18 @@ button.zonePintCell:active {
 }
 
 .isCompact .zonePintIndexOrderNote {
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
 }
 
 .zonePintIndexMethod {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--ink-soft);
 }
 
 .isCompact .zonePintIndexMethod {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -242,7 +242,7 @@ button.zonePintCell:active {
 }
 
 .zonePintIndex.isCompact .zonePintCellZone {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0;
   opacity: 1;

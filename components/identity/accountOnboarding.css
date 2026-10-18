@@ -1,7 +1,7 @@
 .accountOnboardingBackdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-overlay-top, 1300) + 1);
+  z-index: calc(var(--z-overlay-top) + 1);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -30,7 +30,7 @@
   margin: 1rem auto;
   padding: 1rem;
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
   box-shadow: 0 10px 30px color-mix(in srgb, var(--ink-deep) 12%, transparent);
@@ -66,7 +66,7 @@
 .accountOnboardingHead > p:last-child,
 .accountOnboardingPrivacy {
   color: var(--ink-soft);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -81,14 +81,14 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 750;
 }
 
 .accountOnboardingField strong,
 .accountOnboardingField small {
   color: var(--ink-soft);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 650;
 }
 
@@ -100,7 +100,7 @@
   box-sizing: border-box;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 0.8rem;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -135,7 +135,7 @@
 .accountOnboardingStatus {
   min-height: 1.1rem;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .accountOnboardingStatus.is-available {
@@ -182,7 +182,7 @@
   padding: 0.65rem 0.8rem;
   border-radius: 0.85rem;
   font: inherit;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 780;
   cursor: pointer;
 }
@@ -203,7 +203,7 @@
   border: 1px solid var(--brass);
   border-radius: 0.85rem;
   font: inherit;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 780;
   cursor: pointer;
 }

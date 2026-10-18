@@ -17,7 +17,7 @@
 }
 
 .starRating--sm .starRatingGlyphs {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .starRatingRow {
@@ -38,7 +38,7 @@
 
 .starRating--interactive {
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   touch-action: manipulation;
 }
 
@@ -58,7 +58,7 @@
 
 .ratingCount {
   font-family: var(--font-data);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -74,12 +74,12 @@
 }
 
 .ratingNote {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
 .ratingError {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--color-negative);
 }
 
@@ -88,7 +88,7 @@
   font-size: 0.8rem;
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   color: var(--color-text);
   max-width: 11rem;

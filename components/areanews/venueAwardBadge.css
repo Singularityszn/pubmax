@@ -12,15 +12,15 @@
   min-height: 44px;
   margin: 12px 0;
   padding: 10px 12px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--price-plaque-border);
   background: var(--price-plaque-surface);
   color: var(--accent-price-ink);
   box-shadow: var(--price-plaque-shine);
   text-decoration: none;
   transition:
-    transform var(--duration-fast, 120ms) var(--ease-out, ease-out),
-    box-shadow var(--duration-base, 200ms) var(--ease-out, ease-out);
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -31,7 +31,7 @@
 
 .venueAwardIcon {
   flex: 0 0 auto;
-  color: var(--brass, var(--accent-price-ink));
+  color: var(--brass);
 }
 
 .venueAwardText {

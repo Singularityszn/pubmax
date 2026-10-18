@@ -15,7 +15,7 @@
   margin: 0 auto;
   background: var(--paper);
   color: var(--ink);
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   line-height: 1.6;
 }
 
@@ -36,7 +36,7 @@
   margin-bottom: 8px;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-decoration: none;
@@ -51,7 +51,7 @@
 .ledgerEyebrow {
   margin: 0 0 10px;
   color: var(--color-text-muted);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -91,7 +91,7 @@
   color: var(--panel-raised);
   background: var(--ink-deep);
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -163,7 +163,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 .ledgerClaimEra {
   color: var(--ink-soft);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 /* Provenance chips — kept visually distinct per kind, never blurred together. */
@@ -174,7 +174,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid currentcolor;
 }
 
@@ -232,7 +232,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 .ledgerEntryDate {
   font-family: var(--serif);
   font-style: italic;
-  font-size: 1.15rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
 }
 
@@ -252,7 +252,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 .ledgerEntryPriceLabel {
   letter-spacing: 0.01em;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .ledgerEntryPriceValue {
@@ -261,7 +261,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 }
 
 .ledgerEmptyEntries {
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
 }
 
@@ -281,7 +281,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   padding: clamp(20px, 4vw, 32px);
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
   border: 1px solid var(--brass);
-  border-radius: var(--radius, 12px);
+  border-radius: var(--radius);
 }
 
 .ledgerFamilyHead {
@@ -318,7 +318,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   padding: 20px;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
 }
 
 .ledgerFamilyEntryMeta {
@@ -346,7 +346,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 .ledgerFamilyEntryNote {
   margin: 0;
   font-family: var(--serif);
-  font-size: 1.4rem;
+  font-size: var(--text-lg);
   line-height: 1.6;
   color: var(--ink);
 }
@@ -366,7 +366,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 .ledgerFamilyEmpty {
   margin: 0;
   font-family: var(--serif);
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   font-style: italic;
   color: var(--ink-soft);
 }
@@ -375,7 +375,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   margin-top: 48px;
   padding-top: 24px;
   border-top: 1px solid var(--line);
-  font-size: 1.15rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
   text-align: center;
 }
@@ -397,7 +397,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   text-align: center;
   background: var(--panel-raised);
   border: 1px solid var(--line);
-  border-radius: var(--radius, 12px);
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: clamp(28px, 6vw, 44px);
 }
@@ -410,7 +410,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 }
 
 .ledgerEmptyBody {
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
   margin: 0 0 24px;
 }
@@ -479,7 +479,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   align-items: center;
   min-height: 44px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

@@ -6,7 +6,7 @@
   margin: 12px 0 2px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(
       135deg,
@@ -34,7 +34,7 @@
 }
 
 .cityPlaceStripSource {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   color: var(--ink-soft);
 }
 
@@ -50,16 +50,16 @@
   gap: 4px;
   padding: 3px 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--ink);
   line-height: 1.15;
 }
 
 .cityPlaceStripChip small {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 500;
   color: var(--ink-soft);
   margin-left: 2px;

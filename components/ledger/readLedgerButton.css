@@ -12,7 +12,7 @@
   color: var(--ink);
   background: var(--panel-raised);
   border: 2px solid var(--brass);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -20,7 +20,7 @@
 @media (hover: hover) and (pointer: fine) {
   .ledgerReadButton:hover {
     background: var(--brass);
-    color: var(--color-on-accent, #fdfaf2);
+    color: var(--color-on-accent);
   }
 }
 
