@@ -5,7 +5,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { samePathWithQuery } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { NearAnswerSource } from "@/lib/analyticsEvents";
@@ -1038,6 +1038,9 @@ function NearMeAreaAnswer({
 /** The one caption for the whole list. It heads the list; it never rides a row. */
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
+/** The visible action for the row's browse tap. */
+export const NEAR_ME_VIEW_LABEL = "View pub";
+
 function collectedPriceLabel(): string {
   return NEAR_PRICE_TRUST_CAPTION;
 }
@@ -1091,6 +1094,11 @@ function NearMeCardBody({
         >
           {formatPrice(card.cheapestPrice)}
         </PriceBadge>
+        {/* The cue names the row's tap. Keep remains a separate control. */}
+        <span className="nmnCardView">
+          {NEAR_ME_VIEW_LABEL}
+          <ChevronRight size={13} aria-hidden="true" />
+        </span>
       </span>
     </>
   );
