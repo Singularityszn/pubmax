@@ -10,13 +10,18 @@ import {
 import PriceBadge from "@/components/PriceBadge";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
+import { RowList, RowListItem } from "@/components/ui/row-list";
 import BoroughScreen from "./BoroughScreen";
 
+import "@/components/listing/listing.css";
 import "./[slug]/borough.css";
 
 // Borough index: /borough. A SERVER component listing every London borough in
-// the dataset as a card (name, pub count, cheapest pint), each linking to its
-// own /borough/[slug] page (cc_plan2 §14/§25). Shareable via generateMetadata.
+// the dataset as ONE list read down the page (taste plan, 18 Oct 2026): name,
+// pub count and historic count as quiet meta, the cheapest pint at the end of
+// the row. It was a grid of 33 identical cards that left holes beside the last
+// row and ran 33 tall cards down a phone. Each row links to its own
+// /borough/[slug] page (cc_plan2 §14/§25). Shareable via generateMetadata.
 // Reuses the detail page's stylesheet so both surfaces stay visually identical.
 
 export const metadata: Metadata = {
@@ -40,11 +45,11 @@ export const metadata: Metadata = {
 export default async function BoroughIndexPage() {
   const boroughs = await getBoroughSummaries();
   // Cited historic-pub count per borough (borough-heritage rollup, Wave H).
-  // Additive: shown as a subtle badge only where a borough has any on record.
+  // Additive: named in the row's meta only where a borough has any on record.
   const heritageCounts = await getBoroughHeritageCounts();
 
   return (
-    <main id="main" className="boroughPage">
+    <main id="main" className="boroughPage listingShell">
       <SiteNav active="borough" />
 
       <BoroughScreen
@@ -68,35 +73,37 @@ export default async function BoroughIndexPage() {
             action={<Link prefetch={false} href="/map">Open the map instead</Link>}
           />
         ) : (
-          <ul className="boroughGrid" aria-label="London boroughs">
-            {boroughs.map((borough) => (
-              <li key={borough.slug}>
-                <Link className="boroughCard" href={`/borough/${borough.slug}`}>
-                  <span className="boroughCardName">{borough.name}</span>
-                  <span className="boroughCardMeta">
-                    {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
-                  </span>
-                  {heritageCounts.get(borough.slug) ? (
-                    <span className="boroughCardHistoric">
-                      {heritageCounts.get(borough.slug)} historic
-                    </span>
-                  ) : null}
-                  <span className="boroughCardPrice">
-                    {borough.cheapestGbp === null ? (
-                      <span className="boroughNoPrice">No price yet</span>
+          <RowList label="London boroughs" className="boroughRows listingRead">
+            {boroughs.map((borough) => {
+              const historic = heritageCounts.get(borough.slug) ?? 0;
+              return (
+                <RowListItem
+                  key={borough.slug}
+                  className="boroughRow createFabLane"
+                  href={`/borough/${borough.slug}`}
+                  title={borough.name}
+                  meta={
+                    <>
+                      {borough.pubCount} {borough.pubCount === 1 ? "pub" : "pubs"}
+                      {historic > 0 ? <>, {historic} historic</> : null}
+                    </>
+                  }
+                  trailing={
+                    borough.cheapestGbp === null ? (
+                      <span className="listingNoFigure">No price yet</span>
                     ) : (
                       <>
-                        from{" "}
+                        <span className="listingFrom">from</span>
                         <PriceBadge variant="current" band={priceBand(borough.cheapestGbp, { city: "london" })}>
                           {formatPrice(borough.cheapestGbp)}
                         </PriceBadge>
                       </>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    )
+                  }
+                />
+              );
+            })}
+          </RowList>
         )}
       </BoroughScreen>
     </main>
