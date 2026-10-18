@@ -109,7 +109,7 @@ export type AreaWeatherRead = {
  * One missed day's refresh plus a six-hour grace still shows that way; past
  * it, the surface says it has no reading, the same as when there is none.
  */
-export const WEATHER_READING_MAX_AGE_MS = 30 * 60 * 60 * 1000;
+const WEATHER_READING_MAX_AGE_MS = 30 * 60 * 60 * 1000;
 
 /**
  * Latest observation for a night area, including readings past their expiry

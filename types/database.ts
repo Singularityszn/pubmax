@@ -3174,6 +3174,7 @@ export type Database = {
           workplace: string | null;
           founding_member_number: number | null;
           visibility: string;
+          founding_member_excluded: boolean;
         };
         Insert: {
           id?: string;
@@ -3210,6 +3211,7 @@ export type Database = {
           workplace?: string | null;
           founding_member_number?: number | null;
           visibility?: string;
+          founding_member_excluded?: boolean;
         };
         Update: {
           id?: string;
@@ -3246,6 +3248,7 @@ export type Database = {
           workplace?: string | null;
           founding_member_number?: number | null;
           visibility?: string;
+          founding_member_excluded?: boolean;
         };
         Relationships: [
           {
