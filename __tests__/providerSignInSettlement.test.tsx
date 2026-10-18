@@ -364,7 +364,11 @@ describe("a still-mounted email form after its native start loses ownership", ()
     ["restored page", "sent"], ["restored page", "failed"], ["provider start", "sent"], ["provider start", "failed"],
   ] as const)("keeps the form quiet when a %s takes over before a held %s email response settles", async (change, outcome) => {
     await mountPage();
-    const response = () => outcome === "sent" ? Response.json({}) : Response.json({ msg: "upstream failure" }, { status: 500 });
+    const cancelBody = vi.fn();
+    const response = outcome === "sent" ? new Response(new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode("{}")); },
+      cancel: cancelBody,
+    })) : Response.json({ msg: "upstream failure" }, { status: 500 });
     let release!: (response: Response) => void;
     h.otpHold = new Promise<Response>((resolve) => { release = resolve; });
     let cancelProvider: ((error: Error) => void) | undefined;
@@ -374,22 +378,60 @@ describe("a still-mounted email form after its native start loses ownership", ()
     try {
       await submit();
       await vi.waitFor(() => expect(h.otpHeld).toBe(true), { timeout: 1000 });
-      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).not.toBeNull();
+      const originalReceipt = localStorage.getItem("pubmax_native_email_attempt_v1");
+      const originalAttempt = localStorage.getItem("pubmax_auth_active_attempt");
+      expect(originalReceipt).not.toBeNull();
+      expect(originalAttempt).not.toBeNull();
+      const receipt = JSON.parse(originalReceipt!) as { id: string; expectedEmail: string; callbackUrl: string };
+      const attempt = JSON.parse(originalAttempt!) as { id: string; callbackClaimed: boolean };
+      expect(receipt.id).toMatch(/^[0-9a-f]{32}$/);
+      expect(receipt.expectedEmail).toBe("native@example.test");
+      expect(new URL(receipt.callbackUrl).searchParams.get("_authAttempt")).toBe(receipt.id);
+      expect(attempt.id).toBe(receipt.id);
+      expect(attempt.callbackClaimed).toBe(false);
       if (change === "restored page") {
         await act(async () => { window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true })); });
       } else {
         await click(providerButton("Google"));
         await vi.waitFor(() => expect(h.authenticate).toHaveBeenCalledOnce(), { timeout: 1000 });
       }
-      await act(async () => { release(response()); });
+      await act(async () => { release(response); });
+      if (outcome === "sent") {
+        await vi.waitFor(() => expect(cancelBody).toHaveBeenCalledOnce(), { timeout: 1000 });
+      } else {
+        await vi.waitFor(() => expect(response.bodyUsed).toBe(true), { timeout: 1000 });
+      }
       await expectQuietForm();
       expect(container.querySelector<HTMLButtonElement>('.authMagicLink button[type="submit"]')!.textContent).not.toBe("Link sent");
-      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+      if (change === "restored page" && outcome === "sent") {
+        expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBe(originalReceipt);
+        expect(localStorage.getItem("pubmax_auth_active_attempt")).toBe(originalAttempt);
+      } else {
+        expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+        if (change === "restored page") {
+          expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
+        } else {
+          const providerAttempt = localStorage.getItem("pubmax_auth_active_attempt");
+          expect(providerAttempt).not.toBeNull();
+          const claim = JSON.parse(providerAttempt!) as { id: string; callbackClaimed: boolean };
+          expect(claim.id).not.toBe(attempt.id);
+          expect(claim.id).toBe(h.authenticate.mock.calls[0][0].attemptId);
+          expect(claim.callbackClaimed).toBe(false);
+        }
+      }
     } finally {
-      release(response());
-      if (cancelProvider) await act(async () => { cancelProvider!(new Error("cancelled")); await uiOperations.at(-1)?.promise.catch(() => {}); });
+      release(response);
+      try {
+        if (cancelProvider) await act(async () => { cancelProvider!(new Error("cancelled")); await uiOperations.at(-1)?.promise.catch(() => {}); });
+      } finally {
+        if (!response.bodyUsed) await response.body?.cancel().catch(() => {});
+      }
     }
     await vi.waitFor(() => expect(emailField().disabled).toBe(false), { timeout: 1000 });
+    if (change !== "restored page" || outcome !== "sent") {
+      expect(localStorage.getItem("pubmax_native_email_attempt_v1")).toBeNull();
+      expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
+    }
     expect(container.querySelector(ALERTS)).toBeNull();
     expect((await h.realAuth!.auth.getSession()).data.session).toBeNull();
     expect(container.querySelector("output")?.textContent).toBe("signed-out");
