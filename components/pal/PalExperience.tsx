@@ -307,9 +307,6 @@ function PalHomeScreen({
   const proposalPreferences = pal.proposalPreferences ?? { memories: true, routes: true };
   return (
     <main id="main" className="palExperience palHome">
-      <div className="palTopbar">
-        <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-      </div>
       <section className="palHomeHero" aria-labelledby="pal-home-title">
         <div className="palHomePortrait">
           <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} />
