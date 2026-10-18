@@ -9,63 +9,70 @@ import { useEffect, useState } from "react";
 import { Music2 } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
-import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  isValidWhatsOnRow,
+  MUSIC_LANE_MAX_CARDS,
+  musicLaneRows,
+  parseKindObservedAt,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./dealsTonightLane.css";
 
-type MusicState = { rows: WhatsOnRow[] };
+type MusicState = { rows: WhatsOnRow[]; asOf: string | null };
 
 export type MusicTonightLaneProps = {
   /** When provided, render from these already-loaded rows (music families are
    *  filtered out here) and skip the self-fetch, so a host that already loaded the
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover. */
   rows?: WhatsOnRow[];
-  /** Compatibility input. The rendered cards own their observation dates. */
+  /** The day that covers every card the lane shows, from each card's own
+   *  read: on Tonight `tonightMusicLaneObservedAt` (lib/tonightOutListings.ts),
+   *  because the lane there mixes the What's-On and Out reads. Never a card's
+   *  bare `observedAt`, which for a live row can be the request instant. Absent
+   *  means we cannot date it, and checkedLabel says exactly that. */
   asOf?: string | null;
 };
 
 /** Below this count we label coverage as thin rather than implying a full guide. */
 const THIN_COVERAGE_MAX = 4;
 
-export default function MusicTonightLane({ rows: providedRows }: MusicTonightLaneProps = {}) {
+export default function MusicTonightLane({ rows: providedRows, asOf: providedAsOf }: MusicTonightLaneProps = {}) {
   const provided = providedRows !== undefined;
-  const [state, setState] = useState<MusicState>({ rows: [] });
+  const [state, setState] = useState<MusicState>({ rows: [], asOf: null });
 
   useEffect(() => {
     if (provided) return; // reuse mode: the host already loaded the spine.
     const controller = new AbortController();
     void loadSurfaceJson<{
       rows?: unknown;
-      asOf?: unknown;
       kindObservedAt?: unknown;
     }>(
-      "/api/whats-on?kind=music&window=tonight&limit=8",
+      `/api/whats-on?kind=music&window=tonight&limit=${MUSIC_LANE_MAX_CARDS}`,
       {
         signal: controller.signal,
         validate: (body) => Array.isArray(body?.rows),
       },
       (body) => {
-        const rows = (Array.isArray(body.rows) ? body.rows : [])
-          .filter((row) => isValidWhatsOnRow(row))
-          .slice(0, 8);
-        setState({ rows });
+        // An explicit predicate: `filter` passes the index as the second
+        // argument, which isValidWhatsOnRow reads as the clock.
+        const rows = musicLaneRows(
+          (Array.isArray(body.rows) ? body.rows : []).filter((row) => isValidWhatsOnRow(row)),
+        );
+        // Self-fetch asks for kind=music alone, so every card is a What's-On
+        // card and the music feed's own check covers them all. The page-level
+        // `asOf` is not used: it can be a bundled file's build time.
+        setState({ rows, asOf: parseKindObservedAt(body.kindObservedAt).music ?? null });
       },
     );
     return () => controller.abort();
   }, [provided]);
 
-  const rows = provided
-    ? providedRows.filter((row) => row.kind === "music").slice(0, 8)
-    : state.rows;
-  // A merged lane can contain Out rows that the music feed never observed.
-  // Date the cards themselves, using the oldest check that covers every row.
-  const checks = rows.map((row) => Date.parse(row.observedAt));
-  const asOf = checks.length > 0 && checks.every(Number.isFinite)
-    ? new Date(Math.min(...checks)).toISOString()
-    : null;
+  const rows = provided ? musicLaneRows(providedRows) : state.rows;
+  const asOf = provided ? (providedAsOf ?? null) : state.asOf;
 
   if (rows.length === 0) return null;
 

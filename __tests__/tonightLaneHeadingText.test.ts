@@ -64,7 +64,7 @@ function headingText(element: ReactElement, headingId: string): string | null | 
 }
 
 describe("tonight lane headings", () => {
-  it("renders self-fetched music cards with their oldest observation date", async () => {
+  it("renders every valid self-fetched music card, dated by the music feed", async () => {
     vi.spyOn(Date, "now").mockReturnValue(NOW);
     const rows = Array.from({ length: 4 }, (_, index) => ({
       ...musicRow,
@@ -73,9 +73,12 @@ describe("tonight lane headings", () => {
       startsAt: new Date(NOW).toISOString(),
       observedAt: index === 1 ? "2026-09-23T12:00:00Z" : musicRow.observedAt,
     }));
+    // The page-level asOf can be a bundled file's build day, so the lane
+    // reads only the music feed's own check.
     const fetchMock = vi.fn().mockResolvedValue(Response.json({
       rows: [...rows, { ...musicRow, id: "invalid", title: "Invalid listing", source: null }],
-      asOf: "2026-09-07T12:00:00Z",
+      asOf: "2026-09-24T17:00:00Z",
+      kindObservedAt: { music: "2026-09-21T12:00:00Z" },
     }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -90,15 +93,31 @@ describe("tonight lane headings", () => {
     );
     expect(Array.from(container!.querySelectorAll(".dealsTonightCard strong"), (card) => card.textContent))
       .toEqual(["Acoustic set 0", "Acoustic set 1", "Acoustic set 2", "Acoustic set 3"]);
-    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 23 Sept");
+    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 21 Sept");
   });
 
-  it("dates the music cards from their own observations, not a different feed", () => {
+  it("is undated on self-fetch when the music feed holds no check", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+      rows: [{ ...musicRow, startsAt: new Date(NOW).toISOString() }],
+      asOf: "2026-09-24T17:00:00Z",
+      kindObservedAt: {},
+    })));
+
+    await act(async () => {
+      headingText(createElement(MusicTonightLane), "music-tonight-title");
+    });
+
+    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("No date on this yet");
+  });
+
+  it("prints the date the host covered the cards with, never a card's own observedAt", () => {
+    // A live card's observedAt can be the request instant (lib/whatsOnCitymcp.ts).
     headingText(createElement(MusicTonightLane as ComponentType<MusicTonightLaneProps>, {
       rows: [{ ...musicRow, title: "ABBA Voyage", observedAt: "2026-10-18T10:00:00Z" }],
       asOf: "2026-10-07T18:00:00Z",
     }), "music-tonight-title");
-    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 18 Oct");
+    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 7 Oct");
   });
 
   it("prints Live music tonight without a leading space", () => {
