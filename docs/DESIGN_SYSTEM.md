@@ -66,6 +66,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
 | A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
+| The browser bar matches the page under it, in each theme | Day/night coherence; `lib/browserBarColor.ts` | `__tests__/browserBarColor.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | The template-pattern ban list | `docs/VOICE.md` > Template patterns | `__tests__/templatePatterns.test.ts` |
@@ -631,6 +632,13 @@ that would have gone bright and jarring against the dark theme's charcoal
 surfaces — both now resolve via `--surface-tint-river` /
 `--surface-tint-brass`, `color-mix()`-derived from `--panel-raised` so they
 stay in the current theme's tonal range automatically.
+
+The browser bar follows the same rule. `<meta name="theme-color">` paints the
+light page floor (`#f8f2ec`) under a light OS appearance and the dark page
+floor (`#0a0a0b`) under a dark one. The root layout's viewport reads them from
+`lib/browserBarColor.ts`, and `public/manifest.webmanifest` repeats the light
+one, held to it by the fence. It used to
+paint near-black in both, so a light page sat under a black strip.
 
 One legend swatch (`.mapLegend span`) keeps a fixed light-mode ink colour by
 design — the legend chip's background is intentionally always a light,
