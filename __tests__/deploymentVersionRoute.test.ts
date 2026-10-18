@@ -1,7 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/version/route";
 import {
@@ -25,6 +22,7 @@ const ORIGINAL = Object.fromEntries(
 ) as Record<(typeof STAMP_KEYS)[number], string | undefined>;
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const key of STAMP_KEYS) {
     if (ORIGINAL[key] === undefined) delete process.env[key];
     else process.env[key] = ORIGINAL[key];
@@ -227,15 +225,20 @@ describe("deployment version route", () => {
     expect(body).not.toHaveProperty("builtAt");
   });
 
-  it("reads no platform git variable and runs no git at request time", () => {
-    const source = readFileSync(
-      path.join(process.cwd(), "app/api/version/route.ts"),
-      "utf8",
-    );
-    const code = source.replace(/\/\/[^\n]*\n/g, "\n");
+  it.each([
+    [SHA, SHA],
+    [undefined, null],
+    ["", null],
+    ["main", null],
+  ] as const)("reports build stamp %j independently of the runtime platform commit", async (stamp, expected) => {
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "f".repeat(40));
+    process.env.CRON_SECRET = "version-route-test-secret";
+    if (stamp === undefined) delete process.env.PUBMAX_BUILD_COMMIT_SHA;
+    else process.env.PUBMAX_BUILD_COMMIT_SHA = stamp;
 
-    expect(code).not.toContain("VERCEL_GIT_COMMIT_SHA");
-    expect(code).not.toContain("child_process");
-    expect(code).not.toContain("rev-parse");
+    for (const request of [undefined, cronVersionRequest("wrong-secret"), cronVersionRequest()]) {
+      const body = await GET(request).json();
+      expect(body.gitCommitSha).toBe(expected);
+    }
   });
 });
