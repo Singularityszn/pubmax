@@ -60,6 +60,14 @@ function headingText(element: ReactElement, headingId: string): string | null | 
 }
 
 describe("tonight lane headings", () => {
+  it("dates the music cards from their own observations, not a different feed", () => {
+    headingText(createElement(MusicTonightLane as ComponentType<MusicTonightLaneProps>, {
+      rows: [{ ...musicRow, title: "ABBA Voyage", observedAt: "2026-10-18T10:00:00Z" }],
+      asOf: "2026-10-07T18:00:00Z",
+    }), "music-tonight-title");
+    expect(container?.querySelector(".dealsTonightChecked")?.textContent).toBe("Checked 18 Oct");
+  });
+
   it("prints Live music tonight without a leading space", () => {
     expect(
       headingText(

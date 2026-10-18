@@ -1,3 +1,4 @@
+import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isWithinMaxAge,
@@ -661,8 +662,10 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       .map((price) => String(price.locality ?? "").trim())
       .find(Boolean);
 
+    const kind = legacyOsmVenueKind(groupRows);
     return {
       id: stableVenueIdFromKey(key),
+      ...(kind ? { kind } : {}),
       name: displayVenueName(first.pub_name),
       ...venueSourceNameField(first.pub_name),
       address: displayVenueAddress(first.address),

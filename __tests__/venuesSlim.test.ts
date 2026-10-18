@@ -61,7 +61,7 @@ const slim = (
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
 const famousIds = new Set(
   slim
-    .filter((venue) => venue.kind !== undefined && venue.kind !== "pub")
+    .filter((venue) => venue.anchorLabel !== undefined)
     .map((venue) => venue.id),
 );
 const fullVenuesById = new Map(
@@ -91,7 +91,7 @@ function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
     row.priceBand === 1 ||
     row.priceBand === 2;
   const anchor =
-    (row.kind !== "bar" && row.kind !== "food" && row.kind !== "restaurant") ||
+    row.anchorLabel === undefined ||
     (typeof row.anchorLabel === "string" &&
       row.anchorLabel.length > 0 &&
       typeof row.anchorObservedAt === "string" &&
@@ -163,7 +163,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
 
 function matchingIdsFromSlim(filters: Filters): string[] {
   return (slim as SlimVenue[])
-    .filter((venue) => venue.kind === undefined)
+    .filter((venue) => venue.anchorLabel === undefined)
     .filter(
       (venue) => filterVenues([slimVenueToPin(venue)], filters).length > 0,
     )
@@ -254,7 +254,7 @@ describe("venues_slim.json", () => {
   it("carries complete anchor provenance for famous non-pub venues", () => {
     const famous = (slim as SlimVenue[]).filter(
       (row) =>
-        row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
+        row.anchorLabel !== undefined,
     );
     expect(famous).toHaveLength(expectedSlimFamousCounts().total);
     for (const row of famous) {
@@ -414,7 +414,7 @@ describe("venues_slim.json", () => {
     for (const id of famousIds) canonicalIds.delete(id);
     // Famous venue seed rows have editorial ids; legacy pub rows retain the
     // canonical raw-dataset identity contract.
-    const rows = (slim as SlimVenue[]).filter((row) => row.kind === undefined);
+    const rows = (slim as SlimVenue[]).filter((row) => row.anchorLabel === undefined);
     expect(canonicalIds.size).toBe(rows.length);
     const sampleIdx = new Set<number>([
       0,
@@ -440,7 +440,7 @@ describe("venues_slim.json", () => {
     vi.setSystemTime(lapsedAt);
     try {
       const famous = (slim as SlimVenue[]).filter(
-        (row) => row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
+        (row) => row.anchorLabel !== undefined,
       );
       expect(famous).toHaveLength(expectedSlimFamousCounts().total);
       expect(expectedSlimFamousCounts(lapsedAt).total).toBe(0);
@@ -472,7 +472,7 @@ describe("venues_slim.json", () => {
 
   it("ships exact curated pack counts with every type-relative band", () => {
     const rows = slim as SlimVenue[];
-    const bars = rows.filter((row) => row.kind === "bar");
+    const bars = rows.filter((row) => row.kind === "bar" && row.anchorLabel !== undefined);
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
     const expected = expectedSlimFamousCounts();
