@@ -133,6 +133,11 @@ describe("PlanCultureOpener shows a budget outing as known and unknown costs", (
     }],
     ["an unknown cost outside the closed list", { ...BUDGET_COSTS, unknownItems: ["admission", "parking"] }],
     ["admission left out with no sourced admission fact", { ...BUDGET_COSTS, unknownItems: ["food", "transport"] }],
+    ["drinks left out when no drink has a known price", {
+      ...BUDGET_COSTS,
+      knownSubtotalPence: null,
+      knownItems: [],
+    }],
     ["no unknown cost at all, which would read as an all-in total", { ...BUDGET_COSTS, unknownItems: [] }],
   ])("drops the cost list when it carries %s", (_label, costs) => {
     const opener = cleanCultureOpener(galleryFragment(costs));

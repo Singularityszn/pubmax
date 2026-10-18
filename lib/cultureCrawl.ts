@@ -341,6 +341,7 @@ function cleanCultureOutingCosts(value: unknown): CultureOutingCostsDTO | null {
   const unknownList: unknown[] = value.unknownItems;
   if (!unknownList.every(isUnknownCost) || new Set(unknownList).size !== unknownList.length) return null;
   if (!ALWAYS_UNKNOWN_COSTS.every((cost) => unknownList.includes(cost))) return null;
+  if (knownItems.length === 0 && !unknownList.includes("drinks")) return null;
   return { limitPence, knownSubtotalPence, knownItems, unknownItems: CULTURE_UNKNOWN_COSTS.filter((cost) => unknownList.includes(cost)) };
 }
 
