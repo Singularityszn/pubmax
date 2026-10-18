@@ -9989,6 +9989,54 @@
         "rowCount": 8062,
         "siteHarvestRows": 3532
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-imperialarmschislehurst-co-uk-wp-content-uploads-2026-03-tp251592-imperial-drinks-menu-final-pdf.json",
+      "sourceEvidenceSha256": "1e2d5ae3ae9663cc7e87a3cead8523ede1360f1afcb806c202d811cc8ed621e7",
+      "sourceUrl": "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf",
+      "sourceObservedAt": "2026-10-18T23:31:18.614Z",
+      "addedRows": 85,
+      "currentLedger": {
+        "sha256": "1bcf48fdd1ed1b5ba72eac6e9a5b6796ba5b38ac6b897e74576e17a225420b62",
+        "rowCount": 3652,
+        "rowIdentitySetSha256": "1ebfa152a9b39d489f2c501eed22e2a2b0868d3194108d3f35f5f8e83492123a"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thegreyhoundhotel-com-food-drink.json",
+      "sourceEvidenceSha256": "add8a2ddb126342d0da53ed6549351ab73f4ad48e57c45d163aaddd8ce254bdf",
+      "sourceUrl": "https://www.thegreyhoundhotel.com/food-drink/",
+      "sourceObservedAt": "2026-10-18T23:32:29.015Z",
+      "addedRows": 21,
+      "currentLedger": {
+        "sha256": "87929d51fa8302cabfab141e024f854d95fede542327de5419c68d6c676d9467",
+        "rowCount": 3673,
+        "rowIdentitySetSha256": "1dacbad9be660f866a016d47644ee6b8828ab66046d7a211a82fbce645f9b002"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-crownofmitcham-co-uk-menu.json",
+      "sourceEvidenceSha256": "871e4da14e2d0532d376b00f1708bed6f33f3a94004eab0b7011c1b641b0668f",
+      "sourceUrl": "https://www.crownofmitcham.co.uk/menu?menu=menu",
+      "sourceObservedAt": "2026-10-18T23:32:31.698Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "fed3c3e824226d61ff47182e2aff707e635dabae73ca7e013569f40b8e09a327",
+        "rowCount": 3686,
+        "rowIdentitySetSha256": "aadbafbe8592b2b937c0f55bae3c6dfbfa30bd7841090ca0ef4dda47c3559615"
+      },
+      "currentBundle": {
+        "rowCount": 8181,
+        "siteHarvestRows": 3651
+      }
     }
   ]
 }
