@@ -1,0 +1,45 @@
+# Secret scanning for the Security CI gitleaks job. The default rules stay on;
+# each allowlist below names a path or value that the full-history scan of
+# 18 October 2026 matched and that is not a secret. Add an entry only with
+# its reason, and never to silence a real credential: rotate it first.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Test fixtures and frozen copies of them. Proof files under docs/proof copy source and test files byte for byte, so they carry the same fixture tokens."
+paths = [
+  '''^__tests__/''',
+  '''^e2e/''',
+  '''^docs/proof/''',
+]
+
+[[allowlists]]
+description = "Scraped third-party pages (untracked since 820bb2664) and harvested OSM data, where a match is a public page token or a social handle."
+paths = [
+  '''^\.firecrawl/''',
+  '''^data/osm/''',
+]
+
+[[allowlists]]
+description = "Skill docs whose examples show placeholder keys such as sk_live_xxx."
+paths = [
+  '''^\.agents/skills/''',
+  '''^skills/''',
+]
+
+[[allowlists]]
+description = "Browser storage key names and route keys that start with the product name, and the named e2e placeholder publishable key."
+regexTarget = "secret"
+regexes = [
+  '''^pubmaxx?[_:.-]''',
+  '''^sb_publishable_pubmaxx_e2e''',
+]
+
+[[allowlists]]
+description = "Checksums and doc prose that the generic rule reads as a key."
+regexTarget = "line"
+regexes = [
+  '''OpenAPI SHA256:''',
+  '''token, Plan/''',
+]

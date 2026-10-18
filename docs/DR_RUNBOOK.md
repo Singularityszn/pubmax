@@ -21,6 +21,21 @@ Facts to start from:
 | Scratch project for drills | `pubmax-pentest`, paused. Resume it, use it, pause it again |
 | Escalation list | [`OPS_FREEZE_RUNBOOK.md`](OPS_FREEZE_RUNBOOK.md) "Escalation list". Fill it in |
 
+## Targets
+
+- **Recovery point objective (RPO), the most data a loss can take: 7 days today.** The off-platform dump runs once a week, so a loss can take everything written since the last complete dump. If the Mac is asleep, off or away, no dump runs, and this figure has no limit until the next complete run.
+- **Recovery time objective (RTO), the longest the restore may take: not measured yet.** The first restore drill sets it. Write the measured minutes in the drill log below, then write the target here. Until then there is no figure.
+
+Accepted risks. Each one is known and open today:
+
+- One region. Vercel functions run only in `lhr1` (`vercel.json`), and the database is in eu-west-2. Both are in London.
+- One Supabase project holds all production data.
+- One owner on each account. See section 4.
+- One person on call.
+- No point-in-time recovery (PITR), because the free plan does not have it. The weekly dump is the only way back.
+
+The floor is automated. `__tests__/offPlatformBackupEffective.test.ts` builds the real schema from every migration, takes a dump with the backup script, and restores it into a fresh PostgreSQL cluster with the command in section 2. It fails when a table, a row count, a policy or a trigger does not come back, or when the restore prints an error not on its list. It does not prove a restore into Supabase, the bucket upload or the time a restore takes. The manual drill in section 1 is the real proof.
+
 ## 1. Make the backup, and prove it restores
 
 ### Take it
@@ -54,7 +69,7 @@ the management token to PostgreSQL clients.
 
 The dump uses `--role=supabase_read_only_user` and a read-only session.
 Missing role membership, authentication, or table access fails the dump.
-This mode retains all four schemas and their table data. Storage still needs
+This mode retains all five schemas and their table data. Storage still needs
 the existing service role key. A dry run makes no login request.
 The script never resets the database password or deletes the managed login role.
 
@@ -64,7 +79,7 @@ node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs
 ```
 
 It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`,
-`auth`, `storage` and `supabase_migrations` schemas, and syncs the bucket into
+`auth`, `storage`, `supabase_migrations` and `pubmax_private` schemas, and syncs the bucket into
 `bucket/pint-drops/`. A dump becomes visible only after `pg_restore --list` finds
 table data and the bucket sync completes. Changed photos download into
 `bucket/pint-drops.staging/` and replace the kept copies only after every object
@@ -122,6 +137,8 @@ not beside the file.
 ### The restore drill (owed to the captain)
 
 Nobody has run one yet. Run it once, then every quarter, and fill in the log.
+The automated restore test (see "Targets") is a floor, not a drill. Only this
+drill proves a restore into Supabase and measures the RTO.
 
 1. Resume `pubmax-pentest` in the Supabase dashboard. Note its connection string.
 2. Restore the newest dump into it, following section 2 steps 2 to 4.
@@ -143,7 +160,7 @@ Use when data is lost or corrupt. The target is either the production project
 3. Set the target through the standard variables, never on a command line:
    `export PGHOST=... PGPORT=5432 PGUSER=postgres PGDATABASE=postgres PGSSLMODE=require` and `read -s PGPASSWORD; export PGPASSWORD`.
 4. Restore. On a fresh project, restore everything. On the live project, restore only what was lost:
-   - Fresh or empty schema: `pg_restore --no-owner --no-privileges --dbname "$PGDATABASE" <dump> 2> restore.log`, then `grep -A1 'ERROR:' restore.log`. Do not add `--exit-on-error`: a fresh database already has the `public` schema (a fresh Supabase project also has `auth` and `storage`), so the dump's `CREATE SCHEMA` fails at once and nothing is restored. Every error in the log must say "already exists". Any other error means the restore is not complete.
+   - Fresh or empty schema: `pg_restore --no-owner --no-privileges --dbname "$PGDATABASE" <dump> 2> restore.log`, then `grep -A1 'ERROR:' restore.log`. Do not add `--exit-on-error`: a fresh database already has the `public` schema (a fresh Supabase project also has `auth` and `storage`), so the dump's `CREATE SCHEMA` fails at once and nothing is restored. Every error in the log must be one of two kinds, and only on `public`, `auth` or `storage` objects the project already holds: "already exists", or "multiple primary keys for table ... are not allowed" on a table that already has its primary key. Any other error means the restore is not complete. The automated restore test holds this list for the stand-in project, so read its `EXPECTED_RESTORE_ERRORS` first. A real project holds more `auth` and `storage` objects, so its log has more lines of these two kinds.
    - One table: `pg_restore --no-owner --data-only --table <name> --schema public --dbname "$PGDATABASE" <dump>`.
    Supabase owns objects in `auth` and `storage`. If a restore of those schemas fails on ownership, restore `public` first, then load `auth.users` and `auth.identities` data-only.
 5. Check:

@@ -2788,18 +2788,24 @@ export type Database = {
           category: string;
           version: number;
           enqueued_at: string;
+          attempts: number;
+          dead_lettered_at: string | null;
         };
         Insert: {
           venue_id: string;
           category: string;
           version?: number;
           enqueued_at?: string;
+          attempts?: number;
+          dead_lettered_at?: string | null;
         };
         Update: {
           venue_id?: string;
           category?: string;
           version?: number;
           enqueued_at?: string;
+          attempts?: number;
+          dead_lettered_at?: string | null;
         };
         Relationships: [];
       };
@@ -8064,6 +8070,18 @@ export type Database = {
           p_created_at: string | null;
         };
         Returns: Json;
+      };
+      record_price_trust_reconciliation_failure: {
+        Args: {
+          p_venue_id: string | null;
+          p_category: string | null;
+          p_version: number | null;
+          p_max_attempts: number | null;
+        };
+        Returns: {
+          attempts: number;
+          dead_lettered: boolean;
+        }[];
       };
       record_pub_pal_voice_minutes: {
         Args: {

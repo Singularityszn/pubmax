@@ -14,6 +14,7 @@ import {
   type CommunityPriceObservation,
 } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
+import { log } from "@/lib/log";
 import { profileStore } from "@/lib/profileStore";
 import {
   priceTrustEventStore,
@@ -52,8 +53,17 @@ export type PriceTrustReconciliationDrain = {
   processed: number;
   synced: number;
   pending: number;
+  /** Pairs this run stopped retrying, each logged once as an error. */
+  deadLettered: number;
   degraded: boolean;
 };
+
+/**
+ * Failed worker runs a pair gets before the worker stops retrying it and
+ * raises one error (migration 0192). A new price write for the pair starts a
+ * fresh budget. The cap is sent to the database, so this is its one source.
+ */
+export const MAX_PRICE_TRUST_ATTEMPTS = 5;
 
 const STORE_TAG = "price-trust-events";
 const TRUST_SYNCED: PriceTrustReconciliation = { status: "synced" };
@@ -217,18 +227,37 @@ export async function drainPendingPriceTrustReconciliations(
 ): Promise<PriceTrustReconciliationDrain> {
   const listed = await priceTrustEventStore().listPendingReconciliations(limit);
   if (listed.degraded) {
-    return { processed: 0, synced: 0, pending: 0, degraded: true };
+    return { processed: 0, synced: 0, pending: 0, deadLettered: 0, degraded: true };
   }
   let synced = 0;
   let pending = 0;
+  let deadLettered = 0;
   for (const task of listed.tasks) {
     const result = await reconcilePendingPriceTrust(task, now);
     if (result.status === "unavailable") {
-      await priceTrustEventStore().enqueueReconciliation(
-        task.venueId,
-        task.category,
+      const failure = await priceTrustEventStore().recordReconciliationFailure(
+        task,
+        MAX_PRICE_TRUST_ATTEMPTS,
         now,
       );
+      if (failure.status === "dead-lettered") {
+        deadLettered += 1;
+        log("error", "price_trust.task_dead_lettered", {
+          venueId: task.venueId,
+          category: task.category,
+          attempts: failure.attempts,
+        });
+        continue;
+      }
+      if (failure.status === "legacy") {
+        // Deployed ahead of 0192: no attempt count exists, so keep the 0126
+        // behaviour and put the pair back on the queue.
+        await priceTrustEventStore().enqueueReconciliation(
+          task.venueId,
+          task.category,
+          now,
+        );
+      }
       pending += 1;
       continue;
     }
@@ -244,6 +273,7 @@ export async function drainPendingPriceTrustReconciliations(
     processed: listed.tasks.length,
     synced,
     pending,
+    deadLettered,
     degraded: false,
   };
 }
