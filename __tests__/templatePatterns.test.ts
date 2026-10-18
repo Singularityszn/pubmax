@@ -132,7 +132,6 @@ const PENDING_REMOVAL: ReadonlyArray<{ file: string; pattern: Pattern; owner: st
   { file: "app/bar-tab/[id]/barTab.css", pattern: "three-column-grid", owner: "taste pass: /bar-tab owner (no area assigned on 18 Oct 2026)" },
   { file: "app/feed/feed.css", pattern: "glass-blur", owner: "taste pass area C (social; /feed redirects to /social)" },
   { file: "app/globals.css", pattern: "three-column-grid", owner: "taste pass: map route panel owner (.routeMetrics KPI tiles, components/map/route/RouteMetrics.tsx)" },
-  { file: "app/historic/historic.css", pattern: "three-column-grid", owner: "taste pass area B (historic)" },
   { file: "app/messages/messages.css", pattern: "three-column-grid", owner: "taste pass area C (messages)" },
   { file: "app/pal/pal.css", pattern: "orbit-or-scanline", owner: "taste pass area C (pal)" },
   { file: "app/pal/pal.css", pattern: "three-column-grid", owner: "taste pass area C (pal)" },
