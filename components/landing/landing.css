@@ -80,7 +80,12 @@ body:has(.lp) {
   font-weight: 600;
   text-decoration: none;
 }
-.lpPrimaryNav a:hover { color: var(--ink); background: var(--panel); }
+@media (hover: hover) and (pointer: fine) {
+  .lpPrimaryNav a:hover {
+    color: var(--ink);
+    background: var(--panel);
+  }
+}
 .lpNavActions { display: flex; align-items: center; gap: 7px; }
 
 .lp :where(a, button):focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
@@ -225,10 +230,16 @@ body:has(.lp) {
 }
 
 .lpPubCard--photo .lpPubName a { color: var(--landing-photo-ink); }
-.lpPubCard--photo .lpPubName a:hover { color: var(--landing-photo-ink); }
-.lpPubCard--photo a.lpPubPint:hover,
-.lpPubCard--photo .lpPubSource a:hover,
-.lpPubCard--photo .lpPubThenSource a:hover { color: var(--landing-photo-ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpPubCard--photo .lpPubName a:hover {
+    color: var(--landing-photo-ink);
+  }
+  .lpPubCard--photo a.lpPubPint:hover,
+  .lpPubCard--photo .lpPubSource a:hover,
+  .lpPubCard--photo .lpPubThenSource a:hover {
+    color: var(--landing-photo-ink);
+  }
+}
 
 .lpPubCard--photo .lpPubThen { border-top-color: rgb(251 249 246 / 0.22); }
 
@@ -250,7 +261,13 @@ body:has(.lp) {
 /* The pub's name is the card's one link, so it takes the 44px tap floor the
    phone chrome measures against, without growing the line the eye reads. */
 .lpPubName a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; }
-.lpPubName a:hover { color: var(--brass); text-decoration: underline; text-underline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .lpPubName a:hover {
+    color: var(--brass);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
 
 .lpPubPrice {
   margin: var(--space-1) 0 0;
@@ -263,7 +280,11 @@ body:has(.lp) {
 .lpPubPrice .priceBadge { font-size: var(--text-lg); min-block-size: 2.4rem; padding-inline: .7rem; }
 .lpPubPint { color: var(--ink-soft); font-size: var(--text-base); }
 a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
-a.lpPubPint:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  a.lpPubPint:hover {
+    color: var(--ink);
+  }
+}
 
 .lpPubSource {
   margin: 0;
@@ -282,7 +303,12 @@ a.lpPubPint:hover { color: var(--ink); }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.lpPubSource a:hover, .lpPubThenSource a:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpPubSource a:hover,
+  .lpPubThenSource a:hover {
+    color: var(--ink);
+  }
+}
 
 /* The standing chip: the word lib/priceTier.ts gives the row, and the word
    alone. It wears no tone, because colour on this card is the price BAND's
@@ -335,7 +361,11 @@ a.lpPubPint:hover { color: var(--ink); }
   text-decoration: underline;
   text-underline-offset: 5px;
 }
-.lpTextLink:hover { color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .lpTextLink:hover {
+    color: var(--brass);
+  }
+}
 
 /* ── The prose sections: one column of copy, no card, no grid ───────────── */
 
@@ -411,16 +441,28 @@ a.lpPubPint:hover { color: var(--ink); }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-body); letter-spacing: .01em; }
 .lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
-.lpFooterCol a:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpFooterCol a:hover {
+    color: var(--ink);
+  }
+}
 .lpFooterBase { width: min(var(--lp-max), 100%); margin: clamp(32px, 5vw, 56px) auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
 .lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-body); letter-spacing: .01em; text-decoration: none; }
-.lpFooterSmallPrint a:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpFooterSmallPrint a:hover {
+    color: var(--ink);
+  }
+}
 .lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-body); }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-body); }
 /* The drinkaware link takes the footer's own ink, never the browser's blue. */
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
-.lpFooterLegal a:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpFooterLegal a:hover {
+    color: var(--ink);
+  }
+}
 
 
 /* Desktop width: prose sections and the drops rail use the wide token instead
@@ -645,7 +687,13 @@ a.lpPubPint:hover { color: var(--ink); }
   color: var(--ink);
   text-decoration: none;
 }
-.lpRailLink:hover .lpRailName { color: var(--brass); text-decoration: underline; text-underline-offset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .lpRailLink:hover .lpRailName {
+    color: var(--brass);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
 .lpRailMain { display: grid; gap: 2px; min-width: 0; }
 .lpRailName { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: var(--tracking-tight); }
 .lpRailMeta { color: var(--ink-soft); font-size: var(--text-sm); }
@@ -780,8 +828,14 @@ a.lpPubPint:hover { color: var(--ink); }
   color: var(--ink);
   text-decoration: none;
 }
-.lpAnswerTile:hover { border-color: var(--line); }
-.lpAnswerTile:hover .lpAnswerTileHead { color: var(--brass-ink); }
+@media (hover: hover) and (pointer: fine) {
+  .lpAnswerTile:hover {
+    border-color: var(--line);
+  }
+  .lpAnswerTile:hover .lpAnswerTileHead {
+    color: var(--brass-ink);
+  }
+}
 
 /* Each tile is a door to /today or /tonight. Without a mark it read as a
    finished statement, so the head carries the chevron a list row uses to say

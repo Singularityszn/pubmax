@@ -40,8 +40,10 @@
    pressed control, and a control that wants its own says so through
    --shared-press-scale. Same rule as button.css. */
 
-.uiChip:hover {
-  border-color: var(--state-selected-border);
+@media (hover: hover) and (pointer: fine) {
+  .uiChip:hover {
+    border-color: var(--state-selected-border);
+  }
 }
 
 .uiChip:focus-visible {

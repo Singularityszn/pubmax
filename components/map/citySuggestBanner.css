@@ -56,10 +56,12 @@
   font-family: inherit;
 }
 
-.citySuggestBannerSwitch:hover:not(:disabled) {
-  border-color: var(--state-active-ink);
-  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .citySuggestBannerSwitch:hover:not(:disabled) {
+    border-color: var(--state-active-ink);
+    background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
+    color: var(--ink);
+  }
 }
 
 .citySuggestBannerSwitch:disabled {
@@ -81,9 +83,11 @@
   cursor: pointer;
 }
 
-.citySuggestBannerDismiss:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .citySuggestBannerDismiss:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 @media (max-width: 640px) {

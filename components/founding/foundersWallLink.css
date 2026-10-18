@@ -14,7 +14,12 @@
   background: var(--panel);
 }
 
-.foundersWallLink:hover,
 .foundersWallLink:focus-visible {
   border-color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .foundersWallLink:hover {
+    border-color: var(--brass);
+  }
 }

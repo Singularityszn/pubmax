@@ -75,9 +75,14 @@
   overflow-wrap: anywhere;
 }
 
-.mapExperienceLensOption:hover,
 .mapExperienceLensOption:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapExperienceLensOption:hover {
+    color: var(--ink);
+  }
 }
 
 .mapExperienceLensOption:focus-visible {

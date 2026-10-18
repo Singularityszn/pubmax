@@ -33,8 +33,10 @@
   text-decoration: none;
 }
 
-.storyNav a:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .storyNav a:hover {
+    color: var(--brass);
+  }
 }
 
 /* --- poster --------------------------------------------------------------- */
@@ -72,8 +74,10 @@
   text-decoration: none;
   font-weight: inherit;
 }
-.storyAuthorLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .storyAuthorLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Author-only controls (delete). Sits under the primary actions. */
@@ -171,9 +175,11 @@
   text-decoration: none;
 }
 
-.storyStopName:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .storyStopName:hover {
+    color: var(--brass);
+    text-decoration: underline;
+  }
 }
 
 .storyStopNote {
@@ -255,8 +261,10 @@
   transition: border-color 0.15s ease;
 }
 
-.storySecondaryBtn:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .storySecondaryBtn:hover {
+    border-color: var(--brass);
+  }
 }
 
 .storySecondaryBtn:focus-visible,

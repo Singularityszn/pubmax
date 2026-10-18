@@ -47,11 +47,18 @@
     color 0.15s ease;
 }
 
-.logIntentClose:hover,
 .logIntentClose:focus-visible {
   background: color-mix(in srgb, var(--brass) 12%, transparent);
   color: var(--ink);
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .logIntentClose:hover {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+    color: var(--ink);
+    outline: none;
+  }
 }
 
 .logIntentFallback strong {
@@ -99,11 +106,18 @@
     background 0.15s ease;
 }
 
-.logIntentNearbyBtn:hover,
 .logIntentNearbyBtn:focus-visible {
   border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
   background: color-mix(in srgb, var(--brass) 10%, var(--panel));
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .logIntentNearbyBtn:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+    background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+    outline: none;
+  }
 }
 
 .logIntentNearbyMeta {

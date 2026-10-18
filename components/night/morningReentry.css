@@ -54,8 +54,10 @@
   border-radius: 999px;
 }
 
-.morningCard__close:hover {
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .morningCard__close:hover {
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
 }
 
 .morningCard__head {

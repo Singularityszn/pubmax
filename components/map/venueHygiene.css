@@ -21,10 +21,16 @@
   text-decoration: none;
 }
 
-a.venueHygiene:hover,
 a.venueHygiene:focus-visible {
   border-color: var(--accent-action);
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.venueHygiene:hover {
+    border-color: var(--accent-action);
+    color: var(--ink);
+  }
 }
 
 a.venueHygiene:focus-visible {

@@ -34,8 +34,10 @@
   text-decoration: none;
 }
 
-.placesBackLink:hover {
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .placesBackLink:hover {
+    color: var(--color-text);
+  }
 }
 
 .placesBackLink:focus-visible {
@@ -126,8 +128,10 @@
   text-decoration: none;
 }
 
-.placesCityLink:hover .placesCityName {
-  color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .placesCityLink:hover .placesCityName {
+    color: var(--color-accent);
+  }
 }
 
 .placesCityLink:focus-visible {
@@ -296,8 +300,10 @@
 /* Coral as a word takes the ink token: --color-accent is under AA as text on
    the light surfaces (docs/DESIGN_SYSTEM.md, "Coral as a fill and coral as a
    word are two tokens"). */
-.placesWaitlistLink:hover {
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .placesWaitlistLink:hover {
+    color: var(--color-accent-ink);
+  }
 }
 
 .placesWaitlistLink:focus-visible {

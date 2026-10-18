@@ -80,9 +80,11 @@
   cursor: pointer;
 }
 
-.mapVenueKindFilterReset:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .mapVenueKindFilterReset:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 9%, transparent);
+  }
 }
 
 .mapVenueKindFilterReset:focus-visible {

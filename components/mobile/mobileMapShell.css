@@ -360,9 +360,16 @@
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   .citySwitcher--mobile { width: 100%; min-width: 0; }
   .citySwitcher--mobile .citySwitcherTrigger { display: flex; width: 100%; min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
-  .citySwitcher--mobile .citySwitcherTrigger:hover,
   .citySwitcher--mobile .citySwitcherTrigger:focus-visible,
   .citySwitcher--mobile.isOpen .citySwitcherTrigger { border: 0; background: var(--state-active-surface); color: var(--color-text); }
+
+  @media (hover: hover) and (pointer: fine) {
+    .citySwitcher--mobile .citySwitcherTrigger:hover {
+      border: 0;
+      background: var(--state-active-surface);
+      color: var(--color-text);
+    }
+  }
   .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: .72rem; }
   .citySwitcher--mobile .citySwitcherLabelShort { display: none; }
   .mobileMapTopbar > button { border: 0; background: transparent; }
@@ -1234,7 +1241,13 @@
   .mobileMapFilters .favoritePintControl { min-height: 44px; width: 100%; justify-content: space-between; }
   /* De-box: a trigger that opens a picker is not an input, so no box. */
   .mobileMapFilters .personaLensTrigger { min-height: 44px; width: 100%; justify-content: flex-start; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-text-soft); }
-  .mobileMapFilters .personaLensTrigger:hover { border: 0; background: color-mix(in srgb, var(--color-accent) 9%, transparent); color: var(--color-text); }
+  @media (hover: hover) and (pointer: fine) {
+    .mobileMapFilters .personaLensTrigger:hover {
+      border: 0;
+      background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+      color: var(--color-text);
+    }
+  }
   .mobileMapFilters .personaLensTrigger.isActive { border: 0; background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
   /* De-box (design judgement 2026-08-01, finding 2.4): four price caps are ONE
      choice, so they are one segmented control - a single edge round the group,
@@ -1282,7 +1295,11 @@
   .mobileTflGroups p { margin: 0; color: var(--color-text-soft); }
   .mobileTflGroups span { color: var(--color-text-muted); font-size: var(--text-xs); }
   .mobileTflGroups .mobileTflSource { min-height: 44px; display: inline-flex; align-items: center; justify-self: start; color: var(--color-accent-ink); font-size: var(--text-xs); text-decoration: none; }
-  .mobileTflGroups .mobileTflSource:hover { text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) {
+    .mobileTflGroups .mobileTflSource:hover {
+      text-decoration: underline;
+    }
+  }
   .mobileSheetEmpty, .mobileSheetSkeleton { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; }
   .mobileSheetEmpty p { margin: 0; color: var(--color-text-soft); }
 

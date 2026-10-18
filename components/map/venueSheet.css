@@ -205,8 +205,10 @@
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.venueTab:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .venueTab:hover {
+    color: var(--ink);
+  }
 }
 
 .venueTab.active {
@@ -963,10 +965,12 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 
-.venueTabPanel .saveToListToggle:hover,
-.venueTabPanel .composerToggle:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .saveToListToggle:hover,
+  .venueTabPanel .composerToggle:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  }
 }
 
 .venueTabPanel .dropList {
@@ -988,11 +992,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: none;
 }
 
-.venueTabPanel .dropCard:hover,
-.venueTabPanel .claimCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
-  background: color-mix(in srgb, var(--brass) 5%, transparent);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .dropCard:hover,
+  .venueTabPanel .claimCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
+    background: color-mix(in srgb, var(--brass) 5%, transparent);
+    box-shadow: none;
+  }
 }
 
 .venueTabPanel .instaFrame {
@@ -1096,8 +1102,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   background: color-mix(in srgb, var(--brass) 10%, var(--panel));
 }
 
-.venueTabPanel .placeStoryWalk:hover {
-  background: color-mix(in srgb, var(--brass) 16%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .placeStoryWalk:hover {
+    background: color-mix(in srgb, var(--brass) 16%, var(--panel));
+  }
 }
 
 .venueTabPanel .placeStoryCrawl {
@@ -1110,8 +1118,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration: none;
 }
 
-.venueTabPanel .placeStoryCrawl:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .placeStoryCrawl:hover {
+    text-decoration: underline;
+  }
 }
 
 .venueTabPanel .placeStorySource {
@@ -1125,8 +1135,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration: none;
 }
 
-.venueTabPanel .placeStorySource:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .placeStorySource:hover {
+    text-decoration: underline;
+  }
 }
 
 .venueTabPanel .aroundHere {
@@ -1178,12 +1190,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .venueTab:hover {
-    transform: translateY(-1px);
-  }
-
-  .venueBaselinePhoto:hover img {
-    transform: scale(1.025);
+  @media (hover: hover) and (pointer: fine) {
+    .venueTab:hover {
+      transform: translateY(-1px);
+    }
+    .venueBaselinePhoto:hover img {
+      transform: scale(1.025);
+    }
   }
 }
 
@@ -1573,8 +1586,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration: none;
 }
 
-.venueTabPanel .heritageFactCite:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .heritageFactCite:hover {
+    text-decoration: underline;
+  }
 }
 
 .venueTabPanel .heritageFactCite:focus-visible {
@@ -1606,9 +1621,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 
-.venueTabPanel .heritageFollowUp:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .heritageFollowUp:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  }
 }
 
 .venueTabPanel .heritageFollowUp:focus-visible {
@@ -1739,8 +1756,10 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-underline-offset: 2px;
 }
 
-.venueTabPanel .sheetPromptLink:hover {
-  text-decoration-thickness: 2px;
+@media (hover: hover) and (pointer: fine) {
+  .venueTabPanel .sheetPromptLink:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 /* The venue drawer's close button rides a sticky head whose backing fades to 38

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import postcss, { type Rule } from "postcss";
+import postcss, { type AtRule, type ChildNode, type Rule } from "postcss";
 
 import { describe, expect, it } from "vitest";
 
@@ -29,7 +29,19 @@ type Declarations = Map<string, string>;
 /** Each top-level selector mapped to the declarations it ends up with, last write winning. */
 function declarationsBySelector(file: string): Map<string, Declarations> {
   const model = new Map<string, Declarations>();
+  // Top-level rules, plus the hover rules that live one level down in the
+  // fine-pointer query (__tests__/hoverOnlyForPointers.test.ts).
+  const nodes: ChildNode[] = [];
   postcss.parse(readFileSync(join(process.cwd(), file), "utf8")).each((node) => {
+    if (node.type === "atrule" && /hover\s*:\s*hover/.test((node as AtRule).params)) {
+      (node as AtRule).each((child) => {
+        nodes.push(child);
+      });
+    } else {
+      nodes.push(node);
+    }
+  });
+  nodes.forEach((node) => {
     if (node.type !== "rule") return;
     for (const raw of (node as Rule).selectors) {
       const selector = raw.replace(/\s+/g, " ").trim();

@@ -73,8 +73,10 @@
   white-space: nowrap;
 }
 
-.nightSafe__tel:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .nightSafe__tel:hover {
+    text-decoration: underline;
+  }
 }
 
 .nightSafe__link {

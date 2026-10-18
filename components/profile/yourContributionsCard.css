@@ -90,8 +90,10 @@
   text-decoration: none;
 }
 
-.contribNudge:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .contribNudge:hover {
+    text-decoration: underline;
+  }
 }
 
 .contribRecordLink {

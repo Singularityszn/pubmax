@@ -115,8 +115,10 @@
   color: var(--ink);
 }
 
-.wantedSaveWrap .wantedSaveBtn:hover:not(:disabled) {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .wantedSaveWrap .wantedSaveBtn:hover:not(:disabled) {
+    border-color: var(--brass);
+  }
 }
 
 .wantedCapture__submit:disabled,

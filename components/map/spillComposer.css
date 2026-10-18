@@ -72,9 +72,11 @@
   text-align: center;
 }
 
-.visibilityOption:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .visibilityOption:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .visibilityOption.selected {
@@ -176,9 +178,11 @@
   }
 }
 
-.spillExtrasToggle:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillExtrasToggle:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .spillExtrasToggle:focus-visible {
@@ -235,9 +239,11 @@
   cursor: pointer;
 }
 
-.priceStepBtn:hover {
-  border-color: var(--brass);
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .priceStepBtn:hover {
+    border-color: var(--brass);
+    color: var(--color-accent-ink);
+  }
 }
 
 .priceStepBtn:focus-visible {
@@ -288,9 +294,11 @@
   grid-column: span 2;
 }
 
-.priceChip:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .priceChip:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .priceChip.selected {
@@ -339,9 +347,11 @@
   cursor: pointer;
 }
 
-.micBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .micBtn:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .micBtn:focus-visible {
@@ -503,9 +513,11 @@
   color: var(--brass);
 }
 
-.spillCameraBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillCameraBtn:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .spillCameraBtn:focus-within {
@@ -599,9 +611,11 @@
   }
 }
 
-.spillSkipPhoto:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillSkipPhoto:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .spillSkipPhoto:focus-visible {
@@ -624,9 +638,11 @@
   cursor: pointer;
 }
 
-.spillRetakeBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillRetakeBtn:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 /* ── One-tap destination chips (PRD priority 2) ───────────────────────────────
@@ -664,9 +680,11 @@
   cursor: pointer;
 }
 
-.destinationChip:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .destinationChip:hover:not(:disabled) {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .destinationChip.selected {
@@ -738,9 +756,11 @@
   cursor: pointer;
 }
 
-.generationChip:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .generationChip:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .generationChip.selected {
@@ -1061,9 +1081,11 @@ html[data-legacy="1"] .spillPreviewNote {
   cursor: pointer;
 }
 
-.spillReceiptRetake:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillReceiptRetake:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .spillReceiptRetake:focus-visible {

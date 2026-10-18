@@ -209,10 +209,16 @@
   touch-action: manipulation;
 }
 
-.mapToolbarSearchRecovery:hover,
 .mapToolbarSearchRecovery:focus-visible {
   border-color: var(--brass);
   color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapToolbarSearchRecovery:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .mapToolbarSearchRecovery:focus-visible {
@@ -373,10 +379,16 @@
   --shared-press-scale: 1;
 }
 
-.drinkShapeChip:hover,
 .drinkShapeChip:focus-visible {
   color: var(--ink);
   background: color-mix(in srgb, var(--brass) 9%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .drinkShapeChip:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 9%, transparent);
+  }
 }
 
 .drinkShapeChip:focus-visible {
@@ -441,8 +453,10 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   text-decoration: none;
 }
 
-.drinkShapeChipsMore a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .drinkShapeChipsMore a:hover {
+    text-decoration: underline;
+  }
 }
 
 .drinkShapeChipsStack {
@@ -522,10 +536,16 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   --shared-press-scale: 1;
 }
 
-.drinkSubtypeChip:hover,
 .drinkSubtypeChip:focus-visible {
   border-color: var(--hairline-strong);
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .drinkSubtypeChip:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .drinkSubtypeChip:focus-visible {

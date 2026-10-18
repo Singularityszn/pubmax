@@ -29,10 +29,16 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.zonePickerBtn:hover,
 .zonePickerBtn:focus-visible {
   border-color: var(--accent-action);
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .zonePickerBtn:hover {
+    border-color: var(--accent-action);
+    color: var(--ink);
+  }
 }
 
 .zonePickerBtn:focus-visible {
@@ -108,11 +114,18 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.zoneChip:hover,
 .zoneChip:focus-visible {
   border-color: var(--accent-action);
   color: var(--ink);
   background: color-mix(in srgb, var(--accent-action) 10%, var(--panel-raised));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .zoneChip:hover {
+    border-color: var(--accent-action);
+    color: var(--ink);
+    background: color-mix(in srgb, var(--accent-action) 10%, var(--panel-raised));
+  }
 }
 
 .zoneChip:focus-visible {
@@ -167,10 +180,16 @@
   border-left: 0;
 }
 
-.zonePicker .zoneChip:hover,
 .zonePicker .zoneChip:focus-visible {
   color: var(--ink);
   background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .zonePicker .zoneChip:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+  }
 }
 
 .zonePicker .zoneChip:focus-visible {

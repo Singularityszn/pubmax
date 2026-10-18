@@ -32,11 +32,18 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.citySwitcher.isOpen .citySwitcherTrigger,
-.citySwitcherTrigger:hover {
+.citySwitcher.isOpen .citySwitcherTrigger {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--tint-ink-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .citySwitcherTrigger:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+    color: var(--tint-ink-accent);
+  }
 }
 
 .citySwitcherLabel {
@@ -135,9 +142,11 @@
   display: none;
 }
 
-.citySwitcherLink:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .citySwitcherLink:hover {
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    color: var(--brass);
+  }
 }
 
 .citySwitcherLink.isActive {

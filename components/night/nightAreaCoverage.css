@@ -67,9 +67,11 @@
   color: var(--color-on-accent, var(--panel-raised));
 }
 
-.nightAreaCoverage__plannerLink:hover,
-.nightAreaCoverage__action:hover {
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .nightAreaCoverage__plannerLink:hover,
+  .nightAreaCoverage__action:hover {
+    filter: brightness(1.05);
+  }
 }
 
 .nightAreaCoverage__plannerLink:focus-visible,

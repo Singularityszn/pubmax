@@ -42,8 +42,10 @@
   text-decoration: none;
 }
 
-.ledgerHomeLink:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .ledgerHomeLink:hover {
+    color: var(--brass);
+  }
 }
 
 .ledgerEyebrow {
@@ -92,9 +94,11 @@
   border-radius: var(--radius-sm, 8px);
 }
 
-.ledgerMapLink:hover,
-.ledgerPrimaryLink:hover {
-  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+@media (hover: hover) and (pointer: fine) {
+  .ledgerMapLink:hover,
+  .ledgerPrimaryLink:hover {
+    background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+  }
 }
 
 /* The primary is ink on paper in the light theme. Both tokens flip in dark, so
@@ -107,11 +111,13 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   color: var(--color-on-accent);
 }
 
-html[data-theme="dark"] .ledgerMapLink:hover,
-html[data-theme="dark"] .ledgerPrimaryLink:hover {
-  background: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="dark"] .ledgerMapLink:hover,
+  html[data-theme="dark"] .ledgerPrimaryLink:hover {
+    background: var(--color-accent-strong);
+    border-color: var(--color-accent-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .ledgerSection {
@@ -461,8 +467,10 @@ html[data-theme="dark"] .ledgerPrimaryLink:hover {
   opacity: 0.75;
 }
 
-.ledgerListedPlaque:hover .ledgerListedSource {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .ledgerListedPlaque:hover .ledgerListedSource {
+    opacity: 1;
+  }
 }
 
 /* The way to every source and its licence, under the listed-building plaque. */

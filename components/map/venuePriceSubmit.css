@@ -282,10 +282,12 @@
   --shared-press-scale: 1;
 }
 
-.vpsubQuickChip:hover {
-  border-style: solid;
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .vpsubQuickChip:hover {
+    border-style: solid;
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .vpsubPhotoRow {

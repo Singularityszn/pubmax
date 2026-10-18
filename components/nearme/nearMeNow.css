@@ -78,8 +78,10 @@
   transition: transform 180ms ease-out, background-color 180ms ease-out;
 }
 
-.nmnLocate:hover {
-  background: var(--brass-bright);
+@media (hover: hover) and (pointer: fine) {
+  .nmnLocate:hover {
+    background: var(--brass-bright);
+  }
 }
 
 .nmnLocate:active {
@@ -219,8 +221,10 @@
   transition: transform 160ms ease-out, background-color 160ms ease-out;
 }
 
-.nmnCard:hover {
-  background: color-mix(in srgb, var(--brass) 7%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .nmnCard:hover {
+    background: color-mix(in srgb, var(--brass) 7%, transparent);
+  }
 }
 
 .nmnCard:active {
@@ -381,8 +385,10 @@
   transition: transform 160ms ease-out, background-color 160ms ease-out;
 }
 
-.nmnAccept:hover {
-  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink));
+@media (hover: hover) and (pointer: fine) {
+  .nmnAccept:hover {
+    background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink));
+  }
 }
 
 .nmnAccept:active {
@@ -444,9 +450,11 @@
   --shared-press-scale: 1;
 }
 
-.nmnRetry:hover,
-.nmnBack:hover {
-  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+@media (hover: hover) and (pointer: fine) {
+  .nmnRetry:hover,
+  .nmnBack:hover {
+    border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+  }
 }
 
 .nmnBack {
@@ -536,8 +544,10 @@
   cursor: pointer;
 }
 
-.nmnAreaMore:hover {
-  color: var(--ink-soft);
+@media (hover: hover) and (pointer: fine) {
+  .nmnAreaMore:hover {
+    color: var(--ink-soft);
+  }
 }
 
 .nmnBoroughChip[data-active] {
@@ -558,9 +568,11 @@
   transition: transform 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
 }
 
-.nmnBoroughChip:hover {
-  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .nmnBoroughChip:hover {
+    border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  }
 }
 
 /* Lightly-covered patch chip: a quiet honesty flag, not an alarm. */

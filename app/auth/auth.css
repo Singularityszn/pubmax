@@ -125,9 +125,11 @@
   font-weight: 700;
 }
 
-.authSignIn.authMagicLinkButton:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
-  background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
+@media (hover: hover) and (pointer: fine) {
+  .authSignIn.authMagicLinkButton:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
+    background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
+  }
 }
 
 .authMagicLinkCancel {
@@ -515,8 +517,10 @@
     background-color 0.18s ease;
 }
 
-.authCompactTrigger:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .authCompactTrigger:hover {
+    border-color: var(--brass);
+  }
 }
 
 .authCompactTrigger:focus-visible {
@@ -702,8 +706,10 @@
   text-decoration: none;
 }
 
-.authAccountLinks a:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .authAccountLinks a:hover {
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+  }
 }
 
 .authAccountLinks a:focus-visible {
@@ -737,8 +743,10 @@
   cursor: pointer;
 }
 
-.authSwitcherToggle:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .authSwitcherToggle:hover {
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+  }
 }
 
 .authSwitcherChevron {
@@ -789,8 +797,10 @@
   cursor: pointer;
 }
 
-.authSwitcherRow:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .authSwitcherRow:hover {
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+  }
 }
 
 .authSwitcherRow:disabled {
@@ -855,8 +865,10 @@
   text-decoration: none;
 }
 
-.authSwitcherAdd:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .authSwitcherAdd:hover {
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+  }
 }
 
 .authSwitcherError {
@@ -908,8 +920,10 @@
   background: var(--panel-raised);
 }
 
-.authSignIn:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .authSignIn:hover {
+    border-color: var(--brass);
+  }
 }
 
 .authSignIn:focus-visible {
@@ -1004,9 +1018,11 @@
     color 0.18s ease;
 }
 
-.authSignOut:hover {
-  border-color: var(--brick);
-  color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .authSignOut:hover {
+    border-color: var(--brick);
+    color: var(--brick);
+  }
 }
 
 .authSignOut:focus-visible {
@@ -1138,8 +1154,10 @@
     background-color 0.18s ease;
 }
 
-.claimNightOption:hover {
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+@media (hover: hover) and (pointer: fine) {
+  .claimNightOption:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  }
 }
 
 .claimNightOption:has(input:checked) {
@@ -1190,9 +1208,11 @@
   color: #fff;
 }
 
-.claimNightConfirm:hover:not(:disabled) {
-  background: var(--brass-bright);
-  border-color: var(--brass-bright);
+@media (hover: hover) and (pointer: fine) {
+  .claimNightConfirm:hover:not(:disabled) {
+    background: var(--brass-bright);
+    border-color: var(--brass-bright);
+  }
 }
 
 .claimNightSkip {
@@ -1201,9 +1221,11 @@
   color: var(--ink-soft);
 }
 
-.claimNightSkip:hover:not(:disabled) {
-  border-color: var(--ink-soft);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .claimNightSkip:hover:not(:disabled) {
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
 }
 
 .claimNightConfirm:focus-visible,

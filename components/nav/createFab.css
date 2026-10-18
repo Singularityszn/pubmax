@@ -176,9 +176,14 @@
     text-decoration: none;
   }
 
-  .createFabRow:hover,
   .createFabRow:focus-visible {
     background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .createFabRow:hover {
+      background: color-mix(in srgb, var(--ink) 6%, transparent);
+    }
   }
 
   .createFabRow:focus-visible {

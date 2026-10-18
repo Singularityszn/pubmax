@@ -37,9 +37,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.getHomeHandoff__link:hover {
-  border-color: color-mix(in srgb, var(--brass) 56%, var(--line));
-  background: color-mix(in srgb, var(--brass) 5%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .getHomeHandoff__link:hover {
+    border-color: color-mix(in srgb, var(--brass) 56%, var(--line));
+    background: color-mix(in srgb, var(--brass) 5%, var(--panel));
+  }
 }
 
 .getHomeHandoff__link:focus-visible {

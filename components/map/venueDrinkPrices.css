@@ -117,10 +117,16 @@
   touch-action: manipulation;
 }
 
-.venueDrinkPricesLog:hover,
 .venueDrinkPricesLog:focus-visible {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .venueDrinkPricesLog:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  }
 }
 
 .venueDrinkPricesLog:focus-visible {

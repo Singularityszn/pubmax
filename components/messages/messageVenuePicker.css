@@ -43,8 +43,10 @@
   cursor: pointer;
 }
 
-.composerVenueResult:hover {
-  background: var(--panel-raised);
+@media (hover: hover) and (pointer: fine) {
+  .composerVenueResult:hover {
+    background: var(--panel-raised);
+  }
 }
 
 .composerVenueResultArea {

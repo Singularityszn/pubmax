@@ -118,8 +118,10 @@
   text-underline-offset: 2px;
 }
 
-.beaconPlanCtaLink:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .beaconPlanCtaLink:hover {
+    color: var(--brass);
+  }
 }
 
 /* Friends-only "who's out tonight" board (You profile). */
@@ -146,9 +148,14 @@
   text-decoration: none;
 }
 
-.beaconBoardLink:hover .beaconBoardHandle,
 .beaconBoardLink:focus-visible .beaconBoardHandle {
   color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .beaconBoardLink:hover .beaconBoardHandle {
+    color: var(--brass);
+  }
 }
 
 .beaconBoardAvatar {
@@ -211,6 +218,8 @@
   text-underline-offset: 3px;
 }
 
-.beaconBoardFindLot:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .beaconBoardFindLot:hover {
+    color: var(--ink);
+  }
 }

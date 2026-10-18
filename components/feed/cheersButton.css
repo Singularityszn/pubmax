@@ -29,8 +29,10 @@
     box-shadow 0.18s ease;
 }
 
-.cheersBtn:hover {
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtn:hover {
+    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  }
 }
 
 .cheersBtn:active {
@@ -52,8 +54,10 @@
   box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-deep, #0f1c16) 40%, transparent);
 }
 
-.cheersBtn.isCheered:hover {
-  background: color-mix(in srgb, var(--brass) 90%, var(--ink-deep, #0f1c16));
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtn.isCheered:hover {
+    background: color-mix(in srgb, var(--brass) 90%, var(--ink-deep, #0f1c16));
+  }
 }
 
 .cheersGlyph {
@@ -174,8 +178,10 @@
   backdrop-filter: blur(2px);
 }
 
-.cheersBtnOnScrim:hover {
-  background: color-mix(in srgb, var(--ink-deep, #0f1c16) 62%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtnOnScrim:hover {
+    background: color-mix(in srgb, var(--ink-deep, #0f1c16) 62%, transparent);
+  }
 }
 
 .cheersBtnOnScrim.isCheered {
@@ -203,8 +209,10 @@
   border-color: var(--feed-cat, var(--brass));
   color: var(--paper);
 }
-.cheersBtnCat.isCheered:hover {
-  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 88%, var(--ink-deep, #0f1c16));
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtnCat.isCheered:hover {
+    background: color-mix(in srgb, var(--feed-cat, var(--brass)) 88%, var(--ink-deep, #0f1c16));
+  }
 }
 .cheersBtnCat.isInking::after {
   background: color-mix(in srgb, var(--feed-cat, var(--brass)) 45%, transparent);

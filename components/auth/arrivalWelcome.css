@@ -142,8 +142,10 @@
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-.arrivalWelcomeDismiss:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .arrivalWelcomeDismiss:hover {
+    color: var(--ink);
+  }
 }
 
 @keyframes arrivalWelcomeIn {

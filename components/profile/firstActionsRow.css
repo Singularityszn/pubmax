@@ -40,6 +40,8 @@
   text-align: center;
 }
 
-.firstActionsLink:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .firstActionsLink:hover {
+    border-color: var(--brass);
+  }
 }

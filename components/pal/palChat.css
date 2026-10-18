@@ -226,8 +226,10 @@
   transition: background var(--duration-base, 0.18s) var(--ease-out, ease-out);
 }
 
-.palChatCardBody:has(.palChatCardBody--link):hover {
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .palChatCardBody:has(.palChatCardBody--link):hover {
+    background: color-mix(in srgb, var(--brass) 7%, var(--panel));
+  }
 }
 
 .palChatCardBody:has(.palChatCardBody--link):active {
@@ -313,10 +315,12 @@
   text-decoration: none;
 }
 
-.palChatProv--link:hover {
-  border-color: var(--brass);
-  text-decoration: underline;
-  text-underline-offset: 0.2rem;
+@media (hover: hover) and (pointer: fine) {
+  .palChatProv--link:hover {
+    border-color: var(--brass);
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+  }
 }
 
 .palChatConfidence {
@@ -470,9 +474,11 @@
     opacity var(--duration-base, 0.18s) var(--ease-out, ease-out);
 }
 
-.palChatSend:hover:not(:disabled) {
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .palChatSend:hover:not(:disabled) {
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .palChatSend:disabled {
@@ -562,8 +568,10 @@
   text-decoration: none;
 }
 
-.palChatCardAccept:hover {
-  background: var(--brass-bright);
+@media (hover: hover) and (pointer: fine) {
+  .palChatCardAccept:hover {
+    background: var(--brass-bright);
+  }
 }
 
 .palChatProposals {
@@ -605,8 +613,10 @@
   border: 1px solid var(--line);
 }
 
-.palChatPlanHandoff:hover {
-  background: color-mix(in srgb, var(--paper) 88%, var(--brass) 12%);
+@media (hover: hover) and (pointer: fine) {
+  .palChatPlanHandoff:hover {
+    background: color-mix(in srgb, var(--paper) 88%, var(--brass) 12%);
+  }
 }
 
 .palChatProposalConfirm,

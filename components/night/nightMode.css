@@ -154,8 +154,10 @@ html:has(.nightPill) {
   border-radius: 999px;
 }
 
-.nightCard__close:hover {
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .nightCard__close:hover {
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
 }
 
 .nightCard__stop {

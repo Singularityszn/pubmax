@@ -59,9 +59,11 @@
   color: var(--color-on-accent);
 }
 
-.uiButton--primary:hover {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .uiButton--primary:hover {
+    background: var(--color-accent-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 /* The plain secondary: raised surface, hairline border. */
@@ -71,8 +73,10 @@
   color: var(--color-text);
 }
 
-.uiButton--secondary:hover {
-  border-color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .uiButton--secondary:hover {
+    border-color: var(--color-accent);
+  }
 }
 
 /* The one control that ends something. It is the same row of tokens as every
@@ -84,8 +88,10 @@
   color: var(--paper);
 }
 
-.uiButton--danger:hover {
-  background: color-mix(in srgb, var(--brick) 88%, var(--ink));
+@media (hover: hover) and (pointer: fine) {
+  .uiButton--danger:hover {
+    background: color-mix(in srgb, var(--brick) 88%, var(--ink));
+  }
 }
 
 .uiButton--ghost {
@@ -93,9 +99,11 @@
   color: var(--color-text-soft);
 }
 
-.uiButton--ghost:hover {
-  background: var(--color-surface-panel);
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .uiButton--ghost:hover {
+    background: var(--color-surface-panel);
+    color: var(--color-text);
+  }
 }
 
 /* The large size is the Screen primary's height and type, so a large button

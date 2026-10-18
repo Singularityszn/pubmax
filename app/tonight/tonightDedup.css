@@ -28,9 +28,11 @@
 .tonightRowMoreToggle::-webkit-details-marker {
   display: none;
 }
-.tonightRowMoreToggle:hover {
-  color: var(--ink);
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+@media (hover: hover) and (pointer: fine) {
+  .tonightRowMoreToggle:hover {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  }
 }
 .tonightRowMoreToggle:focus-visible {
   outline: 2px solid var(--brass);
@@ -77,8 +79,10 @@
   text-decoration: none;
   font-size: 0.82rem;
 }
-a.tonightRowMoreLink:hover {
-  background: var(--panel-raised);
+@media (hover: hover) and (pointer: fine) {
+  a.tonightRowMoreLink:hover {
+    background: var(--panel-raised);
+  }
 }
 a.tonightRowMoreLink:focus-visible {
   outline: 2px solid var(--brass);

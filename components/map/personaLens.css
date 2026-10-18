@@ -34,8 +34,10 @@
   flex-shrink: 0;
 }
 
-.personaLensTrigger:hover {
-  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+@media (hover: hover) and (pointer: fine) {
+  .personaLensTrigger:hover {
+    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+  }
 }
 
 .personaLensTrigger.isActive {
@@ -61,8 +63,10 @@
   cursor: pointer;
 }
 
-.personaLensClear:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .personaLensClear:hover {
+    color: var(--ink);
+  }
 }
 
 .personaLensPanel {
@@ -130,10 +134,15 @@
   transition: background 150ms var(--ease-out, ease-out);
 }
 
-.personaLensOption:hover,
 .personaLensOption.isHighlighted,
 .personaLensOption.isSelected {
   background: color-mix(in srgb, var(--brass) 14%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .personaLensOption:hover {
+    background: color-mix(in srgb, var(--brass) 14%, transparent);
+  }
 }
 
 .personaLensOptionClear {
@@ -238,8 +247,10 @@
   cursor: pointer;
 }
 
-.personaLensCardClose:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .personaLensCardClose:hover {
+    color: var(--ink);
+  }
 }
 
 .personaLensCardTitle {
@@ -337,8 +348,10 @@
   width: fit-content;
 }
 
-.personaLensCardSource:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .personaLensCardSource:hover {
+    text-decoration: underline;
+  }
 }
 
 .personaLensCardDisclaimer {

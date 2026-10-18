@@ -100,8 +100,10 @@
   transition: transform 0.12s ease, color 0.12s ease;
 }
 
-.roundCode:hover {
-  color: var(--brass-ink);
+@media (hover: hover) and (pointer: fine) {
+  .roundCode:hover {
+    color: var(--brass-ink);
+  }
 }
 
 .roundCode:active {
@@ -251,9 +253,11 @@
   cursor: pointer;
 }
 
-.roundIconBtn:hover {
-  border-color: var(--ink-soft);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .roundIconBtn:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
 }
 
 .roundSpendGrid {
@@ -601,8 +605,10 @@
   font-weight: 600;
 }
 
-.roundMemberChip a:hover {
-  color: var(--brass-ink);
+@media (hover: hover) and (pointer: fine) {
+  .roundMemberChip a:hover {
+    color: var(--brass-ink);
+  }
 }
 
 .roundMemberChip > .roundHereDot {
@@ -834,8 +840,10 @@
   color: var(--ink);
 }
 
-.roundSearchResults button:hover {
-  background: var(--paper);
+@media (hover: hover) and (pointer: fine) {
+  .roundSearchResults button:hover {
+    background: var(--paper);
+  }
 }
 
 .roundSearchResults button:active {
@@ -908,9 +916,11 @@
   color: var(--ink);
 }
 
-.roundSecondaryBtn:hover {
-  border-color: var(--hairline-strong);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .roundSecondaryBtn:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .roundCloseBtn {
@@ -920,9 +930,11 @@
   color: var(--muted);
 }
 
-.roundCloseBtn:hover {
-  border-color: var(--ink-soft);
-  color: var(--ink-soft);
+@media (hover: hover) and (pointer: fine) {
+  .roundCloseBtn:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink-soft);
+  }
 }
 
 /* --- call-the-Round confirm (two-tap, irreversible) ------------------------ */
@@ -956,9 +968,11 @@
   color: var(--color-negative);
 }
 
-.roundCloseBtnArmed:hover {
-  border-color: var(--color-negative);
-  color: var(--color-negative);
+@media (hover: hover) and (pointer: fine) {
+  .roundCloseBtnArmed:hover {
+    border-color: var(--color-negative);
+    color: var(--color-negative);
+  }
 }
 
 .roundError {

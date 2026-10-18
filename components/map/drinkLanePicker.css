@@ -63,9 +63,14 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.drinkLanePickerOption:hover,
 .drinkLanePickerOption:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .drinkLanePickerOption:hover {
+    color: var(--ink);
+  }
 }
 
 .drinkLanePickerOption:focus-visible {

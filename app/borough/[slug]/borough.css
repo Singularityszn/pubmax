@@ -51,8 +51,10 @@
   font-weight: 500;
 }
 
-.boroughCrawlLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughCrawlLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* .boroughEmpty is a hook on the shared EmptyState (components/ui/empty-state.tsx)
@@ -144,9 +146,11 @@
   text-decoration: none;
 }
 
-.boroughPub:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughPub:hover {
+    color: var(--brass);
+    text-decoration: underline;
+  }
 }
 
 .boroughPint {
@@ -171,8 +175,10 @@
   text-decoration: none;
 }
 
-.boroughLedgerLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughLedgerLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .boroughPriceHead {
@@ -209,9 +215,11 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.boroughCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .boroughCard:hover {
+    border-color: var(--brass);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--brass) 12%, transparent);
+  }
 }
 
 .boroughCardName {
@@ -297,9 +305,11 @@
   text-decoration: none;
 }
 
-.boroughChip:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .boroughChip:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .boroughCrawlList {
@@ -347,8 +357,10 @@
   white-space: nowrap;
 }
 
-.boroughCrawlPlanLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughCrawlPlanLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* --- historic pubs (borough-heritage rollup, Wave H) ---------------------- */
@@ -442,8 +454,10 @@
   text-decoration: none;
 }
 
-.boroughHeritageMapLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughHeritageMapLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .boroughHeritageFoot {
@@ -460,8 +474,10 @@
   text-decoration: none;
 }
 
-.boroughHeritageFoot a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughHeritageFoot a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* --- footnote ------------------------------------------------------------- */
@@ -482,8 +498,10 @@
   text-decoration: none;
 }
 
-.boroughFootnote a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughFootnote a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* --- focus ---------------------------------------------------------------- */
@@ -582,8 +600,10 @@
   text-decoration: none;
 }
 
-.boroughPassportFoot a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .boroughPassportFoot a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Screen-reader-only utility (table caption). */
@@ -652,10 +672,12 @@
 
 /* Motion (gated): the card lift only where motion is welcome. */
 @media (prefers-reduced-motion: no-preference) {
-  .boroughCard:hover {
-    transform: translateY(-2px);
-    transition: border-color 0.18s ease, box-shadow 0.18s ease,
+  @media (hover: hover) and (pointer: fine) {
+    .boroughCard:hover {
+      transform: translateY(-2px);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease,
       transform 0.18s ease;
+    }
   }
 }
 

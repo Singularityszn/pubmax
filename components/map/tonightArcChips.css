@@ -129,9 +129,11 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.tonightArcChipsSheet .tonightArcChip:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .tonightArcChipsSheet .tonightArcChip:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 9%, transparent);
+  }
 }
 
 .tonightArcChipsSheet .tonightArcChip.isOn {

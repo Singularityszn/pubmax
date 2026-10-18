@@ -82,8 +82,10 @@
   cursor: pointer;
 }
 
-a.cityStatusBannerLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  a.cityStatusBannerLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* A real, always-legible icon chip. The old bare glyph inherited a colour that
@@ -137,9 +139,11 @@ a.cityStatusBannerLink:hover {
   cursor: pointer;
 }
 
-.cityStatusBannerDismiss:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .cityStatusBannerDismiss:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 @media (max-width: 640px) {
@@ -236,7 +240,12 @@ a.cityStatusBannerLink:hover {
   color: var(--ink-soft);
   cursor: pointer;
 }
-.cityStatusSignalSheetClose:hover { border-color: var(--brass); color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .cityStatusSignalSheetClose:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
+}
 
 .cityStatusSignalGroup + .cityStatusSignalGroup { margin-top: 10px; }
 .cityStatusSignalGroupLabel {
@@ -269,7 +278,11 @@ a.cityStatusBannerLink:hover {
 .cityStatusSignalRowMeta { margin: 2px 0 0; font-size: 0.68rem; color: var(--ink-soft); }
 .cityStatusSignalRowSource { margin: 4px 0 0; font-size: 0.68rem; }
 .cityStatusSignalRowSource a { color: var(--brass); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
-.cityStatusSignalRowSource a:hover { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) {
+  .cityStatusSignalRowSource a:hover {
+    text-decoration: underline;
+  }
+}
 .cityStatusSignalRowSource span { color: var(--ink-soft); }
 
 @media (max-width: 640px) {

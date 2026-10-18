@@ -58,10 +58,16 @@
   text-align: left;
 }
 
-.chooseAreaRow:hover,
 .chooseAreaRow:focus-visible {
   border-color: var(--hairline, var(--line));
   background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chooseAreaRow:hover {
+    border-color: var(--hairline, var(--line));
+    background: color-mix(in srgb, var(--panel) 70%, transparent);
+  }
 }
 
 .chooseAreaRowName {
@@ -123,9 +129,14 @@
   cursor: pointer;
 }
 
-.chooseAreaDesktopClose:hover,
 .chooseAreaDesktopClose:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chooseAreaDesktopClose:hover {
+    color: var(--ink);
+  }
 }
 
 .chooseAreaDesktopScrim {

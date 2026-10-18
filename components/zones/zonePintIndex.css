@@ -74,10 +74,16 @@ button.zonePintCell {
   cursor: pointer;
 }
 
-button.zonePintCell:hover,
 button.zonePintCell:focus-visible {
   border-color: var(--accent-action);
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.zonePintCell:hover {
+    border-color: var(--accent-action);
+    color: var(--ink);
+  }
 }
 
 button.zonePintCell:focus-visible {
@@ -209,10 +215,16 @@ button.zonePintCell:active {
   border-style: none;
 }
 
-.zonePintIndex.isCompact button.zonePintCell:hover,
 .zonePintIndex.isCompact button.zonePintCell:focus-visible {
   background: color-mix(in srgb, var(--accent-action) 9%, transparent);
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .zonePintIndex.isCompact button.zonePintCell:hover {
+    background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+    color: var(--ink);
+  }
 }
 
 .zonePintIndex.isCompact button.zonePintCell:focus-visible {

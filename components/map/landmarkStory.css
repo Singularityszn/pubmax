@@ -73,9 +73,11 @@
   white-space: nowrap;
 }
 
-.landmarkStoryChapter:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) and (pointer: fine) {
+  .landmarkStoryChapter:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .landmarkStoryHistory {

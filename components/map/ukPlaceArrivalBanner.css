@@ -56,10 +56,16 @@
   touch-action: manipulation;
 }
 
-.ukPlaceArrivalDismiss:hover,
 .ukPlaceArrivalDismiss:focus-visible {
   background: color-mix(in srgb, var(--brass) 14%, transparent);
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ukPlaceArrivalDismiss:hover {
+    background: color-mix(in srgb, var(--brass) 14%, transparent);
+    color: var(--ink);
+  }
 }
 
 .ukPlaceArrivalDismiss:focus-visible {

@@ -42,9 +42,11 @@
   cursor: pointer;
 }
 
-.measureChip:hover {
-  border-color: var(--brass);
-  color: var(--brass-ink);
+@media (hover: hover) and (pointer: fine) {
+  .measureChip:hover {
+    border-color: var(--brass);
+    color: var(--brass-ink);
+  }
 }
 
 .measureChip.selected {

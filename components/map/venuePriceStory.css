@@ -224,9 +224,14 @@
   cursor: pointer;
   border-radius: var(--radius-sm, 6px);
 }
-.vpsChangedBtn:hover,
 .vpsChangedBtn:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vpsChangedBtn:hover {
+    color: var(--ink);
+  }
 }
 .vpsChangedBtn:active {
   transform: scale(0.97);

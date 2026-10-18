@@ -51,8 +51,10 @@
   text-decoration: none;
 }
 
-.invite__brand:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .invite__brand:hover {
+    color: var(--brass);
+  }
 }
 
 .invite__home {
@@ -290,8 +292,10 @@
   cursor: pointer;
 }
 
-.inviteRsvp__guestRemove:hover {
-  color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .inviteRsvp__guestRemove:hover {
+    color: var(--brick);
+  }
 }
 
 .inviteRsvp__guestRemove:disabled {
@@ -351,8 +355,10 @@
   cursor: pointer;
 }
 
-.inviteRsvp__statusButton:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .inviteRsvp__statusButton:hover {
+    border-color: var(--brass);
+  }
 }
 
 .inviteRsvp__statusButton[aria-pressed="true"] {
@@ -374,8 +380,10 @@
   cursor: pointer;
 }
 
-.inviteRsvp__submit:hover {
-  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+@media (hover: hover) and (pointer: fine) {
+  .inviteRsvp__submit:hover {
+    background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+  }
 }
 
 .inviteRsvp__submit:disabled {
@@ -405,8 +413,10 @@
   cursor: pointer;
 }
 
-.inviteRsvp__reaction:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .inviteRsvp__reaction:hover {
+    border-color: var(--brass);
+  }
 }
 
 .inviteRsvp__reaction[aria-pressed="true"] {
@@ -450,8 +460,10 @@
   text-decoration: none;
 }
 
-.inviteRsvp__mapPrompt .invite__mapLink:hover {
-  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+@media (hover: hover) and (pointer: fine) {
+  .inviteRsvp__mapPrompt .invite__mapLink:hover {
+    background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+  }
 }
 
 .inviteRsvp__mapPrompt .invite__mapLink:focus-visible {
@@ -511,8 +523,10 @@
   border: 1px solid var(--ink-deep);
 }
 
-.invite__primary:hover {
-  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+@media (hover: hover) and (pointer: fine) {
+  .invite__primary:hover {
+    background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+  }
 }
 
 /* The primary is ink on paper in the light theme. Both tokens flip in dark, so
@@ -524,10 +538,12 @@ html[data-theme="dark"] .invite__primary {
   color: var(--color-on-accent);
 }
 
-html[data-theme="dark"] .invite__primary:hover {
-  background: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="dark"] .invite__primary:hover {
+    background: var(--color-accent-strong);
+    border-color: var(--color-accent-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

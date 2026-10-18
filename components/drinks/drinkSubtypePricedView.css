@@ -86,8 +86,10 @@
   text-decoration: none;
 }
 
-.softDrinksWater__venue:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .softDrinksWater__venue:hover {
+    text-decoration: underline;
+  }
 }
 
 .softDrinksWater__borough {

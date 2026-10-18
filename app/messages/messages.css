@@ -141,9 +141,11 @@ html[data-theme="dark"] .messagesPage {
   white-space: nowrap;
 }
 
-.messagesScreen .screenPrimary > button:hover {
-  background: var(--messages-soft-surface);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .messagesScreen .screenPrimary > button:hover {
+    background: var(--messages-soft-surface);
+    color: var(--ink);
+  }
 }
 
 .messagesInboxSearch {
@@ -274,8 +276,10 @@ html[data-theme="dark"] .messagesPage {
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.conversationLink:hover {
-  background: var(--messages-soft-surface);
+@media (hover: hover) and (pointer: fine) {
+  .conversationLink:hover {
+    background: var(--messages-soft-surface);
+  }
 }
 
 .conversationLink:focus-visible {
@@ -407,8 +411,10 @@ html[data-theme="dark"] .messagesPage {
   text-decoration: none;
 }
 
-.threadBackLink:hover {
-  background: var(--panel);
+@media (hover: hover) and (pointer: fine) {
+  .threadBackLink:hover {
+    background: var(--panel);
+  }
 }
 
 .threadWith {
@@ -423,8 +429,10 @@ html[data-theme="dark"] .messagesPage {
   text-decoration: none;
 }
 
-a.threadWith:hover {
-  background: var(--panel);
+@media (hover: hover) and (pointer: fine) {
+  a.threadWith:hover {
+    background: var(--panel);
+  }
 }
 
 .threadWithHandle {
@@ -601,8 +609,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   text-underline-offset: 2px;
 }
 
-.messageMention:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .messageMention:hover {
+    text-decoration: underline;
+  }
 }
 
 /* The time and the Report control live under the bubble and stay folded
@@ -676,8 +686,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   text-underline-offset: 2px;
 }
 
-.messageReportBtn:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .messageReportBtn:hover {
+    color: var(--ink);
+  }
 }
 
 .messageFlagged {
@@ -974,9 +986,11 @@ html[data-theme="dark"] .messageBubblePhoto {
     color var(--duration-fast) var(--ease-out);
 }
 
-.composerAttach:hover:not(:disabled) {
-  background: var(--panel);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .composerAttach:hover:not(:disabled) {
+    background: var(--panel);
+    color: var(--ink);
+  }
 }
 
 .composerAttach[aria-pressed="true"] {
@@ -1029,8 +1043,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   touch-action: manipulation;
 }
 
-.messageAttachSheetClose:hover {
-  background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .messageAttachSheetClose:hover {
+    background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+  }
 }
 
 .messageAttachSheetClose:focus-visible,
@@ -1144,8 +1160,10 @@ html[data-theme="dark"] .messageBubblePhoto {
     transform var(--duration-fast) var(--ease-out);
 }
 
-.composerSend:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--messages-accent, var(--brass)) 85%, var(--ink-deep));
+@media (hover: hover) and (pointer: fine) {
+  .composerSend:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--messages-accent, var(--brass)) 85%, var(--ink-deep));
+  }
 }
 
 /* Press feedback owned here, so the shared press layer in app/globals.css
@@ -1316,8 +1334,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   cursor: pointer;
 }
 
-.profileMessageBtn:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .profileMessageBtn:hover {
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+  }
 }
 
 .profileMessageBtn:focus-visible {
@@ -1563,9 +1583,11 @@ html[data-theme="dark"] .messageBubblePhoto {
   cursor: pointer;
 }
 
-.threadLeaveBtn:hover {
-  background: var(--panel);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .threadLeaveBtn:hover {
+    background: var(--panel);
+    color: var(--ink);
+  }
 }
 
 /* Recipient picker uses explicit public matches, never guessed handles. */
@@ -1696,9 +1718,14 @@ html[data-theme="dark"] .messageBubblePhoto {
   cursor: pointer;
 }
 
-.messagesNewGroupResult:hover,
 .messagesNewGroupResult[aria-pressed="true"] {
   background: var(--messages-soft-surface, var(--panel));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .messagesNewGroupResult:hover {
+    background: var(--messages-soft-surface, var(--panel));
+  }
 }
 
 .messagesNewGroupResultText {

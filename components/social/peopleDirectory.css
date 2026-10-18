@@ -95,8 +95,10 @@
   text-decoration: none;
 }
 
-.peopleDir__body > .peopleDir__handle:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .peopleDir__body > .peopleDir__handle:hover {
+    text-decoration: underline;
+  }
 }
 
 .peopleDir__display {

@@ -173,9 +173,11 @@
   touch-action: manipulation;
 }
 
-.mapVenueListClose:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .mapVenueListClose:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .mapVenueListClose:focus-visible {

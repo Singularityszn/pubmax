@@ -28,8 +28,10 @@
     color 0.15s ease;
 }
 
-.altStyleBtn:hover {
-  border-color: var(--accent, #e0b34a);
+@media (hover: hover) and (pointer: fine) {
+  .altStyleBtn:hover {
+    border-color: var(--accent, #e0b34a);
+  }
 }
 
 .altStyleBtn.active {
@@ -135,8 +137,10 @@ button.crawlCelebrationCopyBtn {
   appearance: none;
 }
 
-.crawlCelebrationLink:hover {
-  background: color-mix(in srgb, var(--brass, #9a6a24) 14%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .crawlCelebrationLink:hover {
+    background: color-mix(in srgb, var(--brass, #9a6a24) 14%, transparent);
+  }
 }
 
 .crawlCelebrationDismiss {

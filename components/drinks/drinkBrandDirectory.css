@@ -50,8 +50,10 @@
   text-decoration: none;
 }
 
-.drinkBrandDirectory__eyebrow a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__eyebrow a:hover {
+    text-decoration: underline;
+  }
 }
 
 .drinkBrandDirectory__head h1 {
@@ -99,8 +101,10 @@
   touch-action: manipulation;
 }
 
-.drinkBrandDirectory__fromPublisher a:hover {
-  color: var(--accent-action);
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__fromPublisher a:hover {
+    color: var(--accent-action);
+  }
 }
 
 .drinkBrandDirectory__summary {
@@ -140,8 +144,10 @@
   text-decoration: none;
 }
 
-.drinkBrandDirectory__primary:hover {
-  background: var(--accent-action-strong);
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__primary:hover {
+    background: var(--accent-action-strong);
+  }
 }
 
 .drinkBrandDirectory__secondary {
@@ -151,8 +157,10 @@
   text-underline-offset: 4px;
 }
 
-.drinkBrandDirectory__secondary:hover {
-  color: var(--accent-action);
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__secondary:hover {
+    color: var(--accent-action);
+  }
 }
 
 .drinkBrandDirectory__prices {
@@ -237,9 +245,11 @@
   touch-action: manipulation;
 }
 
-.drinkBrandDirectory__venue:hover {
-  color: var(--accent-action);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__venue:hover {
+    color: var(--accent-action);
+    text-decoration: underline;
+  }
 }
 
 /* A row that carries its own action needs the details on one line at desk width. */
@@ -276,9 +286,11 @@
   touch-action: manipulation;
 }
 
-.drinkBrandDirectory__contribution:hover {
-  color: var(--accent-action);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__contribution:hover {
+    color: var(--accent-action);
+    text-decoration: underline;
+  }
 }
 
 .drinkBrandDirectory__borough,
@@ -301,8 +313,10 @@
   touch-action: manipulation;
 }
 
-.drinkBrandDirectory__publisher a:hover {
-  color: var(--accent-action);
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__publisher a:hover {
+    color: var(--accent-action);
+  }
 }
 
 .drinkBrandDirectory__price {
@@ -344,8 +358,10 @@
   touch-action: manipulation;
 }
 
-.drinkBrandDirectory__areas a:hover {
-  color: var(--accent-action);
+@media (hover: hover) and (pointer: fine) {
+  .drinkBrandDirectory__areas a:hover {
+    color: var(--accent-action);
+  }
 }
 
 .drinkBrandDirectory a:focus-visible {

@@ -17,9 +17,11 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.ledgerReadButton:hover {
-  background: var(--brass);
-  color: var(--color-on-accent, #fdfaf2);
+@media (hover: hover) and (pointer: fine) {
+  .ledgerReadButton:hover {
+    background: var(--brass);
+    color: var(--color-on-accent, #fdfaf2);
+  }
 }
 
 .ledgerReadButton[aria-pressed="true"] {

@@ -54,10 +54,16 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.areaSheetPub:hover,
 .areaSheetPub:focus-visible {
   border-color: var(--color-accent, var(--accent-action));
   background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 8%, var(--color-surface-raised, var(--panel-raised)));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetPub:hover {
+    border-color: var(--color-accent, var(--accent-action));
+    background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 8%, var(--color-surface-raised, var(--panel-raised)));
+  }
 }
 
 .areaSheetPub:focus-visible {
@@ -119,10 +125,16 @@
     border-color var(--duration-base) var(--ease-out);
 }
 
-.areaSheetSeeAll:hover,
 .areaSheetSeeAll:focus-visible {
   color: var(--color-text, var(--ink));
   border-color: var(--color-accent, var(--accent-action));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetSeeAll:hover {
+    color: var(--color-text, var(--ink));
+    border-color: var(--color-accent, var(--accent-action));
+  }
 }
 
 .areaSheetSeeAll:focus-visible {
@@ -176,9 +188,14 @@
     transform var(--duration-fast) var(--ease-out-strong);
 }
 
-.areaSheetLocate:hover,
 .areaSheetLocate:focus-visible {
   background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 22%, var(--color-surface-raised, var(--panel-raised)));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetLocate:hover {
+    background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 22%, var(--color-surface-raised, var(--panel-raised)));
+  }
 }
 
 .areaSheetLocate:focus-visible {
@@ -246,10 +263,16 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.areaSheetChip:hover,
 .areaSheetChip:focus-visible {
   border-color: var(--color-accent, var(--accent-action));
   background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 10%, var(--color-surface-raised, var(--panel-raised)));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetChip:hover {
+    border-color: var(--color-accent, var(--accent-action));
+    background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 10%, var(--color-surface-raised, var(--panel-raised)));
+  }
 }
 
 .areaSheetChip:focus-visible {

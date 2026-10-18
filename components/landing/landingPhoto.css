@@ -65,8 +65,10 @@
   text-underline-offset: 2px;
 }
 
-.landingPhotoCredit a:hover {
-  color: #fbf9f6;
+@media (hover: hover) and (pointer: fine) {
+  .landingPhotoCredit a:hover {
+    color: #fbf9f6;
+  }
 }
 
 /* A framed picture at the head of a borough or area landing. It is a picture

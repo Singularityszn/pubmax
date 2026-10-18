@@ -115,8 +115,10 @@
   font-weight: 700;
   text-decoration: none;
 }
-.activityActor:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .activityActor:hover {
+    text-decoration: underline;
+  }
 }
 
 .activityVerb {
@@ -143,8 +145,10 @@
   text-decoration: none;
   font-weight: 600;
 }
-.activityLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .activityLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ── Desktop density (≥1024) ──────────────────────────────────────────────

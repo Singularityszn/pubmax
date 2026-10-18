@@ -144,9 +144,11 @@
   text-decoration: none;
 }
 
-.pintIndexBoroughLink:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexBoroughLink:hover {
+    color: var(--brass);
+    text-decoration: underline;
+  }
 }
 
 /* The column the table is ranked on: cheapest-first ranks on the average, the
@@ -186,8 +188,10 @@
   text-decoration: none;
 }
 
-.pintIndexDownload:hover {
-  background: color-mix(in srgb, var(--brass) 20%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexDownload:hover {
+    background: color-mix(in srgb, var(--brass) 20%, var(--panel));
+  }
 }
 
 .pintIndexDownload:focus-visible {
@@ -248,9 +252,11 @@
   text-decoration: none;
 }
 
-.pintIndexBoroughLinks a:hover {
-  border-color: var(--brass);
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexBoroughLinks a:hover {
+    border-color: var(--brass);
+    color: var(--color-accent-ink);
+  }
 }
 
 .pintIndexBoroughLinks a:focus-visible {
@@ -288,8 +294,10 @@
   text-decoration: none;
 }
 
-.pintIndexFootnote a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .pintIndexFootnote a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Screen-reader-only utility (table caption). */

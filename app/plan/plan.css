@@ -130,9 +130,14 @@
   font-weight: 800;
   cursor: pointer;
 }
-.planSummary__edit:hover,
-.planSummary__swap:hover,
-.planSummary__cancel:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planSummary__edit:hover,
+  .planSummary__swap:hover,
+  .planSummary__cancel:hover {
+    border-color: var(--plan-accent);
+    color: var(--plan-accent-strong);
+  }
+}
 .planSummary__edit:disabled,
 .planSummary__swap:disabled,
 .planSummary__save:disabled,
@@ -162,7 +167,12 @@
 /* Primary action fill — mobile CTA recipe: --accent-action (#ff5a5f / --brass).
    Not --plan-accent (dark remaps that to night-amber for rails/chips only). */
 .planSummary__save { border-color: var(--accent-action); background: var(--accent-action); color: var(--color-on-accent); }
-.planSummary__save:hover:not(:disabled) { border-color: var(--accent-action-strong); background: var(--accent-action-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planSummary__save:hover:not(:disabled) {
+    border-color: var(--accent-action-strong);
+    background: var(--accent-action-strong);
+  }
+}
 .planSummary__status { margin: 18px 0 0 72px; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.4; }
 .planSummary__status--error { color: var(--color-negative, #a52c24); font-weight: 700; }
 .planCollab {
@@ -289,7 +299,11 @@
 }
 .planSummary__stops strong { display: block; font-family: var(--display, var(--serif)); font-size: clamp(1.35rem, 3vw, 2.15rem); letter-spacing: -0.035em; }
 .planSummary__stops a { display: inline-flex; min-height: 44px; align-items: center; color: var(--muted); font-size: 0.86rem; text-underline-offset: 3px; }
-.planSummary__stops a:hover { color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planSummary__stops a:hover {
+    color: var(--plan-accent-strong);
+  }
+}
 
 /* ── Get-in signal ─────────────────────────────────────────────────────────
    A per-stop, honest entry estimate layered onto the server-rendered route.
@@ -356,8 +370,14 @@
   text-decoration: none;
   text-underline-offset: 2px;
 }
-.planRoute__eventSource:hover,
 .planRoute__eventSource:focus-visible { color: var(--plan-accent-strong); text-decoration: underline; }
+
+@media (hover: hover) and (pointer: fine) {
+  .planRoute__eventSource:hover {
+    color: var(--plan-accent-strong);
+    text-decoration: underline;
+  }
+}
 .planRoute__signal {
   --fit-accent: var(--muted);
   display: flex;
@@ -447,7 +467,11 @@
 /* Join stays secondary (plan-accent → amber in dark). Lock it in = mobile primary. */
 .planCrew__join button { background: var(--plan-accent); color: var(--color-on-accent); }
 .planComposer__submit { background: var(--accent-action); color: var(--color-on-accent); }
-.planComposer__submit:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-action-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__submit:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--accent-action-strong);
+  }
+}
 .planCrew__join button:disabled { opacity: 0.58; cursor: wait; }
 /* M3: a disabled primary CTA is a neutral raised surface, and coral arrives
    only when it can act. Coral at reduced opacity read as a muddy brick on the
@@ -467,8 +491,13 @@
 .planCrew__presence button,
 .planComposer__add,
 .planComposer__remove { min-height: 44px; border: 1px solid var(--line); border-radius: var(--control-radius, 14px); padding: 8px 13px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 750; cursor: pointer; }
-.planCrew__presence button:hover,
-.planComposer__add:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planCrew__presence button:hover,
+  .planComposer__add:hover {
+    border-color: var(--plan-accent);
+    color: var(--plan-accent-strong);
+  }
+}
 /* Your current status reads back instantly (set optimistically on tap). Without
    this, the presence buttons gave no sign which one you chose. */
 .planCrew__presence button[data-active] {
@@ -500,8 +529,10 @@
   font-weight: 750;
   text-decoration: none;
 }
-.planInviteNext__whatsapp:hover {
-  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 32%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .planInviteNext__whatsapp:hover {
+    background: color-mix(in srgb, var(--plan-accent, var(--amber)) 32%, var(--panel-raised));
+  }
 }
 .planInviteNext__whatsapp--pending {
   border-style: dashed;
@@ -510,8 +541,10 @@
   font-weight: 650;
   cursor: default;
 }
-.planInviteNext__whatsapp--pending:hover {
-  background: transparent;
+@media (hover: hover) and (pointer: fine) {
+  .planInviteNext__whatsapp--pending:hover {
+    background: transparent;
+  }
 }
 .planInviteNext__error {
   margin: 0;
@@ -562,7 +595,12 @@
   font-weight: 750;
   cursor: pointer;
 }
-.planVibe__chip:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planVibe__chip:hover {
+    border-color: var(--plan-accent);
+    color: var(--plan-accent-strong);
+  }
+}
 .planVibe__chip:disabled { opacity: 0.58; cursor: wait; }
 .planVibe__chip[data-active="true"] {
   border-color: var(--plan-accent);
@@ -614,7 +652,12 @@
   font-weight: 750;
   cursor: pointer;
 }
-.planComposer__acceptedRelease:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__acceptedRelease:hover {
+    border-color: var(--plan-accent);
+    color: var(--plan-accent-strong);
+  }
+}
 .planComposer__conflicts {
   grid-column: 1 / -1;
   min-width: 0;
@@ -683,8 +726,15 @@
   cursor: pointer;
 }
 .planDescribeFirst__chip::first-letter { text-transform: uppercase; }
-.planDescribeFirst__chip:hover,
 .planDescribeFirst__chip:focus-visible { border-color: var(--state-selected-border); color: var(--state-selected-ink); outline: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .planDescribeFirst__chip:hover {
+    border-color: var(--state-selected-border);
+    color: var(--state-selected-ink);
+    outline: none;
+  }
+}
 /* One tap to a route sits straight under the actions, the way on for a reader
    who will not type. It is a chip, not a second primary: coral stays on the
    one submit (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
@@ -741,7 +791,12 @@
 .planIntake__tune,
 .planIntake__summaryChips button { border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink-soft); }
 .planIntake__continue { border: 1px solid var(--accent-action); background: var(--accent-action); color: var(--color-on-accent); padding-inline: 20px; }
-.planIntake__continue:hover:not(:disabled) { border-color: var(--accent-action-strong); background: var(--accent-action-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planIntake__continue:hover:not(:disabled) {
+    border-color: var(--accent-action-strong);
+    background: var(--accent-action-strong);
+  }
+}
 /* The floating create action owns a lane at the right edge, and Continue sits
    in it: MEASURED at 390px, the button spanned x 199-368 while the control
    held x 322-378, so its right 46px was not tappable. The row reserves that
@@ -921,11 +976,18 @@
   cursor: pointer;
 }
 
-.planComposer__template:hover,
 .planComposer__template:focus-visible {
   border-color: var(--plan-accent);
   color: var(--plan-accent-strong);
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__template:hover {
+    border-color: var(--plan-accent);
+    color: var(--plan-accent-strong);
+    outline: none;
+  }
 }
 
 .planComposer__concierge { grid-column: 1 / -1; padding: 0 0 28px; border-bottom: 1px solid var(--line); }
@@ -933,20 +995,31 @@
 .planComposer__conciergeInput { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 /* Plan my night — same --accent-action fill as mobile Find my pint / Claim handle. */
 .planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
-.planComposer__conciergeInput button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-action-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__conciergeInput button:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--accent-action-strong);
+  }
+}
 /* ONE PAINTED PRIMARY PER SCREEN. With a route on the page `Lock it in` is the
    thing to do next, so this control drops its fill and keeps everything else:
    same box, same height, same place, so a reader who wants another route still
    finds it exactly where it was. */
-.planComposer__conciergeInput button.planComposer__resort,
-.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
+.planComposer__conciergeInput button.planComposer__resort {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
 }
-.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
-  border-color: var(--accent-action);
-  color: var(--accent-action-strong);
+
+@media (hover: hover) and (pointer: fine) {
+  .planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+  }
+  .planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--accent-action);
+    color: var(--accent-action-strong);
+  }
 }
 /* disabled styles shared with .planComposer__submit:disabled (M3) above */
 .planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
@@ -1189,7 +1262,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-weight: 800;
   text-decoration: none;
 }
-.planPage__cta:hover { background: color-mix(in srgb, var(--ink) 88%, var(--plan-accent)); }
+@media (hover: hover) and (pointer: fine) {
+  .planPage__cta:hover {
+    background: color-mix(in srgb, var(--ink) 88%, var(--plan-accent));
+  }
+}
 .planPage__cta:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
 
 /* Sort My Night P1 — usual-lot re-invite on the plan share panel. */
@@ -1427,7 +1504,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   text-decoration: none;
   transition: background 140ms ease;
 }
-.invitePreview__join:hover { background: var(--plan-accent-strong); }
+@media (hover: hover) and (pointer: fine) {
+  .invitePreview__join:hover {
+    background: var(--plan-accent-strong);
+  }
+}
 @media (max-width: 600px) {
   .invitePreview { padding-left: 0; }
 }

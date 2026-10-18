@@ -153,9 +153,14 @@
   transition: background-color 120ms ease;
 }
 
-.mapSearchSuggestRow.isActive,
-.mapSearchSuggestRow:hover {
+.mapSearchSuggestRow.isActive {
   background: var(--state-active-surface, color-mix(in srgb, var(--color-accent, var(--brass)) 12%, transparent));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapSearchSuggestRow:hover {
+    background: var(--state-active-surface, color-mix(in srgb, var(--color-accent, var(--brass)) 12%, transparent));
+  }
 }
 
 /* The quiet labels (type, borough) drop under the name when the name needs the

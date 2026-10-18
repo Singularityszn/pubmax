@@ -138,12 +138,14 @@
   cursor: pointer;
 }
 
-.venueGettingThere__location:hover:not(:disabled),
-.venueGettingThere__maps:hover,
-.venueGettingThere__forget:hover,
-.venueGettingThere__retry:hover,
-.venueGettingThere__venueMaps:hover {
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .venueGettingThere__location:hover:not(:disabled),
+  .venueGettingThere__maps:hover,
+  .venueGettingThere__forget:hover,
+  .venueGettingThere__retry:hover,
+  .venueGettingThere__venueMaps:hover {
+    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  }
 }
 
 .venueGettingThere__location:disabled {

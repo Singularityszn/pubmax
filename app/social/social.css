@@ -117,10 +117,12 @@ html[data-text-scale="large"] .socialPage .screenHead {
   color: var(--state-selected-ink);
 }
 
-.socialSwitcher a:hover,
-.socialLaneNav a:hover {
-  background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .socialSwitcher a:hover,
+  .socialLaneNav a:hover {
+    background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
+    color: var(--ink);
+  }
 }
 
 .socialSwitcher a:focus-visible,
@@ -250,8 +252,10 @@ html[data-text-scale="large"] .socialPage .screenHead {
   text-decoration: none;
 }
 
-.socialPostMeta__place a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .socialPostMeta__place a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Face and handle sit together on the left and the time on the right. With
@@ -290,8 +294,10 @@ span.socialPostAvatar {
   text-decoration: none;
 }
 
-.socialPostMeta strong a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .socialPostMeta strong a:hover {
+    text-decoration: underline;
+  }
 }
 
 .socialPostBody {
@@ -390,8 +396,10 @@ span.socialPostAvatar {
   -webkit-tap-highlight-color: transparent;
 }
 
-.socialButton:hover {
-  background: var(--brass-bright);
+@media (hover: hover) and (pointer: fine) {
+  .socialButton:hover {
+    background: var(--brass-bright);
+  }
 }
 
 .socialButton:disabled {
@@ -568,9 +576,14 @@ span.socialPostAvatar {
   text-align: left;
 }
 
-.socialVenueResults button[aria-selected="true"],
-.socialVenueResults button:hover {
+.socialVenueResults button[aria-selected="true"] {
   background: color-mix(in srgb, var(--river) 10%, var(--panel-raised));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialVenueResults button:hover {
+    background: color-mix(in srgb, var(--river) 10%, var(--panel-raised));
+  }
 }
 
 .socialTagInbox,
@@ -1342,9 +1355,14 @@ span.socialPostAvatar {
   text-underline-offset: 4px;
 }
 
-.socialFoundersLink:hover,
 .socialFoundersLink:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialFoundersLink:hover {
+    color: var(--ink);
+  }
 }
 
 /* The action row: four 44px targets, save and report pushed to the end. */

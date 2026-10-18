@@ -827,9 +827,11 @@ button {
   text-decoration: none;
 }
 
-.siteNav a:hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .siteNav a:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
 }
 
 /* "You are here" is an ink tint, never a coral fill: see .siteNavLink.isActive
@@ -1035,8 +1037,10 @@ h3 {
   transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.segmented button:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .segmented button:hover {
+    border-color: var(--brass);
+  }
 }
 
 .segmented button.selected {
@@ -1109,22 +1113,22 @@ h3 {
   color: var(--pint);
 }
 
-.featuredCrawl:hover {
-  border-color: var(--brass);
-  border-left-color: var(--brass-bright);
-  box-shadow: var(--shadow);
-  transform: translateY(-1px);
-}
-
-.featuredCrawl[data-crawl-style="heritage"]:hover,
-.featuredCrawl[data-crawl-style="writerTrail"]:hover {
-  border-color: var(--river);
-  border-left-color: var(--river-bright);
-}
-
-.featuredCrawl[data-crawl-style="beerGarden"]:hover {
-  border-color: var(--pint);
-  border-left-color: color-mix(in srgb, var(--pint) 70%, white);
+@media (hover: hover) and (pointer: fine) {
+  .featuredCrawl:hover {
+    border-color: var(--brass);
+    border-left-color: var(--brass-bright);
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+  }
+  .featuredCrawl[data-crawl-style="heritage"]:hover,
+  .featuredCrawl[data-crawl-style="writerTrail"]:hover {
+    border-color: var(--river);
+    border-left-color: var(--river-bright);
+  }
+  .featuredCrawl[data-crawl-style="beerGarden"]:hover {
+    border-color: var(--pint);
+    border-left-color: color-mix(in srgb, var(--pint) 70%, white);
+  }
 }
 
 .featuredCrawl:focus-visible {
@@ -1209,8 +1213,10 @@ input[type="range"] {
   transition: background 0.12s ease;
 }
 
-.toggles label:hover {
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .toggles label:hover {
+    background: color-mix(in srgb, var(--brass) 8%, transparent);
+  }
 }
 
 .toggles input {
@@ -1325,12 +1331,14 @@ input[type="range"] {
     transform var(--duration-fast) var(--ease-out);
 }
 
-.mapFitLondonBtn:hover,
-.mapRecenterBtn:not(:disabled):hover,
-.mapCompassBtn:hover {
-  border-color: var(--ink-soft);
-  background: var(--panel);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mapFitLondonBtn:hover,
+  .mapRecenterBtn:not(:disabled):hover,
+  .mapCompassBtn:hover {
+    border-color: var(--ink-soft);
+    background: var(--panel);
+    color: var(--ink);
+  }
 }
 
 .mapFitLondonBtn:focus-visible,
@@ -1422,9 +1430,11 @@ input[type="range"] {
   cursor: pointer;
 }
 
-.mappedRouteChip button:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .mappedRouteChip button:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 /* G3 — Place story deep-link onboarding chip (mirrors mappedRouteChip chrome). */
@@ -1492,9 +1502,11 @@ input[type="range"] {
   cursor: pointer;
 }
 
-.bandOnboardingChip button:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .bandOnboardingChip button:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
@@ -1549,8 +1561,10 @@ input[type="range"] {
   cursor: pointer;
 }
 
-.mapToolbarClear:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mapToolbarClear:hover {
+    color: var(--ink);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1593,10 +1607,12 @@ input[type="range"] {
   box-sizing: border-box;
 }
 
-.planBtn:hover {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
-  box-shadow: var(--shadow-btn-hover);
+@media (hover: hover) and (pointer: fine) {
+  .planBtn:hover {
+    background: var(--color-accent-strong);
+    color: var(--color-on-accent-strong);
+    box-shadow: var(--shadow-btn-hover);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1852,9 +1868,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.mapOnboardingClose:hover {
-  color: var(--ink);
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .mapOnboardingClose:hover {
+    color: var(--ink);
+    border-color: var(--brass);
+  }
 }
 
 .mapOnboardingCard .eyebrow {
@@ -1899,10 +1917,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.mapOnboardingCrawl:hover {
-  border-color: var(--brass);
-  border-left-color: var(--brass-bright);
-  background: var(--panel-raised);
+@media (hover: hover) and (pointer: fine) {
+  .mapOnboardingCrawl:hover {
+    border-color: var(--brass);
+    border-left-color: var(--brass-bright);
+    background: var(--panel-raised);
+  }
 }
 
 .mapOnboardingCrawl:focus-visible {
@@ -1950,9 +1970,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.mapOnboardingDismiss:hover {
-  color: var(--ink);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .mapOnboardingDismiss:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2474,8 +2496,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.poiLabelCard button:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .poiLabelCard button:hover {
+    color: var(--ink);
+  }
 }
 
 .maplibreMap {
@@ -2575,8 +2599,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--paper);
 }
 
-.bandBtn:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .bandBtn:hover {
+    border-color: var(--brass);
+  }
 }
 
 .bandActiveCard {
@@ -2657,9 +2683,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   letter-spacing: 0.02em;
   cursor: pointer;
 }
-.mapSoftRetryBtn:hover {
-  background: var(--brass, #c4a35a);
-  color: var(--ink-deep, #090806);
+@media (hover: hover) and (pointer: fine) {
+  .mapSoftRetryBtn:hover {
+    background: var(--brass, #c4a35a);
+    color: var(--ink-deep, #090806);
+  }
 }
 .mapSoftRetryBtn:focus-visible {
   outline: 2px solid var(--brass, #c4a35a);
@@ -2707,9 +2735,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.mapSearchEmptyAction:hover {
-  background: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .mapSearchEmptyAction:hover {
+    background: var(--color-accent-strong);
+    border-color: var(--color-accent-strong);
+  }
 }
 
 .mapSearchEmptyAction:focus-visible {
@@ -2840,9 +2870,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.mapFallbackDisclosureToggle:hover,
 .mapFallbackDisclosureToggle:focus-visible {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapFallbackDisclosureToggle:hover {
+    opacity: 1;
+  }
 }
 
 .mapFallbackDisclosureToggle:focus-visible {
@@ -2886,9 +2921,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     color 0.15s ease;
 }
 
-.mapFallbackRetry:hover {
-  background: var(--brass);
-  color: var(--ink-deep);
+@media (hover: hover) and (pointer: fine) {
+  .mapFallbackRetry:hover {
+    background: var(--brass);
+    color: var(--ink-deep);
+  }
 }
 
 .mapFallbackRetry:focus-visible {
@@ -2923,9 +2960,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: background 0.15s ease;
 }
 
-.mapFallbackVenue:hover,
 .mapFallbackVenue:focus-visible {
   background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapFallbackVenue:hover {
+    background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+  }
 }
 
 .mapFallbackVenueName {
@@ -3127,9 +3169,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.mapHeroCardHead button:hover {
-  color: var(--ink);
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .mapHeroCardHead button:hover {
+    color: var(--ink);
+    border-color: var(--brass);
+  }
 }
 
 .mapHeroCard strong {
@@ -3160,9 +3204,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   cursor: pointer;
 }
 
-.mapHeroVisit:hover {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .mapHeroVisit:hover {
+    background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+    color: var(--color-on-accent);
+  }
 }
 
 .modeToggle {
@@ -3191,9 +3237,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.modeToggle button:hover:not(.selected) {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .modeToggle button:hover:not(.selected) {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 8%, transparent);
+  }
 }
 
 .modeToggle button.selected {
@@ -3223,8 +3271,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.nearbyBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 5%, var(--control-secondary-surface, var(--panel-raised)));
+@media (hover: hover) and (pointer: fine) {
+  .nearbyBtn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 5%, var(--control-secondary-surface, var(--panel-raised)));
+  }
 }
 
 .nearbyBtn:focus-visible {
@@ -3278,10 +3328,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin-left: auto;
 }
 
-.clearBtn:hover,
-.resetBtn:hover {
-  border-color: var(--brick);
-  background: rgba(181, 73, 58, 0.06);
+@media (hover: hover) and (pointer: fine) {
+  .clearBtn:hover,
+  .resetBtn:hover {
+    border-color: var(--brick);
+    background: rgba(181, 73, 58, 0.06);
+  }
 }
 
 .shareBtn {
@@ -3299,11 +3351,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.shareBtn:hover,
 .shareBtn:focus-visible {
   border-color: var(--brass-bright);
   background: var(--brass);
   color: var(--color-on-accent-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shareBtn:hover {
+    border-color: var(--brass-bright);
+    background: var(--brass);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .addStopBtn {
@@ -3318,8 +3377,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: transform 0.12s ease, filter 0.15s ease;
 }
 
-.addStopBtn:hover {
-  filter: brightness(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .addStopBtn:hover {
+    filter: brightness(1.15);
+  }
 }
 
 .addStopBtn:active {
@@ -3438,9 +3499,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: border-color 0.15s ease, transform 0.12s ease;
 }
 
-.sourceLinks a:hover {
-  border-color: var(--river);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .sourceLinks a:hover {
+    border-color: var(--river);
+    transform: translateY(-1px);
+  }
 }
 
 .writerCard ul {
@@ -3617,9 +3680,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   text-underline-offset: 2px;
 }
 
-.contributorPrice a:hover,
-.priceSourceLink:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .contributorPrice a:hover,
+  .priceSourceLink:hover {
+    color: var(--ink);
+  }
 }
 
 /* First-drop nudge (Cycle-8 item 3) — the honest empty-price invitation shown
@@ -3692,10 +3757,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     border-color var(--duration-base) var(--ease-out);
 }
 
-.priceDoor:hover {
-  background: var(--accent-action-strong);
-  border-color: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .priceDoor:hover {
+    background: var(--accent-action-strong);
+    border-color: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .priceDoor:focus-visible {
@@ -3815,8 +3882,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   text-decoration: none;
 }
 
-.claimCard a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .claimCard a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ── The Landlord: grounded heritage chat ─────────────────────────────── */
@@ -3841,8 +3910,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: filter 0.15s ease;
 }
 
-.landlordBtn:hover {
-  filter: brightness(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .landlordBtn:hover {
+    filter: brightness(1.15);
+  }
 }
 
 .landlordBtn:disabled {
@@ -3907,8 +3978,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: border-color 0.15s ease;
 }
 
-.landlordSuggest button:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .landlordSuggest button:hover {
+    border-color: var(--brass);
+  }
 }
 
 .landlordAnswer {
@@ -3979,8 +4052,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   background: var(--river);
 }
 
-.citationChip:hover {
-  border-color: var(--river);
+@media (hover: hover) and (pointer: fine) {
+  .citationChip:hover {
+    border-color: var(--river);
+  }
 }
 
 .landlordMsg {
@@ -4042,10 +4117,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-radius: inherit;
 }
 
-.routeList li:hover {
-  border-color: var(--brass);
-  transform: translateX(2px);
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--brass) 11%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .routeList li:hover {
+    border-color: var(--brass);
+    transform: translateX(2px);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--brass) 11%, transparent);
+  }
 }
 
 .routeList li.active {
@@ -4242,8 +4319,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   text-decoration: none;
   width: fit-content;
 }
-.routeStopDirections:hover {
-  background: color-mix(in srgb, var(--river) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .routeStopDirections:hover {
+    background: color-mix(in srgb, var(--river) 10%, transparent);
+  }
 }
 
 /* Keyboard route-building path: filtered venue list with Add/Remove controls. */
@@ -4277,8 +4356,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: inherit;
 }
 
-.venuePickerList button:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .venuePickerList button:hover {
+    border-color: var(--brass);
+  }
 }
 
 .venuePickerList button[aria-pressed="true"] {
@@ -4522,9 +4603,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-.reportBtn:hover {
-  border-color: var(--brick);
-  color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .reportBtn:hover {
+    border-color: var(--brick);
+    color: var(--brick);
+  }
 }
 
 /* The pill stays small on purpose (it is the quietest control in the row), but
@@ -4592,8 +4675,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--muted);
 }
 
-.photoPick:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .photoPick:hover {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
 }
 
 .photoPick input[type="file"] {
@@ -4638,8 +4723,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-weight: 700;
 }
 
-.photoRemove:hover {
-  border-color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .photoRemove:hover {
+    border-color: var(--brick);
+  }
 }
 
 .consentNote {
@@ -4751,9 +4838,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   -webkit-tap-highlight-color: transparent;
 }
 
-.analyticsConsentPromptActions button:hover,
 .analyticsConsentPromptActions button:focus-visible {
   border-color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .analyticsConsentPromptActions button:hover {
+    border-color: var(--brass);
+  }
 }
 
 /* Any open map surface owns the reader's attention; the consent card must not
@@ -5063,9 +5155,11 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   transition: filter 0.15s ease;
 }
 
-.dropComposer button[type="submit"]:hover,
-.dropComposer .spillSubmitLink:hover {
-  filter: brightness(1.08);
+@media (hover: hover) and (pointer: fine) {
+  .dropComposer button[type="submit"]:hover,
+  .dropComposer .spillSubmitLink:hover {
+    filter: brightness(1.08);
+  }
 }
 
 .dropComposer button[type="submit"]:disabled {
@@ -5089,8 +5183,10 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   transition: background 0.15s ease;
 }
 
-.composerToggle:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .composerToggle:hover {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
 }
 
 .composerMsg {
@@ -5121,8 +5217,10 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   transition: border-color 0.15s ease;
 }
 
-.composerMsgLink:hover {
-  border-bottom-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .composerMsgLink:hover {
+    border-bottom-color: var(--brass);
+  }
 }
 
 .composerMsgLink:focus-visible {
@@ -5170,9 +5268,11 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   cursor: pointer;
 }
 
-.vibeChip:hover:not(:disabled) {
-  border-color: var(--state-selected-border);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .vibeChip:hover:not(:disabled) {
+    border-color: var(--state-selected-border);
+    color: var(--ink);
+  }
 }
 
 .vibeChip.selected {
@@ -5235,8 +5335,10 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   transition: filter 0.15s ease, transform 0.12s ease;
 }
 
-.logDropBtn:hover {
-  filter: brightness(1.08);
+@media (hover: hover) and (pointer: fine) {
+  .logDropBtn:hover {
+    filter: brightness(1.08);
+  }
 }
 
 .logDropBtn:focus-visible {
@@ -5300,9 +5402,11 @@ button:disabled {
 }
 
 /* Hover warm-up (color/border only) for list-style controls. */
-.landlordSuggest button:hover,
-.citationChip:hover {
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .landlordSuggest button:hover,
+  .citationChip:hover {
+    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  }
 }
 
 .dropCard,
@@ -5310,17 +5414,21 @@ button:disabled {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.dropCard:hover,
-.claimCard:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .dropCard:hover,
+  .claimCard:hover {
+    border-color: var(--brass);
+  }
 }
 
 .venuePickerList button {
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.venuePickerList button:hover {
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .venuePickerList button:hover {
+    background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5363,10 +5471,12 @@ button:disabled {
   }
 
   /* Featured cards and drop/claim cards lift a hair on hover. */
-  .featuredCrawl:hover,
-  .dropCard:hover,
-  .claimCard:hover {
-    transform: translateY(-1px);
+  @media (hover: hover) and (pointer: fine) {
+    .featuredCrawl:hover,
+    .dropCard:hover,
+    .claimCard:hover {
+      transform: translateY(-1px);
+    }
   }
 }
 
@@ -5569,9 +5679,11 @@ button:disabled {
     cursor: pointer;
   }
 
-  .plannerMapButton:hover {
-    border-color: var(--river);
-    background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+  @media (hover: hover) and (pointer: fine) {
+    .plannerMapButton:hover {
+      border-color: var(--river);
+      background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+    }
   }
 
   /* Keep the floating theme toggle clear of the map legend and reachable, and

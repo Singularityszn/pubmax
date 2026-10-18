@@ -139,8 +139,10 @@
   content: "\2212"; /* minus */
 }
 
-.faqItem summary:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .faqItem summary:hover {
+    color: var(--brass);
+  }
 }
 
 .faqAnswer {
@@ -196,9 +198,11 @@
   text-decoration: none;
 }
 
-.factLinksList a:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .factLinksList a:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 .factLinksList a:focus-visible {

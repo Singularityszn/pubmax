@@ -55,7 +55,12 @@
   transition: color 200ms var(--ease-out);
 }
 
-.areaNewsRailItemMeta a:hover,
 .areaNewsRailItemMeta a:focus-visible {
   color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaNewsRailItemMeta a:hover {
+    color: var(--brass);
+  }
 }

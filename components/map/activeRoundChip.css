@@ -73,8 +73,10 @@
   box-sizing: border-box;
 }
 
-.activeRoundChip button:hover,
-.activeRoundChip a.activeRoundChipBoard:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .activeRoundChip button:hover,
+  .activeRoundChip a.activeRoundChipBoard:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }

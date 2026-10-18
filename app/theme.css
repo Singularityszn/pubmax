@@ -231,12 +231,14 @@ html[data-theme="dark"] .mapCompassBtn {
   box-shadow: var(--map-overlay-shadow-tight);
 }
 
-html[data-theme="dark"] .mapFitLondonBtn:hover,
-html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover,
-html[data-theme="dark"] .mapCompassBtn:hover {
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
-  color: var(--ink);
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="dark"] .mapFitLondonBtn:hover,
+  html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover,
+  html[data-theme="dark"] .mapCompassBtn:hover {
+    background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+    color: var(--ink);
+    border-color: var(--brass);
+  }
 }
 
 html[data-theme="dark"] .mapRecenterBtn:disabled {
@@ -309,10 +311,12 @@ html[data-theme="dark"] .lpNav {
     transform 0.15s ease;
 }
 
-.themeToggle:hover {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  border-color: color-mix(in srgb, var(--brass) 30%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .themeToggle:hover {
+    color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    border-color: color-mix(in srgb, var(--brass) 30%, transparent);
+  }
 }
 
 .themeToggle:focus-visible {
@@ -334,11 +338,13 @@ html[data-theme="dark"] .lpNav {
   box-shadow: var(--shadow);
 }
 
-.themeToggle.floating:hover {
-  color: var(--ink);
-  background: var(--panel-raised);
-  border-color: var(--brass);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .themeToggle.floating:hover {
+    color: var(--ink);
+    background: var(--panel-raised);
+    border-color: var(--brass);
+    transform: translateY(-1px);
+  }
 }
 
 html[data-theme="dark"] .planBtn.active {

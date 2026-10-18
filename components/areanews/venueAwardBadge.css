@@ -23,8 +23,10 @@
     box-shadow var(--duration-base, 200ms) var(--ease-out, ease-out);
 }
 
-.venueAwardPlaque:hover {
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .venueAwardPlaque:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .venueAwardIcon {

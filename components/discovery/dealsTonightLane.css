@@ -63,10 +63,16 @@
   min-height: 44px;
 }
 
-.dealsTonightCard:hover,
 .dealsTonightCard:focus-visible {
   border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dealsTonightCard:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+    outline: none;
+  }
 }
 
 .dealsTonightCard strong {
@@ -131,7 +137,12 @@
   text-decoration: none;
 }
 
-.dealsTonightMap:hover,
 .dealsTonightMap:focus-visible {
   text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dealsTonightMap:hover {
+    text-decoration: underline;
+  }
 }

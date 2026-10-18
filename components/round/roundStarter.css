@@ -98,8 +98,10 @@
   border-color: var(--brass);
 }
 
-.roundStarter .crawlPrimaryBtn:hover {
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .roundStarter .crawlPrimaryBtn:hover {
+    filter: brightness(1.05);
+  }
 }
 
 .roundStarter .crawlPrimaryBtn:disabled {
@@ -189,10 +191,12 @@
   border-color: var(--line) !important;
 }
 
-.roundStarterBoardLink:hover {
-  border-color: var(--brass) !important;
-  color: var(--brass) !important;
-  filter: none;
+@media (hover: hover) and (pointer: fine) {
+  .roundStarterBoardLink:hover {
+    border-color: var(--brass) !important;
+    color: var(--brass) !important;
+    filter: none;
+  }
 }
 
 /* Join by code on /rounds: a quiet secondary beside the page's one primary.

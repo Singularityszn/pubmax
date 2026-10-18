@@ -76,8 +76,10 @@
   cursor: pointer;
 }
 
-.admin-btn:hover {
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .admin-btn:hover {
+    filter: brightness(1.05);
+  }
 }
 
 /* A lane filter that is on: the outline is the choice, so the fill steps back. */
@@ -131,8 +133,10 @@
   cursor: pointer;
 }
 
-.admin-empty .admin-retry:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .admin-empty .admin-retry:hover {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
 }
 
 .admin-empty .admin-retry:focus-visible {

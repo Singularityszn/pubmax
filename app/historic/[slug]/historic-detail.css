@@ -32,8 +32,10 @@
   text-decoration: none;
 }
 
-.hdBackLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .hdBackLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .hdBackLink:focus-visible {
@@ -147,8 +149,10 @@
   text-decoration: none;
 }
 
-.hdBoroughLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .hdBoroughLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .hdBoroughLink:focus-visible {
@@ -226,8 +230,10 @@
   text-decoration: none;
 }
 
-.hdCite:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .hdCite:hover {
+    text-decoration: underline;
+  }
 }
 
 .hdCite:focus-visible {

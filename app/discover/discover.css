@@ -521,9 +521,11 @@
   text-decoration: none;
 }
 
-.tvnLink:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .tvnLink:hover {
+    color: var(--brass);
+    text-decoration: underline;
+  }
 }
 
 .tvnLink:focus-visible {
@@ -947,8 +949,10 @@
   text-decoration: none;
 }
 
-.discoverBrandAll:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .discoverBrandAll:hover {
+    text-decoration: underline;
+  }
 }
 
 .discoverBrandDek,
@@ -987,9 +991,11 @@
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.discoverBrandChip:hover {
-  border-color: color-mix(in srgb, var(--brass) 55%, transparent);
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .discoverBrandChip:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, transparent);
+    background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+  }
 }
 
 .discoverBrandChip:focus-visible {
@@ -1020,8 +1026,10 @@
   text-decoration: none;
 }
 
-.discoverHungryCta:hover {
-  background: color-mix(in srgb, var(--amber, var(--brass)) 18%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .discoverHungryCta:hover {
+    background: color-mix(in srgb, var(--amber, var(--brass)) 18%, var(--panel-raised));
+  }
 }
 
 .discoverHungryCta:focus-visible {
@@ -1052,9 +1060,11 @@
   text-transform: capitalize;
 }
 
-.discoverCuisineChip:hover {
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .discoverCuisineChip:hover {
+    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+    color: var(--ink);
+  }
 }
 
 .discoverCuisineChip:focus-visible {
@@ -1105,9 +1115,14 @@
   text-underline-offset: 4px;
 }
 
-.discoverHubLink:hover,
 .discoverHubLink:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .discoverHubLink:hover {
+    color: var(--ink);
+  }
 }
 
 /* Touch target floor. A brand chip is a standalone destination, not a link in

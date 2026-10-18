@@ -126,8 +126,10 @@
   text-underline-offset: 2px;
 }
 
-.areaNewsSourceLink:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .areaNewsSourceLink:hover {
+    color: var(--ink);
+  }
 }
 
 .areaNewsSocial {

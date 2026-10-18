@@ -272,8 +272,10 @@
   text-decoration: none;
 }
 
-.historicCite:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .historicCite:hover {
+    text-decoration: underline;
+  }
 }
 
 .historicCite:focus-visible {
@@ -393,8 +395,10 @@
   text-decoration: none;
 }
 
-.historicBoroughLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .historicBoroughLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .historicBoroughLink:focus-visible {

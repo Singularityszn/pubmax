@@ -56,8 +56,10 @@
   transition: transform 180ms ease-out, background-color 180ms ease-out;
 }
 
-.uapPrimary:hover {
-  background: var(--brass-bright);
+@media (hover: hover) and (pointer: fine) {
+  .uapPrimary:hover {
+    background: var(--brass-bright);
+  }
 }
 
 .uapPrimary:active {
@@ -91,8 +93,10 @@
   transition: transform 150ms ease-out, border-color 150ms ease-out;
 }
 
-.uapChip:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .uapChip:hover {
+    border-color: var(--brass);
+  }
 }
 
 .uapChip:active {
@@ -119,8 +123,10 @@
   cursor: pointer;
 }
 
-.uapAskBtn:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .uapAskBtn:hover {
+    text-decoration: underline;
+  }
 }
 
 .uapForm {

@@ -61,8 +61,10 @@
     text-decoration: none;
   }
 
-  .tonightOnTonightSummaryEnding:hover {
-    text-decoration: underline;
+  @media (hover: hover) and (pointer: fine) {
+    .tonightOnTonightSummaryEnding:hover {
+      text-decoration: underline;
+    }
   }
 
   .tonightOnTonightSummaryEnding:focus-visible {
@@ -107,8 +109,10 @@
     text-decoration: none;
   }
 
-  .tonightOnTonightSummaryLink:hover {
-    text-decoration: underline;
+  @media (hover: hover) and (pointer: fine) {
+    .tonightOnTonightSummaryLink:hover {
+      text-decoration: underline;
+    }
   }
 
   .tonightOnTonightSummaryLink:focus-visible {

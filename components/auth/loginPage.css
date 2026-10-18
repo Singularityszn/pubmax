@@ -332,8 +332,10 @@
   cursor: pointer;
 }
 
-.loginPageQuietLink:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .loginPageQuietLink:hover {
+    color: var(--ink);
+  }
 }
 
 .loginPageLegal {
@@ -375,9 +377,11 @@
   text-align: center;
 }
 
-.loginPageHandlePasswordToggle:hover {
-  border-color: var(--brass);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .loginPageHandlePasswordToggle:hover {
+    border-color: var(--brass);
+    color: var(--ink);
+  }
 }
 
 .loginPageHandlePassword {

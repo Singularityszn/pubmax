@@ -163,7 +163,11 @@
 /* "Claim your @handle" is the primary here (brass, above); "Meet your Pub Pal"
    steps back to a quiet secondary so the two don't compete at equal weight. */
 .profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); }
-.profilePage .youIdentityActions a:last-child:hover { color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .youIdentityActions a:last-child:hover {
+    color: var(--ink);
+  }
+}
 
 /* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
    the pub-pal / edit pills leave quiet. Shares the pill geometry above. */
@@ -557,9 +561,11 @@
 /* Keyboard/hover affordance so the chips don't read as dead text. Focusable
    only if a future variant makes them links/buttons; for now, hover lifts the
    plate a touch and focus-visible gets the standard brass ring. */
-.profilePage .profileBadge:hover {
-  background: color-mix(in srgb, var(--brass) 18%, var(--panel));
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileBadge:hover {
+    background: color-mix(in srgb, var(--brass) 18%, var(--panel));
+    border-color: var(--brass);
+  }
 }
 
 .profilePage .profileBadge:focus-visible {
@@ -634,9 +640,11 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.profilePage .profileDropCard:hover {
-  border-color: var(--brass);
-  box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileDropCard:hover {
+    border-color: var(--brass);
+    box-shadow: 0 10px 24px rgba(154, 106, 36, 0.12);
+  }
 }
 
 .profilePage .profileDropPhoto {
@@ -686,8 +694,10 @@
   transition: border-color 0.18s ease;
 }
 
-.profilePage .profileDropVenue:hover {
-  border-bottom-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileDropVenue:hover {
+    border-bottom-color: var(--brass);
+  }
 }
 
 .profilePage .profileDropVenue:focus-visible {
@@ -736,8 +746,10 @@
   color: inherit;
 }
 
-.profilePage .savedListNameLink:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .savedListNameLink:hover {
+    color: var(--accent);
+  }
 }
 
 .profilePage .savedListCount {
@@ -772,8 +784,10 @@
   text-decoration: none;
 }
 
-.profilePage .savedItemVenue:hover {
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .savedItemVenue:hover {
+    color: var(--color-accent-ink);
+  }
 }
 
 .profilePage .savedItemVenue:focus-visible {
@@ -860,8 +874,10 @@
   text-decoration: none;
 }
 
-.profilePage .profileBackLink:hover {
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileBackLink:hover {
+    color: var(--color-accent-ink);
+  }
 }
 
 .profilePage .profileBackLink:focus-visible {
@@ -949,10 +965,12 @@
   text-decoration: none;
 }
 
-.profilePage .listMapAction:hover {
-  border-color: var(--accent-action-strong);
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .listMapAction:hover {
+    border-color: var(--accent-action-strong);
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .profilePage .followBtn {
@@ -967,10 +985,12 @@
   cursor: pointer;
 }
 
-.profilePage .followBtn:hover:not(:disabled) {
-  border-color: var(--accent-action-strong);
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .followBtn:hover:not(:disabled) {
+    border-color: var(--accent-action-strong);
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .profilePage .followBtn.isFollowing {
@@ -979,10 +999,12 @@
   color: var(--state-active-ink);
 }
 
-.profilePage .followBtn.isFollowing:hover:not(:disabled) {
-  border-color: var(--state-active-ink);
-  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .followBtn.isFollowing:hover:not(:disabled) {
+    border-color: var(--state-active-ink);
+    background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
+    color: var(--ink);
+  }
 }
 
 .profilePage .followBtn:disabled {
@@ -1011,8 +1033,10 @@
   text-decoration: none;
 }
 
-.profilePage .profileFollowSignIn:hover {
-  background: color-mix(in srgb, var(--accent-action) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileFollowSignIn:hover {
+    background: color-mix(in srgb, var(--accent-action) 12%, transparent);
+  }
 }
 
 .profilePage .profileFollowSignIn:focus-visible {
@@ -1053,9 +1077,11 @@
   color: var(--follow-mates-ink);
 }
 
-.profilePage .followBtn.isMates:hover:not(:disabled) {
-  border-color: var(--follow-mates-ink);
-  color: var(--follow-mates-ink);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .followBtn.isMates:hover:not(:disabled) {
+    border-color: var(--follow-mates-ink);
+    color: var(--follow-mates-ink);
+  }
 }
 
 /* Published crawls: the destination behind the Crawls tile. */
@@ -1100,8 +1126,10 @@
   font-size: 0.85rem;
 }
 
-.profilePage .profileCrawlUnlisted > summary:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileCrawlUnlisted > summary:hover {
+    color: var(--brass);
+  }
 }
 
 .profilePage .profileCrawlMore {
@@ -1117,8 +1145,10 @@
   cursor: pointer;
 }
 
-.profilePage .profileCrawlMore:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileCrawlMore:hover {
+    border-color: var(--brass);
+  }
 }
 
 /* ── Owner actions: edit toggle + claim ──────────────────────────────── */
@@ -1146,12 +1176,13 @@
   color: var(--color-on-accent, var(--paper));
 }
 
-.profilePage .profileEditToggle:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
-}
-
-.profilePage .profileClaimBtn:hover {
-  background: color-mix(in srgb, var(--brass) 88%, var(--ink));
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileEditToggle:hover {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
+  .profilePage .profileClaimBtn:hover {
+    background: color-mix(in srgb, var(--brass) 88%, var(--ink));
+  }
 }
 
 .profilePage .profileEditToggle:focus-visible,
@@ -1631,8 +1662,10 @@
 
 /* ── Motion (gated) ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: no-preference) {
-  .profilePage .profileDropCard:hover {
-    transform: translateY(-2px);
+  @media (hover: hover) and (pointer: fine) {
+    .profilePage .profileDropCard:hover {
+      transform: translateY(-2px);
+    }
   }
 
   /* One cover becoming the next. The component ALSO refuses to run its timer
@@ -1805,8 +1838,10 @@
   transition: background 0.18s ease, color 0.18s ease;
 }
 
-.profilePage .passportCta:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .passportCta:hover {
+    background: color-mix(in srgb, var(--brass) 12%, transparent);
+  }
 }
 
 .profilePage .passportCtaPrimary {
@@ -1814,8 +1849,10 @@
   background: var(--brass);
 }
 
-.profilePage .passportCtaPrimary:hover {
-  background: color-mix(in srgb, var(--brass) 88%, black);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .passportCtaPrimary:hover {
+    background: color-mix(in srgb, var(--brass) 88%, black);
+  }
 }
 
 .profilePage .passportCta:focus-visible {
@@ -2158,7 +2195,11 @@
 .accountLegalLinks { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0; padding: 0; list-style: none; }
 .accountLegalLinks > li { min-width: 0; overflow-wrap: anywhere; }
 .accountLegalLinks a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-.accountLegalLinks a:hover { color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .accountLegalLinks a:hover {
+    color: var(--brass);
+  }
+}
 .accountLegalNote { margin: 0; color: var(--ink-muted); font-size: .85rem; }
 @media (max-width: 520px) { .accountHubNightProfileGrid { grid-template-columns: 1fr; } .accountHubSignIn { align-items: stretch; flex-direction: column; } }
 
@@ -2171,7 +2212,12 @@
 .memoryStudioHeader h3 { margin: .2rem 0 0; font-size: clamp(1.2rem, 2vw, 1.6rem); }
 .memoryStudioHeader > p { max-width: 34rem; margin: 0; color: var(--muted); }
 .memoryCaptureLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: .65rem .9rem; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); font-weight: 750; text-decoration: none; white-space: nowrap; }
-.memoryCaptureLink:hover { border-color: var(--brass); color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .memoryCaptureLink:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
+}
 .memoryStudioFlow { display: grid; grid-template-columns: .8fr 1.15fr 1fr; gap: .75rem; }
 .memoryStudioFlow form { position: relative; display: grid; align-content: start; gap: .7rem; padding: 1rem; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--panel-raised); }
 .memoryStudioFlow h4 { margin: 0; padding-right: 2.5rem; font-size: 1rem; }
@@ -2271,9 +2317,11 @@
   transition: border-color 0.18s ease, background-color 0.18s ease;
 }
 
-.profilePage .profileSocialLink:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .profileSocialLink:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  }
 }
 
 .profilePage .profileSocialLink:focus-visible {
@@ -2409,9 +2457,11 @@
   cursor: pointer;
 }
 
-.profilePage .socialLinksRemove:hover:not(:disabled) {
-  border-color: var(--brick);
-  color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .profilePage .socialLinksRemove:hover:not(:disabled) {
+    border-color: var(--brick);
+    color: var(--brick);
+  }
 }
 
 .profilePage .socialLinksForm {

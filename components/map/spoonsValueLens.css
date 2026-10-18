@@ -42,9 +42,14 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.spoonsValueLensToggle:hover,
 .spoonsValueLensToggle:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .spoonsValueLensToggle:hover {
+    color: var(--ink);
+  }
 }
 
 .spoonsValueLensToggle:focus-visible {

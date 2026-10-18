@@ -516,11 +516,12 @@
   text-decoration: none;
 }
 
-.tonightLanePlan:hover {
-  background: color-mix(in srgb, var(--brass) 20%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .tonightLanePlan:hover {
+    background: color-mix(in srgb, var(--brass) 20%, transparent);
+  }
 }
 
-.tonightLaneCollapsed:hover,
 .tonightLaneCollapsed:has(:focus-visible) {
   border-color: var(--brass);
   background:
@@ -532,11 +533,23 @@
     var(--panel-raised);
 }
 
-.tonightLaneOverlayToggle:hover,
-.tonightLaneOverlayDismiss:hover,
-.tonightLaneClose:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .tonightLaneCollapsed:hover {
+    border-color: var(--brass);
+    background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--brass) 18%, var(--panel-raised)),
+      color-mix(in srgb, var(--amber) 11%, var(--panel-raised))
+    ),
+    var(--panel-raised);
+  }
+  .tonightLaneOverlayToggle:hover,
+  .tonightLaneOverlayDismiss:hover,
+  .tonightLaneClose:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 10%, transparent);
+  }
 }
 
 .tonightLaneCollapsedMain:focus-visible,

@@ -60,9 +60,14 @@
   touch-action: manipulation;
 }
 
-.spoonsTableCut:hover,
 .spoonsTableCut:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .spoonsTableCut:hover {
+    color: var(--ink);
+  }
 }
 
 .spoonsTableCut:focus-visible {

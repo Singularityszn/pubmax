@@ -89,7 +89,11 @@
 }
 .momentIntentCurrent { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised)); }
 .momentIntentLink { background: var(--panel-raised); }
-.momentIntentLink:hover { border-color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .momentIntentLink:hover {
+    border-color: var(--brass);
+  }
+}
 .momentIntent strong { display: block; font-size: 14px; }
 .momentIntent span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .momentIntent svg { color: var(--brass); }
@@ -139,7 +143,12 @@
   cursor: pointer;
   text-align: center;
 }
-.momentMediaPicker:hover { border-color: color-mix(in srgb, var(--brass) 55%, var(--line)); background: color-mix(in srgb, var(--brass) 8%, var(--paper)); }
+@media (hover: hover) and (pointer: fine) {
+  .momentMediaPicker:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+    background: color-mix(in srgb, var(--brass) 8%, var(--paper));
+  }
+}
 .momentMediaPicker strong { color: var(--ink); font-size: 0.9375rem; }
 .momentMediaPicker span { color: var(--muted); font-size: 0.75rem; max-width: 30ch; text-align: center; }
 .momentMediaPickerLine { display: block; text-wrap: balance; }
@@ -275,7 +284,11 @@
   font-size: 15px;
   font-weight: 800;
 }
-.momentSave:not(:disabled):hover { border-color: var(--brass); }
+@media (hover: hover) and (pointer: fine) {
+  .momentSave:not(:disabled):hover {
+    border-color: var(--brass);
+  }
+}
 .momentSave:disabled { cursor: not-allowed; opacity: .48; }
 .momentSave:not(:disabled):active { transform: scale(.985); --shared-press-scale: 1; }
 .momentSignIn { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--line-soft); }

@@ -124,10 +124,16 @@
   transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.pubsJumpChip:hover,
 .pubsJumpChip:focus-visible {
   border-color: var(--accent-action);
   color: var(--accent-action);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pubsJumpChip:hover {
+    border-color: var(--accent-action);
+    color: var(--accent-action);
+  }
 }
 
 .pubsJumpChip:active {
@@ -176,10 +182,16 @@
   justify-self: end;
 }
 
-.pubsShowMoreBtn:hover,
 .pubsShowMoreBtn:focus-visible {
   border-color: var(--accent-action);
   color: var(--accent-action);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pubsShowMoreBtn:hover {
+    border-color: var(--accent-action);
+    color: var(--accent-action);
+  }
 }
 
 .pubsShowMoreBtn:active {
@@ -205,10 +217,12 @@
   grid-template-rows: 1fr;
 }
 
-.pubsCard:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--accent-action) 40%, var(--line));
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--ink) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .pubsCard:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent-action) 40%, var(--line));
+    box-shadow: 0 14px 32px color-mix(in srgb, var(--ink) 10%, transparent);
+  }
 }
 
 .pubsCardArt {
@@ -408,8 +422,10 @@
   outline-offset: 2px;
 }
 
-.pubsCard:hover .pubsMapLink {
-  border-color: var(--accent-action);
+@media (hover: hover) and (pointer: fine) {
+  .pubsCard:hover .pubsMapLink {
+    border-color: var(--accent-action);
+  }
 }
 
 /* Menu and booking are small text links, raised above the stretched map link
@@ -435,10 +451,12 @@
   text-underline-offset: 3px;
 }
 
-.pubsMenuLink:hover,
-.pubsBookLink:hover,
-.pubsCardLog:hover {
-  color: var(--accent-action);
+@media (hover: hover) and (pointer: fine) {
+  .pubsMenuLink:hover,
+  .pubsBookLink:hover,
+  .pubsCardLog:hover {
+    color: var(--accent-action);
+  }
 }
 
 .pubsEmpty {
@@ -454,8 +472,10 @@
     animation: none;
   }
 
-  .pubsCard:hover {
-    transform: none;
+  @media (hover: hover) and (pointer: fine) {
+    .pubsCard:hover {
+      transform: none;
+    }
   }
 
   .pubsJumpChip:active,

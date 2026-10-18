@@ -52,8 +52,10 @@
   text-decoration: none;
 }
 
-.permalink__brand:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .permalink__brand:hover {
+    color: var(--brass);
+  }
 }
 
 .permalink__home {
@@ -247,8 +249,10 @@
   border: 1px solid var(--ink-deep);
 }
 
-.permalink__primary:hover {
-  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+@media (hover: hover) and (pointer: fine) {
+  .permalink__primary:hover {
+    background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
+  }
 }
 
 /* The primary is ink on paper in the light theme. Both tokens flip in dark, so
@@ -260,10 +264,12 @@ html[data-theme="dark"] .permalink__primary {
   color: var(--color-on-accent);
 }
 
-html[data-theme="dark"] .permalink__primary:hover {
-  background: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="dark"] .permalink__primary:hover {
+    background: var(--color-accent-strong);
+    border-color: var(--color-accent-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .permalink__ghost {
@@ -272,9 +278,11 @@ html[data-theme="dark"] .permalink__primary:hover {
   border: 1px solid var(--line);
 }
 
-.permalink__ghost:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .permalink__ghost:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
 }
 
 /* Share strip — a quiet stamp row under the actions, pinned to the mat. */
@@ -376,8 +384,10 @@ html[data-theme="dark"] .permalink__primary:hover {
   cursor: pointer;
   text-align: left;
 }
-.commentToggle:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .commentToggle:hover {
+    border-color: var(--brass);
+  }
 }
 
 .commentPanel {

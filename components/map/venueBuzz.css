@@ -65,9 +65,14 @@
   margin: -7px -4px;
 }
 
-.venueBuzzCite a:hover,
 .venueBuzzCite a:focus-visible {
   text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .venueBuzzCite a:hover {
+    text-decoration: underline;
+  }
 }
 
 .venueBuzzMentions {
@@ -97,10 +102,16 @@
   text-decoration: none;
 }
 
-.venueBuzzMention a:hover,
 .venueBuzzMention a:focus-visible {
   text-decoration: underline;
   border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .venueBuzzMention a:hover {
+    text-decoration: underline;
+    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+  }
 }
 
 .venueBuzzNote {

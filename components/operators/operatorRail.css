@@ -21,8 +21,10 @@
   cursor: pointer;
 }
 
-.operatorRailTrigger:hover {
-  color: var(--ledger-ink, #2b2620);
+@media (hover: hover) and (pointer: fine) {
+  .operatorRailTrigger:hover {
+    color: var(--ledger-ink, #2b2620);
+  }
 }
 
 .operatorRailCard {
@@ -140,9 +142,14 @@
   .operatorRailTrigger {
     color: #b8ad9d;
   }
-  .operatorRailTrigger:hover,
   .operatorRailTitle {
     color: #ece6dc;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .operatorRailTrigger:hover {
+      color: #ece6dc;
+    }
   }
   .operatorRailSubmit {
     border-color: #ece6dc;

@@ -60,9 +60,11 @@
   text-decoration: none;
 }
 
-.editorialRailLink:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) and (pointer: fine) {
+  .editorialRailLink:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .editorialRailLink:focus-visible {

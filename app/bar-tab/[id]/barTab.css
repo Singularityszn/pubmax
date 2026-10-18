@@ -98,9 +98,11 @@
   border-radius: var(--radius-sm, 8px);
 }
 
-.barTabMapLink:hover,
-.barTabLedgerLink:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .barTabMapLink:hover,
+  .barTabLedgerLink:hover {
+    border-color: var(--brass);
+  }
 }
 
 .barTabMapLink:focus-visible,
@@ -155,8 +157,10 @@
   transition: transform 0.2s ease;
 }
 
-.barTabTile--photo:hover .barTabTilePhoto {
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .barTabTile--photo:hover .barTabTilePhoto {
+    transform: scale(1.03);
+  }
 }
 
 .barTabTilePrice {

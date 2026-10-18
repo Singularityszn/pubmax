@@ -306,8 +306,10 @@
   text-decoration: none;
   transition: background 140ms ease;
 }
-.recapShare__cta:hover {
-  background: var(--accent-action-strong);
+@media (hover: hover) and (pointer: fine) {
+  .recapShare__cta:hover {
+    background: var(--accent-action-strong);
+  }
 }
 .recapShare__btn {
   padding: 10px 14px;

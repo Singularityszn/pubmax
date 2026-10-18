@@ -191,9 +191,11 @@
   border-bottom: 1px solid color-mix(in srgb, var(--brass) 40%, transparent);
 }
 
-.legalLink:hover {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .legalLink:hover {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
 }
 
 .legalContact {

@@ -51,9 +51,11 @@
   text-decoration: none;
 }
 
-.pintArrivalArea:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+@media (hover: hover) and (pointer: fine) {
+  .pintArrivalArea:hover {
+    border-color: var(--brass);
+    background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+  }
 }
 
 .pintArrivalArea:focus-visible {
@@ -89,8 +91,10 @@
   text-decoration: none;
 }
 
-.pintArrivalSource a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .pintArrivalSource a:hover {
+    text-decoration: underline;
+  }
 }
 
 @media (max-width: 420px) {
