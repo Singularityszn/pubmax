@@ -92,8 +92,8 @@ export function mapGeneratedRouteDraftValue(
     ? confidence.warnings.filter((warning): warning is string => typeof warning === "string")
     : [];
   const routeTotals = body.routeTotals as { distanceBasis?: unknown } | null | undefined;
-  const transportBasis = routeTotals?.distanceBasis === "routed"
-    ? "routed"
+  const transportBasis = routeTotals?.distanceBasis === "routed" || routeTotals?.distanceBasis === "street"
+    ? routeTotals.distanceBasis
     : routeTotals
       ? "straight-line"
       : null;
