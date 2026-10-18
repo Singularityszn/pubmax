@@ -191,9 +191,12 @@
   box-shadow: 0 1px 3px color-mix(in srgb, var(--ink-deep) 14%, transparent);
 }
 
+/* Inside the one-hairline group, focus marks the door itself rather than
+   building a second shape around it (docs/DESIGN_SYSTEM.md, the de-box traps). */
 .loginPageDoor:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
+  outline-offset: -2px;
+  border-radius: 999px;
 }
 
 .loginPageForm .authOptions {

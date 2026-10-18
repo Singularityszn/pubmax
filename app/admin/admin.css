@@ -248,10 +248,12 @@
   cursor: pointer;
 }
 
+/* A selection reads in ink, never coral (docs/DESIGN_SYSTEM.md "Coral is
+   spent twice"). */
 .admin-tab.active {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--ink);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .admin-import-form {
@@ -371,4 +373,13 @@
   margin: 0 0 0.65rem;
   font-size: 0.82rem;
   color: var(--muted);
+}
+
+.admin-video {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  max-height: 480px;
+  border-radius: 12px;
+  background: var(--panel);
 }

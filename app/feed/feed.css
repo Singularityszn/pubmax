@@ -2184,9 +2184,12 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
   box-shadow: var(--feed-shadow);
 }
 
+/* Inside the one-hairline group, focus marks the tab itself rather than
+   building a second shape around it (docs/DESIGN_SYSTEM.md, the de-box traps). */
 .feedSocialTab:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
+  outline-offset: -2px;
+  border-radius: 999px;
 }
 
 @media (prefers-reduced-motion: reduce) {

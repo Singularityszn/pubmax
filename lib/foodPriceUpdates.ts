@@ -13,6 +13,7 @@ export type FoodPriceUpdate = {
   itemName: string;
   category: FoodCategory;
   priceGbp: number;
+  caloriesKcal?: number;
   description?: string;
   dietary?: FoodDietary[];
   source: { label: string; url: string; licence: string };
@@ -37,6 +38,9 @@ function isValidFoodPriceUpdate(
   if (!isNonEmptyString(row.itemName)) return false;
   if (!isFoodCategory(row.category)) return false;
   if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
+  if (row.caloriesKcal !== undefined && (!isFiniteNumber(row.caloriesKcal) || row.caloriesKcal < 0)) {
+    return false;
+  }
   if (row.description !== undefined && !isNonEmptyString(row.description)) return false;
   if (!isValidDietary(row.dietary)) return false;
   const source = row.source;
@@ -61,6 +65,17 @@ function updateProvenance(update: FoodPriceUpdate): FoodProvenance {
   };
 }
 
+function calorieFields(update: FoodPriceUpdate): Pick<FoodItem, "caloriesKcal" | "caloriesProvenance"> {
+  if (update.caloriesKcal === undefined) return {};
+  return {
+    caloriesKcal: update.caloriesKcal,
+    caloriesProvenance: {
+      ...updateProvenance(update),
+      sourceUrl: update.source.url,
+    },
+  };
+}
+
 function stableFoodId(update: FoodPriceUpdate): string {
   const input = `${update.venueKey}\u0000${update.category}\u0000${update.itemName}`;
   let hash = 2166136261;
@@ -79,8 +94,10 @@ function foodFromPriceUpdate(update: FoodPriceUpdate): FoodItem {
     priceGbp: update.priceGbp,
     description: update.description,
     dietary: update.dietary,
+    ...(update.dietary !== undefined ? { dietaryProvenance: { ...updateProvenance(update), sourceUrl: update.source.url } } : {}),
     provenance: updateProvenance(update),
     source: update.source.url,
+    ...calorieFields(update),
   };
 }
 
@@ -107,7 +124,11 @@ export function applyFoodPriceUpdatesToMenu(
       provenance: updateProvenance(update),
       description: update.description ?? item.description,
       dietary: update.dietary ?? item.dietary,
+      dietaryProvenance: update.dietary !== undefined
+        ? { ...updateProvenance(update), sourceUrl: update.source.url }
+        : item.dietaryProvenance,
       source: update.source.url,
+      ...calorieFields(update),
     };
   });
 

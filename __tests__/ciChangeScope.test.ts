@@ -1,15 +1,23 @@
 // A DOCS OR DATA PULL REQUEST SKIPS THE HEAVY JOBS, AND NO REQUIRED CHECK
 // WAITS FOR EVER (owner decision, 16 Oct 2026).
 //
-// Every heavy job (unit shards, Coverage, the production build, lint and the
-// typecheck, the browser law and layout pins, effective RLS) classifies the
-// pull request's diff in its own first step and skips its own steps when the
-// change is only docs or only data. It never skips at the job level: a skipped
-// matrix job reports one check under its unexpanded name ("Unit tests
+// Every heavy Linux job (unit shards, Coverage, the production build, lint and
+// the typecheck, the browser law pins, effective RLS) classifies the pull
+// request's diff in its own first step and skips its own steps when the change
+// is only docs or only data. It never skips at the job level: a skipped matrix
+// job reports one check under its unexpanded name ("Unit tests
 // (${{ matrix.shard }}/2)"), and branch protection then waits for "Unit tests
 // (1/2)" for ever. A job that runs and skips its steps reports success under
 // its real name. The freshness gate, data validation, review scope and
 // Security CI are not gated at all. docs/CI_RUNBOOK.md is the runbook.
+//
+// The macOS layout pins are the one exception (owner decision, 17 Oct 2026).
+// The free plan runs only 5 macOS jobs at once, and a job that starts only to
+// skip its steps still holds a macOS runner while it waits. So one Linux job,
+// "Change scope", classifies the diff, and the three layout-pin jobs are
+// skipped whole when it succeeds and says docs or data. They are named jobs,
+// not a matrix, so a skipped one reports under its own name, which branch
+// protection counts as passed. If the classifier fails, they run.
 //
 // The classifier and the named-test step are EXECUTED here, against a
 // stand-in `git` and `npx`, so these are pins on what the steps do, not on
@@ -110,8 +118,8 @@ describe("the change scope", () => {
       "ci.yml / lint-and-types",
       "ci.yml / production-build",
       "ci.yml / unit-tests",
+      "e2e.yml / change-scope",
       "e2e.yml / law-pins",
-      "e2e.yml / layout-pins",
       "rls-session.yml / rls-session",
     ]);
     for (const { where, job: gated } of gatedJobs) {
@@ -174,9 +182,20 @@ describe("the change scope", () => {
   });
 });
 
+// The job that only classifies, for the macOS layout pins to read.
+const SCOPE_JOB = "e2e.yml / change-scope";
+const LAYOUT_PIN_JOBS = ["layout-pins-1", "layout-pins-2", "layout-pins-3"];
+// Run unless the classifier succeeded and said docs or data. A failed
+// classifier must run the layout pins, not skip them: a skipped check counts
+// as passed for branch protection, so skipping would let a code change merge
+// without them (fail closed).
+const LAYOUT_PIN_IF =
+  "${{ !cancelled() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.scope == 'code') }}";
+
 describe("what each scope runs", () => {
   it("gates every step after the classifier, and never a whole job", () => {
     for (const { where, job: gated } of gatedJobs) {
+      if (where === SCOPE_JOB) continue;
       expect(gated.if ?? "", `${where} must not skip at the job level`).not.toContain("scope");
       const after = gated.steps.slice(gated.steps.findIndex((entry) => entry.name === CLASSIFY) + 1);
       expect(after.length, where).toBeGreaterThan(0);
@@ -191,12 +210,35 @@ describe("what each scope runs", () => {
     expect(step("ci.yml / coverage", "Enforce coverage").if).toBe(codeOnly);
     expect(step("ci.yml / production-build", "Build").if).toBe(codeOnly);
     expect(step("e2e.yml / law-pins", "Run law-pinning journeys").if).toBe(codeOnly);
-    expect(step("e2e.yml / layout-pins", "Run layout-pinning journeys").if).toBe(codeOnly);
     expect(step("rls-session.yml / rls-session", "Run effective RLS session tests").if).toBe(codeOnly);
     // Lint and the typecheck still run for data: a JSON pack can be imported
     // by TypeScript. Only a docs-only change skips them.
     expect(step("ci.yml / lint-and-types", "Lint").if).toBe("steps.scope.outputs.scope != 'docs'");
     expect(step("ci.yml / lint-and-types", "Typecheck").if).toBe("steps.scope.outputs.scope != 'docs'");
+  });
+
+  it("skips the macOS layout pins whole, by fixed name, only for a classified docs or data change", () => {
+    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed.jobs as Record<
+      string,
+      Job & { "runs-on"?: string; needs?: string[]; outputs?: Record<string, string>; strategy?: unknown }
+    >;
+    const scopeJob = defined(e2e["change-scope"], "change-scope");
+    // It only classifies: checkout, then the classifier, on Linux.
+    expect(scopeJob["runs-on"]).toBe("ubuntu-latest");
+    expect(scopeJob.steps.map((entry) => entry.name)).toEqual(["Checkout", CLASSIFY]);
+    expect(scopeJob.outputs).toEqual({ scope: "${{ steps.scope.outputs.scope }}" });
+    expect(scopeJob.if).toBeUndefined();
+    for (const id of LAYOUT_PIN_JOBS) {
+      const layout = defined(e2e[id], id);
+      expect(layout["runs-on"], id).toBe("macos-latest");
+      expect(layout.needs, id).toEqual(["change-scope"]);
+      expect(layout.if, id).toBe(LAYOUT_PIN_IF);
+      // A matrix job skipped whole reports under its unexpanded name.
+      expect(layout.strategy, id).toBeUndefined();
+      expect(layout.name ?? "", id).not.toContain("${{");
+      // Nothing inside the job asks the scope again.
+      for (const entry of layout.steps) expect(entry.if ?? "", `${id} / ${entry.name}`).not.toContain("scope");
+    }
   });
 
   it("keeps the freshness gate, data validation, review scope and Security CI for every change", () => {

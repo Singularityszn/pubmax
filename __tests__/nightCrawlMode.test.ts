@@ -221,7 +221,7 @@ describe("NightCrawlMode failed action reconciliation", () => {
       settledRender,
       (element) => (element.props as { role?: string }).role === "status",
     );
-    expect(textOf(status)).toBe("That did not save. Try again when you have signal.");
+    expect(textOf(status)).toBe("That update was rejected. Open the full plan to check the route.");
   });
 
   it("leaves the cursor where the batch rollback put it when a held stop is refused too", async () => {

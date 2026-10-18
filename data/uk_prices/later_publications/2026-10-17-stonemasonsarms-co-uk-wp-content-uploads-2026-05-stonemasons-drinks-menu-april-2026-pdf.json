@@ -1,0 +1,46 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only stonemasonsarms.co.uk",
+  "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+  "sourceObservedAt": "2026-10-17T12:41:01.728Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "stonemasonsarms.co.uk",
+      "venueId": "venue-uk-w972149539",
+      "osmId": "way/972149539",
+      "name": "The Stonemasons Arms",
+      "postcode": "W6 0LA",
+      "lat": 51.4943846,
+      "lng": -0.2301509,
+      "category": "soft-drink",
+      "priceGbp": 3.85,
+      "drinkLabel": "Softs Drinks Juices :Orange,Apple,Craberry,Pineapple",
+      "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+      "observedAt": "2026-10-17T12:41:01.728Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 50
+    }
+  ],
+  "withheld": [
+    {
+      "reason": "label-names-alcohol-or-mix",
+      "row": {
+        "host": "stonemasonsarms.co.uk",
+        "venueId": "venue-uk-w972149539",
+        "osmId": "way/972149539",
+        "name": "The Stonemasons Arms",
+        "postcode": "W6 0LA",
+        "lat": 51.4943846,
+        "lng": -0.2301509,
+        "category": "soft-drink",
+        "priceGbp": 4,
+        "drinkLabel": "ger Beer, Rose lemonade, Raspberry lemonade,Victorian lemonade, Mandarin&Orange",
+        "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+        "observedAt": "2026-10-17T12:41:01.728Z",
+        "pubsOnHost": 1,
+        "linesOnPage": 50
+      }
+    }
+  ]
+}

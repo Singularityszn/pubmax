@@ -1,0 +1,82 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only tapelia.co.uk",
+  "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+  "sourceObservedAt": "2026-10-17T13:54:39.220Z",
+  "candidateHost": "Curated London website (addCuratedLondonWebsiteHosts): Tapelia states its own website in public/data/pint_prices_app_dataset.json; the UK OSM pub snapshot carries no tapelia.co.uk website.",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published. Rows whose label names no drink, or names a mixer flavour from a mixer list, are listed under notSelected and were not published.",
+  "pageTextQuoted": "The page's own lines, re-read on 2026-10-17 through sourcePolicy and a live robots ask, normalised by lib/harvest/ukPriceCrawl.ts pageText (HTML) or lib/harvest/pdfText.ts readPdfText (PDF).",
+  "pageText": [
+    "MAHOU – £4.75 SAN MIGUEL – £4.25 ESTRELLA GALICIA Normal – £4.75 ESTRELLA GALICIA ESPECIAL 1906 – £5.95 ESTRELLA GALICIA ALCOHOL FREE – £4.75 ESTRELLA GALICIA GLUTEN FREE – £4.75 ESTRELLA GALICIA ON DRAFT – £4.75 / £7.50 (HP)",
+    "SOFT DRINKS",
+    "Lemonade – £3.55 Coke / Diet Coke / Coke Zero – £3.55 Juices (Orange, Apple, Pineapple) – £3.55 Tonic Water – £3.25 Mineral Water (Still / Sparkling) – £3.25 (S) / £4.75 (L)"
+  ],
+  "rows": [
+    {
+      "host": "tapelia.co.uk",
+      "venueId": "venue-12k6mg7",
+      "osmId": null,
+      "name": "Tapelia",
+      "postcode": null,
+      "lat": 51.5032,
+      "lng": -0.317403,
+      "category": "soft-drink",
+      "priceGbp": 3.55,
+      "drinkLabel": "(HP) SOFT DRINKS Lemonade –",
+      "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+      "observedAt": "2026-10-17T13:54:39.220Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 9
+    },
+    {
+      "host": "tapelia.co.uk",
+      "venueId": "venue-12k6mg7",
+      "osmId": null,
+      "name": "Tapelia",
+      "postcode": null,
+      "lat": 51.5032,
+      "lng": -0.317403,
+      "category": "soft-drink",
+      "priceGbp": 3.55,
+      "drinkLabel": "Coke / Diet Coke / Coke Zero –",
+      "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+      "observedAt": "2026-10-17T13:54:39.220Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 9
+    },
+    {
+      "host": "tapelia.co.uk",
+      "venueId": "venue-12k6mg7",
+      "osmId": null,
+      "name": "Tapelia",
+      "postcode": null,
+      "lat": 51.5032,
+      "lng": -0.317403,
+      "category": "soft-drink",
+      "priceGbp": 3.55,
+      "drinkLabel": "Juices (Orange, Apple, Pineapple) –",
+      "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+      "observedAt": "2026-10-17T13:54:39.220Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 9
+    },
+    {
+      "host": "tapelia.co.uk",
+      "venueId": "venue-12k6mg7",
+      "osmId": null,
+      "name": "Tapelia",
+      "postcode": null,
+      "lat": 51.5032,
+      "lng": -0.317403,
+      "category": "soft-drink",
+      "priceGbp": 3.25,
+      "drinkLabel": "Tonic Water –",
+      "sourceUrl": "https://www.tapelia.co.uk/menu2025",
+      "observedAt": "2026-10-17T13:54:39.220Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 9
+    }
+  ],
+  "withheld": [],
+  "notSelected": []
+}

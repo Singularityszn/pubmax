@@ -1,0 +1,58 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only roseandcrownwimbledon.co.uk",
+  "sourceUrl": "https://www.roseandcrownwimbledon.co.uk/food-drink/",
+  "sourceObservedAt": "2026-10-17T12:40:52.475Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "roseandcrownwimbledon.co.uk",
+      "venueId": "venue-uk-w531239102",
+      "osmId": "way/531239102",
+      "name": "The Rose and Crown",
+      "postcode": "SW19 5BA",
+      "lat": 51.4258555,
+      "lng": -0.2202053,
+      "category": "soft-drink",
+      "priceGbp": 5.35,
+      "drinkLabel": "berry & Mint Cranberry, Moroccan & English Mint, Fever-Tree Ginger Ale / 93kcal",
+      "sourceUrl": "https://www.roseandcrownwimbledon.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:40:52.475Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 7
+    },
+    {
+      "host": "roseandcrownwimbledon.co.uk",
+      "venueId": "venue-uk-w531239102",
+      "osmId": "way/531239102",
+      "name": "The Rose and Crown",
+      "postcode": "SW19 5BA",
+      "lat": 51.4258555,
+      "lng": -0.2202053,
+      "category": "soft-drink",
+      "priceGbp": 4.35,
+      "drinkLabel": "Raspberry & Rose Fever-Tree Raspberry & Rose Lemonade / 50Kcal",
+      "sourceUrl": "https://www.roseandcrownwimbledon.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:40:52.475Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 7
+    },
+    {
+      "host": "roseandcrownwimbledon.co.uk",
+      "venueId": "venue-uk-w531239102",
+      "osmId": "way/531239102",
+      "name": "The Rose and Crown",
+      "postcode": "SW19 5BA",
+      "lat": 51.4258555,
+      "lng": -0.2202053,
+      "category": "soft-drink",
+      "priceGbp": 4.85,
+      "drinkLabel": "TRIP Elderflower Mint Magnesium, Lions Mane, Lemon Balm / 22Kcal",
+      "sourceUrl": "https://www.roseandcrownwimbledon.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:40:52.475Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 7
+    }
+  ],
+  "withheld": []
+}

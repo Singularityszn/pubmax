@@ -209,6 +209,33 @@ describe("Social post store visibility and feeds", () => {
       .map((post) => post.body)).toEqual(["newer friends", "older public"]);
   });
 
+  it("drops a muted author from the muter's three lanes and nowhere else", async () => {
+    let tick = Date.parse("2026-08-05T18:00:00.000Z");
+    const store = createMemorySocialPostStore({
+      now: () => new Date(tick += 1_000),
+      relationships: async (viewer) => viewer.profileId === bob.profileId
+        ? {
+            followingProfileIds: new Set([alice.profileId]),
+            mutualProfileIds: new Set([alice.profileId]),
+            mutedProfileIds: new Set([alice.profileId]),
+          }
+        : { followingProfileIds: new Set([bob.profileId]), mutualProfileIds: new Set([bob.profileId]) },
+    });
+    const muted = await store.create(alice, fields({ body: "alice public" }));
+    await store.create(carol, fields({ body: "carol public" }));
+    await store.create(bob, fields({ body: "bob public" }));
+    await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+
+    const bodies = async (viewer: SocialPostActor, lane: "following" | "nearby" | "discover") =>
+      (await store.feed(viewer, lane === "nearby" ? { lane, area: "camden" } : { lane })).posts.map((post) => post.body);
+    expect(await bodies(bob, "following")).toEqual([]);
+    expect(await bodies(bob, "nearby")).toEqual(["bob public", "carol public"]);
+    expect(await bodies(bob, "discover")).toEqual(["bob public", "carol public"]);
+    // One-way: the muted author still reads the muter, and a direct read is not a lane.
+    expect(await bodies(alice, "following")).toEqual(["bob public"]);
+    await expect(store.read(muted.id, bob)).resolves.toMatchObject({ id: muted.id });
+  });
+
   it("uses mutation_version compare-and-swap for every reader-visible edit and moderates only sensitive changes", async () => {
     const store = createMemorySocialPostStore();
     const post = await store.create(alice, fields());

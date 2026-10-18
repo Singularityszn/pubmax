@@ -1,9 +1,74 @@
+import { QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
 import { describe, expect, it } from "vitest";
 
-import { refineRoutedAskQuery, routeAskDeterministically } from "@/lib/ask/router";
+import { refineRoutedAskQuery, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
+  it.each([
+    "Is the Tube running tonight?",
+    "Are there Tube delays?",
+    "Are Tube services delayed?",
+    "Is transit running tonight?",
+  ])("routes transit status interrogatives: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([{ name: "city_status", args: {} }]);
+  });
+
+  it.each([
+    "Find pubs near the Tube",
+    "Are there pubs near the Tube?",
+    "Is the pub near the Tube?",
+    "Where is the Tube?",
+    "How close is the Tube?",
+    "Is the Tube near Fox and Anchor?",
+    "Is the Tube nearby?",
+    "Are Tube stations near The Lamb?",
+  ])("keeps Tube proximity questions out of status routing: %s", (query) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["search_venues"]);
+  });
+
+  it.each([
+    "Is the Tube running tonight and wine prices at Fox and Anchor?",
+    "Wine prices at Fox and Anchor and is the Tube running tonight?",
+    "Are there Tube delays, wine prices at Fox and Anchor?",
+    "Wine prices at Fox and Anchor, are there Tube delays?",
+  ])("separates transit interrogatives from named category prices: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "city_status", args: {} },
+      { name: "venue_drinks", args: { venueName: "Fox and Anchor", drinkCategory: "wine" } },
+    ]);
+  });
+
+  it.each([
+    ["Pint prices at The Lamb and is the Tube running tonight?", "venue_prices"],
+    ["Are there Tube delays and drink prices at Fox and Anchor?", "venue_drinks"],
+    ["Is the Tube running tonight and plan a crawl in Soho?", "propose_plan"],
+    ["How much is a burger in Camden and are there Tube delays?", null],
+  ])("preserves the sibling request beside transit: %s", (query, tool) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(tool ? ["city_status", tool] : ["city_status"]);
+  });
+
+  it.each([
+    "Is the Tube running tonight and directions to Fox and Anchor from The Lamb?",
+    "Journey from The Lamb to Fox and Anchor and are there Tube delays?",
+  ])("preserves explicit journey endpoints beside transit: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "city_status", args: {} },
+      { name: "journey", args: { from: "The Lamb", to: "Fox and Anchor" } },
+    ]);
+  });
+
+  it("asks for a pub when a pint comparison has no discovery constraints", () => {
+    expect(routeAskDeterministically("Cheapest pint")).toEqual([
+      { name: "venue_prices", args: { venueName: "Cheapest", query: "Cheapest pint" } },
+    ]);
+  });
+
+  it.each(QUALIFIED_PRICE_REQUESTS)("retains the priced subject across qualifiers: $query", ({ query, code }) => {
+    expect(unsupportedPriceComparison(query)?.code).toBe(code);
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
   it("routes What's On queries to whats_on only", () => {
     const calls = routeAskDeterministically("Quiz tonight in Soho");
     expect(calls).toEqual([{ name: "whats_on", args: { query: "Quiz tonight in Soho" } }]);
@@ -17,6 +82,47 @@ describe("routeAskDeterministically", () => {
   it("routes crawl asks to propose_plan", () => {
     const calls = routeAskDeterministically("Plan a crawl in Soho for 4");
     expect(calls[0]?.name).toBe("propose_plan");
+  });
+
+  it.each([
+    "Plan a big night for four of us, with cheap pints and a lively route",
+    "Plan a night with cheap beer and a quiet crawl",
+    "Plan a night with cheap lively pubs and a cosy route",
+    "Plan a night with cheap pints and food and a lively route",
+    "Plan a cheap quiet night in Soho for four",
+    "Plan me 3 cheap pubs in Soho for four people",
+  ])("preserves planning constraints in %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([{ name: "propose_plan", args: { query } }]);
+  });
+
+  it.each([
+    "somewhere cheap and quiet",
+    "Somewhere cheap in Soho",
+    "Find somewhere cheap and quiet in Soho",
+    "cheap quiet in Soho",
+    "Find cheap quiet pubs in Soho",
+    "Find cheap lively pubs in Soho for four",
+    "Find cheap cosy pubs with food in Soho",
+    "Find cheap riverside pubs near Bank",
+    "Find cheap pubs with a beer garden in Soho",
+    "Find the cheapest quiet pubs in Soho",
+    "Find the cheapest pubs with a garden in Soho",
+  ])("preserves venue constraints in %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+  });
+
+  it.each([
+    "Somewhere cheap and vegan curry in Soho",
+    "Somewhere cheap wine in Soho",
+    "Somewhere cheap Coke in Soho",
+    "Burger cheapest in Camden",
+    "Somewhere cheap quiet wine in Soho",
+    "Somewhere cheap with food prices in Soho",
+  ])("keeps unsupported item fencing for %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
   });
 
   it("routes heritage asks to venue_heritage", () => {
@@ -38,6 +144,91 @@ describe("routeAskDeterministically", () => {
 });
 
 describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
+  it("preserves a named pub's generic recorded drink prices", () => {
+    const calls = routeAskDeterministically("Drink prices at The Lamb");
+    expect(calls.map((call) => call.name)).toEqual(["venue_drinks"]);
+    expect(calls[0]?.args.venueName).toMatch(/^(?:the )?lamb$/i);
+  });
+
+  it.each([
+    "How much is wine at The Eagle?",
+    "Wine price at The Eagle",
+    "What does wine cost at The Eagle?",
+    "Wine prices at The Eagle",
+    "Prices for wine at The Eagle",
+    "Wine costs at The Eagle",
+    "Costs of wine at The Eagle",
+    "What are the wine prices at The Eagle?",
+  ])("routes the named category-price ask %s to recorded drinks", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "venue_drinks", args: { venueName: "The Eagle", drinkCategory: "wine" } },
+    ]);
+  });
+
+  it.each([
+    "How much is a burger in Camden?",
+    "How much is a pint and food at The Lamb?",
+    "How much is a pint with food at The Lamb?",
+    "Burger costs in Camden",
+    "Costs for burgers in Camden",
+  ])("refuses an unsupported item-price question without comparison words: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
+  it.each([
+    "How much is a pint at The Lamb?",
+    "What is the price at The Lamb?",
+    "What's the price at The Lamb?",
+    "Can you tell me the price at The Lamb?",
+    "Prices at The Lamb",
+    "Pint prices at The Lamb",
+    "Pint costs at The Lamb",
+  ])("preserves existing unspecified pub and pint price asks: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual(["venue_prices"]);
+  });
+
+  it("keeps a conjunction inside a known place out of the price subject", () => {
+    expect(unsupportedPriceComparison("How much is a pint near the Elephant and Castle")).toBeNull();
+  });
+
+  it.each([
+    "Cheapest vegan food in Camden",
+    "Cheapest wine in Soho",
+    "Cheapest cocktails near Camden",
+    "Cheapest vegan curry in Camden",
+    "Cheapest Coke in Camden",
+    "Cheapest sparkling water in Camden",
+    "Cheapest pub lunch in Camden",
+    "Plan a night with cheap burgers and a lively route",
+    "Plan a night with cheap Coke and a lively route",
+    "Plan a night with cheap wine and a lively route",
+    "Plan a night with cheap pints and cocktails in Soho",
+    "Find cheap quiet pub lunches in Soho",
+    "Find cheap quiet Guinness pints in Soho",
+    "Plan a night with cheap food and a lively route",
+    "Plan me 3 cheap pubs in Soho for four people with wine",
+    "Somewhere cheap near Elephant and Castle and wine",
+  ])("does not substitute pint tools for %s", (query) => {
+    expect(unsupportedPriceComparison(query)).not.toBeNull();
+    expect(routeAskDeterministically(query)).toEqual([]);
+  });
+
+  it("checks recorded drinks when a wine comparison names one pub", () => {
+    expect(routeAskDeterministically("Cheapest wine at The Lamb")).toEqual([
+      { name: "venue_drinks", args: { venueName: "The Lamb", drinkCategory: "wine" } },
+    ]);
+  });
+
+  it.each([
+    "Cheapest pint in Camden",
+    "Cheapest pubs with food in Camden",
+    "Cheap pint and food in Camden",
+  ])("preserves supported pint and food-availability asks: %s", (query) => {
+    expect(routeAskDeterministically(query).length).toBeGreaterThan(0);
+  });
+
   it("routes a cheapest-pint ask to cheapest_pint_near with the area", () => {
     const calls = routeAskDeterministically("Cheapest pint in Camden");
     expect(calls).toEqual([

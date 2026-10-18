@@ -3,6 +3,7 @@ import "server-only";
 import type { PicksListReadStatus } from "@/lib/dayGreeting";
 import { outWindowToApiDay } from "@/lib/outListings";
 import { buildOutResponse } from "@/lib/out/loadOut";
+import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
 import {
   mergeTonightListingRows,
   tonightLaneReports,
@@ -13,6 +14,7 @@ import {
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   loadWhatsOn,
+  type LoadWhatsOnParams,
   type LoadWhatsOnResult,
   type WhatsOnReadStatus,
 } from "@/lib/whatsOnStore";
@@ -88,9 +90,18 @@ export function todayPicksLaneReport(
 }
 
 /** Bundled plus live What's-On for tonight — same spine as /api/whats-on. */
-export async function loadTodayWhatsOnAnswer(now: number): Promise<LoadWhatsOnResult | null> {
+export async function loadTodayWhatsOnAnswer(
+  now: number,
+  options: { pubOnly?: boolean; limit?: number } = {},
+): Promise<LoadWhatsOnResult | null> {
   try {
-    return await loadWhatsOn({ window: "tonight" }, { now });
+    const params: LoadWhatsOnParams = { window: "tonight", ...options };
+    if (options.pubOnly) {
+      const venueMatchIndex = await loadOutVenueMatchIndex("london");
+      if (!venueMatchIndex) return null;
+      params.venueMatchIndex = venueMatchIndex;
+    }
+    return await loadWhatsOn(params, { now });
   } catch (err) {
     console.warn(
       "[today] whats-on read failed; picks degraded:",

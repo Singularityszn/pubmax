@@ -76,16 +76,19 @@ import {
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
 import { WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES } from "@/lib/weatherRecommendations";
 
+// The route reads the real clock, so the reading is dated a minute before it:
+// a reading older than WEATHER_READING_MAX_AGE_MS is no reading at all.
 function snapshot(
   overrides: Partial<WeatherSnapshot["observations"][number]> = {},
 ): WeatherSnapshot {
+  const observedAt = new Date(Date.now() - 60_000).toISOString();
   return {
     version: 1,
-    generatedAt: "2026-07-28T00:00:00.000Z",
+    generatedAt: observedAt,
     observations: [
       {
         nightArea: "piccadilly-soho",
-        observedAt: "2026-07-28T00:00:00.000Z",
+        observedAt,
         expiresAt: "2099-07-29T00:00:00.000Z",
         condition: "Clear",
         feelsLikeC: 20,
@@ -94,7 +97,7 @@ function snapshot(
         source: {
           sourceUrl: "https://api.open-meteo.com/v1/forecast?test",
           publisher: "Open-Meteo",
-          publishedAt: "2026-07-28T00:00:00.000Z",
+          publishedAt: observedAt,
         },
         ...overrides,
       },

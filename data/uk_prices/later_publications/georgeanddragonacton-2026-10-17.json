@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://georgeanddragonacton.co.uk/drinks-menu",
+  "observedAt": "2026-10-17T12:40:59.240Z",
+  "evidence": "er £4.80 Alcohol Free & Soft Drinks Nirvana IPA (Pint) £5.80 Guinness 0% (538ml) £5.90 Kopparberg Alcohol Free (500ml) £6.00 Pint Coke / Lemonade / Tonic £3.50 Diet Coke £3.50 Pint of Juice £3.50 Fever Tree Tonic (200ml) £2.50 Water (200ml) £2.10 Frobishers Juice (250ml) £3.00 Red Bull £4.00 Coffee & Tea Espresso £1.50 Americano £2.20 Latte £3.20 Gingerbread Latte £4.20 Cappuccino £3.20 Tea (ask for flavours) £2.50 W",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "georgeanddragonacton.co.uk",
+      "venueId": "venue-uk-n302172067",
+      "osmId": "node/302172067",
+      "name": "George & Dragon",
+      "postcode": "W3 9DJ",
+      "lat": 51.5072726,
+      "lng": -0.2718046,
+      "category": "soft-drink",
+      "priceGbp": 3.5,
+      "drinkLabel": "Diet Coke",
+      "sourceUrl": "https://georgeanddragonacton.co.uk/drinks-menu",
+      "observedAt": "2026-10-17T12:40:59.240Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 91
+    }
+  ]
+}

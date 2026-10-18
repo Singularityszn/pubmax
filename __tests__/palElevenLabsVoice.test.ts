@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import {
   elevenLabsVoiceEnvKeyForSpecies,
   resolveElevenLabsVoiceIdForPal,
@@ -71,5 +72,19 @@ describe("resolveElevenLabsVoiceIdForPal", () => {
 
   it("returns null when nothing is configured", () => {
     expect(resolveElevenLabsVoiceIdForPal(basePal)).toBeNull();
+  });
+
+  it.each([
+    ["voice-picked", "voice-species", "selected", "voice-picked"],
+    ["", "voice-species", "species", "voice-species"],
+    ["", "", "agent-default", null],
+  ])("names the actual voice selection in the grant metadata", (picked, species, source, voiceId) => {
+    vi.stubEnv("ELEVENLABS_VOICE_EMBER", picked);
+    vi.stubEnv("ELEVENLABS_VOICE_FOX", species);
+    expect(buildPalVoiceOverrides(basePal)).toEqual({
+      voiceId,
+      voiceSource: source,
+      firstMessage: "Hi, I'm Ripley. What kind of night are you planning?",
+    });
   });
 });

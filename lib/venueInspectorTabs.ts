@@ -22,7 +22,7 @@ export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   // after what it costs, and because a photo is the one section a reader can
   // judge in a glance rather than by reading.
   { key: "photos", label: "Photos", shortLabel: "Photos" },
-  { key: "menu", label: "Drinks", shortLabel: "Drinks" },
+  { key: "menu", label: "Menu", shortLabel: "Menu" },
   { key: "pints", label: "Stories", shortLabel: "Stories" },
   { key: "story", label: "Lore", shortLabel: "Lore" },
 ];

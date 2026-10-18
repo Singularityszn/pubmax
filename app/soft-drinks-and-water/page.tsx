@@ -24,7 +24,7 @@ type PageProps = {
 export const metadata: Metadata = {
   title: WORKING_TITLE,
   description:
-    "Zero-sugar cola (Coke Zero, Diet Coke, Pepsi Max, Diet Pepsi) and still water prices at London pubs, with the poured brand and publisher status beside every listed figure.",
+    "Non-alcoholic prices at London pubs: Lucia 🐐 (Coke Zero and Diet Coke), zero-sugar cola and still water, with the poured brand and publisher status beside every listed figure.",
   alternates: { canonical: "/soft-drinks-and-water" },
 };
 
@@ -52,6 +52,8 @@ export default async function SoftDrinksAndWaterPage({ searchParams }: PageProps
         activeSubtypeId={payload.subtypeId}
         rows={payload.rows}
         observedCounts={payload.observedCounts}
+        mcdonalds={payload.mcdonalds}
+        listedPricesUnavailable={payload.listedPricesUnavailable}
       />
     </main>
   );

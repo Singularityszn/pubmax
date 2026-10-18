@@ -22,6 +22,8 @@ type CommunityContributionPayload =
        */
       measure?: DrinkMeasure;
       measureLabel?: string;
+      /** Which soft drink, sent only where the venue asks (a London counter). */
+      drinkSubtype?: string;
     }>
   | Readonly<{
       kind: "venue-signal";
@@ -52,6 +54,7 @@ export function postCommunityContribution(
       form.set("priceGbp", String(payload.priceGbp));
       if (payload.measure) form.set("measure", payload.measure);
       if (payload.measureLabel) form.set("measureLabel", payload.measureLabel);
+      if (payload.drinkSubtype) form.set("drinkSubtype", payload.drinkSubtype);
     }
     if (options.pintPhoto) form.set("pint_photo", options.pintPhoto);
     if (options.receiptPhoto) form.set("receipt_photo", options.receiptPhoto);

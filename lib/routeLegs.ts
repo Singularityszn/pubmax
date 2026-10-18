@@ -32,6 +32,9 @@ export const WALK_KMH = 4.8;
 /** The transport basis a generated stop carries when its walk in was routed on foot. */
 export const ROUTED_WALK_TRANSPORT_BASIS = "openrouteservice foot-walking route duration";
 
+/** The transport basis a generated stop carries when its walk in came from the street-walk table. */
+export const STREET_WALK_TRANSPORT_BASIS = `street walk at ${WALK_KMH} km/h along mapped streets plus 5 minutes uncertainty per leg`;
+
 // Cheap "runner" toggle (story 25 nicety): a steady easy-run pace. One extra
 // constant, no new distance math — the same leg distances, a different pace.
 export const RUN_KMH = 9;

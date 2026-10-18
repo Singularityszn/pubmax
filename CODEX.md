@@ -53,10 +53,11 @@ Your own drafts (#1763, #1765 to #1774) are yours; the fleet has not touched the
 
 ```sh
 git clone --depth 1 https://github.com/Singularityszn/pubmax /tmp/pubmax-deploy && cd /tmp/pubmax-deploy
-npx -y vercel@latest link --yes --project chengdu --scope pubmax69
-npx -y vercel@latest deploy --prod --yes
-curl -s https://pubmaxxing.com/api/version
+npx -y vercel@62.1.0 link --yes --project chengdu --scope pubmax69
+npm run release:prod
 ```
+
+`62.1.0` is the pin in `scripts/lib/vercelCli.mjs`, so read it there if it has moved, never `latest`. `npm run release:prod` deploys through the same pin, promotes the build, waits for `/api/version` to name it and ends at the smoke verdict. `docs/DEPLOYMENT.md` "One release command" lists what it needs (`gh` signed in, a Vercel session) and every refusal.
 
 `/tmp/pubmax-deploy` already exists, linked, at `42685ce22`; `git fetch --depth 1 origin main && git reset --hard origin/main` before deploying again.
 
@@ -64,7 +65,7 @@ curl -s https://pubmaxxing.com/api/version
 
 - Lanes and slots: review-1764 slot 9, review-1747 slot 12, review-1755 slot 10 (PR merged, slot can be torn down), review-1756 slot 11, review-1741 slot 16, reddit ship slot 14, harvest soft-drinks-menus-2 slot 6 (now on your `codex/soft-drinks-harvest-correction-20260922` branch with uncommitted test edits; its `fm/pubmax-harvest-soft-drinks-menus-2` branch is still in that slot; commit or discard before the pool reclaims it).
 - Resume: `cd $FM_HOME && bin/fm-control.sh <lane> relaunch --harness cursor --model composer-2.5 --effort xhigh --note "<progress>"`; re-arm the watcher with `data/tools/fm-watch-long.sh`; drain wakes with `bin/fm-wake-drain.sh`. Tear down a merged lane with `bin/fm-teardown.sh <lane>` after `git checkout -- public/data docs/proof` (`next-env.d.ts` is ignored).
-- Captain calls still open in the backlog (`tasks-axi list`): vendored skill trees out of the product repo (`skills/` has no tracked files, `docs/superpowers`, `.firecrawl/design-skills`), unnamed OSM pubs on the UK map, UK seed refresh, phone compass, map tile CDN, landing primary, plus the older 5 Sep review calls.
+- Captain calls still open in the backlog (`tasks-axi list`): vendored skill trees out of the product repo (`skills/` has no tracked files, `docs/superpowers`; `.firecrawl/` is settled: it is untracked and ignored, so scraped pages stay local), unnamed OSM pubs on the UK map, UK seed refresh, phone compass, map tile CDN, landing primary, plus the older 5 Sep review calls.
 - Standing captain rulings live in `$FM_HOME/data/captain.md`; the session timeline in `$FM_HOME/data/checkpoints/2026-09-16-codex-handover.md`; the earlier detailed handoff in `$FM_HOME/data/checkpoints/2026-09-22-codex-handoff.md`; the machine snapshot repo `https://github.com/karanmrn/karan-machine-setup`.
 
 ## 8. Not done, in priority order

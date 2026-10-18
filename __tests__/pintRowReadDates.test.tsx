@@ -7,7 +7,7 @@ import TonightCheapPints from "@/app/tonight/TonightCheapPints";
 import { buildDrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import { oldestPintRead } from "@/lib/drinks";
 import { nearPriceTrustObservedAt, resolveNearPriceTrust } from "@/lib/nearPriceTrust";
-import { faqItems, pintFactStats } from "@/lib/pintFacts";
+import { factBlockSentences, faqItems, pintFactStats } from "@/lib/pintFacts";
 import type { Venue, VenuePrice } from "@/lib/venues";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -84,6 +84,32 @@ describe("a price is dated by its own row's read", () => {
       { monthYear: "October 2026", year: "2026" },
     );
     expect(defined(unread).answer).toBe("The cheapest tracked pint in Camden is £3.50 at The cheap.");
+  });
+
+  it("dates a borough's average by the reads it averages, never by the list's refresh", () => {
+    const opts = { monthYear: "October 2026", year: "2026", observedDate: "2 October 2026" };
+    const mixed = pintFactStats([venue("cheap", 4, JULY), venue("dear", 6, OCTOBER)], "Camden", "camden");
+    const [average] = factBlockSentences(mixed, opts);
+    expect(average).toBe(
+      "From prices read between July 2026 and October 2026, the average pint in Camden costs £5.00 across 2 tracked pubs.",
+    );
+    const answer = faqItems(mixed, opts).find((item) => item.question.startsWith("How much is a pint"));
+    expect(defined(answer).answer).toBe(average);
+
+    const july = pintFactStats([venue("a", 4, JULY), venue("b", 6, JULY)], "Camden", "camden");
+    expect(factBlockSentences(july, opts)[0]).toBe(
+      "As of July 2026, the average pint in Camden costs £5.00 across 2 tracked pubs.",
+    );
+
+    const partly = pintFactStats([venue("a", 4, JULY), venue("b", 6, undefined)], "Camden", "camden");
+    expect(factBlockSentences(partly, opts)[0]).toBe(
+      "As of July 2026, the average pint in Camden costs £5.00 across 2 tracked pubs. 1 of those prices records no read date.",
+    );
+
+    const unread = pintFactStats([venue("a", 4, undefined)], "Camden", "camden");
+    expect(factBlockSentences(unread, opts)[0]).toBe(
+      "The average pint in Camden costs £4.00 across 1 tracked pub. That price records no read date.",
+    );
   });
 
   it("carries a near-you price's own read into the accepted venue's provenance", () => {

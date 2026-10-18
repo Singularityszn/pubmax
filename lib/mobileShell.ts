@@ -4,8 +4,7 @@ import { parsePoiHidden, type PoiHidden } from "@/lib/poiToggleGroups";
 import { parseDrinkCategoryParam } from "@/lib/drinkBrands";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { SheetSnap } from "@/lib/sheetSnap";
-import type { NightAreaSlug } from "@/lib/nightAreas";
-import { isNightAreaSlug } from "@/lib/nightPlanning";
+import { isNightAreaSlug, type NightAreaSlug } from "@/lib/nightAreaSlugs";
 
 export type MapOverlay =
   | "none"
