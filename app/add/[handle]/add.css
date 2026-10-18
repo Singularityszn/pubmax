@@ -5,7 +5,6 @@
 .addShell {
   min-height: 100dvh;
   background: var(--paper);
-  padding-bottom: var(--mobile-tab-clearance, 96px);
 }
 
 /* Host for the confirm card. Phone: full-width stack under the nav.

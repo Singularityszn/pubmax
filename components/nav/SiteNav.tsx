@@ -97,9 +97,11 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
   // Social is a primary tab, and its aliases light it too.
-  if (active === "social" || active === "feed" || active === "discover" || active === "crawls") {
+  if (active === "social" || active === "feed" || active === "discover") {
     return "social";
   }
+  // The crawl routes are walks to plan, never Social (PLAN_NAV_MATCH).
+  if (active === "crawls") return "plan";
   // Out folded into Tonight, so the retired Out page lights Tonight.
   if (active === "tonight" || active === "out") return "now";
   // The city picker is a setting reached from the map's chip, not a door.

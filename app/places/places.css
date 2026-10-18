@@ -13,9 +13,7 @@
 }
 
 .placesBody {
-  padding-bottom: calc(
-    var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--space-6)
-  );
+  padding-bottom: var(--space-6);
 }
 
 .placesBack {

@@ -122,6 +122,72 @@ test.describe("Today mobile block geometry", () => {
   });
 });
 
+// The last line of a page ends above the create disc and the tab bar when the
+// page is scrolled to the very bottom, and the body is the only thing that
+// reserved the room (components/nav/mobileNav.css, --chrome-bottom-clearance;
+// source fence __tests__/chromeBottomClearance.test.ts).
+test.describe("the foot of a scrolling page clears the phone chrome", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  for (const route of ["/", "/today", "/tonight", "/founders", "/historic"]) {
+    test(`${route} ends above the create disc and the tab bar`, async ({ page }) => {
+      await page.addInitScript(() => {
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      });
+      await page.goto(route);
+      const tabBar = page.getByRole("navigation", { name: "Primary" });
+      await expect(tabBar).toBeVisible({ timeout: 45_000 });
+      await expect(page.locator(".createFab")).toBeVisible();
+
+      const foot = await page.evaluate(async () => {
+        const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+        for (let i = 0; i < 6; i += 1) {
+          window.scrollTo(0, document.documentElement.scrollHeight);
+          await settle();
+        }
+        const probe = document.createElement("div");
+        probe.style.paddingBottom = "var(--chrome-bottom-clearance)";
+        document.body.append(probe);
+        const token = Number.parseFloat(getComputedStyle(probe).paddingBottom);
+        probe.remove();
+
+        let lowest = 0;
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const owner = node.parentElement;
+          if (!node.textContent?.trim() || !owner) continue;
+          if (owner.closest(".mobileTabBar, .createFabRoot, nextjs-portal, [aria-hidden='true']")) continue;
+          const style = getComputedStyle(owner);
+          if (style.position === "fixed" || style.visibility === "hidden") continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          for (const rect of range.getClientRects()) {
+            if (rect.width >= 1 && rect.height >= 1) lowest = Math.max(lowest, rect.bottom);
+          }
+        }
+        return {
+          token,
+          bodyPaddingBottom: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+          lowestText: lowest,
+          fabTop: document.querySelector(".createFab")!.getBoundingClientRect().top,
+          railTop: document.querySelector(".mobileTabList")!.getBoundingClientRect().top,
+        };
+      });
+
+      expect(foot.token, "the phone publishes a clearance").toBeGreaterThan(0);
+      expect(foot.bodyPaddingBottom).toBeCloseTo(foot.token, 0);
+      expect(foot.lowestText, "the last line ends above the create disc").toBeLessThanOrEqual(
+        foot.fabTop + 0.5,
+      );
+      expect(foot.lowestText, "the last line ends above the tab bar").toBeLessThanOrEqual(
+        foot.railTop + 0.5,
+      );
+    });
+  }
+});
+
 test.describe("Android install prompt", () => {
   test.use({
     viewport: { width: 390, height: 844 },
