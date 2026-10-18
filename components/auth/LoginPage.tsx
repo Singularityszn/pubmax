@@ -22,6 +22,7 @@ import { hasSocialAuthProviders, type AuthStartResult } from "@/lib/authProvider
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
+import PhoneSignIn from "@/components/auth/PhoneSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
@@ -712,6 +713,12 @@ export default function LoginPage({
                     label={door.emailLabel}
                     submitLabel={door.emailCta}
                     primaryAction
+                  />
+                  {/* A text code makes the account on first use, so the
+                      phone door serves both intents, like the email one. */}
+                  <PhoneSignIn
+                    disabled={busy !== null}
+                    redirectTo={passwordDestination}
                   />
                   {intent === "signin" ? (
                     <HandlePasswordSignIn

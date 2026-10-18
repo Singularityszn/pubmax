@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   guardSocialAuthProvider,
   loadClerkSocialAuthProviders,
+  loadPhoneSignInAvailable,
   loadSocialAuthProviders,
+  readSupabaseAuthSettings,
   readSupabaseSocialAuthProviders,
   SOCIAL_AUTH_PROVIDERS_PATH,
 } from "@/lib/authProviderAvailability";
@@ -418,6 +420,7 @@ describe("GET /api/auth/providers", () => {
       google: true,
       apple: false,
       microsoft: false,
+      phone: false,
     });
     expect(response.headers.get("cache-control")).toBe(
       "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
@@ -448,6 +451,7 @@ describe("GET /api/auth/providers", () => {
       google: false,
       apple: false,
       microsoft: true,
+      phone: false,
     });
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
@@ -490,5 +494,54 @@ describe("GET /api/auth/providers", () => {
       code: "PROVIDER_SETTINGS_UNAVAILABLE",
       retryable: true,
     });
+  });
+});
+
+describe("phone sign-in availability", () => {
+  it("reads the phone flag beside the social flags from one settings read", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      settingsResponse({ google: true, apple: true, azure: false, phone: true }),
+    );
+    await expect(readSupabaseAuthSettings(fetchImpl)).resolves.toEqual({
+      social: { google: true, apple: true, microsoft: false },
+      phone: true,
+    });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("reads a missing phone flag as a closed door", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(settingsResponse({ google: true }));
+    await expect(readSupabaseAuthSettings(fetchImpl)).resolves.toMatchObject({ phone: false });
+  });
+
+  it("returns the phone flag from the route", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(settingsResponse({ phone: true })),
+    );
+    const { GET } = await import("@/app/api/auth/providers/route");
+    const response = await GET(new Request("http://localhost/api/auth/providers"));
+    await expect(response.json()).resolves.toEqual({
+      google: false,
+      apple: false,
+      microsoft: false,
+      phone: true,
+    });
+  });
+
+  it("loads the flag from the same-origin route and treats anything else as unknown", async () => {
+    const open = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ google: false, apple: false, microsoft: false, phone: true }), { status: 200 }),
+    );
+    await expect(loadPhoneSignInAvailable(open)).resolves.toBe(true);
+    expect(open).toHaveBeenCalledWith(SOCIAL_AUTH_PROVIDERS_PATH, expect.objectContaining({ credentials: "same-origin" }));
+
+    const older = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ google: false, apple: false, microsoft: false }), { status: 200 }),
+    );
+    await expect(loadPhoneSignInAvailable(older)).resolves.toBeNull();
+
+    const refused = vi.fn<typeof fetch>().mockResolvedValue(new Response("no", { status: 503 }));
+    await expect(loadPhoneSignInAvailable(refused)).resolves.toBeNull();
   });
 });

@@ -6,7 +6,7 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 | Event | Properties |
 | --- | --- |
-| `sign_in_initiated` | `provider` (`google`, `apple`, `microsoft`, `email`, `email_resume`, `handle_password`) |
+| `sign_in_initiated` | `provider` (`google`, `apple`, `microsoft`, `email`, `email_resume`, `handle_password`, `phone`) |
 | `user_signed_up` | _(none)_ |
 | `user_signed_in` | _(none)_ |
 | `user_signed_out` | _(none)_ |

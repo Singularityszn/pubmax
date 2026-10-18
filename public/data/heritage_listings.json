@@ -1318,15 +1318,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1265122",
       "distanceM": 2
     },
-    "venue-7c6oel": {
-      "listEntry": 1208737,
-      "grade": "II",
-      "listedYear": 1994,
-      "name": "The White Bear Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1208737",
-      "distanceM": 1
-    },
     "venue-7dqmn6": {
       "listEntry": 1080230,
       "grade": "II",
@@ -2145,6 +2136,15 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1358380",
       "distanceM": 1
+    },
+    "venue-tsa0sp": {
+      "listEntry": 1080386,
+      "grade": "II",
+      "listedYear": 1981,
+      "name": "The White Bear Public House",
+      "fact": "Grade II listed public house.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1080386",
+      "distanceM": 12
     },
     "venue-twpl2w": {
       "listEntry": 1299760,
@@ -3333,15 +3333,6 @@
       "fact": "Grade II listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1359410",
       "distanceM": 3
-    },
-    "venue-uk-w539369586": {
-      "listEntry": 1080386,
-      "grade": "II",
-      "listedYear": 1981,
-      "name": "The White Bear Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1080386",
-      "distanceM": 12
     },
     "venue-uk-w548783709": {
       "listEntry": 1103533,
