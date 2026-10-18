@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
 import ShareBar from "@/components/share/ShareBar";
 import Screen from "@/components/ui/screen";
 import { computeChaosScore } from "@/lib/chaosScore";
@@ -56,7 +58,20 @@ function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChao
   return `/api/chaos-card?${params.toString()}`;
 }
 
-export default function CrawlStoryPoster({ story, slug }: { story: DurableStory; slug: string }) {
+export default function CrawlStoryPoster({
+  story,
+  slug,
+  photo = null,
+}: {
+  story: DurableStory;
+  slug: string;
+  /**
+   * The patch the whole route sits in, when a photograph we hold is honestly
+   * of it (page.tsx resolves it). It leads the poster under the head,
+   * captioned with the place it shows; null shows none.
+   */
+  photo?: PlacePhotoData | null;
+}) {
   const total = story.totalGbp;
   const pricedStops = story.stops.filter((stop) => typeof stop.priceGbp === "number").length;
   const stopCount = story.stops.length;
@@ -107,6 +122,14 @@ export default function CrawlStoryPoster({ story, slug }: { story: DurableStory;
           </Link>
         }
       >
+        {photo ? (
+          <PlacePhoto
+            className="storyPhoto"
+            photo={photo}
+            sizes="(min-width: 720px) 40rem, calc(100vw - 2.75rem)"
+          />
+        ) : null}
+
         {story.vibeTags.length ? (
           <ul className="storyTags" aria-label="Crawl vibe tags">
             {story.vibeTags.map((tag) => (
