@@ -335,6 +335,10 @@
        reach for these instead of a literal. */
   --content-max: 640px;
   --content-max-wide: 1240px;
+  /* The data column the listing and index pages share (components/listing/
+     listing.css): wider than the reading column so a row can carry a name, its
+     meta and an end-aligned price, narrower than the wide compositions. */
+  --listing-max: 60rem;
 
   /* — Spacing scale: 4px base, used for new work; existing literal paddings
        are untouched. */
@@ -2123,10 +2127,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   flex-direction: column;
   align-items: center;
   width: min(100%, 560px);
-}
-
-.mapSkeletonMap {
-  display: none;
 }
 
 .mapSkeletonCopy {

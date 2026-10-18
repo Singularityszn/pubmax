@@ -137,15 +137,8 @@ html[data-theme="dark"] .mapOpeningPreviewDisc {
   }
 }
 
-/* While the preview stands in for the first frame, the loading scene's
-   illustrative dots step aside (they are a drawing of pins; these are the
-   pins), and the status line moves to the foot of the screen so it never sits
-   on a price. */
-html[data-map-preview="on"] .mapSkeletonMap,
-html[data-map-preview="on"] .mapLoadingScene {
-  display: none;
-}
-
+/* While the preview stands in for the first frame, the status line moves to
+   the foot of the screen so it never sits on a price. */
 html[data-map-preview="on"] .mapSkeleton {
   place-items: end center;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);

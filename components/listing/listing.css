@@ -9,7 +9,7 @@
    - The Screen head (components/ui/screen.tsx) owns the gutter
      (--page-gutter) and the outer width. Under `.listingShell` that width is
      the DATA column, --listing-max, plus the gutter on each side.
-   - --listing-max is 60rem (960px). It is wider than the reading column
+   - --listing-max (app/globals.css) is 60rem (960px). It is wider than the reading column
      (--content-max, 640px) because a data page carries a table, a chart or a
      grid of photographs that needs the room, and narrower than the page
      (--content-max-wide, 1240px) because a price at the far end of a 1240px
@@ -22,7 +22,6 @@
 
 .listingShell,
 .listingSection {
-  --listing-max: 60rem;
   color: var(--color-text);
 }
 

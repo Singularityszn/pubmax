@@ -189,9 +189,10 @@ press. Every animation sits behind the reduced-motion contract.
 
 The four primitives: `Kicker` is the sentence-case line above a heading;
 `TrustPill` is a pure renderer over the one standing `lib/priceTier.ts`
-decided: green for a price confirmed inside 30 days, amber for one the pub or
-its chain published, blue for a modelled figure, which prints `est. £X` and
-offers its method, and grey for none;
+decided, and it says that standing in WORDS: confirmed (with its day), listed,
+estimated (which prints `est. £X` and offers its method) and no price yet. Its
+only colour is the price band of the figure it prints (`lib/priceBand.ts`,
+captain's law 2026-09-05), so a pill with no figure is neutral;
 `EmptyState` is a title, one line and at most one quiet way onward; `Screen` is
 kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.

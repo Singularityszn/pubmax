@@ -129,7 +129,7 @@
 
 .faqItem summary::after {
   content: "+";
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 700;
   font-size: 18px;
   line-height: 1;
@@ -141,7 +141,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .faqItem summary:hover {
-    color: var(--brass);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 }
 
@@ -165,13 +166,13 @@
   margin: 32px 0 0;
 }
 
+/* A label, so sentence case in ink (caps are for stamps; coral is the one
+   primary, taste plan 18 Oct 2026). */
 .factLinksTitle {
-  margin: 0 0 10px;
-  font-size: 12px;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
   font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--brass);
+  color: var(--ink-soft);
 }
 
 .factLinksList {
@@ -200,8 +201,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .factLinksList a:hover {
-    border-color: var(--brass);
-    color: var(--brass);
+    border-color: var(--hairline-strong);
+    background: var(--panel-raised);
   }
 }
 
