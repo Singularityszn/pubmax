@@ -322,6 +322,12 @@ const nextConfig = {
       // Landing still says "Our story"; keep the old paths as aliases.
       { source: "/our-story", destination: "/about", permanent: true },
       { source: "/story", destination: "/about", permanent: true },
+      // The product calls it Pub Pal, so people type the long form. The page
+      // lives at /pal; without these the vanity link 404'd (site review,
+      // 18 Oct 2026).
+      { source: "/pub-pal", destination: "/pal", permanent: true },
+      { source: "/pub-pal/:path*", destination: "/pal/:path*", permanent: true },
+      { source: "/pubpal", destination: "/pal", permanent: true },
     ];
   },
   async headers() {

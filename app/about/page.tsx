@@ -315,7 +315,11 @@ export default async function AboutPage() {
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
-            <dd>PUBMAXX, always with two Xs. It lives at pubmaxxing.com.</dd>
+            <dd>
+              PUBMAXX, always with two Xs. The web address is pubmaxxing.com,
+              because pubmaxxing is what you do with it. Print PUBMAXX for the
+              app and keep the address for links.
+            </dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
