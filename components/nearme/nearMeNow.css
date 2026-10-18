@@ -61,6 +61,13 @@
   color: var(--ink-soft);
 }
 
+.nmnQuickPatchesNote {
+  margin: calc(-1 * var(--space-1)) 0 var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
+}
+
 .nmnLocate {
   display: inline-flex;
   align-items: center;
@@ -223,7 +230,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .nmnCard:hover {
-    background: color-mix(in srgb, var(--brass) 7%, transparent);
+    background: var(--panel);
   }
 }
 
@@ -374,10 +381,10 @@
   justify-content: center;
   min-height: var(--control-height);
   padding: 0 var(--control-pad-x);
-  border: 1px solid var(--control-tint-border);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--control-tint-surface);
-  color: var(--state-active-ink);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
   white-space: nowrap;
@@ -387,7 +394,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .nmnAccept:hover {
-    background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink));
+    border-color: var(--state-selected-border);
   }
 }
 
@@ -453,7 +460,7 @@
 @media (hover: hover) and (pointer: fine) {
   .nmnRetry:hover,
   .nmnBack:hover {
-    border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+    border-color: var(--state-selected-border);
   }
 }
 
@@ -550,9 +557,11 @@
   }
 }
 
+/* The chosen area is a selection, so it reads in ink, never a coral tint. */
 .nmnBoroughChip[data-active] {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .nmnBoroughChip {
@@ -570,8 +579,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .nmnBoroughChip:hover {
-    border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
-    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+    border-color: var(--state-selected-border);
   }
 }
 

@@ -740,6 +740,13 @@ function NearMeIdleIntro({
   const patches = (
     <div className="nmnQuickPatches">
       <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+      {/* What a patch answers, said once and only on the page: the map's
+          sheet is a tighter host with its own title. */}
+      {titledByHost ? null : (
+        <p className="nmnQuickPatchesNote">
+          Each one lists its pubs cheapest first, with the day each price was listed.
+        </p>
+      )}
       <ul className="nmnAreaChips" aria-label="Pick an area">
         {NIGHT_PATCHES.map((entry) => (
           <li key={entry.id}>

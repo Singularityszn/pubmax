@@ -375,12 +375,22 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   margin: 0 auto;
   padding: clamp(56px, 8vw, 104px) 0 clamp(24px, 3vw, 40px);
 }
-.lpWorth h2,
-.lpFaqTitle {
+.lpWorth h2 {
   max-width: 16ch;
   margin: 0;
   font: 700 clamp(2rem, 4.2vw, 3.25rem)/1 var(--font-display);
   letter-spacing: -.04em;
+  text-wrap: balance;
+}
+/* A section title, not a second hero: the claim at the top is the page's one
+   display line, so the questions take the h2 step (--text-xl). */
+.lpFaqTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   text-wrap: balance;
 }
 .lpWorth p,
@@ -604,7 +614,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpWorth,
   .lpFaq { padding: 48px 0 12px; }
   .lpWorth h2,
-  .lpFaqTitle { font-size: clamp(1.9rem, 9vw, 2.75rem); }
   .lpWorth p,
   .lpFaqAnswer { font-size: 16px; }
   /* Full-bleed the rail to the section's own gutters symmetrically (negative
@@ -879,7 +888,9 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── The questions ──────────────────────────────────────────────────────── */
 
-.lpFaqList { margin: var(--space-5) 0 0; }
+/* The hairlines between questions stop where the answers stop, so a rule
+   never runs out past the column it divides. */
+.lpFaqList { max-width: 36rem; margin: var(--space-5) 0 0; }
 
 .lpFaqRow + .lpFaqRow {
   margin-top: var(--space-5);
@@ -890,7 +901,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 .lpFaqQuestion {
   margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: var(--text-md);
   font-weight: 700;
 }
 

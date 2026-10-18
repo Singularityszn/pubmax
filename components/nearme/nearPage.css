@@ -21,24 +21,43 @@
   box-sizing: border-box;
 }
 
-/* Poster QR arrival: one orientation line above the near-me answer. */
+/* Poster QR arrival: one orientation line above the near-me answer. A note,
+   not an accent: it takes the panel and ink, and the page's coral stays on
+   Find my pint. */
 .nmnPosterNote {
-  margin: 0 0 var(--space-4, 16px);
-  padding: var(--space-3, 12px) var(--space-4, 16px);
-  border-left: 3px solid var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  font-size: 0.95rem;
-  line-height: 1.35;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
   color: var(--ink);
 }
 
-/* The first-run setup chip sits under the answer: an offer, never a gate. */
+/* The first-run setup sits under the answer: an offer, never a gate, and a
+   quiet text link rather than a chip, so it never reads as one more area to
+   pick beside the patches (taste plan, 18 Oct 2026). */
 .nmnFirstRunChip {
-  margin: var(--space-4, 16px) 0 0;
+  margin: var(--space-6) 0 0;
+  font-size: var(--text-sm);
 }
 
-.nmnFirstRunChip .uiChip {
-  text-decoration: none;
+.nmnFirstRunLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nmnFirstRunLink:hover {
+    color: var(--ink);
+    text-decoration-color: currentColor;
+  }
 }
 
 /* ── Desktop composition ──────────────────────────────────────────────────
@@ -80,5 +99,84 @@
     position: sticky;
     top: 96px; /* clears the floating SiteNav pill, as .feedRail does */
     margin-bottom: 0;
+  }
+
+  /* BEFORE A LOCATION THERE IS NO ANSWER YET, SO THERE IS NO RAIL. The idle
+     page put a 560px head in the left of a 1240px grid and the mode control
+     at the far right, and left about 60% of a 1440x900 screen empty (taste
+     plan, 18 Oct 2026). With nothing ranked yet the page is one composed
+     column: the mode control over the head, then the promise, then the eight
+     patches as a two-column index a pointer can scan. Nothing on it is
+     invented: every row is a real patch and a real door. */
+  .nmnPageBody:has(.nmnScreen) {
+    display: block;
+    max-width: 52rem;
+    padding-top: var(--space-10);
+  }
+
+  .nmnPageBody:has(.nmnScreen) > .nearModeSwitch {
+    position: static;
+    width: 20rem;
+    margin-bottom: var(--space-4);
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnScreen .screenHead {
+    max-width: none;
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnQuickPatches {
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnQuickPatchesLabel {
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnAreaChips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-8);
+    row-gap: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnAreaChips > li {
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnBoroughChip {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 56px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnBoroughChip::after {
+    content: "\2192";
+    margin-left: auto;
+    color: var(--muted);
+    font-family: var(--font-body);
+  }
+
+  .nmnPageBody:has(.nmnScreen) .nmnFirstRunChip {
+    max-width: 52rem;
+  }
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .nmnPageBody:has(.nmnScreen) .nmnBoroughChip:hover {
+    background: var(--panel);
   }
 }
