@@ -433,6 +433,28 @@ describe("review scope guard", () => {
     ]);
   });
 
+  it("permits a routine NHLE refresh that carries the read it was built from", () => {
+    const report = summarizeReviewScope([
+      "data/heritage/nhle_london_points.json",
+      "public/data/heritage_listings.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.categories.regenerated).toEqual(["public/data/heritage_listings.json"]);
+    expect(report.regeneratedLanes).toEqual(["heritage_listings"]);
+  });
+
+  it("keeps the NHLE listings pack alone forbidden", () => {
+    const report = summarizeReviewScope(["public/data/heritage_listings.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/heritage_listings.json" },
+    ]);
+    expect(report.regeneratedLanes).toEqual([]);
+  });
+
   it("permits generated database types when the diff carries a migration", () => {
     const report = summarizeReviewScope([
       "supabase/migrations/20260101000000_example.sql",

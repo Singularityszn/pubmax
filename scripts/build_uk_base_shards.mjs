@@ -26,13 +26,16 @@
 // DEDUPE. A matched pub stays in its shard with the owning curated venue id.
 // The client suppresses it only while that exact curated venue is drawable.
 //
-// Ownership is answered twice, in this order. First the `curatedRef` the UK
-// seed pack carries, which is the only key that can reconcile datasets with no
-// OSM ids at all (curated London) or two OSM objects for one pub. Then, for a
-// city pack PROMOTED out of this same base layer, the pub's own OSM id — an
+// Ownership is answered three times, in this order. First the `curatedRef` the
+// UK seed pack carries, which is the only key that can reconcile datasets with
+// no OSM ids at all (curated London) or two OSM objects for one pub. Then, for
+// a city pack PROMOTED out of this same base layer, the pub's own OSM id — an
 // exact identity, and the one that lets a new area ship without refetching the
-// country to re-annotate it. Nothing is removed from the base layer either
-// way, so a `venue-uk-…` id stays resolvable.
+// country to re-annotate it. Last, a curated London venue within 45 m whose
+// name is the pub's spelt another way ("&" for "and", "Public House", "The",
+// an apostrophe), which the seed's exact-name `curatedRef` misses
+// (`nearNameOwnerIndex` in lib/outerLondonOwnership.mjs). Nothing is removed
+// from the base layer either way, so a `venue-uk-…` id stays resolvable.
 //
 // REMOVAL. A refresh that drops an OSM object drops its `venue-uk-…` id. Each
 // build compares the rows it publishes with the rows already published and
@@ -61,7 +64,7 @@ import {
   cellBbox,
 } from "./lib/ukBaseGrid.mjs";
 import { readPromotionLedger } from "./lib/londonOsmPromotion.mjs";
-import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
+import { nearNameOwnerIndex, outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
 import { stableVenueIdFromKey, venueGroupingKey } from "./lib/venueCanonicalization.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import {
@@ -255,7 +258,7 @@ async function loadCuratedVenueOwners() {
     }
   }
 
-  return { owners, ownersByOsmId, curatedVenues };
+  return { owners, ownersByOsmId, curatedVenues, londonVenues };
 }
 
 /**
@@ -344,8 +347,9 @@ async function main() {
     );
   }
 
-  const { owners: curatedVenueOwners, ownersByOsmId, curatedVenues } =
+  const { owners: curatedVenueOwners, ownersByOsmId, curatedVenues, londonVenues } =
     await loadCuratedVenueOwners();
+  const nearNameLondonOwner = nearNameOwnerIndex(londonVenues);
   const renderable = pubs.filter(isRenderablePub);
   // A pub OSM maps with no name, from its own pack. The pack is required: a
   // missing one would quietly drop every unnamed pin from the next publish.
@@ -388,6 +392,7 @@ async function main() {
         ? curatedVenueOwners.get(ownerKey(source, id))
         : undefined) ??
       ownersByOsmId.get(String(pub.osmId)) ??
+      nearNameLondonOwner(pub) ??
       "";
     if (curatedVenueId) matchedOwners += 1;
     addRow(pub, toRow(pub, curatedVenueId));

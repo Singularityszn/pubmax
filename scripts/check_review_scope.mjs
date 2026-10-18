@@ -188,6 +188,7 @@ export const REGENERATED_LANES = [
     output: /^public\/data\/heritage_listings\.json$/,
     inputs: [
       /^scripts\/build_heritage_listings\.mjs$/,
+      /^data\/heritage\/nhle_london_points\.json$/,
       /^scripts\/lib\/heritageMatch\.mjs$/,
       /^scripts\/lib\/heritageBaseVenues\.mjs$/,
       /^public\/data\/pint_prices_app_dataset\.json$/,
