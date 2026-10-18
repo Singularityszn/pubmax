@@ -52,7 +52,7 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
-import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
+import { HISTORIC_PUB_COUNT } from "./londonMapGeometry";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask, and
 // trimmed after the 16 Oct 2026 UX audit): the claim, one line under it, the
@@ -222,7 +222,7 @@ async function readEvidence(
 }
 
 /** The line under the claim when the dataset cannot back a saving. */
-const MAP_LEDE = `London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`;
+const MAP_LEDE = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.`;
 
 export default function LandingHero({
   card,

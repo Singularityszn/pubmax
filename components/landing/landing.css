@@ -803,6 +803,14 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── Today and tonight: two answers, one sentence each ──────────────────── */
 
+/* When the prices behind the hero's average were read, in the data face a
+   dated figure uses elsewhere on this page. */
+.lpWorth > .lpPriceReads {
+  margin: 0;
+  color: var(--muted);
+  font: 550 var(--text-xs)/1.4 var(--font-data);
+}
+
 .lpAnswers {
   width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
   margin: 0 auto;
@@ -823,6 +831,8 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 @media (min-width: 720px) {
   .lpAnswersGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The Pub Pal door spans both answers rather than leaving one alone. */
+  .lpAnswerTileWide { grid-column: 1 / -1; }
 }
 
 .lpAnswerTile {

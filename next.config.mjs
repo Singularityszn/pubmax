@@ -94,7 +94,7 @@ const feedDataFiles = withRuntimeDataPacks(
 // runtime of a `vercel deploy` from a CLI, so reading it at request time made
 // /api/version answer null on exactly the deploys a verifier most needs to
 // identify. Ask git for the working tree instead, ONCE, here: the source is
-// uploaded with its .git directory on a CLI deploy, and a build with no
+// uploaded without its .git directory on a CLI deploy, and a build with no
 // repository around it still answers honestly (null) rather than guessing.
 // lib/buildInfo.mjs owns the rule; app/api/version reads the values back.
 const workingTreeCommitSha = readWorkingTreeCommitSha(projectRoot);
@@ -322,6 +322,12 @@ const nextConfig = {
       // Landing still says "Our story"; keep the old paths as aliases.
       { source: "/our-story", destination: "/about", permanent: true },
       { source: "/story", destination: "/about", permanent: true },
+      // The product calls it Pub Pal, so people type the long form. The page
+      // lives at /pal; without these the vanity link 404'd (site review,
+      // 18 Oct 2026).
+      { source: "/pub-pal", destination: "/pal", permanent: true },
+      { source: "/pub-pal/:path*", destination: "/pal/:path*", permanent: true },
+      { source: "/pubpal", destination: "/pal", permanent: true },
     ];
   },
   async headers() {
