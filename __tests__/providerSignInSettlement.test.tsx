@@ -415,7 +415,9 @@ describe("a still-mounted email form after its native start loses ownership", ()
           expect(providerAttempt).not.toBeNull();
           const claim = JSON.parse(providerAttempt!) as { id: string; callbackClaimed: boolean };
           expect(claim.id).not.toBe(attempt.id);
-          expect(claim.id).toBe(h.authenticate.mock.calls[0][0].attemptId);
+          const providerCall = h.authenticate.mock.calls[0];
+          if (!providerCall) throw new Error("Expected the active provider request.");
+          expect(claim.id).toBe(providerCall[0].attemptId);
           expect(claim.callbackClaimed).toBe(false);
         }
       }
