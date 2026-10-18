@@ -22,10 +22,10 @@
   gap: 5px;
   padding: 3px 9px;
   border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
   color: var(--tint-ink-accent);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -33,7 +33,7 @@
 
 .unverifiedPubName {
   margin: 0;
-  font-family: var(--font-display, var(--serif));
+  font-family: var(--font-display);
   font-size: 1.32rem;
   font-weight: 700;
   line-height: 1.15;
@@ -45,16 +45,16 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.86rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
 /* An unnamed pub's heading is the generic "Pub"; this line says why. */
 .unverifiedPubNameNote {
   margin: 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.86rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -73,7 +73,7 @@
 
 .unverifiedPubLead {
   margin: 14px 0 0;
-  color: var(--ink-soft, var(--muted));
+  color: var(--ink-soft);
   font-size: 0.94rem;
   line-height: 1.45;
 }
@@ -110,7 +110,7 @@
   align-items: center;
   gap: 4px;
   color: var(--brass);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: underline;
 }
@@ -139,7 +139,7 @@
    then the source with the day the pack was read. */
 .unverifiedPubHistory {
   margin: 12px 0 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -181,7 +181,7 @@
   display: block;
   margin-top: 4px;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 /* Historic England's listing, when the NHLE join matched this pub: the fact,
@@ -194,7 +194,7 @@
   align-items: start;
   margin: 12px 0 0;
   color: var(--ink);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -205,7 +205,7 @@
 .unverifiedPubListedSource {
   grid-column: 2;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 .unverifiedPubListedSource a {

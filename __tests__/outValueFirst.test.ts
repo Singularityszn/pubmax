@@ -97,13 +97,22 @@ describe("no count stands in place of the listings it counts", () => {
 
   it("renders the pub answer on every row, at a weight under the page's own copy", () => {
     expect(outClient).toContain("<OutListingPubPair row={row} />");
-    const status = outCss.match(/\.outStatus \{[^}]*font-size:\s*([\d.]+)rem/);
-    const footnote = outCss.match(
-      /\.outListingUnmatchedLine \{[^}]*font-size:\s*([\d.]+)rem/,
-    );
+    // A size is a rem literal or a --text-* step, read from app/globals.css.
+    const globals = readFileSync(join(REPO_ROOT, "app/globals.css"), "utf8");
+    const remOf = (selector: string): number | null => {
+      const value = outCss.match(new RegExp(`\\.${selector} \\{[^}]*font-size:\\s*([^;]+);`))?.[1]?.trim();
+      if (!value) return null;
+      const literal = /^([\d.]+)rem$/.exec(value);
+      if (literal) return Number(literal[1]);
+      const step = /^var\((--text-[\w-]+)\)$/.exec(value)?.[1];
+      const declared = step ? new RegExp(`${step}:\\s*([\\d.]+)rem`).exec(globals)?.[1] : undefined;
+      return declared ? Number(declared) : null;
+    };
+    const status = remOf("outStatus");
+    const footnote = remOf("outListingUnmatchedLine");
     expect(status).not.toBeNull();
     expect(footnote).not.toBeNull();
-    expect(Number(footnote?.[1])).toBeLessThan(Number(status?.[1]));
+    expect(footnote!).toBeLessThan(status!);
   });
 });
 

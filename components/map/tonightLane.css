@@ -39,7 +39,7 @@
      __tests__/mapCoralEconomy.test.ts), and a coral-washed chip read as a
      second Plan action beside the toolbar's. */
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   box-shadow: var(--map-overlay-shadow-tight);
   color: var(--ink);
@@ -79,7 +79,7 @@
   min-width: 0;
   overflow-wrap: break-word;
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   font-weight: 650;
   line-height: 1.25;
   white-space: normal;
@@ -99,7 +99,7 @@
   overflow: hidden;
   box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(
       145deg,
@@ -156,7 +156,7 @@
   margin: 0;
   padding: 8px 2px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -164,7 +164,7 @@
   max-width: calc(100vw - 24px);
   padding: 8px 12px;
   border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 92%, var(--amber) 8%);
   box-shadow: var(--map-overlay-shadow-tight);
   backdrop-filter: blur(10px);
@@ -218,10 +218,10 @@
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
   color: var(--ink-soft);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   cursor: pointer;
   touch-action: manipulation;
@@ -242,7 +242,7 @@
 .tonightLaneOverlayCount {
   min-width: 15px;
   padding: 1px 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, currentColor 12%, transparent);
   font-size: 0.6rem;
   line-height: 1.35;
@@ -259,7 +259,7 @@
   margin: -8px -8px -8px 0;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -277,7 +277,7 @@
 
 .tonightLaneTitle {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--ink);
@@ -286,7 +286,7 @@
 .tonightLaneChecked {
   min-width: 0;
   overflow-wrap: break-word;
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--muted);
   white-space: normal;
@@ -295,7 +295,7 @@
 .tonightLaneGardenCue {
   display: block;
   margin-top: 2px;
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 650;
   line-height: 1.25;
   color: color-mix(in srgb, var(--amber) 70%, var(--ink));
@@ -339,7 +339,7 @@
   padding: 4px 12px;
   touch-action: manipulation;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
   color: var(--ink);
   font-size: 0.72rem;
@@ -390,7 +390,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-left: 3px solid var(--brass);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--ink-deep) 14%, transparent);
   backdrop-filter: blur(10px);
@@ -424,7 +424,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -439,7 +439,7 @@
 
 .tonightLaneCardTitle {
   margin: 0 0 2px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink);
@@ -468,7 +468,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: color-mix(in srgb, var(--river) 45%, var(--ink));
 }
@@ -507,11 +507,11 @@
   margin-top: 8px;
   padding: 4px 12px;
   touch-action: manipulation;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
   background: color-mix(in srgb, var(--brass) 12%, transparent);
   color: color-mix(in srgb, var(--brass) 55%, var(--ink));
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-decoration: none;
 }

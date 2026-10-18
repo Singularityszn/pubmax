@@ -7,7 +7,7 @@
   margin: 12px 0 2px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   color: var(--ink);
 }
@@ -33,13 +33,13 @@
 }
 
 .venueBuzzSource {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   color: var(--ink-soft);
 }
 
 .venueBuzzSummary {
   margin: 0 0 8px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
   color: var(--ink);
 }
@@ -93,7 +93,7 @@
   min-height: 44px;
   padding: 3px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   font-size: 0.72rem;
   font-weight: 600;
@@ -117,7 +117,7 @@
 .venueBuzzNote {
   display: block;
   margin: 0;
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   line-height: 1.4;
   color: var(--ink-soft);
 }

@@ -4,7 +4,7 @@
 
 .areaNewsRail {
   padding: 14px 16px;
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--panel);
 }
@@ -22,7 +22,7 @@
 
 .areaNewsRailEmpty {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
@@ -37,14 +37,14 @@
 
 .areaNewsRailItemTitle {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
   color: var(--ink);
 }
 
 .areaNewsRailItemMeta {
   margin: 2px 0 0;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 

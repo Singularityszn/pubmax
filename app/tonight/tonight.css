@@ -331,7 +331,7 @@
   min-height: 44px;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
   font-size: 0.8rem;
@@ -362,7 +362,7 @@
 }
 
 .tonightChipCount {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--ink-soft);
   opacity: 0.85;
@@ -443,7 +443,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 12px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -553,8 +553,8 @@
 
 .tonightAcceptanceError {
   margin: 0 0 var(--space-4);
-  color: var(--color-negative, var(--brick));
-  font-size: 0.86rem;
+  color: var(--color-negative);
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 
@@ -747,7 +747,7 @@
    soft plans, the area news, the rest, and the way-onward row. */
 @media (min-width: 1100px) {
   .tonightPage {
-    max-width: var(--content-max-wide, 1240px);
+    max-width: var(--content-max-wide);
   }
 
   .tonightDesktopGrid {

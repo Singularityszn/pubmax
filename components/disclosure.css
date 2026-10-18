@@ -74,7 +74,7 @@
 .proseDisclosureLess {
   width: fit-content;
   color: var(--state-active-ink);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1.25;
 }

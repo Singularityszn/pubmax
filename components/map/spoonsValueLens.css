@@ -29,11 +29,11 @@
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius, 12px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -72,7 +72,7 @@
   align-items: center;
   min-height: 44px;
   min-width: 0;
-  color: var(--brass-ink, var(--brass));
+  color: var(--brass-ink);
   font-size: 0.72rem;
   font-weight: 700;
   text-decoration: underline;
@@ -99,7 +99,7 @@
 .spoonsValueLensSwatch {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--price-band-hue, var(--muted));
 }
 
@@ -126,7 +126,7 @@
 
 .spoonsValueLens--sheet .spoonsValueLensToggle {
   padding: 7px 14px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {

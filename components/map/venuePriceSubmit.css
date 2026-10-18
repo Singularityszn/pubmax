@@ -21,7 +21,7 @@
    line like the longer provenance note beneath it. */
 .contributorPrice.communityPriceRow .communityPriceStamp {
   flex: 0 0 auto;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -56,7 +56,7 @@
   flex: 0 0 auto;
   margin-left: auto;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
 }
 
@@ -65,7 +65,7 @@
   margin-top: 16px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
-  border-radius: var(--radius-lg, 18px);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 80%, transparent);
 }
@@ -84,8 +84,8 @@
 
 .vpsubTitle {
   margin: 0;
-  font-family: var(--font-display, var(--serif));
-  font-size: 1rem;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 700;
   line-height: 1.12;
   color: var(--ink);
@@ -93,16 +93,16 @@
 
 .vpsubLockedDrink {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
 }
 
 .vpsubHeldDrink {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
-  color: var(--ink-soft, var(--ink));
+  color: var(--ink-soft);
 }
 
 /* ── Drink category ───────────────────────────────────────────────────────── */
@@ -126,10 +126,10 @@
   min-height: 44px;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -147,7 +147,7 @@
 .vpsubCatOn {
   border-color: var(--brass);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent, #fff);
+  color: var(--color-on-accent);
   font-weight: 700;
 }
 
@@ -166,7 +166,7 @@
   gap: 2px;
   padding: 0 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--radius);
   background: var(--panel-raised);
   transition:
     border-color 160ms ease,
@@ -224,9 +224,9 @@
   min-height: 48px;
   padding: 0 18px;
   border: 1px solid var(--brass);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent, #fff);
+  color: var(--color-on-accent);
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
@@ -262,13 +262,13 @@
   min-height: 44px;
   padding: 6px 12px;
   border: 1px dashed color-mix(in srgb, var(--ink-soft) 34%, var(--line));
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink-soft);
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "kern" 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -304,7 +304,7 @@
 .vpsubPhotoWhy {
   margin: 6px 0 0;
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -326,7 +326,7 @@
   min-height: 44px;
   padding: 0 12px;
   border-radius: var(--radius-pill);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1.2;
 }
@@ -362,14 +362,14 @@
 /* ── Feedback ─────────────────────────────────────────────────────────────── */
 .vpsubError {
   margin: 10px 0 0;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--brick);
 }
 
 .vpsubNote {
   margin: 10px 0 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--ink-soft);
 }
@@ -383,7 +383,7 @@
   margin: 12px 0 0;
   padding: 9px 12px;
   border: 1px solid color-mix(in srgb, var(--pint) 40%, var(--line));
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
   animation: vpsubStampIn 320ms cubic-bezier(0.34, 1.4, 0.64, 1);
 }
@@ -414,7 +414,7 @@
    as one line of prose that wraps where a line of prose wraps. */
 .vpsubStampHint {
   margin: 8px 0 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--ink-soft);
 }
@@ -467,7 +467,7 @@
 }
 
 .vpsubStampMeta {
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -503,7 +503,7 @@
   min-width: 0;
   align-items: center;
   gap: 7px;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 
@@ -513,7 +513,7 @@
 }
 
 .vpsigAccessSummary {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--ink-soft);
 }
@@ -537,7 +537,7 @@
 .vpsigSaved,
 .vpsigSignIn {
   margin: 5px 0 0;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--ink-soft);
 }
@@ -565,7 +565,7 @@
 }
 
 .vpsigReadoutRow dt {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -575,7 +575,7 @@
 .vpsigReadoutRow dd {
   min-width: 0;
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   color: var(--ink);
 }
@@ -587,7 +587,7 @@
 
 .vpsigReadoutRow dd small {
   margin-top: 1px;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   color: var(--ink-soft);
 }
 
@@ -662,10 +662,10 @@
   justify-content: center;
   padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-align: center;
 }
@@ -689,10 +689,10 @@
   margin-top: 9px;
   padding: 8px 14px;
   border: 1px solid var(--brass);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--brass);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   cursor: pointer;
 }

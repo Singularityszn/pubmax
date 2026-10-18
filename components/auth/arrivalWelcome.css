@@ -9,7 +9,7 @@
 
 .arrivalWelcome {
   position: fixed;
-  z-index: calc(var(--z-modal, 1200) - 1);
+  z-index: calc(var(--z-modal) - 1);
   /* BELOW the top bar, never over it. The greeting must not cover the wordmark,
      the nav links or the theme control: a line that hides the way out is a gate
      wearing a toast's clothes. --topbar-h is the app-shell bar height
@@ -27,7 +27,7 @@
   gap: 0.5rem;
   padding: 0.5rem 0.5rem 0.5rem 0.9rem;
   border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* Near-solid, not frosted-thin. This pill floats over arbitrary page copy,
      and a light translucent surface over light content loses its own text: the
      heading underneath read straight through the first version. The blur stays
@@ -120,11 +120,11 @@
   margin: -8px;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
@@ -138,7 +138,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 

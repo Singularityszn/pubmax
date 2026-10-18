@@ -69,7 +69,7 @@ header.loginPageHead {
   border-radius: 0.85rem;
   background: var(--panel);
   color: var(--ink-soft);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -103,7 +103,7 @@ header.loginPageHead {
   gap: 0.25rem;
   padding: 0.25rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
 }
 
@@ -123,13 +123,13 @@ header.loginPageHead {
 
 .loginPageSkeletonPill {
   height: 44px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .loginPageSkeletonBar,
 .loginPageSkeletonField,
 .loginPageSkeletonButton {
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
 }
 
 .loginPageSkeletonBar {
@@ -172,7 +172,7 @@ header.loginPageHead {
   gap: 0.25rem;
   padding: 0.25rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
 }
 
@@ -180,11 +180,11 @@ header.loginPageHead {
   min-height: 44px;
   padding: 0.4rem 0.75rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 750;
   cursor: pointer;
   transition:
@@ -203,7 +203,7 @@ header.loginPageHead {
 .loginPageDoor:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: -2px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .loginPageForm .authOptions {
@@ -213,7 +213,7 @@ header.loginPageHead {
 
 .loginPageError {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -223,7 +223,7 @@ header.loginPageHead {
   justify-items: start;
   padding: 1.1rem;
   border: 1px solid var(--line);
-  border-radius: 1.15rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   box-shadow: 0 16px 40px color-mix(in srgb, var(--ink-deep) 12%, transparent);
 }
@@ -241,7 +241,7 @@ header.loginPageHead {
   gap: 1rem;
   padding: 1.1rem;
   border: 1px solid var(--line);
-  border-radius: 1.15rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
   box-shadow: 0 16px 40px color-mix(in srgb, var(--ink-deep) 12%, transparent);
 }
@@ -257,7 +257,7 @@ header.loginPageHead {
   width: 48px;
   height: 48px;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: 50%;
   font-size: 0.95rem;
 }
 
@@ -287,7 +287,7 @@ header.loginPageHead {
 .loginPageEmail {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
@@ -357,7 +357,7 @@ header.loginPageHead {
   background: none;
   color: var(--ink-soft);
   font-family: inherit;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 650;
   text-align: left;
   text-decoration: none;
@@ -403,7 +403,7 @@ header.loginPageHead {
   margin-top: 0.25rem;
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
   color: var(--ink);
   font-size: 0.92rem;
@@ -429,14 +429,14 @@ header.loginPageHead {
 
 .loginPageHandlePasswordTitle {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
 }
 
 .loginPageHandlePasswordField {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 650;
   color: var(--ink-soft);
 }
@@ -445,18 +445,18 @@ header.loginPageHead {
   min-height: 44px;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
   background: var(--paper);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 /* Shown under EVERY failure, never only for an account with no password: a
    line that appeared conditionally would answer "does this handle exist". */
 .loginPageHandlePasswordGuidance {
   margin: 0;
-  color: var(--ink-muted);
-  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .loginPageHandlePasswordActions {

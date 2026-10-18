@@ -24,7 +24,7 @@
 /* Sentence case: uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md). */
 .mapExperienceLensHead > span {
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: -0.005em;
 }
@@ -32,7 +32,7 @@
 .mapExperienceLensHead > small {
   min-width: 0;
   color: var(--ink-soft);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   text-align: right;
 }
 
@@ -45,7 +45,7 @@
   min-width: 0;
   padding: 4px;
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md, 14px);
+  border-radius: var(--radius);
 }
 
 .mapExperienceLensOption {
@@ -57,11 +57,11 @@
   min-height: 44px;
   padding: 7px 8px;
   border: 0;
-  border-radius: var(--control-radius, 12px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;

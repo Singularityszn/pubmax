@@ -15,7 +15,7 @@
   margin: 0 0 0.85rem;
   font-size: 0.9rem;
   line-height: 1.4;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  color: var(--muted);
 }
 
 .wantedCapture {
@@ -47,9 +47,9 @@
   width: 100%;
   min-height: 44px;
   padding: 0.55rem 0.75rem;
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
-  border-radius: 8px;
-  background: var(--paper, #fff);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
   color: var(--ink);
   font: inherit;
 }
@@ -64,16 +64,16 @@
 .wantedSaveBtn,
 .wantedCandidate,
 .wantedRow__map {
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   min-width: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border-radius: var(--control-radius, 14px);
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
-  background: var(--brass, #b08d57);
-  color: var(--paper, #fff);
+  padding: 0 var(--control-pad-x);
+  border-radius: var(--control-radius);
+  border: 1px solid var(--line);
+  background: var(--brass);
+  color: var(--paper);
   font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   line-height: 1.15;
   cursor: pointer;
 }
@@ -90,7 +90,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: var(--control-font-size, 0.86rem);
+  font-size: var(--control-font-size);
   font-weight: 700;
   color: var(--ink);
   text-decoration: underline;
@@ -110,8 +110,8 @@
    (lib/pintTrust.ts, overviewPriceDoor), so this save wears the plain
    secondary surface beside "Save to a list" rather than a second brass fill. */
 .wantedSaveWrap .wantedSaveBtn {
-  border-color: var(--control-secondary-border, var(--line));
-  background: var(--control-secondary-surface, var(--panel-raised));
+  border-color: var(--control-secondary-border);
+  background: var(--control-secondary-surface);
   color: var(--ink);
 }
 
@@ -133,11 +133,11 @@
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.4;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  color: var(--muted);
 }
 
 .wantedFulfilNote {
-  color: var(--brass, #b08d57);
+  color: var(--brass);
   font-weight: 650;
 }
 
@@ -162,8 +162,8 @@
 }
 
 .wantedCandidate__meta {
-  font-size: 0.85rem;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .wantedList {
@@ -180,7 +180,7 @@
   gap: 0.5rem;
   align-items: start;
   padding: 0.65rem 0;
-  border-top: 1px solid var(--line, rgba(0, 0, 0, 0.1));
+  border-top: 1px solid var(--line);
 }
 
 .wantedRow__name {
@@ -191,9 +191,9 @@
 
 .wantedRow__meta {
   margin: 0.2rem 0 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  color: var(--muted);
 }
 
 .wantedRow__actions,
@@ -228,25 +228,25 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   min-width: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
-  border-radius: var(--control-radius, 14px);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   line-height: 1.15;
   text-decoration: none;
   cursor: pointer;
 }
 
 .wantedRow__button--primary {
-  border-color: var(--brass, #b08d57);
-  background: var(--brass, #b08d57);
-  color: var(--color-on-accent, #fff);
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
 }
 
 .wantedRow__button:disabled {
@@ -261,14 +261,14 @@
 }
 
 .wantedRow__noteLabel {
-  color: var(--muted, var(--ink-soft, #5c5346));
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
 .wantedPromotion label {
   display: grid;
   gap: 0.25rem;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
@@ -278,29 +278,29 @@
   min-width: 0;
   min-height: 44px;
   padding: 0.5rem 0.7rem;
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
-  border-radius: 8px;
-  background: var(--paper, #fff);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
   color: var(--ink);
   font: inherit;
 }
 
 .wantedPromotion button {
-  background: var(--brass, #b08d57);
-  color: var(--paper, #fff);
+  background: var(--brass);
+  color: var(--paper);
   font-weight: 650;
 }
 
 .wantedPromotion [role="status"] {
   max-width: 16rem;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
 .wantedPromotionState {
   margin: 0;
-  color: var(--muted, var(--ink-soft, #5c5346));
-  font-size: 0.85rem;
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
 
 .wantedSaveWrap {
@@ -321,15 +321,15 @@
 .wantedPlanChips__label {
   flex: 1 0 100%;
   margin: 0;
-  font-size: 0.85rem;
-  color: var(--muted, var(--ink-soft, #5c5346));
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .wantedPlanChip {
   min-height: 44px;
   padding: 0.45rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
   font: inherit;

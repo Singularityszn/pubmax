@@ -12,7 +12,7 @@
   min-height: 44px;
   padding: 10px 18px;
   border: 1.5px solid var(--brass);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--color-accent-ink);
   font-size: 0.9rem;
@@ -51,12 +51,12 @@
   background: var(--brass);
   border-color: var(--brass);
   color: var(--paper);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-deep, #0f1c16) 40%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-deep) 40%, transparent);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .cheersBtn.isCheered:hover {
-    background: color-mix(in srgb, var(--brass) 90%, var(--ink-deep, #0f1c16));
+    background: color-mix(in srgb, var(--brass) 90%, var(--ink-deep));
   }
 }
 
@@ -93,7 +93,7 @@
 }
 
 .cheersBtn.isInking .cheersGlyph {
-  animation: cheersPop 0.3s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  animation: cheersPop 0.3s var(--ease-spring);
 }
 
 .cheersText {
@@ -104,10 +104,10 @@
 .cheersCount {
   min-width: 1.2em;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--brass) 16%, transparent);
   color: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -127,7 +127,7 @@
   margin: auto;
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: color-mix(in srgb, var(--brass) 45%, transparent);
   transform: scale(0);
   animation: cheersInk 0.42s ease-out;
@@ -172,22 +172,22 @@
    a translucent frosted pill that turns solid brass when cheered. Mount with
    className="cheersBtnOnScrim". */
 .cheersBtnOnScrim {
-  background: color-mix(in srgb, var(--ink-deep, #0f1c16) 46%, transparent);
-  border-color: color-mix(in srgb, var(--brass-bright, #d3a44a) 70%, transparent);
+  background: color-mix(in srgb, var(--ink-deep) 46%, transparent);
+  border-color: color-mix(in srgb, var(--brass-bright) 70%, transparent);
   color: #fff;
   backdrop-filter: blur(2px);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .cheersBtnOnScrim:hover {
-    background: color-mix(in srgb, var(--ink-deep, #0f1c16) 62%, transparent);
+    background: color-mix(in srgb, var(--ink-deep) 62%, transparent);
   }
 }
 
 .cheersBtnOnScrim.isCheered {
-  background: var(--brass-bright, #d3a44a);
-  border-color: var(--brass-bright, #d3a44a);
-  color: var(--ink-deep, #0f1c16);
+  background: var(--brass-bright);
+  border-color: var(--brass-bright);
+  color: var(--ink-deep);
 }
 
 .cheersBtnOnScrim .cheersCount {
@@ -195,7 +195,7 @@
 }
 
 .cheersBtnOnScrim.isCheered .cheersCount {
-  background: color-mix(in srgb, var(--ink-deep, #0f1c16) 20%, transparent);
+  background: color-mix(in srgb, var(--ink-deep) 20%, transparent);
 }
 
 /* ── E5: category-tinted Cheers (opt-in via .cheersBtnCat) ─────────────────
@@ -211,7 +211,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .cheersBtnCat.isCheered:hover {
-    background: color-mix(in srgb, var(--feed-cat, var(--brass)) 88%, var(--ink-deep, #0f1c16));
+    background: color-mix(in srgb, var(--feed-cat, var(--brass)) 88%, var(--ink-deep));
   }
 }
 .cheersBtnCat.isInking::after {
@@ -220,7 +220,7 @@
 .cheersBtnOnScrim.cheersBtnCat.isCheered {
   background: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
   border-color: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
-  color: var(--ink-deep, #0f1c16);
+  color: var(--ink-deep);
 }
 
 /* ── U2: inline failure prompt ───────────────────────────────────────────────────
@@ -237,6 +237,6 @@
   border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--color-accent-ink);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }

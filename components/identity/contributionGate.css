@@ -1,7 +1,7 @@
 .contributionGateBackdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-overlay-top, 1300) + 2);
+  z-index: calc(var(--z-overlay-top) + 2);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -50,7 +50,7 @@
 .contributionGateField {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 750;
 }
 
@@ -58,7 +58,7 @@
   min-height: 46px;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 0.8rem;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -98,7 +98,7 @@
 
 .contributionGateError {
   color: var(--brick);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .contributionGate button:focus-visible,

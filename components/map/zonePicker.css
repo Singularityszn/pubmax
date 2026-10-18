@@ -68,7 +68,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius);
   border: 1px solid color-mix(in srgb, var(--accent-action) 24%, var(--line));
   background: var(--panel-raised);
   box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
@@ -84,7 +84,7 @@
 /* Sentence case: uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md). */
 .zonePickerInlineLabel {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: -0.005em;
   color: var(--ink);

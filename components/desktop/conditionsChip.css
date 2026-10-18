@@ -12,7 +12,7 @@
   border: 1px solid var(--badge-border);
   background: var(--badge-surface);
   color: var(--badge-ink);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.2;
   white-space: nowrap;
   flex: none;

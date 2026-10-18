@@ -13,7 +13,7 @@
 .mapKeyDetails summary {
   margin: 0;
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 850;
 }
 
@@ -166,7 +166,7 @@
 
 .mapKeyItem small {
   color: var(--ink-soft);
-  font-size: 0.67rem;
+  font-size: var(--text-2xs);
   line-height: 1.3;
 }
 
@@ -181,7 +181,7 @@
 
 .mapKeyMarker--shape {
   border: 1px solid color-mix(in srgb, var(--line) 74%, var(--brass));
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--panel) 76%, var(--panel-raised));
 }
 
@@ -289,7 +289,7 @@
 .mapKeyMarker--walking-route::before {
   width: 24px;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--map-key-marker-colour);
   box-shadow: 0 0 0 1px var(--panel-raised);
   content: "";
@@ -305,7 +305,7 @@
 .mapKeyMarker--story-corridor::before {
   width: 24px;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--map-key-marker-colour);
   content: "";
   filter: blur(2px);
@@ -347,7 +347,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 }
 
 .mapKeyTrustList strong {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .mapKeyTrustList small {
@@ -361,7 +361,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
   align-items: center;
   min-height: 44px;
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;

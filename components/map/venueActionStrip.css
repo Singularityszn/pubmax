@@ -12,15 +12,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: var(--control-height, 44px);
-  padding: 8px var(--control-pad-x, 16px);
-  border-radius: var(--control-radius, 14px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  background: var(--control-secondary-surface, var(--panel-raised));
+  min-height: var(--control-height);
+  padding: 8px var(--control-pad-x);
+  border-radius: var(--control-radius);
+  border: 1px solid var(--control-secondary-border);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   text-decoration: none;
   /* These are <a> anchors, so the global button press-feedback doesn't reach
      them, and adding [data-pressable]/.pressable would clobber this transition
@@ -28,15 +28,15 @@
      transform is named alongside the colour transitions, with a gated :active
      scale below — matching the global press feel without the cascade fight. */
   transition:
-    border-color var(--duration-base, 180ms) ease-out,
-    background var(--duration-base, 180ms) ease-out,
-    color var(--duration-base, 180ms) ease-out,
-    transform var(--duration-press, 130ms) var(--ease-out-strong, ease-out);
+    border-color var(--duration-base) ease-out,
+    background var(--duration-base) ease-out,
+    color var(--duration-base) ease-out,
+    transform var(--duration-press) var(--ease-out-strong);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .venueActionStrip__btn:active {
-    transform: scale(var(--press-scale, 0.97));
+    transform: scale(var(--press-scale));
     --shared-press-scale: 1;
   }
 }
@@ -44,7 +44,7 @@
 @media (hover: hover) and (pointer: fine) {
   .venueActionStrip__btn:hover {
     border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised, var(--panel)));
+    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
     color: var(--ink);
   }
 }
@@ -55,7 +55,7 @@
 }
 
 .venueActionStrip__btn--menu {
-  border-color: color-mix(in srgb, var(--cat-beer, var(--brass)) 35%, var(--line));
+  border-color: color-mix(in srgb, var(--cat-beer) 35%, var(--line));
 }
 
 .venueActionStrip__ext {

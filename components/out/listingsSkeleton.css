@@ -36,7 +36,7 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--panel, var(--paper));
+  background: var(--panel);
 }
 
 .listingsSkeletonTitle,
@@ -50,7 +50,7 @@
     color-mix(in srgb, var(--line-soft) 70%, transparent)
   );
   background-size: 200% 100%;
-  animation: listingsSkeletonShimmer 1.6s var(--ease-in-out-strong, ease-in-out) infinite;
+  animation: listingsSkeletonShimmer 1.6s var(--ease-in-out-strong) infinite;
 }
 
 .listingsSkeletonTitle {

@@ -255,10 +255,10 @@ describe("account onboarding surface", () => {
       "utf8",
     );
     expect(onboardingCss).toMatch(
-      /\.accountOnboardingBackdrop\s*\{[^}]*z-index: calc\(var\(--z-overlay-top, 1300\) \+ 1\)/,
+      /\.accountOnboardingBackdrop\s*\{[^}]*z-index: calc\(var\(--z-overlay-top(?:, 1300)?\) \+ 1\)/,
     );
     expect(contributionGateCss).toMatch(
-      /\.contributionGateBackdrop\s*\{[^}]*z-index: calc\(var\(--z-overlay-top, 1300\) \+ 2\)/,
+      /\.contributionGateBackdrop\s*\{[^}]*z-index: calc\(var\(--z-overlay-top(?:, 1300)?\) \+ 2\)/,
     );
   });
 });

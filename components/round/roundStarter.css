@@ -7,8 +7,8 @@
   padding: 24px;
   text-align: left;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--color-surface, var(--panel, var(--paper)));
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -20,7 +20,7 @@
   align-items: center;
   gap: 6px;
   align-self: flex-start;
-  font-size: 12px;
+  font-size: var(--text-xs);
   letter-spacing: 0.01em;
   /* A kicker is a label: muted ink, never the "you are here" marker. */
   color: var(--color-text-muted);
@@ -153,9 +153,9 @@
 
 .roundStarterHelper {
   margin: 0 0 8px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
 }
 
 /* Compact — Plan drawer */
@@ -164,20 +164,20 @@
   margin: 0 0 12px;
   padding: 12px 14px;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 
 .roundStarter.compact .roundStarterBadge {
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .roundStarter.compact .roundStarterTitle {
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1.25;
 }
 
 .roundStarter.compact .roundStarterBlurb {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -188,17 +188,17 @@
 
 .roundStarter.compact .roundStarterRow input {
   padding: 8px 12px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .roundStarter.compact .roundStarterRow .crawlPrimaryBtn {
   padding: 8px 12px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   min-height: 36px;
 }
 
 .roundStarter.compact .roundStarterError {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 /* Stay-on-map success (Plan drawer after Start Round) */

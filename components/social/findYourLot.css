@@ -22,7 +22,7 @@
   margin: var(--space-2) 0 0;
   text-wrap: pretty;
   font-size: var(--text-sm);
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
 }
 
 .findLot__field {
@@ -35,7 +35,7 @@
   min-height: 44px;
   padding: 0.65rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -97,13 +97,13 @@
 
 .findLot__display {
   font-size: var(--text-xs);
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 
 .findLot__hint {
   font-size: var(--text-xs);
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
 }
 
 /* This control is a <button> for a signed-in drinker and a <Link> for everyone
@@ -116,16 +116,16 @@
   justify-content: center;
   text-align: center;
   text-decoration: none;
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   min-width: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
-  background: var(--control-secondary-surface, var(--panel-raised));
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
 }
 
@@ -136,7 +136,7 @@
 
 .findLot__self {
   font-size: var(--text-xs);
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
 }
 
 .findLot__invite {
@@ -154,7 +154,7 @@
 .findLot__inviteUrl {
   display: block;
   padding: 0.55rem 0.75rem;
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--radius);
   background: var(--panel);
   border: 1px solid var(--line);
   font-size: var(--text-xs);

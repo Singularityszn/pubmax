@@ -8,14 +8,14 @@
   gap: 12px;
   min-width: 0;
   padding: 4px 4px 4px 8px;
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
 }
 
 .lazyPanelFailedCopy {
   min-width: 0;
-  font-size: var(--control-font-size, 0.875rem);
+  font-size: var(--control-font-size);
   line-height: 1.35;
-  color: var(--ink-soft, inherit);
+  color: var(--ink-soft);
 }
 
 /* The retry never wraps its own label onto two lines; the copy takes the slack. */

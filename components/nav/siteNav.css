@@ -19,7 +19,9 @@
    Chosen standard (measured all three first, best pick documented):
      · --topbar-h      52px. The app-shell / map-chrome height. Map + standard
                               bars already used it; landing tightened 58 to 52.
-     · --topbar-radius 14px. The map-chrome card radius. The map is the primary
+     · --topbar-radius --radius-lg (18px, 14px until the taste pass of
+                              18 Oct 2026 put every corner on the four-size
+                              scale). The map-chrome card radius. The map is the primary
                               (map-first) surface, where this bar twins the search
                               toolbar; adopting the rounded-card shape everywhere
                               on mobile keeps that twin AND unifies the standard +
@@ -42,7 +44,7 @@
      offset, so moving between Map and a tab never makes the bar jump. */
   --topbar-gap: 10px;
   --topbar-inset: calc(env(safe-area-inset-top, 0px) + var(--topbar-gap));
-  --topbar-radius: 14px;
+  --topbar-radius: var(--radius-lg);
   --topbar-pad-x: 10px;
   /* Shared MOBILE side inset — the viewport-relative left/right gap every top
      bar leaves on ≤640px. 10px is not a new invention: the landing bar already
@@ -105,7 +107,7 @@
      left its email field and button unreachable. A positioned bar with a real
      level puts the popover above page content, and below the modal layer. */
   position: relative;
-  z-index: var(--z-float, 50);
+  z-index: var(--z-float);
 }
 
 /* A shell that opens on the bar pays the same offset as padding instead, and
@@ -160,8 +162,8 @@
 /* ── Wordmark ──────────────────────────────────────────────────────────── */
 .siteNavBrand {
   flex: 0 0 auto;
-  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
-  font-size: 1.02rem;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 750;
   letter-spacing: -0.025em;
   color: var(--ink);
@@ -172,7 +174,7 @@
   align-items: center;
   min-height: 44px;
   padding: 0 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -227,9 +229,9 @@
   /* 44px target height. */
   min-height: 44px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: none;
   min-width: 44px;
@@ -307,10 +309,10 @@
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
   color: var(--ink-soft);
-  font: 700 0.82rem/1 var(--font-body, system-ui, sans-serif);
+  font: 700 0.82rem/1 var(--font-body);
   cursor: pointer;
   transition:
     color var(--duration-base) var(--ease-out),
@@ -353,9 +355,9 @@
   max-width: calc(100vw - 16px);
   padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: var(--shadow-sm, 0 7px 18px rgba(60, 30, 20, 0.09));
+  box-shadow: var(--shadow-sm);
 }
 
 /* Portaled menu (body): escapes .siteNavBar backdrop-filter + pill radius
@@ -365,7 +367,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  z-index: var(--z-modal, 1200);
+  z-index: var(--z-modal);
   /* Never clipped by page columns (today/feed reading shells). */
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -379,7 +381,7 @@
   gap: 2px;
   min-height: 52px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--ink);
   text-decoration: none;
 }
@@ -394,11 +396,11 @@ button.siteNavMoreItem {
 }
 
 .siteNavMoreLabel {
-  font: 700 0.9rem/1.2 var(--font-body, system-ui, sans-serif);
+  font: 700 0.9rem/1.2 var(--font-body);
 }
 
 .siteNavMoreDescription {
-  font: 500 0.75rem/1.35 var(--font-body, system-ui, sans-serif);
+  font: 500 0.75rem/1.35 var(--font-body);
   color: var(--ink-soft);
 }
 
@@ -438,7 +440,7 @@ button.siteNavMoreItem {
   min-height: 44px;
   padding: 0 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 88%, var(--line) 12%);
   color: var(--ink-soft);
   cursor: pointer;
@@ -485,7 +487,7 @@ button.siteNavMoreItem {
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: 50%;
   color: var(--ink-soft);
   text-decoration: none;
 }
@@ -510,10 +512,10 @@ button.siteNavMoreItem {
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--brass), var(--pink, var(--brass)));
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--brass), var(--pink));
   color: var(--panel-raised);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   line-height: 16px;
   text-align: center;
@@ -564,7 +566,7 @@ button.siteNavMoreItem {
   .siteNavLink {
     min-height: 44px;
     padding: 0 9px;
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
 
   .siteNavActions {
@@ -595,7 +597,7 @@ button.siteNavMoreItem {
 
   .siteNavLink {
     padding: 0 6px;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
   }
 
   .siteNavBell {
@@ -668,7 +670,7 @@ button.siteNavMoreItem {
 @media (max-width: 640px) {
   .siteNavBar {
     gap: 6px;
-    /* Shared frame: 14px rounded-card radius (was the base 999px pill), 52px
+    /* Shared frame: --topbar-radius rounded-card corner (was the base 999px pill), 52px
        height, 10px horizontal padding, tight shadow. Identical to the map +
        landing bars so the bar never changes shape page-to-page.
        Vertical padding is 3px (was 4px): the bar's tallest child is a 44px
@@ -677,7 +679,7 @@ button.siteNavMoreItem {
        instead of overshooting it to 54px (the token is truth). */
     padding: 3px var(--topbar-pad-x, 10px);
     min-height: var(--topbar-h, 52px);
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
     background: var(--panel-raised);
     box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12)));
     backdrop-filter: none;
@@ -734,7 +736,7 @@ button.siteNavMoreItem {
     width: auto;
     max-width: none;
     transform: none;
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
   }
 
   /* Taste — header consistency: the wordmark is the plain PubmaxxWordmark on
@@ -751,10 +753,10 @@ button.siteNavMoreItem {
     justify-content: center;
     align-items: center;
     padding: 0 2px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--ink);
     font-size: 0.72rem;
-    font-family: var(--font-display, system-ui, sans-serif);
+    font-family: var(--font-display);
     font-weight: 800;
     line-height: 1;
     overflow: hidden;
@@ -890,7 +892,7 @@ button.siteNavMoreItem {
    themes (ink text). Falls back to the brass active state if --nav-cat unset. */
 .siteNavLink.isActive[data-cat] {
   background: var(--nav-cat, var(--brass));
-  color: var(--cat-on-fill, var(--ink-deep));
+  color: var(--cat-on-fill);
 }
 
 /* Motion respect: drop the link hover/active transitions for reduced-motion. */

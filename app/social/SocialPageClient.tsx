@@ -997,6 +997,14 @@ function SocialPageAccountState({
                 embedded
               />
             </div>
+          ) : viewerPhase === "signed-out" ? (
+            // A stranger meets the boundary line alone: the head carries the
+            // one sign-in door, and the rail carries the packs and the search.
+            // The people directory and crews stay behind verified access.
+            <SocialAccessBoundary
+              state="sign_in_required"
+              friendsLaunchEnabled={friendsLaunchEnabled}
+            />
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
               <h2>Checking {surfaceName} access…</h2>
