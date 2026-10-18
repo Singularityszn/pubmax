@@ -97,7 +97,7 @@ is. When you add a surface for one of these, print the right-hand column.
 
 ## Template patterns
 
-Captain, 3 September 2026: "I don't want AI slop; remove anything that looks AI generated." The tells are not a matter of taste. They are shapes a template generator reaches for and a person at the bar never asked for. `__tests__/templatePatterns.test.ts` reads the source of every file under `components/` and fails on nine of them. The fence keeps a backlog (`PENDING_REMOVAL`) that names the file, the pattern and the PR that removes it, and the backlog may only shrink.
+Captain, 3 September 2026: "I don't want AI slop; remove anything that looks AI generated." The tells are not a matter of taste. They are shapes a template generator reaches for and a person at the bar never asked for. `__tests__/templatePatterns.test.ts` reads the source of every file under `components/` and `app/` and fails on nine of them. The fence keeps a backlog (`PENDING_REMOVAL`) that names the file, the pattern and the PR that removes it, and the backlog may only shrink.
 
 | Pattern | What it looks like | What to do instead |
 |---|---|---|
