@@ -1331,7 +1331,7 @@ export default function VenueOverviewTab({
               margin: "12px 0 0",
               minHeight: "42px",
               fontWeight: 700,
-              color: "var(--brass)",
+              color: "var(--state-active-ink)",
             }}
           >
             <MapPin size={16} aria-hidden="true" /> You&rsquo;re here

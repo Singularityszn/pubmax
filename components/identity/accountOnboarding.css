@@ -200,7 +200,7 @@
 
 .accountOnboardingRetry {
   min-height: 46px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: 0.85rem;
   font: inherit;
   font-size: var(--text-sm);

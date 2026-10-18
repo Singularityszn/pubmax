@@ -76,12 +76,12 @@
   /* --accent is not a token the app defines, so this fell back to a pale gold
      that read at about 1.9:1 on the light sheet. --brass-ink is the accent as TEXT,
      readable on both themes. */
-  color: var(--brass-ink);
+  color: var(--color-text-muted);
 }
 
 .crawlProgressDone {
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--brass-ink) 40%, transparent);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
@@ -91,16 +91,16 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  background: var(--panel-raised);
 }
 
 .crawlCelebrationTitle {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--ink);
   letter-spacing: 0.01em;
 }
 
@@ -126,8 +126,8 @@
   font-weight: 600;
   text-decoration: none;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--brass);
-  color: var(--brass);
+  border: 1px solid var(--hairline-strong);
+  color: var(--ink);
   background: transparent;
 }
 
@@ -139,7 +139,7 @@ button.crawlCelebrationCopyBtn {
 
 @media (hover: hover) and (pointer: fine) {
   .crawlCelebrationLink:hover {
-    background: color-mix(in srgb, var(--brass) 14%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 

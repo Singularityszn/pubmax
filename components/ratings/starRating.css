@@ -1,12 +1,13 @@
 /* Star ratings (PRD E3). Tokens only — colour rides `--rating-accent`, which
-   defaults to the app's one brass accent; a category surface re-tints by
-   setting the var (never new hexes here). */
+   defaults to ink: a rating is a value, not an action, so it never wears the
+   coral the one primary owns. A category surface re-tints by setting the var
+   (never new hexes here). */
 
 .starRating {
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  --rating-accent: var(--color-accent);
+  --rating-accent: var(--ink);
 }
 
 .starRatingGlyphs {

@@ -447,8 +447,8 @@
   max-width: 920px;
   padding: 16px 18px;
   border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
   color: var(--ink);
 }
 .nightCrawl__enterText { min-width: 0; }

@@ -19,8 +19,7 @@
 .accessibilitySummary {
   margin: 10px 0 0;
   padding: 8px 10px;
-  border-left: 2px solid var(--brass);
-  background: var(--surface-tint-brass);
+  background: var(--panel-raised);
   border-radius: var(--radius-sm);
   color: var(--color-text-soft);
   font-size: 0.8rem;
@@ -41,9 +40,9 @@
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--line);
   border-radius: var(--radius-pill);
-  background: var(--surface-tint-brass);
+  background: transparent;
   color: var(--color-text-soft);
   font-size: var(--text-xs);
   font-weight: 600;

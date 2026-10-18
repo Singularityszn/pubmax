@@ -56,13 +56,13 @@
 
 .areaSheetPub:focus-visible {
   border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .areaSheetPub:hover {
-    border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-raised));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
   }
 }
 
@@ -114,7 +114,7 @@
   min-height: 44px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px dashed color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 30%);
+  border: 1px dashed var(--color-border);
   background: transparent;
   color: var(--color-text-soft);
   font: inherit;
@@ -133,7 +133,7 @@
 @media (hover: hover) and (pointer: fine) {
   .areaSheetSeeAll:hover {
     color: var(--color-text);
-    border-color: var(--color-accent);
+    border-color: var(--hairline-strong);
   }
 }
 
@@ -174,7 +174,7 @@
   padding: 10px 14px;
   border: 0;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface-raised));
+  background: var(--color-surface-raised);
   box-shadow:
     var(--shadow-sm),
     inset 0 1px 0 color-mix(in srgb, var(--color-surface-raised) 70%, transparent);
@@ -189,12 +189,12 @@
 }
 
 .areaSheetLocate:focus-visible {
-  background: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .areaSheetLocate:hover {
-    background: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface-raised));
+    background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
   }
 }
 
@@ -251,7 +251,7 @@
   gap: 2px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, var(--color-accent) 30%);
+  border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-surface-raised) 88%, transparent);
   color: var(--color-text);
   font: inherit;
@@ -265,13 +265,13 @@
 
 .areaSheetChip:focus-visible {
   border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .areaSheetChip:hover {
-    border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-raised));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
   }
 }
 
@@ -304,7 +304,7 @@
 .areaSheetChipCoverage[data-tone="capture"],
 .areaSheetChipCoverage[data-tone="review"],
 .areaSheetChipCoverage[data-tone="paused"] {
-  color: color-mix(in srgb, var(--color-text-soft) 55%, var(--color-accent));
+  color: var(--color-text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

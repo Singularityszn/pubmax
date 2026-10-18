@@ -42,6 +42,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .firstActionsLink:hover {
-    border-color: var(--brass);
+    border-color: var(--hairline-strong);
   }
 }

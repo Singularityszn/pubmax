@@ -55,6 +55,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .emptyStateAction > :is(a, button):hover {
-    border-color: var(--color-accent);
+    border-color: var(--hairline-strong);
   }
 }

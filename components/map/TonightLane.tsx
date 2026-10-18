@@ -19,6 +19,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarClock, MapPin, MoonStar, Tv, X } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
+import { formatGbp } from "@/lib/formatGbp";
 import { trackEvent } from "@/lib/analytics";
 import { TONIGHT_LISTINGS_LABEL } from "@/lib/mapChromeTiers";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
@@ -492,7 +494,7 @@ function TonightLaneCardBody({
           {card.kindLabel}
         </span>
         {typeof card.priceGbp === "number" ? (
-          <span className="tonightLaneCardPrice">£{card.priceGbp.toFixed(2)}</span>
+          <PriceBadge className="tonightLaneCardPrice">{formatGbp(card.priceGbp)}</PriceBadge>
         ) : null}
       </div>
       <p className="tonightLaneCardTitle">{card.title}</p>

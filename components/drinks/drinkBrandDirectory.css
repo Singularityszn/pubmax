@@ -73,9 +73,10 @@
   line-height: 1.15;
 }
 
+/* A figure in the lede is ink in the lede's own face: a price wears its band
+   through PriceBadge or nothing, never a second price colour. */
 .drinkBrandDirectory__from strong {
-  color: var(--accent-price-ink);
-  font-family: var(--font-data);
+  color: var(--ink);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -96,14 +97,14 @@
   min-height: 44px;
   color: var(--ink);
   font-weight: 750;
-  text-decoration-color: var(--accent-action);
+  text-decoration-color: currentColor;
   text-underline-offset: 3px;
   touch-action: manipulation;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__fromPublisher a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -159,7 +160,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__secondary:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -247,7 +248,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__venue:hover {
-    color: var(--accent-action);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -288,7 +289,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__contribution:hover {
-    color: var(--accent-action);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -315,17 +316,13 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__publisher a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
+/* Placement only: the face is the one price look (components/PriceBadge.tsx). */
 .drinkBrandDirectory__price {
-  min-width: 76px;
   justify-self: end;
-  text-align: right;
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .drinkBrandDirectory__areas {
@@ -360,7 +357,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__areas a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -437,11 +434,6 @@
   .drinkBrandDirectory__rank {
     width: 28px;
     height: 28px;
-  }
-
-  .drinkBrandDirectory__price {
-    min-width: 70px;
-    font-size: var(--text-sm);
   }
 }
 

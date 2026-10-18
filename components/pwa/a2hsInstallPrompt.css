@@ -186,9 +186,9 @@
   width: 34px;
   height: 34px;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
-  color: var(--brass);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--color-text-muted);
 }
 
 .a2hsStepNum {

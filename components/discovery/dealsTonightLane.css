@@ -55,7 +55,7 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid color-mix(in srgb, var(--line) 85%, var(--brass) 15%);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: inherit;
@@ -70,7 +70,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .dealsTonightCard:hover {
-    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+    border-color: var(--hairline-strong);
     outline: none;
   }
 }
@@ -99,7 +99,7 @@
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .dealsTonightDetail {
@@ -123,7 +123,7 @@
   margin-top: 0.2rem;
   font-size: var(--text-2xs);
   font-weight: 700;
-  color: color-mix(in srgb, var(--ink-soft) 80%, var(--brass));
+  color: var(--color-text-muted);
 }
 
 .dealsTonightMap {
@@ -133,7 +133,7 @@
   margin-top: 0.75rem;
   font-size: var(--text-sm);
   font-weight: 800;
-  color: var(--brass);
+  color: var(--color-text-muted);
   text-decoration: none;
 }
 

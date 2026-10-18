@@ -62,7 +62,8 @@ refuses, and add your assertion there rather than minting a second gate.
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
 | The accent as a WORD takes `--brass-ink`; opacity is never a muted token | Colour, below | `__tests__/accentInkContrast.test.ts` |
-| Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts` |
+| Coral is spent twice (the one primary, the create disc); a selection reads in `--state-selected-*`, a kicker in muted ink, a link in ink with an underline | Launch tokens > Coral is spent twice | `__tests__/visualDiscipline.test.ts`, `__tests__/coralEconomy.test.ts` (a count of resting coral that only goes down) |
+| A pint price on a row or a card goes through `PriceBadge` / `PintPriceBadge` with its band; never a bare coloured number | Launch tokens > Status and price | `__tests__/onePriceLook.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
 | Monospace is for figures alone, never a label, nav or prose | Launch tokens > Monospace is for figures | `__tests__/visualDiscipline.test.ts` |
 | A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
@@ -121,9 +122,13 @@ pressed chip, a chosen segment and the page you are on read in ink through
 `--state-selected-ink`, never a coral fill or a coral tint. A suggestion chip
 (the `/plan` describe chips, the tonight vibe chips) is a neutral outline on
 `--hairline-strong`. A kicker or eyebrow is a label and takes
-`--color-text-muted`, never coral. A coral WORD (a text link) still takes
-`--brass-ink`, below. `--state-active-*` stays the "you are here" place
-marker, which is not a selection.
+`--color-text-muted`, never coral. A text link is an ink word with an
+underline (`--color-text`), never coral; `--brass-ink` stays only for the
+rare coral word a primary's own label needs. `--state-active-*` stays the
+"you are here" place marker, which is not a selection.
+`__tests__/coralEconomy.test.ts` counts every resting coral declaration in
+`app/` and `components/` outside a commented allowlist of primaries, the
+create disc, focus rings and the map key, and the count may only go down.
 
 **Monospace is for figures.** `--font-data` sets prices, dates and times,
 counts and codes, and nothing else. A label, a kicker, a footer heading or
@@ -625,8 +630,8 @@ candle-lit map is the second memory hook (see `components/map/canvas/`), but it 
 stamp for the "one signature" slot.
 
 Do not add a second tilted/stamped element elsewhere in the UI. If a new
-surface needs emphasis, reach for the brass border/accent colour, not a
-second signature gesture.
+surface needs emphasis, reach for weight, size or ink, not coral and not a
+second signature gesture (see "Coral is spent twice").
 
 ## Day/night coherence
 

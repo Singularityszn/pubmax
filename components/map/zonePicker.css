@@ -15,7 +15,7 @@
   min-height: 44px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--accent-action) 22%);
+  border: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
   color: var(--ink-soft);
   font: inherit;
@@ -36,7 +36,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .zonePickerBtn:hover {
-    border-color: var(--accent-action);
+    border-color: var(--hairline-strong);
     color: var(--ink);
   }
 }
@@ -69,7 +69,7 @@
   gap: 10px;
   padding: 12px;
   border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--accent-action) 24%, var(--line));
+  border: 1px solid var(--line);
   background: var(--panel-raised);
   box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
 }
@@ -101,7 +101,7 @@
   min-height: 44px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--accent-action) 30%);
+  border: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
   color: var(--ink-soft);
   font: inherit;
@@ -117,14 +117,14 @@
 .zoneChip:focus-visible {
   border-color: var(--accent-action);
   color: var(--ink);
-  background: color-mix(in srgb, var(--accent-action) 10%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .zoneChip:hover {
-    border-color: var(--accent-action);
+    border-color: var(--hairline-strong);
     color: var(--ink);
-    background: color-mix(in srgb, var(--accent-action) 10%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
 
@@ -182,13 +182,13 @@
 
 .zonePicker .zoneChip:focus-visible {
   color: var(--ink);
-  background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .zonePicker .zoneChip:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 

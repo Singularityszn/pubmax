@@ -47,7 +47,7 @@
 }
 
 .venueDrinkPriceStamp {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -106,10 +106,10 @@
   justify-content: center;
   min-height: 44px;
   padding: 0 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--control-radius);
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+  background: var(--panel-raised);
+  color: var(--color-text-muted);
   font: inherit;
   font-size: var(--text-xs);
   font-weight: 700;
@@ -119,13 +119,13 @@
 
 .venueDrinkPricesLog:focus-visible {
   border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .venueDrinkPricesLog:hover {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
 

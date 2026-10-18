@@ -117,7 +117,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .wantedSaveWrap .wantedSaveBtn:hover:not(:disabled) {
-    border-color: var(--brass);
+    border-color: var(--hairline-strong);
   }
 }
 
@@ -137,7 +137,7 @@
 }
 
 .wantedFulfilNote {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 650;
 }
 

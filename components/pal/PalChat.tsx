@@ -17,6 +17,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
@@ -193,7 +195,7 @@ export function AnswerCard({
           <div className="palChatCardTop">
             <p className="palChatCardTitle">{card.title}</p>
             {typeof card.price === "number" ? (
-              <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+              <PintPriceBadge className="palChatCardPrice" priceGbp={card.price} venueId={card.venueId || null} />
             ) : null}
           </div>
           {card.place ? (

@@ -78,7 +78,7 @@ export default function FavoritePintPicker({
       style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
     >
       <label className="favoritePintControl" style={shellStyle}>
-        <Beer size={16} style={{ color: "var(--brass)", flexShrink: 0 }} aria-hidden />
+        <Beer size={16} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} aria-hidden />
         <span className="srOnlyOrInline" style={{ color: "var(--ink-soft)" }}>
           My pint
         </span>

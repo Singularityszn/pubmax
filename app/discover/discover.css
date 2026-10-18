@@ -36,7 +36,6 @@
 .discoverSectionTitle {
   margin: 0 0 4px;
   padding-left: 12px;
-  border-left: 3px solid var(--brass);
   font-family: var(--font-display);
   font-size: 24px;
   font-weight: 700;
@@ -173,12 +172,12 @@
 
 @media (hover: hover) and (pointer: fine) {
   .leaderboard tbody tr:hover {
-    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
 
 .leaderboard tbody tr:active {
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
 }
 
 .leaderboard tbody tr:last-child {
@@ -244,7 +243,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .leaderboardPub:hover {
-    color: var(--brass);
+    color: var(--ink);
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -324,25 +323,6 @@
   text-align: right;
 }
 
-.priceStamp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 4.45rem;
-  min-height: 1.75rem;
-  padding: 4px 9px;
-  border: 1px solid color-mix(in srgb, var(--brass) 50%, var(--line));
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
-  color: var(--tint-ink-accent);
-  font-family: var(--font-data);
-  font-weight: 800;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  transform: none;
-}
-
 /* ── Cheapest pints tonight (live board) ──────────────────────────────────
    A compact ranked list of the cheapest community Pint Drops from the last
    24h. Uses the shared stable PriceBadge for numeric data. Tokens only. */
@@ -370,12 +350,12 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tonightRow:hover {
-    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
 
 .tonightRow:active {
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
 }
 
 .tonightRow:last-child {
@@ -434,7 +414,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tonightPub:hover {
-    color: var(--brass);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -455,7 +435,7 @@
 
 .tonightHandle {
   font-weight: 600;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .tonightHandleAnon {
@@ -502,8 +482,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tvnCard:hover {
-    border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-    box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+    border-color: var(--hairline-strong);
   }
 }
 
@@ -523,7 +502,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tvnLink:hover {
-    color: var(--brass);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -677,8 +656,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .editorialLink:hover {
-    border-color: var(--brass);
-    color: var(--brass);
+    border-color: var(--hairline-strong);
+    color: var(--ink);
     text-decoration: none;
   }
 }
@@ -695,8 +674,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .editorialCard:hover {
-    border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-    box-shadow: 0 16px 34px color-mix(in srgb, var(--brass) 14%, transparent);
+    border-color: var(--hairline-strong);
   }
 }
 
@@ -865,7 +843,6 @@
 
 .discoverExplore .catShowcase__link {
   background: var(--panel-raised);
-  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--cat, var(--brass)) 18%, transparent);
 }
 
 .discoverExplore .catShowcase__hint {
@@ -945,7 +922,7 @@
 .discoverBrandAll {
   font-size: 0.92rem;
   font-weight: 600;
-  color: var(--brass);
+  color: var(--color-text-muted);
   text-decoration: none;
 }
 
@@ -982,8 +959,8 @@
   align-items: center;
   padding: 8px 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--ink);
   font-size: 0.9rem;
   font-weight: 600;
@@ -993,8 +970,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .discoverBrandChip:hover {
-    border-color: color-mix(in srgb, var(--brass) 55%, transparent);
-    background: color-mix(in srgb, var(--brass) 14%, var(--panel));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel));
   }
 }
 
@@ -1062,7 +1039,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .discoverCuisineChip:hover {
-    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+    border-color: var(--hairline-strong);
     color: var(--ink);
   }
 }

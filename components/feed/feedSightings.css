@@ -140,6 +140,6 @@
 
 @media (hover: hover) {
   .feedSighting:hover {
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
