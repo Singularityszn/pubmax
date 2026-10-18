@@ -443,7 +443,6 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(ready?.areas.map((area) => area.slug)).toEqual([
       "clapham",
       "victoria",
-      "piccadilly-soho",
       "canary-wharf",
     ]);
     expect(nightAreaOptionLabel(defined(ready!.areas[0]), false)).toBe("Clapham");
@@ -456,6 +455,7 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(notReady).toMatchObject({ disabled: false });
     expect(barnes).toBeDefined();
     expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes, not crawl-ready yet");
+    expect(notReady?.areas.map((area) => area.slug)).toContain("piccadilly-soho");
   });
 
   it("turns the structured route gate response into useful error copy", () => {
