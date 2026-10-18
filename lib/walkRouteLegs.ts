@@ -8,7 +8,12 @@ import { walkRouteStore } from "@/lib/walkRouteStore";
 export type PlanWalkingStop = {
   lat: number;
   lng: number;
+  /** Curated venue id, so a leg between two venues can use the street-walk table. */
+  venueId?: string;
 };
+
+/** Street kilometres between two venues, or null to keep the straight line. */
+export type StreetWalkKm = (fromVenueId: string, toVenueId: string) => number | null;
 
 type PlanWalkingLegEstimate = {
   fromIndex: number;
@@ -17,7 +22,8 @@ type PlanWalkingLegEstimate = {
   to: LngLat;
   distanceKm: number;
   minutes: number;
-  source: WalkRouteSource;
+  /** "street" is the offline street-walk table, used where ORS did not route the leg. */
+  source: WalkRouteSource | "street";
 };
 
 export type PlanWalkingEstimate = {
@@ -25,9 +31,17 @@ export type PlanWalkingEstimate = {
   walkingMinutesFromPrevious: Array<number | null>;
   straightLineWalkingKm: number;
   estimatedWalkingMinutes: number;
-  /** Aligns with lib/routeLegs RouteDistanceBasis ("routed" when every leg is ORS). */
-  distanceBasis: "straight-line" | "routed";
+  /**
+   * "routed" when every leg is ORS, "street" when every leg is ORS or the
+   * street-walk table and at least one is the table, else "straight-line".
+   */
+  distanceBasis: "straight-line" | "routed" | "street";
 };
+
+function distanceBasisFor(legs: readonly PlanWalkingLegEstimate[]): PlanWalkingEstimate["distanceBasis"] {
+  if (legs.length === 0 || legs.some((leg) => leg.source === "straight")) return "straight-line";
+  return legs.every((leg) => leg.source === "ors") ? "routed" : "street";
+}
 
 function stopToLngLat(stop: PlanWalkingStop): LngLat {
   return [stop.lng, stop.lat];
@@ -58,10 +72,19 @@ function perStopMinutes(stopsCount: number, legs: readonly PlanWalkingLegEstimat
   return minutes;
 }
 
-export function estimateStraightLinePlanWalking(stops: readonly PlanWalkingStop[]): PlanWalkingEstimate {
+export function estimateStraightLinePlanWalking(
+  stops: readonly PlanWalkingStop[],
+  streetWalkKm?: StreetWalkKm,
+): PlanWalkingEstimate {
   const coordinates = stops.map(stopToLngLat);
+  let straightLineWalkingKm = 0;
   const legs = stopPairs(coordinates).map((pair): PlanWalkingLegEstimate => {
-    const distanceKm = haversineKm(pair.from, pair.to);
+    const straightKm = haversineKm(pair.from, pair.to);
+    straightLineWalkingKm += straightKm;
+    const fromId = stops[pair.fromIndex]?.venueId;
+    const toId = stops[pair.toIndex]?.venueId;
+    const streetKm = fromId && toId ? streetWalkKm?.(fromId, toId) ?? null : null;
+    const distanceKm = streetKm ?? straightKm;
     return {
       fromIndex: pair.fromIndex,
       toIndex: pair.toIndex,
@@ -69,21 +92,26 @@ export function estimateStraightLinePlanWalking(stops: readonly PlanWalkingStop[
       to: pair.to,
       distanceKm,
       minutes: legMinutes(distanceKm),
-      source: "straight",
+      source: streetKm === null ? "straight" : "street",
     };
   });
-  const straightLineWalkingKm = legs.reduce((total, leg) => total + leg.distanceKm, 0);
+  const anyStreet = legs.some((leg) => leg.source === "street");
   return {
     legs,
     walkingMinutesFromPrevious: perStopMinutes(stops.length, legs),
     straightLineWalkingKm,
-    estimatedWalkingMinutes: straightLineWalkingKm > 0 ? Math.ceil((straightLineWalkingKm / WALK_KMH) * 60) : 0,
-    distanceBasis: "straight-line" as const,
+    estimatedWalkingMinutes: anyStreet
+      ? legs.reduce((total, leg) => total + leg.minutes, 0)
+      : straightLineWalkingKm > 0 ? Math.ceil((straightLineWalkingKm / WALK_KMH) * 60) : 0,
+    distanceBasis: distanceBasisFor(legs),
   };
 }
 
-export async function estimatePlanWalking(stops: readonly PlanWalkingStop[]): Promise<PlanWalkingEstimate> {
-  const straight = estimateStraightLinePlanWalking(stops);
+export async function estimatePlanWalking(
+  stops: readonly PlanWalkingStop[],
+  streetWalkKm?: StreetWalkKm,
+): Promise<PlanWalkingEstimate> {
+  const straight = estimateStraightLinePlanWalking(stops, streetWalkKm);
   if (straight.legs.length === 0 || orsApiKey() === null) return straight;
 
   let store: ReturnType<typeof walkRouteStore>;
@@ -136,16 +164,15 @@ export async function estimatePlanWalking(stops: readonly PlanWalkingStop[]): Pr
     };
   }));
 
-  const hasOrsLeg = legs.some((leg) => leg.source === "ors");
-  const allRouted = legs.length > 0 && legs.every((leg) => leg.source === "ors");
+  const hasMeasuredLeg = legs.some((leg) => leg.source !== "straight");
   return {
     ...straight,
     legs,
     walkingMinutesFromPrevious: perStopMinutes(stops.length, legs),
-    estimatedWalkingMinutes: hasOrsLeg
+    estimatedWalkingMinutes: hasMeasuredLeg
       ? legs.reduce((total, leg) => total + leg.minutes, 0)
       : straight.estimatedWalkingMinutes,
     // Match lib/routeLegs withRoutedDistances: "routed" only when every leg is.
-    distanceBasis: allRouted ? "routed" : "straight-line",
+    distanceBasis: distanceBasisFor(legs),
   };
 }

@@ -62,3 +62,11 @@ describe("planRouteTotalsClient", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("planRouteTotalsFallbackLabel street totals", () => {
+  it("says a street total walks along mapped streets and prints no straight-line km beside it", () => {
+    const totals: PlanRouteTotals = { stopCount: 3, straightLineWalkingKm: 1.2, estimatedWalkingMinutes: 22, distanceBasis: "street" };
+    expect(planRouteTotalsFallbackLabel(totals)).toBe("22 min walk total along mapped streets");
+    expect(planRouteTotalsFallbackLabel({ ...totals, distanceBasis: "straight-line" })).toBe("22 min walk total · 1.2 km, straight-line");
+  });
+});
