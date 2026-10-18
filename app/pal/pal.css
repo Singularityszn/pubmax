@@ -215,7 +215,6 @@ body:has(.palExperience) {
 .palChoiceList, .palChoiceGrid { margin-top: 1.7rem; display: grid; gap: .65rem; }
 .palSpeciesGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .palChoiceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.palChoiceGridThree { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .palChoice {
   position: relative;
   min-height: 4.75rem;
@@ -374,7 +373,6 @@ body:has(.palExperience) {
   .palOnboardingPreview .palSpeech { position: relative; right: auto; bottom: auto; width: 100%; margin-top: -2.2rem; }
   .palOnboardingPanel { padding: 1.25rem 0 .75rem; }
   .palStep h1 { font-size: clamp(2.8rem, 13vw, 4.1rem); }
-  .palChoiceGridThree { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .palChoice { min-height: 4.4rem; }
   .palSpeciesGrid { gap: .55rem; }
   .palSpeciesGrid .palChoice { min-height: 4.85rem; padding-right: 2.5rem; }

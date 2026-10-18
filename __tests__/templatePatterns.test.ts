@@ -130,13 +130,8 @@ const PENDING_REMOVAL: ReadonlyArray<{ file: string; pattern: Pattern; owner: st
   // Found when the fence widened to app/ (taste pass, 18 Oct 2026). Each row
   // belongs to the route's own taste-pass owner, not to the fence's author.
   { file: "app/bar-tab/[id]/barTab.css", pattern: "three-column-grid", owner: "taste pass: /bar-tab owner (no area assigned on 18 Oct 2026)" },
-  { file: "app/feed/feed.css", pattern: "glass-blur", owner: "taste pass area C (social; /feed redirects to /social)" },
   { file: "app/globals.css", pattern: "three-column-grid", owner: "taste pass: map route panel owner (.routeMetrics KPI tiles, components/map/route/RouteMetrics.tsx)" },
-  { file: "app/messages/messages.css", pattern: "three-column-grid", owner: "taste pass area C (messages)" },
-  { file: "app/pal/pal.css", pattern: "orbit-or-scanline", owner: "taste pass area C (pal)" },
-  { file: "app/pal/pal.css", pattern: "three-column-grid", owner: "taste pass area C (pal)" },
   { file: "app/plan/plan.css", pattern: "three-column-grid", owner: "taste pass: /plan owner (not area D)" },
-  { file: "app/u/[handle]/profile.css", pattern: "three-column-grid", owner: "taste pass area C (profile)" },
 ];
 
 function walk(dir: string, out: string[]): void {

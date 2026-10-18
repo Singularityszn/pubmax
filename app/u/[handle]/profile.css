@@ -1634,7 +1634,7 @@
   /* Two-up stat tiles read better than one long column on a phone. */
   .profilePage .youProfileIdentity .profileHeader { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   .profilePage .profileStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .profilePage .youProfileIdentity .profileStats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: transparent; }
+  .profilePage .youProfileIdentity .profileStats { gap: 6px; background: transparent; }
   .profilePage .youProfileIdentity .profileStat { background: transparent; text-align: center; }
   .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
   .profilePage .youProfileIdentity .profileStatLabel { font-size: 0.75rem; }

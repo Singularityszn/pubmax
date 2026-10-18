@@ -1079,49 +1079,45 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding-top: 12px;
 }
 
+/* The things a message can carry, read down the sheet as one list: a hairline
+   between rows, the glyph in the label's ink, and no coral disc. Coral is the
+   send button's, and a disc on every row was the attach grid's template tell
+   (taste pass, 18 Oct 2026). */
 .messageAttachGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 6px 0 8px;
+  padding: 0 0 var(--space-2);
 }
 
 .messageAttachTarget {
   display: flex;
-  min-width: 56px;
   min-height: 56px;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 0;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-on-inverse);
   font: inherit;
-  flex-direction: column;
+  text-align: left;
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.messageAttachIcon {
-  display: inline-flex;
-  width: 72px;
-  height: 72px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--brass);
-  color: var(--ink-deep);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink-deep) 46%, transparent);
-  transition:
-    transform var(--duration-press) var(--ease-out-strong),
-    background-color var(--duration-base) var(--ease-out);
+.messageAttachTarget + .messageAttachTarget {
+  border-top: 1px solid color-mix(in srgb, var(--color-on-inverse) 14%, transparent);
 }
 
-.messageAttachTarget:active .messageAttachIcon {
-  transform: scale(0.94);
+.messageAttachIcon {
+  display: inline-flex;
+  flex: none;
+  opacity: 0.8;
+}
+
+.messageAttachTarget:active {
+  background: color-mix(in srgb, var(--color-on-inverse) 8%, transparent);
 }
 
 .messageAttachTarget:disabled {
@@ -1130,9 +1126,9 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageAttachLabel {
-  font-size: var(--text-sm, 0.875rem);
-  font-weight: 700;
-  line-height: 1;
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 /* The one 1px box the OS file sheet needs to open from. `display: none` is what

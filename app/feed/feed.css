@@ -802,7 +802,6 @@
   padding: 5px 10px 5px 8px;
   border-radius: 999px;
   background: var(--spill-veil);
-  backdrop-filter: blur(3px);
   color: var(--brass-bright, #d8ab55);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1988,8 +1987,7 @@
   padding: 4px 10px 4px 8px;
   border-radius: 999px;
   color: color-mix(in srgb, var(--feed-cat) 72%, #ffffff);
-  background: rgba(12, 11, 8, 0.5);
-  backdrop-filter: blur(2px);
+  background: var(--spill-veil);
   border: 1px solid color-mix(in srgb, var(--feed-cat) 55%, transparent);
   font-size: 0.75rem;
   font-weight: 700;
