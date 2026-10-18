@@ -37,6 +37,28 @@ function formatSunsetLabel(sunsetAt: string | null, now: Date, timeZone = "Europ
   return `sunset ${time}`;
 }
 
+/**
+ * An absolute London date and clock, e.g. "18 October 2026, 18:02". It holds
+ * no relative word, so it stays true however long it sits on screen. Null
+ * when the instant is not a valid date.
+ */
+export function formatLondonDateTime(at: Date): string | null {
+  if (!Number.isFinite(at.getTime())) return null;
+  const date = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  }).format(at);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Europe/London",
+  }).format(at);
+  return `${date}, ${time}`;
+}
+
 function dayNightLabel(isDay: boolean | null): string | null {
   if (isDay === null) return null;
   return isDay ? "daylight" : "night";
