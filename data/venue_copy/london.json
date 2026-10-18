@@ -18909,39 +18909,6 @@
         ]
       }
     },
-    "venue-g9jxzs": {
-      "venueId": "venue-g9jxzs",
-      "borough": "Hounslow",
-      "supportedTags": [
-        "Cocktails"
-      ],
-      "description": "You can get cocktails here in Hounslow.",
-      "vibeTags": [
-        "Cocktails"
-      ],
-      "grounding": {
-        "version": 2,
-        "verdict": "SUPPORTED",
-        "description": "You can get cocktails here in Hounslow.",
-        "vibeTags": [
-          "Cocktails"
-        ],
-        "claims": [
-          {
-            "phrase": "You can get cocktails here in Hounslow.",
-            "reason": "The phrase 'You can get cocktails' is a supported paraphrase for the presence of cocktails. The borough 'Hounslow' is known.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Cocktails",
-            "reason": "The fact 'Cocktails' is present.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          }
-        ]
-      }
-    },
     "venue-gjzd9u": {
       "venueId": "venue-gjzd9u",
       "borough": "Southwark",
@@ -25020,6 +24987,39 @@
           }
         ]
       }
+    },
+    "venue-86sj0g": {
+      "venueId": "venue-86sj0g",
+      "borough": "Hounslow",
+      "supportedTags": [
+        "Cocktails"
+      ],
+      "description": "You can get cocktails here in Hounslow.",
+      "vibeTags": [
+        "Cocktails"
+      ],
+      "grounding": {
+        "version": 2,
+        "verdict": "SUPPORTED",
+        "description": "You can get cocktails here in Hounslow.",
+        "vibeTags": [
+          "Cocktails"
+        ],
+        "claims": [
+          {
+            "phrase": "You can get cocktails here in Hounslow.",
+            "reason": "The phrase 'You can get cocktails' is a supported paraphrase for the presence of cocktails. The borough 'Hounslow' is known.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ]
+      }
     }
   },
   "skipped": {
@@ -27424,9 +27424,6 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-85y2c4": {
-      "reason": "insufficient-stored-facts"
-    },
-    "venue-86sj0g": {
       "reason": "insufficient-stored-facts"
     },
     "venue-894d0b": {

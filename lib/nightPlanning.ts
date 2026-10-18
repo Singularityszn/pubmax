@@ -2,7 +2,8 @@ import { PLAN_PRICE_AMOUNT, planPriceLimits } from "@/lib/planPriceLimits";
 import { formatGbp } from "@/lib/formatGbp";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { londonHour } from "@/lib/londonHour";
-import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
+import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
 import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 import { tubeIsARouteRule } from "@/lib/planGetHome";
 import { drinkKeywordSpans } from "@/lib/drinkCategoryFromText";
@@ -202,9 +203,9 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   };
 }
 
-export function isNightAreaSlug(value: unknown): value is NightAreaSlug {
-  return typeof value === "string" && (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
-}
+// Owned by the slug leaf so a caller that only validates a slug skips this
+// module's graph; re-exported so the planner's callers keep one door.
+export { isNightAreaSlug };
 
 export function isDaypart(value: unknown): value is Daypart {
   return typeof value === "string" && (DAYPARTS as readonly string[]).includes(value);

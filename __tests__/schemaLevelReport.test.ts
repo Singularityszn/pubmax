@@ -235,8 +235,9 @@ describe("schema-level report", () => {
     const lines: string[] = [];
     // Every label after the gap is applied, so each one is out of order. A new
     // migration joins that list rather than breaking the expected output. The
-    // report lists them in apply order, which is file order, not label order:
-    // a renumbered file keeps its timestamp (0188 applies between 0181 and 0182).
+    // report lists labels in apply order (oldest timestamp first), and a
+    // renumbered file (0188 at 20261017120000) makes that differ from label
+    // order, so the expected list keeps the files' order and is not sorted.
     const later = new Set<string>();
     for (const name of listMigrations()) {
       const label = labelOf(name);

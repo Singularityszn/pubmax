@@ -229,7 +229,9 @@ function cleanRouteTotals(value: unknown): PlanRouteTotals | null | undefined {
   if (!Number.isInteger(value.stopCount) || Number(value.stopCount) < 1 || Number(value.stopCount) > 12) return undefined;
   if (typeof value.straightLineWalkingKm !== "number" || !Number.isFinite(value.straightLineWalkingKm) || value.straightLineWalkingKm < 0) return undefined;
   if (!Number.isInteger(value.estimatedWalkingMinutes) || Number(value.estimatedWalkingMinutes) < 0) return undefined;
-  if (value.distanceBasis !== "straight-line" && value.distanceBasis !== "routed") return undefined;
+  if (value.distanceBasis !== "straight-line" && value.distanceBasis !== "routed" && value.distanceBasis !== "street") {
+    return undefined;
+  }
   return {
     stopCount: Number(value.stopCount),
     straightLineWalkingKm: value.straightLineWalkingKm,

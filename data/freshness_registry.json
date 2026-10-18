@@ -318,6 +318,17 @@
       "gate": "none"
     },
     {
+      "id": "pub_walk_pairs",
+      "label": "Street walks between curated pubs (Zone 1)",
+      "class": "static",
+      "artifact": "data/pub_walk_pairs.json",
+      "stamp": null,
+      "cadence": "static: built offline with station_walk_access from the same pinned Overture Maps release; re-run when the curated venue index changes, because a pub it does not name keeps the straight line",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (uv run scripts/build_station_walk_access.py)",
+      "gate": "none"
+    },
+    {
       "id": "london_pois",
       "label": "London POIs (map basemap)",
       "class": "static",
