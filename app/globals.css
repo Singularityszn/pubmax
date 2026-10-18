@@ -1238,16 +1238,14 @@ input[type="range"] {
   gap: 10px;
 }
 
-.statsGrid div,
-.routeMetrics div {
+.statsGrid div {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
 }
 
-.statsGrid span,
-.routeMetrics small {
+.statsGrid span {
   display: block;
   color: var(--muted);
   font-size: 0.74rem;
@@ -3818,26 +3816,35 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--brick);
 }
 
+/* The round's figures, read as one line: the figure, then what it counts.
+   No tile, no icon per figure (taste pass, 18 Oct 2026). */
 .routeMetrics {
-  margin: 16px 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  margin: var(--space-4) 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
 }
 
 .routeMetrics div {
   min-width: 0;
 }
 
-.routeMetrics div > svg {
-  color: var(--brass);
-}
-
 .routeMetrics span {
   display: block;
-  font-weight: 800;
+  font-family: var(--font-data);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  margin: 4px 0 2px;
+  color: var(--ink);
+}
+
+.routeMetrics .routeMetricsWord {
+  font-family: inherit;
+}
+
+.routeMetrics small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
 .routeList {
@@ -5721,7 +5728,6 @@ button:disabled {
 
   /* Grids that were two/three columns get cramped on a phone — go single. */
   .statsGrid,
-  .routeMetrics,
   .photoRow,
   .dropComposer .composerRow,
   .dropPhotos {

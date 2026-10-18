@@ -127,11 +127,8 @@ const HEDGE_PHRASES = [
  * that takes it out. Delete the row in that PR.
  */
 const PENDING_REMOVAL: ReadonlyArray<{ file: string; pattern: Pattern; owner: string }> = [
-  // Found when the fence widened to app/ (taste pass, 18 Oct 2026). Each row
-  // belongs to the route's own taste-pass owner, not to the fence's author.
-  { file: "app/bar-tab/[id]/barTab.css", pattern: "three-column-grid", owner: "taste pass: /bar-tab owner (no area assigned on 18 Oct 2026)" },
-  { file: "app/globals.css", pattern: "three-column-grid", owner: "taste pass: map route panel owner (.routeMetrics KPI tiles, components/map/route/RouteMetrics.tsx)" },
-  { file: "app/plan/plan.css", pattern: "three-column-grid", owner: "taste pass: /plan owner (not area D)" },
+  // Empty since the taste pass (18 Oct 2026) cleared every row it found when
+  // the fence widened to app/. A new row needs an owner and a removal PR.
 ];
 
 function walk(dir: string, out: string[]): void {

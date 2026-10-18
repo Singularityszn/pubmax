@@ -111,7 +111,7 @@
   outline-offset: 2px;
 }
 
-/* The grid — 2 cols on phones, 3 from tablet up. */
+/* The photo wall: 2 across on a phone, then as many as fit. */
 .barTabGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -123,7 +123,7 @@
 
 @media (min-width: 700px) {
   .barTabGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
     gap: 10px;
   }
 }

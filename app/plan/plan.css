@@ -893,9 +893,11 @@
 .planIntake__choices button[aria-pressed="true"],
 .planIntake__numberChoices button[aria-pressed="true"] { border-color: var(--state-selected-border); background: var(--state-selected-surface); color: var(--state-selected-ink); }
 .planIntake__choices--areas button { display: inline-flex; align-items: center; gap: 7px; border-radius: var(--control-radius, 14px); }
-.planIntake__choices--cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.planIntake__choices--cards button { min-height: 74px; display: grid; align-content: center; gap: 3px; text-align: left; }
-.planIntake__choices--cards small { color: var(--muted); font-size: 0.69rem; font-weight: 650; line-height: 1.35; }
+/* One choice of three, read down the step: the label, then its note on the
+   same line. Three cards side by side was the template tell (taste pass). */
+.planIntake__choices--cards { display: grid; grid-template-columns: minmax(0, 1fr); }
+.planIntake__choices--cards button { min-height: 52px; display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); text-align: left; }
+.planIntake__choices--cards small { color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 500; line-height: 1.35; }
 .planIntake__exactTime { grid-column: 1 / -1; display: grid; gap: 7px; margin-top: 6px; color: var(--ink-soft); font-size: 0.78rem; }
 .planIntake__exactTime input { width: min(100%, 270px); }
 .planIntake__choices--access button { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 7px; text-align: left; }

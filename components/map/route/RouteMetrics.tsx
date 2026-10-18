@@ -1,16 +1,5 @@
 "use client";
 
-import {
-  Anchor,
-  BadgePoundSterling,
-  BookOpen,
-  Footprints,
-  Landmark,
-  MapPin,
-  TrainFront,
-  Trophy,
-} from "lucide-react";
-
 import { formatPrice } from "@/lib/venues";
 import type { RouteLegsSummary, RoutePace } from "@/lib/routeLegs";
 
@@ -46,8 +35,9 @@ export default function RouteMetrics({
   return (
     <div className="routeMetrics">
       <div>
-        <BadgePoundSterling size={17} />
-        <span>{summaryTotal === null ? "Not recorded" : formatPrice(summaryTotal)}</span>
+        <span className={summaryTotal === null ? "routeMetricsWord" : undefined}>
+          {summaryTotal === null ? "Not recorded" : formatPrice(summaryTotal)}
+        </span>
         <small>
           {summaryTotal === null
             ? "round total"
@@ -59,7 +49,6 @@ export default function RouteMetrics({
       <div
         title="Straight-line distance between stops. The walk will be longer."
       >
-        <MapPin size={17} />
         <span>{summaryDistance.toFixed(1)} km</span>
         <small>straight-line, between stops</small>
       </div>
@@ -67,41 +56,34 @@ export default function RouteMetrics({
         <div
           title="Estimated at 4.8 km/h (walking) or 9 km/h (running), over the same straight-line distance. Real pavement time will be longer."
         >
-          <Footprints size={17} />
           <span>{legSummary.totalMinutes} min</span>
           <small>{pace === "run" ? "running, straight-line" : "walking, straight-line"}</small>
         </div>
       ) : null}
       {typeof journeyTotalMinutes === "number" ? (
         <div title="Live TfL travel time between stops if you leave now, via CityMCP London.">
-          <TrainFront size={17} />
           <span>{Math.round(journeyTotalMinutes)} min</span>
           <small>TfL between stops</small>
         </div>
       ) : journeyLoading ? (
         <div>
-          <TrainFront size={17} />
           <span>…</span>
           <small>TfL loading</small>
         </div>
       ) : null}
       <div>
-        <Trophy size={17} />
         <span>{routeLength}</span>
         <small>{routeLength === 1 ? stopNoun : `${stopNoun}s`}</small>
       </div>
       <div>
-        <Landmark size={17} />
         <span>{routeHeritageCount}</span>
         <small>story pubs</small>
       </div>
       <div>
-        <Anchor size={17} />
         <span>{routeWaterCount}</span>
         <small>by water</small>
       </div>
       <div>
-        <BookOpen size={17} />
         <span>{routeWriterCount}</span>
         <small>writer picks</small>
       </div>
