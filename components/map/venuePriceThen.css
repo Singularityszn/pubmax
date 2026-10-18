@@ -46,9 +46,9 @@
 }
 
 .venuePriceThen .vptThen {
-  /* The price role, pulled toward ink so the figure clears AA against the
-     plaque surface in both themes rather than relying on its size. */
-  color: color-mix(in srgb, var(--accent-price-ink) 62%, var(--ink));
+  /* A figure in a sentence is ink: a price wears its band or nothing, never
+     a second price colour (docs/DESIGN_SYSTEM.md "Status and price"). */
+  color: var(--ink);
 }
 
 .venuePriceThen .vptNow {

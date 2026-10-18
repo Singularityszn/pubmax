@@ -255,9 +255,9 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   font-size: var(--text-sm);
 }
 
+/* Layout only: the figure is the one price look (components/PriceBadge.tsx). */
 .ledgerEntryPriceValue {
-  font-weight: 700;
-  color: var(--color-text-muted);
+  vertical-align: middle;
 }
 
 .ledgerEmptyEntries {

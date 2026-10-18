@@ -45,28 +45,17 @@
   margin-top: 14px;
 }
 
+/* "From" and the cheapest pint, in the one price look (PriceBadge). */
 .barTabCheapest {
   display: inline-flex;
-  align-items: baseline;
-  gap: 7px;
-  padding: 6px 13px;
-  border-radius: var(--radius);
-  background: var(--ink-deep);
-  color: var(--color-on-inverse);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-soft);
 }
 
 .barTabCheapestLabel {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.barTabCheapestValue {
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .barTabCount {
@@ -167,15 +156,6 @@
   position: absolute;
   right: 8px;
   bottom: 8px;
-  padding: 4px 9px;
-  border-radius: var(--radius);
-  background: var(--ink-deep);
-  color: var(--color-on-inverse);
-  font-family: var(--font-display);
-  font-size: 0.92rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Text-only drop → a mini receipt tile so the grid never has a gap. */
@@ -196,13 +176,12 @@
   letter-spacing: 0.01em;
 }
 
-.barTabTileReceiptPrice {
+.barTabTileMemory {
   font-family: var(--font-display);
-  font-size: clamp(1.4rem, 6vw, 2rem);
+  font-size: var(--text-lg);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: var(--pint);
+  color: var(--ink);
 }
 
 .barTabTileDrink {

@@ -323,25 +323,6 @@
   text-align: right;
 }
 
-.priceStamp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 4.45rem;
-  min-height: 1.75rem;
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-raised);
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-weight: 800;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  transform: none;
-}
-
 /* ── Cheapest pints tonight (live board) ──────────────────────────────────
    A compact ranked list of the cheapest community Pint Drops from the last
    24h. Uses the shared stable PriceBadge for numeric data. Tokens only. */

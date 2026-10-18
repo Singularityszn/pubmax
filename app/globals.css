@@ -4219,12 +4219,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   white-space: nowrap;
 }
 
-.dropCard .dropPrice {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--pint);
-}
-
 .dropCard p {
   margin: 0;
   font-size: var(--text-sm);

@@ -1,5 +1,7 @@
 import { Camera } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
+
 import type { Visibility } from "@/lib/spill";
 import type { SpillPreviewModel } from "@/lib/spillPreview";
 import { VISIBILITY_COPY } from "@/lib/pintDropComposerConfig";
@@ -42,7 +44,7 @@ export function SpillPreviewCard({ preview, pintPhoto, visibility }: SpillPrevie
           <span className="spillPreviewVisibility">{VISIBILITY_COPY[visibility].label}</span>
         </div>
         {preview.priceLabel ? (
-          <span className="spillPreviewPrice">{preview.priceLabel}</span>
+          <PriceBadge className="spillPreviewPrice">{preview.priceLabel}</PriceBadge>
         ) : null}
         <div className="spillPreviewScrim">
           <div className="spillPreviewWho">

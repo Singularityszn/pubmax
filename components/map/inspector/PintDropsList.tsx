@@ -1,4 +1,5 @@
 import VenueImage from "@/components/media/VenueImage";
+import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
 import { Flag } from "lucide-react";
 
@@ -57,9 +58,13 @@ export default function PintDropsList({
             <div className="dropHead">
               <span className="dropHandle">{drop.handle}</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                {drop.priceGbp !== null ? (
-                  <span className="dropPrice">{formatPrice(drop.priceGbp)}</span>
-                ) : null}
+                {/* One price look: a pint wears its band, any other measure
+                    stays on the neutral plaque (components/PriceBadge.tsx). */}
+                {drop.priceGbp === null ? null : measureIsPint(drop.measure) ? (
+                  <PintPriceBadge priceGbp={drop.priceGbp} venueId={venue.id} />
+                ) : (
+                  <PriceBadge>{formatPrice(drop.priceGbp)}</PriceBadge>
+                )}
                 <ProvenanceChip provenance={drop.provenance} />
               </span>
             </div>

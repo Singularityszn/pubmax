@@ -8,6 +8,8 @@
 
 import { Check, ShieldCheck } from "lucide-react";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
+
 import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
 import {
   BUDGET_CHOICES,
@@ -216,7 +218,7 @@ export function ResultPanel({
             <li key={card.id}>
               <strong>{card.name}</strong>
               <span>{[card.borough, walkLabel(card)].filter(Boolean).join(", ")}</span>
-              <b>{formatGbp(card.cheapestPrice)}</b>
+              <PintPriceBadge priceGbp={card.cheapestPrice} venueId={card.id} />
             </li>
           ))}
         </ul>

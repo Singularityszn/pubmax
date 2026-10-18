@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
+import { PintPriceBadge } from "@/components/PriceBadge";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
@@ -300,7 +301,11 @@ export default function VenueStoryTab({
         {venue.prices.slice(0, 6).map((price) => (
           <div key={price.app_price_id}>
             <span>{price.pint_name}</span>
-            <strong>{formatPrice(price.price_gbp)}</strong>
+            {price.price_gbp === null ? (
+              <span>{formatPrice(null)}</span>
+            ) : (
+              <PintPriceBadge priceGbp={price.price_gbp} venueId={venue.id} />
+            )}
           </div>
         ))}
       </div>

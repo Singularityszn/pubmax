@@ -1015,10 +1015,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   backdrop-filter: blur(6px);
 }
 
-.venueTabPanel .dropCard .dropPrice {
-  color: var(--pint);
-}
-
 .venueTabPanel .cuisineRow {
   margin: 0 0 12px;
 }

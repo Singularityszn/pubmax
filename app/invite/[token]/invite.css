@@ -193,11 +193,9 @@
   overflow-wrap: anywhere;
 }
 
+/* Layout only: the figure is the one price look (components/PriceBadge.tsx). */
 .invite__stopPrice {
   flex: 0 0 auto;
-  color: var(--color-text-muted);
-  font-weight: 700;
-  font-size: var(--text-sm);
 }
 
 .invite__mapLink {

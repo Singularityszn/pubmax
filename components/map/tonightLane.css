@@ -430,10 +430,9 @@
   color: var(--color-text-muted);
 }
 
+/* A deal's figure is not a pint, so it wears the neutral plaque. */
 .tonightLaneCardPrice {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--ink);
+  flex: 0 0 auto;
 }
 
 .tonightLaneCardTitle {

@@ -94,10 +94,10 @@
   font-weight: 600;
 }
 
+/* A coffee is not a pint, so its figure wears the neutral plaque: the one
+   price look, unbanded (components/PriceBadge.tsx). Layout only here. */
 .coffeePilotFigure {
-  color: var(--ink);
-  font-size: 1.08rem;
-  font-variant-numeric: tabular-nums;
+  justify-self: end;
 }
 
 .coffeePilotSourceLink {

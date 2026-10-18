@@ -255,11 +255,9 @@
   color: var(--ink);
 }
 
+/* Layout only: the face is the one price look (components/PriceBadge.tsx). */
 .mapConciergeAskCardPrice {
   flex: 0 0 auto;
-  font-size: var(--text-sm);
-  font-weight: 800;
-  color: color-mix(in srgb, var(--amber) 55%, var(--ink));
 }
 
 .mapConciergeAskCardPlace {
