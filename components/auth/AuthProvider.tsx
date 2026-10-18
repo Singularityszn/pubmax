@@ -165,7 +165,8 @@ const AccountOnboarding = nextDynamic(
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
 const AUTH_STATE_UNCONFIRMED_MESSAGE = "Your sign-in state could not be confirmed. Try again.";
-const AUTH_START_CANCELLED_MESSAGE = "Sign-in was cancelled. Try again.";
+// An obsolete start cannot publish a sent claim or an alert.
+const NATIVE_EMAIL_SUPERSEDED: MagicLinkResult = { status: "cancelled", message: "" };
 // The native sheet reports a closed sheet and a provider failure the same way.
 const AUTH_PROVIDER_INCOMPLETE_MESSAGE = "Sign-in was cancelled or could not be completed. Try again.";
 
@@ -999,9 +1000,19 @@ export function AuthProvider({
     }).catch(() => {});
   }, [router]);
 
-  const startNativeIOSOAuth = useCallback(async (provider: "google" | "apple" | "azure", next?: string): Promise<AuthStartResult | { useExistingOAuth: true }> => {
-    await cancelPendingNativeAuth();
-    const ticket = nativeAuthLifetime.current.begin();
+  const claimNativeIOSOAuth = useCallback(() => {
+    if (typeof window === "undefined" || nativePlatform() !== "ios") return null;
+    const installation = cancelPendingNativeAuth();
+    return { installation, ticket: nativeAuthLifetime.current.begin() };
+  }, [cancelPendingNativeAuth]);
+
+  const startNativeIOSOAuth = useCallback(async (
+    provider: "google" | "apple" | "azure",
+    { installation, ticket }: NonNullable<ReturnType<typeof claimNativeIOSOAuth>>,
+    next?: string,
+  ): Promise<AuthStartResult | { useExistingOAuth: true }> => {
+    await installation;
+    if (!ticket.current()) return { error: null };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!ticket.current()) return { error: null };
     if (!supabase) return { error: "Sign-in is not configured." };
@@ -1056,7 +1067,7 @@ export function AuthProvider({
     if (!completed) return { error: AUTH_PROVIDER_INCOMPLETE_MESSAGE };
     finishNativeSignIn(completed, ticket.current);
     return { error: null };
-  }, [cancelPendingNativeAuth, finishNativeSignIn]);
+  }, [finishNativeSignIn]);
 
   const nativeEmailCallbacks = useRef(new Set<string>());
   // Links this document already answered, so a second copy stays quiet.
@@ -1121,15 +1132,17 @@ export function AuthProvider({
   }, [finishNativeSignIn]);
 
   const startNativeEmail = useCallback(async (email: string | null, next?: string): Promise<MagicLinkResult | { useExistingEmail: true }> => {
-    await cancelPendingNativeAuth();
+    const installation = cancelPendingNativeAuth();
     const ticket = nativeAuthLifetime.current.begin();
+    await installation;
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
     const supabase = await ensureSupabaseBrowser().catch(() => null);
-    // No link exists yet, so none of these failures is about a link: a newer
-    // request or a cancel superseded this one, or the session could not be read.
-    if (!ticket.current()) return { status: "error", message: AUTH_START_CANCELLED_MESSAGE };
+    // A superseded start is quiet. A current session read failure stays visible.
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
     const activeSession = await supabase?.auth.getSession().catch(() => null);
-    if (!ticket.current()) return { status: "error", message: AUTH_START_CANCELLED_MESSAGE };
-    if (!supabase || !activeSession || activeSession.error) return { status: "error", message: AUTH_STATE_UNCONFIRMED_MESSAGE };
+    if (!ticket.current()) return NATIVE_EMAIL_SUPERSEDED;
+    if (!supabase) return { status: "error", message: "Sign-in is not configured." };
+    if (!activeSession || activeSession.error) return { status: "error", message: AUTH_STATE_UNCONFIRMED_MESSAGE };
     if (activeSession.data.session) {
       const page = new URL(window.location.href);
       if ((page.pathname === "/login" || page.pathname === "/signin") && page.searchParams.getAll(LOGIN_ADD_ACCOUNT_PARAM).length === 1 &&
@@ -1143,17 +1156,19 @@ export function AuthProvider({
     const attempt = await prepareAuthCallback(window.location.href, next ?? defaultEmailAuthNext(window.location.href),
       () => ticket.current() && sessionTransitions.current.currentUserId() === null && readProviderAuthState("supabase") === "signed-out");
     if ("navigationStarted" in attempt) return { status: "error", message: "Continue sign-in on pubmaxxing.com." };
-    if (!attempt.ok) return { status: "error", message: attempt.message };
+    if (!attempt.ok) return ticket.current() ? { status: "error", message: attempt.message } : NATIVE_EMAIL_SUPERSEDED;
     const config = nativeEmailAuthConfig();
     if (!config) { releaseBrowserAuthAttempt(attempt.id); return { status: "error", message: "Sign-in is not configured." }; }
     const prepared = await prepareNativeEmailReceipt(attempt, email, browserLocalStorage(), Date.now(), ticket.current, config);
     if (!ticket.current()) {
       removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
-      return { status: "error", message: AUTH_START_CANCELLED_MESSAGE };
+      return NATIVE_EMAIL_SUPERSEDED;
     }
-    if (!prepared) {
+    if (prepared.status !== "prepared") {
       removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
-      return { status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." };
+      return prepared.status === "storage"
+        ? { status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." }
+        : { status: "error", message: "Sign-in could not be started. Try again." };
     }
     const result = email === null
       ? await requestResumeLink(prepared.receipt.callbackUrl, fetch, { codeChallenge: prepared.challenge })
@@ -1161,7 +1176,7 @@ export function AuthProvider({
     if (result.status !== "sent") {
       removeNativeEmailReceipt(browserLocalStorage(), attempt.id); releaseBrowserAuthAttempt(attempt.id);
     }
-    return result;
+    return ticket.current() ? result : NATIVE_EMAIL_SUPERSEDED;
   }, [cancelPendingNativeAuth]);
 
   // Android opens the provider through lib/nativeOAuth.ts and returns via its
@@ -1184,10 +1199,10 @@ export function AuthProvider({
     [],
   );
 
-  const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<AuthStartResult> => {
+  const startSupabaseGoogleOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    if (nativePlatform() === "ios") {
-      const native = await startNativeIOSOAuth("google", next);
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("google", nativeClaim, next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -1220,10 +1235,10 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<AuthStartResult> => {
+  const startSupabaseAppleOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    if (nativePlatform() === "ios") {
-      const native = await startNativeIOSOAuth("apple", next);
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("apple", nativeClaim, next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -1254,10 +1269,10 @@ export function AuthProvider({
     }
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
-  const startSupabaseMicrosoftOAuth = useCallback(async (next?: string): Promise<AuthStartResult> => {
+  const startSupabaseMicrosoftOAuth = useCallback(async (next: string | undefined, nativeClaim: ReturnType<typeof claimNativeIOSOAuth>): Promise<AuthStartResult> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    if (nativePlatform() === "ios") {
-      const native = await startNativeIOSOAuth("azure", next);
+    if (nativeClaim) {
+      const native = await startNativeIOSOAuth("azure", nativeClaim, next);
       if (!("useExistingOAuth" in native)) return native;
     }
     const attempt = await prepareAuthCallback(window.location.href, next);
@@ -1290,34 +1305,37 @@ export function AuthProvider({
   }, [handOffToSystemBrowser, startNativeIOSOAuth]);
 
   const signInWithGoogle = useCallback(async (next?: string): Promise<AuthStartResult> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "google",
-      () => startSupabaseGoogleOAuth(next),
+      () => startSupabaseGoogleOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseGoogleOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseGoogleOAuth]);
 
   const signInWithApple = useCallback(async (next?: string): Promise<AuthStartResult> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "apple",
-      () => startSupabaseAppleOAuth(next),
+      () => startSupabaseAppleOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseAppleOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseAppleOAuth]);
 
   const signInWithMicrosoft = useCallback(async (next?: string): Promise<AuthStartResult> => {
+    const nativeClaim = claimNativeIOSOAuth();
     const guarded = await guardSocialAuthProvider(
       "microsoft",
-      () => startSupabaseMicrosoftOAuth(next),
+      () => startSupabaseMicrosoftOAuth(next, nativeClaim),
       () => loadSocialAuthProviders(globalThis.fetch, { fresh: true }),
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [startSupabaseMicrosoftOAuth]);
+  }, [claimNativeIOSOAuth, startSupabaseMicrosoftOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {

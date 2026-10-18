@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   listeners: new Set<(event: { url: string }) => void>(), launchUrl: null as string | null,
   bootstrap: vi.fn(), tokenRequests: 0, referralBodies: [] as Record<string, unknown>[], tokenDelay: null as Promise<unknown> | null, resumeBody: null as null | Record<string, unknown>,
   identityRequests: 0, identityDelay: null as Promise<unknown> | null, referralDelay: null as Promise<unknown> | null,
+  resumeHold: null as Promise<Response> | null, resumeHeld: false,
   callbackUrl: "", otpBody: null as null | Record<string, unknown>, tokenBody: null as null | Record<string, unknown>,
   canonicalOAuth: vi.fn(), getSession: vi.fn(), nativeOAuth: vi.fn(), exchange: vi.fn(), verify: vi.fn(),
   authenticate: vi.fn(), setSession: vi.fn(), signOut: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn(),
@@ -103,7 +104,7 @@ beforeEach(async () => {
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.listeners.clear(); h.launchUrl = null; h.callbackUrl = ""; h.otpBody = null; h.tokenBody = null; h.tokenRequests = 0; h.referralBodies = []; h.tokenDelay = null; h.resumeBody = null;
-  h.identityRequests = 0; h.identityDelay = null; h.referralDelay = null;
+  h.identityRequests = 0; h.identityDelay = null; h.referralDelay = null; h.resumeHold = null; h.resumeHeld = false;
   h.bootstrap.mockImplementation(async () => h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }));
   h.canonicalEmail.mockImplementation(async ({ options }: { options: { emailRedirectTo: string } }) => { h.callbackUrl = options.emailRedirectTo; return { error: null }; });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://native-email-test.supabase.co");
@@ -135,6 +136,8 @@ beforeEach(async () => {
     if (url.pathname === "/api/auth/session" && init?.method === "POST") {
       h.resumeBody = JSON.parse(String(init.body));
       h.callbackUrl = String(h.resumeBody?.callbackUrl);
+      const hold = h.resumeHold;
+      if (hold) { h.resumeHold = null; h.resumeHeld = true; return hold; }
       return Response.json({ status: "sent", message: "Check your email." });
     }
     if (url.pathname === "/auth/v1/user") return Response.json(replacement.user);
@@ -262,7 +265,8 @@ describe("installed iPhone email link, relay and App consumer", () => {
       else { h.session = original; h.subscriber?.("SIGNED_IN", original); }
       await queued[0]!();
     });
-    expect((await pending).status).toBe("error");
+    if (change === "cancel") expect(await pending).toEqual({ status: "cancelled", message: "" });
+    else expect((await pending).status).toBe("error");
     expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
     expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
     expect(h.otpBody).toBeNull();
@@ -275,7 +279,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     expect(h.otpBody).toBeNull();
   });
 
-  it("says a superseded start was cancelled, not that a link expired", async () => {
+  it("returns a neutral result when a cancelled start settles after session lookup", async () => {
     let release!: () => void;
     h.getSession.mockImplementationOnce(() => new Promise((resolve) => {
       release = () => resolve({ data: { session: null }, error: null });
@@ -284,7 +288,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await act(async () => { earlier = actions.signInWithEmail("earlier@example.test"); });
     await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     await act(async () => { actions.cancelAuthAttempt(); release(); });
-    expect(await earlier).toEqual({ status: "error", message: "Sign-in was cancelled. Try again." });
+    expect(await earlier).toEqual({ status: "cancelled", message: "" });
     expect(h.otpBody).toBeNull();
   });
 
@@ -297,7 +301,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await act(async () => { second = actions.signInWithEmail("native@example.test", "/u/you"); });
     await vi.waitFor(() => expect(queued).toHaveLength(2));
     await act(async () => { await queued[0]!(); });
-    expect((await first).status).toBe("error");
+    expect(await first).toEqual({ status: "cancelled", message: "" });
     expect(h.otpBody).toBeNull();
     await act(async () => { await queued[1]!(); await second; });
     expect((await second).status).toBe("sent");
@@ -435,9 +439,126 @@ describe("installed iPhone email link, relay and App consumer", () => {
 
   it.each(["unresolved", "unavailable"] as const)("does not send native email while auth is %s", async (state) => {
     await act(async () => { setProviderAuthState("supabase", state); });
-    await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("error"); });
+    await act(async () => {
+      expect(await actions.signInWithEmail("native@example.test")).toEqual({ status: "error", message: "Your sign-in state could not be confirmed. Try again." });
+    });
     expect(h.otpBody).toBeNull();
     expect(h.canonicalEmail).not.toHaveBeenCalled();
+    expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+  });
+
+  it.each([
+    ["email", "cancel"], ["email", "supersede"], ["resume", "cancel"], ["resume", "supersede"],
+  ] as const)("returns a neutral %s result after a %s during session lookup", async (route, change) => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let holding = false;
+    h.getSession.mockImplementationOnce(async () => { holding = true; await held; return { data: { session: h.session }, error: null }; });
+    let pending!: Promise<unknown>;
+    try {
+      await act(async () => { pending = route === "email" ? actions.signInWithEmail("earlier@example.test") : actions.resumeSignIn(); });
+      await vi.waitFor(() => expect(holding).toBe(true), { timeout: 1000 });
+      if (change === "cancel") await act(async () => { actions.cancelAuthAttempt(); });
+      else await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("sent"); });
+    } finally { await act(async () => { release(); }); }
+    expect(await pending).toEqual({ status: "cancelled", message: "" });
+    expect(h.resumeBody).toBeNull();
+    expect(h.canonicalEmail).not.toHaveBeenCalled();
+    expect(h.setSession).not.toHaveBeenCalled();
+    if (change === "cancel") {
+      expect(h.otpBody).toBeNull();
+      expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+    } else {
+      expect(h.otpBody?.email).toBe("native@example.test");
+      expect(JSON.parse(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)!).id).toBe(new URL(h.callbackUrl).searchParams.get("_authAttempt"));
+    }
+  });
+
+  it.each(["cancel", "supersede"] as const)("keeps a newer receipt and reports no storage fault after a %s during receipt crypto", async (change) => {
+    let release!: (digest: ArrayBuffer) => void;
+    const held = new Promise<ArrayBuffer>((resolve) => { release = resolve; });
+    let holding = false;
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    const spy = vi.spyOn(crypto.subtle, "digest").mockImplementationOnce(async () => { holding = true; return held; })
+      .mockImplementation((...args: Parameters<typeof digest>) => digest(...args));
+    let earlier!: ReturnType<AuthContextValue["signInWithEmail"]>;
+    try {
+      await act(async () => { earlier = actions.signInWithEmail("earlier@example.test"); });
+      await vi.waitFor(() => expect(holding).toBe(true), { timeout: 1000 });
+      expect(localStorage.getItem("pubmax_auth_active_attempt")).not.toBeNull();
+      if (change === "cancel") await act(async () => { actions.cancelAuthAttempt(); });
+      else await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("sent"); });
+    } finally {
+      await act(async () => { release(new ArrayBuffer(32)); });
+      spy.mockRestore();
+    }
+    expect(await earlier).toEqual({ status: "cancelled", message: "" });
+    if (change === "cancel") {
+      expect(h.otpBody).toBeNull();
+      expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+    } else {
+      expect(h.otpBody?.email).toBe("native@example.test");
+      const receipt = JSON.parse(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)!);
+      expect(receipt.expectedEmail).toBe("native@example.test");
+      expect(receipt.id).toBe(new URL(h.callbackUrl).searchParams.get("_authAttempt"));
+    }
+  });
+
+  it.each([
+    ["cancel", "sent"], ["cancel", "failed"], ["supersede", "sent"], ["supersede", "failed"],
+  ] as const)("returns a neutral resume result after a %s while its %s response is held", async (change, outcome) => {
+    const response = () => outcome === "sent" ? Response.json({ status: "sent", message: "Check your email." }) : Response.json({ error: "Resume unavailable." }, { status: 503 });
+    let release!: (response: Response) => void;
+    h.resumeHold = new Promise<Response>((resolve) => { release = resolve; });
+    let earlier!: ReturnType<AuthContextValue["resumeSignIn"]>;
+    try {
+      await act(async () => { earlier = actions.resumeSignIn(); });
+      await vi.waitFor(() => expect(h.resumeHeld).toBe(true), { timeout: 1000 });
+      expect(JSON.parse(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)!).id).toBe(new URL(h.callbackUrl).searchParams.get("_authAttempt"));
+      if (change === "cancel") await act(async () => { actions.cancelAuthAttempt(); });
+      else await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("sent"); });
+      await act(async () => { release(response()); });
+    } finally { release(response()); }
+    expect(await earlier).toEqual({ status: "cancelled", message: "" });
+    expect(h.setSession).not.toHaveBeenCalled();
+    expect(h.navigate).not.toHaveBeenCalled();
+    expect(container.querySelector("output")?.textContent).toBe("signed-out");
+    if (change === "cancel") {
+      expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+    } else {
+      const receipt = JSON.parse(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)!);
+      expect(receipt.expectedEmail).toBe("native@example.test");
+      expect(receipt.id).toBe(new URL(h.callbackUrl).searchParams.get("_authAttempt"));
+      expect(JSON.parse(localStorage.getItem("pubmax_auth_active_attempt")!).id).toBe(receipt.id);
+    }
+  });
+
+  it("keeps genuine storage refusal distinct from cancellation", async () => {
+    const setItem = Storage.prototype.setItem;
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key: string, value: string) {
+      if (this === localStorage && key === NATIVE_EMAIL_RECEIPT_KEY) throw new Error("storage disabled");
+      setItem.call(this, key, value);
+    });
+    try {
+      await act(async () => {
+        expect(await actions.signInWithEmail("native@example.test")).toEqual({ status: "error", message: "Sign-in needs browser storage. Enable site storage, then try again." });
+      });
+    } finally { spy.mockRestore(); }
+    expect(h.otpBody).toBeNull();
+    expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+    expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
+  });
+
+  it("does not blame browser storage when receipt crypto fails", async () => {
+    const spy = vi.spyOn(crypto.subtle, "digest").mockRejectedValueOnce(new Error("crypto unavailable"));
+    try {
+      await act(async () => {
+        expect(await actions.signInWithEmail("native@example.test")).toEqual({ status: "error", message: "Sign-in could not be started. Try again." });
+      });
+    } finally { spy.mockRestore(); }
+    expect(h.otpBody).toBeNull();
+    expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+    expect(localStorage.getItem("pubmax_auth_active_attempt")).toBeNull();
   });
 
   it.each([null, "android"] as const)("keeps email implicit on %s", async (platform) => {

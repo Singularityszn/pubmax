@@ -49,7 +49,7 @@ export default function MagicLinkForm({
       setStatus("sending");
       setMessage("");
       const result = await signInWithEmail(email);
-      setStatus(result.status);
+      setStatus(result.status === "cancelled" ? "idle" : result.status);
       setMessage(result.message);
     },
     [disabled, email, signInWithEmail, status, valid],

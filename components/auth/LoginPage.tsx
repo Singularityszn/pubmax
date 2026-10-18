@@ -561,7 +561,7 @@ export default function LoginPage({
     const result = providerDestination
       ? await resumeSignIn(providerDestination)
       : await resumeSignIn();
-    setResumeStatus(result.status);
+    setResumeStatus(result.status === "cancelled" ? "idle" : result.status);
     setResumeMessage(result.message);
   }, [providerDestination, resumeSignIn, resumeStatus]);
 
