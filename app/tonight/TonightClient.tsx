@@ -30,11 +30,13 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
-import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
+import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
+import NewSinceMarker from "@/components/seen/NewSinceMarker";
+import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
 import TonightChainDeals from "./TonightChainDeals";
 import TonightCheapPints from "./TonightCheapPints";
 import TonightConditionsStrip from "./TonightConditionsStrip";
@@ -45,6 +47,7 @@ import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightLaterListings from "./TonightLaterListings";
 import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
+import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
@@ -112,13 +115,15 @@ import {
   tonightProvenanceCredits,
   tonightWhatsOnObservedAt,
 } from "@/lib/tonightOutListings";
+import type { LoadWhatsOnResult } from "@/lib/whatsOnStore";
+import type { TonightOutAnswer } from "@/lib/tonightOutListings";
 import type { HypedPub } from "@/lib/hypedPubs";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
 import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
-import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { EMPTY_KIND_OBSERVED_AT, whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
   laneKindFacets,
@@ -212,13 +217,55 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   },
 ];
 
+const EMPTY_SERVER_ROWS: WhatsOnRow[] = [];
+
+function initialWhatsOnView(answer: LoadWhatsOnResult | null): Pick<
+  WhatsOnTonight, "rows" | "status" | "sourceFreshnessKind" | "kindObservedAt"
+> {
+  const rows = answer?.rows ?? EMPTY_SERVER_ROWS;
+  return {
+    rows,
+    status: answer?.readStatus === "ready" ? rows.length > 0 ? "ready" : "empty" : "error",
+    sourceFreshnessKind: answer?.sourceFreshnessKind ?? "unknown",
+    kindObservedAt: answer?.kindObservedAt ?? EMPTY_KIND_OBSERVED_AT,
+  };
+}
+
+type InitialListings = {
+  whatsOn: LoadWhatsOnResult | null;
+  out: TonightOutAnswer;
+  renderedAt: number;
+};
+
+function useInitialListings(
+  seed: InitialListings | undefined,
+  liveWhatsOn: WhatsOnTonight,
+  liveOut: ReturnType<typeof useOutListings>,
+) {
+  const [initial, setInitial] = useState(seed ?? null);
+  // Both browser reads replace the public server answer, including failures.
+  useEffect(() => {
+    if (liveWhatsOn.status === "idle" || liveOut.pending) return;
+    void Promise.resolve().then(() => setInitial(null));
+  }, [liveWhatsOn.status, liveOut.pending]);
+  const clearInitial = useCallback(() => setInitial(null), []);
+  return {
+    whatsOn: initial ? initialWhatsOnView(initial.whatsOn) : liveWhatsOn,
+    out: initial?.out ?? liveOut,
+    renderedAt: initial?.renderedAt,
+    clearInitial,
+  };
+}
+
 export default function TonightClient({
   quietPint = null,
   softPlansWindow = false,
   mapSelectableVenueIds,
   hypedPubs,
   cheapPints,
+  initialListings,
 }: {
+  initialListings?: InitialListings;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
   /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
@@ -268,17 +315,18 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
+  const liveWhatsOn = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
     { pubOnly: true },
   );
-  const {
-    body: outBody,
-    failed: outFailed,
-    pending: outPending,
-    retry: retryOut,
-  } = useOutListings("tonight");
+  const liveOut = useOutListings("tonight");
+  const initialAnswer = useInitialListings(initialListings, liveWhatsOn, liveOut);
+  const { rows, status, sourceFreshnessKind, kindObservedAt } = initialAnswer.whatsOn;
+  const { renderedAt, clearInitial } = initialAnswer;
+  const { retry } = liveWhatsOn;
+  const { retry: retryOut } = liveOut;
+  const { body: outBody, failed: outFailed, pending: outPending } = initialAnswer.out;
   const selectableVenueIds = useMemo(
     () => {
       if (mapSelectableVenueIds === undefined) return undefined;
@@ -304,16 +352,17 @@ export default function TonightClient({
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
-    const now = Date.now();
+    const now = renderedAt ?? Date.now();
     return tonightLedeComposition(rows, outAnswer, paintStatus, now, selectableVenueIds);
-  }, [rows, paintStatus, outAnswer, selectableVenueIds]);
+  }, [rows, paintStatus, outAnswer, selectableVenueIds, renderedAt]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
   const retryListings = useCallback(() => {
+    clearInitial();
     if (retryWhatsOnLane) retry();
     if (retryOutLane) retryOut();
-  }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
+  }, [retryWhatsOnLane, retryOutLane, retry, retryOut, clearInitial]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
@@ -398,6 +447,14 @@ export default function TonightClient({
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
+  // Which listing cards this device has not been shown before. A card is a
+  // family (one offer at many pubs), so it is judged by every member's id
+  // (lib/seenSinceLastLook.ts); the list is remembered once it has painted.
+  const groupedIds = useMemo(
+    () => grouped.map((group) => [group.row.id, ...group.alternates.map((alt) => alt.id)]),
+    [grouped],
+  );
+  const newSinceLastLook = useNewSinceLastLook("tonight", groupedIds, ready);
   const firstListingsRead = useFirstListingsRead(listingsStatus);
   const listingLede = useMemo(
     () =>
@@ -435,8 +492,9 @@ export default function TonightClient({
         renderedGroups: grouped,
         outEvents,
         kindObservedAt,
+        now: renderedAt,
       }),
-    [grouped, outEvents, kindObservedAt],
+    [grouped, outEvents, kindObservedAt, renderedAt],
   );
   const checked = freshnessLabel(sourceFreshnessKind, whatsOnObservedAt);
   // The ordering claim rides the What's-On credit, so it is only made when
@@ -524,7 +582,7 @@ export default function TonightClient({
   );
   const secondaryLanes = (
     <>
-      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />
+      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
       {/* The music lane is dated by the MUSIC feed, never by the freshest thing
           on the page: the deals feed is rebuilt far more often, and borrowing
           its date would claim gigs were confirmed on a day nobody looked. */}
@@ -628,7 +686,7 @@ export default function TonightClient({
           ) : null}
 
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
-            {grouped.map((group) => {
+            {grouped.map((group, groupIndex) => {
               const row = group.row;
               const { primary: link, mapHref, sourceLabel } = tonightRowLinks(
                 row,
@@ -645,9 +703,9 @@ export default function TonightClient({
               const barePrice = whatsOnBarePriceGbp(row);
               // A deal carries an exact window and a listing date, so it says
               // when it closes and how old the listing is. Both read off the row.
-              const dealEnds = row.kind === "deal" ? dealEndsCaption(row) : null;
+              const dealEnds = row.kind === "deal" ? dealEndsCaption(row, renderedAt) : null;
               const dealListingAge =
-                row.kind === "deal" ? dealListingAgeCaption(row) : null;
+                row.kind === "deal" ? dealListingAgeCaption(row, renderedAt) : null;
               const RowInner = (
                 <>
                   <div className="tonightRowMeta">
@@ -655,6 +713,7 @@ export default function TonightClient({
                       <KindIcon size={12} aria-hidden="true" />
                       {meta.label}
                     </span>
+                    {newSinceLastLook[groupIndex] ? <NewSinceMarker /> : null}
                     {barePrice !== null ? (
                       <span className="tonightRowPrice">
                         £{barePrice.toFixed(2)}
@@ -873,11 +932,16 @@ export default function TonightClient({
       <aside className="tonightContext" aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary
+            now={renderedAt}
             facets={displayedFacets}
             rows={summaryRows}
             totalCount={grouped.length}
           />
         ) : null}
+
+      {/* The reader's own saved pubs, before the city's. It draws nothing and
+          asks for nothing when nothing is saved (lib/tonightYourPubs.ts). */}
+      <TonightYourPubs />
 
       {/* Real pubs before a mood ask. A night with nothing listed still has
           pubs in it, and a listed price is the one thing this product can put
@@ -966,8 +1030,10 @@ export default function TonightClient({
 
         {/* What /out carried before it became a redirect here: the open plans
             and the Drink Wall off the Out read this page already holds, then
-            tomorrow and the weekend, read only when a day is chosen. */}
-        <TonightOpenPlans body={outBody} />
+            tomorrow and the weekend, read only when a day is chosen. Open
+            plans come from the browser read alone: the server seed holds
+            listings only. */}
+        <TonightOpenPlans body={liveOut.body} />
         <TonightLaterListings />
       </aside>
 

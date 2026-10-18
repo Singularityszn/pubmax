@@ -38,8 +38,15 @@ const ROUTE_BEAM_WIDTH = 1_500;
 const MAX_SAME_OPERATOR_SEARCH_CANDIDATES = 3;
 
 type PlanVisitWindow = { startsAt: string; endsAt: string };
+/**
+ * How walkingMinutes was measured: every leg along the streets, some legs, or
+ * none. The constraint report and the route timing disclosure say which.
+ */
+export type PlanWalkingBasis = "street" | "mixed" | "straight-line";
+
 export type PlanRouteTiming = {
   visitWindows: readonly PlanVisitWindow[];
+  walkingBasis: PlanWalkingBasis;
   straightLineWalkingKm: number;
   walkingMinutes: number;
   transferUncertaintyMinutes: number;
@@ -81,6 +88,12 @@ export type GroundedPlanRouteConstraints = {
   now: number;
   /** Requested number of pub stops. Missing means the original 3-stop default. */
   stopCount?: number;
+  /**
+   * Street kilometres between two candidates, or null to keep the straight
+   * line for that leg. The server passes lib/pubWalkPairs; a caller without
+   * it measures every leg along the straight line, as before.
+   */
+  streetWalkKm?: (fromVenueId: string, toVenueId: string) => number | null;
   /**
    * Prefer a route with at most one pub per known operator. A crawl of three
    * branches of one chain is the same pub three times. When no such route is
@@ -147,24 +160,44 @@ function distanceKm<T>(left: GroundedPlanRouteCandidate<T>, right: GroundedPlanR
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+// The leg the walker actually walks: the street walk where the table holds
+// the pair, else the straight line. The leg and route caps and the visit
+// windows read this; straightLineWalkingKm stays the straight line it says.
+function walkKm<T>(
+  left: GroundedPlanRouteCandidate<T>,
+  right: GroundedPlanRouteCandidate<T>,
+  constraints: Pick<GroundedPlanRouteConstraints, "streetWalkKm">,
+): number {
+  return constraints.streetWalkKm?.(left.venueId, right.venueId) ?? distanceKm(left, right);
+}
+
 function legWalkingMinutes(km: number): number {
   return Math.ceil((km / PLAN_WALKING_KMH) * 60);
 }
 
 function routeTiming<T>(
   route: readonly GroundedPlanRouteCandidate<T>[],
-  routeWindow: GroundedPlanRouteConstraints["routeWindow"],
+  constraints: Pick<GroundedPlanRouteConstraints, "routeWindow" | "streetWalkKm">,
 ): PlanRouteTiming | null {
   if (route.length < MIN_PLAN_STOP_COUNT || route.length > MAX_PLAN_STOP_COUNT) return null;
-  const legs = route.slice(1).map((candidate, index) => distanceKm(route[index]!, candidate));
-  const distance = legs.reduce((total, km) => total + km, 0);
-  if (legs.some((km) => km > MAX_PLAN_ROUTE_SEGMENT_KM) || distance > MAX_PLAN_ROUTE_WALKING_KM) return null;
+  const routeWindow = constraints.routeWindow;
+  const streetLegs = route.slice(1).map((candidate, index) =>
+    constraints.streetWalkKm?.(route[index]!.venueId, candidate.venueId) ?? null);
+  const legs = route.slice(1).map((candidate, index) => streetLegs[index] ?? distanceKm(route[index]!, candidate));
+  const streetCount = streetLegs.filter((km) => km !== null).length;
+  const walkingBasis: PlanWalkingBasis = streetCount === 0
+    ? "straight-line"
+    : streetCount === legs.length ? "street" : "mixed";
+  const walked = legs.reduce((total, km) => total + km, 0);
+  if (legs.some((km) => km > MAX_PLAN_ROUTE_SEGMENT_KM) || walked > MAX_PLAN_ROUTE_WALKING_KM) return null;
+  const distance = route.slice(1).reduce((total, candidate, index) => total + distanceKm(route[index]!, candidate), 0);
   const walkingMinutes = legs.reduce((total, km) => total + legWalkingMinutes(km), 0);
   const uncertainty = PLAN_TRANSFER_UNCERTAINTY_MINUTES * legs.length;
   const scheduledRouteMinutes = PLAN_STOP_MINUTES * route.length + walkingMinutes + uncertainty;
   if (!routeWindow) {
     return {
       visitWindows: [],
+      walkingBasis,
       straightLineWalkingKm: distance,
       walkingMinutes,
       transferUncertaintyMinutes: uncertainty,
@@ -186,6 +219,7 @@ function routeTiming<T>(
   if (Date.parse(visits.at(-1)!.endsAt) > deadline) return null;
   return {
     visitWindows: visits,
+    walkingBasis,
     straightLineWalkingKm: distance,
     walkingMinutes,
     transferUncertaintyMinutes: uncertainty,
@@ -210,7 +244,7 @@ function evaluateRoute<T>(
     if (!route.every((candidate) => priceEvidenceUsableForCeiling(candidate.price))) return null;
     if (route.reduce((total, candidate) => total + candidate.price.pence!, 0) > constraints.budgetLimitPence) return null;
   }
-  const timing = routeTiming(route, constraints.routeWindow);
+  const timing = routeTiming(route, constraints);
   if (!timing) return null;
   const visits = timing.visitWindows;
   if (!route.every((candidate, position) => constraints.accessibilityNeeds.every((need) =>
@@ -240,6 +274,17 @@ function flagsFor(opening: OpeningAssessment, hasVisit: boolean): PlanStopConstr
     : [];
 }
 
+function transportFeasibilityMessage(basis: PlanWalkingBasis): string {
+  const uncertainty = `${PLAN_TRANSFER_UNCERTAINTY_MINUTES} minutes uncertainty per leg`;
+  if (basis === "street") {
+    return `Travel time uses ${PLAN_WALKING_KMH} km/h walking along mapped streets plus ${uncertainty}.`;
+  }
+  if (basis === "mixed") {
+    return `Travel time uses ${PLAN_WALKING_KMH} km/h walking along mapped streets where we have them and direct distance elsewhere, plus ${uncertainty}; pavement routing is not claimed for the direct-distance legs.`;
+  }
+  return `Travel time uses ${PLAN_WALKING_KMH} km/h direct-distance walking plus ${uncertainty}; pavement routing is not claimed.`;
+}
+
 function selectedStops<T>(evaluation: EvaluatedRoute<T>): SelectedGroundedPlanStop<T>[] {
   return evaluation.route.map((candidate, position) => ({
     ...candidate,
@@ -267,7 +312,7 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
       {
         code: "transport_feasibility",
         status: "satisfied",
-        message: `Travel time uses ${PLAN_WALKING_KMH} km/h direct-distance walking plus ${PLAN_TRANSFER_UNCERTAINTY_MINUTES} minutes uncertainty per leg; pavement routing is not claimed.`,
+        message: transportFeasibilityMessage(evaluation.timing.walkingBasis),
       },
       ...(constraints.exactArea ? [{
         code: "exact_area" as const,
@@ -426,7 +471,7 @@ function partialRouteAllowed<T>(
   }
   let distance = 0;
   for (let index = 1; index < route.length; index += 1) {
-    const leg = distanceKm(route[index - 1]!, route[index]!);
+    const leg = walkKm(route[index - 1]!, route[index]!, constraints);
     if (leg > MAX_PLAN_ROUTE_SEGMENT_KM) return false;
     distance += leg;
   }
@@ -450,7 +495,7 @@ function beamBestRoute<T>(
         if (!partialRouteAllowed(route, constraints)) continue;
         let distance = 0;
         for (let index = 1; index < route.length; index += 1) {
-          distance += distanceKm(route[index - 1]!, route[index]!);
+          distance += walkKm(route[index - 1]!, route[index]!, constraints);
         }
         next.push({
           route,

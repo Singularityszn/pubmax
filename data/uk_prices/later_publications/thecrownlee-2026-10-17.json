@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.thecrownlee.co.uk/food-drink/",
+  "observedAt": "2026-10-17T12:29:05.127Z",
+  "evidence": ", Coconut, Apple, Yuzu, Soda 86kcal - £5.25 Orange Blossom, Raspberry, Elderflower, Soda 88kcal - £5.25 ## Alcohol Free Light & Sparkling Fever-Tree Raspberry & Rose Lemonade 50kcal - £4.25 Fever-Tree Sicilian Lemonade 96kcal - £4.25 ## Alcohol Free Mindful Blends Magnesium, Lion’s Mane, Chamomile 25kcal - £4.75 Ginseng, Turmeric, Lemon Balm 20kcal - £4.75 Three Spirit Social, Lion’s Mane, Lemonade 49kcal - £6.25 ## Alcohol Free Sparkling Wine 28kcal per 125ml serve - £34.50 Available by the glass or bottle 22kcal per 125ml serve - £4",
+  "reader": "scripts/harvest_soft_drinks_menus.mjs --chain youngs (playwright transport, sourcePolicy youngs-menu-prices, live robots)",
+  "rows": [
+    {
+      "host": "thecrownlee.co.uk",
+      "venueId": "venue-1drd13s",
+      "name": "The Crown Tavern",
+      "category": "soft-drink",
+      "priceGbp": 4.25,
+      "drinkLabel": "Light & Sparkling Raspberry & Rose Fever-Tree Raspberry & Rose Lemonade 50kcal",
+      "sourceUrl": "https://www.thecrownlee.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 2
+    },
+    {
+      "host": "thecrownlee.co.uk",
+      "venueId": "venue-1drd13s",
+      "name": "The Crown Tavern",
+      "category": "soft-drink",
+      "priceGbp": 4.25,
+      "drinkLabel": "Sicilian Lemon Fever-Tree Sicilian Lemonade 96kcal",
+      "sourceUrl": "https://www.thecrownlee.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 2
+    }
+  ]
+}

@@ -125,7 +125,18 @@ export type PubPalVoice = {
 export type PalProposalPreferences = {
   memories: boolean;
   routes: boolean;
+  /**
+   * Whether the Pal may read the owner's own diary, drops and saves for a taste
+   * read (lib/palTaste.server.ts). Opt-out: absent means on, so a Pal saved
+   * before the key existed keeps the behaviour it had.
+   */
+  taste?: boolean;
 };
+
+/** The one predicate for the taste opt-out. A missing key is on. */
+export function palTasteAllowed(preferences: PalProposalPreferences | null | undefined): boolean {
+  return preferences?.taste !== false;
+}
 
 export type PubPal = {
   id: string;
@@ -269,7 +280,8 @@ function parsePalOnboardingDraft(serialized: string | null): PalOnboardingDraftV
       step,
       draft: { ...draft, appearance: { ...draft.appearance, species } },
       privacy: {
-        proposeMemories: raw.privacy.proposeMemories === true,
+        // On unless the person turned it off: proposals are on by default.
+        proposeMemories: raw.privacy.proposeMemories !== false,
         visible: raw.privacy.visible !== false,
         muted: raw.privacy.muted === true,
       },
@@ -307,7 +319,7 @@ export function migrateLegacyPalOnboardingDraft(ownerId: string): PalOnboardingD
       savedAt: new Date().toISOString(),
       step: 0,
       draft: { ...legacy.draft, adultConfirmed: false },
-      privacy: { proposeMemories: false, visible: true, muted: false },
+      privacy: { proposeMemories: true, visible: true, muted: false },
     };
     writePalOnboardingDraft(ownerId, { step: migrated.step, draft: migrated.draft, privacy: migrated.privacy });
     window.localStorage.removeItem(PAL_ONBOARDING_DRAFT_KEY);

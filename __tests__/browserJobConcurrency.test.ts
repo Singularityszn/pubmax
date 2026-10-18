@@ -55,7 +55,9 @@ describe("browser jobs on hosted runners", () => {
     expect(playwrightJobs.map(({ file, jobId }) => `${file} / ${jobId}`).sort()).toEqual([
       "e2e.yml / full-suite",
       "e2e.yml / law-pins",
-      "e2e.yml / layout-pins",
+      "e2e.yml / layout-pins-1",
+      "e2e.yml / layout-pins-2",
+      "e2e.yml / layout-pins-3",
       "performance.yml / performance-budget",
       "performance.yml / ux-lane-performance",
       "prod-smoke.yml / smoke",

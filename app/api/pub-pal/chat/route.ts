@@ -6,7 +6,7 @@ import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
-import { DEFAULT_GROUP_SIZE } from "@/lib/concierge/intentPolicy";
+import { DEFAULT_GROUP_SIZE, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import {
   acceptsPalChatStream,
@@ -20,6 +20,8 @@ import {
   type PalElevenLabsChatOutcome,
 } from "@/lib/palElevenLabsChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+import { palTasteAsk } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -113,6 +115,8 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
 
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
+  // The limiter answers before anything else is asked: the token check is a
+  // GoTrue round trip, and a refused request must not reach the auth backend.
   if (
     await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
       failClosed: true,
@@ -181,6 +185,23 @@ export async function POST(request: Request): Promise<Response> {
           intent.maxPintPrice === undefined &&
           intent.groupSize === DEFAULT_GROUP_SIZE
         ) {
+          // A signed-in person who has logged their nights gets a pick off
+          // their own patch and habits instead of a question.
+          const ownerId = await callerUserId(request);
+          const tasteAsk = ownerId
+            ? palTasteAsk(await readPalTaste(ownerId), defaultKnownAreas())
+            : null;
+          if (tasteAsk) {
+            const picked = await runAsk({
+              query: tasteAsk.query,
+              cityId: record.cityId,
+              skipModel: true,
+              traceRoute: "api/pub-pal/chat",
+            });
+            if (picked.cards.length > 0) {
+              return jsonNoStore({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` });
+            }
+          }
           return jsonNoStore({
             answer: "Tell me an area, a mood or a budget and I'll find you a pub.",
             cards: [],

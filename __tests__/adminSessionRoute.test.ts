@@ -251,6 +251,18 @@ describe("DELETE /api/admin/session", () => {
     expect(setCookie).toContain("SameSite=Lax");
   });
 
+  it("refuses a short ADMIN_TOKEN on Vercel Production and admits a 32-byte one", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { verifyAdminToken } = await import("@/lib/adminAuth");
+    // "test-admin-secret" is 17 bytes: the header and HMAC key are refused.
+    expect(verifyAdminToken("test-admin-secret")).toBe(false);
+    const strong = "a".repeat(32);
+    process.env.ADMIN_TOKEN = strong;
+    expect(verifyAdminToken(strong)).toBe(true);
+    expect(verifyAdminToken("a".repeat(31))).toBe(false);
+  });
+
   it("includes Secure on the cleared cookie in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const { DELETE } = await import("@/app/api/admin/session/route");

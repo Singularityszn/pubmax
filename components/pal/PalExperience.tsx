@@ -13,6 +13,7 @@ import {
   MapPinned,
   Mic,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Volume2,
   VolumeX,
@@ -30,6 +31,7 @@ import {
   PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
+  palTasteAllowed,
   readPalOnboardingDraft,
   subscribePalOnboardingDraft,
   writePalOnboardingDraft,
@@ -105,7 +107,7 @@ const accessoryCopy: Record<PubPalAppearance["accessory"], string> = {
 type PrivacyState = PalOnboardingPrivacy;
 
 const DEFAULT_PRIVACY: PrivacyState = {
-  proposeMemories: false,
+  proposeMemories: true,
   visible: true,
   muted: false,
 };
@@ -162,7 +164,7 @@ function readStoredPal(ownerId: string): PubPal | null {
   try {
     const value = JSON.parse(readStored(STORAGE_KEY) ?? "null") as (PubPal & { proposalPreferences?: PubPal["proposalPreferences"] }) | null;
     return value?.ownerId === ownerId
-      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: false, routes: true } }
+      ? { ...value, proposalPreferences: value.proposalPreferences ?? { memories: true, routes: true } }
       : null;
   } catch {
     return null;
@@ -190,6 +192,27 @@ function ChoiceButton({
       <span>{title}</span>
       {note && <small>{note}</small>}
       {selected && <Check size={17} aria-hidden="true" />}
+    </button>
+  );
+}
+
+/** The taste-read opt-out. On means the Pal may read the owner's own logs. */
+function PalTasteToggle({
+  on,
+  disabled,
+  onToggle,
+}: {
+  on: boolean;
+  disabled: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <button type="button" disabled={disabled} onClick={() => onToggle(!on)} aria-pressed={on}>
+      <Sparkles />
+      <span>
+        <strong>Taste read {on ? "on" : "off"}</strong>
+        <small>{on ? "Picks lean on the pubs and pints you log" : "Pal won't read your diary, drops or saves"}</small>
+      </span>
     </button>
   );
 }
@@ -267,7 +290,7 @@ function PalHomeScreen({
   controlSaving: boolean;
   saving: boolean;
   updateControl: (patch: Partial<Pick<PubPal, "muted" | "hidden">>) => Promise<void>;
-  updateProposalPreference: (kind: "memories" | "routes", enabled: boolean) => Promise<void>;
+  updateProposalPreference: (kind: "memories" | "routes" | "taste", enabled: boolean) => Promise<void>;
   removePal: () => Promise<void>;
   exportMemories: () => Promise<void>;
   memories: PubPalMemory[];
@@ -281,7 +304,7 @@ function PalHomeScreen({
   error: string | null;
 }) {
   const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
-  const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
+  const proposalPreferences = pal.proposalPreferences ?? { memories: true, routes: true };
   return (
     <main id="main" className="palExperience palHome">
       <div className="palTopbar">
@@ -323,6 +346,7 @@ function PalHomeScreen({
             <MapPinned />
             <span><strong>Route proposals {proposalPreferences.routes ? "on" : "off"}</strong><small>{proposalPreferences.routes ? "Only suggests. You confirm every change" : "Pal won't suggest route changes"}</small></span>
           </button>
+          <PalTasteToggle on={palTasteAllowed(proposalPreferences)} disabled={controlSaving || saving} onToggle={(next) => void updateProposalPreference("taste", next)} />
           <button className="palDanger" type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>
             <Trash2 />
             <span><strong>Delete {pal.name}</strong><small>Deletes the Pal and every confirmed memory</small></span>
@@ -669,7 +693,7 @@ export default function PalExperience() {
               const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
               setPrivacy((current) => ({
                 ...current,
-                proposeMemories: next.proposalPreferences?.memories ?? parsed.proposeMemories === true,
+                proposeMemories: next.proposalPreferences?.memories ?? parsed.proposeMemories !== false,
                 visible: !next.hidden,
                 muted: next.muted,
               }));
@@ -814,13 +838,13 @@ export default function PalExperience() {
     }
   };
 
-  const updateProposalPreference = async (kind: "memories" | "routes", enabled: boolean) => {
+  const updateProposalPreference = async (kind: "memories" | "routes" | "taste", enabled: boolean) => {
     if (!pal || controlSavingRef.current || palMutationRef.current) return;
     const ownerId = pal.ownerId;
     const lock = { ownerId, requestId: ++controlRequestIdRef.current };
     controlSavingRef.current = lock;
     setControlSaving(true);
-    const previous = { ...pal, proposalPreferences: pal.proposalPreferences ?? { memories: false, routes: true } };
+    const previous = { ...pal, proposalPreferences: pal.proposalPreferences ?? { memories: true, routes: true } };
     const proposalPreferences = { ...previous.proposalPreferences, [kind]: enabled };
     const optimistic = { ...pal, proposalPreferences, updatedAt: new Date().toISOString() };
     setPal(optimistic);

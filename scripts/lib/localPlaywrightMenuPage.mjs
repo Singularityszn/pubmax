@@ -91,7 +91,10 @@ export async function fetchLocalPlaywrightMenuPage(
   // unbounded response after the preflight.
   const initialDocument = await preflightDocument(url);
   const documentsByUrl = new Map([[initialDocument.finalUrl, initialDocument]]);
-  const browser = await browserType.launch({ headless: true });
+  const browser = await browserType.launch({
+    headless: true,
+    executablePath: process.env.CHROMIUM_PATH || undefined,
+  });
   try {
     const page = await browser.newPage({ userAgent: HARVEST_USER_AGENT, serviceWorkers: "block" });
     // A page socket is an upgrade, so the HTTP route below never sees it.

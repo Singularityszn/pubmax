@@ -13,10 +13,19 @@ vi.mock("@/lib/palElevenLabsChat.server", () => ({
   runPalElevenLabsChatTurn: vi.fn(),
 }));
 
-const authState = vi.hoisted(() => ({ userId: null as string | null }));
+const authState = vi.hoisted(() => ({ userId: null as string | null, checks: 0 }));
 
 vi.mock("@/lib/authServer", () => ({
-  callerUserId: async () => authState.userId,
+  callerUserId: async () => {
+    authState.checks += 1;
+    return authState.userId;
+  },
+}));
+
+const tasteState = vi.hoisted(() => ({ taste: null as unknown }));
+
+vi.mock("@/lib/palTaste.server", () => ({
+  readPalTaste: vi.fn(async () => tasteState.taste),
 }));
 
 import { offlineFetch } from "@/evals/pal/offlineFetch";
@@ -32,6 +41,8 @@ describe("POST /api/pub-pal/chat", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
     authState.userId = null;
+    authState.checks = 0;
+    tasteState.taste = null;
     vi.mocked(runPalElevenLabsChatTurn).mockReset();
   });
 
@@ -231,6 +242,53 @@ describe("POST /api/pub-pal/chat", () => {
       turns.push({ role: "user", content: query }, { role: "assistant", content: body.answer });
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("picks off a signed-in person's own patch and habits instead of asking, keyless", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    tasteState.taste = {
+      visits: 6,
+      distinctPubs: 3,
+      lastVisit: { name: "The Crown", on: "2026-10-10" },
+      patches: ["Soho"],
+      regulars: [],
+      loved: [],
+      notKeen: [],
+      drinks: [],
+      usualPintGbp: 5.6,
+      vibes: ["quiet pint"],
+      style: null,
+      favouriteNight: null,
+      wishlist: [],
+    };
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "where should I go", cityId: "london" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.toolsUsed).toContain("search_venues");
+  });
+
+  it("still asks a signed-in person with nothing logged, keyless", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "where should I go", cityId: "london" }),
+      }),
+    );
+    expect((await response.json()).answer).toBe("Tell me an area, a mood or a budget and I'll find you a pub.");
   });
 
   it.each(["hi how are you", "hi 👋", "morning", "sup", "hey hey", "hey pubpal", "ok thanks", "pubs"])(
@@ -448,6 +506,38 @@ describe("POST /api/pub-pal/chat", () => {
       fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
     });
+  });
+
+  // The token check is a GoTrue round trip, so a request the limiter refuses
+  // must not reach it: answering it in parallel let a flood of refused asks
+  // become a flood on the auth backend.
+  it("asks the auth backend nothing about a request the limiter refuses", async () => {
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue({
+      ok: true,
+      message: "Two picks.",
+      cards: [],
+      proposals: [],
+      conversationId: "conv_regression01",
+      toolsUsed: [],
+    });
+    const ask = () =>
+      POST(
+        new Request("http://localhost/api/pub-pal/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+        }),
+      );
+    let refused: Response | null = null;
+    for (let i = 0; i < 100 && !refused; i += 1) {
+      const response = await ask();
+      if (response.status === 429) refused = response;
+    }
+    expect(refused).not.toBeNull();
+    const checksBefore = authState.checks;
+    expect((await ask()).status).toBe(429);
+    expect(authState.checks).toBe(checksBefore);
   });
 
   it("refuses a signed-in chat once the spend ceiling is closed", async () => {

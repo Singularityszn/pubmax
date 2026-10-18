@@ -161,6 +161,41 @@ describe("GET /api/citymcp/things-to-do", () => {
     const body = await res.json();
     expect(body.opportunities).toEqual([]);
     expect(body.error).toBeTruthy();
+    // A failure is never pinned at the edge.
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("holds tonight's list at the edge for five minutes with five of stale", async () => {
+    // F10: /map spends this fixed URL on every load, off the first-pin path,
+    // and the server's own things_to_do cache already holds it five minutes.
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            structuredContent: {
+              window: "tonight",
+              opportunities: [
+                {
+                  title: "Late comedy",
+                  kind: "comedy",
+                  place: { name: "The Bill Murray", location: { lat: 51.536, lng: -0.103 } },
+                },
+              ],
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const res = await GET(
+      new Request("http://localhost/api/citymcp/things-to-do?window=tonight&limit=8"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe(
+      "public, s-maxage=300, stale-while-revalidate=300",
+    );
   });
 
   it("trims live object price/availability and source.name → label", async () => {

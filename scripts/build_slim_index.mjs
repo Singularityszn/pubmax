@@ -35,7 +35,7 @@ import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
-import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -687,11 +687,12 @@ function buildCurationHints(prices) {
   };
 }
 
-function buildFilterHints(rows, venueId, scrapedIds) {
+function buildFilterHints(rows, venueId, scrapedIds, drinkSubtypes) {
   // Mirrors groupVenuePrices: a superseded row gives the pub its identity and
-  // its story, and nothing it served or charged (lib/priceRowEligibility.mjs).
+  // its story, and nothing it served or charged. An out-of-band row keeps the
+  // story; the pin price below reads isLivePriceRow (lib/priceRowEligibility.mjs).
   const first = rows[0];
-  const prices = rows.filter(isLivePriceRow);
+  const prices = rows.filter(isCurrentVenueRow);
   const searchParts = new Set(
     [
       first.pub_name,
@@ -760,6 +761,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
     ...(drinkHints.drinkBrands.length
       ? { drinkBrands: drinkHints.drinkBrands }
       : {}),
+    ...(drinkSubtypes?.size
+      ? { drinkSubtypes: Array.from(drinkSubtypes).sort() }
+      : {}),
     ...(drinkHints.drinkText ? { drinkText: drinkHints.drinkText } : {}),
     ...(cuisineTags.length ? { cuisineTags } : {}),
   };
@@ -786,6 +790,37 @@ async function readScrapedIds() {
   return scrapedIds;
 }
 
+// The soft-drink subtypes a venue's own menu prices, from the UK price bundle's
+// listed site-harvest rows: the same rows /soft-drinks-and-water lists. Without
+// them the map's soft-drink lens finds none of the pubs that page names, because
+// a Coke Zero on a menu never reaches pint_name or drinkText. A missing or
+// unreadable bundle hints nothing, so the lens is no wider than its evidence.
+async function readBundleSoftDrinkSubtypes() {
+  const byVenue = new Map();
+  try {
+    const bundle = JSON.parse(
+      await readFile(path.join(DATA_DIR, "uk_prices", "rows.json"), "utf8"),
+    );
+    for (const row of Array.isArray(bundle) ? bundle : (bundle?.rows ?? [])) {
+      if (
+        row?.lane !== "site-harvest" ||
+        row.standing !== "listed" ||
+        row.category !== "soft-drink" ||
+        typeof row.venueId !== "string" ||
+        typeof row.drinkSubtype !== "string"
+      ) {
+        continue;
+      }
+      const held = byVenue.get(row.venueId) ?? new Set();
+      held.add(row.drinkSubtype);
+      byVenue.set(row.venueId, held);
+    }
+  } catch {
+    // No bundle, no subtype hints.
+  }
+  return byVenue;
+}
+
 async function main() {
   const rawText = await readFile(RAW_PATH, "utf8");
   const rows = JSON.parse(rawText);
@@ -794,6 +829,7 @@ async function main() {
   }
 
   const scrapedIds = await readScrapedIds();
+  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
 
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
@@ -914,7 +950,12 @@ async function main() {
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
       // null when no station is comparable — kept honest, never bucketed.
       ...(zone !== null ? { zone } : {}),
-      filterHints: buildFilterHints(groupRows, id, scrapedIds),
+      filterHints: buildFilterHints(
+        groupRows,
+        id,
+        scrapedIds,
+        bundleSoftDrinkSubtypes.get(id),
+      ),
     });
 
     // The detail artifact keeps every row: the server groups it through

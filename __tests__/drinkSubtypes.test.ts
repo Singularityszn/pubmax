@@ -16,7 +16,7 @@ describe("drink subtype taxonomy", () => {
     for (const subtype of DRINK_SUBTYPES) {
       expect(isDrinkCategory(subtype.category)).toBe(true);
       expect(subtype.id.startsWith(`${subtype.category}-`)).toBe(true);
-      if (subtype.id === "soft-drink-zero-sugar-cola") {
+      if (subtype.id === "soft-drink-zero-sugar-cola" || subtype.id === "soft-drink-lucia-special") {
         expect(subtype.tokens).toEqual([]);
       } else {
         expect(subtype.tokens.length).toBeGreaterThan(0);
@@ -102,6 +102,13 @@ describe("drinkSubtypeFromText", () => {
       "soft-drink-zero-sugar-cola",
     );
     expect(drinkSubtypeFamilyParentId("soft-drink-still-water")).toBeNull();
+  });
+
+  it("folds the Coca-Cola pair to the Lucia lens, its first family", () => {
+    expect(drinkSubtypeFamilyParentId("soft-drink-coke-zero")).toBe("soft-drink-lucia-special");
+    expect(drinkSubtypeFamilyParentId("soft-drink-diet-coke")).toBe("soft-drink-lucia-special");
+    expect(drinkSubtypeFromText("Lucia", "soft-drink")).toBeNull();
+    expect(findSubtype("soft-drink-lucia-special")?.label).toBe("Lucia 🐐");
   });
 
   it("classifies soft-drink subtypes without widening the category union", () => {

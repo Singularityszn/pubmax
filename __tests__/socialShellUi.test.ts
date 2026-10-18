@@ -206,6 +206,8 @@ describe("verified Social post card", () => {
     expect(html).toContain("#quietpint");
     expect(html).toContain('href="/map?sel=venue-a"');
     expect(html).toContain("Open venue");
+    // The pub's name opens its own page, like a location tag.
+    expect(html).toContain('href="/pubs/venue-a"');
     expect(html).not.toContain("Open pub");
     expect(html).not.toContain("Cheers");
     expect(html).not.toContain("Comment");
@@ -251,6 +253,7 @@ describe("verified Social post card", () => {
     expect(html).toContain("Camden");
     expect(html).not.toContain("Open venue");
     expect(html).not.toContain('href="/map?sel=venue-a"');
+    expect(html).not.toContain('href="/pubs/venue-a"');
   });
 
   it("renders exact Venue context on a public DTO authorised for a mutual friend", () => {
@@ -262,6 +265,32 @@ describe("verified Social post card", () => {
 
     expect(html).toContain("Open venue");
     expect(html).toContain('href="/map?sel=venue-a"');
+  });
+});
+
+describe("Social post card, photo-app layout", () => {
+  it("shows the author's own score beside a venue the viewer may see, with the action row in the feed", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, venueName: "The Proof Arms", review: { rating: 4.5 } },
+        interactive: true,
+      }),
+    );
+    expect(html).toContain("The Proof Arms");
+    expect(html).toContain('aria-label="@alice scored The Proof Arms 4.5 out of 5"');
+    expect(html).toContain("Cheers");
+    expect(html).toContain("Comment");
+    expect(html).toContain('aria-label="Report this post"');
+  });
+
+  it("drops the score when the venue is not projected to the viewer", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, venueProjected: false, venueName: "The Proof Arms", review: { rating: 2 } },
+      }),
+    );
+    expect(html).not.toContain("out of 5");
+    expect(html).not.toContain("The Proof Arms");
   });
 });
 

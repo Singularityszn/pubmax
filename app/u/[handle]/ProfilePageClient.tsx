@@ -72,12 +72,14 @@ import {
   fetchFollowedListsForHandle,
   fetchSavedForHandle,
   groupDTOsByList,
+  SAVED_VENUE_FALLBACK_NAME,
   savedByList,
   type FollowedSavedListDTO,
   type ListType,
   type SavedPub,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
+import { resolveSavedVenueNames } from "@/lib/savedVenueNames";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
@@ -200,17 +202,25 @@ function isEventActive(event: (typeof BADGE_EVENTS)[number], now: string): boole
   );
 }
 
-// localStorage fallback → DTO groups. The client has no server venue index, so a
-// local-only save renders its id as the name (the demo degrade for a signed-out /
-// offline viewer); the durable path is the one that carries real names. The map
-// url is still correct (?sel=<id>), so the link works either way.
-function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
+// localStorage fallback → DTO groups. The client has no server venue index, so
+// each local-only save is named from the map's own venue detail
+// (lib/savedVenueNames.ts): newest saves first, a bounded number of lookups, and
+// a pub nothing can name reads "A London venue". It used to print the id itself
+// ("venue-s2ppfm") as the pub's name. The map url is the id's own (?sel=<id>).
+async function localSavedDTOs(
+  signal: AbortSignal,
+): Promise<Partial<Record<ListType, SavedPubDTO[]>>> {
   const local: Partial<Record<ListType, SavedPub[]>> = savedByList();
+  const newestFirst = Object.values(local)
+    .flatMap((pubs) => pubs ?? [])
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    .map((pub) => pub.venueId);
+  const names = await resolveSavedVenueNames(newestFirst, { signal });
   const groups: Partial<Record<ListType, SavedPubDTO[]>> = {};
   for (const key of Object.keys(local) as ListType[]) {
     groups[key] = (local[key] ?? []).map((pub) => ({
       venueId: pub.venueId,
-      venueName: pub.venueId,
+      venueName: names.get(pub.venueId) ?? SAVED_VENUE_FALLBACK_NAME,
       venueMapUrl: venueMapUrl(pub.venueId),
       listType: pub.listType,
       note: pub.note,
@@ -697,12 +707,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (controller.signal.aborted) return;
       if (readProviderIdentityRevision() !== accountRevision) return;
       // Durable hit (even an empty list) is authoritative for this handle; only a
-      // null (no handle / request failed) falls back to the local view.
-      setSavedRead({
-        handle: routeHandle,
-        accountRevision,
-        groups: durable ? groupDTOsByList(durable) : localSavedDTOs(),
-      });
+      // null (no handle / request failed) falls back to the local view, whose
+      // names are read before it is shown, so no id is ever painted first.
+      const groups = durable
+        ? groupDTOsByList(durable)
+        : await localSavedDTOs(controller.signal);
+      if (controller.signal.aborted) return;
+      if (readProviderIdentityRevision() !== accountRevision) return;
+      setSavedRead({ handle: routeHandle, accountRevision, groups });
     }
     void loadSaved();
     return () => controller.abort();

@@ -240,7 +240,7 @@
       "class": "live",
       "artifact": null,
       "stamp": null,
-      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), which registers its own row when npm run build:fsa-hygiene first writes public/data/fsa_hygiene/london.json.",
+      "cadence": "live — fetched per request from api.ratings.food.gov.uk, cached in-process (24h TTL per instance, never disk-cached). This is the FALLBACK lane: a pub whose OSM object carries fhrs:id is answered first from the exact join of osm_fhrs_links with the FSA open-data pack (lib/fsaHygienePack.ts), whose own row is fsa_hygiene_london (public/data/fsa_hygiene/london.json, npm run build:fsa-hygiene).",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "live-per-request (app/api/hygiene)",
       "gate": "none (keyless open API; requires the x-api-version: 2 header)"
@@ -258,6 +258,20 @@
       "stalenessBudgetHours": 4320,
       "refreshWorkflow": "manual (npm run fetch:uk-pubs, then npm run build:osm-fhrs-links). The stamp is the snapshot's own generatedAt, never the day the links were re-derived.",
       "gate": "none (no fetch; OpenStreetMap ODbL 1.0, © OpenStreetMap contributors). Only the join key lives here: the FSA's ratings are their own OGL pack."
+    },
+    {
+      "id": "fsa_hygiene_london",
+      "label": "FSA food hygiene ratings for OSM-linked London pubs (OGL pack)",
+      "class": "episodic",
+      "artifact": "public/data/fsa_hygiene/london.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
+      "cadence": "episodic — re-read from the FSA FHRS API whenever osm_fhrs_links is re-derived, and often enough that the rating shown is current. The stamp is the day the FSA was read, and the sheet prints it beside every rating, as the FSA terms ask.",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (npm run build:fsa-hygiene). Every read goes through the fsa-fhrs-api row in lib/harvest/sourcePolicy.ts; a failed read writes nothing.",
+      "gate": "none (keyless open API; requires the x-api-version: 2 header; Open Government Licence v3.0)"
     },
     {
       "id": "citymcp",
@@ -299,6 +313,17 @@
       "artifact": "data/station_walk_access.json",
       "stamp": null,
       "cadence": "static: built offline from a pinned Overture Maps release; streets change rarely",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual (uv run scripts/build_station_walk_access.py)",
+      "gate": "none"
+    },
+    {
+      "id": "pub_walk_pairs",
+      "label": "Street walks between curated pubs (Zone 1)",
+      "class": "static",
+      "artifact": "data/pub_walk_pairs.json",
+      "stamp": null,
+      "cadence": "static: built offline with station_walk_access from the same pinned Overture Maps release; re-run when the curated venue index changes, because a pub it does not name keeps the straight line",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual (uv run scripts/build_station_walk_access.py)",
       "gate": "none"

@@ -2821,10 +2821,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   text-align: center;
 }
 
+/* The footnote type stays small, but the tap area is the house 44px: the
+   toggle measured 91x14 on a phone, a third of the floor every other control
+   on the map keeps. Inline-flex grows the box, not the word. */
 .mapFallbackDisclosureToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   max-width: 340px;
   margin: 0 auto;
-  padding: 0;
+  padding: 0 var(--space-3);
   border: 0;
   background: none;
   font: inherit;

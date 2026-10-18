@@ -21,7 +21,12 @@
 //
 // 1. THE HOST LIST IS DERIVED, NOT TYPED. Candidates are the `website` tags the
 //    committed UK OSM pub snapshot already carries, plus the allowed
-//    `chain-menu-prices` sources in lib/harvest/sourcePolicy.ts. There is no
+//    `chain-menu-prices` sources in lib/harvest/sourcePolicy.ts. With --london,
+//    the `website` a curated London venue states in
+//    public/data/pint_prices_app_dataset.json joins them where the snapshot
+//    carries no such host, attached to that curated venue's id, name and
+//    position (an aggregator, a social page, a source-table estate host and a
+//    URL sourcePolicy refuses never do). There is no
 //    --url flag that takes an arbitrary host: a pub's own site is first-party by
 //    definition, and everything else has to be argued for in the source table.
 //
@@ -57,6 +62,7 @@ import process from "node:process";
 import { pdfIsWorthReading, readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
+  HARVEST_SOURCES,
   allowedHarvestSources,
   harvestSourcesOfKind,
   isHarvestSourceAllowed,
@@ -81,10 +87,16 @@ import {
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { readVenueDrinkPricesForHarvest, typesafeKeyConfigured } from "./readPrices.mjs";
 import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
-import { applyMenuEnrichmentSeeds, venueCoordsFromSlim } from "./londonScope.mjs";
+import {
+  addCuratedLondonWebsiteHosts,
+  applyMenuEnrichmentSeeds,
+  venueCoordsFromSlim,
+} from "./londonScope.mjs";
+import { THIRD_PARTY_SITE_HOSTS } from "./pubSites.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
+const CURATED_DATASET = path.join(ROOT, "public/data/pint_prices_app_dataset.json");
 const OUT_DIR = path.join(ROOT, "data-harvest/uk_prices");
 const LEDGER_PATH = path.join(OUT_DIR, "hosts.json");
 const ROWS_PATH = path.join(OUT_DIR, "rows.jsonl");
@@ -260,11 +272,8 @@ function candidateHosts({ londonOnly = false } = {}) {
     }
     const host = hostOf(normalised);
     if (!host) continue;
-    // A social page is not a pub's own site: it is a third party with its own
-    // permission question this crawl has not asked.
-    if (/(facebook|instagram|twitter|x\.com|tripadvisor|yelp|google|linktr\.ee|wixsite|whatpub)/i.test(host)) {
-      continue;
-    }
+    // A social page is not a pub's own site (THIRD_PARTY_SITE_HOSTS).
+    if (THIRD_PARTY_SITE_HOSTS.test(host)) continue;
     const entry = byHost.get(host) ?? { host, origin: null, pubs: [] };
     if (!entry.origin) {
       try {
@@ -632,6 +641,20 @@ async function main() {
     }
   }
 
+  let curatedWebsites = null;
+  if (LONDON_ONLY) {
+    // Rule 1, curated layer: a London venue's own stated website is a candidate
+    // the snapshot happened not to carry, never a typed host.
+    curatedWebsites = addCuratedLondonWebsiteHosts(hosts, {
+      datasetRows: JSON.parse(readFileSync(CURATED_DATASET, "utf8")),
+      isHarvestableOperatorUrl,
+      sourceTableHosts: HARVEST_SOURCES.map((source) => hostOf(source.url)).filter(Boolean),
+    });
+    console.log(
+      `  curated websites: ${curatedWebsites.added} London venue(s) on ${curatedWebsites.hostsAdded} new host(s) (${curatedWebsites.alreadyCandidate} already a candidate host, ${curatedWebsites.refused} refused)`,
+    );
+  }
+
   let menuEnrichment = { seeded: 0, venuesConsidered: 0, onUnknownHost: 0, refused: 0 };
   if (LONDON_ONLY && MENU_ENRICHMENT_INPUT !== "none") {
     menuEnrichment = applyMenuEnrichmentSeeds(hosts, {
@@ -756,6 +779,7 @@ async function main() {
       ? {
           enabled: true,
           pubsOutsideBboxSkipped: outsideLondon,
+          curatedWebsites,
           menuEnrichment,
           chainMenuSourcesOmitted: true,
         }

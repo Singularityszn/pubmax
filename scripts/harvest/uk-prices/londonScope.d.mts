@@ -14,3 +14,12 @@ export function applyMenuEnrichmentSeeds(
     isHarvestableOperatorUrl: (url: string) => boolean;
   },
 ): { seeded: number; venuesConsidered: number; onUnknownHost: number; refused: number };
+
+export function addCuratedLondonWebsiteHosts(
+  hostEntries: Array<{ host: string; origin?: string; pubs: unknown[]; seedPages?: string[] }>,
+  options: {
+    datasetRows: ReadonlyArray<Record<string, unknown>>;
+    isHarvestableOperatorUrl: (url: string) => boolean;
+    sourceTableHosts?: readonly string[];
+  },
+): { considered: number; added: number; hostsAdded: number; alreadyCandidate: number; refused: number };

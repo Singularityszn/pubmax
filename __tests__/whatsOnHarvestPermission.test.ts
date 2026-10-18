@@ -30,6 +30,13 @@ import {
   GREENE_KING_SPORT_SOURCE_ID,
   openGreeneKingSportReader,
 } from "@/scripts/whatson/scrape_greene_king_sport.mjs";
+import {
+  QUESTION_ONE_SOURCE_ID as SERVER_QUESTION_ONE_SOURCE_ID,
+  refreshQuestionOneQuiz,
+  refreshWhatsOnListings,
+} from "@/lib/whatsOnRefresh.server";
+import type { WhatsOnListingStore } from "@/lib/whatsOnListingStore";
+import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const CHALLENGE = "<!DOCTYPE html><html><head><title>Just a moment...</title></head><body></body></html>";
 
@@ -141,5 +148,78 @@ describe("what's-on crawlers: robots is read by lib/harvest/robots.ts", () => {
     const fetchImpl = fakeFetch({ [GK_ROBOTS]: () => new Response("", { status: 404 }) });
     await expect(openGreeneKingSportReader({ fetchImpl, sleep: noSleep })).resolves.toBeTypeOf("function");
     expect(fetchedUrls(fetchImpl)).toEqual([GK_ROBOTS]);
+  });
+});
+
+// The Vercel cron (GET /api/cron/refresh-whats-on) used to walk Question One's
+// archive with a bare fetch: no policy row, no robots.txt. It now goes through
+// the same door as the CLI.
+describe("what's-on cron: the quiz lane asks the policy table first", () => {
+  const QO_ROBOTS = "https://questionone.com/robots.txt";
+  const QO_VENUES = "https://questionone.com/venues/";
+  const NOW = Date.parse("2026-10-16T20:00:00.000Z");
+
+  it("reads under the same row id as the CLI", () => {
+    expect(SERVER_QUESTION_ONE_SOURCE_ID).toBe(QUESTION_ONE_SOURCE_ID);
+  });
+
+  it("refuses before any fetch when the table has no row", async () => {
+    const fetchImpl = fakeFetch({});
+    await expect(refreshQuestionOneQuiz(NOW, { fetchImpl })).rejects.toThrow(
+      /^REFUSED questionone-quiz-venues: .*no row/,
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("reports the quiz kind as refused, keeps its stored rows and does not fail the run", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const globalFetch = vi.spyOn(globalThis, "fetch");
+    const kept = { id: "quiz-kept", kind: "quiz" } as WhatsOnRow;
+    const stored = new Map<string, WhatsOnRow[]>([["quiz", [kept]]]);
+    const store: WhatsOnListingStore = {
+      async replaceKind(kind, next) {
+        stored.set(kind, next);
+        return { written: next.length };
+      },
+      async readAll() {
+        return { rows: [...stored.values()].flat(), generatedAt: null };
+      },
+      async readGeneratedAt() {
+        return { generatedAt: null };
+      },
+    };
+    const result = await refreshWhatsOnListings({
+      now: NOW,
+      store,
+      providers: [{ name: "ticketmaster", isConfigured: () => false, fetchTonight: async () => [] }],
+      refreshers: { deal: async () => [], music: async () => [], sport: async () => [] },
+    });
+    expect(globalFetch).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    expect(result.kinds).toContainEqual({
+      name: "quiz",
+      kind: "quiz",
+      rows: 0,
+      refused: expect.stringMatching(/^REFUSED questionone-quiz-venues: .*no row/),
+    });
+    expect(stored.get("quiz")).toEqual([kept]);
+  });
+
+  it("with a row, asks robots.txt first and stays on the row's own host", async () => {
+    grant(QUESTION_ONE_SOURCE_ID, QO_VENUES);
+    const fetchImpl = fakeFetch({
+      [QO_ROBOTS]: () => new Response("", { status: 404 }),
+      [QO_VENUES]: () =>
+        new Response('<html><head><link rel="next" href="https://evil.example/venues/page/2/"></head></html>'),
+    });
+    await expect(refreshQuestionOneQuiz(NOW, { fetchImpl })).resolves.toEqual([]);
+    expect(fetchedUrls(fetchImpl)).toEqual([QO_ROBOTS, QO_VENUES]);
+  });
+
+  it("with a row, fetches no page when robots.txt refuses", async () => {
+    grant(QUESTION_ONE_SOURCE_ID, QO_VENUES);
+    const fetchImpl = fakeFetch({ [QO_ROBOTS]: () => new Response("Forbidden", { status: 403 }) });
+    await expect(refreshQuestionOneQuiz(NOW, { fetchImpl })).rejects.toThrow(/^REFUSED /);
+    expect(fetchedUrls(fetchImpl)).toEqual([QO_ROBOTS]);
   });
 });

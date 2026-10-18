@@ -116,7 +116,12 @@
   .contributionGate {
     width: 100%;
     max-height: calc(100dvh - env(safe-area-inset-top, 0px));
-    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    /* The phone tab bar paints ABOVE this sheet (--z-tabbar 1350 over the
+       backdrop's 1302), so Not now sat under it. Reserve the bar's lane under
+       the actions rather than re-layer: the gate order is pinned in
+       __tests__/accountOnboarding.test.ts. */
+    padding: 1rem 1rem
+      calc(1rem + var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;

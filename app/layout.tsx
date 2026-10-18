@@ -86,8 +86,9 @@ const displayFace = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  // The initial request queue must first load the code that makes input safe.
-  // swap still paints the metric-matched fallback while this face loads.
+  // Not preloaded: no route's largest paint is a heading on its own, so this
+  // face is fetched when the first heading asks for it, and swap paints the
+  // metric-matched fallback until it lands.
   preload: false,
   // Variable weight axis (300–700). Weight is set per-rule in CSS (headings
   // 500–700 per the display-weight discipline); the variable face carries the
@@ -103,7 +104,13 @@ const bodySans = Inter({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
-  preload: false,
+  // Preloaded, unlike the display and data faces (product decision 17 Oct
+  // 2026). Body text is the largest paint on most routes, and the browser only
+  // scores it once its own face is in: /today's greeting painted at about
+  // 260 ms in the matched fallback and was scored at about 2.3 s, when an
+  // Inter requested only after hydration finally arrived. One latin file, and
+  // swap keeps the metric-matched fallback on screen until it lands.
+  preload: true,
 });
 
 // Vendored, not fetched. next/font/google rewrites each face's file URL into a
@@ -156,16 +163,28 @@ const dataMono = localFont({
 });
 
 // These two fixed Google calls expose the primary family first, followed by
-// Next's generated metric-matched fallback. Keep the full existing suffix.
-const initialFontFallbacks = {
-  "--font-display": displayFace.style.fontFamily.split(",").slice(1).join(",").trim(),
-  "--font-body": bodySans.style.fontFamily.split(",").slice(1).join(",").trim(),
-};
-if (!initialFontFallbacks["--font-display"] || !initialFontFallbacks["--font-body"]) {
-  throw new Error("The display and body fonts require their generated matched fallbacks.");
+// Next's generated metric-matched fallback, which is what keeps a swap from
+// moving the page. A face without one is refused rather than shipped.
+//
+// No face is held on its fallback until hydration any more (product decision
+// 17 Oct 2026). The document used to pin both to their fallbacks and
+// ThemeAttribute released the pin once React ran, and that release restyled
+// the whole document at hydration: Chrome scored /today's greeting, on screen
+// from about 300 ms, at about 2.3 s on a 4x-throttled phone. Without the pin
+// it is scored at first paint, and an interleaved A/B moved neither hydration
+// nor the requests a page starts before load.
+for (const face of [displayFace, bodySans]) {
+  if (!face.style.fontFamily.split(",").slice(1).join(",").trim()) {
+    throw new Error("The display and body fonts require their generated matched fallbacks.");
+  }
 }
 
-// The complete generated chains ThemeAttribute writes back once hydrated.
+// The complete generated chains, primary face then its matched fallback, set
+// on <html> from the first byte. The global :root tokens in globals.css name
+// the families without the generated fallbacks and would otherwise win the
+// cascade, so a swap would land from ui-sans-serif rather than from the
+// metric-matched face. Set once in the document, they never change after it,
+// so nothing restyles the page at hydration.
 const rootFontFamilies = {
   "--font-display": displayFace.style.fontFamily,
   "--font-body": bodySans.style.fontFamily,
@@ -301,12 +320,9 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
-      style={initialFontFallbacks as CSSProperties}
+      style={rootFontFamilies as CSSProperties}
     >
       <head>
-        <noscript>
-          <style nonce={nonce}>{`html{--font-display:${displayFace.style.fontFamily} !important;--font-body:${bodySans.style.fontFamily} !important;}`}</style>
-        </noscript>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,
             glyphs and sprite from tiles.openfreemap.org (see
             components/map/canvas/tokens.ts). That cross-origin handshake
@@ -326,8 +342,8 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
         {/* Execute the canonical native-entry, theme, view and splash decisions
             before paint, without another parser-blocking network request.
-            Dynamic documents carry the request nonce. The five static
-            documents retain their existing inline-script CSP allowance. */}
+            Dynamic documents carry the request nonce. The CDN-cached static
+            documents (proxy.ts) retain their inline-script CSP allowance. */}
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: themeInitSource }}
@@ -425,10 +441,7 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
-                <ThemeAttribute
-                initialFontFallbacks={initialFontFallbacks}
-                fontFamilies={rootFontFamilies}
-              />
+                <ThemeAttribute />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -445,10 +458,7 @@ export default async function RootLayout({
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
-              <ThemeAttribute
-                initialFontFallbacks={initialFontFallbacks}
-                fontFamilies={rootFontFamilies}
-              />
+              <ThemeAttribute />
             </CommandPaletteProvider>
           </AuthProvider>
         )}
