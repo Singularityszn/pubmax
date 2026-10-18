@@ -307,13 +307,32 @@ body:has(.palExperience) {
 .palMemoryList .palSecondary { background: transparent; color: var(--pal-paper); }
 .palMemoryEmpty { min-height: 6rem; padding: 1rem; border: 1px dashed var(--pal-line); border-radius: .9rem; display: flex; align-items: center; gap: .75rem; color: var(--pal-soft); }
 .palMemoryEmpty p { margin: 0; }
-.palVoice { --voice-tone: var(--pal-line); margin-top: 1rem; padding: 1rem; border: 1px solid var(--voice-tone); border-radius: .9rem; background: var(--panel-raised); transition: border-color .3s ease, box-shadow .3s ease; }
+.palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
+.palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
+.palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
+.palVoiceActions > button, .palVoiceActions label { min-height: 2.9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); }
+.palVoiceActions > button { padding: 0 .85rem; cursor: pointer; }
+.palVoiceActions label { padding-left: .85rem; }
+.palVoiceActions input { min-width: 0; min-height: 2.75rem; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }
+.palVoiceActions label button { width: 2.8rem; align-self: stretch; border: 0; display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; }
+.palVoiceActions label button:disabled { cursor: not-allowed; opacity: .42; }
+/* There is no global .srOnly, so the composer's accessible name carries its own.
+   Without it the label printed inside the field and squeezed the input. */
+.palVoiceActions .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Voice off: one honest line plus the writing door, at the same 44px floor. */
+.palVoiceWriteLink { min-height: 2.9rem; padding: 0 .85rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; justify-content: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); text-decoration: none; }
+
+.palLoading { position: absolute; inset: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom)); display: grid; place-items: center; color: var(--pal-soft); }
+
+/* The voice panel's live parts: the edge, the meter, the transcript, the
+   panel head, and the Pal's genome and 3D head. Kept as one block after the
+   page's own rules, so a later pass over those rules never meets it. */
+.palVoice { --voice-tone: var(--pal-line); border-color: var(--voice-tone); transition: border-color .3s ease, box-shadow .3s ease; }
 /* The panel's edge says who has the floor: coral while the Pal talks, ink
    while it listens. Solid surface, no blur: this is a card, not chrome. */
 .palVoice[data-mode="listening"] { --voice-tone: color-mix(in srgb, var(--pal-paper) 38%, var(--pal-line)); }
 .palVoice[data-mode="speaking"] { --voice-tone: var(--pal-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pal-accent) 14%, transparent); }
 .palVoice[data-mode="connecting"] { --voice-tone: color-mix(in srgb, var(--pal-accent) 45%, var(--pal-line)); }
-.palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: .76rem; line-height: 1.45; }
 .palVoiceHead { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .palVoiceStatus { display: flex; align-items: center; gap: .45rem; font-weight: 600; }
 /* The Pal's live head in the panel (PalVoiceFace): phone width only, where
@@ -426,20 +445,6 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
   mix-blend-mode: soft-light;
   pointer-events: none;
 }
-.palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
-.palVoiceActions > button, .palVoiceActions label { min-height: 2.9rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); }
-.palVoiceActions > button { padding: 0 .85rem; cursor: pointer; }
-.palVoiceActions label { padding-left: .85rem; }
-.palVoiceActions input { min-width: 0; min-height: 2.75rem; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }
-.palVoiceActions label button { width: 2.8rem; align-self: stretch; border: 0; display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; }
-.palVoiceActions label button:disabled { cursor: not-allowed; opacity: .42; }
-/* There is no global .srOnly, so the composer's accessible name carries its own.
-   Without it the label printed inside the field and squeezed the input. */
-.palVoiceActions .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-/* Voice off: one honest line plus the writing door, at the same 44px floor. */
-.palVoiceWriteLink { min-height: 2.9rem; padding: 0 .85rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; justify-content: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); text-decoration: none; }
-
-.palLoading { position: absolute; inset: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom)); display: grid; place-items: center; color: var(--pal-soft); }
 
 @keyframes palStepIn { from { opacity: 0; transform: translateY(1rem); } }
 @keyframes palBreathe { 50% { transform: translateY(-.45rem) scale(1.015); } }
