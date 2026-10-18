@@ -131,27 +131,27 @@
   font: inherit;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--cat, var(--brass)) 34%, var(--line-soft));
+  border: 1px solid color-mix(in srgb, var(--cat, var(--ink-soft)) 34%, var(--line-soft));
   background:
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--cat, var(--brass)) 12%, var(--panel-raised)) 0%,
+      color-mix(in srgb, var(--cat, var(--ink-soft)) 12%, var(--panel-raised)) 0%,
       var(--panel-raised) 72%
     );
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .catShowcase__item--active .catShowcase__link {
-  border-color: color-mix(in srgb, var(--cat, var(--brass)) 72%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cat, var(--brass)) 28%, transparent);
+  border-color: color-mix(in srgb, var(--cat, var(--ink-soft)) 72%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cat, var(--ink-soft)) 28%, transparent);
 }
 
 /* Hover only on devices that actually hover — a finger tap must never leave a
    card looking "stuck" in its hover state. */
 @media (hover: hover) and (pointer: fine) {
   .catShowcase__link:hover {
-    border-color: color-mix(in srgb, var(--cat, var(--brass)) 62%, transparent);
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--cat, var(--brass)) 16%, transparent);
+    border-color: color-mix(in srgb, var(--cat, var(--ink-soft)) 62%, transparent);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--cat, var(--ink-soft)) 16%, transparent);
   }
 }
 
@@ -333,7 +333,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .catShowcase__arrow:not(:disabled):hover {
-    border-color: color-mix(in srgb, var(--brass) 62%, var(--line));
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 14%, transparent);
+    border-color: var(--hairline-strong);
   }
 }

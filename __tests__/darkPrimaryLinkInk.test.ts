@@ -15,11 +15,6 @@ const PRIMARIES = [
   { file: "app/ledger/[id]/ledger.css", selector: ".ledgerPrimaryLink", hover: true },
   { file: "app/invite/[token]/invite.css", selector: ".invite__primary", hover: true },
   { file: "app/p/[id]/permalink.css", selector: ".permalink__primary", hover: true },
-  {
-    file: "components/ledger/readLedgerButton.css",
-    selector: '.ledgerReadButton[aria-pressed="true"]',
-    hover: false,
-  },
 ];
 
 const DARK = 'html[data-theme="dark"]';
@@ -81,4 +76,26 @@ describe("a primary stays readable in the dark theme", () => {
       });
     }
   }
+});
+
+// The Read toggle's pressed state is a selection, not a primary, so in dark it
+// reads the neutral selected row rather than a coral fill (docs/DESIGN_SYSTEM.md
+// "Coral is spent twice"). Light keeps its ink-on-paper press.
+describe("a pressed toggle stays readable in the dark theme", () => {
+  const file = "components/ledger/readLedgerButton.css";
+  const selector = '.ledgerReadButton[aria-pressed="true"]';
+  const model = declarationsBySelector(file);
+
+  it(`${file} ${selector} paints ink on ink in light, so dark needs its own pair`, () => {
+    const light = model.get(selector);
+    expect(light?.get("background")).toBe("var(--ink-deep)");
+    expect(light?.get("color")).toBe("var(--panel-raised)");
+  });
+
+  it(`${file} ${selector} wears the selected row in dark`, () => {
+    const dark = model.get(`${DARK} ${selector}`);
+    expect(dark?.get("background")).toBe("var(--state-selected-surface)");
+    expect(dark?.get("border-color")).toBe("var(--state-selected-border)");
+    expect(dark?.get("color")).toBe("var(--state-selected-ink)");
+  });
 });

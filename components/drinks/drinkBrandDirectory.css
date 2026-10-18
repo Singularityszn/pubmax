@@ -96,14 +96,14 @@
   min-height: 44px;
   color: var(--ink);
   font-weight: 750;
-  text-decoration-color: var(--accent-action);
+  text-decoration-color: currentColor;
   text-underline-offset: 3px;
   touch-action: manipulation;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__fromPublisher a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -159,7 +159,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__secondary:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -247,7 +247,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__venue:hover {
-    color: var(--accent-action);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -288,7 +288,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__contribution:hover {
-    color: var(--accent-action);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -315,7 +315,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__publisher a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -360,7 +360,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__areas a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 

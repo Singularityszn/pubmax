@@ -50,8 +50,8 @@
 }
 
 .venueActionStrip__btn--book {
-  border-color: var(--control-tint-border);
-  background: var(--control-tint-surface);
+  border-color: var(--control-secondary-border);
+  background: var(--control-secondary-surface);
 }
 
 .venueActionStrip__btn--menu {

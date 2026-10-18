@@ -76,7 +76,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .menuHub__tile:hover {
-    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+    border-color: var(--hairline-strong);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -135,7 +135,7 @@
 }
 
 .menuHub__media--food {
-  color: var(--brass);
+  color: var(--color-text-muted);
   min-height: 88px;
 }
 
