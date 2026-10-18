@@ -287,6 +287,15 @@ export function consumeRateLimit(
 const DEGRADED_RATE_LIMIT = 3;
 
 /**
+ * How long the durable limiter may take before the request stops waiting on it.
+ * The check runs in front of every rate-limited route, so a database that hangs
+ * rather than errors would otherwise hold every write until the function's own
+ * time limit. A timeout is a durable `error`: the caller takes the degraded
+ * (or fail-closed) path below, and `rate_limit.fail_open` alerts.
+ */
+export const RATE_LIMIT_RPC_TIMEOUT_MS = 2_500;
+
+/**
  * Combined limiter used by every rate-limited route: durable (Supabase RPC)
  * when configured, in-memory otherwise.
  *
@@ -318,6 +327,7 @@ export async function isLimited(
     durableKey,
     limit,
     windowMs,
+    AbortSignal.timeout(RATE_LIMIT_RPC_TIMEOUT_MS),
   );
   if (typeof verdict === "boolean") return verdict;
 

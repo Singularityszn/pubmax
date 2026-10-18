@@ -52,7 +52,13 @@ import {
   type MessageDTO,
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
-import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
+import {
+  admin,
+  errorMessage,
+  missingTables,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
 import { requiresSupabaseStore } from "@/lib/supabase";
 
 // Hard caps so one busy handle can't return an unbounded payload.
@@ -492,6 +498,28 @@ function warnMemoryFallback(context: string, err: unknown): void {
   );
 }
 
+/**
+ * A WRITE that met a missing table answers from process memory only off
+ * production. In production it is refused through the store's own failure
+ * value: a message or a report held in one instance's memory is lost on the
+ * next cold start while the sender was told it was saved.
+ */
+function memoryWriteOffProduction<T>(
+  context: string,
+  refused: T,
+  fallback: () => Promise<T>,
+): Promise<T> {
+  return onMissingDurableWrite({
+    storeTag: "messages",
+    migrationHint: `apply the messages migrations before ${context}`,
+    fallback,
+    onProduction: async (error) => {
+      console.error(error.message);
+      return refused;
+    },
+  });
+}
+
 // A client message id is the browser's own uuid for one send attempt. It is
 // matched as a UUID SHAPE, never trusted as text: the column is `uuid`, so a
 // value that is not one would be a 22P02 on the write path of a real message.
@@ -837,7 +865,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("send", err);
-        return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options);
+        return memoryWriteOffProduction("send", null, () =>
+          memoryMessagesStore.send(conversationId, senderHandle, clean, attachment, options),
+        );
       }
       console.error("[messages] send failed:", err instanceof Error ? err.message : err);
       return null;
@@ -905,7 +935,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) || isMissingPollSchema(err)) {
         warnMemoryFallback("votePoll", err);
-        return memoryMessagesStore.votePoll(conversationId, messageId, me, optionIndex);
+        return memoryWriteOffProduction("votePoll", null, () =>
+          memoryMessagesStore.votePoll(conversationId, messageId, me, optionIndex),
+        );
       }
       console.error("[messages] votePoll failed:", err instanceof Error ? err.message : err);
       return null;
@@ -1088,7 +1120,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("markRead", err);
-        return memoryMessagesStore.markRead(conversationId, me);
+        return memoryWriteOffProduction("markRead", 0, () =>
+          memoryMessagesStore.markRead(conversationId, me),
+        );
       }
       console.error("[messages] markRead failed:", err instanceof Error ? err.message : err);
       return 0;
@@ -1134,7 +1168,9 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("report", err);
-        return memoryMessagesStore.report(conversationId, messageId, reporter);
+        return memoryWriteOffProduction("report", false, () =>
+          memoryMessagesStore.report(conversationId, messageId, reporter),
+        );
       }
       console.error("[messages] report failed:", err instanceof Error ? err.message : err);
       return false;

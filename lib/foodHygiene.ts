@@ -225,6 +225,26 @@ export async function fetchEstablishmentsByPostcode(
 type CacheEntry = { value: HygieneRating | null; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
 
+// The key carries a caller-supplied name, so without a ceiling one instance's
+// cache grows with every distinct name anybody sends. Oldest-first eviction is
+// enough: Map iterates in insertion order.
+export const HYGIENE_CACHE_MAX_ENTRIES = 2_000;
+
+function rememberHygiene(key: string, entry: CacheEntry): void {
+  cache.delete(key);
+  while (cache.size >= HYGIENE_CACHE_MAX_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+  cache.set(key, entry);
+}
+
+/** Test seam: how many ratings this instance holds. */
+export function hygieneCacheSize(): number {
+  return cache.size;
+}
+
 /** Test seam: drop the per-instance cache so cases don't leak into each other. */
 export function resetHygieneCache(): void {
   cache.clear();
@@ -262,7 +282,7 @@ export async function resolveHygieneRating(
       fhrsid === undefined
         ? matchEstablishment(venueName, establishments)
         : exactEstablishment(fhrsid, establishments);
-    cache.set(key, { value, expiresAt: now + CACHE_TTL_MS });
+    rememberHygiene(key, { value, expiresAt: now + CACHE_TTL_MS });
     return value;
   } catch {
     // Fail-soft: don't cache an outage as a permanent "no rating".

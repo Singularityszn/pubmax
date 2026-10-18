@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { isCrossSiteRequest } from "@/lib/crossSiteRequest";
 import { log } from "@/lib/log";
 
 // Moderator gate — shared by app/api/admin/comments/route.ts and the moderator
@@ -94,8 +95,18 @@ export function canOpenAdminDocument(headerList: ModeratorHeaders): boolean {
   return hasModeratorCredential(headerList);
 }
 
+/**
+ * The API gate. A browser attaches the session cookie to a cross-site request
+ * too (SameSite=Lax still sends it on a top-level POST form), so a cookie
+ * credential on a WRITE from another site is refused: that is the CSRF shape.
+ * The `x-admin-token` header cannot be set by another site, so it is unaffected.
+ */
 export function isModerator(request: Request): boolean {
-  return hasModeratorCredential(request.headers);
+  const credential = moderatorCredential(request.headers);
+  if (credential !== "cookie") return credential !== null;
+  const method = (request.method ?? "GET").toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return true;
+  return !isCrossSiteRequest(request);
 }
 
 /**
@@ -113,19 +124,26 @@ export function moderatorStaffRoleId(request: Request): string | null {
 }
 
 function hasModeratorCredential(headerList: ModeratorHeaders): boolean {
+  return moderatorCredential(headerList) !== null;
+}
+
+/** Which credential admitted the caller, or null when none did. */
+function moderatorCredential(headerList: ModeratorHeaders): "local" | "header" | "cookie" | null {
   const expected = process.env.ADMIN_TOKEN;
   if (!expected) {
-    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+    return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test"
+      ? "local"
+      : null;
   }
-  if (adminTokenTooShort(expected)) return false;
+  if (adminTokenTooShort(expected)) return null;
 
   const headerToken = headerList.get("x-admin-token") ?? undefined;
-  if (headerToken && safeTokenEqual(headerToken, expected)) return true;
+  if (headerToken && safeTokenEqual(headerToken, expected)) return "header";
 
   const sessionValue = readAdminSessionCookie(headerList);
-  if (sessionValue && validAdminSession(sessionValue, expected)) return true;
+  if (sessionValue && validAdminSession(sessionValue, expected)) return "cookie";
 
-  return false;
+  return null;
 }
 
 export function verifyAdminToken(token: string): boolean {

@@ -39,8 +39,16 @@ export const ALERT_HOURLY_CAP = 30;
 const ALERT_TIMEOUT_MS = 3_000;
 export const ALERT_MAX_TEXT = 1_500;
 
-/** Warn-level events an operator must hear about, beside every error-level one. */
-export const ALERT_WARN_EVENTS: ReadonlySet<string> = new Set(["paid_spend.budget_spent"]);
+/**
+ * Warn-level events an operator must hear about, beside every error-level one.
+ * `rate_limit.fail_open` is here because the abuse floor is per instance while
+ * it fires (docs/PNC_OBSERVABILITY_RUNBOOK.md pages on it); the cooldown keeps
+ * an outage to one post per instance per window.
+ */
+export const ALERT_WARN_EVENTS: ReadonlySet<string> = new Set([
+  "paid_spend.budget_spent",
+  "rate_limit.fail_open",
+]);
 
 export type Alert = { source: string; text: string };
 

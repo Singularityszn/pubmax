@@ -116,6 +116,12 @@ describe("hashIp", () => {
     expect(hashIp("203.0.113.7")).toBe(hash);
   });
 
+  it("gives every address in one IPv6 /64 the same bucket", async () => {
+    const { hashIp } = await loadSupabaseLib();
+    expect(hashIp("2001:db8:1:2::a")).toBe(hashIp("2001:db8:1:2:ffff::b"));
+    expect(hashIp("2001:db8:1:2::a")).not.toBe(hashIp("2001:db8:1:3::a"));
+  });
+
   it("changes with RATE_LIMIT_SALT", async () => {
     const { hashIp } = await loadSupabaseLib();
     const unsalted = hashIp("203.0.113.7");

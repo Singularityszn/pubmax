@@ -5,8 +5,16 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 // (event "rate_limit.fail_open") so an operator can alert on it. supabase-js is
 // mocked so the check_rate_limit RPC outcome is fully controllable offline.
 const rpc = vi.fn();
+// Like the real query builder, the RPC result is awaitable and takes an abort
+// signal; a test that shapes its own builder keeps it.
 vi.mock("@supabase/supabase-js", () => ({
-  createClient: () => ({ rpc }),
+  createClient: () => ({
+    rpc: (...args: unknown[]) => {
+      const result = rpc(...args);
+      if (result && typeof result.abortSignal === "function") return result;
+      return Object.assign(Promise.resolve(result), { abortSignal: () => Promise.resolve(result) });
+    },
+  }),
 }));
 
 async function loadPintDrops() {
@@ -37,6 +45,29 @@ afterAll(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.RATE_LIMIT_STRICT;
+});
+
+describe("isLimited durable timeout", () => {
+  it("bounds the durable RPC with an abort signal and degrades when it fires", async () => {
+    const { isLimited, RATE_LIMIT_RPC_TIMEOUT_MS } = await loadPintDrops();
+    let captured: AbortSignal | undefined;
+    rpc.mockImplementation(() => ({
+      abortSignal(signal: AbortSignal) {
+        captured = signal;
+        // A hung database answers only through the abort.
+        return Promise.resolve({ data: null, error: { message: "AbortError: signal timed out" } });
+      },
+    }));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await isLimited("local:t", "durable:t", 8, 60_000);
+
+    expect(captured).toBeInstanceOf(AbortSignal);
+    expect(RATE_LIMIT_RPC_TIMEOUT_MS).toBeLessThanOrEqual(5_000);
+    expect(failOpenRecords(logSpy)[0]).toMatchObject({ reason: "error", mode: "degraded" });
+    vi.restoreAllMocks();
+  });
 });
 
 describe("isLimited fail-open WARN", () => {
