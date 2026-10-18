@@ -267,7 +267,7 @@ export type Venue = {
   // Compact facts carried by the slim map index so URL/query filters can work
   // before the heavy venue detail rows are hydrated.
   filterHints?: VenueFilterHints;
-  /** Famous-venue taxonomy. Absent is a pub for legacy/cache compatibility. */
+  /** Venue taxonomy. Absent is a pub for legacy/cache compatibility. */
   kind?: VenueKind;
   legacyOsmBar?: true;
   priceSource?: string;

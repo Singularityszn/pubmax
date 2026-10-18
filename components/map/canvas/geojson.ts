@@ -97,11 +97,11 @@ function pinPriceTag(
  * "£5.40" over a pub is a claim about that pub, and we have no observation
  * behind it. So the seed lane stops here, deliberately.
  *
- * The sayable lane is also PUB-ONLY (isPubVenueKind): the map's figure idiom
- * is the pint price, and a famous bar/food venue's cheapestPrice is its anchor
- * price - a £25 house cocktail, a £15 doner - which printed bare would read as
- * a pint. Anchors stay labelled and dated on the venue sheet; the band (which
- * is type-relative for those kinds anyway) still paints.
+ * The sayable lane follows hasPintPriceSemantics, which preserves recorded
+ * legacy bar pints. A curated venue's item anchor would read as a pint if
+ * printed bare. Anchors stay labelled and dated on the venue sheet, while
+ * their type-relative band still paints. The shared price contract lives in
+ * docs/rules/lib-venues-areas-listings-and-nights.md.
  *
  * A PROVISIONAL report cannot reach either read: an uncorroborated community
  * submission never becomes `latestContributorPrice` (the gate is
