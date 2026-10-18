@@ -35,7 +35,10 @@ export type CheapPintPingDispatchDeps = {
     token: string,
     payload: NonNullable<Awaited<ReturnType<typeof selectCheapPintPing>>>,
   ) => Promise<{ sent: number; pruned: number; errors: number }>;
-  markSent: (ownerActor: string, sentAt: string) => Promise<void>;
+  /** Stamp the row before the send. False means another run already took it. */
+  claim: (ownerActor: string, sentAt: string) => Promise<boolean>;
+  /** Clear our stamp after a send that reported no delivery. */
+  release: (ownerActor: string, claimedAt: string) => Promise<void>;
 };
 
 export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
@@ -54,8 +57,10 @@ export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
         errors: result.errors,
       };
     },
-    markSent: (ownerActor, sentAt) =>
-      stepOutNudgeStore().markCheapPintSent(ownerActor, sentAt),
+    claim: (ownerActor, sentAt) =>
+      stepOutNudgeStore().claimCheapPintSend(ownerActor, sentAt),
+    release: (ownerActor, claimedAt) =>
+      stepOutNudgeStore().releaseCheapPintSendClaim(ownerActor, claimedAt),
   };
 }
 
@@ -105,16 +110,39 @@ export async function dispatchCheapPintPings(
         summary.skippedNoGroundedPint += 1;
         continue;
       }
+      // Claim before the send. A cron event can arrive twice and two runs can list
+      // the same row, so only the run that wins the stamp sends.
+      const claimedAt = now.toISOString();
+      let won: boolean;
       try {
-        const result = await deps.send(pref.subscriptionToken, payload);
-        summary.sent += result.sent;
-        summary.pruned += result.pruned;
-        summary.errors += result.errors;
-        if (result.sent > 0) {
-          await deps.markSent(pref.ownerActor, now.toISOString());
-        }
+        won = await deps.claim(pref.ownerActor, claimedAt);
       } catch {
         summary.errors += 1;
+        continue;
+      }
+      if (!won) {
+        summary.skippedNotReady += 1;
+        continue;
+      }
+      let result: { sent: number; pruned: number; errors: number };
+      try {
+        result = await deps.send(pref.subscriptionToken, payload);
+      } catch {
+        // The push may have gone out, so keep the claim: a missed ping beats a second one.
+        summary.errors += 1;
+        continue;
+      }
+      summary.sent += result.sent;
+      summary.pruned += result.pruned;
+      summary.errors += result.errors;
+      if (result.sent === 0) {
+        // Nothing was delivered, so free the row for the next weekday as before.
+        // If the release fails the claim stays and the ping is missed, not doubled.
+        try {
+          await deps.release(pref.ownerActor, claimedAt);
+        } catch {
+          summary.errors += 1;
+        }
       }
     }
   }

@@ -31,6 +31,7 @@ import {
 import { __resetMemoryPriceTrustEvents, priceTrustEventStore } from "@/lib/priceTrustEventStore";
 import {
   drainPendingPriceTrustReconciliations,
+  MAX_PRICE_TRUST_ATTEMPTS,
   readPriceTrustImpact,
   reconcilePriceTrustForObservation,
   syncTrustAfterPriceHidden,
@@ -294,6 +295,113 @@ describe("drainPendingPriceTrustReconciliations", () => {
     expect(pending).toHaveLength(20);
     expect(pending.some((task) => task.venueId === "healthy-newer-pair")).toBe(false);
     expect(pending.every((task) => task.venueId.startsWith("poison-"))).toBe(true);
+  });
+
+  function deadLetterLines(spy: { mock: { calls: unknown[][] } }): Record<string, unknown>[] {
+    return spy.mock.calls
+      .map((call) => {
+        try {
+          return JSON.parse(String(call[0])) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter(
+        (line): line is Record<string, unknown> =>
+          line !== null && line.event === "price_trust.task_dead_lettered",
+      );
+  }
+
+  it("stops retrying a pair after MAX_PRICE_TRUST_ATTEMPTS failed runs and raises one error", async () => {
+    const store = priceTrustEventStore();
+    vi.spyOn(store, "liveEventsFor").mockResolvedValue({ events: [], degraded: true });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(MAX_PRICE_TRUST_ATTEMPTS).toBe(5);
+
+    await store.enqueueReconciliation("stuck-pair", "beer", NOW);
+
+    for (let run = 1; run < MAX_PRICE_TRUST_ATTEMPTS; run += 1) {
+      const drained = await drainPendingPriceTrustReconciliations(20, NOW + run);
+      expect(drained).toEqual({
+        processed: 1,
+        synced: 0,
+        pending: 1,
+        deadLettered: 0,
+        degraded: false,
+      });
+    }
+    expect(deadLetterLines(errors)).toEqual([]);
+
+    const final = await drainPendingPriceTrustReconciliations(20, NOW + 100);
+    expect(final).toEqual({
+      processed: 1,
+      synced: 0,
+      pending: 0,
+      deadLettered: 1,
+      degraded: false,
+    });
+    const lines = deadLetterLines(errors);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      level: "error",
+      venueId: "stuck-pair",
+      category: "beer",
+      attempts: MAX_PRICE_TRUST_ATTEMPTS,
+    });
+
+    // The dead letter is not work: the next run is clean and says nothing new.
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await drainPendingPriceTrustReconciliations(20, NOW + 200)).toEqual({
+      processed: 0,
+      synced: 0,
+      pending: 0,
+      deadLettered: 0,
+      degraded: false,
+    });
+    expect(deadLetterLines(errors)).toHaveLength(1);
+
+    // A new price write is new evidence and starts a fresh budget.
+    await store.enqueueReconciliation("stuck-pair", "beer", NOW + 300);
+    expect(await drainPendingPriceTrustReconciliations(20, NOW + 400)).toMatchObject({
+      pending: 1,
+      deadLettered: 0,
+    });
+  });
+
+  it("never charges a newer write for a failure read on an older version", async () => {
+    const store = priceTrustEventStore();
+    const first = defined((await store.enqueueReconciliation("venue-one", "beer", NOW)).task ?? undefined);
+    const newer = defined((await store.enqueueReconciliation("venue-one", "beer", NOW + 1)).task ?? undefined);
+    for (let run = 0; run < MAX_PRICE_TRUST_ATTEMPTS; run += 1) {
+      expect(
+        await store.recordReconciliationFailure(first, MAX_PRICE_TRUST_ATTEMPTS, NOW + 2),
+      ).toEqual({ status: "superseded" });
+    }
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([newer]);
+    expect(
+      await store.recordReconciliationFailure(newer, MAX_PRICE_TRUST_ATTEMPTS, NOW + 3),
+    ).toEqual({ status: "retrying", attempts: 1 });
+  });
+
+  it("keeps the 0126 re-enqueue when the attempts column is absent", async () => {
+    const store = priceTrustEventStore();
+    vi.spyOn(store, "liveEventsFor").mockResolvedValue({ events: [], degraded: true });
+    vi.spyOn(store, "recordReconciliationFailure").mockResolvedValue({ status: "legacy" });
+    const enqueue = vi.spyOn(store, "enqueueReconciliation");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await store.enqueueReconciliation("legacy-pair", "beer", NOW);
+    enqueue.mockClear();
+    for (let run = 1; run <= MAX_PRICE_TRUST_ATTEMPTS + 2; run += 1) {
+      expect(await drainPendingPriceTrustReconciliations(20, NOW + run)).toMatchObject({
+        pending: 1,
+        deadLettered: 0,
+      });
+    }
+    expect(enqueue).toHaveBeenCalledTimes(MAX_PRICE_TRUST_ATTEMPTS + 2);
+    expect(enqueue).toHaveBeenLastCalledWith("legacy-pair", "beer", NOW + MAX_PRICE_TRUST_ATTEMPTS + 2);
+    expect(deadLetterLines(errors)).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
   });
 });
 
