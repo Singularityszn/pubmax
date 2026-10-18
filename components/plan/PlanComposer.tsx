@@ -2711,7 +2711,7 @@ function PlanComposerForm({
   const resultHeader = (
     <section className="planResult" aria-labelledby="plan-result-title">
       <div className="planResult__top">
-        <h2 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h2>
+        <h1 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h1>
         <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
         </button>
@@ -2857,14 +2857,35 @@ export default function PlanComposer() {
       hasDurableDraft: Boolean(durableDraft),
     };
   }, [hydrated]);
-  // The form is MOUNTED AGAIN once hydrated, so its state initialisers read the
-  // recovered drafts. Whatever the server-painted form held is thrown away with
-  // it, so that form takes no input (`canPersist` reaches the describe-first
-  // field as `ready`). On a slow load the browser suite typed a query into it,
-  // lost it at the remount, and tapped Sort it on an empty field (5 Oct 2026).
+  // The form is MOUNTED AGAIN once hydrated when there is something to recover,
+  // so its state initialisers read the recovered drafts and the URL's ask.
+  // Whatever the server-painted form held is thrown away with it, so that form
+  // takes no input (`canPersist` reaches the describe-first field as `ready`).
+  // On a slow load the browser suite typed a query into it, lost it at the
+  // remount, and tapped Sort it on an empty field (5 Oct 2026).
+  //
+  // With nothing to recover the remount would rebuild the same form the server
+  // painted, and a fresh paint of every node in it is scored by the browser as
+  // a new largest paint: /plan's LCP was the server's own culture line,
+  // repainted at the remount, 2.2 to 2.5 s on a throttled phone against a
+  // first paint of 0.6 s. So the server form is kept and simply goes live: its
+  // state is already what a remount would compute, and every effect that waits
+  // on `canPersist` lists it, so each runs the moment it flips.
+  const remount = useMemo(() => {
+    if (!hydrated) return false;
+    const fromUrl = describeAskFromLocation();
+    return Boolean(
+      handoff ||
+        recoveredDraft ||
+        recoveredRouteDraft ||
+        recoveredIntake.hasDurableDraft ||
+        fromUrl.ask ||
+        fromUrl.handoffAsk,
+    );
+  }, [hydrated, handoff, recoveredDraft, recoveredRouteDraft, recoveredIntake]);
   return (
     <PlanComposerForm
-      key={hydrated ? "hydrated" : "server"}
+      key={remount ? "hydrated" : "server"}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://lvls.london/drink",
+  "observedAt": "2026-10-17T12:44:32.110Z",
+  "evidence": "LOW & NO ALCH Nogroni Zero-proof bitter, sweet vermouth alternative, orange £7.00 Fresh Lemonade Pressed lemon, mint, soda £4.00 Coke / Diet Coke 330ml glass bottle £3.50 SOFT DRINKS Fresh Lemonade Pressed lemon, mint, soda",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots)",
+  "rows": [
+    {
+      "host": "lvls.london",
+      "venueId": "venue-uk-n12531850553",
+      "osmId": "node/12531850553",
+      "name": "Lvls",
+      "postcode": "E3 2RX",
+      "lat": 51.5405898,
+      "lng": -0.0208404,
+      "category": "soft-drink",
+      "priceGbp": 3.5,
+      "drinkLabel": "Coke / Diet Coke 330ml glass bottle",
+      "sourceUrl": "https://lvls.london/drink",
+      "observedAt": "2026-10-17T12:44:32.110Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 112
+    }
+  ]
+}

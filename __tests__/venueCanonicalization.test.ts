@@ -231,6 +231,93 @@ describe("canonicalizeDataset — safety guards", () => {
     });
     expect(canonicalizeDataset(result.rows).aliases).toEqual({});
   });
+  it("merges the verified Moon on the Square pair 177 m apart into its OSM pin", () => {
+    const spoons = makeRow({
+      pub_name: "The Moon on the Square - JD Wetherspoon",
+      address: "Unit 30, The Centre, Feltham, TW13 4AU",
+      latitude: 51.4452, longitude: -0.411801, price_gbp: 2.43,
+      source_datasets: "borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const osm = makeRow({
+      pub_name: "The Moon on the Square",
+      address: "30, High Street, Feltham, TW13 4AU",
+      latitude: 51.4464358, longitude: -0.4101685, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(spoons))).toBe("venue-g9jxzs");
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-86sj0g");
+    const result = canonicalizeDataset([spoons, { ...spoons, price_gbp: 3.73 }, osm]);
+    expect(result.aliases).toEqual({ "venue-g9jxzs": "venue-86sj0g" });
+    const venues = groupVenuePrices(result.rows);
+    expect(venues).toHaveLength(1);
+    expect(defined(venues[0]).id).toBe("venue-86sj0g");
+    expect(result.rows.map((price) => price.price_gbp)).toEqual([2.43, 3.73, null]);
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+  });
+  it("does not merge an unverified Moon on the Square record 177 m away", () => {
+    const spoons = makeRow({
+      pub_name: "The Moon on the Square - JD Wetherspoon",
+      address: "Unit 31, The Centre, Feltham, TW13 4AU",
+      latitude: 51.4452, longitude: -0.411801,
+    });
+    const osm = makeRow({
+      pub_name: "The Moon on the Square",
+      address: "30, High Street, Feltham, TW13 4AU",
+      latitude: 51.4464358, longitude: -0.4101685, price_gbp: null,
+    });
+    expect(canonicalizeDataset([spoons, osm]).aliases).toEqual({});
+  });
+
+  it("joins the Young's 'Guardhouse' seed to the OSM 'Guard House' it duplicates", () => {
+    // Both rows as committed in public/data/pint_prices_app_dataset.json.
+    const osm = makeRow({
+      pub_name: "The Guard House",
+      address: "No 1 Street, London, SE18 6GH",
+      latitude: 51.4918809, longitude: 0.0691701, price_gbp: null,
+      source_datasets: "outer_london_osm",
+    });
+    const seed = makeRow({
+      pub_name: "The Guardhouse",
+      address: "No 1 Street, Plumstead, SE18 6GH, London",
+      latitude: 51.49188, longitude: 0.06917, price_gbp: null,
+      source_datasets: "london_chain_gazetteer_seed",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(osm))).toBe("venue-9e93hd");
+    expect(stableVenueIdFromKey(venueGroupingKey(seed))).toBe("venue-kkpnq8");
+    const result = canonicalizeDataset([seed, osm]);
+    expect(result.aliases).toEqual({ "venue-kkpnq8": "venue-9e93hd" });
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-9e93hd"]);
+    // The alias is for that pair only: the same spelling gap elsewhere stays two pubs.
+    const elsewhere = canonicalizeDataset([
+      { ...seed, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+      { ...osm, address: "1 Other Road, London E1 1AA", latitude: 51.52, longitude: -0.07 },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
+  it("joins a verified pair past the fuzzy radius, and only that pair", () => {
+    // Both rows as committed: 52.6 m apart, beyond the 45 m fuzzy radius.
+    const kept = makeRow({
+      pub_name: "The Trafalgar",
+      address: "Park Row, London SE10 9NW",
+      latitude: 51.4841, longitude: -0.0041379, price_gbp: 8.4,
+    });
+    const wikipedia = makeRow({
+      pub_name: "Trafalgar Tavern",
+      address: "Greenwich, Greater London",
+      latitude: 51.484565, longitude: -0.004274, price_gbp: null,
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(kept))).toBe("venue-1lj3hj4");
+    expect(stableVenueIdFromKey(venueGroupingKey(wikipedia))).toBe("venue-1clnw4x");
+    expect(canonicalizeDataset([wikipedia, kept]).aliases).toEqual({ "venue-1clnw4x": "venue-1lj3hj4" });
+    // The same two names at the same distance are not joined for anyone else.
+    const elsewhere = canonicalizeDataset([
+      { ...kept, address: "1 Other Road, London E1 1AA" },
+      { ...wikipedia, address: "1 Other Road, London E1 1AA" },
+    ]);
+    expect(elsewhere.aliases).toEqual({});
+  });
+
   describe("a verified misplaced record", () => {
     const pub = makeRow({
       pub_name: "The Marquis of Cornwallis",

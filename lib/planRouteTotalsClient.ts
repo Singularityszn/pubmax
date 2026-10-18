@@ -14,6 +14,11 @@ import type { Venue } from "@/lib/venues";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 
 export function planRouteTotalsFallbackLabel(totals: PlanRouteTotals): string {
+  // straightLineWalkingKm is the straight line whatever the minutes were
+  // measured along, so a street total names its basis without a street km.
+  if (totals.distanceBasis === "street") {
+    return `${totals.estimatedWalkingMinutes} min walk total along mapped streets`;
+  }
   return `${totals.estimatedWalkingMinutes} min walk total · ${totals.straightLineWalkingKm.toFixed(1)} km, straight-line`;
 }
 

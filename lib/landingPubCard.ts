@@ -78,8 +78,12 @@ export type LandingPubCardData = {
     observedOn: string;
     source: { label: string; url: string };
   };
-  /** "Up £2.90 in 13 years." */
-  movementLine: string;
+  /**
+   * "Up £2.90 in 13 years.", or null when lib/priceHistory.ts cannot show the
+   * two figures are the same pint at an ordinary price. Both figures print
+   * either way; only the movement is withheld.
+   */
+  movementLine: string | null;
   mapHref: string;
 };
 
@@ -135,8 +139,11 @@ export function buildLandingPubCard(
   const chosen = ranked[0]?.venue;
   if (!chosen) return null;
 
+  // The bundled index names the cheapest pint but states neither its serving
+  // nor its terms, so today's figure carries no comparison item and no movement
+  // is said against the archive. The card still stands on both figures.
   const arc = venuePriceArc(history.get(chosen.id) ?? [], chosen.cheapestPrice, now);
-  if (!arc || arc.nowGbp === null || arc.deltaGbp === null) return null;
+  if (!arc || arc.nowGbp === null) return null;
 
   const { publisher, standing, observedOn } = answerEvidenceFor(
     { priceGbp: arc.nowGbp, prices: chosen.prices },
@@ -159,7 +166,7 @@ export function buildLandingPubCard(
       observedOn: arc.then.observedOn,
       source: { label: arc.then.source.label, url: arc.then.source.url },
     },
-    movementLine: priceMovementLine(arc.deltaGbp, arc.years),
+    movementLine: arc.deltaGbp === null ? null : priceMovementLine(arc.deltaGbp, arc.years),
     mapHref: venueMapUrl(chosen.id),
   };
 }
@@ -193,6 +200,11 @@ export function buildLandingArchiveIndex(
       observedDay: formatObservedDay(arc.then.observedOn),
       years: arc.years,
       source: { label: arc.then.source.label, url: arc.then.source.url },
+      // Decided here, with the policy, against this venue's own listed figure.
+      movement:
+        arc.nowGbp !== null && arc.deltaGbp !== null
+          ? { nowGbp: arc.nowGbp, line: priceMovementLine(arc.deltaGbp, arc.years) }
+          : null,
     };
   }
   return index;

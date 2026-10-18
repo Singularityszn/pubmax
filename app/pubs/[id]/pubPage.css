@@ -1,0 +1,252 @@
+/* One pub, the way a booking app shows a restaurant: the photo, the name and
+   one action, then the sections a reader decides on, each a plain card. */
+
+.pubPage {
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 20px var(--page-gutter) 96px;
+}
+
+.pubPage .siteNavBar {
+  margin: 0 auto 20px;
+  max-width: 760px;
+}
+
+.pubPage__inner {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.pubPage__inner > .screen {
+  width: 100%;
+  padding-inline: 0;
+}
+
+.pubPage__hero {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.pubPage__hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pubPage__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.pubPage__facts li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pubPage__facts a {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.pubPage__figure {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pubPage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pubPage__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pubPage__action:disabled {
+  cursor: progress;
+}
+
+.pubPage__action:focus-visible,
+.pubPage__section a:focus-visible,
+.pubPage__facts a:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+.pubPage__section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+}
+
+.pubPage__section h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.pubPage__pints {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pubPage__pints li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.pubPage__pints li:first-child {
+  border-top: 0;
+}
+
+.pubPage__hours {
+  display: grid;
+  margin: 0;
+}
+
+.pubPage__hours div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.pubPage__hours dt {
+  color: var(--ink-soft);
+}
+
+.pubPage__hours dd {
+  margin: 0;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.pubPage__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pubPage__chips li {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+}
+
+.pubPage__story {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.pubPage__note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.pubPage__eyebrow {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.pubPage__emptyTitle {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.pubPage__unavailable {
+  gap: 12px;
+}
+
+/* Your lot on this pub: their score averaged, then each post. */
+.pubLot__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.pubLot__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pubLot__review {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.pubLot__review p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.pubLot__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pubLot__head time {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.pubLot__photo {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 12px;
+}

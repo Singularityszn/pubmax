@@ -4,13 +4,17 @@ import {
   validateSocialPostEdit,
   type SocialPostFields,
 } from "@/lib/socialPosts";
+import { parseSocialReviewRating } from "@/lib/socialPostReviews";
+import { parseSocialVideoDuration } from "@/lib/socialPostVideos";
 
 type SubmissionErrorCode =
   | "INVALID_POST"
   | "INVALID_AREA"
   | "FEATURE_REQUEST_BODY_REQUIRED"
   | "PHOTO_ALT_REQUIRED"
-  | "INVALID_TAGS";
+  | "INVALID_TAGS"
+  | "INVALID_REVIEW"
+  | "INVALID_VIDEO";
 
 type SubmissionError = { ok: false; code: SubmissionErrorCode; error: string };
 
@@ -20,6 +24,10 @@ export type SocialCreateSubmission =
       post: Omit<SocialPostFields, "photo">;
       photoAltText: string | null;
       tagHandles: string[];
+      /** The author's own score for the pub the post names, or null. */
+      reviewRating: number | null;
+      /** An upload intent the author holds, to bind to the new post. */
+      video: { uploadId: string; durationSeconds: number | null } | null;
     }
   | SubmissionError;
 
@@ -35,7 +43,8 @@ export type SocialEditSubmission =
     }
   | SubmissionError;
 
-const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles"]);
+const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "reviewRating", "videoUploadId", "videoDurationSeconds"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EDIT_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "removePhoto"]);
 const CREATE_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags", "commentPolicy",
@@ -105,6 +114,9 @@ export function parseSocialCreateSubmission(
   if (!hasPhoto && raw.photoAltText !== undefined) {
     return { ok: false, code: "INVALID_POST", error: "Post details are not valid." };
   }
+  if (raw.videoUploadId !== undefined && raw.videoUploadId !== null && !hasPhoto && !cleanAlt(raw.body)) {
+    return { ok: false, code: "INVALID_VIDEO", error: "Add a caption to your video." };
+  }
   const validation = validateSocialPostCreate(base(raw, CREATE_KEYS), hasPhoto
     ? {
         trustedPhoto: {
@@ -123,7 +135,37 @@ export function parseSocialCreateSubmission(
     hashtags: validation.value.hashtags,
     commentPolicy: validation.value.commentPolicy,
   };
-  return { ok: true, post, photoAltText, tagHandles };
+  let reviewRating: number | null = null;
+  if (raw.reviewRating !== undefined && raw.reviewRating !== null) {
+    reviewRating = parseSocialReviewRating(raw.reviewRating);
+    if (reviewRating === null) {
+      return { ok: false, code: "INVALID_REVIEW", error: "Score the pub from 1 to 5, in half stars." };
+    }
+    if (!post.venueId || post.kind !== "standard") {
+      return { ok: false, code: "INVALID_REVIEW", error: "Pick the pub you are scoring." };
+    }
+  }
+  let video: { uploadId: string; durationSeconds: number | null } | null = null;
+  if (raw.videoUploadId !== undefined && raw.videoUploadId !== null) {
+    if (typeof raw.videoUploadId !== "string" || !UUID.test(raw.videoUploadId) || hasPhoto) {
+      return { ok: false, code: "INVALID_VIDEO", error: "A post carries one photo or one video." };
+    }
+    if (!post.body) {
+      return { ok: false, code: "INVALID_VIDEO", error: "Add a caption to your video." };
+    }
+    // The length is what the browser read from the file. A stated length
+    // outside the ten-minute limit is refused rather than dropped; a missing
+    // one is allowed, because some browsers cannot read a .mov's metadata. The
+    // byte cap, checked from the stored object, is the bound that holds either way.
+    const durationSeconds = parseSocialVideoDuration(raw.videoDurationSeconds);
+    if (raw.videoDurationSeconds !== undefined && raw.videoDurationSeconds !== null && durationSeconds === null) {
+      return { ok: false, code: "INVALID_VIDEO", error: "Videos can be up to 10 minutes. Trim it and try again." };
+    }
+    video = { uploadId: raw.videoUploadId, durationSeconds };
+  } else if (raw.videoDurationSeconds !== undefined) {
+    return { ok: false, code: "INVALID_POST", error: "Post details are not valid." };
+  }
+  return { ok: true, post, photoAltText, tagHandles, reviewRating, video };
 }
 
 export function parseSocialEditSubmission(

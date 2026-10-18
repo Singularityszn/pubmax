@@ -2,6 +2,8 @@ import "server-only";
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
+import { log } from "@/lib/log";
+
 // Moderator gate — shared by app/api/admin/comments/route.ts and the moderator
 // branches of app/api/pint-drops/route.ts. The token may arrive via the
 // `x-admin-token` header (backwards compat during transition) OR an httpOnly
@@ -17,6 +19,25 @@ const SOCIAL_MODERATOR_STAFF_ROLE_ID_ENV = "SOCIAL_MODERATOR_STAFF_ROLE_ID";
 // 24h — long enough for a moderation shift, short enough to limit stolen-cookie
 // exposure. Refreshed on each successful POST /api/admin/session.
 export const ADMIN_SESSION_MAX_AGE_SEC = 60 * 60 * 24;
+
+// ADMIN_TOKEN is both the header credential and the HMAC key for admin
+// sessions, so Vercel Production holds it to the same 32 bytes as the other
+// signing secrets (LIB-S6). A short token closes the moderator door rather
+// than failing the boot: the public app stays up, every admin credential is
+// refused, and one error line says why. Keyed on VERCEL_ENV alone because CI
+// bakes NODE_ENV=production into the test runner.
+const MIN_PRODUCTION_ADMIN_TOKEN_BYTES = 32;
+let shortAdminTokenLogged = false;
+
+function adminTokenTooShort(token: string): boolean {
+  if (process.env.VERCEL_ENV !== "production") return false;
+  if (Buffer.byteLength(token.trim(), "utf8") >= MIN_PRODUCTION_ADMIN_TOKEN_BYTES) return false;
+  if (!shortAdminTokenLogged) {
+    shortAdminTokenLogged = true;
+    log("error", "admin_auth.token_too_short", { minBytes: MIN_PRODUCTION_ADMIN_TOKEN_BYTES });
+  }
+  return true;
+}
 
 // Constant-time compare: sha256 both sides so lengths always match, then
 // timingSafeEqual — a plain === leaks match length/prefix via timing.
@@ -96,6 +117,7 @@ function hasModeratorCredential(headerList: ModeratorHeaders): boolean {
   if (!expected) {
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   }
+  if (adminTokenTooShort(expected)) return false;
 
   const headerToken = headerList.get("x-admin-token") ?? undefined;
   if (headerToken && safeTokenEqual(headerToken, expected)) return true;
@@ -111,5 +133,6 @@ export function verifyAdminToken(token: string): boolean {
   if (!expected) {
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   }
+  if (adminTokenTooShort(expected)) return false;
   return safeTokenEqual(token, expected);
 }

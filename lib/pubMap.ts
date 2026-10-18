@@ -945,6 +945,23 @@ export function londonRestaurantSelection<Restaurant>(input: {
 }
 
 /**
+ * The London fast-food counter a selection opens (lib/londonFoodPlaces.ts), and
+ * whether the food pack would let the selection go. A counter has no pin, so it
+ * opens only from a link, such as the soft drinks page's "Add a price", and the
+ * pack is shown on every London map. An id the pack does not hold, once its
+ * read has settled, is let go by this source.
+ */
+export function londonFoodPlaceSelection<Place>(input: {
+  shown: boolean;
+  selectedVenueId: string;
+  status: LondonLayerReadStatus;
+  byId: ReadonlyMap<string, Place>;
+}): { place: Place | null; release: boolean } {
+  const pick = londonLayerPick(input);
+  return { place: pick.item, release: pick.release };
+}
+
+/**
  * The London venue-layer place a `venue-osm-` selection opens: a pilot cafe or
  * a restaurant. The selection is let go only when EVERY London source would
  * let it go, because an id one source cannot place may be the other's. An id
@@ -991,6 +1008,7 @@ export type MapSelectionFrame = {
   basePubOpen: boolean;
   coffeeCafeOpen: boolean;
   londonRestaurantOpen: boolean;
+  londonFoodPlaceOpen: boolean;
   detailOpen: boolean;
 };
 
@@ -1002,6 +1020,8 @@ export function mapSelectionFrame(input: {
   selectedCoffeeCafe?: { id: string } | null;
   /** The London restaurant the selected id resolved to, once the pack has loaded. */
   selectedLondonRestaurant?: { id: string } | null;
+  /** The London fast-food counter the selected id resolved to, once the pack has loaded. */
+  selectedLondonFoodPlace?: { id: string } | null;
   venueById: ReadonlyMap<string, Venue>;
   isPubVenue: (venue: Venue) => boolean;
   /** The selected id's lookup could not be answered (offline, 503). */
@@ -1015,12 +1035,16 @@ export function mapSelectionFrame(input: {
   const londonRestaurantOpen = Boolean(
     input.selectedLondonRestaurant && input.selectedLondonRestaurant.id === selectedVenueId,
   );
+  const londonFoodPlaceOpen = Boolean(
+    input.selectedLondonFoodPlace && input.selectedLondonFoodPlace.id === selectedVenueId,
+  );
   const pendingDeepLinkSelection =
     Boolean(selectedVenueId) &&
     !selectedVenue &&
     !basePubOpen &&
     !coffeeCafeOpen &&
     !londonRestaurantOpen &&
+    !londonFoodPlaceOpen &&
     !venueById.has(selectedVenueId) &&
     !(input.lookupFailed && isUkBaseId(selectedVenueId));
   return {
@@ -1030,11 +1054,13 @@ export function mapSelectionFrame(input: {
     basePubOpen,
     coffeeCafeOpen,
     londonRestaurantOpen,
+    londonFoodPlaceOpen,
     detailOpen:
       Boolean(selectedVenueId && selectedVenue) ||
       basePubOpen ||
       coffeeCafeOpen ||
       londonRestaurantOpen ||
+      londonFoodPlaceOpen ||
       pendingDeepLinkSelection,
   };
 }

@@ -89,6 +89,15 @@ export type UkPriceBundleRow = {
   servingSize?: string;
   /** Closed subtype from lib/drinkSubtypes.ts when the label classifies; never guessed. */
   drinkSubtype?: string;
+  /**
+   * Where a `venue-uk-` pub with a subtype row stands, from the ledger row's own
+   * point, and the London borough that point is in. All three or none, and only
+   * inside London: a base pub has no curated record to place it, so this is
+   * what lets a London subtype view rank it.
+   */
+  lat?: number;
+  lng?: number;
+  londonBorough?: string;
 };
 
 /**
@@ -193,7 +202,25 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
     if (!isValidBundleDrinkSubtypeForRow(row.category, row.drinkSubtype)) return false;
     if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) return false;
   }
+  if (!hasValidLondonBasePlace(row)) return false;
   return row.standing === "confirmed" || row.standing === "listed" || row.standing === "estimate";
+}
+
+const LONDON_BOUNDS = { minLat: 51.25, maxLat: 51.75, minLng: -0.55, maxLng: 0.35 } as const;
+
+function hasValidLondonBasePlace(row: Record<string, unknown>): boolean {
+  const { lat, lng, londonBorough } = row;
+  if (lat === undefined && lng === undefined && londonBorough === undefined) return true;
+  if (typeof lat !== "number" || typeof lng !== "number") return false;
+  if (!isNonEmptyString(londonBorough)) return false;
+  if (lat < LONDON_BOUNDS.minLat || lat > LONDON_BOUNDS.maxLat) return false;
+  if (lng < LONDON_BOUNDS.minLng || lng > LONDON_BOUNDS.maxLng) return false;
+  return (
+    row.standing === "listed" &&
+    typeof row.venueId === "string" &&
+    row.venueId.startsWith("venue-uk-") &&
+    row.drinkSubtype !== undefined
+  );
 }
 
 export function parseUkPriceBundleRows(raw: unknown): UkPriceBundleRow[] {

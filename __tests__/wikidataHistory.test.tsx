@@ -80,6 +80,7 @@ describe("the OSM link pack", () => {
         .map((file) => JSON.parse(readFileSync(join(rawDir, file), "utf8"))),
       seedPubs: JSON.parse(readFileSync(join(ROOT, "data/osm/uk/uk_osm_pubs.json"), "utf8")).pubs,
       fetchedAt: JSON.parse(readFileSync(join(ROOT, "data/osm/uk/chunks.json"), "utf8")).generatedAt,
+      venueAliases: JSON.parse(readFileSync(join(ROOT, "public/data/venue_id_aliases.json"), "utf8")).aliases,
     });
     expect(committed).toEqual(rebuilt);
     expect(committed.links.length).toBeGreaterThan(700);

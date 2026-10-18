@@ -47,7 +47,7 @@ export type TonightChipModel = {
 
 export type CornerUtilityModel = {
   id: "tfl";
-  /** Compact status suffix rendered beside the icon ("OK", "?", or null). */
+  /** Compact status suffix rendered beside the icon ("?" or null). */
   statusSuffix: string | null;
   badge: number | null;
   ariaLabel: string;
@@ -131,7 +131,12 @@ export function buildTflCorner(
   count: number,
   urgentCount = 0,
 ): CornerUtilityModel {
-  const statusSuffix = status === "clear" ? "OK" : status === "unavailable" ? "?" : null;
+  // A clear network shows the bare glyph, like a resting map of routine
+  // updates. The visible "OK" it used to carry said nothing about what was
+  // OK, and its accessible name ("TfL live: lines running well") never
+  // contained the word, so a voice user could not say what they saw
+  // (WCAG 2.5.3, label in name). "?" stays: it is a symbol, not a label.
+  const statusSuffix = status === "unavailable" ? "?" : null;
   const urgent = status === "issues" && urgentCount > 0 ? urgentCount : 0;
   return {
     id: "tfl",
