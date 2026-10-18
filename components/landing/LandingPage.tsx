@@ -133,19 +133,18 @@ export default function LandingPage({
             one real pub and three next-cheapest rows. The DOM order is the
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
-        <LandingHero
-          card={card}
-          archive={archive}
-          rail={rail}
-          averages={averages}
-          priceReadLine={priceReadLine}
-        />
+        <LandingHero card={card} archive={archive} rail={rail} averages={averages} />
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 
         {/* The city's saving is the hero's line now; this band carries the
             signed-in reader's own total, when there is one, and the map. */}
         <section className="lpWorth" aria-label="What it saves you">
+          {/* When the prices behind the hero's average were read (site review,
+              18 Oct 2026: "Freshness is quiet"). It sits here and not in the
+              hero, because at 320px a third lede line put the primary under
+              the tab bar (e2e/landing-find-my-pint.spec.ts). */}
+          {priceReadLine ? <p className="lpPriceReads">{priceReadLine}</p> : null}
           <LandingSavings averages={averages} />
           <Link
             prefetch={false}

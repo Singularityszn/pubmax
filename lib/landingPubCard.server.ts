@@ -27,8 +27,9 @@ export type LandingHeroData = {
    */
   averages: PintPriceAverages | null;
   /**
-   * When the prices behind that average were read, as one line ("Prices read
-   * between 3 July 2026 and 2 October 2026."), from the same pubs. A line that
+   * When the prices behind that average were read, as one line ("The average
+   * above comes from prices read between 4 July 2026 and 2 October 2026."),
+   * from the same pubs. A line that
    * covers many prices names the oldest read as well as the newest, and it
    * counts the prices that record no read day rather than letting the range
    * stand for them (the borough fact block's rule, lib/pintFacts.ts). Null when
@@ -78,12 +79,14 @@ export function landingPriceReadLine(
   const oldest = formatObservedDate(new Date(stats.oldestObservedAt));
   const newest = formatObservedDate(new Date(stats.newestObservedAt));
   const range =
-    oldest === newest ? `Prices read on ${newest}.` : `Prices read between ${oldest} and ${newest}.`;
+    oldest === newest
+      ? `The average above comes from prices read on ${newest}.`
+      : `The average above comes from prices read between ${oldest} and ${newest}.`;
   if (stats.undatedCount === 0) return range;
   // The borough fact block's own wording (lib/pintFacts.ts): the range dates
   // the prices that record a read, and the rest are counted, never hidden.
   const undated = stats.undatedCount.toLocaleString("en-GB");
-  return `${range} ${undated} of the ${stats.pubCount.toLocaleString("en-GB")} ${
+  return `${range} ${undated} of its ${stats.pubCount.toLocaleString("en-GB")} pubs ${
     stats.undatedCount === 1 ? "records" : "record"
   } no read day.`;
 }

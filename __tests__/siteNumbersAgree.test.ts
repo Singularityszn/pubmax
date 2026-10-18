@@ -44,16 +44,16 @@ describe("the homepage dates the prices behind its average", () => {
   it("prints the read range of the shipped dataset", async () => {
     const hero = await loadLandingHeroData();
     expect(hero.priceReadLine).toMatch(
-      /^Prices read (between \d{1,2} \w+ \d{4} and \d{1,2} \w+ \d{4}|on \d{1,2} \w+ \d{4})\.( [\d,]+ of the [\d,]+ records? no read day\.)?$/,
+      /^The average above comes from prices read (between \d{1,2} \w+ \d{4} and \d{1,2} \w+ \d{4}|on \d{1,2} \w+ \d{4})\.( [\d,]+ of its [\d,]+ pubs records? no read day\.)?$/,
     );
   });
 
   it("counts the prices that record no read day rather than hiding them", () => {
     const dated = { name: "A", cheapestPrice: 5, prices: [{ price_gbp: 5, scraped_at_values: "2026-10-02T11:00:00Z" }] };
     const undated = { name: "B", cheapestPrice: 6, prices: [{ price_gbp: 6 }] };
-    expect(landingPriceReadLine([dated] as never)).toBe("Prices read on 2 October 2026.");
+    expect(landingPriceReadLine([dated] as never)).toBe("The average above comes from prices read on 2 October 2026.");
     expect(landingPriceReadLine([dated, undated] as never)).toBe(
-      "Prices read on 2 October 2026. 1 of the 2 records no read day.",
+      "The average above comes from prices read on 2 October 2026. 1 of its 2 pubs records no read day.",
     );
     expect(landingPriceReadLine([undated] as never)).toBeNull();
   });

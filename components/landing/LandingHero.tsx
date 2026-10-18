@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
@@ -221,21 +221,6 @@ async function readEvidence(
   }
 }
 
-/**
- * The saving line with its read range beside it, or the map line when the
- * dataset cannot back a saving. The range only ever dates the saving, so the
- * map line carries none.
- */
-function heroLede(saving: string | null, priceReadLine: string | null): ReactNode {
-  if (!saving) return MAP_LEDE;
-  if (!priceReadLine) return saving;
-  return (
-    <>
-      {saving} <span className="lpLedeReads">{priceReadLine}</span>
-    </>
-  );
-}
-
 /** The line under the claim when the dataset cannot back a saving. */
 const MAP_LEDE = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.`;
 
@@ -244,7 +229,6 @@ export default function LandingHero({
   archive,
   rail,
   averages = null,
-  priceReadLine = null,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
@@ -252,12 +236,6 @@ export default function LandingHero({
   rail: LandingRailRow[];
   /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
   averages?: PintPriceAverages | null;
-  /**
-   * When the prices behind the saving line were read, oldest to newest, with
-   * a count of any that record no read day. It rides inside the lede so the
-   * average and its dates are one claim (site review, 18 Oct 2026).
-   */
-  priceReadLine?: string | null;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -377,7 +355,7 @@ export default function LandingHero({
       className="lpHero"
       title="What a pint costs, pub by pub."
       titleId="hero-title"
-      lede={heroLede(strangerSavingLine(averages), priceReadLine)}
+      lede={strangerSavingLine(averages) ?? MAP_LEDE}
       answer={
         <figure className="lpLondonFigure">
           <picture>

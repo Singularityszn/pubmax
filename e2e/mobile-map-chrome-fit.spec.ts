@@ -1896,9 +1896,11 @@ for (const viewport of VIEWPORTS) {
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
     await expect(page.locator(".lpWorth").first()).toBeVisible({ timeout: 30_000 });
-    // Signed out, the savings band is its map link alone (LandingSavings
-    // prints only a signed-in reader's own total), so the link is the line.
+    // Signed out, the savings band is the read range of the hero's average
+    // and its map link (LandingSavings prints only a signed-in reader's own
+    // total), so those are the lines.
     await expectTextClearOfCreateAction(page, [
+      ".lpWorth .lpPriceReads",
       ".lpWorth .lpTextLink",
       ".lpFaqQuestion",
       ".lpFaqAnswer",

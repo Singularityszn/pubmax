@@ -746,12 +746,10 @@ a.lpPubPint:hover { color: var(--ink); }
 
 /* ── Today and tonight: two answers, one sentence each ──────────────────── */
 
-/* The read range under the saving line: the same paragraph, so the average and
-   its dates are one claim, set in the data face a dated figure uses
-   elsewhere on this page. */
-.lpLedeReads {
-  display: block;
-  margin-top: var(--space-1);
+/* When the prices behind the hero's average were read, in the data face a
+   dated figure uses elsewhere on this page. */
+.lpWorth > .lpPriceReads {
+  margin: 0;
   color: var(--muted);
   font: 550 var(--text-xs)/1.4 var(--font-data);
 }
