@@ -338,7 +338,7 @@ export default function MessagesInboxClient({
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
           <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
-            <SquarePen size={25} aria-hidden="true" />
+            <SquarePen size={24} aria-hidden="true" />
           </button>
         )
       }
@@ -346,7 +346,7 @@ export default function MessagesInboxClient({
       {!viewerSession.signedOut && user ? (
         <>
           <label className="messagesInboxSearch">
-            <Search size={18} aria-hidden="true" />
+            <Search size={16} aria-hidden="true" />
             <input
               type="search"
               aria-label="Search conversations"

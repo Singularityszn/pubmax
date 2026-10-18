@@ -43,15 +43,15 @@
 
 @media (hover: hover) and (pointer: fine) {
   .venueActionStrip__btn:hover {
-    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-    background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
     color: var(--ink);
   }
 }
 
 .venueActionStrip__btn--book {
-  border-color: var(--control-tint-border);
-  background: var(--control-tint-surface);
+  border-color: var(--control-secondary-border);
+  background: var(--control-secondary-surface);
 }
 
 .venueActionStrip__btn--menu {

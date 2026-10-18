@@ -263,7 +263,7 @@ body:has(.lp) {
 .lpPubName a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {
   .lpPubName a:hover {
-    color: var(--brass);
+    color: var(--ink);
     text-decoration: underline;
     text-underline-offset: 4px;
   }
@@ -363,7 +363,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 @media (hover: hover) and (pointer: fine) {
   .lpTextLink:hover {
-    color: var(--brass);
+    color: var(--ink);
   }
 }
 
@@ -698,7 +698,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 @media (hover: hover) and (pointer: fine) {
   .lpRailLink:hover .lpRailName {
-    color: var(--brass);
+    color: var(--ink);
     text-decoration: underline;
     text-underline-offset: 4px;
   }
@@ -852,7 +852,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
     border-color: var(--line);
   }
   .lpAnswerTile:hover .lpAnswerTileHead {
-    color: var(--brass-ink);
+    color: var(--ink);
   }
 }
 

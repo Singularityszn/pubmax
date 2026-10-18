@@ -191,7 +191,7 @@ function ChoiceButton({
     >
       <span>{title}</span>
       {note && <small>{note}</small>}
-      {selected && <Check size={17} aria-hidden="true" />}
+      {selected && <Check size={16} aria-hidden="true" />}
     </button>
   );
 }
@@ -316,7 +316,7 @@ function PalHomeScreen({
           <p className="palEyebrow">Your Pub Pal</p>
           <h1 id="pal-home-title" tabIndex={-1}>{pal.name}</h1>
           <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species}, set up for your nights out. You decide what it can do.</p>
-          <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
+          <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={16} /></Link>
           <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
         </div>
       </section>
@@ -357,7 +357,7 @@ function PalHomeScreen({
             <h2 id="pal-memory-title">What {pal.name} remembers.</h2>
             <p>Only these confirmed facts shape suggestions. Correct or delete any of them. What you say in chat or by voice never shows up here.</p>
           </div>
-          <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={17} /> Download my memories</button>
+          <button type="button" onClick={() => void exportMemories()} disabled={saving}><Download size={16} /> Download my memories</button>
         </div>
         {memories.length ? (
           <ul className="palMemoryList">
@@ -426,7 +426,7 @@ function PalOnboardingScreen({
   return (
     <main id="main" className="palExperience palOnboarding">
       <div className="palTopbar">
-        <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
+        <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={16} /> Back</button>
         <span>{step + 1 - firstStep} of {stepCount}</span>
         <Link href="/map">Skip Pal</Link>
       </div>
@@ -518,9 +518,9 @@ function PalOnboardingScreen({
           <div className="palOnboardingActions">
             <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
             {step < 4 ? (
-              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
+              <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={16} /></Button>
             ) : signedIn ? (
-              <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={18} /></Button>
+              <Button className="palPrimary" size="large" type="button" disabled={saving || !draft.name.trim()} onClick={() => void createPal()}>{saving ? "Creating your Pal" : "Create my Pal"}<Mic size={16} /></Button>
             ) : (
               <button type="button" onClick={() => setStep(0)}>Start over</button>
             )}

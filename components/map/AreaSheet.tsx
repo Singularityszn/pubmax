@@ -341,7 +341,7 @@ export default function AreaSheet({
             disabled={locationBusy}
             onClick={onUseMyLocation}
           >
-            <LocateFixed size={17} aria-hidden="true" />
+            <LocateFixed size={16} aria-hidden="true" />
             <span>{locationBusy ? "Locating" : "Use my location"}</span>
           </button>
         ) : null}

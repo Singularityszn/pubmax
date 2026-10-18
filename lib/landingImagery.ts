@@ -390,7 +390,7 @@ export function landingPhotoScrimContrast(
 // ── Where a street photograph was taken ─────────────────────────────────────
 //
 // A listing page may lead a crawl with a photograph of the patch its route
-// walks through (components/listing/placePhoto.ts). That needs to know WHERE a
+// walks through (components/listing/placePhotoRules.ts). That needs to know WHERE a
 // photograph was taken, so a route is matched by distance and never by a name
 // in its title. Only a photograph of a PLACE has a spot. A photograph of one
 // pub (The Black Friar, the Cutty Sark, the Old Red Lion) has none, because a

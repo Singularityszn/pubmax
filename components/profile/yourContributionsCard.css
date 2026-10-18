@@ -39,7 +39,7 @@
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: var(--text-lg);
 }
 
@@ -71,7 +71,7 @@
 .contribBoroughChip b {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .contribEmpty,
@@ -86,7 +86,7 @@
   margin-top: var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--brass);
+  color: var(--color-text-muted);
   text-decoration: none;
 }
 

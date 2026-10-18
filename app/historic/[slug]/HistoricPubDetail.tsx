@@ -5,7 +5,7 @@ import { ExternalLink } from "lucide-react";
 import PriceBadge from "@/components/PriceBadge";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import { pubPlacePhoto } from "@/components/listing/placePhoto";
+import { pubPlacePhoto } from "@/components/listing/placePhotoRules";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import ShareBar from "@/components/share/ShareBar";
 import EmptyState from "@/components/ui/empty-state";
@@ -146,7 +146,7 @@ export default function HistoricPubDetail({
   const record = historicRecord(pub);
   const lede = pub.hook ? sentenceStart(pub.hook) : undefined;
   // A photograph OF this pub, matched by venue id, or none. Never a picture of
-  // its street or borough under its name (components/listing/placePhoto.ts).
+  // its street or borough under its name (components/listing/placePhotoRules.ts).
   const photo = pubPlacePhoto(pub.venueId);
 
   return (
@@ -249,7 +249,7 @@ export default function HistoricPubDetail({
                     rel="noopener noreferrer"
                   >
                     {citationLabel(record.introSource.sourceRef)}
-                    <ExternalLink size={12} aria-hidden="true" />
+                    <ExternalLink size={14} aria-hidden="true" />
                   </a>
                   .
                 </>
@@ -282,7 +282,7 @@ export default function HistoricPubDetail({
                           rel="noopener noreferrer"
                         >
                           {citationLabel(fact.sourceRef)}
-                          <ExternalLink size={12} aria-hidden="true" />
+                          <ExternalLink size={14} aria-hidden="true" />
                         </a>
                       </>
                     ) : (

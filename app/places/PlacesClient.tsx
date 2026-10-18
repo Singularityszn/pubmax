@@ -177,7 +177,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
             {PLACES_SEARCH_LABEL}
           </label>
           <div className="placesSearchField">
-            <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Search size={16} aria-hidden="true" />
             <input
               id={searchId}
               className="placesSearchInput"
@@ -209,7 +209,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
                     className="placesCityLink"
                   >
                     <span className="placesCityMark" aria-hidden="true">
-                      <MapPin size={18} strokeWidth={1.65} />
+                      <MapPin size={20} />
                     </span>
                     <span className="placesCityCopy">
                       <span className="placesCityNameRow">
@@ -290,7 +290,7 @@ function CityPanel({
     <>
       <p className="placesBack listingSection">
         <Link prefetch={false} href={PLACES_PATH} className="placesBackLink">
-          <ArrowLeft size={16} strokeWidth={1.9} aria-hidden="true" />
+          <ArrowLeft size={16} aria-hidden="true" />
           {PLACES_BACK_LABEL}
         </Link>
       </p>

@@ -57,7 +57,7 @@
   flex-direction: column;
   width: min(340px, calc(100vw - 24px));
   max-height: min(52vh, 440px);
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--surface-tint-river) 30%, var(--panel-raised)), var(--panel-raised));
@@ -261,7 +261,7 @@
 
 .mapVenueListItemName svg {
   flex: 0 0 auto;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .mapVenueListItemMeta {

@@ -27,7 +27,7 @@
 .beaconOnLine {
   font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-text-muted);
   margin: var(--space-2) 0 0;
 }
 
@@ -78,7 +78,7 @@
   min-height: 44px;
   padding: 0 var(--space-4);
   margin-top: var(--space-3);
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-pill);
   background: var(--brass);
   color: var(--paper);
@@ -92,7 +92,7 @@
 
 .beaconButtonOff {
   background: transparent;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .beaconCrewBlock {
@@ -102,7 +102,7 @@
 .beaconCrewLine {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--brass);
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -149,12 +149,12 @@
 }
 
 .beaconBoardLink:focus-visible .beaconBoardHandle {
-  color: var(--brass);
+  color: var(--ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .beaconBoardLink:hover .beaconBoardHandle {
-    color: var(--brass);
+    color: var(--ink);
   }
 }
 
@@ -170,7 +170,7 @@
   border: 1px solid var(--line);
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--color-accent-ink);
+  color: var(--color-text-muted);
 }
 
 .beaconBoardCopy {

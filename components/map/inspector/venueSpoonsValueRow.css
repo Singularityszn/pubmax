@@ -84,7 +84,7 @@
 }
 
 .venueSpoonsValueCredit a {
-  color: var(--brass-ink);
+  color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

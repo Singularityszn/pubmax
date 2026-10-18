@@ -17,7 +17,7 @@ import RoundStarter from "@/components/round/RoundStarter";
 import Screen from "@/components/ui/screen";
 import { plainDashes } from "@/components/listing/displayCase";
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import {
   buildCrawlRouteSummary,
   crawlPriceRange,
@@ -100,7 +100,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   encodedStory?: string | null;
   /**
    * The featured crawl's lead photograph, resolved on the server
-   * (components/listing/placePhoto.ts): the patch every stop is a short walk
+   * (components/listing/placePhotoRules.ts): the patch every stop is a short walk
    * from, or null when no photograph we hold is honestly of its route.
    */
   featuredPhoto?: PlacePhotoData | null;

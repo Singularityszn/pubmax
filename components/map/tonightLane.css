@@ -98,12 +98,11 @@
   padding: 14px;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(
+  background: linear-gradient(
       145deg,
-      color-mix(in srgb, var(--brass) 7%, var(--panel-raised)),
+      var(--panel-raised),
       color-mix(in srgb, var(--panel-raised) 95%, transparent)
     ),
     var(--panel-raised);
@@ -163,7 +162,7 @@
 .tonightLane--error {
   max-width: calc(100vw - 24px);
   padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 92%, var(--amber) 8%);
   box-shadow: var(--map-overlay-shadow-tight);
@@ -217,7 +216,7 @@
   min-width: 44px;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
   color: var(--ink-soft);
@@ -231,7 +230,7 @@
   align-self: stretch;
   border-width: 0 0 0 1px;
   border-radius: 0;
-  background: color-mix(in srgb, var(--brass) 7%, transparent);
+  background: transparent;
 }
 
 .tonightLaneOverlayToggle[data-active="true"] {
@@ -271,7 +270,7 @@
 
 .tonightLaneCollapsed .tonightLaneOverlayDismiss {
   align-self: stretch;
-  border-left: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-left: 1px solid var(--line);
   border-radius: 0;
 }
 
@@ -389,7 +388,7 @@
   width: 208px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--brass);
+  border-left: 3px solid var(--hairline-strong);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--ink-deep) 14%, transparent);
@@ -398,7 +397,7 @@
 
 .tonightLaneCard[data-kind="quiz"] { border-left-color: var(--amber); }
 .tonightLaneCard[data-kind="sport"] { border-left-color: var(--river-bright); }
-.tonightLaneCard[data-kind="deal"] { border-left-color: var(--brass-bright); }
+.tonightLaneCard[data-kind="deal"] { border-left-color: var(--hairline-strong); }
 .tonightLaneCard[data-kind="music"] { border-left-color: var(--river); }
 
 .tonightLaneCardTap {
@@ -428,13 +427,12 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: color-mix(in srgb, var(--brass) 55%, var(--ink));
+  color: var(--color-text-muted);
 }
 
+/* A deal's figure is not a pint, so it wears the neutral plaque. */
 .tonightLaneCardPrice {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--ink);
+  flex: 0 0 auto;
 }
 
 .tonightLaneCardTitle {
@@ -476,7 +474,7 @@
 /* The deal's own closing time, beside the start it already prints. */
 .tonightLaneCardEnds {
   font-weight: 800;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .tonightLaneCardSource {
@@ -508,9 +506,9 @@
   padding: 4px 12px;
   touch-action: manipulation;
   border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
-  color: color-mix(in srgb, var(--brass) 55%, var(--ink));
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--color-text-muted);
   font-size: var(--text-2xs);
   font-weight: 700;
   text-decoration: none;
@@ -518,37 +516,25 @@
 
 @media (hover: hover) and (pointer: fine) {
   .tonightLanePlan:hover {
-    background: color-mix(in srgb, var(--brass) 20%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
 .tonightLaneCollapsed:has(:focus-visible) {
-  border-color: var(--brass);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--brass) 18%, var(--panel-raised)),
-      color-mix(in srgb, var(--amber) 11%, var(--panel-raised))
-    ),
-    var(--panel-raised);
+  border-color: var(--hairline-strong);
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tonightLaneCollapsed:hover {
-    border-color: var(--brass);
-    background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--brass) 18%, var(--panel-raised)),
-      color-mix(in srgb, var(--amber) 11%, var(--panel-raised))
-    ),
-    var(--panel-raised);
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
   .tonightLaneOverlayToggle:hover,
   .tonightLaneOverlayDismiss:hover,
   .tonightLaneClose:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 10%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 

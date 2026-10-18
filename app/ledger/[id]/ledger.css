@@ -44,7 +44,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .ledgerHomeLink:hover {
-    color: var(--brass);
+    color: var(--ink);
   }
 }
 
@@ -187,7 +187,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 }
 
 .ledgerProvenance--anecdote {
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .ledgerProvenance--needs-source {
@@ -255,9 +255,9 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   font-size: var(--text-sm);
 }
 
+/* Layout only: the figure is the one price look (components/PriceBadge.tsx). */
 .ledgerEntryPriceValue {
-  font-weight: 700;
-  color: var(--brass);
+  vertical-align: middle;
 }
 
 .ledgerEmptyEntries {
@@ -279,8 +279,8 @@ html[data-theme="dark"] .ledgerPrimaryLink {
    it should feel like a different, gentler room. */
 .ledgerFamilySection {
   padding: clamp(20px, 4vw, 32px);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-  border: 1px solid var(--brass);
+  background: var(--panel-raised);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius);
 }
 
@@ -338,7 +338,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 .ledgerFamilyEntryHandle {
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 /* The note is the prominent line — heirloom notes read like a diary, not a
@@ -381,7 +381,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 }
 
 .ledgerFootnote a {
-  color: var(--brass);
+  color: var(--ink);
   font-weight: 700;
 }
 

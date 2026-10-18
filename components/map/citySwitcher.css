@@ -15,7 +15,7 @@
   gap: 4px;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
@@ -33,16 +33,16 @@
 }
 
 .citySwitcher.isOpen .citySwitcherTrigger {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .citySwitcherTrigger:hover {
-    border-color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-    color: var(--tint-ink-accent);
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
   }
 }
 
@@ -79,7 +79,7 @@
   margin: 0;
   padding: 4px;
   list-style: none;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--ink-deep) 14%, transparent);
@@ -106,19 +106,19 @@
 .citySwitcherLocation {
   padding-bottom: 4px;
   margin-bottom: 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-bottom: 1px solid var(--line);
 }
 
 .citySwitcherLocationLink {
   justify-content: flex-start;
   gap: 8px;
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  background: var(--panel-raised);
 }
 
 .citySwitcherArea {
   margin-bottom: 4px;
   padding-bottom: 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-bottom: 1px solid var(--line);
 }
 
 .citySwitcherAreaLink {
@@ -144,14 +144,14 @@
 
 @media (hover: hover) and (pointer: fine) {
   .citySwitcherLink:hover {
-    background: color-mix(in srgb, var(--brass) 10%, transparent);
-    color: var(--brass);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
   }
 }
 
 .citySwitcherLink.isActive {
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  color: var(--brass);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .citySwitcherNational {

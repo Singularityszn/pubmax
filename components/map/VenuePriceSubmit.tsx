@@ -657,7 +657,7 @@ export default function VenuePriceSubmit({
       aria-labelledby={titleId}
     >
       <div className="vpsubHead">
-        <Tag size={15} aria-hidden="true" />
+        <Tag size={16} aria-hidden="true" />
         <h3 id={titleId} className="vpsubTitle">
           What&rsquo;s it tonight?
         </h3>
@@ -765,7 +765,7 @@ export default function VenuePriceSubmit({
           onClick={() => void chooseReceiptPhoto()}
           disabled={submitting || missionPending}
         >
-          <Camera size={15} aria-hidden="true" />
+          <Camera size={16} aria-hidden="true" />
           {receiptPhoto ? "Change the bill" : RECEIPT_PHOTO_ACTION}
         </button>
         {receiptPhoto ? (
@@ -804,7 +804,7 @@ export default function VenuePriceSubmit({
               onClick={() => void choosePintPhoto()}
               disabled={submitting || missionPending}
             >
-              <Camera size={15} aria-hidden="true" />
+              <Camera size={16} aria-hidden="true" />
               {pintPhoto ? "Change the pint" : PINT_PHOTO_ACTION}
             </button>
             {pintPhoto ? (

@@ -121,7 +121,7 @@ function ChainRow({
       {mapHref ? (
         <Link prefetch={false} className="tonightChainRowMap pressable" href={mapHref}>
           Open on map
-          <ArrowRight size={13} aria-hidden="true" />
+          <ArrowRight size={14} aria-hidden="true" />
         </Link>
       ) : null}
     </li>

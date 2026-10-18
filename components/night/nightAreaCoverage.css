@@ -52,9 +52,9 @@
   justify-content: center;
   min-height: var(--control-height);
   padding: 0 var(--control-pad-x);
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--control-radius);
-  color: var(--color-accent-ink);
+  color: var(--ink);
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
   text-align: center;
@@ -201,8 +201,8 @@
 }
 
 .nightAreaCoverage__action--ready {
-  border-color: var(--brass);
-  color: var(--color-accent-ink);
+  border-color: var(--hairline-strong);
+  color: var(--ink);
 }
 
 .nightAreaCoverage__details {
@@ -236,7 +236,7 @@
   height: 24px;
   border: 1px solid var(--line);
   border-radius: 50%;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: var(--text-md);
   line-height: 1;
 }

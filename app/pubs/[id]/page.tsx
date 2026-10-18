@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import { PintPriceBadge } from "@/components/PriceBadge";
 import VenueImage from "@/components/media/VenueImage";
 import SiteNav from "@/components/nav/SiteNav";
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
@@ -17,7 +18,7 @@ import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { formatPrice, venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
+import { venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
 
 import "./pubPage.css";
 
@@ -155,7 +156,7 @@ export default async function PubPage({ params }: PageProps) {
             <ul className="pubPage__facts" aria-label="At a glance">
               {venue.cheapestPrice !== null ? (
                 <li>
-                  <span className="pubPage__figure">{formatPrice(venue.cheapestPrice)}</span>
+                  <PintPriceBadge priceGbp={venue.cheapestPrice} venueId={venue.id} />
                   <span>cheapest pint{venue.cheapestPint ? `, ${titleCase(venue.cheapestPint)}` : ""}</span>
                 </li>
               ) : null}
@@ -192,7 +193,7 @@ export default async function PubPage({ params }: PageProps) {
               {pints.slice(0, SHOWN_PINTS).map((pint) => (
                 <li key={pint.name}>
                   <span>{pint.name}</span>
-                  <span className="pubPage__figure">{formatPrice(pint.price)}</span>
+                  <PintPriceBadge priceGbp={pint.price} venueId={venue.id} />
                 </li>
               ))}
             </ul>

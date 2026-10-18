@@ -106,8 +106,9 @@
   gap: 4px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--brass);
-  text-decoration: none;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 @media (hover: hover) and (pointer: fine) {

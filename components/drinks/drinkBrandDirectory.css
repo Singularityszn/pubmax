@@ -73,9 +73,10 @@
   line-height: 1.15;
 }
 
+/* A figure in the lede is ink in the lede's own face: a price wears its band
+   through PriceBadge or nothing, never a second price colour. */
 .drinkBrandDirectory__from strong {
-  color: var(--accent-price-ink);
-  font-family: var(--font-data);
+  color: var(--ink);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -96,14 +97,14 @@
   min-height: 44px;
   color: var(--ink);
   font-weight: 750;
-  text-decoration-color: var(--accent-action);
+  text-decoration-color: currentColor;
   text-underline-offset: 3px;
   touch-action: manipulation;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__fromPublisher a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -159,7 +160,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__secondary:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -191,9 +192,10 @@
   white-space: nowrap;
 }
 
+/* A ranked list read down the page: a hairline between rows, no card around
+   each pub and no disc around each rank (taste pass, 18 Oct 2026). */
 .drinkBrandDirectory__list {
   display: grid;
-  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -205,21 +207,19 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 10px 12px 10px 10px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-lg);
-  background: var(--panel-raised);
+  padding: var(--space-3) 0;
+}
+
+.drinkBrandDirectory__row + .drinkBrandDirectory__row {
+  border-top: 1px solid var(--line-soft);
 }
 
 .drinkBrandDirectory__rank {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid var(--badge-border);
-  border-radius: 50%;
-  background: var(--badge-surface);
-  color: var(--badge-ink);
+  /* Level with the pub's name, whose link is a 44px line at the row's top. */
+  align-self: start;
+  justify-self: start;
+  line-height: 44px;
+  color: var(--color-text-muted);
   font-family: var(--font-data);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
@@ -247,7 +247,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__venue:hover {
-    color: var(--accent-action);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -288,7 +288,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__contribution:hover {
-    color: var(--accent-action);
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -315,17 +315,13 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__publisher a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
+/* Placement only: the face is the one price look (components/PriceBadge.tsx). */
 .drinkBrandDirectory__price {
-  min-width: 76px;
   justify-self: end;
-  text-align: right;
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .drinkBrandDirectory__areas {
@@ -360,7 +356,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .drinkBrandDirectory__areas a:hover {
-    color: var(--accent-action);
+    color: var(--ink);
   }
 }
 
@@ -424,8 +420,6 @@
   .drinkBrandDirectory__row {
     grid-template-columns: 30px minmax(0, 1fr) max-content;
     gap: 8px;
-    padding: 8px 8px 8px 6px;
-    border-radius: var(--radius-lg);
   }
 
   .drinkBrandDirectory .drinkBrandDirectory__details {
@@ -434,15 +428,6 @@
     column-gap: 0;
   }
 
-  .drinkBrandDirectory__rank {
-    width: 28px;
-    height: 28px;
-  }
-
-  .drinkBrandDirectory__price {
-    min-width: 70px;
-    font-size: var(--text-sm);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

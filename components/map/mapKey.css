@@ -210,8 +210,10 @@
   width: 12px;
   height: 12px;
   border: 2px solid var(--paper);
-  background: var(--color-accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  /* The reader's own dot paints river on the canvas (tokens.ts userLocation,
+     __tests__/mapCoralEconomy.test.ts), so its key does too. */
+  background: var(--color-info-strong);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-info-strong) 22%, transparent);
 }
 
 .mapKeyMarker--tonight-opportunity::before {

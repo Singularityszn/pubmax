@@ -61,13 +61,6 @@
   font-weight: 650;
 }
 
-.pubPage__figure {
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--ink);
-}
-
 .pubPage__actions {
   display: flex;
   flex-wrap: wrap;

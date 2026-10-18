@@ -78,8 +78,8 @@
   /* The fill is a translucent tint of the accent over whatever card carries
      the badge, so the glyph takes the accent's TINT ink: the raw coral measured
      2.75:1 against WCAG 1.4.11's 3:1 for a non-text mark. */
-  background: color-mix(in srgb, var(--brass) 18%, transparent);
-  color: var(--tint-ink-accent);
+  background: transparent;
+  color: var(--color-text-muted);
 }
 
 .morningCard__eyebrow {
@@ -119,8 +119,9 @@
   width: 100%;
   padding: 0 16px;
   border-radius: var(--radius-pill);
-  background: var(--brass);
-  color: var(--color-on-accent-strong);
+  border: 1px solid var(--control-secondary-border);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: none;

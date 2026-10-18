@@ -174,7 +174,7 @@
 }
 
 .vpsInflationLine .vpsToday {
-  color: var(--accent-price-ink);
+  color: var(--ink);
 }
 
 .vpsInflationMeta {

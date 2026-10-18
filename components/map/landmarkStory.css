@@ -68,7 +68,7 @@
 .landmarkStoryChapter {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--color-accent);
+  color: var(--color-text-muted);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -94,7 +94,7 @@
   width: fit-content;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--color-accent);
+  color: var(--color-text-muted);
 }
 
 /* Two actions from the button system, stacked full width so both labels sit
@@ -185,7 +185,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .landmarkStoryPubs button:hover .landmarkStoryPubName {
-    color: var(--color-accent);
+    color: var(--ink);
   }
 }
 
@@ -221,8 +221,8 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  color: var(--brass);
+  background: transparent;
+  color: var(--color-text-muted);
 }
 
 .landmarkStoryTitle {

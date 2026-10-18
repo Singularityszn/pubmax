@@ -1,5 +1,5 @@
 // One photograph on a listing page, with its credit under it (taste plan,
-// 18 Oct 2026). The data is components/listing/placePhoto.ts, which decides
+// 18 Oct 2026). The data is components/listing/placePhotoRules.ts, which decides
 // whether a photograph may stand here at all.
 //
 // It paints the way the landing photographs do (components/landing/
@@ -16,7 +16,7 @@
 
 import type { ReactNode } from "react";
 
-import type { PlacePhoto as PlacePhotoData } from "./placePhoto";
+import type { PlacePhoto as PlacePhotoData } from "./placePhotoRules";
 
 import "./placePhoto.css";
 

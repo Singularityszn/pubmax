@@ -107,7 +107,7 @@
   bottom: 30px;
   left: 15px;
   width: 0;
-  border-left: 2px dashed var(--accent-action);
+  border-left: 2px dashed var(--hairline-strong);
   opacity: 0.5;
 }
 .recapRoute__stop {
@@ -129,9 +129,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--badge-border);
   border-radius: 50%;
-  background: var(--accent-action);
-  color: var(--color-on-accent-strong);
+  background: var(--badge-surface);
+  color: var(--ink);
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -245,8 +246,8 @@
   border-color: var(--price-plaque-border);
 }
 .recapGuardian--risk {
-  background: color-mix(in srgb, var(--accent-action) 8%, var(--panel-raised));
-  border-color: color-mix(in srgb, var(--accent-action) 32%, var(--line));
+  background: var(--panel-raised);
+  border-color: var(--line);
 }
 .recapGuardian__line {
   margin: 0;
@@ -359,7 +360,7 @@
 .recapEmpty__back {
   justify-self: start;
   font-size: var(--text-sm);
-  color: var(--accent-action);
+  color: var(--color-text-muted);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
