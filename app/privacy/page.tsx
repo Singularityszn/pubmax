@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "17 October 2026";
+const LAST_UPDATED = "18 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -121,9 +121,11 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">If you make an account</h3>
         <p className="legalBody">
-          Supabase handles sign-in, using either an emailed magic link or
-          Microsoft, Google or Apple sign-in. That means we hold your email
-          address. You must choose one public handle, which is linked to your
+          Supabase handles sign-in, using an emailed magic link, a code sent
+          by text message to a UK mobile number, or Microsoft,
+          Google or Apple sign-in. That means we hold your email address, or your phone number
+          if you sign in with a text code. We use the phone number only to send
+          sign-in codes. It is never shown to anybody. You must choose one public handle, which is linked to your
           authenticated account and is the only identity shown with contributions.
           You need a handle to finish signup. Date of birth is optional.
           Full name, gender and sex are optional. We collect and store date
@@ -235,6 +237,14 @@ export default function PrivacyPage() {
           tags appear only after the tagged person approves them and can be
           withdrawn later. The browser keeps unfinished text and selected photo
           data on this device until you post or clear the draft.
+        </p>
+        <p className="legalBody">
+          You can hide your name on a public Social post. Other people then see
+          &ldquo;a PUBMAXXER&rdquo; instead of your handle, with no picture and
+          no link to your profile. We still store your account and handle with
+          the post. Moderators can see them, and a report on the post reaches
+          your account. A post with your name hidden cannot name a pub or tag
+          anybody.
         </p>
         <p className="legalBody">
           Failed or interrupted Social photo uploads can stay temporarily in
@@ -632,6 +642,15 @@ export default function PrivacyPage() {
             <dd>
               Database, sign-in and file storage, on their EU region. Holds your
               account, your posts and your community price and venue report rows.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Twilio</dt>
+            <dd>
+              Sends the sign-in code by text message, and only when you choose
+              to sign in with a phone number. It receives your phone number and
+              the code. Phone sign-in stays off until it is switched on in our
+              Supabase settings.
             </dd>
           </div>
           <div className="legalRow">

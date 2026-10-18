@@ -24,6 +24,7 @@ describe("Social post submission boundary", () => {
         venueId: null,
         hashtags: [],
         commentPolicy: "friends",
+        nameHidden: false,
       },
       photoAltText: "Alice outside the Venue",
       tagHandles: ["bob", "carol"],

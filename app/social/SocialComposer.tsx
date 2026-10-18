@@ -7,6 +7,11 @@ import { getCity } from "@/lib/cities";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch, authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
+import {
+  HIDDEN_NAME_OWN_LINE,
+  HIDDEN_NAME_TOGGLE_HINT,
+  HIDDEN_NAME_TOGGLE_LABEL,
+} from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { SOCIAL_REVIEW_MAX, SOCIAL_REVIEW_MIN, SOCIAL_REVIEW_STEP } from "@/lib/socialPostReviews";
@@ -34,6 +39,8 @@ type Draft = {
   tagHandles: string;
   /** The author's own score for the picked pub. Absent on drafts saved before scores. */
   rating?: number | null;
+  /** Readers see "a PUBMAXXER". New posts only; absent on older drafts. */
+  nameHidden?: boolean;
 };
 type DraftChannelMessage = {
   key?: string;
@@ -62,6 +69,7 @@ function initialDraft(post?: SocialPostDTO): Draft {
     hashtags: post?.hashtags.join(" ") ?? "",
     tagHandles: "",
     rating: null,
+    nameHidden: false,
   };
 }
 
@@ -83,7 +91,8 @@ function draftHasChanges(
       draft.kind !== (post?.kind ?? "standard") ||
       draft.hashtags !== (post?.hashtags.join(" ") ?? "") ||
       draft.tagHandles !== "" ||
-      (draft.rating ?? null) !== null
+      (draft.rating ?? null) !== null ||
+      draft.nameHidden === true
   );
 }
 
@@ -376,9 +385,10 @@ async function withExtraPhotos(
   };
 }
 
-/** What only a new post carries: the pub's score and the uploaded video. */
+/** What only a new post carries: the pub's score, the uploaded video and a hidden name. */
 function newPostExtras(draft: Draft, videoUploadId: string | null, videoDuration: number | null): Record<string, unknown> {
   return {
+    ...(draft.nameHidden === true ? { nameHidden: true } : {}),
     ...(draft.venueId && draft.kind === "standard" && typeof draft.rating === "number" ? { reviewRating: draft.rating } : {}),
     ...(videoUploadId ? { videoUploadId } : {}),
     ...(videoUploadId && videoDuration !== null ? { videoDurationSeconds: Math.round(videoDuration * 100) / 100 } : {}),
@@ -411,12 +421,66 @@ function MediaEditors({
   );
 }
 
-function PolicyFields({ draft, hasPhoto, onDraft }: { draft: Draft; hasPhoto: boolean; onDraft: (draft: Draft) => void }) {
+/**
+ * Hiding the name is chosen once, on a new post. Turning it on makes the post
+ * public and takes off the pub, its score and any photo tags, because each of
+ * those would name the author (`lib/socialHiddenName.ts`).
+ */
+function HiddenNameField({ draft, onDraft }: { draft: Draft; onDraft: (draft: Draft) => void }) {
+  const hintId = useId();
+  return (
+    <div className="socialHiddenName">
+      <label>
+        <input
+          type="checkbox"
+          checked={draft.nameHidden === true}
+          aria-describedby={hintId}
+          onChange={(event) => {
+            const nameHidden = event.currentTarget.checked;
+            onDraft(nameHidden
+              ? { ...draft, nameHidden, visibility: "public", venueId: null, venueName: "", rating: null, tagHandles: "" }
+              : { ...draft, nameHidden });
+          }}
+        />
+        {HIDDEN_NAME_TOGGLE_LABEL}
+      </label>
+      <p id={hintId} className="socialHiddenName__hint">{HIDDEN_NAME_TOGGLE_HINT}</p>
+    </div>
+  );
+}
+
+/**
+ * Who the post names: the hidden-name switch on a new post, then the pub and
+ * its score, which a hidden-name post cannot carry.
+ */
+function PlaceFields({ editing, nameHidden, draft, onDraft, venueEditor }: {
+  editing: boolean;
+  nameHidden: boolean;
+  draft: Draft;
+  onDraft: (draft: Draft) => void;
+  venueEditor: ReactNode;
+}) {
+  return (
+    <>
+      {editing
+        ? nameHidden ? <p className="socialHiddenName__hint">{HIDDEN_NAME_OWN_LINE}</p> : null
+        : <HiddenNameField draft={draft} onDraft={onDraft} />}
+      {nameHidden ? null : venueEditor}
+      {!editing && !nameHidden && draft.venueId && draft.kind === "standard"
+        ? <ReviewEditor draft={draft} onDraft={onDraft} />
+        : null}
+    </>
+  );
+}
+
+function PolicyFields({ draft, hasPhoto, nameHidden, onDraft }: { draft: Draft; hasPhoto: boolean; nameHidden: boolean; onDraft: (draft: Draft) => void }) {
   return (
     <>
       <label>Hashtags<input value={draft.hashtags} onChange={(event) => onDraft({ ...draft, hashtags: event.currentTarget.value })} /></label>
-      {hasPhoto ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
-      <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>
+      {hasPhoto && !nameHidden ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
+      {nameHidden
+        ? <label>Visibility<select value="public" disabled><option value="public">Public</option></select></label>
+        : <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>}
       <label>Post type<select value={draft.kind} onChange={(event) => onDraft({ ...draft, kind: event.currentTarget.value as Draft["kind"] })}><option value="standard">Post</option><option value="feature_request">Feature request</option></select></label>
     </>
   );
@@ -439,6 +503,8 @@ export default function SocialComposer({
   const [basePost, setBasePost] = useState(post);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => initialDraft(post));
+  // Chosen once, at posting: an edit reads it off the post and cannot move it.
+  const nameHidden = editing ? post?.nameHidden === true : draft.nameHidden === true;
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [video, setVideo] = useState<File | null>(null);
@@ -939,19 +1005,20 @@ export default function SocialComposer({
               </select>
             </label>
 
-            <VenueEditor
-              draft={draft} results={venueResults} activeIndex={activeVenueIndex}
-              listId={venueListId} announcement={venueAnnouncement} onDraft={setDraft}
-              onActiveIndex={setActiveVenueIndex}
-              onClearResults={() => { setVenueResults([]); setActiveVenueIndex(-1); }}
-              onSelect={selectVenue}
+            <PlaceFields
+              editing={editing} nameHidden={nameHidden} draft={draft} onDraft={setDraft}
+              venueEditor={(
+                <VenueEditor
+                  draft={draft} results={venueResults} activeIndex={activeVenueIndex}
+                  listId={venueListId} announcement={venueAnnouncement} onDraft={setDraft}
+                  onActiveIndex={setActiveVenueIndex}
+                  onClearResults={() => { setVenueResults([]); setActiveVenueIndex(-1); }}
+                  onSelect={selectVenue}
+                />
+              )}
             />
 
-            {!editing && draft.venueId && draft.kind === "standard"
-              ? <ReviewEditor draft={draft} onDraft={setDraft} />
-              : null}
-
-            <PolicyFields draft={draft} hasPhoto={Boolean(photo)} onDraft={setDraft} />
+            <PolicyFields draft={draft} hasPhoto={Boolean(photo)} nameHidden={nameHidden} onDraft={setDraft} />
 
             {concurrent ? (
               <p className="socialComposerConcurrent" role="status">

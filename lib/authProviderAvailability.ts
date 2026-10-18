@@ -126,14 +126,21 @@ export async function loadSocialAuthProviders(
   }
 }
 
+/** What Supabase Auth's public settings say about each sign-in door. */
+export type SupabaseAuthSettings = {
+  social: SocialAuthProviderAvailability;
+  /** True when the dashboard has phone (SMS code) sign-in switched on. */
+  phone: boolean;
+};
+
 /**
  * Server-side read of Supabase Auth's public provider settings. The publishable
  * key stays on this request so the browser never sends a cross-origin `apikey`
  * header. Unknown is distinct from an all-disabled response.
  */
-export async function readSupabaseSocialAuthProviders(
+export async function readSupabaseAuthSettings(
   fetchImpl: typeof fetch = globalThis.fetch,
-): Promise<SocialAuthProviderAvailability | null> {
+): Promise<SupabaseAuthSettings | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !publishableKey) return null;
@@ -156,10 +163,48 @@ export async function readSupabaseSocialAuthProviders(
     if (!isRecord(payload) || !isRecord(payload.external)) return null;
 
     return {
-      google: payload.external.google === true,
-      apple: payload.external.apple === true,
-      microsoft: payload.external.azure === true,
+      social: {
+        google: payload.external.google === true,
+        apple: payload.external.apple === true,
+        microsoft: payload.external.azure === true,
+      },
+      phone: payload.external.phone === true,
     };
+  } catch {
+    return null;
+  }
+}
+
+/** The social half of `readSupabaseAuthSettings`. */
+export async function readSupabaseSocialAuthProviders(
+  fetchImpl: typeof fetch = globalThis.fetch,
+): Promise<SocialAuthProviderAvailability | null> {
+  return (await readSupabaseAuthSettings(fetchImpl))?.social ?? null;
+}
+
+/**
+ * Whether the phone door is open, read from the same cached same-origin route
+ * as the social buttons. Null is unknown, and a caller shows no phone door for
+ * unknown: offering a text that cannot be sent is worse than not offering it.
+ */
+export async function loadPhoneSignInAvailable(
+  fetchImpl: typeof fetch = globalThis.fetch,
+): Promise<boolean | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) return null;
+
+  try {
+    const response = await withAuthFetchTimeout(fetchImpl)(
+      socialAuthProvidersUrl(false),
+      { credentials: "same-origin" },
+    );
+    if (!response.ok) {
+      await discardRefusalBody(response);
+      return null;
+    }
+    const payload: unknown = await response.json();
+    return isRecord(payload) && typeof payload.phone === "boolean" ? payload.phone : null;
   } catch {
     return null;
   }

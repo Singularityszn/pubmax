@@ -32,6 +32,7 @@ describe("Social post validation", () => {
         hashtags: ["lastorders", "camden"],
         commentPolicy: "friends",
         photo: null,
+        nameHidden: false,
       },
     });
 
@@ -138,6 +139,7 @@ describe("Social post validation", () => {
       venueId: "venue-1",
       hashtags: [],
       commentPolicy: "open" as const,
+      nameHidden: false,
       photo: null,
       status: "visible" as const,
       moderationState: "approved" as const,

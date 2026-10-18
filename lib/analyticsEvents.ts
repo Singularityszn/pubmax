@@ -904,7 +904,7 @@ function isAllowedMessageAttachProp(
 function isSignInProvider(value: unknown): boolean {
   return typeof value === "string"
     && (value === "google" || value === "apple" || value === "microsoft" || value === "email"
-      || value === "email_resume" || value === "handle_password");
+      || value === "email_resume" || value === "handle_password" || value === "phone");
 }
 
 function isAllowedJourneyProp(

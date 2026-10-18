@@ -35,6 +35,7 @@ const POST: SocialPostDTO = {
   venueProjected: false,
   hashtags: [],
   commentPolicy: "locked",
+  nameHidden: false,
   photo: null,
   moderationState: "approved",
   featureRequest: null,
