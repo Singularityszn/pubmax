@@ -27,6 +27,12 @@ import {
 } from "@/__tests__/helpers/currentFamousVenues";
 import { cheapestPriceReadDay } from "@/lib/priceReadDay.mjs";
 import { defined } from "@/__tests__/helpers/defined";
+import { pubsToGeoJSON } from "@/components/map/canvas/geojson";
+import { hoverCardCopy } from "@/components/map/canvas/hoverCard";
+import { buildMapVenueListModel, mapVenueListCheapest } from "@/lib/mapVenueList";
+import { buildLogNearbyCandidates } from "@/lib/mapLogIntent";
+import { deriveMapRenderedState } from "@/lib/mapRenderedState";
+import { priceBucket } from "@/lib/communityPrice";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -245,6 +251,84 @@ describe("slim listed price evidence", () => {
       cheapestPrice: 2.95,
       priceSource: "Pint Prices",
       priceObservedAt: cheapestPriceReadDay(prices, row.cheapestPrice),
+    });
+  });
+});
+
+describe("legacy bar pint map semantics", () => {
+  const legacyPrices = [
+    { id: "venue-8rf7pi", price: 6, pinLabel: "£6", listLabel: "£6.00" },
+    { id: "venue-1uvk466", price: 5, pinLabel: "£5", listLabel: "£5.00" },
+    { id: "venue-fw3cy8", price: 3.6, pinLabel: "£3.60", listLabel: "£3.60" },
+  ];
+
+  describe.each(["full", "slim"] as const)("%s records", (representation) => {
+    function venueFor(id: string) {
+      return representation === "full"
+        ? defined(fullVenuesById.get(id))
+        : slimVenueToPin(defined(slim.find((row) => row.id === id)));
+    }
+
+    it.each(legacyPrices)("filters the recorded pint at $id", ({ id, price }) => {
+      const venue = venueFor(id);
+      expect(venue.kind).toBe("bar");
+      expect(filterVenues([venue], makeFilters({ maxPrice: price - 0.5 }))).toEqual([]);
+      expect(filterVenues([venue], makeFilters({ maxPrice: price }))).toEqual([venue]);
+    });
+
+    it.each(legacyPrices)("labels the recorded pint on hover at $id", ({ id, price }) => {
+      expect(hoverCardCopy(venueFor(id), undefined, null)).toMatchObject({
+        venueTypeLabel: "Bar", price, priceSuffix: "cheapest pint", detailLabel: "venue detail",
+      });
+    });
+
+    it.each(legacyPrices)("prints pin and cluster pint figures at $id", ({ id, price, pinLabel }) => {
+      const properties = pubsToGeoJSON([venueFor(id)], new Map(), null).features[0]?.properties;
+      expect(properties).toMatchObject({ kind: "bar", priceLabel: pinLabel, clusterPrice: price });
+    });
+
+    it.each(legacyPrices)("uses pint meaning in the rendered legend at $id", ({ id, price }) => {
+      const data = pubsToGeoJSON([venueFor(id)], new Map(), null);
+      expect(deriveMapRenderedState(data, { brass: "brass" }, null)).toMatchObject({
+        priceBands: [{ meaning: "pint", bucket: priceBucket(price) }], clusterPrices: true,
+      });
+    });
+
+    it.each(legacyPrices)("shows and sorts the pint price in lists at $id", ({ id, price, listLabel }) => {
+      const venue = venueFor(id);
+      expect.soft(buildMapVenueListModel([venue], null).rows[0]).toMatchObject({
+        kind: "bar", priceLabel: listLabel, anchor: null,
+      });
+      expect.soft(mapVenueListCheapest([venue])).toEqual({ venue, priceGbp: price });
+      expect.soft(buildLogNearbyCandidates([venue])[0]).toMatchObject({
+        kind: "bar", priceLabel: listLabel, anchor: null,
+      });
+    });
+  });
+
+  it("applies a GBP5.50 maximum to Tattoo Bar's GBP6 pint", () => {
+    const venue = slimVenueToPin(defined(slim.find((row) => row.id === "venue-8rf7pi")));
+    expect(filterVenues([venue], makeFilters({ maxPrice: 5.5 }))).toEqual([]);
+  });
+
+  it("retains curated bar anchor semantics", () => {
+    const row = defined(slim.find((row) => row.id === "bar-american-bar-savoy"));
+    const venue = slimVenueToPin(row);
+    expect(filterVenues([venue], makeFilters({ maxPrice: 5.5 }))).toEqual([venue]);
+    expect(hoverCardCopy(venue, undefined, null)).toMatchObject({
+      price: 25, priceSuffix: "Welcome to The Savoy", priceBand: null,
+    });
+    const data = pubsToGeoJSON([venue], new Map(), null);
+    expect(data.features[0]?.properties?.priceLabel).toBeUndefined();
+    expect(data.features[0]?.properties?.clusterPrice).toBeUndefined();
+    expect(deriveMapRenderedState(data, { brass: "brass" }, null)).toMatchObject({
+      priceBands: [{ meaning: "type-relative", bucket: 2 }], clusterPrices: false,
+    });
+    expect(buildMapVenueListModel([venue], null).rows[0]).toMatchObject({
+      priceLabel: "£25.00", anchor: { label: "Welcome to The Savoy" },
+    });
+    expect(buildLogNearbyCandidates([venue])[0]).toMatchObject({
+      priceLabel: "£25.00", anchor: { label: "Welcome to The Savoy" },
     });
   });
 });
