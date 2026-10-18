@@ -54,6 +54,21 @@ describe("computeAboutStats", () => {
     expect(s.pubsTracked).toBe(3);
   });
 
+  it("averages each pub's cheapest pint once, the landing's cohort, not every reading", () => {
+    // Site review, 18 Oct 2026: /about averaged every reading (£5.72) while the
+    // landing averaged each pub's cheapest pint (£5.54). A pub with a dear
+    // second pint must not pull the figure up.
+    const rows = [
+      row({ pub_name: "A", address: "1", price_gbp: 4 }),
+      row({ pub_name: "A", address: "1", price_gbp: 9 }),
+      row({ pub_name: "B", address: "2", price_gbp: 6 }),
+    ];
+    const s = computeAboutStats(rows, { historicPubsCited: 0, citiesCovered: 0 });
+    expect(s.pubsTracked).toBe(2);
+    expect(s.pintPricesObserved).toBe(3);
+    expect(s.averagePint).toBe(5);
+  });
+
   it("rounds the average to pence", () => {
     const rows = [
       row({ pub_name: "A", address: "1", price_gbp: 5 }),

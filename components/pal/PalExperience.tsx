@@ -243,7 +243,7 @@ export function PalMeetingScreen({
         kicker="Your Pub Pal"
         title="A little signal that becomes yours."
         titleId="pal-meeting-title"
-        lede="Pick its look and voice, and set what it's allowed to do. Then it helps you plan the night."
+        lede="Pick its look and voice, and set what it's allowed to do. Then ask it for tonight's route or the cheapest pint near you. It remembers your usual drink only after you approve it."
         primary={
           <button type="button" onClick={onMeet}>
             Meet your Pub Pal

@@ -53,6 +53,7 @@ export default function LandingPage({
   archive = {},
   rail = [],
   averages = null,
+  priceReadLine = null,
   collagePrices = {},
   answers = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
@@ -66,6 +67,8 @@ export default function LandingPage({
   rail?: LandingRailRow[];
   /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
   averages?: PintPriceAverages | null;
+  /** When the prices behind that average were read (lib/landingPubCard.server.ts). */
+  priceReadLine?: string | null;
   /** Each photographed patch's cheapest nearby pint, for the founder collage. */
   collagePrices?: Record<string, LondonCollageAreaPrice>;
   /** What is on today and what is on tonight, one sentence each. */
@@ -148,6 +151,11 @@ export default function LandingPage({
         {/* The city's saving is the hero's line now; this band carries the
             signed-in reader's own total, when there is one, and the map. */}
         <section className="lpWorth" aria-label="What it saves you">
+          {/* When the prices behind the hero's average were read (site review,
+              18 Oct 2026: "Freshness is quiet"). It sits here and not in the
+              hero, because at 320px a third lede line put the primary under
+              the tab bar (e2e/landing-find-my-pint.spec.ts). */}
+          {priceReadLine ? <p className="lpPriceReads">{priceReadLine}</p> : null}
           <LandingSavings averages={averages} />
           <Link
             prefetch={false}

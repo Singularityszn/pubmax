@@ -192,8 +192,8 @@ export default async function AboutPage() {
           separate from pint prices. A drinker pays for nothing.
         </p>
         <p className="aboutBody">
-          Nobody pays to rank. Sponsored listings are labelled and separate
-          from the price order.
+          Nobody pays to rank. There are no sponsored listings today. If one
+          ever comes, it will be labelled and kept out of the price order.
         </p>
       </section>
 
@@ -217,8 +217,8 @@ export default async function AboutPage() {
             a pub on the map doesn&rsquo;t mean we hold its drink prices.
           </li>
           <li>
-            <strong>The price order is not for sale.</strong> Sponsored slots
-            stay labelled and separate.
+            <strong>The price order is not for sale.</strong> No slot is
+            sponsored today, and one never will be without a label.
           </li>
           <li>
             <strong>You can check the source.</strong> Listed prices name and link
@@ -268,8 +268,8 @@ export default async function AboutPage() {
         <h2 id="traction" className="aboutH2">By the numbers</h2>
         <p className="aboutBody">
           PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
-          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> logged
-          pint prices, each with its source status shown.{" "}
+          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
+          prices on record, each with its source status shown.{" "}
           <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
           a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
           cities are live, London first. Every figure here is counted from the
@@ -277,11 +277,12 @@ export default async function AboutPage() {
         </p>
         <p className="aboutPriceLine">
           Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
-          boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
+          boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
           <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
-          <Pint gbp={stats.dearestPint} />. The average of all{" "}
-          <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> logged prices is{" "}
-          <Pint gbp={stats.averagePint} />.
+          <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
+          <Figure>{fmtInt(stats.pubsTracked)}</Figure> London pubs is{" "}
+          <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
+          taken from each pub&rsquo;s cheapest pint.
         </p>
       </section>
 
@@ -291,7 +292,11 @@ export default async function AboutPage() {
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
-            <dd>PUBMAXX, always with two Xs. It lives at pubmaxxing.com.</dd>
+            <dd>
+              PUBMAXX, always with two Xs. The web address is pubmaxxing.com,
+              because pubmaxxing is what you do with it. Print PUBMAXX for the
+              app and keep the address for links.
+            </dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
