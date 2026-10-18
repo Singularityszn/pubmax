@@ -9,8 +9,7 @@
    is the Screen primary's alone. */
 
 .pintIndexPage {
-  padding-block: var(--space-2)
-    calc(var(--mobile-tab-clearance, 72px) + var(--space-12) + env(safe-area-inset-bottom, 0px));
+  padding-block: var(--space-2) var(--space-12);
 }
 
 /* --- headline figures ------------------------------------------------------- */

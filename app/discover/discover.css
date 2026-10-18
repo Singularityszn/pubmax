@@ -778,7 +778,7 @@
    so the pub name and its price stamp stay legible on a 375px screen. */
 @media (max-width: 560px) {
   .discoverPage {
-    padding: 18px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
+    padding: 18px var(--page-gutter) var(--space-12);
   }
 
   .discoverSection {

@@ -24,14 +24,55 @@
 /* Everything under the head reads in one column, as wide as the head. The
    compact rows run a little wider than the reading column so a route's name
    and its price range fit one line. */
-.crawlEmpty > :not(.screenHead) {
+.crawlLayout > * {
   max-width: 47.5rem;
 }
 
-/* The shared Round starter centres itself in its own 760px; here it keeps the
-   page's left edge like everything else under the head. */
-.crawlEmpty > .roundStarter {
-  margin-inline: 0;
+/* From 1100px the data column holds two: the list at the reading width and,
+   beside it, the featured crawl as a sticky pane (the DesktopRail pattern,
+   components/desktop/DesktopRail.tsx: sticky, clear of the floating nav,
+   aligned to the top). It is the SAME element placed in the second column,
+   never a CSS `order` and never a copy, so a keyboard and a screen reader
+   meet it where the DOM puts it: after the route packs, before the list.
+   Everything else stays in the first column, one row each, so the pane's
+   span covers the whole list. A phone keeps the one column. */
+@media (min-width: 1100px) {
+  .crawlLayout {
+    display: grid;
+    grid-template-columns: minmax(0, var(--content-max)) minmax(0, 1fr);
+    column-gap: var(--space-10);
+    align-items: start;
+  }
+
+  .crawlLayout > * {
+    grid-column: 1;
+    max-width: none;
+  }
+
+  /* A link keeps its own width rather than stretching to the column's. */
+  .crawlLayout > .crawlSecondaryBtn {
+    justify-self: start;
+  }
+
+  .crawlLayout > .curatedFeaturedWrap {
+    grid-column: 2;
+    grid-row: 1 / span 8;
+    position: sticky;
+    top: calc(2 * var(--space-12));
+    margin: 0;
+  }
+}
+
+/* The shared Round starter is a form on this page, not a raised card: one
+   hairline above it, the page's left edge, no box (DESIGN_SYSTEM.md "Edges").
+   The heading inside it already says what it is. */
+.crawlLayout > .roundStarter {
+  margin: 0;
+  padding: var(--space-6) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
 }
 
 .crawlEmptyBody {
@@ -167,6 +208,31 @@
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
+}
+
+/* A photograph leads the card edge to edge, its credit on the line under it,
+   then the four things the card says. */
+.curatedCard--photo {
+  overflow: hidden;
+  padding-top: 0;
+}
+
+.curatedPhoto {
+  margin: 0 calc(-1 * var(--space-5)) var(--space-2);
+}
+
+.curatedPhoto .placePhoto__frame {
+  border-radius: 0;
+}
+
+.curatedPhoto .placePhoto__caption {
+  padding-inline: var(--space-5);
+}
+
+@media (min-width: 1100px) {
+  .curatedPhoto .placePhoto__frame {
+    aspect-ratio: 4 / 3;
+  }
 }
 
 .curatedName {

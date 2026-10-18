@@ -1,17 +1,20 @@
-/* Shared RoundStarter — full card on /crawls; denser when .compact (Plan drawer). */
+/* Shared RoundStarter: a framed card where it is embedded, an edge-less
+   section on /crawls (app/crawls/crawls.css), the bare body of /rounds, and
+   denser when .compact (Plan drawer). Focus rings are ink, never coral: coral
+   is the one primary's alone (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
 
 .roundStarter {
   width: 100%;
   max-width: 760px;
-  margin: 8px auto 0;
-  padding: 24px;
+  margin: var(--space-2) auto 0;
+  padding: var(--space-6);
   text-align: left;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   box-sizing: border-box;
 }
 
@@ -84,7 +87,7 @@
 }
 
 .roundStarterRow input:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 1px;
 }
 
@@ -116,11 +119,11 @@
 .roundStarter .crawlPrimaryBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
-  padding: 11px 18px;
+  padding: 0 var(--space-5);
   border-radius: var(--radius);
-  font-size: 15px;
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -147,7 +150,7 @@
 }
 
 .roundStarter .crawlPrimaryBtn:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
@@ -219,7 +222,7 @@
 }
 
 .roundStarter.compact .roundStarterCode {
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   letter-spacing: 0.12em;
 }
 
@@ -302,6 +305,6 @@
 }
 
 .roundCodeJoinBtn:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }

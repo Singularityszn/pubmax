@@ -44,6 +44,12 @@
   border-radius: var(--radius-sm);
 }
 
+/* A photograph of the pub itself, only where we hold one (The Black Friar).
+   It follows the price, which is the answer, and leads the evidence. */
+.hdPhoto {
+  margin: 0 0 var(--space-8);
+}
+
 /* The listed pint: the first thing under the head, in the landing answer
    card's shape (the banded figure, the drink, then who listed it and when). */
 .hdPrice {

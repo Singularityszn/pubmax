@@ -1580,10 +1580,6 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 560px) {
-  .profilePage .profileMain {
-    /* Wave I3: align with mobile tab bar clearance token */
-    padding-bottom: calc(var(--mobile-tab-clearance, 104px) + 16px + env(safe-area-inset-bottom, 0px));
-  }
 
   /* On a phone the name goes UNDER the face rather than beside it: at 390px a
      name beside a 92px circle has about ten characters before it wraps. The

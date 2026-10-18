@@ -187,7 +187,15 @@
   line-height: var(--leading-snug);
 }
 
+/* The name is the entry's own link, and a thumb's: 44px each way through
+   padding the line gives back, so a short name ("Ship") is still a target
+   and the row is no taller for it. */
 .historicEntryName a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-2));
   color: var(--color-text);
   text-decoration: none;
 }
@@ -222,6 +230,13 @@
   line-height: var(--leading-normal);
   overflow-wrap: break-word;
   text-wrap: pretty;
+}
+
+/* A photograph OF this pub, only on its own entry (components/listing/
+   placePhoto.ts). Small, under its sentence, with its credit. */
+.historicEntryPhoto {
+  max-width: 16rem;
+  margin-top: var(--space-2);
 }
 
 /* Where the sentence came from, and the map. Two quiet links on one line; the
@@ -263,6 +278,129 @@
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/* --- the desktop side pane ---------------------------------------------- */
+/* One column of entries, and beside it from 1100px a sticky pane (the
+   DesktopRail pattern): the lead photograph and the index in figures. The
+   column is the reading width; the pane takes what the data column leaves.
+   A phone and a narrow window keep the one column and no pane. */
+
+.historicLayout {
+  display: grid;
+  gap: var(--space-10);
+}
+
+.historicColumn {
+  min-width: 0;
+}
+
+.desktopRail.historicPane {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  .historicLayout {
+    grid-template-columns: minmax(0, var(--content-max)) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .desktopRail.historicPane {
+    display: flex;
+    gap: var(--space-6);
+  }
+}
+
+.historicPanePhoto .placePhoto__frame {
+  aspect-ratio: 4 / 3;
+}
+
+.historicPaneLead {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.historicPaneLead a,
+.historicPaneOldest a {
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .historicPaneLead a:hover,
+  .historicPaneOldest a:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.historicPaneLead a:focus-visible,
+.historicPaneOldest a:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.historicPaneLead span {
+  color: var(--color-text-muted);
+}
+
+.historicPaneIndex {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
+}
+
+.historicPaneHeading {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.historicPaneFigures {
+  display: grid;
+  margin: 0;
+}
+
+.historicPaneFigures > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.historicPaneFigures > div + div {
+  border-top: 1px solid var(--line-soft);
+}
+
+.historicPaneFigures dt {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+}
+
+/* A count is a figure: the data face. */
+.historicPaneFigures dd {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.historicPaneOldest {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
 /* --- pagination ------------------------------------------------------------ */
