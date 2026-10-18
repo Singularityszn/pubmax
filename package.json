@@ -133,6 +133,7 @@
     "eval:pal:memory": "node --conditions=react-server --import tsx scripts/pal-memory-eval.mjs",
     "eval:pal:memory:live": "node --conditions=react-server --import tsx scripts/pal-memory-eval.mjs --live",
     "eval:ask-router-models": "node --conditions=react-server --import tsx scripts/ask-router-model-eval.mjs",
+    "report:calibration": "node scripts/calibration_report.mjs",
     "regenerate:pal-answer-key": "node --conditions=react-server --import tsx scripts/regenerate-pal-answer-key.mjs",
     "verify:famous-venues": "node --env-file-if-exists=.env.local --import tsx scripts/verify_famous_venues.mjs",
     "verify:pub-hours": "node --import tsx scripts/verify_pub_hours.mjs",
