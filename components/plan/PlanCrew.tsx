@@ -35,7 +35,8 @@ const ONE_USE_PLAN_INVITE_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 /** The hash carries an invite shaped like neither kind (battle test L02). */
 function inviteHashIsMalformed(token: string | null): boolean {
   if (token === null) return false;
-  return !isClassicPlanInviteToken(token) && !ONE_USE_PLAN_INVITE_TOKEN_PATTERN.test(token.trim());
+  if (ONE_USE_PLAN_INVITE_TOKEN_PATTERN.test(token.trim())) return false;
+  return !isClassicPlanInviteToken(token);
 }
 
 const MALFORMED_INVITE_LINE =
