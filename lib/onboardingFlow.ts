@@ -164,7 +164,7 @@ export function onboardingPlanHref(handoff: PlannerHandoff | null): string {
 /** A handoff the planner never opened for is stale after this long. */
 const HANDOFF_MAX_AGE_MS = 10 * 60_000;
 
-/** Held for this tab until the journey reads and clears it before navigation. */
+/** Optional tab restoration. The journey opens the planner from its current choice. */
 export function writePlannerHandoff(
   handoff: PlannerHandoff,
   storage?: Storage | null,
@@ -175,7 +175,7 @@ export function writePlannerHandoff(
   try {
     store.setItem(HANDOFF_KEY, JSON.stringify({ ...handoff, at: now }));
   } catch {
-    // Storage full or blocked: the planner opens on its own defaults.
+    // Storage full or blocked: the journey still hands over its current choice.
   }
 }
 
