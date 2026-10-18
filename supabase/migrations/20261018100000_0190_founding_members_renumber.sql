@@ -27,6 +27,12 @@
 
 begin;
 
+-- The renumber runs on the FIRST apply only. The ledger table is the durable
+-- marker: once it exists, a re-apply after a later departure must not release
+-- that founder's number and shift everybody after them.
+create temporary table founding_renumber_0190_first_apply on commit drop as
+select to_regclass('pubmax_private.founding_member_renumber_0190') is null as first_apply;
+
 alter table public.profiles
   add column if not exists founding_member_excluded boolean not null default false;
 
@@ -133,15 +139,16 @@ select
     )::integer
   end as new_number
 from public.profiles
-where founding_member_number is not null;
+where founding_member_number is not null
+  and (select first_apply from founding_renumber_0190_first_apply);
 
--- Write the way back first. A re-apply keeps the FIRST recorded number.
+-- Write the way back first. On a re-apply the work table is empty, so the
+-- ledger and every number stay as the first apply left them.
 insert into pubmax_private.founding_member_renumber_0190 (profile_id, old_number, new_number)
 select id, old_number, new_number
   from founding_renumber_0190
  where new_number is distinct from old_number
-on conflict (profile_id) do update
-   set new_number = excluded.new_number;
+on conflict (profile_id) do nothing;
 
 -- Clear, then set: the unique index is checked row by row, so moving 14 to 8
 -- in place could collide with a row that has not moved yet.

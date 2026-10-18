@@ -7,7 +7,8 @@
 // THE PROOF. Apply every migration before 0190, claim the production cohort in
 // its real order, retire the same rows, and show the gaps. Apply 0190 and show
 // the live members hold 1..N in their old order, the test accounts hold
-// nothing, and a re-claim cannot hand one a number back. Then roll back and
+// nothing, a re-claim cannot hand one a number back, and a second apply after
+// a later departure moves nothing. Then roll back and
 // show every old number is where it was.
 
 import { readdirSync } from "node:fs";
@@ -142,10 +143,15 @@ describe.skipIf(skipReason !== null)("0190 renumbers the founders wall", () => {
     expect(claim(COHORT.length + 1, LATECOMER)).toMatchObject({ ok: true, founding_member_number: 12 });
   });
 
-  it("re-applying 0190 moves nothing", () => {
+  it("re-applying 0190 after a founder departs moves nothing", () => {
+    // A departure after the first apply keeps its number (0097's rule), so a
+    // second apply must not release it and shift everybody after it.
+    db().sql("update public.profiles set tombstoned_at = now(), user_id = null where handle = 'lain'");
     const before = wall();
+    const ledger = db().sql("select count(*) from pubmax_private.founding_member_renumber_0190");
     db().applyFile(FORWARD);
     expect(wall()).toBe(before);
+    expect(db().sql("select count(*) from pubmax_private.founding_member_renumber_0190")).toBe(ledger);
   });
 
   it("no client role can read the way back", () => {
