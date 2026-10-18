@@ -98,6 +98,14 @@
   color: var(--ink);
 }
 
+/* The pub's own photograph, under its reason in the fold. The fold already
+   sits above the row's link layer, so a tap on the photograph or its credit
+   never opens the map. */
+.tonightHypedPhoto {
+  max-width: 24rem;
+  margin-top: var(--space-2);
+}
+
 .tonightHypedCredit {
   display: flex;
   flex-wrap: wrap;

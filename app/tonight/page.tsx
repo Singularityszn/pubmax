@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 
+import {
+  areaPlacePhoto,
+  londonPlacePhoto,
+  pubPlacePhoto,
+  type PlacePhoto,
+} from "@/components/listing/placePhoto";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
+import { AREA_PHOTOS } from "@/lib/landingImagery";
 import { loadHistoricPubs } from "@/lib/historic";
 import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
@@ -46,6 +53,30 @@ export const dynamic = "force-static";
 // far a held copy can lag a window boundary, and the CDN regenerates in the
 // background so no reader waits for it.
 export const revalidate = 300;
+
+// The photographs this page may show, resolved here so neither photograph
+// table reaches the browser (components/listing/placePhoto.ts). A pub's own
+// photograph is kept only for a pub this page recommends, matched by venue id.
+// The area photographs are every Night Area we hold one of, because the area
+// the reader is in is only known after load; London's stands for the page
+// when no area is known.
+function tonightPhotos(hypedVenueIds: readonly (string | null)[]): {
+  pubPhotos: Record<string, PlacePhoto>;
+  areaPhotos: Record<string, PlacePhoto>;
+  londonPhoto: PlacePhoto | null;
+} {
+  const pubPhotos: Record<string, PlacePhoto> = {};
+  for (const venueId of hypedVenueIds) {
+    const photo = venueId ? pubPlacePhoto(venueId) : null;
+    if (venueId && photo) pubPhotos[venueId] = photo;
+  }
+  const areaPhotos: Record<string, PlacePhoto> = {};
+  for (const slug of Object.keys(AREA_PHOTOS)) {
+    const photo = areaPlacePhoto(slug);
+    if (photo) areaPhotos[slug] = photo;
+  }
+  return { pubPhotos, areaPhotos, londonPhoto: londonPlacePhoto() };
+}
 
 export default async function TonightPage() {
   const now = new Date();
@@ -108,6 +139,19 @@ export default async function TonightPage() {
     now,
   });
 
+  // Fresh rows only, measured on this render's clock, each carrying the
+  // cheapest pint we list there off the same dataset as the cheap pints.
+  const hypedPubs = hypedPubsForPage(hyped.rows, {
+    now,
+    prices: hypedPubPriceIndex(
+      pricedVenues.map((venue) => ({
+        id: venue.id,
+        cheapestPrice: venue.cheapestPrice,
+        observedAt: venueCheapestPintObservedAt(venue),
+      })),
+    ),
+  });
+
   return (
     <TonightClient
       initialListings={{ whatsOn, out, renderedAt: now.getTime() }}
@@ -116,18 +160,8 @@ export default async function TonightPage() {
       mapSelectableVenueIds={
         mapSelectableVenueIds ? [...mapSelectableVenueIds] : null
       }
-      // Fresh rows only, measured on this render's clock, each carrying the
-      // cheapest pint we list there off the same dataset as the cheap pints.
-      hypedPubs={hypedPubsForPage(hyped.rows, {
-        now,
-        prices: hypedPubPriceIndex(
-          pricedVenues.map((venue) => ({
-            id: venue.id,
-            cheapestPrice: venue.cheapestPrice,
-            observedAt: venueCheapestPintObservedAt(venue),
-          })),
-        ),
-      })}
+      hypedPubs={hypedPubs}
+      photos={tonightPhotos(hypedPubs.map((row) => row.venueId))}
       // What a quiet night answers with: real pubs at a listed price, composed
       // from the dataset this page already read for the quiet-pint module.
       cheapPints={tonightCheapPints(

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ChevronDown, ExternalLink } from "lucide-react";
 
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList } from "@/components/ui/row-list";
 import { formatObservedDate, formatObservedDayShort } from "@/lib/dataFreshness";
@@ -36,13 +38,21 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
  * link layer, so opening it never opens the map. The rows are written out
  * rather than through `RowListItem` because a row carries a test id and a
  * disclosure the primitive has no slot for.
+ *
+ * A pub we hold a photograph OF (matched by venue id on the server,
+ * components/listing/placePhoto.ts) shows it inside that fold, under its
+ * reason, with its credit. Folded, the lazy image is never fetched, and a pub
+ * with no photograph of its own gets none, never a stand-in.
  */
 export default function TonightHypedPubs({
   rows = [],
   selectableVenueIds,
   nested = false,
+  photos,
 }: {
   rows?: readonly HypedPub[];
+  /** A recommended pub's own photograph, by venue id, resolved on the server. */
+  photos?: Readonly<Record<string, PlacePhotoData>>;
   /** Eager-shard ids the map can open, or null when that index is unreadable. */
   selectableVenueIds?: ReadonlySet<string> | null;
   /**
@@ -71,7 +81,12 @@ export default function TonightHypedPubs({
       <div data-testid="tonight-hyped-list">
         <RowList className="tonightHypedList">
           {lead.map((row) => (
-            <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
+            <HypedRow
+              key={rowKey(row)}
+              row={row}
+              selectableVenueIds={selectableVenueIds}
+              photo={row.venueId ? photos?.[row.venueId] : undefined}
+            />
           ))}
         </RowList>
         {rest.length > 0 ? (
@@ -82,7 +97,12 @@ export default function TonightHypedPubs({
             </summary>
             <RowList className="tonightHypedList">
               {rest.map((row) => (
-                <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
+                <HypedRow
+                  key={rowKey(row)}
+                  row={row}
+                  selectableVenueIds={selectableVenueIds}
+                  photo={row.venueId ? photos?.[row.venueId] : undefined}
+                />
               ))}
             </RowList>
           </details>
@@ -99,9 +119,11 @@ function rowKey(row: HypedPub): string {
 function HypedRow({
   row,
   selectableVenueIds,
+  photo,
 }: {
   row: HypedPub;
   selectableVenueIds?: ReadonlySet<string> | null;
+  photo?: PlacePhotoData;
 }) {
   const mapHref = hypedPubMapHref(row, selectableVenueIds);
   const credit = hypedPubCredit(row);
@@ -155,6 +177,13 @@ function HypedRow({
               </a>
               <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
             </p>
+          ) : null}
+          {photo ? (
+            <PlacePhoto
+              className="tonightHypedPhoto"
+              photo={photo}
+              sizes="(min-width: 1100px) 24rem, calc(100vw - 2rem)"
+            />
           ) : null}
         </details>
       </span>
