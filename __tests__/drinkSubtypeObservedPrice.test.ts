@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
+import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import {
+  buildSubtypePricedVenueRows,
+  countObservedSubtypePrices,
   drinkLabelMatchesSubtype,
   selectObservedSubtypePriceForVenue,
   softDrinksWaterChipSubtypes,
@@ -159,15 +162,30 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-coke-zero")).toBeNull();
   });
 
-  it("exposes only the zero-sugar cola family and still water as launch chips", () => {
+  it("exposes the Lucia lens, the zero-sugar cola family and still water as launch chips", () => {
     expect(softDrinksWaterChipSubtypes().map((s) => s.id)).toEqual([
+      "soft-drink-lucia-special",
       "soft-drink-zero-sugar-cola",
       "soft-drink-still-water",
     ]);
   });
 
-  it("rewrites legacy zero-sugar cola leaf subs to the family id", () => {
+  it("opens on the Lucia lens when the URL names no soft drink", () => {
+    expect(softDrinksWaterSubtypeIdFromParam(undefined)).toBe("soft-drink-lucia-special");
+    expect(softDrinksWaterSubtypeIdFromParam("beer-lager")).toBe("soft-drink-lucia-special");
+    expect(softDrinksWaterSubtypeIdFromParam("soft-drink-zero-sugar-cola")).toBe(
+      "soft-drink-zero-sugar-cola",
+    );
+  });
+
+  it("rewrites legacy cola leaf subs to their family id", () => {
     expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-coke-zero")).toBe(
+      "soft-drink-lucia-special",
+    );
+    expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-diet-coke")).toBe(
+      "soft-drink-lucia-special",
+    );
+    expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-pepsi-max")).toBe(
       "soft-drink-zero-sugar-cola",
     );
     expect(softDrinksWaterSubtypeIdFromParam("soft-drink-diet-pepsi")).toBe(
@@ -175,6 +193,20 @@ describe("selectObservedSubtypePriceForVenue", () => {
     );
     expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-still-water")).toBeNull();
     expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-zero-sugar-cola")).toBeNull();
+    expect(softDrinksWaterLegacyLeafRedirectSubtypeId("soft-drink-lucia-special")).toBeNull();
+  });
+
+  it("prices the Lucia lens from Coke Zero and Diet Coke only, never Pepsi", () => {
+    const venue = makeVenue([
+      makePrice("Pepsi Max", 1.9),
+      makePrice("Coke Zero", 3.1),
+      makePrice("Diet Coke", 2.8),
+    ]);
+    const hit = selectObservedSubtypePriceForVenue(venue, "soft-drink-lucia-special");
+    expect(hit?.priceGbp).toBe(2.8);
+    expect(hit?.drinkLabel).toBe("Diet Coke");
+    const pepsiOnly = makeVenue([makePrice("Pepsi Max", 1.9), makePrice("Diet Pepsi", 2)]);
+    expect(selectObservedSubtypePriceForVenue(pepsiOnly, "soft-drink-lucia-special")).toBeNull();
   });
 
   it("aggregates zero-sugar cola subtypes at each pub and keeps the cheapest verbatim label", () => {
@@ -220,6 +252,143 @@ describe("selectObservedSubtypePriceForVenue", () => {
     expect(selectObservedSubtypePriceForVenue(venue, "soft-drink-still-water")?.drinkLabel).toBe(
       "Still water",
     );
+  });
+});
+
+describe("UK price bundle lane", () => {
+  function bundleRow(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
+    return {
+      venueId: "venue-test-1",
+      name: "Test Pub",
+      category: "soft-drink",
+      priceGbp: 2.4,
+      lane: "site-harvest",
+      standing: "listed",
+      sourceUrl: "https://testpub.example/drinks",
+      publisher: "testpub.example",
+      observedAt: "2026-09-04T13:40:04.870Z",
+      basis: null,
+      sampleSize: null,
+      drinkLabel: "Coca-Cola Zero Sugar",
+      drinkSubtype: "soft-drink-coke-zero",
+      ...overrides,
+    };
+  }
+
+  it("reads a listed site-harvest row with its page, its day and its printed name", () => {
+    const venue = makeVenue([makePrice("Guinness", 5)]);
+    const hit = selectObservedSubtypePriceForVenue(venue, "soft-drink-lucia-special", [], [
+      bundleRow(),
+    ]);
+    expect(hit).toEqual({
+      drinkLabel: "Coca-Cola Zero Sugar",
+      priceGbp: 2.4,
+      observedAt: "2026-09-04T13:40:04.870Z",
+      publisher: { label: "testpub.example", url: "https://testpub.example/drinks" },
+      lane: "site-harvest",
+    });
+  });
+
+  it("never prices a pub from an estimate, a duplicated update row or an unlabelled row", () => {
+    const venue = makeVenue([makePrice("Guinness", 5)]);
+    const refused = [
+      bundleRow({ lane: "estimate", standing: "estimate", sourceUrl: null, basis: "b", sampleSize: 5 }),
+      bundleRow({ lane: "drink-price-update" }),
+      bundleRow({ drinkLabel: undefined, drinkSubtype: undefined }),
+      bundleRow({ drinkLabel: "Pepsi Max", drinkSubtype: "soft-drink-pepsi-max" }),
+    ];
+    expect(
+      selectObservedSubtypePriceForVenue(venue, "soft-drink-lucia-special", [], refused),
+    ).toBeNull();
+  });
+
+  it("ranks and counts a pub the bundle prices, keyed by its venue id", () => {
+    const priced = makeVenue([makePrice("Guinness", 5)]);
+    const unpriced = { ...makeVenue([makePrice("Guinness", 5)]), id: "venue-test-2", name: "Quiet Pub" };
+    const byVenue = new Map([["venue-test-1", [bundleRow({ drinkLabel: "Diet Coke", priceGbp: 2.1 })]]]);
+    const rows = buildSubtypePricedVenueRows(
+      [unpriced, priced],
+      "soft-drink-lucia-special",
+      [],
+      undefined,
+      byVenue,
+    );
+    expect(rows.map((row) => [row.venueId, row.observed?.priceGbp ?? null])).toEqual([
+      ["venue-test-1", 2.1],
+      ["venue-test-2", null],
+    ]);
+    expect(
+      countObservedSubtypePrices([unpriced, priced], "soft-drink-lucia-special", [], byVenue),
+    ).toBe(1);
+  });
+});
+
+describe("London pubs that exist only in the UK base layer", () => {
+  function baseRow(overrides: Partial<UkPriceBundleRow> = {}): UkPriceBundleRow {
+    return {
+      venueId: "venue-uk-w211942078",
+      name: "The Talbot",
+      category: "soft-drink",
+      priceGbp: 2.3,
+      lane: "site-harvest",
+      standing: "listed",
+      sourceUrl: "https://thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+      publisher: "thetalbotbrockley.co.uk",
+      observedAt: "2026-10-17T12:30:00.000Z",
+      basis: null,
+      sampleSize: null,
+      drinkLabel: "Diet Coke 200ml",
+      drinkSubtype: "soft-drink-diet-coke",
+      lat: 51.4648,
+      lng: -0.0337,
+      londonBorough: "Lewisham",
+      ...overrides,
+    };
+  }
+
+  it("ranks and counts a placed, priced base pub, keyed by its base id", () => {
+    const byVenue = new Map([["venue-uk-w211942078", [baseRow()]]]);
+    const rows = buildSubtypePricedVenueRows([], "soft-drink-lucia-special", [], undefined, byVenue);
+    expect(rows).toEqual([
+      {
+        venueId: "venue-uk-w211942078",
+        venueName: "The Talbot",
+        borough: "Lewisham",
+        latitude: 51.4648,
+        longitude: -0.0337,
+        observed: {
+          drinkLabel: "Diet Coke 200ml",
+          priceGbp: 2.3,
+          observedAt: "2026-10-17T12:30:00.000Z",
+          publisher: {
+            label: "thetalbotbrockley.co.uk",
+            url: "https://thetalbotbrockley.co.uk/s/Drinks-Menu.pdf",
+          },
+          lane: "site-harvest",
+        },
+      },
+    ]);
+    expect(countObservedSubtypePrices([], "soft-drink-lucia-special", [], byVenue)).toBe(1);
+  });
+
+  it("ranks a base pub beside a curated one by price", () => {
+    const curated = makeVenue([makePrice("Coke Zero", 2.5)]);
+    const byVenue = new Map([["venue-uk-w211942078", [baseRow()]]]);
+    const rows = buildSubtypePricedVenueRows([curated], "soft-drink-lucia-special", [], undefined, byVenue);
+    expect(rows.map((row) => [row.venueId, row.observed?.priceGbp])).toEqual([
+      ["venue-uk-w211942078", 2.3],
+      ["venue-test-1", 2.5],
+    ]);
+  });
+
+  it("never lists a base pub with no London place, no matching drink or a curated id", () => {
+    const byVenue = new Map<string, UkPriceBundleRow[]>([
+      ["venue-uk-n1", [baseRow({ venueId: "venue-uk-n1", lat: undefined, lng: undefined, londonBorough: undefined })]],
+      ["venue-uk-n2", [baseRow({ venueId: "venue-uk-n2", drinkLabel: "Pepsi Max", drinkSubtype: "soft-drink-pepsi-max" })]],
+      ["venue-curated-1", [baseRow({ venueId: "venue-curated-1" })]],
+    ]);
+    expect(buildSubtypePricedVenueRows([], "soft-drink-lucia-special", [], undefined, byVenue)).toEqual([]);
+    expect(countObservedSubtypePrices([], "soft-drink-lucia-special", [], byVenue)).toBe(0);
   });
 });
 

@@ -6,6 +6,7 @@ import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
+import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
 import {
   tonightCheapPintChain,
@@ -16,10 +17,8 @@ import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import TonightClient from "./TonightClient";
 
-// First-class "Tonight" screen. The client owns the PRIMARY What's-On spine
-// (/api/whats-on — same as the map Tonight lane) and all interactivity. This
-// server shell carries route metadata plus the quiet-pint module when the
-// typical-pattern hour allows it (same buildQuietPint seam as /today).
+// The server composes the public listing answer through the same readers as
+// Today. The browser revalidates it through the shared map and Out API readers.
 export const metadata: Metadata = {
   title: "Tonight in London · PUBMAXX",
   description:
@@ -40,7 +39,7 @@ export const runtime = "nodejs";
 //      into dynamic rendering. The remembered area and every query parameter
 //      are read by the client after load.
 //   2. Nothing personal may reach this document. One prerendered copy is handed
-//      to every stranger, and the What's-On spine is fetched by the client.
+//      to every stranger. The browser revalidates the public listings.
 export const dynamic = "force-static";
 // The one input that moves between deploys is the London clock: the quiet-pint
 // window and the soft-plans window both read the hour. Five minutes bounds how
@@ -55,7 +54,7 @@ export default async function TonightPage() {
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
   // or when cited candidates are too few; the card then renders nothing.
-  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue] =
+  const [pricedVenues, historicPubs, mapSelectableVenueIds, hyped, spoonsValue, whatsOn, out] =
     await Promise.all([
       getPricedVenues(),
       loadHistoricPubs(),
@@ -67,6 +66,8 @@ export default async function TonightPage() {
       // Read on the server for the chain cap alone; no row of it reaches the
       // document.
       readSpoonsValue(),
+      loadTodayWhatsOnAnswer(now.getTime(), { pubOnly: true, limit: 60 }),
+      loadTodayOutAnswer(now.getTime()),
     ]);
   // One row per chain in the cheapest list. The first-party Wetherspoon
   // directory join and the SpoonMe pack name a Wetherspoon the price listing
@@ -109,6 +110,7 @@ export default async function TonightPage() {
 
   return (
     <TonightClient
+      initialListings={{ whatsOn, out, renderedAt: now.getTime() }}
       quietPint={quietPint}
       softPlansWindow={softPlansWindow}
       mapSelectableVenueIds={

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Venue } from "@/lib/venues";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
@@ -14,7 +14,7 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { pintDropDrinksForMenu } from "@/lib/pintDropDrinks";
 
-/** The Drinks tab prints menu and website links, never a booking CTA. */
+/** The Menu tab prints menu and website links, never a booking CTA. */
 const BOOKING_ONLY_ON_OVERVIEW = ["book"] as const;
 const NO_PINT_DROPS: readonly PintDrop[] = [];
 
@@ -63,16 +63,36 @@ export default function VenueMenuTab({
   // Reset when the venue changes so a drinks drill-in never leaks across venues.
   type MenuView =
     | { mode: "hub" }
+    | { mode: "food" }
     | { mode: "drinks"; category?: DrinkCategory };
+  const panelRef = useRef<HTMLDivElement>(null);
+  const menuDoorRef = useRef("all");
+  const moveMenuFocusRef = useRef(false);
   const [menuView, setMenuView] = useState<MenuView>({ mode: "hub" });
   const [menuViewVenueId, setMenuViewVenueId] = useState(venue.id);
   if (menuViewVenueId !== venue.id) {
     setMenuViewVenueId(venue.id);
     setMenuView({ mode: "hub" });
   }
+  const backToMenus = () => {
+    moveMenuFocusRef.current = true;
+    setMenuView({ mode: "hub" });
+  };
+  useEffect(() => {
+    if (tab !== "menu" || !moveMenuFocusRef.current) return;
+    moveMenuFocusRef.current = false;
+    if (menuView.mode !== "hub") {
+      panelRef.current?.querySelector<HTMLButtonElement>(".drinkMenuBack")?.focus();
+    } else {
+      panelRef.current?.querySelector<HTMLButtonElement>(
+        `[data-menu-door="${menuDoorRef.current}"]`,
+      )?.focus();
+    }
+  }, [menuView.mode, tab]);
 
   return (
     <div
+      ref={panelRef}
       role="tabpanel"
       id="venuePanel-menu"
       aria-labelledby="venueTab-menu"
@@ -87,21 +107,30 @@ export default function VenueMenuTab({
             tiles={hubTiles}
             venueKind={venue.kind}
             onAddDrink={onAddDrink}
-            onOpenDrinks={(category) =>
+            foodCount={menuFood.length}
+            onOpenFood={() => {
+              menuDoorRef.current = "food";
+              moveMenuFocusRef.current = true;
+              setMenuView({ mode: "food" });
+            }}
+            onOpenDrinks={(category) => {
+              menuDoorRef.current = category ?? "all";
+              moveMenuFocusRef.current = true;
               setMenuView(
                 category ? { mode: "drinks", category } : { mode: "drinks" },
-              )
-            }
+              );
+            }}
           />
-          <FoodMenu items={menuFood} venueName={venue.name} />
         </>
+      ) : menuView.mode === "food" ? (
+        <FoodMenu items={menuFood} venueName={venue.name} onBack={backToMenus} />
       ) : (
         <DrinkMenu
           drinks={menuDrinks}
           venueName={venue.name}
           venueId={venue.id}
           categoryFilter={menuView.category}
-          onBack={() => setMenuView({ mode: "hub" })}
+          onBack={backToMenus}
           backLabel="Menus"
         />
       )}

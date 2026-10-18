@@ -260,7 +260,7 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-68ns7y", // Ye Old Mitre — Holborn
       "venue-1wgjxs6", // The Albion — Barnsbury
       "venue-1snxfi3", // The Spaniards Inn — Hampstead
-      "venue-806vol", // The Ship Soho — West End
+      "venue-mz6byd", // The Ship, Wardour Street — West End
       "venue-1ha28jc", // The Grenadier — Belgravia
     ],
   },

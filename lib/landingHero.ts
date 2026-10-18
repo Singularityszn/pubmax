@@ -41,6 +41,11 @@ export type LandingArchiveThen = {
   /** Whole years from the then row to the build, the same count the card prints. */
   years: number;
   source: { label: string; url: string };
+  /**
+   * The movement lib/priceHistory.ts allowed against ONE listed figure, decided
+   * at build, or null when the two figures cannot be shown to be the same pint.
+   */
+  movement: { nowGbp: number; line: string } | null;
 };
 
 /**
@@ -50,6 +55,16 @@ export type LandingArchiveThen = {
  * `__tests__/priceHistory.test.ts` fences to three modules.
  */
 export type LandingArchiveIndex = Record<string, LandingArchiveThen>;
+
+/**
+ * The movement a then line may print beside `priceGbp`, or null. A near-you
+ * answer can print a figure from another read, and a movement decided against
+ * one figure says nothing about a different one.
+ */
+export function archiveMovementLine(then: LandingArchiveThen, priceGbp: number): string | null {
+  const movement = then.movement;
+  return movement && Math.abs(movement.nowGbp - priceGbp) < 0.005 ? movement.line : null;
+}
 
 /** One next-cheapest row under the answer. */
 export type LandingRailRow = {

@@ -68,6 +68,16 @@ describe("the OSM link pack", () => {
     { osmId: "node/99", curatedRef: { source: "curated-london-slim", id: "venue-twice" } },
   ];
 
+  it("follows a merged curated venue to the venue that kept it", () => {
+    const merged = buildOsmFhrsLinks({
+      chunks,
+      seedPubs,
+      fetchedAt: FETCHED_AT,
+      venueAliases: { "venue-lamb": "venue-lamb-kept" },
+    });
+    expect(merged.links).toContainEqual(["n1", 1026539, "venue-lamb-kept"]);
+  });
+
   it("keeps one row per London pub that states exactly one fhrs:id", () => {
     const pack = buildOsmFhrsLinks({ chunks, seedPubs, fetchedAt: FETCHED_AT });
     expect(pack.links).toEqual([
@@ -103,6 +113,7 @@ describe("the OSM link pack", () => {
         .map((file) => JSON.parse(readFileSync(join(rawDir, file), "utf8"))),
       seedPubs: JSON.parse(readFileSync(join(ROOT, "data/osm/uk/uk_osm_pubs.json"), "utf8")).pubs,
       fetchedAt: JSON.parse(readFileSync(join(ROOT, "data/osm/uk/chunks.json"), "utf8")).generatedAt,
+      venueAliases: JSON.parse(readFileSync(join(ROOT, "public/data/venue_id_aliases.json"), "utf8")).aliases,
     });
     expect(committed).toEqual(rebuilt);
     expect(committed.links.length).toBeGreaterThan(2000);
@@ -134,6 +145,15 @@ describe("the FSA ratings pack", () => {
     expect(compactEstablishment(ESTABLISHMENT)).toEqual(["5", "2025-06-05", "Enfield"]);
     expect(compactEstablishment({ ...ESTABLISHMENT, RatingValue: "AwaitingInspection", RatingDate: null })).toEqual([
       "AwaitingInspection",
+      null,
+      "Enfield",
+    ]);
+    // The FSA's 1901-01-01 placeholder for "no rating day" is no day at all.
+    expect(
+      compactEstablishment({ ...ESTABLISHMENT, RatingValue: "AwaitingInspection", RatingDate: "1901-01-01T00:00:00" }),
+    ).toEqual(["AwaitingInspection", null, "Enfield"]);
+    expect(compactEstablishment({ ...ESTABLISHMENT, RatingValue: "Exempt", RatingDate: "1901-01-01" })).toEqual([
+      "Exempt",
       null,
       "Enfield",
     ]);

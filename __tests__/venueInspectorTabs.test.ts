@@ -14,7 +14,7 @@ describe("venueInspectorTabs", () => {
     expect(BASE_TABS.map((tab) => tab.label)).toEqual([
       "Overview",
       "Photos",
-      "Drinks",
+      "Menu",
       "Stories",
       "Lore",
     ]);

@@ -113,7 +113,8 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     () => readPlanCapabilitySnapshot(planId),
     () => "|0|",
   );
-  const { token: memberToken } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const { token: memberToken, collaborationAuthorized } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const canUpdatePlan = Boolean(memberToken && collaborationAuthorized);
 
   useEffect(() => {
     if (!memberToken) void restorePlanCapability(planId).catch(() => undefined);
@@ -331,7 +332,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
   const runAction = useCallback(
     async (type: NightCrawlActionType) => {
-      if (busy || !hero) return;
+      if (busy || !hero || !canUpdatePlan) return;
       const stopPosition = hero.position;
       const heroName = hero.venueName;
       const previousCursor = cursor;
@@ -364,12 +365,8 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         setNote(settled.note);
       };
 
-      let token = memberToken;
-      if (!token) {
-        await restorePlanCapability(planId).catch(() => undefined);
-        token = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId)).token;
-      }
-      if (!token) {
+      const capability = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId));
+      if (!capability.token || !capability.collaborationAuthorized) {
         reconcile("forbidden");
         setBusy(null);
         return;
@@ -420,7 +417,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       reconcile("offline", stillQueued);
       setBusy(null);
     },
-    [busy, hero, cursor, stops, memberToken, planId, optimistic, handOffConfirmedStop],
+    [busy, hero, cursor, stops, canUpdatePlan, planId, optimistic, handOffConfirmedStop],
   );
 
   if (!activeNow) return null;
@@ -430,7 +427,9 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       <div className="nightCrawl__enter" role="region" aria-label="Night mode">
         <div className="nightCrawl__enterText">
           <p className="nightCrawl__enterKicker">It&rsquo;s on tonight</p>
-          <p className="nightCrawl__enterLede">Big buttons, one thumb. Track the crawl and check in as you go.</p>
+          <p className="nightCrawl__enterLede">{canUpdatePlan
+            ? "Big buttons, one thumb. Track the crawl and check in as you go."
+            : "Follow the route and crew. The host or invited collaborators update the stops."}</p>
         </div>
         <button type="button" className="nightCrawl__enterBtn" onClick={engage}>
           Night mode
@@ -514,7 +513,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                   </div>
                 ) : null}
 
-                <div className="nightCrawl__actions">
+                {canUpdatePlan ? <div className="nightCrawl__actions">
                   <button
                     type="button"
                     className="nightCrawl__arrive"
@@ -533,7 +532,9 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                     Skip it
                     <small>{finalStop ? "wrap the crawl" : "jump to the next"}</small>
                   </button>
-                </div>
+                </div> : <p className="nightCrawl__note" data-tone="guidance">
+                  Follow the route here. The host or invited collaborators can check in and skip stops.
+                </p>}
 
                 {note ? (
                   <p className="nightCrawl__note" data-tone={note.tone} role="status" aria-live="polite">

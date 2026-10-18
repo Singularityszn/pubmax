@@ -22,6 +22,7 @@ import PalExperience from "@/components/pal/PalExperience";
 import {
   anonymousPalDraftOwner,
   DEFAULT_PAL_DRAFT,
+  readPalOnboardingDraft,
   writePalOnboardingDraft,
   type PubPal,
 } from "@/lib/pubPal";
@@ -70,6 +71,36 @@ afterEach(async () => {
 });
 
 describe("Pub Pal first meeting and onboarding", () => {
+  it("keeps saved character settings without offering controls that cannot change replies", async () => {
+    await act(async () => root?.unmount());
+    const owner = anonymousPalDraftOwner();
+    const personality = { relationship: "confidant" as const, playfulness: 12, energy: 34, storytelling: 56 };
+    writePalOnboardingDraft(owner, {
+      step: 3,
+      draft: { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Moss", personality },
+      privacy: { proposeMemories: false, visible: true, muted: false },
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    expect(container.textContent).toContain("Choose a voice.");
+    expect(container.textContent).toContain("Character settings do not change replies yet.");
+    expect(container.querySelector('input[type="range"]')).toBeNull();
+    expect([...container.querySelectorAll("legend")].map((legend) => legend.textContent)).not.toContain("Relationship");
+    await act(async () => buttonContaining("Velvet").click());
+    await settle();
+    expect(buttonContaining("Velvet").getAttribute("aria-pressed")).toBe("true");
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(readPalOnboardingDraft(owner)?.draft.personality).toEqual(personality);
+    expect(readPalOnboardingDraft(owner)?.draft.voice.id).toBe("velvet");
+    await act(async () => buttonContaining("Continue").click());
+    await settle();
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(container.textContent).not.toContain("Relationship");
+    expect(readPalOnboardingDraft(owner)?.draft.personality).toEqual(personality);
+  });
+
   it("lets a fresh visitor meet Pub Pal before making a Crawl Route", () => {
     const image = container.querySelector<HTMLImageElement>('img[alt="Pub Pal"]');
     expect(image?.src).toContain("/pal/circuit-robin-");
@@ -451,5 +482,14 @@ describe("Pub Pal when the browser refuses storage", () => {
     await settle();
     expect(patches).toBe(2);
     expect(buttonContaining("Voice allowed").getAttribute("aria-pressed")).toBe("false");
+
+    // A Pal saved before the taste key existed reads as on.
+    expect(buttonContaining("Taste read on").getAttribute("aria-pressed")).toBe("true");
+    await act(async () => buttonContaining("Taste read on").click());
+    await settle();
+    expect(patches).toBe(3);
+    expect(pal.proposalPreferences).toEqual({ memories: false, routes: true, taste: false });
+    expect(buttonContaining("Taste read off").getAttribute("aria-pressed")).toBe("false");
+    expect(buttonContaining("Pal won't read your diary, drops or saves")).toBeTruthy();
   });
 });

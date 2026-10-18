@@ -13,7 +13,7 @@ import SignInButton from "@/components/auth/SignInButton";
 
 const authState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("next/dynamic", () => ({

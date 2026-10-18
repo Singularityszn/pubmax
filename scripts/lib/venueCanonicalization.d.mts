@@ -23,6 +23,7 @@ export interface CanonicalizationStats {
   duplicateClusters: number;
   mergedRecords: number;
   venueIdentitiesAfter: number;
+  borrowedWebsitesCleared: number;
 }
 
 export interface CanonicalizationResult<T> {
@@ -31,6 +32,14 @@ export interface CanonicalizationResult<T> {
   clusters: CanonicalizationCluster[];
   stats: CanonicalizationStats;
 }
+
+export const VERIFIED_MISPLACED_RECORDS: ReadonlyArray<
+  Readonly<{ from: string; to: string }>
+>;
+
+export const VERIFIED_BORROWED_WEBSITES: ReadonlyArray<
+  Readonly<{ site: string; ownerPostcode: string }>
+>;
 
 export function normaliseVenueKeyPart(value: unknown): string;
 export function venueGroupingKey(row: CanonicalizationRow): string;

@@ -27,6 +27,8 @@ describe("Social post submission boundary", () => {
       },
       photoAltText: "Alice outside the Venue",
       tagHandles: ["bob", "carol"],
+      reviewRating: null,
+      video: null,
     });
   });
 

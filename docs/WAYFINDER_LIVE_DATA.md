@@ -44,11 +44,12 @@ page, official API, open data) supports.
 | **Buzz digest** | CityMCP `get_place` deep synthesis | `app/api/citymcp/buzz` per request | Live but **content is EXA-blocked upstream** — returns `{buzz:null}` when CityMCP has no digest | none locally; upstream EXA-gated | Live | live |
 | **TfL line geometry / London POIs** | Curated GeoJSON | Manual | Static | none | Rarely changes | untracked (static) |
 | **Street walks to stations (Zone 1)** | Overture Maps streets (OSM, ODbL) through city2graph, pinned release | Manual `uv run scripts/build_station_walk_access.py --entrances <NaPTAN Stops.csv>` writes `data/station_walk_access.json` (walks end at the nearest NaPTAN entrance; without the flag, at the station point); `/api/last-train` reads it to pick the shortest street walk among TfL's first five stations and to walk the leave-by clock along the streets within 1 km of any Zone 1 station, and says `walkBasis: "straight"` everywhere else | Static | none | Rarely changes | untracked (static) |
+| **Street walks between curated pubs (Zone 1)** | Same street graph and build as the station walks | The same build writes `data/pub_walk_pairs.json`: every pair of curated pubs inside the street-walk area within 1.6 km in a straight line. The plan optimiser (`lib/planRouteOptimizer.ts`, through `lib/pubWalkPairs.server.ts`) applies its leg and route caps and its visit windows to the street walk; a pair the table does not hold keeps the straight line. OpenRouteService still refines the chosen legs afterwards | Static | none | Rebuild when the curated venue index changes | untracked (static) |
 
 **Not a class in this table: historical pint prices.** `public/data/price_history/london.json`
 is dated evidence about the past, so it has no cadence and no staleness budget to
 breach, and it is deliberately absent from `data/freshness_registry.json` rather
-than registered as `static`. It may never reach a current-price surface at all.
+than registered as `static`. It may never supply a current price.
 Its contract is owned by
 [`public/data/price_history/README.md`](../public/data/price_history/README.md).
 
@@ -173,8 +174,8 @@ their own headings: data that is over budget and data whose age could not be
 measured are different findings with different owners. A dataset named in
 `ADVISORY_STALE_IDS` (today `area_news` and `google_places_content`) still reports `stale` but prints
 as an advisory warning and never fails the exit. A dataset in `TEMPORARY_ADVISORY_UNTIL`
-(today `late_food_evidence`, until 2026-11-16 00:00 UTC) warns the same way only until
-its lapse, and from then on a stale finding fails the exit. This is the owner/ad-hoc gate.
+(none today) warns the same way only until its lapse, and from then on a stale finding
+fails the exit. This is the owner/ad-hoc gate.
 Plain Node ESM, dependency-free — it mirrors `lib/freshness.ts`'s tiny rules the
 same way `validate-data.mjs` mirrors the app's row rules.
 

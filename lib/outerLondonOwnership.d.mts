@@ -15,4 +15,5 @@ export interface OuterLondonPub {
 export function outerLondonOwnerForPub(
   pub: OuterLondonPub,
   curatedVenues: OuterLondonCuratedVenue[],
+  venueAliases?: Readonly<Record<string, string>>,
 ): string | null;

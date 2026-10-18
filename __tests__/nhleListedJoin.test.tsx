@@ -19,7 +19,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildListings, serialise } from "@/scripts/build_heritage_listings.mjs";
-import { baseVenueIdFor, londonBaseVenues } from "@/scripts/lib/heritageBaseVenues.mjs";
+import { baseRowOwners, baseVenueIdFor, LONDON_BOX, londonBaseVenues } from "@/scripts/lib/heritageBaseVenues.mjs";
 import { heritageReadLabel, sanitizeHeritageFacts } from "@/lib/heritageFacts";
 import { resolveObservedAt } from "@/lib/freshness";
 import { getListedBuilding } from "@/lib/heritageListings";
@@ -47,6 +47,50 @@ describe("the London base pubs the join reads", () => {
     ]);
     expect(baseVenueIdFor("relation/9")).toBe("venue-uk-r9");
     expect(baseVenueIdFor("node/0")).toBeNull();
+  });
+
+  it("leaves out a base pub the base layer gives to a curated venue", () => {
+    const ownedBy = baseRowOwners([
+      {
+        pubs: [
+          ["n1", "Masons Arms", "", 51.5, -0.1, "venue-jjzydh"],
+          ["w2", "The Crown", "", 51.51, -0.12, ""],
+          ["n7", "A Bar", "", 51.5, -0.1, "", "bar"],
+        ],
+      },
+      { pubs: "not rows" },
+    ]);
+    expect([...ownedBy]).toEqual([["n1", "venue-jjzydh"]]);
+    const venues = londonBaseVenues(
+      [
+        { osmId: "node/1", amenity: "pub", name: "Masons Arms", lat: 51.5, lng: -0.1 },
+        { osmId: "way/2", amenity: "pub", name: "The Crown", lat: 51.51, lng: -0.12 },
+      ],
+      { ownedBy },
+    );
+    expect(venues.map((venue) => venue.id)).toEqual(["venue-uk-w2"]);
+  });
+
+  it("never lists a building under a base pin the map hides behind a curated pin it also lists", () => {
+    const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+    const manifest = JSON.parse(readFileSync(join(ROOT, "public/data/uk_base/manifest.json"), "utf8"));
+    const prefix = String(manifest.urlPrefix).replace(/^\/+/, "");
+    const owners = baseRowOwners(
+      manifest.shards
+        .filter(
+          ({ bbox: [minLng = 0, minLat = 0, maxLng = 0, maxLat = 0] }: { bbox: number[] }) =>
+            minLng < LONDON_BOX.maxLng &&
+            maxLng > LONDON_BOX.minLng &&
+            minLat < LONDON_BOX.maxLat &&
+            maxLat > LONDON_BOX.minLat,
+        )
+        .map(({ id }: { id: string }) => JSON.parse(readFileSync(join(ROOT, "public", prefix, `${id}.json`), "utf8"))),
+    );
+    const doubled = Object.keys(pack.listings).filter((id) => {
+      const owner = id.startsWith("venue-uk-") ? owners.get(id.slice("venue-uk-".length)) : undefined;
+      return owner !== undefined && owner in pack.listings;
+    });
+    expect(doubled).toEqual([]);
   });
 
   it("is a few thousand pubs in the committed snapshot", () => {

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+  "observedAt": "2026-10-17T12:39:45.068Z",
+  "evidence": "Old Mout Cider Berries&Cherries 4% £7.10 Krombacher Pils 0% £5.50 Old Mout Cider Kiwi&Lime 4% £7.10 Softs Drinks Juices :Orange,Apple,Craberry,Pineapple £3.85 Coca Cola,Diet Coke,Schweppes Lemonade £3.85 Fentiamans :Elderflower,Ginger Beer, Rose lemonade, Raspberry lemonade,Victorian lemonade, Mandarin&Orange £4.00 Fever Tree: Ginger Beer,Tonic, Ginger Ale £3.45 Snacks Our range of snacks is sourced from suppliers w",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "stonemasonsarms.co.uk",
+      "venueId": "venue-uk-w972149539",
+      "osmId": "way/972149539",
+      "name": "The Stonemasons Arms",
+      "postcode": "W6 0LA",
+      "lat": 51.4943846,
+      "lng": -0.2301509,
+      "category": "soft-drink",
+      "priceGbp": 3.85,
+      "drinkLabel": "Coca Cola,Diet Coke,Schweppes Lemonade",
+      "sourceUrl": "https://stonemasonsarms.co.uk/wp-content/uploads/2026/05/Stonemasons-Drinks-Menu-April-2026.pdf",
+      "observedAt": "2026-10-17T12:39:45.068Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 50
+    }
+  ]
+}

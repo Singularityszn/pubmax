@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "sourceUrl": "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
+  "observedAt": "2026-10-17T12:45:20.608Z",
+  "evidence": "elderflower spring water £3.00 Root Beer £4.50 Dalston Real Lemonade £3.00 Dalston Ginger Beer £3.00 Coca Cola 330ml bottle £3.85 Diet Coke 330ml bottle £3.65 Coke Zero 330ml bottle £3.65 Fever Tree Mixers £3.10 Indian Tonic, Light Tonic, Bitter Lemon, Cucumber Tonic, Elderflower Tonic DRAUGHT Glowfly Best Bitter 4.1% £5.80 £2.90 Geekhunter Extra Pale Ale 3.5% £5.50 £2.75 Guinness 4.2% £7.20 £3.60 Tiny Rebel Clwb Tr",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "thewellshampstead.co.uk",
+      "venueId": "venue-uk-w553138189",
+      "osmId": "way/553138189",
+      "name": "The Wells Tavern",
+      "postcode": "NW3 1BX",
+      "lat": 51.5587201,
+      "lng": -0.1736006,
+      "category": "soft-drink",
+      "priceGbp": 3.65,
+      "drinkLabel": "Coke Zero 330ml bottle",
+      "sourceUrl": "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
+      "observedAt": "2026-10-17T12:45:20.608Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 51
+    },
+    {
+      "host": "thewellshampstead.co.uk",
+      "venueId": "venue-uk-w553138189",
+      "osmId": "way/553138189",
+      "name": "The Wells Tavern",
+      "postcode": "NW3 1BX",
+      "lat": 51.5587201,
+      "lng": -0.1736006,
+      "category": "soft-drink",
+      "priceGbp": 3.65,
+      "drinkLabel": "Diet Coke 330ml bottle",
+      "sourceUrl": "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
+      "observedAt": "2026-10-17T12:45:20.608Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 51
+    }
+  ]
+}

@@ -20,6 +20,15 @@
   max-width: 100%;
 }
 
+/* At the large text scale the head is five lines of display type, and on a
+   320x568 phone Sign in finishes a few px above the tab bar
+   (e2e/consent-after-first-answer.spec.ts). The bar pays its own top gap now
+   (components/nav/siteNav.css), 10px this page used to go without, so at that
+   scale the head gives the same 10px back from its own top padding. */
+html[data-text-scale="large"] .socialPage .screenHead {
+  padding-top: calc(var(--space-6) - var(--topbar-gap, 10px));
+}
+
 /* The Screen paints the one primary; while the session or the access answer
    is still open that control waits rather than routing anybody anywhere. */
 .socialPage .screenPrimary > button:disabled {
@@ -99,15 +108,18 @@
   border-left: 1px solid var(--line);
 }
 
+/* A selection is not an action, so the tab you are on reads in ink, never a
+   coral tint (docs/DESIGN_SYSTEM.md "Coral is spent twice"): the page's one
+   coral is its Sign in or Post primary just above this switcher. */
 .socialSwitcher a[aria-current="page"],
 .socialLaneNav a[aria-current="page"] {
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--ink);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .socialSwitcher a:hover,
 .socialLaneNav a:hover {
-  background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
+  background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
   color: var(--ink);
 }
 
@@ -184,14 +196,22 @@
   gap: 14px;
 }
 
+/* A post reads like a photo app's: who and where on top, the picture edge to
+   edge, the actions under it, then the words. Everything but the picture sits
+   on one 14px inset. */
 .socialPostCard {
   min-width: 0;
-  padding: 18px;
+  padding: 0 0 12px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--panel-raised);
   box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
   overflow-wrap: anywhere;
+}
+
+.socialPostCard > :not(.socialPostPhoto, .socialPostVideo, .socialPostCarousel) {
+  margin-inline: 14px;
 }
 
 .socialPostMeta,
@@ -204,8 +224,34 @@
 }
 
 .socialPostMeta {
+  flex-wrap: nowrap;
+  min-height: 60px;
   color: var(--ink-soft);
   font-size: 0.8125rem;
+}
+
+.socialPostMeta__who {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.socialPostMeta__place {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.socialPostMeta__place a {
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.socialPostMeta__place a:hover {
+  text-decoration: underline;
 }
 
 /* Face and handle sit together on the left and the time on the right. With
@@ -218,8 +264,8 @@
 /* The author's face: a circle, photo or initial, the size the header gives it. */
 .socialPostAvatar {
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -249,21 +295,27 @@ span.socialPostAvatar {
 }
 
 .socialPostBody {
-  margin: 14px 0;
+  margin-block: 8px 0;
   line-height: 1.55;
   white-space: pre-wrap;
 }
 
 .socialPostPhoto {
-  margin: 14px 0;
+  margin: 0;
 }
 
+/* The photo app's portrait frame: 4:5, edge to edge, cropped to fill. */
 .socialPostPhoto img {
   display: block;
   width: 100%;
-  max-height: 560px;
-  border-radius: 14px;
+  aspect-ratio: 4 / 5;
+  max-height: 640px;
   object-fit: cover;
+  background: var(--panel);
+}
+
+.socialPostPhoto figcaption {
+  margin-inline: 14px;
 }
 
 .socialPostPhoto figcaption,
@@ -271,6 +323,26 @@ span.socialPostAvatar {
   margin: 8px 0 0;
   color: var(--ink-soft);
   font-size: 0.8125rem;
+}
+
+/* Why this post: a quiet disclosure under the post, closed by default. The
+   summary is a full tap target; the lines inside read like the edited note. */
+.socialPostWhy {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialPostWhy summary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.socialPostWhy p {
+  margin: 0 0 6px;
+  line-height: 1.45;
 }
 
 .socialPostKind {
@@ -1273,4 +1345,733 @@ span.socialPostAvatar {
 .socialFoundersLink:hover,
 .socialFoundersLink:focus-visible {
   color: var(--ink);
+}
+
+/* The action row: four 44px targets, save and report pushed to the end. */
+.socialPostActions__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline: -8px;
+  padding-top: 4px;
+}
+
+.socialPostAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--control-radius, 12px);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.socialPostAction--end {
+  margin-left: auto;
+}
+
+.socialPostAction[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+
+.socialPostAction:disabled {
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialPostAction:not(:disabled):hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+}
+
+.socialPostAction:focus-visible,
+.socialPostReport button:focus-visible,
+.socialPostComments button:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+.socialPostReport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 4px 8px;
+}
+
+.socialPostReport button,
+.socialPostComments__form button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 12px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.socialPostActions__notice {
+  margin: 4px 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialPostComments {
+  display: grid;
+  gap: 8px;
+  margin-block: 4px;
+  font-size: 0.875rem;
+}
+
+.socialPostComments ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialPostComments time {
+  margin-left: 6px;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.socialPostComments__empty {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.socialPostComments__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.socialPostComments__form {
+  display: flex;
+  gap: 8px;
+}
+
+.socialPostComments__form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 12px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.socialPostReview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-block: 2px 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.socialReviewEditor {
+  display: grid;
+  gap: 6px;
+}
+
+.socialReviewEditor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.socialReviewEditor__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.socialComposer .socialReviewEditor__row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--ink);
+}
+
+.socialComposer .socialReviewEditor__row input[data-unscored="true"] {
+  opacity: 0.55;
+}
+
+.socialReviewEditor__hint {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialReviewEditor__clear {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--river);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+/* Your pubs, ranked: a numbered list, the place in the data face. */
+.pubRanking {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.pubRanking h2 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.pubRanking ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pubRanking li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-top: 1px solid var(--line);
+}
+
+.pubRanking li:first-child {
+  border-top: 0;
+}
+
+.pubRanking__place {
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pubRanking__name {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pubRanking__empty {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.pubRanking__more {
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--river);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+/* Below the desktop grid a reader meets the feed straight after the lanes,
+   the way a photo app opens: switcher, lanes and your own pending posts first,
+   then the posts, then crews, rankings and the invite surface. The rail keeps
+   its landmark; only its box steps aside so its children can be ordered with
+   the feed. Only once the feed is on the page: the signed-out door keeps its
+   rail-first order. */
+@media (max-width: 1023px) {
+  .socialLayout:has(.socialPostList) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .socialLayout:has(.socialPostList) > .socialControlRail {
+    display: contents;
+  }
+
+  .socialLayout:has(.socialPostList) > .socialControlRail > * {
+    order: 2;
+  }
+
+  .socialLayout:has(.socialPostList) > .socialControlRail > :is(.socialSwitcher, .socialLaneNav, .socialAreaField, .socialTagInbox, .socialOutbox) {
+    order: 0;
+  }
+
+  .socialLayout:has(.socialPostList) > :not(.socialControlRail) {
+    order: 1;
+  }
+}
+
+/* A photo feed reads at a phone's width even on a wide screen. */
+.socialPostList {
+  max-width: 560px;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.socialPostCard .socialPostPhoto figcaption {
+  margin: 8px 14px 0;
+}
+
+/* A reel in the feed: portrait 4:5 like a photo, the full clip one tap away. */
+.socialPostVideo {
+  position: relative;
+  margin: 0;
+  background: #000;
+}
+
+.socialPostVideo video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 640px;
+  object-fit: cover;
+}
+
+.socialPostVideo__open {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  color: #fff;
+  font: inherit;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.socialPostVideo__held {
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialVideoHint {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialComposerVideoPreview {
+  margin: 8px 0 0;
+}
+
+.socialComposerVideoPreview video {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border-radius: 12px;
+  background: #000;
+}
+
+.socialComposerVideoPreview figcaption {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+}
+
+.socialReelsEntry {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.socialReelsEntry span {
+  font-family: var(--font-data);
+  color: var(--ink-soft);
+}
+
+/* Reels: full screen, one clip per swipe, white type over a scrim. The
+   viewer is always dark, whatever the page theme, because it is a screen
+   of video. */
+.reels {
+  position: fixed;
+  inset: 0;
+  /* Over the tab bar and the create action, under only the splash. */
+  z-index: calc(var(--z-tabbar) + 10);
+  background: #000;
+  color: #fff;
+}
+
+.reels__track {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+}
+
+.reels__slide {
+  position: relative;
+  display: grid;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.reels__slide video {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.reels__caption {
+  grid-area: 1 / 1;
+  align-self: end;
+  display: grid;
+  gap: 4px;
+  max-width: 560px;
+  padding: 48px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, color-mix(in srgb, #000 78%, transparent), transparent);
+}
+
+.reels__handle,
+.reels__place a {
+  color: #fff;
+  font-weight: 700;
+}
+
+.reels__handle {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+}
+
+.reels__place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.reels__place .reviewStars {
+  color: #fff;
+}
+
+.reels__place .reviewStars__empty {
+  color: color-mix(in srgb, #fff 40%, transparent);
+}
+
+.reels__body {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.reels__chrome {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 12px;
+  left: 12px;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.reels__button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 55%, transparent);
+  color: #fff;
+  pointer-events: auto;
+}
+
+.reels__button:focus-visible,
+.socialPostVideo__open:focus-visible,
+.socialReelsEntry:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+/* Yours / Your lot's: the house segmented control, a recessed track with the
+   chosen half raised in ink (never coral). */
+.pubRanking__switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 4px;
+  padding: 2px;
+  border-radius: var(--control-radius, 12px);
+  background: var(--panel);
+}
+
+.pubRanking__switch button {
+  min-height: 44px;
+  border: 0;
+  border-radius: calc(var(--control-radius, 12px) - 2px);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.pubRanking__switch button[aria-checked="true"] {
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.pubRanking__switch button:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+.pubRanking__what {
+  display: grid;
+  min-width: 0;
+}
+
+.pubRanking__note {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Up to four photos, one frame at a time, swiped sideways. */
+.socialPostCarousel {
+  position: relative;
+  margin: 0;
+}
+
+.socialPostCarousel__track {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.socialPostCarousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.socialPostCarousel__slide {
+  position: relative;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.socialPostCarousel__slide img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 640px;
+  object-fit: cover;
+  background: var(--panel);
+}
+
+.socialPostCarousel__held {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.socialPostCarousel__arrow {
+  position: absolute;
+  top: 50%;
+  display: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-50%);
+}
+
+.socialPostCarousel__arrow--prev {
+  left: 10px;
+}
+
+.socialPostCarousel__arrow--next {
+  right: 10px;
+}
+
+.socialPostCarousel__arrow:disabled {
+  visibility: hidden;
+}
+
+.socialPostCarousel__arrow:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .socialPostCarousel__arrow {
+    display: grid;
+  }
+}
+
+.socialPostCarousel__dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 0 0;
+}
+
+.socialPostCarousel__dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.socialPostCarousel__dots span[data-active="true"] {
+  background: var(--ink);
+}
+
+.socialPostCarousel__count {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.socialPostCarousel figcaption {
+  margin: 8px 14px 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.socialExtraPhotos {
+  display: grid;
+  gap: 8px;
+}
+
+.socialExtraPhotos__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialExtraPhotos__list li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 10px;
+}
+
+.socialExtraPhotos__list img {
+  grid-row: span 2;
+  width: 64px;
+  height: 80px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.pubRanking__score {
+  min-width: 36px;
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pubRanking__rank {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 12px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.pubRanking__rank:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
 }

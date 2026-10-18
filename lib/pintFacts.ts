@@ -12,7 +12,7 @@
 // user, so the fact block's "average pint" and "cheapest pint" line up exactly
 // with the visible ranking rather than introducing a second, confusing figure.
 
-import { formatObservedDate } from "@/lib/dataFreshness";
+import { formatMonthYear, formatObservedDate } from "@/lib/dataFreshness";
 import { oldestPintRead, venueCheapestPintObservedAt, type LegacyPintPrice } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 
@@ -49,6 +49,11 @@ export type PintFactStats = {
   maxPubName: string | null;
   /** When that dearest cheapest-pint was last read at its source. null when it records no read. */
   maxObservedAt: string | null;
+  /** The earliest and latest reads among the priced pubs' cheapest pints; null when none records a read. */
+  oldestObservedAt: string | null;
+  newestObservedAt: string | null;
+  /** Priced pubs whose cheapest pint records no read. */
+  undatedCount: number;
 };
 
 // Round a mean to pence for display/serialisation. Kept separate so tests can
@@ -86,6 +91,9 @@ export function pintFactStats(
     maxGbp: null,
     maxPubName: null,
     maxObservedAt: null,
+    oldestObservedAt: null,
+    newestObservedAt: null,
+    undatedCount: 0,
   };
   const [first] = priced;
   if (!first) return base;
@@ -93,8 +101,16 @@ export function pintFactStats(
   let min = first;
   let max = first;
   let sum = 0;
+  let oldest: string | null = null;
+  let newest: string | null = null;
+  let undated = 0;
   for (const pub of priced) {
     sum += pub.price;
+    if (!pub.observedAt) undated += 1;
+    else {
+      if (oldest === null || pub.observedAt < oldest) oldest = pub.observedAt;
+      if (newest === null || pub.observedAt > newest) newest = pub.observedAt;
+    }
     if (
       pub.price < min.price ||
       (pub.price === min.price && pub.name.localeCompare(min.name) < 0)
@@ -118,7 +134,31 @@ export function pintFactStats(
     maxGbp: max.price,
     maxPubName: max.name,
     maxObservedAt: max.observedAt,
+    oldestObservedAt: oldest,
+    newestObservedAt: newest,
+    undatedCount: undated,
   };
+}
+
+// The average is dated by the reads of the prices it averages, never by the day
+// the pub list was last refreshed: a re-collection does not re-read every row,
+// so "As of October" over prices read in July claims a month they were not read.
+function averageSentence(stats: PintFactStats): string {
+  const { name } = stats;
+  const figure = `the average pint in ${name} costs ${formatPrice(stats.averageGbp)} across ${stats.pubCount} tracked ${plural(stats.pubCount, "pub")}.`;
+  let sentence: string;
+  if (stats.oldestObservedAt && stats.newestObservedAt) {
+    const from = formatMonthYear(new Date(stats.oldestObservedAt));
+    const to = formatMonthYear(new Date(stats.newestObservedAt));
+    sentence = from === to ? `As of ${to}, ${figure}` : `From prices read between ${from} and ${to}, ${figure}`;
+  } else {
+    sentence = `T${figure.slice(1)}`;
+  }
+  if (stats.undatedCount === 0) return sentence;
+  if (stats.undatedCount === stats.pubCount) {
+    return `${sentence} ${stats.pubCount === 1 ? "That price records" : "Those prices record"} no read date.`;
+  }
+  return `${sentence} ${stats.undatedCount} of those prices ${stats.undatedCount === 1 ? "records" : "record"} no read date.`;
 }
 
 /** True when the area has at least one priced pub — the block/FAQ can render. */
@@ -135,10 +175,9 @@ export function factBlockSentences(
 ): string[] {
   if (!hasFactData(stats)) return [];
   const { name } = stats;
-  const avg = formatPrice(stats.averageGbp);
   const min = formatPrice(stats.minGbp);
   const sentences: string[] = [
-    `As of ${opts.monthYear}, the average pint in ${name} costs ${avg} across ${stats.pubCount} tracked ${plural(stats.pubCount, "pub")}.`,
+    averageSentence(stats),
     `The cheapest tracked pint is ${min} at ${stats.minPubName}.`,
   ];
   // Range only reads honestly when min and max actually differ.
@@ -189,9 +228,7 @@ export function faqItems(
   if (stats.averageGbp !== null) {
     items.push({
       question: `How much is a pint in ${name} in ${opts.year}?`,
-      answer: `As of ${opts.monthYear}, the average pint in ${name} costs ${formatPrice(
-        stats.averageGbp,
-      )} across ${stats.pubCount} tracked ${plural(stats.pubCount, "pub")}.`,
+      answer: averageSentence(stats),
     });
   }
 
