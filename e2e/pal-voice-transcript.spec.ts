@@ -117,7 +117,17 @@ for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {
     await mkdir(SHOTS, { recursive: true });
     const socket = await openLiveVoice(page);
 
+    // The portrait is a 3D head that lifts and nods on the Pal's own voice.
+    // Off screen its loop sleeps, so the head is brought into view first.
+    const head = page.locator(".palHomePortrait");
+    await head.scrollIntoViewIfNeeded();
+    await expect(head).toHaveAttribute("data-head-3d", "live");
     say(socket, "Evening. I'm Ripley. Tell me the night you want and I'll find it.");
+    await expect.poll(
+      () => head.evaluate((element) => Number.parseFloat(getComputedStyle(element).getPropertyValue("--pal-lift")) || 0),
+      { timeout: 5_000, intervals: [50] },
+    ).toBeGreaterThan(0.5);
+    await head.screenshot({ path: `${SHOTS}/${width}-0-head-speaking.png` });
     const log = page.getByRole("log", { name: "Voice chat transcript" });
     await expect(log.locator(".palVoiceLine--pal")).toContainText("Tell me the night you want");
     await expect(page.locator(".palVoice")).toHaveAttribute("data-mode", "speaking");
@@ -160,4 +170,16 @@ test("Stay here keeps the person on the Pal, and the Pal's own words never open 
   await page.waitForTimeout(2_000);
   await expect(page).toHaveURL(/\/pal$/);
   await expect(page.locator(".palVoiceMapCard")).toHaveCount(0);
+});
+
+test("the head stays a still photograph under reduced motion", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const socket = await openLiveVoice(page);
+  say(socket, "Evening.");
+  await expect(page.getByRole("log", { name: "Voice chat transcript" })).toContainText("Evening.");
+  const head = page.locator(".palHomePortrait");
+  await expect(head).not.toHaveAttribute("data-head-3d", "live");
+  await expect(head.locator(".palPortrait")).toHaveCSS("transform", "none");
 });

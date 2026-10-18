@@ -7,6 +7,7 @@ import { Send } from "lucide-react";
 
 import { discardBody } from "@/lib/responseBody";
 import type { PalAnimationState } from "@/lib/pubPal";
+import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 
 // The session half carries the ElevenLabs SDK, so it is fetched when the probe
 // says voice is on and never before. ssr:false because there is nothing to
@@ -130,9 +131,10 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-function VoiceAvailabilityGate({ onStateChange, palName }: {
+function VoiceAvailabilityGate({ onStateChange, palName, signal }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
+  signal?: PalVoiceSignal;
 }) {
   const availability = useVoiceAvailability();
 
@@ -155,19 +157,22 @@ function VoiceAvailabilityGate({ onStateChange, palName }: {
 
   if (availability === "unavailable") return <PalVoiceOffline />;
 
-  return <PubPalVoiceSession onStateChange={onStateChange} palName={palName} />;
+  return <PubPalVoiceSession onStateChange={onStateChange} palName={palName} signal={signal} />;
 }
 
 export default function PubPalVoice({
   muted = false,
   onStateChange,
   palName,
+  signal,
 }: {
   muted?: boolean;
   onStateChange?: (state: PalAnimationState) => void;
   /** The name the transcript prints beside the Pal's lines. */
   palName?: string;
+  /** Where the live levels go, so the portrait can react to the voice. */
+  signal?: PalVoiceSignal;
 }) {
   if (muted) return <PalVoiceMuted />;
-  return <VoiceAvailabilityGate onStateChange={onStateChange} palName={palName} />;
+  return <VoiceAvailabilityGate onStateChange={onStateChange} palName={palName} signal={signal} />;
 }

@@ -43,6 +43,8 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import { usePalHead3D } from "./usePalHead3D";
+import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
@@ -305,13 +307,18 @@ function PalHomeScreen({
 }) {
   const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
   const proposalPreferences = pal.proposalPreferences ?? { memories: true, routes: true };
+  // The voice panel publishes its live levels here and the portrait reads
+  // them, so the head turns, leans and nods with the conversation.
+  const [voiceSignal] = useState(createPalVoiceSignal);
+  const headRef = useRef<HTMLDivElement>(null);
+  usePalHead3D(headRef, { signal: voiceSignal, state: visiblePalState });
   return (
     <main id="main" className="palExperience palHome">
       <div className="palTopbar">
         <Link href="/map"><ArrowLeft size={17} /> Map</Link>
       </div>
       <section className="palHomeHero" aria-labelledby="pal-home-title">
-        <div className="palHomePortrait">
+        <div className="palHomePortrait" ref={headRef}>
           <PalPortrait appearance={pal.appearance} name={pal.name} state={visiblePalState} />
           <p className="palSpeech">{palStateSpeech[visiblePalState]}</p>
         </div>
@@ -320,7 +327,7 @@ function PalHomeScreen({
           <h1 id="pal-home-title" tabIndex={-1}>{pal.name}</h1>
           <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species}, set up for your nights out. You decide what it can do.</p>
           <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} />
+          <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} />
         </div>
       </section>
       <section className="palControls" aria-labelledby="pal-controls-title">

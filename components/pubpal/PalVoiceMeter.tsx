@@ -2,13 +2,15 @@
 
 import { useEffect, useRef } from "react";
 
+import type { PalVoiceSignalMode } from "@/lib/palVoiceSignal";
+
 // The live level under the voice panel's status line. It is the panel's proof
 // that the microphone is open and that the Pal is the one talking: the bars
 // follow the person's input level while the Pal listens and the Pal's own
 // output spectrum while it speaks. Nothing here is decoration, so with no live
 // session the bars rest flat, and under reduced motion they never animate.
 
-export type PalVoiceMeterMode = "idle" | "connecting" | "listening" | "speaking";
+export type PalVoiceMeterMode = PalVoiceSignalMode;
 
 const BAR_COUNT = 24;
 // Above this input level the person is taken to be talking. The hysteresis

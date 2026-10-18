@@ -67,6 +67,7 @@ import {
   tentativeUserTranscriptFrom,
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
+import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
@@ -148,7 +149,7 @@ type VoiceTranscript = {
   setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
 };
 
-function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript }: {
+function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal }: {
   onStateChange?: (state: PalAnimationState) => void;
   resetPendingSession: (error: string | null) => void;
   text: string;
@@ -157,6 +158,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   setError: (error: string | null) => void;
   palName: string;
   transcript: VoiceTranscript;
+  signal?: PalVoiceSignal;
 }) {
   const router = useRouter();
   const {
@@ -531,6 +533,13 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       ? isSpeaking ? "speaking" : "listening"
       : "idle";
 
+  // The portrait beside the panel reads the same levels the meter does.
+  useEffect(() => {
+    if (!signal) return;
+    signal.attach({ mode: meterMode, getInputVolume, getOutputByteFrequencyData });
+    return () => signal.attach(null);
+  }, [getInputVolume, getOutputByteFrequencyData, meterMode, signal]);
+
   return (
     <div className="palVoice" data-mode={meterMode}>
       <div className="palVoiceHead">
@@ -619,9 +628,11 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
 export default function PubPalVoiceSession({
   onStateChange,
   palName = "Pal",
+  signal,
 }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
+  signal?: PalVoiceSignal;
 }) {
   const [sdkGeneration, setSdkGeneration] = useState(0);
   // The transcript outlives an SDK reset and a session that ended, so the
@@ -645,6 +656,7 @@ export default function PubPalVoiceSession({
         setError={setError}
         palName={palName}
         transcript={{ lines, setLines }}
+        signal={signal}
       />
     </ConversationProvider>
   );
