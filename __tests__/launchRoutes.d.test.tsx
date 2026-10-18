@@ -312,7 +312,7 @@ describe("launch routes (group d) carry one primary action", () => {
     );
     expect(primaryCount(rendered)).toBe(1);
     expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/map\?log=1"[^>]*>Drop a pint<\/a>/);
-    expect(rendered).toContain('class="emptyStateTitle">No identity-backed totals yet');
+    expect(rendered).toContain('class="emptyStateTitle">The record starts with the first pint');
   });
 
   // A legal page has no action (docs/design/LAUNCH_SCREENS.md): a kicker and

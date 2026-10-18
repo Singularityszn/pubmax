@@ -269,7 +269,9 @@ export default function ActivityClient(): React.JSX.Element {
             />
           </div>
         ) : items.length === 0 ? (
-          <EmptyState title="Nothing's landed yet." action={<Link href="/social">Open Social</Link>}>
+          // No way onward of its own: the head's quiet "Find your lot" already
+          // goes to /social, and a second door to the same place is noise.
+          <EmptyState title="Nothing's landed yet.">
             When someone follows you, cheers a Pint Drop, leaves a comment or
             saves one of your crawls, it turns up here. Go give them a reason
             to.
