@@ -13,12 +13,12 @@
   --feed-glass: var(--panel-raised);
   --feed-glass-solid: var(--panel-raised);
   --feed-border: color-mix(in srgb, var(--line) 72%, var(--panel-raised) 28%);
-  --feed-coral-wash: color-mix(in srgb, var(--brass) 11%, var(--panel-raised));
+  --feed-ink-wash: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
   --feed-blue-wash: color-mix(in srgb, var(--river) 9%, var(--panel-raised));
   --feed-green-wash: color-mix(in srgb, var(--pint) 9%, var(--panel-raised));
   --feed-gold-wash: color-mix(in srgb, var(--amber) 12%, var(--panel-raised));
   --feed-shadow: 0 14px 32px color-mix(in srgb, var(--ink-deep) 10%, transparent),
-    0 6px 14px color-mix(in srgb, var(--brass) 8%, transparent);
+    0 6px 14px color-mix(in srgb, var(--ink-deep) 6%, transparent);
 
   /* iOS Safari scroll stability: `vh` resolves to the LARGE viewport and, worse,
      any `dvh` reflows as the URL bar collapses/expands mid-scroll — both make the
@@ -217,7 +217,7 @@
   padding: 7px 16px;
   border: 1px solid var(--line);
   border-radius: var(--control-radius);
-  background: var(--feed-coral-wash);
+  background: var(--feed-ink-wash);
   color: var(--color-text-muted);
   font-size: 0.8rem;
   font-weight: 700;
@@ -445,7 +445,7 @@
   gap: 10px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line-soft);
-  background: var(--feed-coral-wash);
+  background: var(--feed-ink-wash);
   color: var(--ink);
   font-size: 0.8rem;
   font-weight: 700;
@@ -652,7 +652,7 @@
   gap: 6px;
   aspect-ratio: 1.9;
   padding: 20px 20px;
-  background: linear-gradient(160deg, var(--feed-coral-wash) 0%, var(--feed-glass-solid) 68%);
+  background: linear-gradient(160deg, var(--feed-ink-wash) 0%, var(--feed-glass-solid) 68%);
   text-align: center;
 }
 
@@ -1890,7 +1890,7 @@
    normal (≥4.5) as small bold text on its tinted pill in light/dark/legacy
    (computed); the GLYPH + border keep the pure token hue. ════════════════════ */
 .feedCard {
-  --feed-cat: var(--brass);
+  --feed-cat: var(--ink-soft);
 }
 
 /* Left accent stripe — category-coloured card edge, only when categoryResolved. */
