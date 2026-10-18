@@ -69,6 +69,7 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
+import type { PalGenome } from "@/lib/palGenome";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
@@ -150,7 +151,7 @@ type VoiceTranscript = {
   setLines: Dispatch<SetStateAction<PalVoiceLine[]>>;
 };
 
-function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance }: {
+function VoiceControls({ onStateChange, resetPendingSession, text, setText, error, setError, palName, transcript, signal, appearance, genome }: {
   onStateChange?: (state: PalAnimationState) => void;
   resetPendingSession: (error: string | null) => void;
   text: string;
@@ -161,6 +162,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   transcript: VoiceTranscript;
   signal?: PalVoiceSignal;
   appearance?: PubPalAppearance;
+  genome?: PalGenome;
 }) {
   const router = useRouter();
   const {
@@ -550,7 +552,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   return (
     <div className="palVoice" data-mode={meterMode}>
       <div className="palVoiceHead">
-        {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} /> : null}
+        {appearance ? <PalVoiceFace appearance={appearance} signal={signal} state={faceState} genome={genome} /> : null}
         <div className="palVoiceStatus" role="status">
           <i className={live ? "isLive" : ""} />
           {isStarting
@@ -638,11 +640,13 @@ export default function PubPalVoiceSession({
   palName = "Pal",
   signal,
   appearance,
+  genome,
 }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
   signal?: PalVoiceSignal;
   appearance?: PubPalAppearance;
+  genome?: PalGenome;
 }) {
   const [sdkGeneration, setSdkGeneration] = useState(0);
   // The transcript outlives an SDK reset and a session that ended, so the
@@ -668,6 +672,7 @@ export default function PubPalVoiceSession({
         transcript={{ lines, setLines }}
         signal={signal}
         appearance={appearance}
+        genome={genome}
       />
     </ConversationProvider>
   );

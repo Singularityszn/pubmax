@@ -376,6 +376,23 @@ body:has(.palExperience) {
 @keyframes palVoiceDot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @keyframes palVoiceCountdown { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
+/* The Pal print beside the name: ink on the card, small, and gone while the
+   consent bar needs the phone's height. */
+.palPrintRow { margin-top: 1rem; display: flex; align-items: center; gap: .65rem; color: var(--color-text-muted); font-size: .82rem; line-height: 1.35; }
+.palPrint { width: 1.9rem; height: 1.9rem; flex: none; padding: .2rem; border-radius: .45rem; background: var(--panel); fill: var(--pal-paper); }
+body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
+
+/* The Pal genome (lib/palGenome.ts): how this Pal's photograph is held.
+   Which way it faces, how close and where it is framed, and the angle it
+   rests its head at. The photograph is never redrawn or recoloured; the zoom
+   never drops under 1.08, so a framing shift never shows its edge. */
+.palPortrait[data-genome] .palPortraitMascot img,
+.palVoiceFace[data-genome] .palVoiceFaceImg img {
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
+
 /* The head in 3D (components/pal/usePalHead3D.ts). The photograph itself
    turns, leans and nods; the glow behind it and the echo sit deeper and the
    accessory sits nearer, so a turn reads as a head and not a flat card. Set
@@ -405,7 +422,7 @@ body:has(.palExperience) {
   inset: 0;
   z-index: 2;
   border-radius: inherit;
-  background: radial-gradient(circle at var(--pal-sheen-x, 50%) var(--pal-sheen-y, 30%), rgb(255 255 255 / .2), transparent 55%);
+  background: radial-gradient(circle at calc(var(--genome-sheen-x, 50%) + var(--pal-sheen-dx, 0%)) calc(var(--genome-sheen-y, 30%) + var(--pal-sheen-dy, 0%)), rgb(255 255 255 / .2), transparent 55%);
   mix-blend-mode: soft-light;
   pointer-events: none;
 }

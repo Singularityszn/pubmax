@@ -3,6 +3,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import type { PalAnimationState } from "@/lib/pubPal";
+import type { PalTemperament } from "@/lib/palGenome";
 import type { PalVoiceSignal, PalVoiceSignalMode } from "@/lib/palVoiceSignal";
 
 // The Pal's head in 3D, from the photograph it already is.
@@ -32,6 +33,7 @@ type HeadPose = {
 };
 
 const REST: HeadPose = { yaw: 0, pitch: 0, roll: 0, lean: 0, lift: 0, scale: 1 };
+const EVEN_TEMPERAMENT: PalTemperament = { pace: 1, sway: 1, nod: 1, keen: 1 };
 const POINTER_IDLE_MS = 3_000;
 
 function voiceModeFor(state: PalAnimationState): PalVoiceSignalMode {
@@ -50,12 +52,16 @@ export function palHeadTarget(input: {
   state: PalAnimationState;
   heard: number;
   spoken: number;
+  /** The Pal genome's temperament; an even one when there is none. */
+  temperament?: PalTemperament;
 }): HeadPose {
   const { t, pointerX, pointerY, mode, state, heard, spoken } = input;
+  const { pace, sway, nod, keen } = input.temperament ?? EVEN_TEMPERAMENT;
   const pose: HeadPose = {
-    // A slow sway, so a still Pal still looks alive.
-    yaw: Math.sin(t * 0.5) * 4 + pointerX * 16,
-    pitch: Math.sin(t * 0.37) * 2 - pointerY * 10,
+    // A slow sway, so a still Pal still looks alive. Its speed and size are
+    // the Pal's own.
+    yaw: Math.sin(t * 0.5 * pace) * 4 * sway + pointerX * 16,
+    pitch: Math.sin(t * 0.37 * pace) * 2 * sway - pointerY * 10,
     roll: 0,
     lean: 0,
     lift: 0,
@@ -71,14 +77,14 @@ export function palHeadTarget(input: {
   }
   if (mode === "listening") {
     // Leans in, and perks up on each syllable it hears.
-    pose.lean = 14 + heard * 36;
-    pose.pitch += 4 + heard * 4;
-    pose.roll += Math.sin(t * 1.3) * 2 + heard * 6;
+    pose.lean = (14 + heard * 36) * keen;
+    pose.pitch += 4 + heard * 4 * keen;
+    pose.roll += Math.sin(t * 1.3 * pace) * 2 * sway + heard * 6 * keen;
   } else if (mode === "speaking") {
     pose.lift = spoken * 14;
     pose.scale = 1 + spoken * 0.05;
-    pose.pitch += Math.sin(t * 7) * spoken * 7;
-    pose.yaw += Math.sin(t * 3.1) * spoken * 4;
+    pose.pitch += Math.sin(t * 7 * pace) * spoken * 7 * nod;
+    pose.yaw += Math.sin(t * 3.1 * pace) * spoken * 4 * nod;
   } else if (mode === "connecting") {
     pose.lean = 8;
     pose.yaw += Math.sin(t * 2.4) * 6;
@@ -96,12 +102,18 @@ function prefersReducedMotion(): boolean {
 
 export function usePalHead3D(
   frameRef: RefObject<HTMLElement | null>,
-  { signal, state }: { signal?: PalVoiceSignal; state: PalAnimationState },
+  { signal, state, temperament }: {
+    signal?: PalVoiceSignal;
+    state: PalAnimationState;
+    temperament?: PalTemperament;
+  },
 ): void {
   const stateRef = useRef(state);
+  const temperamentRef = useRef(temperament);
   useEffect(() => {
     stateRef.current = state;
-  }, [state]);
+    temperamentRef.current = temperament;
+  }, [state, temperament]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -155,6 +167,7 @@ export function usePalHead3D(
         state: currentState,
         heard: levels?.input ?? 0,
         spoken,
+        temperament: temperamentRef.current,
       });
       // Angles ease; the speaking bob is quicker so it lands on the words.
       pose.yaw += (target.yaw - pose.yaw) * 0.12;
@@ -170,9 +183,10 @@ export function usePalHead3D(
       style.setProperty("--pal-lean", `${pose.lean.toFixed(1)}px`);
       style.setProperty("--pal-lift", `${pose.lift.toFixed(1)}px`);
       style.setProperty("--pal-scale", pose.scale.toFixed(3));
-      // The light stays put while the head turns, so its sheen slides across.
-      style.setProperty("--pal-sheen-x", `${(50 - pose.yaw * 2).toFixed(1)}%`);
-      style.setProperty("--pal-sheen-y", `${(30 + pose.pitch * 2).toFixed(1)}%`);
+      // The light stays put while the head turns, so its sheen slides across
+      // from where the genome says the light catches this Pal.
+      style.setProperty("--pal-sheen-dx", `${(-pose.yaw * 2).toFixed(1)}%`);
+      style.setProperty("--pal-sheen-dy", `${(pose.pitch * 2).toFixed(1)}%`);
       raf = window.requestAnimationFrame(tick);
     };
 
@@ -209,7 +223,7 @@ export function usePalHead3D(
       window.removeEventListener("deviceorientation", onTilt);
       document.removeEventListener("visibilitychange", onVisibility);
       frame.removeAttribute("data-head-3d");
-      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-x", "sheen-y"]) {
+      for (const name of ["yaw", "pitch", "roll", "lean", "lift", "scale", "sheen-dx", "sheen-dy"]) {
         frame.style.removeProperty(`--pal-${name}`);
       }
     };

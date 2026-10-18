@@ -6,6 +6,7 @@ import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { usePalHead3D } from "@/components/pal/usePalHead3D";
 import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
+import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 
 // The Pal's live head inside the voice panel. On a phone, starting voice chat
@@ -16,17 +17,24 @@ export default function PalVoiceFace({
   appearance,
   signal,
   state,
+  genome,
 }: {
   appearance: PubPalAppearance;
   signal?: PalVoiceSignal;
   state: PalAnimationState;
+  genome?: PalGenome;
 }) {
   const frameRef = useRef<HTMLSpanElement>(null);
-  usePalHead3D(frameRef, { signal, state });
+  usePalHead3D(frameRef, { signal, state, temperament: genome?.temperament });
   // A legacy species with no rendered master has no face to turn.
   if (!pubPalMascotSlugFor(appearance.species)) return null;
   return (
-    <span ref={frameRef} className="palVoiceFace" aria-hidden="true">
+    <span
+      ref={frameRef}
+      className="palVoiceFace"
+      aria-hidden="true"
+      {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
+    >
       <PubPalMascot species={appearance.species} size={56} circular decorative className="palVoiceFaceImg" />
     </span>
   );

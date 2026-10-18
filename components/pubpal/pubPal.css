@@ -102,6 +102,13 @@
 .pal-vodka {
   --pal-accent: #bfcaff;
 }
+/* The Pal genome (lib/palGenome.ts) holds the avatar the way it holds the
+   portrait: facing, framing and resting tilt, never a redraw. */
+.palAvatar[data-genome] .palAvatarMascot img {
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+}
 .palAvatar.isCompact .palHalo {
   inset: 0;
 }
