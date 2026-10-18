@@ -107,6 +107,7 @@ import {
   tonightEmptyLead,
   tonightHeldRowCount,
   tonightListingsNoteLine,
+  tonightMusicLaneObservedAt,
   tonightNoteOffersRetry,
   tonightPaintStatus,
   tonightPicksState,
@@ -580,13 +581,22 @@ export default function TonightClient({
   const secondaryHeroes = withoutTonightChainRows(
     groupedSecondaryAll.map((group) => group.row),
   );
+  // The music lane mixes What's-On and Out cards, so one stamp has to cover
+  // both reads, each dated by its own evidence (lib/tonightOutListings.ts).
+  const musicLaneObservedAt = useMemo(
+    () =>
+      tonightMusicLaneObservedAt({
+        rows: withoutTonightChainRows(groupedSecondaryAll.map((group) => group.row)),
+        outEvents: outBody?.events ?? [],
+        kindObservedAt,
+        outObservedAt: outBody?.observedAt,
+      }),
+    [groupedSecondaryAll, outBody, kindObservedAt],
+  );
   const secondaryLanes = (
     <>
       <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
-      {/* The music lane is dated by the MUSIC feed, never by the freshest thing
-          on the page: the deals feed is rebuilt far more often, and borrowing
-          its date would claim gigs were confirmed on a day nobody looked. */}
-      <MusicTonightLane rows={secondaryHeroes} asOf={kindObservedAt.music} />
+      <MusicTonightLane rows={secondaryHeroes} asOf={musicLaneObservedAt} />
     </>
   );
   const mobileLanes = mobileSecondaryLanes(secondaryLanes);
