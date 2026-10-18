@@ -1,5 +1,7 @@
 // The one write behind a Pal memory card: the person's own Confirm tap posts the
 // proposed memory to POST /api/pub-pal/memories. The Pal never reaches this.
+// An update card PATCHes the memory it replaces and a forget card DELETEs it,
+// through the same owner-checked routes the Pal page uses.
 
 import { accountBoundFetch, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -18,7 +20,13 @@ const claimedCards = new Set<string>();
  * nothing and answers null, so one card can never become two memories.
  */
 export async function confirmPalMemoryProposal(
-  input: { id: string; memoryKind: PubPalMemoryKind; value: string },
+  input: {
+    id: string;
+    memoryKind: PubPalMemoryKind;
+    value: string;
+    relation?: "update" | "delete";
+    supersedesMemoryId?: string;
+  },
   auth: AccountAuthSnapshot | null,
   request?: typeof fetch,
 ): Promise<ConfirmOutcome | null> {
@@ -30,22 +38,49 @@ export async function confirmPalMemoryProposal(
   return outcome;
 }
 
+function memoryWrite(input: {
+  memoryKind: PubPalMemoryKind;
+  value: string;
+  relation?: "update" | "delete";
+  supersedesMemoryId?: string;
+}): { path: string; init: RequestInit } {
+  if (input.relation && input.supersedesMemoryId) {
+    const path = `/api/pub-pal/memories/${encodeURIComponent(input.supersedesMemoryId)}`;
+    if (input.relation === "delete") return { path, init: { method: "DELETE" } };
+    return {
+      path,
+      init: { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) },
+    };
+  }
+  return {
+    path: "/api/pub-pal/memories",
+    init: {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: input.memoryKind, value: input.value }),
+    },
+  };
+}
+
 async function postMemory(
-  input: { memoryKind: PubPalMemoryKind; value: string },
+  input: Parameters<typeof confirmPalMemoryProposal>[0],
   auth: AccountAuthSnapshot,
   request?: typeof fetch,
 ): Promise<ConfirmOutcome> {
   try {
-    const response = await accountBoundFetch(
-      auth,
-      "/api/pub-pal/memories",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: input.memoryKind, value: input.value }),
-      },
-      request,
-    );
+    const write = memoryWrite(input);
+    let response = await accountBoundFetch(auth, write.path, write.init, request);
+    // The memory a card replaces was deleted after the card was made. A forget
+    // card has nothing left to do; an update card keeps the new fact.
+    if (response.status === 404 && input.relation === "delete") {
+      discardBody(response);
+      return { ok: true };
+    }
+    if (response.status === 404 && input.relation === "update") {
+      discardBody(response);
+      const fresh = memoryWrite({ memoryKind: input.memoryKind, value: input.value });
+      response = await accountBoundFetch(auth, fresh.path, fresh.init, request);
+    }
     if (response.status === 401) {
       discardBody(response);
       return { ok: false, error: "Sign in to keep a Pal memory.", needsSignIn: true };

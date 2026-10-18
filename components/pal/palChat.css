@@ -629,6 +629,13 @@
   flex: 0 0 auto;
 }
 
+.palChatProposalReplaces {
+  display: block;
+  margin-top: 0.2rem;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
 .palChatProposalConfirm {
   border: 1px solid color-mix(in srgb, var(--line) 50%, var(--brass) 50%);
   background: color-mix(in srgb, var(--brass) 22%, transparent);

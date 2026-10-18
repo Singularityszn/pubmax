@@ -774,10 +774,14 @@ export default function PrivacyPage() {
               to travel after drinking, and whether you are asking how to get
               home. Your message and up to six recent turns of that
               conversation go to <code>api.typesafe.ai</code> for those
-              judgments, and nothing else about you goes with them. It is off
-              and sends nothing unless a TypeSafe key is set on the deployment;
-              without one Pub Pal falls back to a fixed word list on our own
-              server.
+              judgments. When Pub Pal offers to remember something in a typed
+              chat, the new fact and up to five of the memories you confirmed
+              that are about the same thing also go to TypeSafe, which says
+              whether the fact is new, repeats one of them or replaces one.
+              Nothing else about you goes with them. It is off and sends
+              nothing unless a TypeSafe key is set on the deployment; without
+              one Pub Pal falls back to a fixed word list on our own server,
+              and every memory offer is an ordinary card.
             </dd>
           </div>
           <div className="legalRow">

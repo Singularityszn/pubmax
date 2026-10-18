@@ -424,6 +424,15 @@ describe("legal content pages", () => {
     expect(privacyText).toMatch(/memories you confirmed for your Pal[\s\S]*go with each chat or voice call/i);
   });
 
+  it("says confirmed memories go to TypeSafe when a memory offer is sorted", () => {
+    // lib/palMemoryRelation.server.ts sends the proposed fact and the confirmed
+    // memories about the same thing to TypeSafe. The TypeSafe row must say so,
+    // and not still claim its two safety questions are all it receives.
+    expect(read("lib/palMemoryRelation.server.ts")).toContain("systemOneOutcome");
+    const typesafeRow = privacy.match(/<dt>TypeSafe<\/dt>[\s\S]*?<\/dd>/)?.[0] ?? "";
+    expect(typesafeRow.replace(/\s+/g, " ")).toMatch(/memories you confirmed that are about the same thing also go to TypeSafe/);
+  });
+
   it("names the host of every observability egress the code carries", () => {
     // The WIDENING. The two blocks above are hand-written recipient tables, so
     // they only ever catch a vendor somebody remembered to add. This one reads

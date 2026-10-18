@@ -1,0 +1,172 @@
+{
+  "_comment": "How a fact the Pal proposes relates to the person's confirmed memories. `target` names the confirmed memory an update, delete or noop acts on. `exact` marks a duplicate settled with no model call. Read by __tests__/palMemoryRelation.test.ts.",
+  "cases": [
+    {
+      "id": "contradiction-lager",
+      "existing": [{ "id": "m1", "kind": "drink_preference", "value": "Loves lager" }],
+      "newFact": { "kind": "drink_preference", "value": "Has gone off lager" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "refinement-quiet-garden",
+      "existing": [{ "id": "m1", "kind": "atmosphere_preference", "value": "Likes quiet pubs" }],
+      "newFact": { "kind": "atmosphere_preference", "value": "Likes quiet pubs with a beer garden" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "duplicate-exact-cask",
+      "existing": [{ "id": "m1", "kind": "drink_preference", "value": "Cask ale" }],
+      "newFact": { "kind": "drink_preference", "value": "cask ale" },
+      "expected": "noop",
+      "target": "m1",
+      "exact": true
+    },
+    {
+      "id": "duplicate-exact-punctuation",
+      "existing": [{ "id": "m1", "kind": "atmosphere_preference", "value": "Live music!" }],
+      "newFact": { "kind": "atmosphere_preference", "value": "live music" },
+      "expected": "noop",
+      "target": "m1",
+      "exact": true
+    },
+    {
+      "id": "duplicate-paraphrase-quiet",
+      "existing": [{ "id": "m1", "kind": "atmosphere_preference", "value": "Prefers quiet pubs" }],
+      "newFact": { "kind": "atmosphere_preference", "value": "Likes it quiet when out" },
+      "expected": "noop",
+      "target": "m1"
+    },
+    {
+      "id": "duplicate-paraphrase-guide-dog",
+      "existing": [{ "id": "m1", "kind": "accessibility_preference", "value": "Has a guide dog" }],
+      "newFact": { "kind": "accessibility_preference", "value": "Brings a guide dog everywhere" },
+      "expected": "noop",
+      "target": "m1"
+    },
+    {
+      "id": "duplicate-paraphrase-vegetarian",
+      "existing": [{ "id": "m1", "kind": "venue_preference", "value": "Vegetarian, wants veggie food" }],
+      "newFact": { "kind": "venue_preference", "value": "Doesn't eat meat" },
+      "expected": "noop",
+      "target": "m1"
+    },
+    {
+      "id": "unrelated-quiz-vs-lager",
+      "existing": [{ "id": "m1", "kind": "drink_preference", "value": "Loves lager" }],
+      "newFact": { "kind": "atmosphere_preference", "value": "Likes quiz nights" },
+      "expected": "add"
+    },
+    {
+      "id": "unrelated-same-kind",
+      "existing": [{ "id": "m1", "kind": "drink_preference", "value": "Likes stout" }],
+      "newFact": { "kind": "drink_preference", "value": "Fancies a cider in summer" },
+      "expected": "add"
+    },
+    {
+      "id": "unrelated-no-shared-subject",
+      "existing": [{ "id": "m1", "kind": "transport_preference", "value": "Gets the tube" }],
+      "newFact": { "kind": "drink_preference", "value": "Likes porter" },
+      "expected": "add",
+      "noCandidates": true
+    },
+    {
+      "id": "first-memory",
+      "existing": [],
+      "newFact": { "kind": "drink_preference", "value": "Likes porter" },
+      "expected": "add",
+      "noCandidates": true
+    },
+    {
+      "id": "additive-night-outcome",
+      "existing": [{ "id": "m1", "kind": "night_outcome", "value": "Birthday at The Lamb last March" }],
+      "newFact": { "kind": "night_outcome", "value": "Anniversary at The Lamb in June" },
+      "expected": "add"
+    },
+    {
+      "id": "delete-step-free",
+      "existing": [{ "id": "m1", "kind": "accessibility_preference", "value": "Needs step-free access" }],
+      "newFact": { "kind": "accessibility_preference", "value": "No longer needs step-free access" },
+      "expected": "delete",
+      "target": "m1"
+    },
+    {
+      "id": "delete-driving",
+      "existing": [{ "id": "m1", "kind": "transport_preference", "value": "Drives to the pub" }],
+      "newFact": { "kind": "transport_preference", "value": "Forget that I drive" },
+      "expected": "delete",
+      "target": "m1"
+    },
+    {
+      "id": "delete-bad-night",
+      "existing": [{ "id": "m1", "kind": "night_outcome", "value": "Had a bad night at The Crown" }],
+      "newFact": { "kind": "night_outcome", "value": "Forget the night at The Crown" },
+      "expected": "delete",
+      "target": "m1"
+    },
+    {
+      "id": "contradiction-transport",
+      "existing": [{ "id": "m1", "kind": "transport_preference", "value": "Cycles home" }],
+      "newFact": { "kind": "transport_preference", "value": "Takes the night bus home now" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "refinement-spoons",
+      "existing": [{ "id": "m1", "kind": "venue_preference", "value": "Likes Spoons" }],
+      "newFact": { "kind": "venue_preference", "value": "Likes Spoons, but not the Shoreditch one" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "correction-local",
+      "existing": [{ "id": "m1", "kind": "venue_preference", "value": "Local is The Crown" }],
+      "newFact": { "kind": "correction", "value": "My local is The Lamb, not The Crown" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "refinement-wheelchair",
+      "existing": [{ "id": "m1", "kind": "accessibility_preference", "value": "Uses a wheelchair" }],
+      "newFact": { "kind": "accessibility_preference", "value": "Uses a wheelchair and needs a step-free toilet" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "contradiction-sports",
+      "existing": [{ "id": "m1", "kind": "atmosphere_preference", "value": "Loves loud sports pubs" }],
+      "newFact": { "kind": "atmosphere_preference", "value": "Can't stand sports pubs any more" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "update-budget",
+      "existing": [{ "id": "m1", "kind": "drink_preference", "value": "Budget is £5 a pint" }],
+      "newFact": { "kind": "drink_preference", "value": "Budget is now £6 a pint" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "target-among-others",
+      "existing": [
+        { "id": "m1", "kind": "drink_preference", "value": "Loves lager" },
+        { "id": "m2", "kind": "atmosphere_preference", "value": "Quiet pubs" },
+        { "id": "m3", "kind": "transport_preference", "value": "Gets the tube" }
+      ],
+      "newFact": { "kind": "drink_preference", "value": "Doesn't drink lager any more" },
+      "expected": "update",
+      "target": "m1"
+    },
+    {
+      "id": "two-related-one-replaced",
+      "existing": [
+        { "id": "m1", "kind": "drink_preference", "value": "Loves lager" },
+        { "id": "m2", "kind": "drink_preference", "value": "Likes stout" }
+      ],
+      "newFact": { "kind": "drink_preference", "value": "Gone off lager, cider instead" },
+      "expected": "update",
+      "target": "m1"
+    }
+  ]
+}

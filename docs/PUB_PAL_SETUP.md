@@ -214,7 +214,12 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
    them off. It refuses in a voice call, where no card can be shown. It
    saves nothing: the memory exists once the person taps
-   Confirm, which posts to `POST /api/pub-pal/memories`. Typed chat also carries
+   Confirm, which posts to `POST /api/pub-pal/memories`. Before the card is
+   made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
+   confirmed memories: a fact they already have makes no card, and one that
+   replaces or withdraws a memory makes an "Update" or "Forget" card that
+   PATCHes or DELETEs that memory on Confirm. Without a TypeSafe key only exact
+   duplicates are caught and every other offer is an ordinary card. Typed chat also carries
    a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older

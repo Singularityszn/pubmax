@@ -429,7 +429,13 @@ export default function PalChat() {
     if (proposal.kind === "remember_memory") {
       void (async () => {
         const result = await confirmPalMemoryProposal(
-          { id: proposal.id, memoryKind: proposal.memoryKind, value: proposal.value },
+          {
+            id: proposal.id,
+            memoryKind: proposal.memoryKind,
+            value: proposal.value,
+            relation: proposal.relation,
+            supersedesMemoryId: proposal.supersedesMemoryId,
+          },
           auth,
         );
         if (!result) return;
@@ -451,7 +457,12 @@ export default function PalChat() {
             id: nextId(),
             answer: {
               status: "answered",
-              message: `Saved. I'll remember: ${proposal.value}`,
+              message:
+                proposal.relation === "delete"
+                  ? `Forgotten: ${proposal.value}`
+                  : proposal.relation === "update"
+                    ? `Updated. I'll remember: ${proposal.value}`
+                    : `Saved. I'll remember: ${proposal.value}`,
               cards: [],
             },
             locality: null,
@@ -680,6 +691,9 @@ export default function PalChat() {
                             onClick={() => confirmProposal(proposal, entry.id)}
                           >
                             {proposal.label}
+                            {proposal.kind === "remember_memory" && proposal.relation === "update" && proposal.supersedesValue ? (
+                              <span className="palChatProposalReplaces">Replaces: {proposal.supersedesValue}</span>
+                            ) : null}
                           </button>
                         )}
                         <button
