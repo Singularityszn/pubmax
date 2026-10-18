@@ -14,6 +14,7 @@ import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
+import { RowList } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { plainDashes } from "@/components/listing/displayCase";
 import PlacePhoto from "@/components/listing/PlacePhoto";
@@ -260,11 +261,11 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
                     >
                       {groupHead(groupLabel)}
                     </h3>
-                    <ul className="crawlCompactList" aria-label={`${groupLabel} crawls`}>
+                    <RowList className="crawlCompactList" label={`${groupLabel} crawls`}>
                       {crawlsInGroup.map((crawl) => (
                         <CompactCrawlRow key={crawl.id} crawl={crawl} slimById={slimById} />
                       ))}
-                    </ul>
+                    </RowList>
                   </section>
                 ))}
               </div>
@@ -352,11 +353,18 @@ function FeaturedCrawlCard({
   );
 }
 
-// Compact scannable row for every other curated crawl — name, area (the
-// landmark it starts at, when known), stop count, price range. One line,
-// tap anywhere to open the crawl on the map (its existing "detail" surface —
-// curated crawls have no standalone detail page; /crawls/[slug] is reserved
-// for durable, user-shared Crawl Stories, a different id namespace).
+// Compact scannable row for every other curated crawl: name, area (the
+// landmark it starts at, when known), stop count, and the price range in the
+// trailing cell. Tap anywhere to open the crawl on the map (its existing
+// "detail" surface; curated crawls have no standalone detail page, and
+// /crawls/[slug] is reserved for durable, user-shared Crawl Stories, a
+// different id namespace).
+//
+// A row of the shared RowList (components/ui/row-list.tsx): one hairline
+// between rows and no panel round the group (taste plan, 18 Oct 2026). The
+// heritage group used to read as one filled, bordered box and every group
+// with it. The link is the whole row, so the tap target is the row's height,
+// never the name's line.
 function CompactCrawlRow({
   crawl,
   slimById,
@@ -376,16 +384,18 @@ function CompactCrawlRow({
         className="crawlCompactLink"
         aria-label={`Plan the ${crawl.name} crawl on the map`}
       >
-        <span className="crawlCompactName">{crawl.name}</span>
-        <span className="crawlCompactMetaRow">
-          {originName ? <span className="crawlCompactArea">{originName}</span> : null}
-          <span className="crawlCompactStops">
-            {stopCount} stop{stopCount === 1 ? "" : "s"}
+        <span className="rowListBody">
+          <span className="rowListTitle crawlCompactName">{crawl.name}</span>
+          <span className="rowListMeta crawlCompactMetaRow">
+            {originName ? <span className="crawlCompactArea">{originName}</span> : null}
+            <span className="crawlCompactStops">
+              {stopCount} stop{stopCount === 1 ? "" : "s"}
+            </span>
           </span>
-          {priceRange ? (
-            <span className="crawlCompactPrice">{formatPriceRange(priceRange)}</span>
-          ) : null}
         </span>
+        {priceRange ? (
+          <span className="rowListTrailing crawlCompactPrice">{formatPriceRange(priceRange)}</span>
+        ) : null}
       </Link>
     </li>
   );
