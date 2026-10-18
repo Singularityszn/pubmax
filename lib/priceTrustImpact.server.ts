@@ -60,7 +60,7 @@ export type PriceTrustReconciliationDrain = {
 
 /**
  * Failed worker runs a pair gets before the worker stops retrying it and
- * raises one error (migration 0192). A new price write for the pair starts a
+ * raises one error (migration 0193). A new price write for the pair starts a
  * fresh budget. The cap is sent to the database, so this is its one source.
  */
 export const MAX_PRICE_TRUST_ATTEMPTS = 5;
@@ -250,7 +250,7 @@ export async function drainPendingPriceTrustReconciliations(
         continue;
       }
       if (failure.status === "legacy") {
-        // Deployed ahead of 0192: no attempt count exists, so keep the 0126
+        // Deployed ahead of 0193: no attempt count exists, so keep the 0126
         // behaviour and put the pair back on the queue.
         await priceTrustEventStore().enqueueReconciliation(
           task.venueId,

@@ -1,4 +1,4 @@
-// Effective PostgreSQL proof for 0191 (foreign key covering indexes).
+// Effective PostgreSQL proof for 0192 (foreign key covering indexes).
 //
 // A foreign key with no index on its own columns makes every delete of the
 // parent row scan the child table under lock. Deleting one profile touched a
@@ -6,7 +6,7 @@
 // catalog, and lists each foreign key in schema public whose columns are not
 // the leading key columns of a plain (non-partial) index on its table. The
 // list must equal the allowlist below, and the rollback must drop exactly the
-// indexes 0191 adds.
+// indexes 0192 adds.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -19,18 +19,18 @@ const skipReason = postgresSkipReason();
 
 const MIGRATION_PATH = join(
   process.cwd(),
-  "supabase/migrations/20261018120000_0191_foreign_key_covering_indexes.sql",
+  "supabase/migrations/20261018130000_0192_foreign_key_covering_indexes.sql",
 );
 const ROLLBACK_PATH = join(
   process.cwd(),
-  "supabase/migrations/rollback/20261018120000_0191_foreign_key_covering_indexes_rollback.sql",
+  "supabase/migrations/rollback/20261018130000_0192_foreign_key_covering_indexes_rollback.sql",
 );
 
 /**
  * Foreign keys that may stay without a covering index, each as
  * `table(col, ...) constraint_name` with its reason beside it. The list is
  * CLOSED and may only ever SHRINK: a new foreign key ships with its index in
- * the same migration, not with a row here. It is empty after 0191.
+ * the same migration, not with a row here. It is empty after 0192.
  */
 const UNCOVERED_FOREIGN_KEY_ALLOWLIST: readonly string[] = [];
 
@@ -122,7 +122,7 @@ afterAll(async () => {
   await database?.stop();
 });
 
-describe("0191 foreign key covering indexes, as text", () => {
+describe("0192 foreign key covering indexes, as text", () => {
   it("names every index on the convention and drops exactly those in the rollback", () => {
     expect(ADDED.length).toBeGreaterThan(0);
     expect(DROPPED).toEqual(ADDED);
@@ -133,7 +133,7 @@ describe("0191 foreign key covering indexes, as text", () => {
   });
 });
 
-describe.skipIf(skipReason !== null)("0191 foreign key covering indexes", () => {
+describe.skipIf(skipReason !== null)("0192 foreign key covering indexes", () => {
   it("leaves no foreign key in public without a covering index beyond the allowlist", () => {
     expect(uncoveredForeignKeys()).toEqual([...UNCOVERED_FOREIGN_KEY_ALLOWLIST]);
   });

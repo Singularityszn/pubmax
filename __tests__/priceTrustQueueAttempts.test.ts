@@ -1,7 +1,7 @@
-// The durable price trust queue under migration 0192: one unreadable row is
+// The durable price trust queue under migration 0193: one unreadable row is
 // skipped and the rest of the batch is worked, only a failed read is degraded,
 // and a failed run is counted against the version the worker read. A deploy
-// ahead of 0192 (no column, no function) keeps the 0126 behaviour.
+// ahead of 0193 (no column, no function) keeps the 0126 behaviour.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -145,7 +145,7 @@ describe("supabasePriceTrustEventStore.listPendingReconciliations", () => {
     });
   });
 
-  it("lists only live rows, and reads as 0126 did when the 0192 column is absent", async () => {
+  it("lists only live rows, and reads as 0126 did when the 0193 column is absent", async () => {
     state.rows = [GOOD_A];
     expect((await supabasePriceTrustEventStore.listPendingReconciliations(20)).tasks).toHaveLength(1);
     expect(state.filteredOnDeadLetter).toEqual([true]);
@@ -197,7 +197,7 @@ describe("supabasePriceTrustEventStore.recordReconciliationFailure", () => {
     });
   });
 
-  it("answers legacy when the 0192 function is absent", async () => {
+  it("answers legacy when the 0193 function is absent", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     state.rpcAnswer = {
       data: null,

@@ -1,4 +1,4 @@
--- Rollback 0191: drop the foreign key covering indexes.
+-- Rollback 0192: drop the foreign key covering indexes.
 --
 -- Cost: no data is lost. Deleting a parent row (a profile, a post, a plan
 -- member) goes back to reading each child table in full while it holds a lock.

@@ -1,6 +1,6 @@
-// Effective proof for 0192 on a real PostgreSQL 16, over every migration
+// Effective proof for 0193 on a real PostgreSQL 16, over every migration
 // before it. The fault is reproduced first: under 0126 a failed run goes back
-// on the queue with no count, so the pair is retried forever. Then 0192: the
+// on the queue with no count, so the pair is retried forever. Then 0193: the
 // column and its default, the failure function (version-bound, the cap, the
 // dead letter), the fresh budget on a new write through both doors, the
 // refused browser roles, and the rollback back to the 0126 shape.
@@ -14,7 +14,7 @@ import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpe
 
 const skipReason = postgresSkipReason();
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
-const NAME = "20261018120100_0192_price_trust_queue_attempts";
+const NAME = "20261018130100_0193_price_trust_queue_attempts";
 const FORWARD = join(MIGRATIONS, `${NAME}.sql`);
 const ROLLBACK = join(MIGRATIONS, "rollback", `${NAME}_rollback.sql`);
 const CAP = 5;
@@ -69,7 +69,7 @@ let enqueueBefore = "";
 
 beforeAll(async () => {
   if (skipReason) return;
-  session = await startPostgres({ label: "price-trust-0192", database: "pubmax_price_trust_0192" });
+  session = await startPostgres({ label: "price-trust-0193", database: "pubmax_price_trust_0193" });
   db().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
   for (const filename of listMigrations(MIGRATIONS).filter((file) => file < `${NAME}.sql`)) {
     db().applyFile(join(MIGRATIONS, filename));
@@ -81,8 +81,8 @@ afterAll(async () => {
   await session?.stop();
 });
 
-describe.skipIf(skipReason !== null)("0192 applied to PostgreSQL", () => {
-  it("reproduces the fault before 0192: a failed pair is re-queued with no count", () => {
+describe.skipIf(skipReason !== null)("0193 applied to PostgreSQL", () => {
+  it("reproduces the fault before 0193: a failed pair is re-queued with no count", () => {
     expect(queueColumns()).toBe("venue_id,category,version,enqueued_at");
     const first = enqueue("venue-before");
     // The 0126 worker's only move on failure: enqueue again. Nothing counts.
@@ -176,7 +176,7 @@ describe.skipIf(skipReason !== null)("0192 applied to PostgreSQL", () => {
     expect(row("venue-trigger")).toBe(`${CAP}|true`);
     db().sql(
       `insert into public.community_prices (venue_id, drink_category, price_pennies, actor)
-       values ('venue-trigger', 'beer', 575, 'profile:fixture-0192')`,
+       values ('venue-trigger', 'beer', 575, 'profile:fixture-0193')`,
     );
     expect(row("venue-trigger")).toBe("0|false");
   });

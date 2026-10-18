@@ -1,4 +1,4 @@
--- Foreign key covering indexes (0191).
+-- Foreign key covering indexes (0192).
 --
 -- An audit found foreign keys with no index on their own columns. When a
 -- parent row is deleted, Postgres must check each child table for rows that
@@ -22,7 +22,7 @@
 -- only.
 --
 -- Pin: __tests__/foreignKeyIndexCoverageEffective.test.ts
--- Reverse: supabase/migrations/rollback/20261018120000_0191_foreign_key_covering_indexes_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261018130000_0192_foreign_key_covering_indexes_rollback.sql
 
 begin;
 

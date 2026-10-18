@@ -51,7 +51,7 @@ export type PriceTrustReconciliationTask = {
 };
 
 /**
- * What one failed worker run did to its queue row (migration 0192).
+ * What one failed worker run did to its queue row (migration 0193).
  * `legacy` means the attempts column or its function is absent, so the caller
  * keeps the 0126 behaviour and puts the pair back on the queue.
  */
@@ -346,7 +346,7 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
       version: (memory.nextReconciliationVersion += 1),
       enqueuedAt: new Date(now).toISOString(),
     };
-    // A new write is new evidence, so it starts a fresh attempt budget (0192).
+    // A new write is new evidence, so it starts a fresh attempt budget (0193).
     memory.reconciliationQueue.set(queueKey, {
       ...task,
       attempts: 0,
@@ -552,7 +552,7 @@ const QUEUE_FAILURE_FUNCTION = "record_price_trust_reconciliation_failure";
 type PostgrestErrorLike = { code?: string; message?: string } | null | undefined;
 
 /**
- * True only for a missing 0192 column (42703 undefined_column, or PostgREST's
+ * True only for a missing 0193 column (42703 undefined_column, or PostgREST's
  * PGRST204 schema-cache miss) that names one of the new columns. Any other
  * error still fails the read.
  */
@@ -565,7 +565,7 @@ function isMissingQueueAttemptsColumn(error: PostgrestErrorLike): boolean {
   );
 }
 
-/** True only for the absent 0192 function (PGRST202, or 42883 from Postgres). */
+/** True only for the absent 0193 function (PGRST202, or 42883 from Postgres). */
 function isMissingQueueFailureFunction(error: PostgrestErrorLike): boolean {
   const code = error?.code ?? "";
   const message = error?.message ?? "";
@@ -575,7 +575,7 @@ function isMissingQueueFailureFunction(error: PostgrestErrorLike): boolean {
   );
 }
 
-/** The live queue read. Before 0192 there is no dead letter to filter on. */
+/** The live queue read. Before 0193 there is no dead letter to filter on. */
 function selectPendingReconciliationRows(limit: number, withDeadLetter: boolean) {
   const query = admin()
     .from(QUEUE_TABLE)
@@ -677,7 +677,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
       onError: () => ({ tasks: [], degraded: true }),
       run: async () => {
         let read = await selectPendingReconciliationRows(bounded, true);
-        // A deploy ahead of 0192: the dead letter column is absent, so read
+        // A deploy ahead of 0193: the dead letter column is absent, so read
         // the queue as 0126 did.
         if (read.error && isMissingQueueAttemptsColumn(read.error)) {
           read = await selectPendingReconciliationRows(bounded, false);
@@ -745,7 +745,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
     if (!task || cap === null) return { status: "failed" };
     return queueGuard.guard<PriceTrustReconciliationFailure>({
       context: "recordReconciliationFailure",
-      // The queue table or the 0192 function is absent: keep 0126 behaviour.
+      // The queue table or the 0193 function is absent: keep 0126 behaviour.
       onSchemaMiss: async () => ({ status: "legacy" }),
       message: "trust reconciliation failure count failed",
       onError: () => ({ status: "failed" }),

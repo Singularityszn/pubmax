@@ -1,11 +1,11 @@
--- Price trust reconciliation queue: attempts and a dead letter (0192).
+-- Price trust reconciliation queue: attempts and a dead letter (0193).
 -- Captain applies. Agents ship SQL only. Rollback beside this file.
 --
--- Before 0192 a pair the worker could not reconcile went back on the queue
+-- Before 0193 a pair the worker could not reconcile went back on the queue
 -- with no count, forever. The reconcile cron then answered 503 on every run,
 -- so a new failure looked the same as an old one and nobody heard it.
 --
--- 0192 adds three things.
+-- 0193 adds three things.
 --   1. `attempts`: the failed worker runs since the last price write for the
 --      pair. Default 0, so every row already queued starts with a full budget.
 --   2. `dead_lettered_at`: set when `attempts` reaches the cap the app sends.

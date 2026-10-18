@@ -1,4 +1,4 @@
--- Rollback 0192: remove queue attempts and the dead letter.
+-- Rollback 0193: remove queue attempts and the dead letter.
 --
 -- What it costs: every attempt count and every dead-letter stamp is dropped.
 -- A dead-lettered pair becomes live work again, and a pair that keeps failing
