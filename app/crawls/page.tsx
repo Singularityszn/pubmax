@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { loadGroupedVenues } from "@/lib/venueDataset";
-import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhoto";
+import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhotoRules";
 import CrawlsPageClient from "./CrawlsPageClient";
 import { visibleCuratedCrawls } from "./routeSummary";
 
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 };
 
 // Each curated crawl's lead photograph, where one is honest: the patch every
-// stop sits within a short walk of (components/listing/placePhoto.ts). The
+// stop sits within a short walk of (components/listing/placePhotoRules.ts). The
 // curated list is fixed, so the table is worked out once per process; a read
 // that fails is not kept, so one bad render cannot leave the page bare.
 let crawlPhotosPending: Promise<Record<string, PlacePhoto>> | null = null;

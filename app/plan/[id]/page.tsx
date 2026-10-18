@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import { areaRoutePlacePhoto, type PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
+import { areaRoutePlacePhoto, type PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
@@ -132,7 +132,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
-// THE PLAN'S LEAD PHOTOGRAPH, OR NONE (components/listing/placePhoto.ts).
+// THE PLAN'S LEAD PHOTOGRAPH, OR NONE (components/listing/placePhotoRules.ts).
 //
 // The page publishes the plan's AREA to anyone with the link and keeps its
 // stops to the crew (§4.10). So the only photograph it may lead with is the

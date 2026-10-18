@@ -50,7 +50,7 @@ import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";

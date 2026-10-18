@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronDown, ExternalLink } from "lucide-react";
 
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList } from "@/components/ui/row-list";
 import { formatObservedDate, formatObservedDayShort } from "@/lib/dataFreshness";
@@ -40,7 +40,7 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
  * disclosure the primitive has no slot for.
  *
  * A pub we hold a photograph OF (matched by venue id on the server,
- * components/listing/placePhoto.ts) shows it inside that fold, under its
+ * components/listing/placePhotoRules.ts) shows it inside that fold, under its
  * reason, with its credit. Folded, the lazy image is never fetched, and a pub
  * with no photograph of its own gets none, never a stand-in.
  */

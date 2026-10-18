@@ -5,7 +5,7 @@ import {
   londonPlacePhoto,
   pubPlacePhoto,
   type PlacePhoto,
-} from "@/components/listing/placePhoto";
+} from "@/components/listing/placePhotoRules";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { AREA_PHOTOS } from "@/lib/landingImagery";
 import { loadHistoricPubs } from "@/lib/historic";
@@ -55,7 +55,7 @@ export const dynamic = "force-static";
 export const revalidate = 300;
 
 // The photographs this page may show, resolved here so neither photograph
-// table reaches the browser (components/listing/placePhoto.ts). A pub's own
+// table reaches the browser (components/listing/placePhotoRules.ts). A pub's own
 // photograph is kept only for a pub this page recommends, matched by venue id.
 // The area photographs are every Night Area we hold one of, because the area
 // the reader is in is only known after load; London's stands for the page

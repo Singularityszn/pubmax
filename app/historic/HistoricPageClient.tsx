@@ -24,7 +24,7 @@ import { ExternalLink } from "lucide-react";
 import DesktopRail from "@/components/desktop/DesktopRail";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import { boroughPlacePhoto, pubPlacePhoto } from "@/components/listing/placePhoto";
+import { boroughPlacePhoto, pubPlacePhoto } from "@/components/listing/placePhotoRules";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
@@ -73,7 +73,7 @@ function lowerFirst(text: string): string {
 // entry under the fold. Two things only: a photograph and the index in four
 // figures.
 //
-// The photograph is honest by construction (components/listing/placePhoto.ts):
+// The photograph is honest by construction (components/listing/placePhotoRules.ts):
 // with a borough chosen it is that borough's own photograph, captioned with
 // the place it shows; otherwise it is The Black Friar, a listed pub on this
 // register, named and linked to its own entry. A borough we hold no

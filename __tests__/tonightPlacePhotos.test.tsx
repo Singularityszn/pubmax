@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { pubPlacePhoto } from "@/components/listing/placePhoto";
+import { pubPlacePhoto } from "@/components/listing/placePhotoRules";
 import TonightHypedPubs from "@/app/tonight/TonightHypedPubs";
 import type { HypedPub } from "@/lib/hypedPubs";
 import { PUB_PHOTOS } from "@/lib/landingImagery";

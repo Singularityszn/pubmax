@@ -8,7 +8,7 @@ import {
   pubPlacePhoto,
   routePlacePhoto,
   PLACE_PHOTO_WALK_METRES,
-} from "@/components/listing/placePhoto";
+} from "@/components/listing/placePhotoRules";
 import { AREA_PHOTOS, LANDING_PHOTO_SPOTS, LANDING_PHOTOS, PUB_PHOTOS } from "@/lib/landingImagery";
 import { LONDON_COLLAGE_PHOTOS } from "@/lib/landingLondonCollage";
 
