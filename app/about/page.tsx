@@ -85,7 +85,7 @@ function tractionStats(s: AboutStats): Stat[] {
     },
     {
       value: fmtInt(s.pintPricesObserved),
-      label: "pint prices logged",
+      label: "pint prices on record",
       note: "readings with their source status shown",
     },
     {
@@ -211,8 +211,8 @@ export default async function AboutPage() {
           separate from pint prices. A drinker pays for nothing.
         </p>
         <p className="aboutBody">
-          Nobody pays to rank. Sponsored listings are labelled and separate
-          from the price order.
+          Nobody pays to rank. There are no sponsored listings today. If one
+          ever comes, it will be labelled and kept out of the price order.
         </p>
       </section>
 
@@ -236,8 +236,8 @@ export default async function AboutPage() {
             a pub on the map doesn&rsquo;t mean we hold its drink prices.
           </li>
           <li>
-            <strong>The price order is not for sale.</strong> Sponsored slots
-            stay labelled and separate.
+            <strong>The price order is not for sale.</strong> No slot is
+            sponsored today, and one never will be without a label.
           </li>
           <li>
             <strong>You can check the source.</strong> Listed prices name and link
@@ -301,7 +301,7 @@ export default async function AboutPage() {
         </dl>
         <p className="aboutPriceLine">
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
-          boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
+          boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
           <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
           <span className="aboutPriceStamp">{dearest}</span>. The average listed
           pint across <strong>{fmtInt(stats.pubsTracked)}</strong> London pubs
