@@ -71,12 +71,20 @@ const CANONICAL_HOST = "pubmaxxing.com";
 // 'unsafe-inline' and no nonce, and the identity/social/admin routes carry a
 // fresh nonce and no 'unsafe-inline'. `__tests__/cdnCachedDocuments.test.ts`
 // holds every listed path to a page file that declares `force-static`.
+//
+// Product decision 2026-10-17 widened it to `/plan` and `/pal`, on the same
+// terms: neither document reads the session, a cookie, a header or a search
+// param, and both fetch everything personal (drafts, the Pal, memories) in the
+// browser after load. `/plan/[id]` and `/pal/chat` are other paths and keep
+// the nonce.
 export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
   "/",
   "/map",
   "/tonight",
   "/today",
   "/near",
+  "/plan",
+  "/pal",
 ]);
 
 // THE SAME TRADE FOR THE PUBLIC SEO DETAIL PAGES (task vercel-f2-seo-cdn,
@@ -590,9 +598,9 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
-    // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`) are left
-    // out of the general rule below, and their policy ships from next.config.mjs
-    // `headers()`. These entries keep the proxy on the only requests for them it
+    // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`, `/plan`,
+    // `/pal`) are left out of the general rule below, and their policy ships
+    // from next.config.mjs `headers()`. These entries keep the proxy on the only requests for them it
     // still acts on: the poster QR landing (`/?src=`) and a /map query that
     // needs the per-request document twin. lib/cdnDocumentEdge.mjs owns the
     // rule; `__tests__/cdnDocumentEdge.test.ts` derives these and fails on drift.
@@ -613,7 +621,7 @@ export const config = {
     // of public/ and the /pal art, by extension, and ONLY there (a dynamic page
     // such as /u/foo.png must keep its nonce): theme-init.js and
     // map-first-paint-init.js load in <head>, so a cold start here delayed
-    // first paint. The final branches leave out the five CDN documents (see
+    // first paint. The final branches leave out the CDN documents (see
     // the query entries above). Next only reads a matcher it can analyse STATICALLY, so
     // the alternation is written out here as a literal;
     // `__tests__/staticAssetPrefixes.test.ts` derives it from
@@ -621,7 +629,7 @@ export const config = {
     // fence refuses a prefix that collides with an app route.
     {
       source:
-        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$|$|map$|tonight$|today$|near$).*)",
+        "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$|$|map$|tonight$|today$|near$|plan$|pal$).*)",
       // Next's router prefetch (an RSC fetch) is kept out. The browser's own
       // `Purpose: prefetch` is NOT: it marks a document prefetch or a
       // speculation-rules prerender, which the reader is then shown, so it

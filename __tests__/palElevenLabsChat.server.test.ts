@@ -482,6 +482,50 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("quiet pubs in Soho");
   });
 
+  it("asks for the signed URL while the earlier-turn read is still in flight", async () => {
+    let releasePrior: (value: null) => void = () => {};
+    storeMocks.readOwnedPubPalToolTurn.mockImplementation(
+      () => new Promise((resolve) => { releasePrior = resolve; }),
+    );
+
+    const pending = runPalElevenLabsChatTurn({
+      query: "quiet pubs",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+      threadId: "conv_previous01",
+    });
+    await Promise.resolve();
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    releasePrior(null);
+    expect((await pending).ok).toBe(true);
+  });
+
+  it("registers the turn under the signed URL's conversation before the socket names it", async () => {
+    const order: string[] = [];
+    storeMocks.registerPubPalToolTurn.mockImplementationOnce(async (conversationId) => {
+      order.push(`register:${conversationId}`);
+    });
+    const RealSocket = MockElevenLabsWebSocket;
+    vi.stubGlobal(
+      "WebSocket",
+      class extends RealSocket {
+        constructor(url: string) {
+          order.push("socket");
+          super(url);
+        }
+      },
+    );
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "quiet pubs",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome.ok).toBe(true);
+    expect(order).toEqual(["register:conv_regression01", "socket"]);
+    expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledTimes(1);
+  });
+
   it("rolls asks older than the recent window into one summary turn and stores it with the new turn", async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     storeMocks.readOwnedPubPalToolTurn.mockResolvedValue({

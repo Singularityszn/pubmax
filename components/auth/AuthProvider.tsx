@@ -23,13 +23,12 @@ import {
   type ReactNode,
 } from "react";
 import type { Route } from "next";
+import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
-import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
-import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { LOGIN_ADD_ACCOUNT_PARAM, markArrival, parseAddAccount, takeChosenIntent } from "@/lib/arrivalWelcome";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
@@ -143,6 +142,23 @@ import {
 
 export type { AuthContextValue, SignOutScope } from "@/components/auth/authContext";
 export { useAuth } from "@/components/auth/authContext";
+
+// Two of the account overlays this provider hosts render nothing without a
+// signed-in user, and this provider rides the root shell on every route.
+// Imported eagerly they put the handle-claim form and the founders' welcome in
+// front of every anonymous page. Each is its own chunk now, mounted only once a
+// user exists, so a stranger never downloads them and nothing a signed-in
+// reader sees moves: both already waited on the session before drawing.
+//
+// IdentityNudge stays eager on purpose. Its first-paint grace starts when it
+// mounts, so mounting it late would hold a nudge the reader just armed.
+const ArrivalWelcome = nextDynamic(() => import("@/components/auth/ArrivalWelcome"), {
+  ssr: false,
+});
+const AccountOnboarding = nextDynamic(
+  () => import("@/components/identity/AccountOnboarding"),
+  { ssr: false },
+);
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
@@ -1523,11 +1539,12 @@ export function AuthProvider({
         </div>
       ) : null}
       {/* The warm second after a sign-in lands. Not a dialog and not a gate:
-          it names the person and retires itself. */}
-      <ArrivalWelcome />
+          it names the person and retires itself. Both it and the handle claim
+          render nothing without a user, so neither is fetched without one. */}
+      {session?.user ? <ArrivalWelcome /> : null}
+      {session?.user ? <AccountOnboarding /> : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
-      <AccountOnboarding />
       <IdentityNudge />
     </AuthContext.Provider>
   );

@@ -284,12 +284,15 @@ describe("the CSP the proxy actually ships", () => {
 // a per-request nonce makes impossible, so they take `script-src
 // 'unsafe-inline'` instead. The list opened as `/` and `/map` (2026-08-09) and
 // widened to the other logged-out pages, `/tonight`, `/today` and `/near`
-// (captain 2026-09-05, "Widen"). What must never happen is the exception
+// (captain 2026-09-05, "Widen"), then to `/plan` and `/pal` (product decision
+// 2026-10-17). What must never happen is the exception
 // spreading to a route where a session is resolved, a handle is printed, or a
 // moderator acts. `__tests__/cdnCachedDocuments.test.ts` holds the page files
 // behind the list to `force-static`; this file holds the policy each answers.
 describe("the prerendered documents drop the nonce, and only they do", () => {
-  const CDN_CACHED_EXACT = ["/", "/map", "/tonight", "/today", "/near"];
+  // `/plan` and `/pal` joined on 17 Oct 2026 (product decision); their deeper
+  // paths, an invite and the chat, stay on the nonce below.
+  const CDN_CACHED_EXACT = ["/", "/map", "/tonight", "/today", "/near", "/plan", "/pal"];
   // One live URL per public SEO route shape (task vercel-f2-seo-cdn,
   // 2026-10-15). They take exactly the policy the exact paths take.
   const CDN_CACHED_SEO = [
@@ -316,9 +319,9 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     "/messages",
     "/admin",
     "/admin/community-prices",
-    "/plan",
+    "/plan/0f8b7d2e-3c4a-4b5d-8e6f-1a2b3c4d5e6f",
     "/places",
-    "/pal",
+    "/pal/chat",
     "/map/london",
     "/map/arrival",
     // The SEO families stop at the exact route shape. The index pages read
@@ -437,16 +440,17 @@ describe("the prerendered documents drop the nonce, and only they do", () => {
     expect(directive(policy, "default-src")).toBe("default-src 'self'");
   });
 
-  it("names the exception in the proxy source, with both decisions and their dates", () => {
+  it("names the exception in the proxy source, with every decision and its date", () => {
     // The list is only a deliberate diff if a reader can see WHY it exists.
     const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
     expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_PATHS");
     expect(proxySource).toContain("2026-08-09");
     expect(proxySource).toContain("2026-09-05");
+    expect(proxySource).toContain("2026-10-17");
     expect(proxySource).toContain("vercel-f2-seo-cdn");
     expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_ROUTES");
     expect(proxySource).toMatch(
-      /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\[\s*"\/",\s*"\/map",\s*"\/tonight",\s*"\/today",\s*"\/near",?\s*\]\)/,
+      /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\[\s*"\/",\s*"\/map",\s*"\/tonight",\s*"\/today",\s*"\/near",\s*"\/plan",\s*"\/pal",?\s*\]\)/,
     );
   });
 });

@@ -32,33 +32,7 @@ function storedValue(storage: Storage | null, key: string): string | null {
   }
 }
 
-type RootFontFamilies = Readonly<Record<"--font-display" | "--font-body", string>>;
-
-export default function ThemeAttribute({
-  initialFontFallbacks,
-  fontFamilies,
-}: {
-  initialFontFallbacks?: RootFontFamilies;
-  /**
-   * The complete generated chains (primary face, then its matched fallback).
-   * When given, they replace the temporary fallbacks inline, because the
-   * global :root tokens would otherwise win the cascade and drop the matched
-   * fallback the face swaps from.
-   */
-  fontFamilies?: RootFontFamilies;
-} = {}): null {
-  useEffect(() => {
-    if (!initialFontFallbacks) return;
-    const root = document.documentElement;
-    for (const name of ["--font-display", "--font-body"] as const) {
-      // Replace only this document's temporary value, never another owner's style.
-      if (root.style.getPropertyValue(name).trim() === initialFontFallbacks[name]) {
-        if (fontFamilies?.[name]) root.style.setProperty(name, fontFamilies[name]);
-        else root.style.removeProperty(name);
-      }
-    }
-  }, [initialFontFallbacks, fontFamilies]);
-
+export default function ThemeAttribute(): null {
   useEffect(() => {
     const root = document.documentElement;
     const storage = safeLocalStorage();

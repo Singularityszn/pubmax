@@ -13,10 +13,13 @@ vi.mock("@/lib/palElevenLabsChat.server", () => ({
   runPalElevenLabsChatTurn: vi.fn(),
 }));
 
-const authState = vi.hoisted(() => ({ userId: null as string | null }));
+const authState = vi.hoisted(() => ({ userId: null as string | null, checks: 0 }));
 
 vi.mock("@/lib/authServer", () => ({
-  callerUserId: async () => authState.userId,
+  callerUserId: async () => {
+    authState.checks += 1;
+    return authState.userId;
+  },
 }));
 
 const tasteState = vi.hoisted(() => ({ taste: null as unknown }));
@@ -38,6 +41,7 @@ describe("POST /api/pub-pal/chat", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
     authState.userId = null;
+    authState.checks = 0;
     tasteState.taste = null;
     vi.mocked(runPalElevenLabsChatTurn).mockReset();
   });
@@ -502,6 +506,38 @@ describe("POST /api/pub-pal/chat", () => {
       fenceTurns: [{ role: "user", content: "Earlier question." }],
       ownerId: authState.userId,
     });
+  });
+
+  // The token check is a GoTrue round trip, so a request the limiter refuses
+  // must not reach it: answering it in parallel let a flood of refused asks
+  // become a flood on the auth backend.
+  it("asks the auth backend nothing about a request the limiter refuses", async () => {
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue({
+      ok: true,
+      message: "Two picks.",
+      cards: [],
+      proposals: [],
+      conversationId: "conv_regression01",
+      toolsUsed: [],
+    });
+    const ask = () =>
+      POST(
+        new Request("http://localhost/api/pub-pal/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+        }),
+      );
+    let refused: Response | null = null;
+    for (let i = 0; i < 100 && !refused; i += 1) {
+      const response = await ask();
+      if (response.status === 429) refused = response;
+    }
+    expect(refused).not.toBeNull();
+    const checksBefore = authState.checks;
+    expect((await ask()).status).toBe(429);
+    expect(authState.checks).toBe(checksBefore);
   });
 
   it("refuses a signed-in chat once the spend ceiling is closed", async () => {
