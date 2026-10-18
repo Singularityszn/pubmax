@@ -30,7 +30,8 @@ describe("dispatchStepOutNudges", () => {
       resolveAccountId: async () => "user-1",
       selectPayload: async () => null,
       send,
-      markSent: vi.fn(),
+      claim: vi.fn(async () => true),
+      release: vi.fn(),
     };
     const summary = await dispatchStepOutNudges(new Date("2026-08-08T12:00:00.000Z"), deps);
     expect(summary.skippedNothingOwed).toBe(1);
@@ -52,15 +53,17 @@ describe("dispatchStepOutNudges", () => {
         url: "/tonight",
       }),
       send,
-      markSent: vi.fn(),
+      claim: vi.fn(async () => true),
+      release: vi.fn(),
     };
     const summary = await dispatchStepOutNudges(new Date("2026-08-08T12:00:00.000Z"), deps);
     expect(summary.skippedFrequency).toBe(1);
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("sends an owed payload and stamps last_sent", async () => {
-    const markSent = vi.fn();
+  it("claims last_sent, then sends an owed payload", async () => {
+    const claim = vi.fn(async () => true);
+    const release = vi.fn();
     const deps: StepOutNudgeDispatchDeps = {
       listEnabled: async () => [pref()],
       resolveAccountId: async () => "user-1",
@@ -71,11 +74,13 @@ describe("dispatchStepOutNudges", () => {
         url: "/tonight",
       }),
       send: async () => ({ sent: 1, pruned: 0, errors: 0 }),
-      markSent,
+      claim,
+      release,
     };
     const now = new Date("2026-08-08T12:00:00.000Z");
     const summary = await dispatchStepOutNudges(now, deps);
     expect(summary.sent).toBe(1);
-    expect(markSent).toHaveBeenCalledWith(ACTOR, now.toISOString());
+    expect(claim).toHaveBeenCalledWith(ACTOR, now.toISOString(), "2026-08-01T12:00:00.000Z");
+    expect(release).not.toHaveBeenCalled();
   });
 });

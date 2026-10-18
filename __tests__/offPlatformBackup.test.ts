@@ -57,11 +57,11 @@ describe("pgEnvFromUrl", () => {
 });
 
 describe("dump files", () => {
-  it("names a dump by UTC stamp and dumps the four schemas in custom format", () => {
+  it("names a dump by UTC stamp and dumps the five schemas in custom format", () => {
     expect(dumpFileName(new Date("2026-10-06T07:30:05.123Z"))).toBe("pubmax-20261006T073005Z.dump");
     const args = pgDumpArgs("out.dump");
     expect(args).toContain("--format=custom");
-    expect(DUMP_SCHEMAS).toEqual(["public", "auth", "storage", "supabase_migrations"]);
+    expect(DUMP_SCHEMAS).toEqual(["public", "auth", "storage", "supabase_migrations", "pubmax_private"]);
     for (const schema of DUMP_SCHEMAS) expect(args).toContain(schema);
   });
 });

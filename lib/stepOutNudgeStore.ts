@@ -41,11 +41,25 @@ export type StepOutNudgeStore = {
   put(ownerActor: string, input: StepOutNudgePrefPut): Promise<StepOutNudgePref>;
   withdraw(ownerActor: string): Promise<StepOutNudgePref>;
   markSent(ownerActor: string, sentAt: string): Promise<void>;
+  /** Stamp last_sent_at only when the row is still due (never sent, or sent at or
+   * before `resendBefore`). True when this caller won the row and may send. */
+  claimSend(ownerActor: string, sentAt: string, resendBefore: string): Promise<boolean>;
+  /** Undo a claim whose send reported no delivery, only while our stamp still holds. */
+  releaseSendClaim(
+    ownerActor: string,
+    claimedAt: string,
+    priorSentAt: string | null,
+  ): Promise<void>;
   listEnabled(): Promise<StepOutNudgePref[]>;
   qualifyCheapPint(ownerActor: string): Promise<StepOutNudgePref>;
   optInCheapPint(ownerActor: string, subscriptionToken: string): Promise<StepOutNudgePref>;
   declineCheapPint(ownerActor: string): Promise<StepOutNudgePref>;
   markCheapPintSent(ownerActor: string, sentAt: string): Promise<void>;
+  /** Stamp cheap_pint_sent_at only while it is still empty. True when this caller
+   * won the row and may send the one lifetime ping. */
+  claimCheapPintSend(ownerActor: string, sentAt: string): Promise<boolean>;
+  /** Undo a claim whose send reported no delivery, only while our stamp still holds. */
+  releaseCheapPintSendClaim(ownerActor: string, claimedAt: string): Promise<void>;
   listCheapPintSendReady(): Promise<StepOutNudgePref[]>;
 };
 
@@ -90,6 +104,13 @@ function blankRow(ownerActor: string, now: string): StepOutNudgePref {
     cheapPintDeclined: false,
     cheapPintSentAt: null,
   };
+}
+
+function isStepOutDue(lastSentAt: string | null, resendBefore: string): boolean {
+  if (!lastSentAt) return true;
+  const sentMs = Date.parse(lastSentAt);
+  if (!Number.isFinite(sentMs)) return true;
+  return sentMs <= Date.parse(resendBefore);
 }
 
 function keepsPushToken(row: StepOutNudgePref): boolean {
@@ -195,6 +216,23 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
       updatedAt: sentAt,
     });
   },
+  async claimSend(ownerActor, sentAt, resendBefore) {
+    // Check and stamp with no await between them, so one caller wins.
+    const existing = memoryPrefs.get(ownerActor);
+    if (!existing || !existing.enabled || !existing.subscriptionToken) return false;
+    if (!isStepOutDue(existing.lastSentAt, resendBefore)) return false;
+    memoryPrefs.set(ownerActor, { ...existing, lastSentAt: sentAt, updatedAt: sentAt });
+    return true;
+  },
+  async releaseSendClaim(ownerActor, claimedAt, priorSentAt) {
+    const existing = memoryPrefs.get(ownerActor);
+    if (!existing || existing.lastSentAt !== claimedAt) return;
+    memoryPrefs.set(ownerActor, {
+      ...existing,
+      lastSentAt: priorSentAt,
+      updatedAt: new Date().toISOString(),
+    });
+  },
   async listEnabled() {
     return [...memoryPrefs.values()].filter(
       (row) => row.enabled && Boolean(row.subscriptionToken),
@@ -216,6 +254,29 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
       ...existing,
       cheapPintSentAt: sentAt,
       updatedAt: sentAt,
+    });
+  },
+  async claimCheapPintSend(ownerActor, sentAt) {
+    // Check and stamp with no await between them, so one caller wins.
+    const existing = memoryPrefs.get(ownerActor);
+    if (
+      !existing ||
+      !existing.cheapPintEnabled ||
+      existing.cheapPintDeclined ||
+      existing.cheapPintSentAt
+    ) {
+      return false;
+    }
+    memoryPrefs.set(ownerActor, { ...existing, cheapPintSentAt: sentAt, updatedAt: sentAt });
+    return true;
+  },
+  async releaseCheapPintSendClaim(ownerActor, claimedAt) {
+    const existing = memoryPrefs.get(ownerActor);
+    if (!existing || existing.cheapPintSentAt !== claimedAt) return;
+    memoryPrefs.set(ownerActor, {
+      ...existing,
+      cheapPintSentAt: null,
+      updatedAt: new Date().toISOString(),
     });
   },
   async listCheapPintSendReady() {
@@ -357,6 +418,54 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
     });
   },
 
+  async claimSend(ownerActor, sentAt, resendBefore) {
+    return guard({
+      context: "claimSend",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () =>
+            memoryStepOutNudgeStore.claimSend(ownerActor, sentAt, resendBefore),
+        }),
+      run: async () => {
+        // The due check runs in the statement, so of two overlapping runs only one
+        // gets the row back. No row back means another run already took it.
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({ last_sent_at: sentAt, updated_at: sentAt })
+          .eq("owner_actor", ownerActor)
+          .eq("enabled", true)
+          .not("subscription_token", "is", null)
+          .or(`last_sent_at.is.null,last_sent_at.lte."${resendBefore}"`)
+          .select("owner_actor");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async releaseSendClaim(ownerActor, claimedAt, priorSentAt) {
+    return guard({
+      context: "releaseSendClaim",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () =>
+            memoryStepOutNudgeStore.releaseSendClaim(ownerActor, claimedAt, priorSentAt),
+        }),
+      run: async () => {
+        const { error } = await admin()
+          .from(TABLE)
+          .update({ last_sent_at: priorSentAt, updated_at: new Date().toISOString() })
+          .eq("owner_actor", ownerActor)
+          .eq("last_sent_at", claimedAt);
+        if (error) throw new Error(error.message);
+      },
+    });
+  },
+
   async listEnabled() {
     return guard({
       context: "listEnabled",
@@ -473,6 +582,53 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
           .update({ cheap_pint_sent_at: sentAt, updated_at: sentAt })
           .eq("owner_actor", ownerActor)
           .eq("cheap_pint_enabled", true);
+        if (error) throw new Error(error.message);
+      },
+    });
+  },
+
+  async claimCheapPintSend(ownerActor, sentAt) {
+    return guard({
+      context: "claimCheapPintSend",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryStepOutNudgeStore.claimCheapPintSend(ownerActor, sentAt),
+        }),
+      run: async () => {
+        // The empty-stamp check runs in the statement, so of two overlapping runs
+        // only one gets the row back. No row back means another run already took it.
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({ cheap_pint_sent_at: sentAt, updated_at: sentAt })
+          .eq("owner_actor", ownerActor)
+          .eq("cheap_pint_enabled", true)
+          .eq("cheap_pint_declined", false)
+          .is("cheap_pint_sent_at", null)
+          .select("owner_actor");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async releaseCheapPintSendClaim(ownerActor, claimedAt) {
+    return guard({
+      context: "releaseCheapPintSendClaim",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () =>
+            memoryStepOutNudgeStore.releaseCheapPintSendClaim(ownerActor, claimedAt),
+        }),
+      run: async () => {
+        const { error } = await admin()
+          .from(TABLE)
+          .update({ cheap_pint_sent_at: null, updated_at: new Date().toISOString() })
+          .eq("owner_actor", ownerActor)
+          .eq("cheap_pint_sent_at", claimedAt);
         if (error) throw new Error(error.message);
       },
     });
