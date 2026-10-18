@@ -96,6 +96,12 @@
   margin-top: var(--space-5);
 }
 
+/* A lead, not the poster: wide and shallow, so the stops start on the first
+   screen of a laptop. */
+.storyPhoto .placePhoto__frame {
+  aspect-ratio: 2 / 1;
+}
+
 /* Vibe tags as small neutral stamps (the badge trio). */
 .storyTags {
   list-style: none;

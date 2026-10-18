@@ -3,7 +3,9 @@
    card around it and no text over the photograph, so it needs no contrast
    promise of its own. Tokens only, both themes track. */
 
-.placePhoto {
+/* Zero specificity, so a page's own class places the figure (its margin)
+   whichever stylesheet loads first. */
+:where(.placePhoto) {
   display: grid;
   gap: var(--space-2);
   min-width: 0;
