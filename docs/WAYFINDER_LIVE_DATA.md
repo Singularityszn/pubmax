@@ -48,7 +48,7 @@ page, official API, open data) supports.
 **Not a class in this table: historical pint prices.** `public/data/price_history/london.json`
 is dated evidence about the past, so it has no cadence and no staleness budget to
 breach, and it is deliberately absent from `data/freshness_registry.json` rather
-than registered as `static`. It may never reach a current-price surface at all.
+than registered as `static`. It may never supply a current price.
 Its contract is owned by
 [`public/data/price_history/README.md`](../public/data/price_history/README.md).
 

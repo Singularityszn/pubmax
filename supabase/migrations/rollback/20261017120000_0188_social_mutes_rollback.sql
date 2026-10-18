@@ -1,4 +1,4 @@
--- Rollback for 0181 (Social mutes).
+-- Rollback for 0188 (Social mutes).
 --
 -- Puts 0074's `read_social_post_feed` back byte for byte, drops the two
 -- functions and drops `public.social_mutes` with every mute in it. That COSTS

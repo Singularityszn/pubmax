@@ -265,6 +265,14 @@ export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
     // and no pub stands at the misplaced point.
     to: "venue-1eyb3zz",
   }),
+  Object.freeze({
+    // "The Moon on the Square - JD Wetherspoon", Unit 30, The Centre, Feltham.
+    // The Wetherspoon directory geocodes the shopping centre, 177 m from the pub.
+    from: "venue-g9jxzs",
+    // The Moon on the Square, 30 High Street, Feltham TW13 4AU, at the pub door
+    // in OpenStreetMap. Both records share the postcode.
+    to: "venue-86sj0g",
+  }),
 ]);
 
 // A pub's own website that the source also printed on a namesake across town.
