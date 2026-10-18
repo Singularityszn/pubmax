@@ -378,7 +378,9 @@ a deliberate ink-stamp idiom:
 - provenance / era chips (`.provChip`, `.claimEra`, `.ledgerProvenance`)
 - honesty + demo badges (`.exampleTag`, `.demoDataNote span`, `.feedFilterDemo`)
 - pill kicker/badge chips (`.curatedBadge`, `.goldenKicker`, feed status chips)
-- the passport-stamp kicker (`.passportKicker`, set in the UI sans: monospace is for figures)
+- the passport seal (`.passportSeal`, the bordered PUBMAXX stamp); the
+  `.passportKicker` beside it is a plain label, so it is sentence case
+  (taste plan, 18 Oct 2026)
 
 If a label is plain text with letter-spacing (an eyebrow, a section title, a
 stat `dt`), it is sentence case. If it's a chip with a border/fill that reads
