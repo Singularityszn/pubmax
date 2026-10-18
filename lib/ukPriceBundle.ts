@@ -128,6 +128,13 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "wine", priceGbp: 4.45, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
   { sourceUrl: "https://www.orangetreerichmond.co.uk/food-drink/", category: "wine", priceGbp: 5.35, drinkLabel: ".35 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
   { sourceUrl: "https://www.theprideofpaddington.co.uk/food-drink/", category: "wine", priceGbp: 3.95, drinkLabel: "50 Elderflower & Raspberry Cooler Orange Blossom, Raspbberry, Elderflower, Soda" },
+  // Exa-found London sites, 2026-10-18. A spirit, a water and an energy drink
+  // filed under a beer heading, and the half column of a "½ Pint Pint" pair the
+  // bare-pair rule cannot see because the pair is not near two to one.
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 11, drinkLabel: "Brandy Remy Martin 1738" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 2.8, drinkLabel: "Draft Soft Drinks (spirit mixer) FOC Harrogate Water Sparkling" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 3.5, drinkLabel: "Red Bull — All Flavours" },
+  { sourceUrl: "https://theblacksmithsse16.com/drink", category: "beer", priceGbp: 4.5, drinkLabel: "Pint Pint London Pride 4.1%" },
 ];
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
