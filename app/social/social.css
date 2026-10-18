@@ -2075,3 +2075,29 @@ span.socialPostAvatar {
   outline: 2px solid var(--river);
   outline-offset: 2px;
 }
+
+/* Hidden-name posts (lib/socialHiddenName.ts). The author line says the name
+   is hidden in words, so a reader never mistakes "a PUBMAXXER" for a handle. */
+.socialPostMeta__hidden {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.socialHiddenName {
+  display: grid;
+  gap: 4px;
+}
+
+.socialHiddenName label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.socialHiddenName__hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}

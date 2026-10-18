@@ -53,6 +53,7 @@ function baseFields(body: string): SocialPostFields {
     venueId: null,
     hashtags: [],
     commentPolicy: "open",
+    nameHidden: false,
     photo: null,
   };
 }

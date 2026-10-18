@@ -17,7 +17,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "6 August 2026";
+const LAST_UPDATED = "18 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -130,6 +130,9 @@ export default function TermsPage() {
           separate hosted age check. Your date of birth,
           documents and verification status aren&rsquo;t public profile fields or
           badges.
+          You can hide your name on a public Social post. Other people won&rsquo;t
+          see your handle, but we still know the post is yours, and the house
+          rules, reports and moderation apply exactly as they do to any post.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

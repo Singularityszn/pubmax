@@ -4,6 +4,7 @@ import {
   validateSocialPostEdit,
   type SocialPostFields,
 } from "@/lib/socialPosts";
+import { HIDDEN_NAME_NO_TAGS_MESSAGE } from "@/lib/socialHiddenName";
 import { parseSocialReviewRating } from "@/lib/socialPostReviews";
 import { parseSocialVideoDuration } from "@/lib/socialPostVideos";
 
@@ -47,7 +48,7 @@ const CREATE_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "reviewRating",
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EDIT_EXTRA_KEYS = new Set(["photoAltText", "tagHandles", "removePhoto"]);
 const CREATE_KEYS = new Set([
-  "kind", "visibility", "body", "area", "venueId", "hashtags", "commentPolicy",
+  "kind", "visibility", "body", "area", "venueId", "hashtags", "commentPolicy", "nameHidden",
 ]);
 const EDIT_KEYS = new Set([
   "expectedMutationVersion", "kind", "visibility", "body", "area", "venueId", "hashtags", "commentPolicy",
@@ -134,7 +135,13 @@ export function parseSocialCreateSubmission(
     venueId: validation.value.venueId,
     hashtags: validation.value.hashtags,
     commentPolicy: validation.value.commentPolicy,
+    nameHidden: validation.value.nameHidden,
   };
+  // A tag shows the tagged person the author's handle, and a pub score needs
+  // a named pub, so neither rides a hidden-name post.
+  if (post.nameHidden && tagHandles.length > 0) {
+    return { ok: false, code: "INVALID_TAGS", error: HIDDEN_NAME_NO_TAGS_MESSAGE };
+  }
   let reviewRating: number | null = null;
   if (raw.reviewRating !== undefined && raw.reviewRating !== null) {
     reviewRating = parseSocialReviewRating(raw.reviewRating);

@@ -448,7 +448,7 @@ describe("/api/social/posts", () => {
   it("reuses an exact photo replay without uploading again", async () => {
     const key = "exact-photo-retry-key";
     const mediaId = socialPhotoMediaId(actor.profileId, key, "a".repeat(64));
-    const fields = { kind: "standard" as const, visibility: "friends" as const, body: "Same", area: null, venueId: null, hashtags: [], commentPolicy: "open" as const, photo: { mediaId, altText: "Same photo" } };
+    const fields = { kind: "standard" as const, visibility: "friends" as const, body: "Same", area: null, venueId: null, hashtags: [], commentPolicy: "open" as const, photo: { mediaId, altText: "Same photo" }, nameHidden: false };
     state.createPrior = { digest: socialPostRequestDigest(fields, "a".repeat(64), []), mediaId };
     const form = new FormData();
     form.set("post", JSON.stringify({ kind: "standard", visibility: "friends", body: "Same", commentPolicy: "open", photoAltText: "Same photo" }));

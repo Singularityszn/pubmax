@@ -63,6 +63,7 @@ describe("durable Social post photo replay", () => {
         venueId: null,
         hashtags: [],
         commentPolicy: "open",
+        nameHidden: false,
         photo: { mediaId, altText: "Same photo" },
       },
       {
