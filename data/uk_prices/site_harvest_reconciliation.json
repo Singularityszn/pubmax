@@ -9861,6 +9861,86 @@
         "rowCount": 7866,
         "siteHarvestRows": 3336
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-blackcapcamden-co-uk.json",
+      "sourceEvidenceSha256": "286d51e27fc2255601377cbcb62df614bdc5de7b182597650226d6170d649f2d",
+      "sourceUrl": "https://blackcapcamden.co.uk",
+      "sourceObservedAt": "2026-10-18T21:37:55.150Z",
+      "addedRows": 108,
+      "currentLedger": {
+        "sha256": "b6ba2ee52795cbf1d20bfa61e17ec9bf465dbbe35d00ba34bfbb2824c04af4e8",
+        "rowCount": 3465,
+        "rowIdentitySetSha256": "4f71f534e9c46e46d2d3c4a7630374b0fa00aebb50083e21d018b520cc244c05"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-theduchessofkent-co-uk-food-and-drinks.json",
+      "sourceEvidenceSha256": "9e632ddb7387321e4651f7694d45ee03ab2e725129a0e4ce02bd9d5f579c0f6a",
+      "sourceUrl": "https://www.theduchessofkent.co.uk/food-and-drinks/",
+      "sourceObservedAt": "2026-10-18T21:37:58.600Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "b14e32553c48d9f5b77122ef8f734da95d19c67c01a86c9df87cee7b8c54e002",
+        "rowCount": 3473,
+        "rowIdentitySetSha256": "f3ef72f9b0c2c126aa0ff93cff5a3e0f8eb044ff260960b815e1ae6a1f5281e6"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-theblacksmithsse16-com-drink.json",
+      "sourceEvidenceSha256": "0c1644637c1da0247be3d7734b0d402f4ff368c97da49048276115c884325ce8",
+      "sourceUrl": "https://theblacksmithsse16.com/drink",
+      "sourceObservedAt": "2026-10-18T21:37:58.704Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "87a945e71aa269952cec2824d0b2c382eeaef94018515bbb99ff64af1a2b310f",
+        "rowCount": 3493,
+        "rowIdentitySetSha256": "6827da1eb654b11fd06ad107f7a50b733c7355a889df742ec9c8dc2ab2eaf3a7"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-thepaternoster-com-food-drink.json",
+      "sourceEvidenceSha256": "730d4184507ac380c27d6f8059dafa72043f208d94962a0319056fe7af48c5fd",
+      "sourceUrl": "https://www.thepaternoster.com/food-drink/",
+      "sourceObservedAt": "2026-10-18T21:38:00.909Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "1617865b6f4546b63209fd6d00a06bcc926ae315459e178aed164383085ca353",
+        "rowCount": 3513,
+        "rowIdentitySetSha256": "28e5adbffbafa6ef2c11c18c7d6992c87608dfcff9d3f0ae73aec418c079b7bd"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-18-coachandhorsesbeckenham-com-wines.json",
+      "sourceEvidenceSha256": "d490b9b9200b1d5062931a42c2f59b3867dee058f213e88fbac3081b32d03363",
+      "sourceUrl": "https://www.coachandhorsesbeckenham.com/wines",
+      "sourceObservedAt": "2026-10-18T21:38:01.690Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "54df1d108672e1d8edcb4897b1fc87f209312d0082d43a0ee67409adfd2e8de1",
+        "rowCount": 3515,
+        "rowIdentitySetSha256": "acb9867aee1ee0114c5ad9918495cdff7f91f0e9fd4c01f8b787019c5968be96"
+      },
+      "currentBundle": {
+        "rowCount": 8024,
+        "siteHarvestRows": 3494
+      }
     }
   ]
 }

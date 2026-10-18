@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.coachandhorsesbeckenham.com/wines",
+  "observedAt": "2026-10-18T21:38:01.690Z",
+  "evidence": "t Grigio - as refreshing as lemonade but more substantial. £23.95/ £8.65/ £6.45 QL Vinho Verde, Quinta da Lixa 10.5% abv Vinho Verde, Portugal The nose is intense and attractive, with flowery and fruity notes, followed by lemonade hints, tropical fruit in the mouth and a long finish. £22.95/ £8.30/ £6.20 Chenin Blanc, Stormy Cape 13% abv Western Cape, South Africa This snappy Chenin Blanc is packed with passion fruit, green apple and a finishes with a refreshing spray of lemon. Crisp and dry. £22.95/ £8.30/ £6.20 Anciens Temps Blanc, Vin de France 11% abv Vin De France, France Intensely aromat",
+  "evidenceReadAt": "2026-10-18T21:38:11.107Z",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london --exa-sites --exa-sites-only (Exa-found site, address check, shared ukPriceCrawl rules, live robots)",
+  "rows": [
+    {
+      "host": "coachandhorsesbeckenham.com",
+      "venueId": "venue-uk-n300587311",
+      "osmId": "node/300587311",
+      "name": "Coach and Horses",
+      "postcode": "BR3 3LA",
+      "lat": 51.4062053,
+      "lng": -0.0279755,
+      "category": "soft-drink",
+      "priceGbp": 6.2,
+      "drinkLabel": "/",
+      "sourceUrl": "https://www.coachandhorsesbeckenham.com/wines",
+      "observedAt": "2026-10-18T21:38:01.690Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 24
+    },
+    {
+      "host": "coachandhorsesbeckenham.com",
+      "venueId": "venue-uk-n300587311",
+      "osmId": "node/300587311",
+      "name": "Coach and Horses",
+      "postcode": "BR3 3LA",
+      "lat": 51.4062053,
+      "lng": -0.0279755,
+      "category": "wine",
+      "priceGbp": 5.4,
+      "drinkLabel": "/",
+      "sourceUrl": "https://www.coachandhorsesbeckenham.com/wines",
+      "observedAt": "2026-10-18T21:38:01.690Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 24
+    }
+  ]
+}
