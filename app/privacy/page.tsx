@@ -4,6 +4,7 @@ import Link from "next/link";
 import Kicker from "@/components/ui/kicker";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import SiteNav from "@/components/nav/SiteNav";
 
 import "../legal.css";
 
@@ -43,6 +44,8 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       {/* A legal page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
@@ -770,9 +773,9 @@ export default function PrivacyPage() {
             <dt>TypeSafe</dt>
             <dd>
               Pub Pal asks TypeSafe two yes-or-no safety questions about your
-              message before it answers: whether you are asking if you are fit
-              to travel after drinking, and whether you are asking how to get
-              home. Your message and up to six recent turns of that
+              message before it answers. Are you asking if you are fit to
+              travel after drinking? Are you asking how to get home? Your
+              message and up to six recent turns of that
               conversation go to <code>api.typesafe.ai</code> for those
               judgments, and nothing else about you goes with them. It is off
               and sends nothing unless a TypeSafe key is set on the deployment;
@@ -1033,5 +1036,6 @@ export default function PrivacyPage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

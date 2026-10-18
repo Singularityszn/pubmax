@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import SiteNav from "@/components/nav/SiteNav";
+import Kicker from "@/components/ui/kicker";
+import TrustPill from "@/components/ui/trust-pill";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import {
   CONFIRMED_MAX_AGE_DAYS,
   LISTED_MAX_AGE_DAYS,
   PRICE_STANDINGS,
-  priceStandingLabel,
   priceStandingNote,
+  type PriceStanding,
+  type PriceStandingDecision,
 } from "@/lib/priceTier";
 import { MIN_ESTIMATE_SAMPLE } from "@/lib/priceEstimate";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
@@ -40,15 +44,43 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * The pill a reader meets beside a price, shown here with no figure in it.
+ * The page names what each label means, so it shows the label itself, from
+ * the one renderer every price uses, rather than a drawing of it. With no
+ * figure there is no price band, so every pill here reads in neutral ink:
+ * the colour on a real pill is what the figure costs, never the label.
+ */
+const SPECIMEN_REASON: Record<PriceStanding, PriceStandingDecision["reason"]> = {
+  confirmed: "confirmed_in_window",
+  listed: "listed_with_source",
+  estimate: "modelled",
+  none: "nothing_known",
+};
+
+function specimen(standing: PriceStanding): PriceStandingDecision {
+  return {
+    standing,
+    reason: SPECIMEN_REASON[standing],
+    priceGbp: null,
+    sourceUrl: null,
+    asOf: null,
+    basis: null,
+    sampleSize: null,
+  };
+}
+
 export default function HowWeEstimatePage() {
   const baselines = estimateBaselines();
   const chains = baselines?.chains ?? [];
   const regions = baselines?.regions ?? [];
 
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       <header className="legalHead">
-        <p className="legalEyebrow">Prices</p>
+        <Kicker>Prices</Kicker>
         <h1 className="legalTitle">How we estimate</h1>
         <p className="legalLede">
           Each figure says whether it is confirmed, listed or estimated.
@@ -60,12 +92,19 @@ export default function HowWeEstimatePage() {
         <h2 id="standings" className="legalH2">What the labels mean</h2>
         <ul className="legalPanelList">
           {PRICE_STANDINGS.map((standing) => (
-            <li key={standing}>
-              <strong>{priceStandingLabel(standing)}.</strong>{" "}
+            <li key={standing} data-standing-definition={standing}>
+              <span className="legalTerm">
+                <TrustPill decision={specimen(standing)} />
+              </span>
               {priceStandingNote(standing)}
             </li>
           ))}
         </ul>
+        <p className="legalBody">
+          The label is always a word. Beside a real price the pill also takes
+          that price&rsquo;s colour: green for a cheap pint, yellow for an
+          average one, red for a dear one.
+        </p>
         <p className="legalBody">
           A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days. A listed menu
           price lasts {LISTED_MAX_AGE_DAYS} days. After that, we use whichever
@@ -148,5 +187,6 @@ export default function HowWeEstimatePage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

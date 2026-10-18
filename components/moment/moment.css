@@ -48,10 +48,16 @@
 /* The column is inset by the shared page gutter at every width. The phone rule
    below used to take 12px a side where every other route takes 22px at 390
    (site audit 13 Sep 2026, D15). */
+/* Taste pass, 18 Oct 2026: the main takes the Screen's own width and gutter
+   (components/ui/screen.css), so the head starts on the same left edge as
+   every other route, and the composer is a reading column inside it. */
 .momentPage .momentMain {
-  width: min(760px, calc(100% - 2 * var(--page-gutter, 22px)));
-  margin: 0 auto;
-  padding: clamp(48px, 8vw, 96px) 0 120px;
+  padding-top: var(--space-6);
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
+}
+
+.momentPage .momentMain > :not(.screenHead) {
+  max-width: 46rem;
 }
 
 .momentPage .momentMain .screenHead {
@@ -87,18 +93,26 @@
   color: var(--ink);
   text-decoration: none;
 }
-.momentIntentCurrent { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised)); }
-.momentIntentLink { background: var(--panel-raised); }
+/* The lane you are on is a selection, so it reads in ink, never coral
+   (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
+.momentIntentCurrent {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+.momentIntentLink { background: transparent; }
 @media (hover: hover) and (pointer: fine) {
   .momentIntentLink:hover {
-    border-color: var(--brass);
+    border-color: var(--hairline-strong);
   }
 }
 .momentIntent strong { display: block; font-size: 14px; }
 .momentIntent span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.35; }
-.momentIntent svg { color: var(--brass); }
+.momentIntent svg { color: currentColor; }
 
-.momentComposer { margin-top: 12px; padding: clamp(16px, 3vw, 28px); border: 1px solid var(--line); border-radius: 20px; background: var(--panel-raised); }
+/* The composer is the page's own form, not a card: its fields carry the
+   edges, so a box around them would make every input a box in a box. */
+.momentComposer { margin-top: var(--space-6); }
 .momentMediaGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .momentMediaGrid1 { grid-template-columns: 1fr; }
 .momentMedia { position: relative; min-height: 220px; margin: 0; overflow: hidden; border-radius: 16px; background: var(--panel); }
@@ -124,7 +138,7 @@
   gap: 7px;
 }
 .momentMediaActions button { position: static; width: 44px; min-width: 44px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 800; }
-.momentMediaActions button:first-child { width: auto; color: var(--color-on-accent); background: var(--brass); border-color: var(--brass); }
+.momentMediaActions button:first-child { width: auto; }
 .momentMediaPicker {
   min-height: 220px;
   padding: 24px;
@@ -134,19 +148,18 @@
   place-items: center;
   align-content: center;
   gap: 7px;
-  /* Solid hairline + soft brass fill reads finished, not like an unfinished
-     dashed placeholder; the fill still marks it as a tappable drop zone. */
+  /* A drop zone is an input, so it keeps its edge; the recessed panel marks
+     it as the place to tap. No coral tint. */
   border: 1px solid var(--hairline);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--brass) 4%, var(--paper));
+  background: var(--panel);
   color: var(--ink-soft);
   cursor: pointer;
   text-align: center;
 }
 @media (hover: hover) and (pointer: fine) {
   .momentMediaPicker:hover {
-    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-    background: color-mix(in srgb, var(--brass) 8%, var(--paper));
+    border-color: var(--hairline-strong);
   }
 }
 .momentMediaPicker strong { color: var(--ink); font-size: 0.9375rem; }
@@ -156,9 +169,9 @@
 
 /* Desktop drag-drop affordance (D1.4). Phone keeps the quieter picker. */
 .momentMediaPickerDragOver {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, var(--paper));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
 }
 
 .momentEditorBackdrop {
@@ -196,7 +209,7 @@
 .momentEditorClose { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); color: var(--ink); }
 .momentEditorTools { min-height: 44px; padding: 0 12px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: 4px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 800; text-align: center; }
 .momentEditorTools span { min-width: 0; padding: 8px 4px; border-radius: 10px; }
-.momentEditorTools span[aria-current="step"] { background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised)); color: var(--ink); }
+.momentEditorTools span[aria-current="step"] { background: var(--state-selected-surface); color: var(--state-selected-ink); }
 .momentEditorCanvas { min-height: 0; overflow: auto; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 .momentEditorCanvas .profileCropStep { width: min(100%, 480px); margin: 0 auto; }
 .momentDecorator { width: min(100%, 520px); margin: 0 auto; display: grid; gap: 12px; }
@@ -208,8 +221,10 @@
 .momentDecoratorFilters button,
 .momentDecoratorDraw button,
 .momentDecoratorActions button { min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-raised); color: var(--ink); font-size: 12px; font-weight: 800; }
+/* A pressed filter or brush is a selection: ink. The sheet's own apply is
+   its one coral fill. */
 .momentDecoratorFilters button[aria-pressed="true"],
-.momentDecoratorDraw button[aria-pressed="true"],
+.momentDecoratorDraw button[aria-pressed="true"] { border-color: var(--state-selected-border); background: var(--state-selected-surface); color: var(--state-selected-ink); }
 .momentDecoratorActions button:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 .momentDecoratorText { display: grid; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 800; }
 .momentDecoratorText input { min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-raised); color: var(--ink); }
@@ -233,7 +248,7 @@
   .momentMediaPicker span { max-width: 32ch; }
 }
 
-.momentAltText { margin-top: 18px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 14px; background: color-mix(in srgb, var(--brass) 4%, var(--panel-raised)); display: grid; gap: 12px; }
+.momentAltText { margin-top: 18px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 14px; background: transparent; display: grid; gap: 12px; }
 .momentAltText legend { padding: 0 6px; font: 700 14px/1.2 var(--font-body); color: var(--ink); }
 .momentAltText__hint { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
 .momentAltText__row { display: grid; gap: 6px; color: var(--ink-soft); font-size: 13px; font-weight: 700; }
@@ -270,7 +285,7 @@
 .momentFieldPair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .momentStatus { min-height: 44px; margin-top: 18px; display: flex; align-items: center; gap: 9px; color: var(--ink-soft); font-size: 13px; }
-.momentStatus svg { flex: 0 0 auto; color: var(--brass); }
+.momentStatus svg { flex: 0 0 auto; color: var(--color-text-muted); }
 /* The head's Save is the one filled control on this page; this one, beside
    the fields it saves, is a bordered secondary. */
 .momentSave {
@@ -286,7 +301,7 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .momentSave:not(:disabled):hover {
-    border-color: var(--brass);
+    border-color: var(--hairline-strong);
   }
 }
 .momentSave:disabled { cursor: not-allowed; opacity: .48; }
@@ -294,17 +309,17 @@
 .momentSignIn { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
 .momentSignIn p { margin: 0 0 12px; color: var(--ink-soft); font-size: 14px; }
 
-.momentSaved { margin-top: 16px; padding: 22px; border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line)); border-radius: 18px; background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised)); }
+/* The saved note is the page answering, not a coral card: a hairline above
+   it and its words. Its links are quiet; the head still owns the one fill. */
+.momentSaved { margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--line-soft); }
 .momentSaved h2 { margin: 0; font: 700 24px/1.1 var(--font-display); }
 .momentSaved p { margin: 9px 0 0; color: var(--ink-soft); line-height: 1.5; }
 .momentSaved div { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 9px; }
 .momentSaved a { min-height: 44px; padding: 0 15px; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); font-weight: 750; text-decoration: none; }
-.momentSaved a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
+.momentSaved a:first-child { border-color: var(--hairline-strong); background: var(--panel-raised); }
 
 @media (max-width: 640px) {
-  .momentPage .momentMain { padding-top: 32px; }
   .momentIntent { grid-template-columns: 1fr; }
-  .momentComposer { padding: 12px; border-radius: 18px; }
   .momentMediaGrid { grid-template-columns: 1fr 1fr; }
   .momentMediaGrid1 { grid-template-columns: 1fr; }
   .momentMedia, .momentMediaPicker { min-height: 220px; }
@@ -315,7 +330,7 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .momentPage, .momentComposer, .momentIntentLink { background: var(--paper); }
+  .momentPage { background: var(--paper); }
 }
 
 @media (prefers-reduced-motion: reduce) {

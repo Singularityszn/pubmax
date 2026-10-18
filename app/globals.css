@@ -735,23 +735,25 @@ button {
 }
 
 .loadingShell {
+  /* A held page is plain paper: no dot grid, no graph paper (docs/VOICE.md,
+     "Template patterns", dot-grid). The wait is the copy, not a texture. */
   min-height: 100dvh;
   display: grid;
   place-items: center;
   background: var(--paper);
-  background-image: radial-gradient(color-mix(in srgb, var(--brass) 8%, transparent) 1px, transparent 1px);
-  background-size: 22px 22px;
   text-align: center;
 }
 
-.loadingShell .eyebrow {
-  animation: pulse 1.6s ease-in-out infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .loadingShell .eyebrow {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
 }
 
 .loadingShell h1 {
-  margin: 6px 0 0;
-  font-family: var(--serif);
-  font-size: 1.6rem;
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
 }
 
 @keyframes pulse {
@@ -2010,6 +2012,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   }
 }
 
+/* THE MAP'S HELD FRAME IS A PLAIN FIELD (taste pass, 18 Oct 2026). It used to
+   be a fake map built from spans (two streets, a river, four pins) on a dot
+   grid under a river-to-brick wash: a drawing of a screenshot, and the VOICE
+   dot-grid pattern, as the first frame of a map-first product. Now it is the
+   ground the basemap will paint on (--paper by day, --ink-deep by night), the
+   pint glass and its one line, and a hairline of progress. Nothing to decode,
+   nothing that pretends to be the map. */
 .mapLoading {
   position: absolute;
   inset: 0;
@@ -2017,193 +2026,57 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 14px;
-  padding: clamp(18px, 4vw, 34px);
+  padding: var(--space-4);
   pointer-events: none;
-  /* Wave J2 — match route skeleton paper/grain so chunk→canvas handoff holds one frame. */
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--river) 10%, transparent), transparent 30% 70%, color-mix(in srgb, var(--brass) 10%, transparent)),
-    radial-gradient(color-mix(in srgb, var(--brass) 12%, transparent) 1px, transparent 1px),
-    color-mix(in srgb, var(--paper) 88%, var(--ink-deep) 12%);
-  background-size: auto, 22px 22px, auto;
+  background: var(--paper);
   color: var(--ink);
 }
 
 [data-theme="dark"] .mapLoading {
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--river) 18%, transparent), transparent 30% 70%, color-mix(in srgb, var(--brick) 12%, transparent)),
-    radial-gradient(color-mix(in srgb, var(--brass) 14%, transparent) 1px, transparent 1px),
-    var(--ink-deep);
-  background-size: auto, 22px 22px, auto;
+  background: var(--ink-deep);
   color: var(--color-on-inverse);
 }
 
-.mapLoadingScene {
-  position: relative;
-  width: min(72vw, 390px);
-  /* Match .mapSkeletonMap (380×240 → 19:12) so route→canvas handoff doesn't jump. */
-  aspect-ratio: 19 / 12;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass-bright) 46%, transparent);
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--paper) 88%, var(--river) 12%) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in srgb, var(--paper) 90%, var(--brass) 10%) 1px, transparent 1px),
-    color-mix(in srgb, var(--panel) 92%, var(--river) 8%);
-  background-size: 42px 42px, 42px 42px, auto;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-}
-
-.mapLoadingScene::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    transparent 0 42%,
-    color-mix(in srgb, var(--brass) 10%, transparent) 42% 44%,
-    transparent 44%
-  );
-}
-
-.mapLoadingStreet,
-.mapLoadingRiver {
-  position: absolute;
-  left: -8%;
-  width: 116%;
-  border-radius: 999px;
-  transform-origin: center;
-}
-
-.mapLoadingStreet {
-  height: 2px;
-  background: rgba(154, 106, 36, 0.22);
-}
-
-.mapLoadingStreet--one {
-  top: 34%;
-  transform: rotate(-18deg);
-}
-
-.mapLoadingStreet--two {
-  top: 62%;
-  transform: rotate(28deg);
-}
-
-.mapLoadingRiver {
-  top: 52%;
-  height: 18px;
-  background: color-mix(in srgb, var(--river) 42%, transparent);
-  transform: rotate(-5deg);
-  opacity: 0.72;
-}
-
-.mapLoadingPin {
-  position: absolute;
-  width: 13px;
-  aspect-ratio: 1;
-  border: 2px solid rgba(255, 255, 255, 0.78);
-  border-radius: 50%;
-  box-shadow: 0 0 0 7px color-mix(in srgb, currentcolor 18%, transparent);
-  color: var(--pint);
-  animation: mapSkeletonPulse 1.55s ease-in-out infinite;
-}
-
-.mapLoadingPin--pint {
-  background: var(--pint);
-  color: var(--pint);
-}
-
-.mapLoadingPin--amber {
-  background: var(--amber);
-  color: var(--amber);
-  animation-delay: 0.22s;
-}
-
-.mapLoadingPin--brick {
-  background: var(--brick);
-  color: var(--brick);
-  animation-delay: 0.44s;
-}
-
-.mapLoadingPin--one {
-  top: 26%;
-  left: 25%;
-}
-
-.mapLoadingPin--two {
-  top: 36%;
-  left: 56%;
-}
-
-.mapLoadingPin--three {
-  top: 62%;
-  left: 70%;
-}
-
-.mapLoadingPin--four {
-  top: 66%;
-  left: 36%;
-  animation-delay: 0.66s;
-}
-
+/* The glass and its stack, one row, no pill around them. */
 .mapLoadingCopy {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  color: var(--ink);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink-deep) 16%, transparent);
-  font-size: 0.88rem;
-  font-weight: 700;
-  line-height: 1.25;
+  gap: var(--space-3);
+  max-width: min(100%, 420px);
+  color: inherit;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
 }
 
-[data-theme="dark"] .mapLoadingCopy {
-  border-color: color-mix(in srgb, var(--brass-bright) 42%, transparent);
-  background: color-mix(in srgb, var(--ink-deep) 84%, transparent);
-  color: var(--color-on-inverse);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
-}
-
-/* The pill is ONE row: the pint glass, then this stack. Every line the frame
-   prints is a row of the stack, so a line added later drops UNDER the one
-   above it rather than growing the pill a third column at 390px. */
+/* Every line the frame prints is a row of this stack, so a line added later
+   drops UNDER the one above it rather than growing the row a third column at
+   390px. */
 .mapLoadingLines {
   display: flex;
   min-width: 0;
   flex-direction: column;
-}
-
-.mapLoadingEyebrow {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--color-text-muted);
-  font-family: var(--font-body);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  gap: var(--space-1);
 }
 
 .mapLoadingSlow {
   display: block;
-  margin-top: 4px;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 650;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
+/* A hairline under the line. It takes no room in the grid (the negative
+   bottom margin cancels its own box), so the glass and its line sit exactly
+   where the route skeleton put them and the handover does not jump. */
 .mapLoadingProgress {
-  width: min(88vw, 390px);
-  max-width: 100%;
-  height: 4px;
-  margin-top: 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--line) 70%, transparent);
+  width: min(60vw, 200px);
+  height: 2px;
+  margin-top: var(--space-4);
+  margin-bottom: calc(-1 * (var(--space-4) + 2px));
+  border-radius: var(--radius-pill);
+  background: var(--line-soft);
   overflow: hidden;
 }
 
@@ -2211,38 +2084,23 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--brass-bright);
-  transition: width 0.35s ease;
+  background: var(--color-text-muted);
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: no-preference) {
   .mapLoadingProgressBar {
-    transition: none;
+    transition: width var(--duration-slow) var(--ease-out);
   }
 }
 
-@media (max-width: 640px) {
-  .mapLoading {
-    padding: 16px;
-  }
-
-  .mapLoadingScene {
-    width: min(88vw, 390px);
-  }
-
-  .mapLoadingCopy {
-    width: min(86vw, 420px);
-    max-width: min(88vw, 390px);
-  }
-}
-
-/* Issue #35 — map loading skeleton. app/map/loading.tsx paints a pitched-London
-   impression (a river curve + pulsing price-coloured dots) during the route
-   chunk load; PubMap's .mapLoading (above) continues the SAME pint-glass pill
-   (glyph, gap and padding) while the WebGL canvas style loads, so the
-   transition reads as one held frame.
-   Every colour derives from existing tokens; reduced-motion holds the dots
-   still. --ink-deep backs the dark mode; the paper grid backs light. */
+/* Issue #35 — the route-level map skeleton (app/map/loading.tsx, through
+   components/map/MapLoadingSkeleton.tsx) is the SAME held frame one step
+   earlier, so it wears the same plain field and the same glass-and-line row,
+   and PubMap's .mapLoading (above) continues it without a repaint. Its drawn
+   map (an SVG of streets, a river and pulsing price dots on graph paper) is
+   retired with the frame's fake map: it stays out of the layout until the
+   component drops the markup. The heading is kept for assistive technology
+   and taken out of sight, because the live frame prints only the line. */
 .mapSkeleton {
   position: fixed;
   inset: 0;
@@ -2250,162 +2108,58 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: grid;
   place-items: center;
   min-height: 100dvh;
-  padding: clamp(18px, 4vw, 44px);
+  padding: var(--space-4);
   background: var(--paper);
-  background-image:
-    linear-gradient(90deg, rgba(47, 111, 143, 0.08), transparent 30% 70%, rgba(181, 73, 58, 0.08)),
-    radial-gradient(rgba(154, 106, 36, 0.13) 1px, transparent 1px);
-  background-size: auto, 22px 22px;
+  color: var(--ink);
 }
 
 [data-theme="dark"] .mapSkeleton {
   background: var(--ink-deep);
-  background-image:
-    linear-gradient(90deg, rgba(47, 111, 143, 0.2), transparent 30% 70%, rgba(181, 73, 58, 0.14)),
-    radial-gradient(rgba(211, 164, 74, 0.12) 1px, transparent 1px);
-  background-size: auto, 22px 22px;
+  color: var(--color-on-inverse);
 }
 
 .mapSkeletonInner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  width: min(86vw, 560px);
+  width: min(100%, 560px);
 }
 
 .mapSkeletonMap {
-  width: 100%;
-  aspect-ratio: 19 / 12;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
-  border-radius: var(--radius-sm);
-  /* Wave J2 — warmer paper wash so skeleton ↔ first pins share one atmosphere. */
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--paper) 82%, var(--river) 18%) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in srgb, var(--paper) 86%, var(--pint) 14%) 1px, transparent 1px),
-    color-mix(in srgb, var(--paper) 92%, var(--amber) 8%);
-  background-size: 42px 42px, 42px 42px, auto;
-  box-shadow: 0 24px 58px color-mix(in srgb, var(--ink-deep) 18%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
-  animation: mapSkeletonEnter var(--duration-slow) var(--ease-out) both;
-}
-
-@keyframes mapSkeletonEnter {
-  from {
-    opacity: 0.72;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.mapSkeletonStreet {
-  stroke: var(--brass);
-  stroke-width: 1.3;
-  stroke-linecap: round;
-  opacity: 0.2;
-}
-
-.mapSkeletonStreet--minor {
-  stroke-width: 0.9;
-  opacity: 0.15;
-}
-
-.mapSkeletonRiver {
-  stroke: var(--river);
-  stroke-width: 12;
-  stroke-linecap: round;
-  opacity: 0.42;
-}
-
-.mapSkeletonPin {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mapSkeletonPulse 1.6s ease-in-out infinite;
-}
-
-.mapSkeletonDotHalo {
-  fill: rgba(211, 164, 74, 0.18);
-}
-
-.mapSkeletonDot {
-  stroke: rgba(255, 255, 255, 0.78);
-  stroke-width: 1.8;
-  filter: drop-shadow(0 3px 5px rgba(24, 34, 26, 0.18));
-}
-
-@keyframes mapSkeletonPulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.12);
-  }
+  display: none;
 }
 
 .mapSkeletonCopy {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  max-width: min(100%, 420px);
   margin: 0;
-  max-width: min(86vw, 420px);
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
-  box-shadow: var(--shadow-sm);
-  color: var(--ink-soft);
+  color: inherit;
+  font-family: var(--font-body);
 }
 
 .mapSkeletonCopy h1 {
-  margin: 0 0 2px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: clamp(1rem, 2vw, 1.22rem);
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 1.15;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* The route skeleton and PubMap's own .mapLoading print the SAME sentence, one
-   after the other, and the handover is meant to read as one held frame. It did
-   not: this line was 0.84rem/650 and .mapLoadingCopy's is 0.88rem/700, so the
-   swap repainted one sentence 19% larger about 700 ms in. That is a new largest
-   contentful paint for a reader who has been shown nothing new, and it carried
-   the frame's own layout shift with it. The type is the live frame's, so the
-   first paint is already the final one. */
+/* The type is the live frame's, so the first paint is already the final one:
+   a size step at the handover is a new largest contentful paint for a reader
+   who has been shown nothing new. */
 .mapSkeletonCopy p {
   margin: 0;
-  font-size: 0.88rem;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-@media (max-width: 640px) {
-  .mapSkeletonInner {
-    width: min(100%, 560px);
-  }
-
-  .mapSkeletonCopy {
-    width: 100%;
-  }
-}
-
-/* Reduced motion: the field stays legible but still. */
-@media (prefers-reduced-motion: reduce) {
-  .mapSkeletonPin,
-  .mapLoadingPin {
-    animation: none;
-    opacity: 0.9;
-  }
-  .mapSkeletonMap {
-    animation: none;
-  }
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
 }
 
 /* POI category toggles — LEGACY (Wave J moved mid-map strip into Layers FAB).
