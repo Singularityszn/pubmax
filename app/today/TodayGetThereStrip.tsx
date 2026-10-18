@@ -23,7 +23,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { LocateFixed, MapPin, TrainFront, X } from "lucide-react";
+import { LocateFixed, MapPin, X } from "lucide-react";
 
 import DisruptionLine from "@/components/transport/DisruptionLine";
 import { coarsenViewerPoint } from "@/lib/geo";
@@ -152,17 +152,9 @@ export default function TodayGetThereStrip() {
 
   return (
     <section className="todayCard" aria-labelledby="today-getthere-title" data-testid="today-get-there">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
-          <TrainFront size={18} />
-        </span>
-        <div>
-          <p className="todayCardEyebrow">Getting home</p>
-          <h2 className="todayCardTitle" id="today-getthere-title">
-            Your last train, before you commit to the night.
-          </h2>
-        </div>
-      </div>
+      <h2 className="todayCardTitle" id="today-getthere-title">
+        Your last train, before you commit to the night.
+      </h2>
 
       {origin && result?.kind === "summary" ? (
         <div className="todayGetThere">
@@ -275,8 +267,7 @@ export default function TodayGetThereStrip() {
           one primary action is Find my pint in the Screen head
           (docs/design/LAUNCH_SCREENS.md), so this stays a text link. */}
       <p className="todayCardFootRow todayNearEntry">
-        <Link href="/near" className="todayCardFootLink">
-          <LocateFixed size={14} aria-hidden="true" />
+        <Link href="/near" className="todayInkLink">
           Find pubs near you
         </Link>
       </p>

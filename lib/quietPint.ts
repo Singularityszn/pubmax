@@ -82,6 +82,8 @@ type QuietPintRow = {
   quietLabel: string;
   /** "£4.80" when a verified price exists for this venue, else null. */
   priceLabel: string | null;
+  /** The same figure as a number, so the row can band it (lib/priceBand.ts). */
+  priceGbp?: number | null;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: Route;
 };
@@ -131,6 +133,10 @@ function londonWeekdayName(now: Date): string {
     timeZone: "Europe/London",
     weekday: "long",
   }).format(now);
+}
+
+function finitePrice(price: number | null | undefined): number | null {
+  return typeof price === "number" && Number.isFinite(price) ? price : null;
 }
 
 function priceLabel(price: number | null | undefined): string | null {
@@ -222,6 +228,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
     sourceRef: typeof best.sourceRef === "string" && best.sourceRef.trim() ? best.sourceRef : null,
     quietLabel,
     priceLabel: priceLabel(priceById.get(candidate.venueId)),
+    priceGbp: finitePrice(priceById.get(candidate.venueId)),
     mapHref: venueMapUrl(candidate.venueId),
   }));
 
