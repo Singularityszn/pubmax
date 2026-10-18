@@ -69,7 +69,7 @@ Rules the table obeys:
 | `/historic/[slug]` | Historic pub | (the pub's own name) | Open on the map | Plan a night here |
 | `/pint-index` | Pint Index | London pint prices, month by month. | Open the map | Download the CSV |
 | `/pint-index/[month]` | Pint Index | London pint prices, (month). | Open the map | Download the CSV |
-| `/rounds` | Rounds | Who bought the last round. | the start form's own submit (Start a Round), no head primary | Open a round code |
+| `/rounds` | Rounds | Who bought the last round. | the start form's own submit (Start a round), no head primary | Open a round code |
 | `/add-a-pub` | Add a pub | Know a pub we're missing? | the form's own send (Send it for a check), no head primary; an account is asked for at the send | Back to the map (after a send) |
 | `/messages` | (none) | Messages | New message (signed in); Sign in (signed out) | (none) |
 | `/activity` | Activity | Activity. | Open the map | Find your lot |
