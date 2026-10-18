@@ -530,25 +530,22 @@ it back to a deployment.
 
 ### Which commit is this deploy serving
 
-`GET /api/version` returns `{ "ok": true, "deploymentId": "dpl_..." }` without valid cron authentication.
-`deploymentId` is the public marker a stale tab compares. The commit, its source and the build time require an existing `CRON_SECRET`
-configured on the target deployment. Keep that credential in the process
-environment; never put its value in an argument, log or file.
+`GET /api/version` publicly returns `ok`, `deploymentId` and `gitCommitSha`.
+The commit names the code used for the build. It is `null` when the build cannot name its commit.
+The commit source and build time require an existing target-configured `CRON_SECRET`.
+Never put that credential in an argument, log or file.
 
-With an authorised credential already available, run this from the clean checkout
-that produced the deployment. Set `DEPLOYMENT_URL` to its HTTPS URL. The request
-fails if authentication omits the commit or the running commit differs from HEAD.
+Run this from the clean checkout that produced the deployment.
+Set `DEPLOYMENT_URL` to its HTTPS URL.
+The request fails if the running commit differs from HEAD or is absent.
 
 ```sh
 node --input-type=module <<'NODE'
 import { execFileSync } from 'node:child_process';
-const secret = process.env.CRON_SECRET;
 const target = process.env.DEPLOYMENT_URL;
-if (!secret || !target) throw new Error('Existing credential and deployment URL required');
+if (!target) throw new Error('Deployment URL required');
 const expected = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const response = await fetch(new URL('/api/version', target), {
-  headers: { Authorization: `Bearer ${secret}` },
-});
+const response = await fetch(new URL('/api/version', target));
 if (!response.ok) throw new Error('Build marker request failed');
 const marker = await response.json();
 if (!marker.gitCommitSha || marker.gitCommitSha !== expected) {
@@ -558,9 +555,10 @@ console.log(JSON.stringify(marker));
 NODE
 ```
 
-If the authorised credential is unavailable or absent from the target preview,
-keep source verification pending. Do not weaken route authentication to obtain it.
-Build metadata is uncached and inlined during the build; the route runs no git.
+Older deployments can hide the commit behind cron authentication.
+Keep their public commit verification pending until a new build includes this route change.
+Build metadata is uncached and inlined during the build. The route runs no git.
+The authenticated response also includes the source and build time.
 
 ```json
 {
