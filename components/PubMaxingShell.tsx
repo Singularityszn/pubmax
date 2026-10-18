@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { createContext, useContext, useEffect, useState } from "react";
 
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
+import { MapPricesReadContext } from "@/components/map/mapPricesReadContext";
 import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
@@ -17,7 +18,12 @@ import type { ZonePintIndex } from "@/lib/zones";
 const MapSkeletonCityContext = createContext<string>("");
 
 function DynamicMapSkeleton() {
-  return <MapLoadingSkeleton cityDisplayName={useContext(MapSkeletonCityContext)} />;
+  return (
+    <MapLoadingSkeleton
+      cityDisplayName={useContext(MapSkeletonCityContext)}
+      pricesReadLine={useContext(MapPricesReadContext)}
+    />
+  );
 }
 
 const PubMap = dynamic(() => import("./PubMap"), {
@@ -89,6 +95,11 @@ type PubMaxingShellProps = {
   ukNationalBrowse?: boolean;
   /** The published fare-zone medians (`loadZonePintIndex`), so every surface prints one figure per zone. */
   zonePintIndex?: ZonePintIndex | null;
+  /**
+   * When the newest London price was read (`mapPricesReadLine`), built by the
+   * page on the server. Both loading screens print it; null prints nothing.
+   */
+  pricesReadLine?: string | null;
 };
 
 export default function PubMaxingShell({
@@ -96,6 +107,7 @@ export default function PubMaxingShell({
   placeArrival = null,
   ukNationalBrowse = false,
   zonePintIndex = null,
+  pricesReadLine = null,
 }: PubMaxingShellProps) {
   // Lazy initializer = runs exactly once, before the dynamic PubMap (ssr:false)
   // can possibly have mounted and read the sessionStorage flag.
@@ -132,13 +144,15 @@ export default function PubMaxingShell({
 
   return (
     <MapSkeletonCityContext.Provider value={mapDisplayName}>
-      <PubMap
-        key={cityId}
-        cityId={cityId}
-        placeArrival={placeArrival}
-        nationalBrowse={ukNationalBrowse}
-        zonePintIndex={zonePintIndex}
-      />
+      <MapPricesReadContext.Provider value={pricesReadLine}>
+        <PubMap
+          key={cityId}
+          cityId={cityId}
+          placeArrival={placeArrival}
+          nationalBrowse={ukNationalBrowse}
+          zonePintIndex={zonePintIndex}
+        />
+      </MapPricesReadContext.Provider>
     </MapSkeletonCityContext.Provider>
   );
 }

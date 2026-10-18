@@ -1,7 +1,9 @@
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { mapPricesReadLine } from "@/lib/mapLoadingCopy";
 import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
@@ -54,7 +56,11 @@ export default async function MapPage() {
           classic script, so the ?v= revision read is unchanged. */}
       <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       <MapOpeningPreview discs={openingDiscs} />
-      <PubMaxingShell cityId="london" zonePintIndex={zonePintIndex} />
+      <PubMaxingShell
+        cityId="london"
+        zonePintIndex={zonePintIndex}
+        pricesReadLine={mapPricesReadLine(formatObservedDate(PINT_DATASET_OBSERVED_AT))}
+      />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}
       <PintIndexMapArrival />

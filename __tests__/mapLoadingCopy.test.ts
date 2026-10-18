@@ -6,6 +6,7 @@ import {
   mapLoadingHeld,
   mapLoadingPrimaryLine,
   mapLoadingProgressPercent,
+  mapPricesReadLine,
 } from "@/lib/mapLoadingCopy";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 
@@ -161,5 +162,10 @@ describe("resolveMapDisplayName", () => {
     expect(
       resolveMapDisplayName({ cityDisplayName: "Bristol", placeName: "   " }),
     ).toBe("Bristol");
+  });
+
+  it("names the newest London read, and nothing for a blank day", () => {
+    expect(mapPricesReadLine("2 October 2026")).toBe("Newest London price read 2 October 2026.");
+    expect(mapPricesReadLine("  ")).toBeNull();
   });
 });

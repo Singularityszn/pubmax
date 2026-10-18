@@ -12,6 +12,16 @@ export function mapLoadingPrimaryLine(cityDisplayName: string): string {
 }
 
 /**
+ * The loading screens' freshness line. It names the NEWEST London read, which
+ * is a page stamp and not a covering line, so it claims nothing about the
+ * oldest price on the map. `day` arrives formatted by the server.
+ */
+export function mapPricesReadLine(day: string): string | null {
+  const trimmed = day.trim();
+  return trimmed ? `Newest London price read ${trimmed}.` : null;
+}
+
+/**
  * What the held frame has actually reached. Pin reveal is the only complete
  * answer: a painted basemap or a loaded slim index is progress towards tappable
  * pins, never the arrival.
