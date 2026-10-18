@@ -18,8 +18,10 @@ async function expectComposerInView(page: Page): Promise<void> {
   expect(dock).not.toBeNull();
   expect(dock!.y).toBeGreaterThanOrEqual(0);
   expect(dock!.y + dock!.height).toBeLessThanOrEqual(viewport!.height + 1);
-  const pill = page.locator(".mobileTabList");
-  if ((await pill.count()) > 0 && (await pill.isVisible())) {
+  // The layout renders the tab bar in two places, and while the page streams
+  // in both can be in the document, one hidden. Read the one a reader sees.
+  const pill = page.locator(".mobileTabList").filter({ visible: true });
+  if ((await pill.count()) > 0) {
     const pillBox = await pill.boundingBox();
     expect(dock!.y + dock!.height).toBeLessThanOrEqual(pillBox!.y + 1);
   }

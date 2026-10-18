@@ -47,6 +47,49 @@
           "finding": "OpenStreetMap node 1117274890 records the same name and postcode at 51.5136177, -0.2988011."
         }
       ]
+    },
+    {
+      "decisionId": "white-bear-kennington",
+      "appPriceIds": [
+        "app_price_000410",
+        "app_price_000411"
+      ],
+      "match": {
+        "pubName": "White Bear",
+        "postcode": "SE11 4DJ",
+        "latitude": 51.5212,
+        "longitude": -0.101773
+      },
+      "changes": {
+        "latitude": 51.4868645,
+        "longitude": -0.1080348,
+        "boroughs_visible": "",
+        "boroughs_raw_embedded_non_anomaly": "",
+        "boroughs_all_sources": "Havering|Hillingdon|Redbridge",
+        "primary_borough": "Lambeth",
+        "rank_visible_borough": "",
+        "estimated_average_price_text": "",
+        "borough_urls": "",
+        "pub_key": "White Bear51.4868645",
+        "has_visible_borough_row": false,
+        "is_clean_canonical_app_row": false
+      },
+      "dataQualityNote": "postcode_coordinate_corrected_from_osm",
+      "reason": "The source row names White Bear at SE11 4DJ, which is 138 Kennington Park Road, Kennington. Its scraped coordinates are the point of the other White Bear, 57 St John Street, Farringdon EC1M 4AN, 3.8 km away, so the Kennington prices drew as a second Farringdon pin.",
+      "evidence": [
+        {
+          "source": "data/osm/uk/uk_osm_pubs.json",
+          "finding": "OpenStreetMap way 539369586 records The White Bear at 138 Kennington Park Road, London SE11 4DJ, at 51.4868645, -0.1080348, with the website whitebearkennington.co.uk."
+        },
+        {
+          "source": "data/osm/uk/uk_osm_pubs.json",
+          "finding": "OpenStreetMap way 147495191 records White Bear at 57 St John Street, London EC1M 4AN, at 51.5211978, -0.1017737, the point the scraped SE11 4DJ row carries."
+        },
+        {
+          "source": "data/borough_embedded_pint_prices.csv",
+          "finding": "The source keys these prices to the pub URL https://www.pint-prices.com/pub/SE11%204DJ/White%20Bear, while the Farringdon pub has its own URL under 57 St John St, London EC1M 4AN with its own Mahou price."
+        }
+      ]
     }
   ]
 }

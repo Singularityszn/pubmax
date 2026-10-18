@@ -146,14 +146,25 @@ describe("the London base pubs the join reads", () => {
       byEntry.set(listing.listEntry, [...(byEntry.get(listing.listEntry) ?? []), id]);
     }
     const doubled = Object.fromEntries([...byEntry].filter(([, ids]) => ids.length > 1));
-    // Group C of Singularityszn/pubmax#2218, one pub held twice in one source.
-    // Each needs a merge decision, not a looser match: two curated rows for The
-    // White Bear, and an OSM node and way for each of the other two.
+    // Group C of Singularityszn/pubmax#2218: OpenStreetMap maps each of these
+    // pubs twice, as a node and a way. Each needs a merge decision, not a
+    // looser match.
     expect(doubled).toEqual({
       1085864: ["venue-uk-n316951209", "venue-uk-w1499736517"],
       1204809: ["venue-uk-n213434643", "venue-uk-w1414645898"],
-      1208737: ["venue-1dohqsq", "venue-7c6oel"],
     });
+  });
+
+  it("lists each White Bear under its own pub, now the Kennington prices sit in Kennington", () => {
+    const pack = JSON.parse(readFileSync(join(ROOT, "public/data/heritage_listings.json"), "utf8"));
+    // 57 St John Street, Farringdon EC1M 4AN.
+    expect(pack.listings["venue-1dohqsq"]?.listEntry).toBe(1208737);
+    // 138 Kennington Park Road, SE11 4DJ (data/postcode_coordinate_corrections.json).
+    expect(pack.listings["venue-tsa0sp"]?.listEntry).toBe(1080386);
+    expect(pack.listings["venue-7c6oel"]).toBeUndefined();
+    // The old id named the Farringdon pin, so a saved reference resolves there.
+    const aliases = JSON.parse(readFileSync(join(ROOT, "public/data/venue_id_aliases.json"), "utf8")).aliases;
+    expect(aliases["venue-7c6oel"]).toBe("venue-1dohqsq");
   });
 
   it("is a few thousand pubs in the committed snapshot", () => {
