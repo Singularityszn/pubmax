@@ -31,7 +31,7 @@ export function SpillPreviewCard({ preview, pintPhoto, visibility }: SpillPrevie
           />
         ) : (
           <div className="spillPreviewPlaceholder">
-            <Camera size={26} />
+            <Camera size={24} />
             <span>Your shot lands here</span>
           </div>
         )}

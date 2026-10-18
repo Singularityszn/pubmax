@@ -249,7 +249,7 @@ export default function HistoricPubDetail({
                     rel="noopener noreferrer"
                   >
                     {citationLabel(record.introSource.sourceRef)}
-                    <ExternalLink size={12} aria-hidden="true" />
+                    <ExternalLink size={14} aria-hidden="true" />
                   </a>
                   .
                 </>
@@ -282,7 +282,7 @@ export default function HistoricPubDetail({
                           rel="noopener noreferrer"
                         >
                           {citationLabel(fact.sourceRef)}
-                          <ExternalLink size={12} aria-hidden="true" />
+                          <ExternalLink size={14} aria-hidden="true" />
                         </a>
                       </>
                     ) : (

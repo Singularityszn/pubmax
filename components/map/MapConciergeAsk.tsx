@@ -304,7 +304,7 @@ export default function MapConciergeAsk({
                       </div>
                       {card.place ? (
                         <p className="mapConciergeAskCardPlace">
-                          <MapPin size={12} aria-hidden="true" />
+                          <MapPin size={14} aria-hidden="true" />
                           <span>{card.place}</span>
                         </p>
                       ) : null}

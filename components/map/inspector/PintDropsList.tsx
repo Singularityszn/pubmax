@@ -141,7 +141,7 @@ export default function PintDropsList({
                   onClick={() => reportDrop(venue.id, drop.id)}
                   aria-label={`Report Pint Drop by ${drop.handle}`}
                 >
-                  <Flag size={12} /> Report
+                  <Flag size={14} /> Report
                 </button>
               ) : null}
             </div>

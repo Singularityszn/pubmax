@@ -66,7 +66,7 @@ function MapEdgeControls({
     <div className="mobileMapUtilityCorner" aria-label="Map utilities">
       {tfl ? (
         <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
-          <TrainFront size={19} />
+          <TrainFront size={20} />
           {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
           {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
         </IconButton>
@@ -175,7 +175,7 @@ function MapChipRow({
         aria-haspopup="dialog"
         onClick={() => onOpen("drink")}
       >
-        <GlassWater size={15} aria-hidden="true" />
+        <GlassWater size={16} aria-hidden="true" />
         <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
       </button>
     </div>
@@ -337,7 +337,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             aria-expanded={overlay === "search"}
             onClick={() => setLimitedOverlay("search")}
           >
-            <Search size={19} />
+            <Search size={20} />
           </IconButton>
         </header>
         {overlay === "search" ? (
@@ -381,7 +381,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
       disabled={!planInteractive}
       onClick={onPlan}
     >
-      <Route size={19} aria-hidden="true" />
+      <Route size={20} aria-hidden="true" />
       <span>
         <strong>{planPill.strong}</strong>
         {planPill.small ? <small>{planPill.small}</small> : null}
@@ -424,14 +424,14 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             onUseMyLocation={onNearMe}
             onOpenArea={() => set("choose-area")}
           />
-          <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
+          <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={20} /></IconButton>
           <IconButton
             className="mobileMapFiltersButton"
             aria-label={filtersChip.ariaLabel}
             aria-expanded={overlay === "filters"}
             onClick={() => set("filters")}
           >
-            <SlidersHorizontal size={19} />
+            <SlidersHorizontal size={20} />
             {/* The badge counts refinements. The accessible name already names
                 them, so the glyph is decorative. */}
             {filtersChip.refinements ? (
@@ -460,7 +460,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
               onClick={onClearQuery}
               aria-label={`Clear pub search: ${activeQuery}`}
             >
-              <Search size={15} aria-hidden="true" />
+              <Search size={16} aria-hidden="true" />
               <span className="mobileMapQueryChipText">{activeQuery}</span>
               <X size={16} aria-hidden="true" className="mobileMapQueryChipDismiss" />
             </button>
@@ -481,7 +481,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           the same as the desktop rail does. */}
       {overlay !== "search" && nearMeError ? (
         <div className="mobileMapNearMeAlert" role="alert">
-          <LocateOff size={17} aria-hidden="true" />
+          <LocateOff size={16} aria-hidden="true" />
           <p className="mobileMapNearMeAlertText">{nearMeError}</p>
           <button
             type="button"
@@ -489,7 +489,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             aria-label="Dismiss the Near me message"
             onClick={onDismissNearMeError}
           >
-            <X size={17} aria-hidden="true" />
+            <X size={16} aria-hidden="true" />
           </button>
           <button
             type="button"

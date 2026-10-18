@@ -54,7 +54,7 @@ export function BudgetPanel({
               onClick={() => onChoose(choice.id)}
             >
               <span>{choice.label}</span>
-              {selected ? <Check size={18} aria-hidden="true" /> : null}
+              {selected ? <Check size={16} aria-hidden="true" /> : null}
             </button>
           );
         })}

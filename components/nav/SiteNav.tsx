@@ -163,7 +163,7 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
         aria-label="Share a Moment"
         title="Share a Moment"
       >
-        <CirclePlus size={18} aria-hidden="true" />
+        <CirclePlus size={20} aria-hidden="true" />
       </Link>
       {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
           hidden on phones (the bottom tab bar owns nav and there's no keyboard

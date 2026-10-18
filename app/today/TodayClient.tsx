@@ -245,7 +245,7 @@ function PicksCard({
                   </div>
                   <h3 className="todayPickTitle">{pick.title}</h3>
                   <p className="todayPickPlace">
-                    <MapPin size={13} aria-hidden="true" />
+                    <MapPin size={14} aria-hidden="true" />
                     <span>{pick.placeName}</span>
                   </p>
                   {pick.venueNote ? (
@@ -265,7 +265,7 @@ function PicksCard({
                         rel="noreferrer noopener"
                       >
                         {inner}
-                        <ExternalLink size={13} aria-hidden="true" className="todayPickArrow" />
+                        <ExternalLink size={14} aria-hidden="true" className="todayPickArrow" />
                       </a>
                     ) : (
                       <Link prefetch={false} className="todayPickLink pressable" href={pick.href}>
@@ -347,7 +347,7 @@ function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
       </h2>
       <p className="todayCardBody">{fact.reason}</p>
       <Link className="todayButton" href={fact.mapHref} prefetch={false}>
-        <MapPin size={15} aria-hidden="true" />
+        <MapPin size={16} aria-hidden="true" />
         Open it on the map
       </Link>
       <div className="todayCardFootRow">
@@ -362,7 +362,7 @@ function FactCard({ fact }: { fact: PubOfTheDayCard | null }) {
             rel="noreferrer noopener"
           >
             via {fact.sourceLabel}
-            <ExternalLink size={13} aria-hidden="true" />
+            <ExternalLink size={14} aria-hidden="true" />
           </a>
         ) : (
           <span className="todayProvenance">via {fact.sourceLabel}</span>

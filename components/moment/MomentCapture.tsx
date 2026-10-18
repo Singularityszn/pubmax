@@ -601,7 +601,7 @@ export default function MomentCapture(): React.JSX.Element {
 
         <section className="momentIntent" aria-label="Choose what to save">
           <div className="momentIntentCurrent">
-            {isPhone ? <Camera size={21} aria-hidden="true" /> : <Upload size={21} aria-hidden="true" />}
+            {isPhone ? <Camera size={20} aria-hidden="true" /> : <Upload size={20} aria-hidden="true" />}
             <div>
               <strong>Private Moment</strong>
               <span>
@@ -612,9 +612,9 @@ export default function MomentCapture(): React.JSX.Element {
             </div>
           </div>
           <Link href="/map?log=1" className="momentIntentLink">
-            <MapPin size={21} aria-hidden="true" />
+            <MapPin size={20} aria-hidden="true" />
             <div><strong>Log a Pint Drop</strong><span>Pub, drink and price</span></div>
-            <ArrowRight size={18} aria-hidden="true" />
+            <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </section>
 
@@ -641,7 +641,7 @@ export default function MomentCapture(): React.JSX.Element {
                     Edit
                   </button>
                   <button type="button" onClick={() => removeMedia(item.id)} aria-label={`Remove ${item.name}`}>
-                    <X size={17} aria-hidden="true" />
+                    <X size={16} aria-hidden="true" />
                   </button>
                 </div>
               </figure>
@@ -737,7 +737,7 @@ export default function MomentCapture(): React.JSX.Element {
           </div>
 
           <div className="momentStatus" aria-live="polite">
-            <Sparkles size={17} aria-hidden="true" />
+            <Sparkles size={16} aria-hidden="true" />
             <span>{message}</span>
           </div>
 

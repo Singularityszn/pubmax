@@ -162,7 +162,7 @@ export default function VenueStoryTab({
                       rel="noopener noreferrer"
                     >
                       Source
-                      <ExternalLink size={13} />
+                      <ExternalLink size={14} />
                     </a>
                   ) : null}
                 </div>
@@ -188,7 +188,7 @@ export default function VenueStoryTab({
               rel="noopener noreferrer"
             >
               Story source
-              <ExternalLink size={13} />
+              <ExternalLink size={14} />
             </a>
           ) : null}
         </div>
@@ -211,7 +211,7 @@ export default function VenueStoryTab({
               {claim.sourceRef ? (
                 <a href={claim.sourceRef} target="_blank" rel="noreferrer">
                   {claim.label}
-                  <ExternalLink size={13} />
+                  <ExternalLink size={14} />
                 </a>
               ) : null}
             </div>
@@ -272,7 +272,7 @@ export default function VenueStoryTab({
                         rel="noreferrer"
                       >
                         {source.label}
-                        <ExternalLink size={13} />
+                        <ExternalLink size={14} />
                       </a>
                     ) : null}
                   </div>

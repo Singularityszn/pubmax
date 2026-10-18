@@ -80,7 +80,7 @@ export default function TodayQuietPintCard({ module }: Props) {
                   aria-label={`${row.name}, source: ${row.sourceLabel}`}
                 >
                   {oneSource ? "Source" : row.sourceLabel}
-                  <ExternalLink size={12} aria-hidden="true" />
+                  <ExternalLink size={14} aria-hidden="true" />
                 </a>
               ) : (
                 <span className="quietPintSource">{row.sourceLabel}</span>

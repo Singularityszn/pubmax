@@ -151,7 +151,7 @@ function HypedRow({
                 rel="noreferrer noopener"
               >
                 {credit.label}
-                <ExternalLink size={12} aria-hidden="true" />
+                <ExternalLink size={14} aria-hidden="true" />
               </a>
               <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
             </p>

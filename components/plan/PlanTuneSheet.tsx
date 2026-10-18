@@ -202,7 +202,7 @@ export default function PlanTuneSheet({
           </button>
           <h2 id={titleId}>{title}</h2>
           <button type="button" className="planTune__close" aria-label={`Close ${title}`} onClick={onClose}>
-            <X size={18} aria-hidden="true" />
+            <X size={20} aria-hidden="true" />
           </button>
         </header>
         <div className="planTune__body">{children}</div>

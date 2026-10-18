@@ -345,7 +345,7 @@ function TonightLaneOpen({
                 aria-label="Collapse on tonight"
                 onClick={onCollapse}
               >
-                <X size={17} aria-hidden="true" />
+                <X size={16} aria-hidden="true" />
               </button>
             ) : null}
           </div>
@@ -435,7 +435,7 @@ function TonightOverlayDismiss({ onDismiss }: { onDismiss: () => void }) {
       aria-label={TONIGHT_PINS_DISMISS_LABEL}
       onClick={onDismiss}
     >
-      <X size={15} aria-hidden="true" />
+      <X size={16} aria-hidden="true" />
     </button>
   );
 }
@@ -459,7 +459,7 @@ function TonightOverlayToggle({
       aria-pressed={active}
       onClick={onToggle}
     >
-      <MoonStar size={15} aria-hidden="true" />
+      <MoonStar size={16} aria-hidden="true" />
       <span>Pins</span>
       <span className="tonightLaneOverlayCount" aria-hidden="true">
         {count}
@@ -488,7 +488,7 @@ function TonightLaneCardBody({
     <>
       <div className="tonightLaneCardMeta">
         <span className="tonightLaneCardKind">
-          <KindIcon size={12} aria-hidden="true" />
+          <KindIcon size={14} aria-hidden="true" />
           {card.kindLabel}
         </span>
         {typeof card.priceGbp === "number" ? (
@@ -497,7 +497,7 @@ function TonightLaneCardBody({
       </div>
       <p className="tonightLaneCardTitle">{card.title}</p>
       <p className="tonightLaneCardPlace">
-        <MapPin size={12} aria-hidden="true" />
+        <MapPin size={14} aria-hidden="true" />
         <span>{card.placeName}</span>
         {card.walkLabel ? (
           <span className="tonightLaneCardWalk">{card.walkLabel}</span>

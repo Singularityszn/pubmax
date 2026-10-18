@@ -307,7 +307,7 @@ function PriceDoor({
       aria-label={`${LOG_PRICE_DOOR_LABEL} at ${venue.name}`}
       onClick={onLogTonightPrice}
     >
-      <PlusCircle size={15} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
+      <PlusCircle size={16} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
     </button>
   );
 }
@@ -1334,7 +1334,7 @@ export default function VenueOverviewTab({
               color: "var(--brass)",
             }}
           >
-            <MapPin size={15} aria-hidden="true" /> You&rsquo;re here
+            <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
           </p>
         ) : (
           <button
@@ -1353,7 +1353,7 @@ export default function VenueOverviewTab({
               gap: "6px",
             }}
           >
-            <MapPin size={15} aria-hidden="true" />
+            <MapPin size={16} aria-hidden="true" />
             {presenceState === "sending" ? "Checking in…" : "I'm here"}
           </button>
         )}

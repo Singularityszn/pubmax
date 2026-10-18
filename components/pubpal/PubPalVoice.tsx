@@ -22,7 +22,7 @@ const PubPalVoiceSession = dynamic(
         </div>
         <div className="palVoiceActions">
           <Link className="palVoiceWriteLink" href="/pal/chat">
-            <Send size={17} aria-hidden="true" /> Ask in writing
+            <Send size={16} aria-hidden="true" /> Ask in writing
           </Link>
         </div>
       </div>
@@ -73,7 +73,7 @@ export function PalVoiceOffline() {
       </div>
       <div className="palVoiceActions">
         <Link className="palVoiceWriteLink" href="/pal/chat">
-          <Send size={17} aria-hidden="true" /> Ask in writing
+          <Send size={16} aria-hidden="true" /> Ask in writing
         </Link>
       </div>
     </div>
@@ -88,7 +88,7 @@ function PalVoiceMuted() {
       </div>
       <div className="palVoiceActions">
         <Link className="palVoiceWriteLink" href="/pal/chat">
-          <Send size={17} aria-hidden="true" /> Ask in writing
+          <Send size={16} aria-hidden="true" /> Ask in writing
         </Link>
       </div>
     </div>
@@ -143,7 +143,7 @@ function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalA
         </div>
         <div className="palVoiceActions">
           <Link className="palVoiceWriteLink" href="/pal/chat">
-            <Send size={17} aria-hidden="true" /> Ask in writing
+            <Send size={16} aria-hidden="true" /> Ask in writing
           </Link>
         </div>
       </div>

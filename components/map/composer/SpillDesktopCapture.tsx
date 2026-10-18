@@ -44,12 +44,12 @@ export function SpillDesktopCapture({
               onClick={() => removePhoto("pint")}
               aria-label="Remove pint photo"
             >
-              <X size={13} /> Remove
+              <X size={14} /> Remove
             </button>
           </div>
         ) : (
           <label className="photoPick">
-            <ImagePlus size={18} />
+            <ImagePlus size={16} />
             <span>Your pint</span>
             <small>Snap or upload</small>
             <input
@@ -81,12 +81,12 @@ export function SpillDesktopCapture({
               onClick={() => removePhoto("venue")}
               aria-label="Remove selfie"
             >
-              <X size={13} /> Remove
+              <X size={14} /> Remove
             </button>
           </div>
         ) : (
           <label className="photoPick">
-            <SmilePlus size={18} />
+            <SmilePlus size={16} />
             <span>You at the bar</span>
             <small>Cheeky selfie</small>
             <input
