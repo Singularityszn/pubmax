@@ -118,7 +118,7 @@ describe("landing hero rhythm", () => {
   it("falls back to the map line when the dataset cannot back a saving", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage, { card }));
     const hero = bare.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs marked/);
+    expect(hero).toMatch(/<p class="screenLede">London on one map, with \d+ historic pubs cited/);
   });
 
   it("prints every rail row as its own Pint Drop door, with a price stamp and no borough the heading already names", () => {

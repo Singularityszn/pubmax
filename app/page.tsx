@@ -4,6 +4,7 @@ import LandingPage from "@/components/landing/LandingPage";
 import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
+import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { landingPhotoFor } from "@/lib/landingImagery";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
@@ -15,8 +16,7 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 // the measured saving when the dataset backs one, but a static head and card
 // may hold no figure of their own, so they keep the map line.
 const HOME_TITLE = "PUBMAXX: what a pint costs, pub by pub";
-const HOME_DESCRIPTION =
-  "London on one map, with 298 historic pubs marked and a listed price wherever we hold one. Who listed it, and the day they did.";
+const HOME_DESCRIPTION = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one. Who listed it, and the day they did.`;
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own

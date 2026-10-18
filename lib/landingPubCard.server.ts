@@ -9,7 +9,7 @@ import {
   buildLandingPubCard,
   type LandingPubCardData,
 } from "@/lib/landingPubCard";
-import { pintPriceAverages, type PintPriceAverages } from "@/lib/pintSavings";
+import { pintPriceAverages, pubCheapestPrices, type PintPriceAverages } from "@/lib/pintSavings";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 /** What the landing hero ships: the anchor card, the archive index, the rail. */
@@ -40,11 +40,7 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
       const card = buildLandingPubCard(venues, history);
       const archive = buildLandingArchiveIndex(venues, history);
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
-      const averages = pintPriceAverages(
-        venues.flatMap((venue) =>
-          typeof venue.cheapestPrice === "number" ? [venue.cheapestPrice] : [],
-        ),
-      );
+      const averages = pintPriceAverages(pubCheapestPrices(venues));
       return { card, archive, rail, averages };
     })
     .catch(() => {
