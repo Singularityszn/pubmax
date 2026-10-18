@@ -11,9 +11,33 @@
 // same-file dynamic import of arize still lands in the Edge/proxy graph and
 // 500s every route. Matches `isNonNodeRuntime` in lib/observability/arize.ts.
 
+import type { RequestErrorContext, RequestErrorRequest } from "./lib/requestErrorReport";
+
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { register: registerNode } = await import("./instrumentation.node");
     return registerNode();
+  }
+}
+
+// Every server error Next captures (a route, a render, an action or the proxy)
+// becomes one structured `request.unhandled` line, which is error level and so
+// reaches the alert webhook. Without this, a 500 storm left only Next's own
+// stderr dump. The Node half also reports it to PostHog error tracking, with
+// the route template and no message text, like the process-level hooks.
+export async function onRequestError(
+  error: unknown,
+  request: RequestErrorRequest,
+  context: RequestErrorContext,
+): Promise<void> {
+  try {
+    const { reportRequestError } = await import("./lib/requestErrorReport");
+    reportRequestError(error, request, context);
+    if (process.env.NEXT_RUNTIME === "nodejs") {
+      const { captureRequestException } = await import("./instrumentation.node");
+      captureRequestException(error, context.routePath);
+    }
+  } catch {
+    /* A reporter that fails must never become a second error. */
   }
 }

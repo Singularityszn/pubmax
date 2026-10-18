@@ -26,6 +26,7 @@ const protectedPost: SocialPostDTO = {
   venueProjected: true,
   hashtags: ["quietpint"],
   commentPolicy: "open",
+  nameHidden: false,
   photo: null,
   moderationState: "approved",
   featureRequest: null,

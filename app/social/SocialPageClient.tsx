@@ -56,6 +56,12 @@ import {
   socialShellHref,
   type SocialShellState,
 } from "@/lib/socialShell";
+import {
+  HIDDEN_NAME_AUTHOR_LABEL,
+  HIDDEN_NAME_CONTROL_LINE,
+  HIDDEN_NAME_OWN_LINE,
+  HIDDEN_NAME_READER_LINE,
+} from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import {
   SOCIAL_POST_CONTROL_LINE,
@@ -140,7 +146,7 @@ function parsePostPage(value: unknown): SocialPostPage | null {
       typeof candidate.id !== "string" ||
       typeof candidate.body !== "string" ||
       typeof candidate.createdAt !== "string" ||
-      typeof candidate.author.handle !== "string" ||
+      (candidate.author.handle !== null && typeof candidate.author.handle !== "string") ||
       typeof candidate.ownedByViewer !== "boolean" ||
       (candidate.venueName !== null && typeof candidate.venueName !== "string") ||
       !Array.isArray(candidate.hashtags)
@@ -291,13 +297,13 @@ function PostWhy({ lane, post, areaName }: { lane: SocialPostLane; post: SocialP
       <summary>{SOCIAL_POST_REASON_SUMMARY}</summary>
       <p>
         {socialPostReasonLine(socialPostReason(lane, post), {
-          handle: post.author.handle,
+          handle: post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL,
           visibility: post.visibility,
           areaName,
         })}
       </p>
       <p>{SOCIAL_POST_ORDER_LINE}</p>
-      {post.ownedByViewer ? null : <p>{SOCIAL_POST_CONTROL_LINE}</p>}
+      {post.ownedByViewer ? null : <p>{post.author.handle ? SOCIAL_POST_CONTROL_LINE : HIDDEN_NAME_CONTROL_LINE}</p>}
     </details>
   );
 }
@@ -324,7 +330,7 @@ export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdit
     <article className="socialPostCard" data-has-media={post.photo || post.video ? "true" : undefined}>
       <header className="socialPostMeta">
         <HandleAvatar
-          handle={post.author.handle}
+          handle={post.author.handle ?? HIDDEN_NAME_AUTHOR_LABEL}
           avatarUrl={post.author.avatarUrl}
           className="socialPostAvatar"
           imageClassName="socialPostAvatar"
@@ -332,10 +338,17 @@ export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdit
         />
         <div className="socialPostMeta__who">
           <strong>
-            <Link prefetch={false} href={profilePath(post.author.handle)}>
-              @{post.author.handle}
-            </Link>
+            {post.author.handle ? (
+              <Link prefetch={false} href={profilePath(post.author.handle)}>
+                @{post.author.handle}
+              </Link>
+            ) : HIDDEN_NAME_AUTHOR_LABEL}
           </strong>
+          {post.nameHidden ? (
+            <span className="socialPostMeta__hidden">
+              {post.ownedByViewer ? HIDDEN_NAME_OWN_LINE : HIDDEN_NAME_READER_LINE}
+            </span>
+          ) : null}
           <PostPlace venueId={exactVenueId} venueName={venueName} areaName={area?.name ?? null} />
         </div>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
@@ -347,7 +360,7 @@ export function SocialPostCard({ post, lane, canEdit = false, draftScope, onEdit
       {interactive ? <SocialPostActions postId={post.id} /> : null}
       {review ? (
         <p className="socialPostReview">
-          <ReviewStars rating={review.rating} label={`@${post.author.handle} scored ${venueName ?? "this pub"} ${review.rating} out of 5`} />
+          <ReviewStars rating={review.rating} label={`${post.author.handle ? `@${post.author.handle}` : HIDDEN_NAME_AUTHOR_LABEL} scored ${venueName ?? "this pub"} ${review.rating} out of 5`} />
           {venueName ? <span>{venueName}</span> : null}
         </p>
       ) : null}

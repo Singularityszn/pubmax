@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 
 import ReviewStars from "@/components/social/ReviewStars";
 import { profilePath } from "@/lib/appLink";
+import { HIDDEN_NAME_AUTHOR_LABEL } from "@/lib/socialHiddenName";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
@@ -72,10 +73,14 @@ export default function ReelsViewer({
       </div>
       <div className="reels__track">
         {posts.map((post) => post.video ? (
-          <section key={post.id} id={`reel-${post.id}`} className="reels__slide" aria-label={`Reel by @${post.author.handle}`}>
+          <section key={post.id} id={`reel-${post.id}`} className="reels__slide" aria-label={`Reel by ${post.author.handle ? `@${post.author.handle}` : HIDDEN_NAME_AUTHOR_LABEL}`}>
             <video src={post.video.url} muted={muted} loop playsInline preload="metadata" aria-label={post.body ? `Video: ${post.body}` : "Video"} />
             <div className="reels__caption">
-              <Link prefetch={false} href={profilePath(post.author.handle)} className="reels__handle">@{post.author.handle}</Link>
+              {post.author.handle ? (
+                <Link prefetch={false} href={profilePath(post.author.handle)} className="reels__handle">@{post.author.handle}</Link>
+              ) : (
+                <span className="reels__handle">{HIDDEN_NAME_AUTHOR_LABEL}</span>
+              )}
               {post.venueProjected && post.venueId ? (
                 <p className="reels__place">
                   <Link prefetch={false} href={`/pubs/${encodeURIComponent(post.venueId)}` as Route}>{post.venueName ?? "Open venue"}</Link>

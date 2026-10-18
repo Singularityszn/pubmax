@@ -81,3 +81,65 @@ export function resolveClientIp(readHeader: (name: string) => string | null | un
   }
   return trailingForwardedForEntry(readHeader(FORWARDED_FOR_HEADER)) ?? UNKNOWN_CLIENT_IP;
 }
+
+const HEXTET = /^[0-9a-f]{1,4}$/;
+const DOTTED_QUAD = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+function dottedQuadToHextets(quad: string): string[] | null {
+  const match = DOTTED_QUAD.exec(quad);
+  if (!match) return null;
+  const octets = match.slice(1).map(Number);
+  if (octets.some((octet) => octet > 255)) return null;
+  return [
+    ((octets[0]! << 8) | octets[1]!).toString(16),
+    ((octets[2]! << 8) | octets[3]!).toString(16),
+  ];
+}
+
+/** The eight hextets of an IPv6 address, or null when it is not one. */
+function expandIpv6(address: string): string[] | null {
+  const halves = address.split("::");
+  if (halves.length > 2) return null;
+  const split = (half: string | undefined): string[] | null => {
+    if (!half) return [];
+    const groups = half.split(":");
+    const last = groups[groups.length - 1] ?? "";
+    if (last.includes(".")) {
+      const tail = dottedQuadToHextets(last);
+      if (!tail) return null;
+      groups.splice(groups.length - 1, 1, ...tail);
+    }
+    return groups.every((group) => HEXTET.test(group)) ? groups : null;
+  };
+  const head = split(halves[0]);
+  const tail = split(halves[1]);
+  if (!head || !tail) return null;
+  if (halves.length === 1) return head.length === 8 ? head : null;
+  const missing = 8 - head.length - tail.length;
+  if (missing < 1) return null;
+  return [...head, ...Array<string>(missing).fill("0"), ...tail];
+}
+
+/**
+ * The rate-limit bucket for an address: an IPv6 caller is its /64, everything
+ * else is itself.
+ *
+ * One home connection or phone is handed a whole /64, so one machine can walk
+ * through millions of IPv6 addresses without changing network. Keyed per full
+ * address, every per-IP limit would be a per-request suggestion for such a
+ * caller. An IPv4-mapped address (`::ffff:203.0.113.7`) is the IPv4 address
+ * it carries. Input that is not a bare IPv6 address (an IPv4 address, a
+ * composite key such as `${ip}:${planId}`, "unknown") comes back unchanged.
+ */
+export function rateLimitAddress(value: string): string {
+  const bare = value.trim().replace(/^\[(.*)\]$/, "$1").replace(/%[0-9a-z]{1,16}$/i, "").toLowerCase();
+  if (!bare.includes(":")) return value;
+  const hextets = expandIpv6(bare);
+  if (!hextets) return value;
+  const groups = hextets.map((group) => parseInt(group, 16));
+  if (groups.slice(0, 5).every((group) => group === 0) && groups[5] === 0xffff) {
+    const [high, low] = [groups[6]!, groups[7]!];
+    return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+  }
+  return `${groups.slice(0, 4).map((group) => group.toString(16)).join(":")}::/64`;
+}

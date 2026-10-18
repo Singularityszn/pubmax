@@ -514,6 +514,14 @@ describe("callCityMcpTool transient retry", () => {
     expect(res).toBeDefined();
   });
 
+  it("does NOT retry a 429, because an instant retry ignores the upstream's limit", async () => {
+    const fetchImpl = vi.fn(async () => new Response("slow down", { status: 429 }));
+    await expect(
+      callCityMcpTool("city_status", {}, { fetchImpl }),
+    ).rejects.toMatchObject({ kind: "http", httpStatus: 429 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("does NOT retry a deterministic rpc error", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(

@@ -115,7 +115,7 @@ describe("sendAlert", () => {
 });
 
 describe("the seams", () => {
-  it("log() posts an error event and the named warn event, and nothing else", () => {
+  it("log() posts an error event and the named warn events, and nothing else", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubEnv(ALERT_WEBHOOK_ENV, URL_OK);
@@ -128,12 +128,14 @@ describe("the seams", () => {
 
     log("error", "pint_drops.storage_error", { route: "POST /api/pint-drops" });
     log("warn", "paid_spend.budget_spent", { lane: "ask", budget: 1000 });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    log("warn", "rate_limit.fail_open", { reason: "error", mode: "degraded" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     const bodies = fetchMock.mock.calls.map((call) =>
       String(((call as unknown as [string, RequestInit])[1]).body),
     );
     expect(bodies[0]).toContain("pint_drops.storage_error");
     expect(bodies[1]).toContain("paid_spend.budget_spent");
+    expect(bodies[2]).toContain("rate_limit.fail_open");
   });
 
   it("log() sends the event name, level, time and deployment id, and none of the line's fields", () => {

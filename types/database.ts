@@ -5342,6 +5342,7 @@ export type Database = {
           moderated_at: string | null;
           created_at: string;
           updated_at: string;
+          author_name_hidden: boolean;
         };
         Insert: {
           id?: string;
@@ -5366,6 +5367,7 @@ export type Database = {
           moderated_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          author_name_hidden?: boolean;
         };
         Update: {
           id?: string;
@@ -5390,6 +5392,7 @@ export type Database = {
           moderated_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          author_name_hidden?: boolean;
         };
         Relationships: [
           {
@@ -7137,6 +7140,36 @@ export type Database = {
           p_byte_size: number | null;
           p_photo_alt_text: string | null;
           p_tag_handles: string[] | null;
+        };
+        Returns: Database["public"]["Tables"]["social_posts"]["Row"][];
+        SetofOptions: {
+          from: "*";
+          to: "social_posts";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
+      create_social_post_hidden_name: {
+        Args: {
+          p_author_profile_id: string | null;
+          p_author_handle: string | null;
+          p_kind: string | null;
+          p_visibility: string | null;
+          p_body: string | null;
+          p_area_slug: string | null;
+          p_venue_id: string | null;
+          p_hashtags: string[] | null;
+          p_comment_policy: string | null;
+          p_media_id: string | null;
+          p_object_key: string | null;
+          p_sha256: string | null;
+          p_width: number | null;
+          p_height: number | null;
+          p_byte_size: number | null;
+          p_photo_alt_text: string | null;
+          p_tag_handles: string[] | null;
+          p_idempotency_key: string | null;
+          p_request_digest: string | null;
         };
         Returns: Database["public"]["Tables"]["social_posts"]["Row"][];
         SetofOptions: {

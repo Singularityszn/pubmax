@@ -16,6 +16,8 @@
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
+import { after } from "next/server";
+
 import { BRIEFING_PUSH_URL } from "@/lib/briefingArrival";
 import { DAY_MS } from "@/lib/dayMs";
 import { isLimited } from "@/lib/pintDrops";
@@ -336,10 +338,13 @@ export async function notifyPlanUpdate(
 /**
  * Fire a push send without blocking the caller. Swallows every failure — a push
  * is best-effort (a dropped notification just means no notification). Use at
- * request handlers so the HTTP response never waits on delivery.
+ * request handlers so the HTTP response never waits on delivery. The send is
+ * handed to `after()` so Vercel keeps the function alive until it settles;
+ * without it the platform can freeze the instance once the response is sent
+ * and the push never leaves (the `lib/pintDropsBroadcast.server.ts` idiom).
  */
 export function fireAndForgetPush(run: () => Promise<unknown>): void {
-  void Promise.resolve()
+  const started = Promise.resolve()
     .then(run)
     .catch((err) => {
       console.error(
@@ -347,4 +352,9 @@ export function fireAndForgetPush(run: () => Promise<unknown>): void {
         err instanceof Error ? err.message : String(err),
       );
     });
+  try {
+    after(started);
+  } catch {
+    /* No request scope to hang it on; the promise above still runs. */
+  }
 }

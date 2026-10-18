@@ -47,6 +47,18 @@ describe("withRouteTiming", () => {
     expect(JSON.stringify(rec)).not.toContain("secret");
   });
 
+  it("carries the platform request id so a line joins the Vercel request log", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const wrapped = withRouteTiming("citymcp/status", async () => new Response(null, { status: 204 }));
+    await wrapped(
+      new Request("http://localhost/api/citymcp/status", {
+        headers: { "x-vercel-id": "lhr1::7xk2p-1792215966-0f1e" },
+      }),
+    );
+    const rec = parsedFrom(logSpy).find((r) => r.event === "http.request");
+    expect(rec?.vercelId).toBe("lhr1::7xk2p-1792215966-0f1e");
+  });
+
   it("logs level warn for a 4xx and error for a 5xx", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});

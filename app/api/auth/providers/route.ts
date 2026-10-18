@@ -1,4 +1,5 @@
-// GET /api/auth/providers — which social sign-in buttons are enabled.
+// GET /api/auth/providers — which social sign-in buttons, and whether the
+// phone door, are enabled.
 //
 // The browser used to call Supabase `/auth/v1/settings` itself, which opened a
 // new origin (DNS, TLS, and a CORS preflight) on every signed-out page. This
@@ -8,7 +9,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
-import { readSupabaseSocialAuthProviders } from "@/lib/authProviderAvailability";
+import { readSupabaseAuthSettings } from "@/lib/authProviderAvailability";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -33,8 +34,8 @@ export async function GET(request: Request): Promise<Response> {
       });
     }
   }
-  const availability = await readSupabaseSocialAuthProviders();
-  if (!availability) {
+  const settings = await readSupabaseAuthSettings();
+  if (!settings) {
     return publicApiError(
       "Sign-in providers could not be read.",
       "PROVIDER_SETTINGS_UNAVAILABLE",
@@ -42,6 +43,9 @@ export async function GET(request: Request): Promise<Response> {
       { retryable: true },
     );
   }
+  // The phone flag rides beside the three social flags. Older readers parse
+  // only the three and ignore it.
+  const availability = { ...settings.social, phone: settings.phone };
   if (fresh) return jsonNoStore(availability);
   return jsonCached(availability, {
     sMaxAge: PROVIDER_EDGE_MAX_AGE_SECONDS,
