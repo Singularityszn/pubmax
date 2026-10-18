@@ -417,8 +417,9 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toHaveCount(0);
 
-  await page.getByRole("list", { name: "Cities", exact: true })
-    .getByRole("link", { name: /London/ }).click();
+  // The list view is one door to the one city with listed prices (taste plan,
+  // 18 Oct 2026, "London only, for now"), so the city is chosen through it.
+  await page.locator("main [data-primary-action]").getByRole("link", { name: "Open London" }).click();
   await expect(page.getByRole("heading", { name: "London", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Set as my city", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("This is your city.");
