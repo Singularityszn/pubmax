@@ -1497,8 +1497,7 @@
 
     .feedCard:hover {
       transform: translateY(-2px);
-      box-shadow: 0 20px 46px rgba(44, 30, 62, 0.13),
-        0 10px 22px color-mix(in srgb, var(--brass) 10%, transparent);
+      box-shadow: var(--shadow);
     }
   }
 
