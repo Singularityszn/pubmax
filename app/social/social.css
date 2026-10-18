@@ -49,63 +49,80 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-width: 0;
 }
 
-/* Signed-out Posts: the switcher and founders link used to bracket a blank
-   stretch with no words (issue #1541). */
-.socialRailEmpty {
-  position: relative;
-  min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-raised);
+/* A STRANGER ON THE POSTS TAB READS ONE COLUMN (taste plan, 18 Oct 2026).
+   The head and the column under it share one reading width, centred on the
+   page, so a desktop is not a 260px rail beside 70% of empty canvas. */
+.socialPage--door {
+  width: min(100%, calc(var(--content-max) + 2 * var(--page-gutter)));
 }
 
-.socialRailEmpty[aria-busy="true"] .socialRailContent {
+.socialDoor {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The boundary's one line. No card: the EmptyState primitive is a title and a
+   line, and the slot only keeps its size while the account answers. */
+.socialDoorSlot {
+  position: relative;
+  min-width: 0;
+}
+
+.socialDoorSlot[aria-busy="true"] .socialRailContent {
   visibility: hidden;
 }
 
 .socialRailPending {
   position: absolute;
-  inset: 12px 14px;
+  inset: var(--space-6) 0;
   display: grid;
   align-content: center;
 }
 
+/* A segmented control (docs/DESIGN_SYSTEM.md "Edges"): ONE hairline around
+   the group, no edge on any segment, and the selection is the fill. */
 .socialSwitcher,
 .socialLaneNav {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
+  gap: var(--space-1);
   min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel-raised);
-  overflow: hidden;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius);
+  background: transparent;
 }
 
 .socialSwitcher a,
 .socialLaneNav a {
   display: inline-flex;
   min-width: 0;
-  min-height: 44px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  padding: 7px 10px;
-  color: var(--ink-soft);
-  font-weight: 750;
-  line-height: 1.1;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-tight);
   text-align: center;
   text-decoration: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition:
-    color var(--duration-base) var(--ease-out),
-    background var(--duration-base) var(--ease-out);
 }
 
-.socialSwitcher a + a,
-.socialLaneNav a + a {
-  border-left: 1px solid var(--line);
+@media (prefers-reduced-motion: no-preference) {
+  .socialSwitcher a,
+  .socialLaneNav a {
+    transition:
+      color var(--duration-base) var(--ease-out),
+      background-color var(--duration-base) var(--ease-out);
+  }
 }
 
 /* A selection is not an action, so the tab you are on reads in ink, never a
@@ -115,13 +132,13 @@ html[data-text-scale="large"] .socialPage .screenHead {
 .socialLaneNav a[aria-current="page"] {
   background: var(--state-selected-surface);
   color: var(--state-selected-ink);
+  font-weight: 700;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .socialSwitcher a:hover,
-  .socialLaneNav a:hover {
-    background: color-mix(in srgb, var(--ink) 5%, var(--panel-raised));
-    color: var(--ink);
+  .socialSwitcher a:not([aria-current="page"]):hover,
+  .socialLaneNav a:not([aria-current="page"]):hover {
+    color: var(--color-text);
   }
 }
 
@@ -1043,10 +1060,6 @@ span.socialPostAvatar {
     grid-auto-flow: row;
   }
 
-  .socialLaneNav a + a {
-    border-top: 1px solid var(--line);
-    border-left: 0;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1082,8 +1095,7 @@ span.socialPostAvatar {
 
   .socialSwitcher a,
   .socialLaneNav a {
-    padding-inline: 6px;
-    font-size: 0.875rem;
+    padding-inline: var(--space-2);
   }
 
   .socialBoundary {
@@ -1121,166 +1133,9 @@ span.socialPostAvatar {
     animation: none;
   }
 
-  .socialSwitcher a,
-  .socialLaneNav a,
   .socialButton {
     transition: none;
   }
-}
-
-/* WP7 find-your-lot — search + invite entry on Social */
-.findLot {
-  margin-top: var(--space-4);
-  padding: var(--space-4) 0 0;
-  border-top: 1px solid var(--line);
-}
-
-.findLot--compact {
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-}
-
-.findLot__title {
-  margin: 0;
-  font-size: var(--text-lg, 1.15rem);
-  font-weight: 750;
-}
-
-.findLot__body,
-.findLot__muted {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-sm);
-  color: var(--muted, var(--ink-soft));
-}
-
-.findLot__field {
-  display: block;
-  margin-top: var(--space-3);
-}
-
-.findLot__field input {
-  width: 100%;
-  min-height: 44px;
-  padding: 0.65rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md, 10px);
-  background: var(--panel);
-  color: var(--ink);
-  font: inherit;
-}
-
-.findLot__list {
-  list-style: none;
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-2);
-}
-
-.findLot__row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-2);
-  align-items: center;
-  min-height: 44px;
-}
-
-.findLot__identity {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: var(--space-2);
-  align-items: center;
-  min-width: 0;
-  text-decoration: none;
-  color: inherit;
-}
-
-.findLot__avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--panel-raised);
-  border: 1px solid var(--line);
-  font-weight: 700;
-  overflow: hidden;
-}
-
-.findLot__avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.findLot__names {
-  display: grid;
-  min-width: 0;
-}
-
-.findLot__handle {
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.findLot__display {
-  font-size: var(--text-xs);
-  color: var(--muted, var(--ink-soft));
-  overflow-wrap: anywhere;
-}
-
-/* The same control row the component's own sheet reads
-   (components/social/findYourLot.css): this copy loads after it and used to
-   restate a 10px corner at weight 650. */
-.findLot__follow {
-  min-height: var(--control-height, 44px);
-  min-width: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
-  background: var(--control-secondary-surface, var(--panel-raised));
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
-  cursor: pointer;
-}
-
-.findLot__follow:disabled {
-  opacity: 0.65;
-  cursor: default;
-}
-
-.findLot__self {
-  font-size: var(--text-xs);
-  color: var(--muted, var(--ink-soft));
-}
-
-.findLot__invite {
-  margin-top: var(--space-3);
-  display: grid;
-  gap: var(--space-2);
-}
-
-.findLot__inviteUrl {
-  display: block;
-  padding: 0.55rem 0.75rem;
-  border-radius: var(--radius-md, 10px);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-size: var(--text-xs);
-  overflow-wrap: anywhere;
-}
-
-.findLot__ghost {
-  color: var(--ink-soft);
-  font-size: var(--text-sm);
-}
-
-.findLot__error {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-sm);
-  color: var(--danger, #a33);
 }
 
 .referralFollowBack {
