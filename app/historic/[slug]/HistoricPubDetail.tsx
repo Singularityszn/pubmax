@@ -8,6 +8,7 @@ import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import ShareBar from "@/components/share/ShareBar";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
+import { displayDrinkName } from "@/components/listing/displayCase";
 import { slugifyBorough } from "@/lib/boroughs";
 import type { HistoricPub } from "@/lib/historic";
 import {
@@ -41,6 +42,14 @@ function planNightHref(venueId: string): Route {
   params.set("mode", "build");
   params.set("pubs", venueId);
   return `/map?${params.toString()}`;
+}
+
+// A cited sentence as a paragraph opens: Wikipedia leads and Wikidata
+// descriptions are often stored lower case ("public house established in...",
+// "historic public house on the banks..."), so the first letter is set as a
+// capital for display. The stored text is untouched.
+function sentenceStart(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 // The day a listed row was read, in words. The row carries a London day.
@@ -88,7 +97,9 @@ function HistoricListedPint({
         >
           {formatPrice(listedPint.priceGbp)}
         </PriceBadge>
-        <span className="hdPricePint">{listedPint.pintName ?? "cheapest pint"}</span>
+        <span className="hdPricePint">
+          {listedPint.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest pint"}
+        </span>
       </p>
       <p className="hdPriceSource">
         {listedPint.publisher ? (
@@ -131,10 +142,11 @@ export default function HistoricPubDetail({
   // The intro is the pub's own cited hook, so the record leaves it out and only
   // names its source, and a fact another fact already says is printed once.
   const record = historicRecord(pub);
+  const lede = pub.hook ? sentenceStart(pub.hook) : undefined;
 
   return (
     <>
-      <p className="hdBack">
+      <p className="hdBack listingSection">
         <Link href="/historic" className="hdBackLink">
           &larr; All historic pubs
         </Link>
@@ -146,7 +158,7 @@ export default function HistoricPubDetail({
         kicker="Historic pub"
         title={pub.name}
         titleId="hdHeading"
-        lede={pub.hook || undefined}
+        lede={lede}
         primary={
           mapHref ? (
             <Link prefetch={false} href={mapHref}>Open on the map</Link>
@@ -164,48 +176,73 @@ export default function HistoricPubDetail({
           <HistoricListedPint venueId={pub.venueId} listedPint={listedPint} />
         ) : null}
 
-        {dateLabel || grade || status || pub.borough ? (
-          <div className="hdMeta">
-            {dateLabel ? <span className="hdEra">{dateLabel}</span> : null}
-            {grade ? <span className="hdGrade">{grade}</span> : null}
-            {status ? <span className="hdGrade">{status}</span> : null}
-            {pub.borough ? (
-              <span className="hdBorough">
-                {boroughSlug ? (
-                  <Link href={`/borough/${boroughSlug}`} className="hdBoroughLink">
-                    {pub.borough}
-                  </Link>
-                ) : (
-                  pub.borough
-                )}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-
+        {/* THE EVIDENCE IS ONE SECTION UNDER ONE HEADING (taste plan, 18 Oct
+            2026). The date, the grade, the borough, where the lead came from
+            and every further cited fact were six small things of equal weight
+            stacked under the price: three tinted chips, a coral caps label and
+            a boxed citation each. Now the facts are a short list of terms and
+            the citations are sentences. */}
         <section className="hdStory" aria-labelledby="hdStoryHeading">
-          <h2 id="hdStoryHeading" className="hdStoryHeading">
-            The record
+          <h2 id="hdStoryHeading" className="listingSectionTitle">
+            On record
           </h2>
+
+          {dateLabel || grade || status || pub.borough ? (
+            <dl className="hdMeta">
+              {dateLabel ? (
+                <div>
+                  <dt>Date</dt>
+                  <dd>{dateLabel}</dd>
+                </div>
+              ) : null}
+              {grade ? (
+                <div>
+                  <dt>Listing</dt>
+                  <dd>{grade}</dd>
+                </div>
+              ) : null}
+              {status ? (
+                <div>
+                  <dt>Status</dt>
+                  <dd>{status}</dd>
+                </div>
+              ) : null}
+              {pub.borough ? (
+                <div>
+                  <dt>Borough</dt>
+                  <dd>
+                    {boroughSlug ? (
+                      <Link href={`/borough/${boroughSlug}`} className="hdBoroughLink">
+                        {pub.borough}
+                      </Link>
+                    ) : (
+                      pub.borough
+                    )}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
 
           {record.introSource ? (
             <p className="hdIntroSource">
               {record.introSource.sourceRef ? (
-                <span>The lead above is cited from</span>
+                <>
+                  The lead above is cited from{" "}
+                  <a
+                    className="hdCite"
+                    href={record.introSource.sourceRef}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {citationLabel(record.introSource.sourceRef)}
+                    <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                  .
+                </>
               ) : (
-                <span>The lead above is from {heritageSourceLabel(record.introSource.source)}.</span>
+                <>The lead above is from {heritageSourceLabel(record.introSource.source)}.</>
               )}
-              {record.introSource.sourceRef ? (
-                <a
-                  className="hdCite"
-                  href={record.introSource.sourceRef}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {citationLabel(record.introSource.sourceRef)}
-                  <ExternalLink size={12} aria-hidden="true" />
-                </a>
-              ) : null}
             </p>
           ) : null}
 
@@ -220,21 +257,25 @@ export default function HistoricPubDetail({
             <ol className="hdFacts">
               {record.facts.map((fact, i) => (
                 <li key={`${fact.source}-${i}`} className="hdFact">
-                  <p className="hdFactText">{fact.fact}</p>
-                  <div className="hdFactProvenance">
-                    <span className="hdSource">{heritageSourceLabel(fact.source)}</span>
+                  <p className="hdFactText">{sentenceStart(fact.fact)}</p>
+                  <p className="hdFactProvenance">
                     {fact.sourceRef ? (
-                      <a
-                        className="hdCite"
-                        href={fact.sourceRef}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {citationLabel(fact.sourceRef)}
-                        <ExternalLink size={12} aria-hidden="true" />
-                      </a>
-                    ) : null}
-                  </div>
+                      <>
+                        Cited from{" "}
+                        <a
+                          className="hdCite"
+                          href={fact.sourceRef}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {citationLabel(fact.sourceRef)}
+                          <ExternalLink size={12} aria-hidden="true" />
+                        </a>
+                      </>
+                    ) : (
+                      <>From {heritageSourceLabel(fact.source)}</>
+                    )}
+                  </p>
                 </li>
               ))}
             </ol>
@@ -244,7 +285,7 @@ export default function HistoricPubDetail({
         <section className="hdActions" aria-label="Explore this pub">
           {mapHref ? (
             <div className="hdActionRow">
-              <Link prefetch={false} className="hdAction pressable" href={mapHref}>
+              <Link prefetch={false} className="hdAction" href={mapHref}>
                 <PubPalMascot size={14} circular lazy />
                 Ask your Pub Pal
               </Link>
