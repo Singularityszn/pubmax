@@ -28,8 +28,11 @@ export type PlanRouteTotals = {
   stopCount: number;
   straightLineWalkingKm: number;
   estimatedWalkingMinutes: number;
-  /** "routed" only when every inter-stop leg used ORS durations (else straight-line). */
-  distanceBasis: "straight-line" | "routed";
+  /**
+   * "routed" only when every inter-stop leg used ORS durations; "street" when
+   * every leg is ORS or the offline street-walk table; else "straight-line".
+   */
+  distanceBasis: "straight-line" | "routed" | "street";
 };
 
 export type PlanEndingOption = {

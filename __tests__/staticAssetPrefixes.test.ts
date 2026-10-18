@@ -263,11 +263,11 @@ describe("static asset prefixes", () => {
     ).toBe(false);
   });
 
-  // The five CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`) are
-  // the one deliberate exception, and __tests__/cdnDocumentEdge.test.ts owns it.
-  it("still runs the proxy on every nonced document, /pal included", () => {
+  // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`, `/plan`,
+  // `/pal`) are the one deliberate exception, and
+  // __tests__/cdnDocumentEdge.test.ts owns it.
+  it("still runs the proxy on every nonced document, /pal/chat included", () => {
     for (const path of [
-      "/pal",
       "/pal/chat",
       "/login",
       "/places",

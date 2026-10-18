@@ -1,4 +1,4 @@
-// THE FIVE CDN DOCUMENTS ANSWER WITHOUT A FUNCTION, AND THEIR POLICY IS ONE POLICY.
+// THE CDN DOCUMENTS ANSWER WITHOUT A FUNCTION, AND THEIR POLICY IS ONE POLICY.
 //
 // F1 item 3 of the Vercel insights read (15 Oct 2026): `/`, `/map`,
 // `/tonight`, `/today` and `/near` were `x-vercel-cache: HIT` with no nonce,
@@ -119,7 +119,7 @@ describe("the CDN documents on the canonical host", () => {
   });
 
   it("keeps the trailing-slash 308 and every other document on the proxy", () => {
-    for (const path of ["/map/", "/tonight/", "/near/", "/login", "/u/you", "/places", "/map/london", "/nearby", "/todays"]) {
+    for (const path of ["/map/", "/tonight/", "/near/", "/login", "/u/you", "/places", "/map/london", "/nearby", "/todays", "/plan/0f8b7d2e-3c4a-4b5d-8e6f-1a2b3c4d5e6f", "/pal/chat", "/planner", "/palette"]) {
       expect(matches(`${CANONICAL}${path}`), path).toBe(true);
     }
   });
