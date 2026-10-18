@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.coachhotelkew.co.uk/food-drink/",
+  "observedAt": "2026-10-17T12:29:05.127Z",
+  "evidence": "lood Orange Soda - £11.50 Jameson Irish Whiskey, Beesou Honey Aperitif, Yuzu Sherbet, Fever-Tree Ginger Ale - £13.00 ## Winter Coolers - Alcohol Free Elderflower, Apple, Raspberry, Orange Blossom, Soda - £5.30 Cranberry, Moroccan & English Mint, Fever-Tree Ginger Ale - £5.30 Fever-Tree Raspberry & Rose Lemonade - £4.30 ## Mindful Blends - Alcohol Free Magnesium, Lions Mane, Chamomile - £4.80 Magnesium, Lions Mane, Lemon Balm - £4.80 Three Spirit Social, Yuzu Sherbert, Fever-Tree Ginger Ale - £8.00 ## Sparkling Wine - Alcohol Free Germ",
+  "reader": "scripts/harvest_soft_drinks_menus.mjs --chain youngs (playwright transport, sourcePolicy youngs-menu-prices, live robots)",
+  "rows": [
+    {
+      "host": "coachhotelkew.co.uk",
+      "venueId": "venue-10j13wn",
+      "name": "The Coach & Horses",
+      "category": "soft-drink",
+      "priceGbp": 4.3,
+      "drinkLabel": "Raspberry & Rose Fever-Tree Raspberry & Rose Lemonade",
+      "sourceUrl": "https://www.coachhotelkew.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 2
+    },
+    {
+      "host": "coachhotelkew.co.uk",
+      "venueId": "venue-10j13wn",
+      "name": "The Coach & Horses",
+      "category": "soft-drink",
+      "priceGbp": 4.8,
+      "drinkLabel": "TRIP Elderflower Mint Magnesium, Lions Mane, Lemon Balm",
+      "sourceUrl": "https://www.coachhotelkew.co.uk/food-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 2
+    }
+  ]
+}

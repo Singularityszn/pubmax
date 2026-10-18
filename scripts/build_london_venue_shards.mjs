@@ -35,6 +35,7 @@ import { fileURLToPath } from "node:url";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import { coveringStamp } from "./lib/coveringStamp.mjs";
 import { cellBbox, cellIndexFor, cellKey } from "./lib/ukBaseGrid.mjs";
+import { writeLondonFoodPack } from "./build_london_food_pack.mjs";
 import { writeLondonRestaurantPack } from "./build_london_restaurant_pack.mjs";
 import { validateRestaurantDrinksPack } from "./lib/londonRestaurantDrinks.mjs";
 import { UK_VENUE_GROUPS } from "./lib/ukOsmVenueSeed.mjs";
@@ -319,7 +320,9 @@ async function main() {
 
   // The map reads the restaurants from their own pack, cut from the shards
   // just published, so a rebuilt layer never leaves the pack a generation behind.
+  // The fast-food counters get the same treatment, for the soft-drink lane.
   await writeLondonRestaurantPack();
+  await writeLondonFoodPack();
 }
 
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

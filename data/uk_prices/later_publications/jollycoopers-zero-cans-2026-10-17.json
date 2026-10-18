@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "sourceUrl": "https://jollycoopers.co.uk/menu",
+  "observedAt": "2026-10-17T13:24:55.632Z",
+  "evidence": "Fresh Lime & Soda 16oz £3.00 • Pint £4.00 Lime & Soda 16oz £2.00 • Pint £3.00 Apple / Orange / OJ & Lemonade 16oz £3.00 • Pint £4.00 Cans (Coke £3.30, Coke Zero £3, Fanta Orange Zero £3, Sprite Zero £3) Sparkling Sodas (Eng",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london --only jollycoopers (shared ukPriceCrawl rules, live robots), after the inline price-list separator fix",
+  "rows": [
+    {
+      "host": "jollycoopers.co.uk",
+      "venueId": "venue-uk-n314396579",
+      "osmId": "node/314396579",
+      "name": "The Jolly Coopers",
+      "postcode": "KT18 7SD",
+      "lat": 51.3311789,
+      "lng": -0.2817364,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Fanta Orange Zero",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "observedAt": "2026-10-17T13:24:55.632Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 55
+    },
+    {
+      "host": "jollycoopers.co.uk",
+      "venueId": "venue-uk-n314396579",
+      "osmId": "node/314396579",
+      "name": "The Jolly Coopers",
+      "postcode": "KT18 7SD",
+      "lat": 51.3311789,
+      "lng": -0.2817364,
+      "category": "soft-drink",
+      "priceGbp": 3,
+      "drinkLabel": "Sprite Zero",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "observedAt": "2026-10-17T13:24:55.632Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 55
+    }
+  ]
+}

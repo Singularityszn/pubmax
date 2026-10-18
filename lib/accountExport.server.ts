@@ -51,6 +51,7 @@ import {
   type AccountExportPintDrop,
   type AccountExportPrice,
   type AccountExportProfile,
+  type AccountExportPubRanking,
   type AccountExportSocialPost,
   type AccountExportWallPhoto,
 } from "@/lib/accountExport";
@@ -82,12 +83,17 @@ import { publicSocialConnection, type PublicSocialConnection } from "@/lib/socia
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { socialPostStore } from "@/lib/socialPostStore";
+import { socialPostReviewStore } from "@/lib/socialPostReviewStore";
+import { socialPostExtraPhotoStore } from "@/lib/socialPostExtraPhotoStore";
+import { socialPostVideoStore } from "@/lib/socialPostVideoStore";
 import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import { visitReportsStore, type VisitReportReadResult } from "@/lib/visitReportsStore";
 import type { DiaryEntryDTO } from "@/lib/diary";
 import { diaryStore } from "@/lib/diaryStore";
+import { socialPubRankingStore } from "@/lib/socialPubRankingStore";
+import { socialPubRankingEntries, type SocialPubRankingRow } from "@/lib/socialPubRankings";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -145,6 +151,7 @@ export type AccountExportDeps = {
   savedPubs(handle: string): Promise<SavedPubsRead>;
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
   diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
+  pubRankings(profileId: string): Promise<SocialPubRankingRow[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -242,7 +249,23 @@ function storeDeps(): AccountExportDeps {
     memories: (userId) => listNightMemories(userId),
     moments: (userId, memoryId) => listNightMoments(userId, memoryId),
     visitReports: (handle) => visitReportsStore().listForContributor(handle),
-    socialPosts: (owner, limit) => socialPostStore().listOwned(owner, limit),
+    async socialPosts(owner, limit) {
+      // A score and a video are rows of their own (0182, 0183) that belong to
+      // the post, so they ride the post into the file rather than a lane.
+      const posts = await socialPostStore().listOwned(owner, limit);
+      const ids = posts.map((post) => post.id);
+      const [reviews, videos, extras] = await Promise.all([
+        socialPostReviewStore().forPosts(ids),
+        socialPostVideoStore().forPosts(ids, owner),
+        socialPostExtraPhotoStore().forPosts(ids, owner),
+      ]);
+      return posts.map((post) => ({
+        ...post,
+        review: reviews.get(post.id) ?? null,
+        video: videos.get(post.id) ?? null,
+        extraPhotos: extras.get(post.id) ?? [],
+      }));
+    },
     crowdReports: (userId, limit) => occupancyStore().listForReporter(userId, limit),
     wallPhotos: (profileId) => venuePhotoStore().listForAuthor(profileId),
     coverPhotos: (profileId) => profileCoverPhotoStore().listApproved(profileId),
@@ -251,6 +274,7 @@ function storeDeps(): AccountExportDeps {
     savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
     diary: (userId) => diaryStore().listForOwner(userId),
+    pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -344,6 +368,16 @@ function exportSocialPost(post: SocialPostDTO): AccountExportSocialPost {
     hashtags: [...post.hashtags],
     commentPolicy: post.commentPolicy,
     photo: post.photo ? { mediaId: post.photo.mediaId, altText: post.photo.altText } : null,
+    review: post.review ? { rating: post.review.rating } : null,
+    extraPhotos: (post.extraPhotos ?? []).map((extra) => ({
+      mediaId: extra.mediaId,
+      slot: extra.slot,
+      altText: extra.altText,
+      moderationState: extra.moderationState,
+    })),
+    video: post.video
+      ? { contentType: post.video.contentType, durationSeconds: post.video.durationSeconds, reviewState: post.video.reviewState }
+      : null,
     moderationState: post.moderationState,
     createdAt: post.createdAt,
     editedAt: post.editedAt,
@@ -684,6 +718,21 @@ export async function buildAccountExport(
     return { degraded: read.status === "degraded", items: read.entries };
   });
 
+  const pubRankings = await lane<AccountExportPubRanking>(async () => {
+    const { profile } = await owner;
+    if (!profile) return { degraded: false, items: [] };
+    const rows = await deps.pubRankings(profile.id);
+    return {
+      degraded: false,
+      items: socialPubRankingEntries(rows).map((entry) => ({
+        venueId: entry.venueId,
+        band: entry.band,
+        place: entry.place,
+        score: entry.score,
+      })),
+    };
+  });
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -719,6 +768,7 @@ export async function buildAccountExport(
     savedPubs,
     wanted,
     diary,
+    pubRankings,
     socialLinks,
     nightProfile,
     messages,

@@ -1,0 +1,26 @@
+{
+  "lane": "npm run harvest:uk-prices",
+  "command": "npm run harvest:uk-prices -- --london --only richardthefirst.co.uk",
+  "sourceUrl": "https://www.richardthefirst.co.uk/menus",
+  "sourceObservedAt": "2026-10-17T12:40:44.618Z",
+  "selection": "Soft-drink rows the lane stated with a drink name whose ledger key (pub, category, name, serving) the ledger did not already hold. Rows matching a reviewed withdrawal reason are listed under withheld and were not published.",
+  "rows": [
+    {
+      "host": "richardthefirst.co.uk",
+      "venueId": "venue-uk-n12890502854",
+      "osmId": "node/12890502854",
+      "name": "Richard I",
+      "postcode": "SE10 8RT",
+      "lat": 51.4765706,
+      "lng": -0.0096161,
+      "category": "soft-drink",
+      "priceGbp": 4.7,
+      "drinkLabel": "0 Fever-Tree Raspberry & Rose Lemonade 50 kcal Mindful Blends TRIP Cherry Lemon",
+      "sourceUrl": "https://www.richardthefirst.co.uk/menus",
+      "observedAt": "2026-10-17T12:40:44.618Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 12
+    }
+  ],
+  "withheld": []
+}

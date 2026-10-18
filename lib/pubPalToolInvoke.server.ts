@@ -110,6 +110,17 @@ export async function invokePubPalAskTool(input: {
   const args = enrichPubPalToolArgs(input.toolName, input.args, query);
 
   const threadTurns = turn?.turns ?? [];
+  const unsupported = unsupportedPriceComparison(query);
+  const priceRefusal = unsupported && !isIndependentAskTool(input.toolName) ? unsupported : null;
+  // The fence decides what the agent hears, never what the tool reads, and both
+  // can take seconds, so they run together. A fenced turn drops the tool's
+  // answer unread: nothing from it is appended, spoken or returned. A price ask
+  // the tools cannot answer starts no tool at all.
+  const startTool = () => runAskTool(input.toolName, args, { cityId, query, skipModel: true });
+  const toolRun = priceRefusal ? null : startTool();
+  // Awaited below on the unfenced path; this only keeps a fenced turn's
+  // discarded run from surfacing as an unhandled rejection.
+  toolRun?.catch(() => {});
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
@@ -137,27 +148,22 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
-  const unsupported = unsupportedPriceComparison(query);
-  if (unsupported && !isIndependentAskTool(input.toolName)) {
+  if (priceRefusal) {
     if (input.conversationId) {
-      await appendPubPalToolTurn(input.conversationId, { hints: [unsupported.answer] });
+      await appendPubPalToolTurn(input.conversationId, { hints: [priceRefusal.answer] });
     }
     return {
       result: {
         ok: false,
-        code: unsupported.code,
-        answerHint: unsupported.answer,
+        code: priceRefusal.code,
+        answerHint: priceRefusal.answer,
         cards: [],
         proposals: [],
       },
     };
   }
 
-  const toolResult = await runAskTool(input.toolName, args, {
-    cityId,
-    query,
-    skipModel: true,
-  });
+  const toolResult = await (toolRun ?? startTool());
 
   if (input.conversationId) {
     await appendPubPalToolTurn(input.conversationId, {

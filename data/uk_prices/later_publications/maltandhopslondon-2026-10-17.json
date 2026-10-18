@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.maltandhopslondon.co.uk/menu/drinks/",
+  "observedAt": "2026-10-17T12:46:24.480Z",
+  "evidence": "0 Draft Ciders Inch's Medium Cider 4.5% £2.75/£5.50 Somersby Apple Cider 4.5% £2.75/£5.50 Soft Drinks Capri Sun Orange Puch £ 2.50 Coca-Cola Bottle 330ml £2.50 Coca-Cola Zero Bottle 330ml £2.50 J2o Apple & Mango £3.00 J2o Orange & Passionfuit £3.00 Highland Spring Water Sparkling £1.50 Hot Drinks Tea £2.00 Espresso £2.00 Latte £3.00 Americano £3.00 Cappucino £3.00 Hot Chocolate £3.00 Cocktails Espresso Martini £11.50",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london (shared ukPriceCrawl rules, live robots); re-observation of a URL already in the historical ledger, published by owner decision 2026-10-17",
+  "rows": [
+    {
+      "host": "maltandhopslondon.co.uk",
+      "venueId": "venue-uk-w490082508",
+      "osmId": "way/490082508",
+      "name": "Malt and Hops",
+      "postcode": "N12 8QA",
+      "lat": 51.6190529,
+      "lng": -0.1770816,
+      "category": "soft-drink",
+      "priceGbp": 2.5,
+      "drinkLabel": "Coca-Cola Zero Bottle 330ml",
+      "sourceUrl": "https://www.maltandhopslondon.co.uk/menu/drinks/",
+      "observedAt": "2026-10-17T12:46:24.480Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 67
+    }
+  ]
+}

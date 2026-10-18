@@ -1,0 +1,36 @@
+/* A person's own score: ink stars, the figure in the data face. */
+.reviewStars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--ink);
+}
+
+.reviewStars__full {
+  fill: currentColor;
+}
+
+.reviewStars__empty {
+  color: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+.reviewStars__halfWrap {
+  position: relative;
+  display: inline-grid;
+}
+
+.reviewStars__halfWrap > * {
+  grid-area: 1 / 1;
+}
+
+.reviewStars__half {
+  color: var(--ink);
+}
+
+.reviewStars__figure {
+  margin-left: 6px;
+  font-family: var(--font-data);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

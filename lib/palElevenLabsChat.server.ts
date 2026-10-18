@@ -10,6 +10,8 @@ import {
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { palTastePreamble, type PalTaste } from "@/lib/palTaste";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { log } from "@/lib/log";
 import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
@@ -79,11 +81,25 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
   return { ...windowPalSessionTurns(prior.summary, asks), conversationId: threadId };
 }
 
-/** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
-function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[] | null): string {
+/**
+ * Everything a typed turn tells the agent about the person: their confirmed
+ * memories, then the taste read from their own logs. The memory eval
+ * (evals/pal/memory) grades exactly these lines.
+ */
+export function palPersonalContext(memories: PalRecalledMemory[] | null, taste: PalTaste | null): string[] {
+  return [...palMemoryPreamble(memories), ...palTastePreamble(taste)];
+}
+
+/** The typed turn as the agent reads it: the personal context, the session summary, earlier asks, then the ask itself. */
+function userMessageText(
+  query: string,
+  prior: PriorSession,
+  memories: PalRecalledMemory[] | null,
+  taste: PalTaste | null,
+): string {
   const priorAsks = prior.turns;
   return [
-    ...palMemoryPreamble(memories),
+    ...palPersonalContext(memories, taste),
     ...palSessionSummaryTurn(prior.summary),
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
@@ -171,6 +187,19 @@ export async function runPalElevenLabsChatTurn(
   const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
+  // A price comparison the records answer opens no provider session (below),
+  // and the test is on the ask alone, so it is decided before anything leaves.
+  const unsupported = unsupportedPriceComparison(query);
+  const answeredFromRecords = Boolean(unsupported) || recordedDrinkComparison(query);
+  // Otherwise the signed URL, the owner's memories and taste depend on neither the
+  // earlier asks nor the fence, so all three leave now and travel under the
+  // prior-turn read and the fence check instead of queueing behind them.
+  // None ever rejects. A fenced turn drops the URL unused: no socket is
+  // opened, so no conversation starts on it.
+  const sessionRead = answeredFromRecords ? null : fetchPalSignedConversation({ apiKey, agentId });
+  // Read from the signed-in owner's own Pal and logs, never from the request body.
+  const memoriesRead = answeredFromRecords ? null : readConfirmedPalMemories(input.ownerId, query);
+  const tasteRead = answeredFromRecords ? null : readPalTaste(input.ownerId);
   let prior: PriorSession;
   try {
     prior = await priorOwnedSession(input.threadId, input.ownerId);
@@ -195,8 +224,9 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  const unsupported = unsupportedPriceComparison(query);
-  if (unsupported || recordedDrinkComparison(query)) {
+  // The three reads are null exactly when the records answer; testing them here
+  // also tells the compiler so.
+  if (answeredFromRecords || !sessionRead || !memoriesRead || !tasteRead) {
     const result = await runAsk({ query, cityId, skipModel: true });
     // A first answer from the records opens no provider session, so it gets a
     // local thread: the follow-up reads this turn back instead of starting blind.
@@ -217,16 +247,28 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
-  // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
-  const memoriesRead = readConfirmedPalMemories(input.ownerId);
-
-  const session = await fetchPalSignedConversation({ apiKey, agentId });
+  const session = await sessionRead;
   if (!session.ok) {
     recordFailure("PROVIDER_UNAVAILABLE", "signed_url", session.reason);
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
   const signedUrl = session.signedUrl;
-  const memories = await memoriesRead;
+  const registerTurn = (id: string) =>
+    registerPubPalToolTurn(id, {
+      query,
+      cityId,
+      ownerId: input.ownerId,
+      turns,
+      summary: prior.summary,
+    });
+  // The signed URL already names the conversation, so the turn is registered
+  // while the socket opens rather than after the agent's metadata arrives. The
+  // metadata is still what decides: a different id there registers that one.
+  const earlyConversationId = session.conversationId;
+  const earlyRegistration = registerTurn(earlyConversationId);
+  // Awaited below; this only stops a socket that fails first from leaving the
+  // rejection unhandled.
+  earlyRegistration.catch(() => {});
 
   return new Promise((resolve) => {
     let settled = false;
@@ -383,16 +425,17 @@ export async function runPalElevenLabsChatTurn(
               finish({ ok: false, code: "UNAVAILABLE" }, "registration");
               return;
             }
-            await registerPubPalToolTurn(conversationId, {
-              query,
-              cityId,
-              ownerId: input.ownerId,
-              turns,
-              summary: prior.summary,
-            });
+            const [, memories, taste] = await Promise.all([
+              conversationId === earlyConversationId
+                ? earlyRegistration
+                : registerTurn(conversationId),
+              memoriesRead,
+              tasteRead,
+            ]);
+            if (settled) return;
             userMessageSent = true;
             ws.send(
-              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories) }),
+              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories, taste) }),
             );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" }, "registration");

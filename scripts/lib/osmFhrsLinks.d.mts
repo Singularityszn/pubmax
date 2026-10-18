@@ -23,10 +23,14 @@ export type OsmFhrsLinksPack = {
 };
 export function compactRef(type: unknown, id: unknown): string | null;
 export function parseFhrsId(value: unknown): number | null;
-export function curatedVenueByRef(seedPubs: unknown): { byRef: Map<string, string>; ambiguous: number };
+export function curatedVenueByRef(
+  seedPubs: unknown,
+  venueAliases?: Readonly<Record<string, string>>,
+): { byRef: Map<string, string>; ambiguous: number };
 export function buildOsmFhrsLinks(input: {
   chunks: unknown;
   seedPubs: unknown;
+  venueAliases?: Readonly<Record<string, string>>;
   fetchedAt: string;
   box?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
 }): OsmFhrsLinksPack;

@@ -33,8 +33,6 @@ import ThemeAttribute from "@/components/ThemeAttribute";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-type ThemeAttributeProps = NonNullable<Parameters<typeof ThemeAttribute>[0]>;
-
 function globalFontRules(): string {
   const source = postcss.parse(readFileSync(join(__dirname, "../app/globals.css"), "utf8"));
   const declarations: string[] = [];
@@ -46,7 +44,7 @@ function globalFontRules(): string {
   return `:root{${declarations.join(";")}}`;
 }
 
-it("paints the matched fallbacks first and keeps both generated chains over global tokens after hydration", async () => {
+it("paints both generated chains over the global tokens before and after hydration", async () => {
   const layout = await RootLayout({ children: createElement("main", null, "Choose a pub") });
   // Keep the real document attributes. Providers do not own the font cascade,
   // so render only its real theme initializer and representative page content.
@@ -56,15 +54,7 @@ it("paints the matched fallbacks first and keeps both generated chains over glob
       ".body-variable{--font-body:'Inter', 'Inter Fallback'}" + globalFontRules(),
     )),
     createElement("body", null,
-      // The same props the layout hands it: the server paints the matched
-      // fallbacks alone, and hydration writes the complete chains back.
-      createElement(StrictMode, null, createElement<ThemeAttributeProps>(ThemeAttribute, {
-        initialFontFallbacks: { "--font-display": "'Space Grotesk Fallback'", "--font-body": "'Inter Fallback'" },
-        fontFamilies: {
-          "--font-display": "'Space Grotesk', 'Space Grotesk Fallback'",
-          "--font-body": "'Inter', 'Inter Fallback'",
-        },
-      })),
+      createElement(StrictMode, null, createElement(ThemeAttribute)),
       createElement("main", null, "Choose a pub"),
     ),
   );
@@ -90,11 +80,10 @@ it("paints the matched fallbacks first and keeps both generated chains over glob
       expect.soft(computed.getPropertyValue("--font-body").trim())
         .toBe("'Inter', 'Inter Fallback'");
     };
-    // The server-created document, before any client initializer runs, paints
-    // only the matched fallbacks so no webfont request precedes hydration.
-    const computed = getComputedStyle(html);
-    expect.soft(computed.getPropertyValue("--font-display").trim()).toBe("'Space Grotesk Fallback'");
-    expect.soft(computed.getPropertyValue("--font-body").trim()).toBe("'Inter Fallback'");
+    // The server-created document, before any client code runs, already names
+    // each face with its metric-matched fallback behind it. Nothing restyles
+    // the root at hydration, so the largest paint is not scored again.
+    expectCompleteFamilies();
     await act(async () => { root = hydrateRoot(document, shell); });
     expect(document.querySelector("main")?.textContent).toBe("Choose a pub");
     expect(html.dataset.theme).toBe("light");

@@ -6,6 +6,8 @@ from __future__ import annotations
 import csv
 import json
 import re
+import subprocess
+import sys
 import time
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -60,6 +62,37 @@ PUB_FIELDS = [
     "pub_quiz",
     "website",
 ]
+
+
+def require_policy_row() -> None:
+    """Refuse before any request unless lib/harvest/sourcePolicy.ts permits pint-prices.com.
+
+    The table is TypeScript, so this asks the Node lane's own gate
+    (`permittedPintPricesSource` in scripts/refresh_pint_price_observations.mjs)
+    rather than keeping a second copy of the rule here. No row, a refused row, or
+    a check that could not run is a refusal. Adding the `pint-prices-com` row is
+    the captain's call. This extractor reads no robots.txt, so with a row in place
+    prefer the Node lane, which asks robots before every page.
+    """
+    root = Path(__file__).resolve().parent.parent
+    check = (
+        'const m = await import("./scripts/refresh_pint_price_observations.mjs");'
+        " m.permittedPintPricesSource();"
+    )
+    try:
+        result = subprocess.run(
+            ["node", "--input-type=module", "-e", check],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        sys.exit(f"Refusing to read pint-prices.com: the source-policy check could not run ({exc!r}). Nothing was fetched.")
+    if result.returncode != 0:
+        reasons = [line[len("Error: "):] for line in result.stderr.splitlines() if line.startswith("Error: ")]
+        sys.exit(reasons[-1] if reasons else "Refusing to read pint-prices.com: the source-policy check refused. Nothing was fetched.")
 
 
 def fetch(url: str) -> str:
@@ -438,6 +471,7 @@ def build_builder_outputs(
 
 
 def main() -> None:
+    require_policy_row()
     OUT_DIR.mkdir(exist_ok=True)
     all_urls, borough_urls, pub_urls = parse_sitemap()
 

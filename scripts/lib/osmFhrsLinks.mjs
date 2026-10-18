@@ -49,12 +49,14 @@ function inBox(point, box) {
  * (`curatedRef`, data/osm/uk/uk_osm_pubs.json). A venue two OSM objects claim
  * is not anybody's: its curated link is dropped and counted.
  */
-export function curatedVenueByRef(seedPubs) {
+export function curatedVenueByRef(seedPubs, venueAliases = {}) {
   const byRef = new Map();
   const claims = new Map();
   for (const pub of Array.isArray(seedPubs) ? seedPubs : []) {
     if (pub?.curatedRef?.source !== "curated-london-slim") continue;
-    const venueId = pub.curatedRef.id;
+    // canonicalize:venues may have merged the annotated venue into another;
+    // the OSM pub then belongs to the venue that kept it.
+    const venueId = venueAliases[pub.curatedRef.id] ?? pub.curatedRef.id;
     const [type, rawId] = String(pub.osmId ?? "").split("/");
     const ref = compactRef(type, Number(rawId));
     if (!ref || typeof venueId !== "string" || !venueId) continue;
@@ -75,11 +77,11 @@ export function curatedVenueByRef(seedPubs) {
  * Every London `amenity=pub` the raw Overpass chunks hold that carries one
  * `fhrs:id`, as `[osmRef, fhrsId, curatedVenueId | null]`, sorted by ref.
  */
-export function buildOsmFhrsLinks({ chunks, seedPubs, fetchedAt, box = LONDON_BBOX }) {
+export function buildOsmFhrsLinks({ chunks, seedPubs, fetchedAt, box = LONDON_BBOX, venueAliases = {} }) {
   const seen = new Set();
   const links = [];
   const counts = { londonPubs: 0, linked: 0, multiValueTag: 0, unreadableTag: 0, curatedLinked: 0, curatedAmbiguous: 0 };
-  const curated = curatedVenueByRef(seedPubs);
+  const curated = curatedVenueByRef(seedPubs, venueAliases);
   counts.curatedAmbiguous = curated.ambiguous;
   for (const chunk of Array.isArray(chunks) ? chunks : []) {
     for (const element of Array.isArray(chunk?.elements) ? chunk.elements : []) {
