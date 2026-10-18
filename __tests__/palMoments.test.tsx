@@ -8,6 +8,7 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import PalCheer, { palCheerLine } from "@/components/pal/PalCheer";
 import PubPalSummon, { PAL_SUMMON_CHEER_MS, palSummonCheerLine } from "@/components/pubpal/PubPalSummon";
+import { writeActivePlan } from "@/lib/activePlan";
 import { announcePalMoment, subscribePalMoments, type PalMoment } from "@/lib/palMoments";
 import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
 
@@ -116,7 +117,8 @@ describe("the Pal's cheer in a celebration", () => {
 
 describe("the summon chip on a moment", () => {
   it("jumps and says what happened, then goes back to its offer", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    vi.setSystemTime(new Date(2026, 9, 18, 14, 0));
     store(pal());
     await render(createElement(PubPalSummon));
     const chip = host.querySelector<HTMLAnchorElement>(".palSummon")!;
@@ -130,4 +132,16 @@ describe("the summon chip on a moment", () => {
     expect(chip.classList.contains("isCheering")).toBe(false);
     expect(chip.querySelector("small")!.textContent).toBe("Tap to talk or plan");
   });
+
+  it("names the stop of a night that is on, and follows the person's own cursor", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 18, 21, 0));
+    store(pal());
+    writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 1 });
+    await render(createElement(PubPalSummon));
+    expect(host.querySelector(".palSummon small")!.textContent).toBe("Night's on. Stop 2");
+    act(() => writeActivePlan({ id: "11111111-1111-4111-8111-111111111111", startTime: new Date(2026, 9, 18, 19, 0).toISOString(), stopIndex: 2 }));
+    expect(host.querySelector(".palSummon small")!.textContent).toBe("Night's on. Stop 3");
+  });
 });
+
