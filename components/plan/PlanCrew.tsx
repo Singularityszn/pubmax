@@ -25,9 +25,18 @@ function readInviteTokenFromHash(): string | null {
   return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
 }
 
-/** The hash carries an invite that is not shaped like one (battle test L02). */
+/**
+ * The one-use invite a host creates in the collaboration panel: 32 random
+ * bytes in lowercase hex, the shape the join route redeems. Only the server
+ * decides whether a well-shaped token is real, unexpired and unused.
+ */
+const ONE_USE_PLAN_INVITE_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+
+/** The hash carries an invite shaped like neither kind (battle test L02). */
 function inviteHashIsMalformed(token: string | null): boolean {
-  return token !== null && !isClassicPlanInviteToken(token);
+  if (token === null) return false;
+  if (ONE_USE_PLAN_INVITE_TOKEN_PATTERN.test(token.trim())) return false;
+  return !isClassicPlanInviteToken(token);
 }
 
 const MALFORMED_INVITE_LINE =

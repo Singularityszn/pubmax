@@ -174,6 +174,10 @@
   border-radius: 18px;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
 }
+/* A grid row does not shrink below its content by default, so one wide select
+   or badge pushed the preferences panel 20px past this card at 768. Each row
+   may shrink to the card's own width instead. */
+.planCollab > * { min-width: 0; }
 .planCollab__heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .planCollab__heading h3 { margin: 0; font-family: var(--display, var(--serif)); font-size: 1.35rem; }
 .planCollab__heading > span { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); color: var(--plan-stamp-ink); font-size: 0.7rem; font-weight: 850; text-transform: uppercase; }
@@ -192,7 +196,8 @@
 .planCollab__activeInvite { flex-basis: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .planCollab__activeInvite small { color: var(--muted); font-size: 0.7rem; }
 .matchGroupPrefs { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 16px; background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel)); }
-.matchGroupPrefs__heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.matchGroupPrefs > * { min-width: 0; }
+.matchGroupPrefs__heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px; }
 .matchGroupPrefs__heading h4 { margin: 0; font-size: 1rem; }
 .matchGroupPrefs__heading > span { padding: 5px 8px; border-radius: 999px; background: var(--panel-raised); color: var(--muted); font-size: 0.62rem; font-weight: 850; text-transform: uppercase; white-space: nowrap; }
 /* This panel's ground is TINTED (7 per cent of the accent over --panel), which
@@ -215,10 +220,10 @@
 .planCollab__form { display: grid; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
 .planCollab__form > strong,
 .planCollab__proposals > strong { font-size: 0.82rem; }
-.planCollab__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.planCollab__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .planCollab input,
 .planCollab select,
-.planCollab textarea { width: 100%; padding: 9px 11px; font-size: 0.8rem; }
+.planCollab textarea { width: 100%; min-width: 0; padding: 9px 11px; font-size: 0.8rem; }
 .planCollab textarea { min-height: 78px; resize: vertical; }
 .planCollab__inputRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .planCollab fieldset { display: grid; gap: 7px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }

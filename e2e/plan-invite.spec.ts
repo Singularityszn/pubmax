@@ -322,3 +322,73 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   expect(rejoinedAfterRemoval).toMatchObject({ active: true, role: "guest" });
   await guest.close();
 });
+
+// The private one-use invite a host makes in the collaboration panel is 64
+// lowercase hex characters, and the join route redeems it. The crew panel
+// used to accept only the 32-hex classic link, so a fresh guest got "This
+// invite link isn't valid" and no form. This drives the host's own control and
+// a guest in a fresh browser through the real join.
+test("a fresh guest opens the host's private one-use invite and joins the crew", async ({ page, browser }) => {
+  const quietFirstRun = () => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+  };
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.addInitScript(quietFirstRun);
+
+  const venues = ((await (await page.request.get("/data/venues_slim.json")).json() as { rows: Array<{
+    id: string;
+    name: string;
+  }> }).rows).slice(0, 3);
+  expect(venues.length).toBe(3);
+  // The browser context's own request keeps the host's member session cookie.
+  const created = await page.request.post("/api/plans", {
+    headers: { "idempotency-key": randomUUID() },
+    data: {
+      title: "Private invite spec crawl",
+      startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      creatorName: HOST_NAME,
+      stops: venues.map((v) => ({ venueId: v.id, venueName: v.name })),
+    },
+  });
+  expect(created.ok()).toBe(true);
+  const planId: string = (await created.json()).plan.plan.id;
+  await page.goto(`/plan/${planId}`);
+
+  const createInvite = page.getByRole("button", { name: "Create private invite" });
+  const inviteLink = page.locator('output[aria-label="Private invite link"]');
+  await expect(createInvite).toBeVisible({ timeout: 30_000 });
+  await expect(async () => {
+    await createInvite.click();
+    await expect(inviteLink).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  const inviteUrl = ((await inviteLink.textContent()) ?? "").trim();
+  const inviteToken = decodeURIComponent(new URL(inviteUrl).hash.replace(/^#invite=/, ""));
+  expect(inviteToken).toMatch(/^[0-9a-f]{64}$/);
+
+  const guest = await browser.newContext();
+  await guest.addInitScript(quietFirstRun);
+  const guestPage = await guest.newPage();
+  await guestPage.goto(inviteUrl);
+  const nameField = guestPage.getByLabel("Your name is enough.");
+  await expect(nameField).toBeVisible({ timeout: 30_000 });
+  await expect(guestPage.getByText("This invite link isn't valid. Ask the host for a fresh one.")).toHaveCount(0);
+
+  await nameField.fill("Priya");
+  const [joined] = await Promise.all([
+    guestPage.waitForResponse((response) =>
+      response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/plans/${planId}/join`,
+    ),
+    guestPage.getByRole("button", { name: "I’m in" }).click(),
+  ]);
+  // The same unchanged token, accepted by the unchanged join route.
+  expect(JSON.parse(joined.request().postData() ?? "{}")).toMatchObject({ inviteToken });
+  expect(joined.status()).toBe(200);
+  await expect(guestPage.getByRole("group", { name: "Update your status" })).toBeVisible();
+  expect(new URL(guestPage.url()).hash).toBe("");
+  await guest.close();
+});
