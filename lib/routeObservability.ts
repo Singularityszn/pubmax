@@ -10,7 +10,9 @@
 //
 // Privacy (ADR 0007 + consent posture unchanged): the `route` field is a STATIC
 // tag chosen by the caller — never the request URL — so query strings, ids, and
-// coordinates never reach the log. No IP, handle, body, or header is read.
+// coordinates never reach the log. No IP, handle or body is read. The one header
+// read is `x-vercel-id`, the platform's request id, so a line joins the Vercel
+// request log (a correlation id, not a property of the caller).
 
 import { log } from "@/lib/log";
 
@@ -49,6 +51,8 @@ export function withRouteTiming<Rest extends unknown[]>(
   return async (request: Request, ...rest: Rest): Promise<Response> => {
     const start = Date.now();
     const method = request.method ?? "GET";
+    const vercelId = request.headers?.get("x-vercel-id")?.slice(0, 120);
+    const correlation = vercelId ? { vercelId } : {};
     try {
       const response = await handler(request, ...rest);
       const durationMs = Date.now() - start;
@@ -57,6 +61,7 @@ export function withRouteTiming<Rest extends unknown[]>(
         method,
         status: response.status,
         durationMs,
+        ...correlation,
       });
       return response;
     } catch (err) {
@@ -66,6 +71,7 @@ export function withRouteTiming<Rest extends unknown[]>(
         method,
         status: 500,
         durationMs,
+        ...correlation,
         error: err instanceof Error ? err.message : String(err),
       });
       throw err;

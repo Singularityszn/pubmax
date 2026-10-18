@@ -20,6 +20,11 @@ function registerPosthogServerHooks(): void {
   });
 }
 
+/** PostHog half of `onRequestError`: the route template, never the message. */
+export function captureRequestException(error: unknown, routePath: string | undefined): void {
+  capturePosthogServerException(error, routePath ?? "request");
+}
+
 export function register(): Promise<void> {
   registerPosthogServerHooks();
   return registerArizeTracing();
