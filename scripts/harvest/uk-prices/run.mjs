@@ -102,7 +102,12 @@ const OUT_DIR = path.join(ROOT, "data-harvest/uk_prices");
 const LEDGER_PATH = path.join(OUT_DIR, "hosts.json");
 const ROWS_PATH = path.join(OUT_DIR, "rows.jsonl");
 const REVIEW_PATH = path.join(OUT_DIR, "judgment_review.jsonl");
-const REPORT_PATH = path.join(ROOT, "data/uk_prices/harvest_report.json");
+// An Exa-only run reads a few hundred hosts, so it writes its own report and
+// never replaces the national one, whose counts describe the whole ledger.
+const REPORT_PATH = path.join(
+  ROOT,
+  process.argv.includes("--exa-sites-only") ? "data/uk_prices/exa_sites_report.json" : "data/uk_prices/harvest_report.json",
+);
 const PUBLISHED_ROWS = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
 
 const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
@@ -675,6 +680,22 @@ function appendPriceRows(entry, rows) {
 }
 
 /**
+ * Empty the ledger rows on --reset. Otherwise, in a fresh checkout with no ledger
+ * rows, start them from the published rows: the bundle prefers the ledger's rows
+ * to the published copy and rewrites the published copy from them, so a run that
+ * appended to an empty ledger would publish this run alone.
+ */
+function prepareLedgerRows() {
+  if (RESET) {
+    if (existsSync(ROWS_PATH)) writeFileSync(ROWS_PATH, "");
+    return;
+  }
+  if (!existsSync(ROWS_PATH) && existsSync(PUBLISHED_ROWS)) {
+    writeFileSync(ROWS_PATH, readFileSync(PUBLISHED_ROWS, "utf8"));
+  }
+}
+
+/**
  * Join the Exa input named by --exa-sites to the host list. Answers the counts
  * for the report, or null when a named input is missing.
  */
@@ -833,7 +854,7 @@ async function main() {
   const spend = () => (spent < PAGE_BUDGET ? ((spent += 1), true) : false);
 
   if (!DRY_RUN) mkdirSync(OUT_DIR, { recursive: true });
-  if (RESET && existsSync(ROWS_PATH) && !DRY_RUN) writeFileSync(ROWS_PATH, "");
+  if (!DRY_RUN) prepareLedgerRows();
 
   let index = 0;
   let done = 0;

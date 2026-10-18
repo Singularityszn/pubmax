@@ -91,7 +91,9 @@ npm run build:uk-price-bundle
 
 A site only Exa named gives a price only when one of its pages states the pub's
 own OSM postcode or house number and street. A namesake's site never binds and
-is counted as `exa-site-unbound`. The rule is in
+is counted as `exa-site-unbound`. An `--exa-sites-only` run writes its counts
+to `data/uk_prices/exa_sites_report.json`, never over `harvest_report.json`. The
+rule is in
 [`docs/rules/scripts-harvest-and-source-permission.md`](./rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address).
 
 ## Lane two: the browser
