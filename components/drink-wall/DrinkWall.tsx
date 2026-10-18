@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
+import EmptyState from "@/components/ui/empty-state";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import {
@@ -192,6 +193,7 @@ export default function DrinkWall() {
   const canPost = configured && user && handle;
   const emptyLine = drinkWallEmptyLine(wall.status === "degraded");
   const nearEmpty = scope === "near" && nearReady && nearVenueIds.length === 0;
+  const wallIsEmpty = wall.photos.length === 0 && !loading;
 
   return (
     <div className="drinkWall">
@@ -200,8 +202,12 @@ export default function DrinkWall() {
         <p className="drinkWallIntro">
           Pints, pub fronts and London views from drinkers on PUBMAXX.
         </p>
+        {/* Two filters, two rows, one shape: each is a segmented control with
+            one hairline around the group and the selection as the fill
+            (docs/DESIGN_SYSTEM.md "Edges"). They used to share a row in two
+            different selection styles and wrapped into a ragged block. */}
         <div className="drinkWallFilters">
-          <div className="drinkWallScope" role="group" aria-label="Browse scope">
+          <div className="drinkWallSegments drinkWallScope" role="group" aria-label="Browse scope">
             <button type="button" aria-pressed={scope === "all"} onClick={() => changeScope("all")}>
               All London
             </button>
@@ -209,38 +215,44 @@ export default function DrinkWall() {
               Near me
             </button>
           </div>
-          <button
-            type="button"
-            className="drinkWallTag"
-            aria-pressed={category === "all"}
-            onClick={() => changeCategory("all")}
-          >
-            All
-          </button>
-          {DRINK_WALL_CATEGORIES.map((cat) => (
+          <div className="drinkWallSegments drinkWallCategories" role="group" aria-label="Photo type">
             <button
-              key={cat}
               type="button"
               className="drinkWallTag"
-              aria-pressed={category === cat}
-              onClick={() => changeCategory(cat)}
+              aria-pressed={category === "all"}
+              onClick={() => changeCategory("all")}
             >
-              {DRINK_WALL_CATEGORY_LABEL[cat]}
+              All
             </button>
-          ))}
+            {DRINK_WALL_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className="drinkWallTag"
+                aria-pressed={category === cat}
+                onClick={() => changeCategory(cat)}
+              >
+                {DRINK_WALL_CATEGORY_LABEL[cat]}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="drinkWallActions">
-          {canPost ? (
-            <button type="button" className="venuePhotoWallButton" onClick={() => setComposerOpen(true)}>
-              Add a photo
-            </button>
-          ) : (
-            <p className="drinkWallSignInPrompt">
-              {DRINK_WALL_SIGN_IN_LINE}{" "}
-              <Link href={drinkWallSignInHref("/wall")}>Sign in</Link>
-            </p>
-          )}
-        </div>
+        {/* An empty wall carries its own one way onward (below), so the
+            action row only speaks once there are photos to add to. */}
+        {wall.photos.length === 0 ? null : (
+          <div className="drinkWallActions">
+            {canPost ? (
+              <button type="button" className="venuePhotoWallButton" onClick={() => setComposerOpen(true)}>
+                Add a photo
+              </button>
+            ) : (
+              <p className="drinkWallSignInPrompt">
+                {DRINK_WALL_SIGN_IN_LINE}{" "}
+                <Link href={drinkWallSignInHref("/wall")}>Sign in</Link>
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {composerOpen && canPost ? (
@@ -251,14 +263,47 @@ export default function DrinkWall() {
         <p className="drinkWallStatus" role="status">Loading the wall</p>
       ) : null}
 
-      {nearEmpty && wall.photos.length === 0 && !loading ? (
-        <p className="drinkWallEmpty" role="status">
-          We need your location for Near me, or switch to All London.
-        </p>
+      {wallIsEmpty && nearEmpty ? (
+        <div role="status">
+          <EmptyState
+            title="Near me needs your location."
+            action={
+              <button type="button" onClick={() => changeScope("all")}>
+                Show all London
+              </button>
+            }
+          />
+        </div>
       ) : null}
 
-      {!nearEmpty && wall.photos.length === 0 && !loading ? (
-        <p className="drinkWallEmpty" role="status">{emptyLine}</p>
+      {wallIsEmpty && !nearEmpty ? (
+        <div role="status">
+          {wall.status === "degraded" ? (
+            <EmptyState
+              title={emptyLine}
+              action={
+                <button type="button" onClick={() => void load(null, true)}>
+                  Try again
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              title="No photos on the wall yet."
+              action={
+                canPost ? (
+                  <button type="button" onClick={() => setComposerOpen(true)}>
+                    Add a photo
+                  </button>
+                ) : (
+                  <Link href={drinkWallSignInHref("/wall")}>Sign in to add one</Link>
+                )
+              }
+            >
+              Share a pint, a pub or a London view.
+            </EmptyState>
+          )}
+        </div>
       ) : null}
 
       {removeError ? (
