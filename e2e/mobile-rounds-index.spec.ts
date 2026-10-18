@@ -48,6 +48,17 @@ test("mobile Rounds index starts a round and explains link-based joining", async
   await expectTapTarget(handle, "handle field");
   await expectNoHorizontalOverflow(page);
 
+  // A code read out loud opens the Round without editing a URL; a short one
+  // answers in place.
+  const code = page.getByRole("textbox", { name: "Round code" });
+  const openRound = page.getByRole("button", { name: "Open the Round" });
+  await expectTapTarget(code, "round code field");
+  await expectTapTarget(openRound, "open round button");
+  await code.fill("ab1");
+  await openRound.click();
+  await expect(page.locator("#round-code-join-error")).toHaveText("A Round code is 6 letters and numbers.");
+  await expect(page).toHaveURL(/\/rounds$/);
+
   // An empty handle answers in place instead of doing nothing.
   await handle.fill("");
   await start.click();
