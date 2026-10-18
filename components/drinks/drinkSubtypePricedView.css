@@ -115,12 +115,9 @@
   color: var(--accent-price-ink);
 }
 
+/* Placement only: the face is the one price look (components/PriceBadge.tsx). */
 .softDrinksWater__price {
   align-self: start;
-  font-family: var(--font-data);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-price-ink);
 }
 
 .softDrinksWater__mapFrame {

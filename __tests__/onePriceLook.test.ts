@@ -149,6 +149,8 @@ describe("every pint price wears the one price look", () => {
     ["components/map/tonightLane.css", ".tonightLaneCardPrice"],
     ["components/map/coffeePilotSheet.css", ".coffeePilotFigure"],
     ["components/pal/palChat.css", ".palChatCardPrice"],
+    ["components/drinks/drinkBrandDirectory.css", ".drinkBrandDirectory__price"],
+    ["components/drinks/drinkSubtypePricedView.css", ".softDrinksWater__price"],
   ];
 
   for (const [file, selector] of LAYOUT_ONLY) {
