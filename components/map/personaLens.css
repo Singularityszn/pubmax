@@ -30,18 +30,18 @@
 }
 
 .personaLensTrigger > svg {
-  color: var(--brass);
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .personaLensTrigger:hover {
-    border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
+    border-color: var(--hairline-strong);
   }
 }
 
 .personaLensTrigger.isActive {
-  border-color: var(--brass);
+  border-color: var(--state-selected-border);
   color: var(--ink);
 }
 
@@ -79,7 +79,7 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
+  border: 1px solid var(--line);
   background: var(--panel-raised);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -136,12 +136,12 @@
 
 .personaLensOption.isHighlighted,
 .personaLensOption.isSelected {
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  background: var(--state-selected-surface);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .personaLensOption:hover {
-    background: color-mix(in srgb, var(--brass) 14%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 
@@ -169,8 +169,8 @@
   gap: 3px;
   padding: 1px 6px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--brass) 18%, transparent);
-  color: var(--brass);
+  background: transparent;
+  color: var(--color-text-muted);
   font-size: 10px;
   font-weight: 600;
   white-space: nowrap;
@@ -190,7 +190,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 16px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
@@ -310,7 +310,7 @@
 .personaLensCardIngredient {
   padding: 3px 9px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--brass) 10%, var(--paper));
+  background: var(--paper);
   border: 1px solid var(--line);
   font-size: var(--text-xs);
   color: var(--ink-soft);

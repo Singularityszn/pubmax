@@ -46,7 +46,7 @@
   margin-left: auto;
   border: 1px solid var(--line);
   border-radius: 50%;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: var(--text-base);
   line-height: 1;
 }
@@ -96,7 +96,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--brass);
+  color: var(--ink);
   font: inherit;
   font-size: var(--text-xs);
   cursor: pointer;

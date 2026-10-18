@@ -10,7 +10,7 @@
   min-width: 0;
   width: min(460px, calc(100vw - 24px));
   padding: 10px 8px 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 48%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   color: var(--ink);
@@ -21,7 +21,7 @@
 
 .ukPlaceArrivalIcon {
   margin-top: 4px;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .ukPlaceArrivalCopy {
@@ -57,13 +57,13 @@
 }
 
 .ukPlaceArrivalDismiss:focus-visible {
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: var(--ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .ukPlaceArrivalDismiss:hover {
-    background: color-mix(in srgb, var(--brass) 14%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
     color: var(--ink);
   }
 }

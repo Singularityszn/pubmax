@@ -254,15 +254,15 @@
   min-height: 48px;
   margin-top: 11px;
   padding: 9px 16px;
-  border: 1px solid var(--brass);
+  /* A secondary commit: the sheet's one coral fill is the price door. */
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
   font-size: 0.92rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 22%, transparent);
   transition:
     opacity 160ms ease,
     transform 160ms ease;

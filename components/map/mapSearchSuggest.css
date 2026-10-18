@@ -270,7 +270,7 @@
   align-items: center;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--tint-ink-accent);
+  color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
 }

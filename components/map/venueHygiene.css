@@ -28,7 +28,7 @@ a.venueHygiene:focus-visible {
 
 @media (hover: hover) and (pointer: fine) {
   a.venueHygiene:hover {
-    border-color: var(--accent-action);
+    border-color: var(--hairline-strong);
     color: var(--ink);
   }
 }

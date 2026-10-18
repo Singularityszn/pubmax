@@ -132,7 +132,7 @@
 @media (hover: hover) and (pointer: fine) {
   .tonightArcChipsSheet .tonightArcChip:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 9%, transparent);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
   }
 }
 

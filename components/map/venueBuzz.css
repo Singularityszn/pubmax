@@ -6,7 +6,7 @@
 .venueBuzz {
   margin: 12px 0 2px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   color: var(--ink);
@@ -53,7 +53,7 @@
 }
 
 .venueBuzzCite a {
-  color: var(--brass);
+  color: var(--ink);
   text-decoration: none;
   /* The glyph is a 6px superscript numeral, which is a miserable thumb target.
      Padding grows the hit box; the matching negative margin (with the
@@ -110,7 +110,7 @@
 @media (hover: hover) and (pointer: fine) {
   .venueBuzzMention a:hover {
     text-decoration: underline;
-    border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+    border-color: var(--hairline-strong);
   }
 }
 
