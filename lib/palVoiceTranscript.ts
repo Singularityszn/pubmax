@@ -1,10 +1,12 @@
 // What the voice panel shows of a live Pub Pal session, and the one spoken
 // command the browser acts on by itself.
 //
-// The transcript lives in the tab and nowhere else: it is never written to
-// storage and never sent anywhere, because "No audio or transcript becomes a
-// memory" is the line printed under the panel. A reload or a closed tab
-// forgets it.
+// The panel's copy of the transcript lives in the tab: it is never written to
+// browser storage, and a reload or a closed tab forgets it. This panel sends
+// nothing new. The person's own lines already reach the server's short-lived
+// tool turn (`/api/pub-pal/tool-turn`, expired two minutes after the last line
+// and purged by cron) so the Pal's tools can read the ask, and none of it
+// becomes a memory.
 //
 // "Show me the map" is read from the PERSON's own words, never the agent's.
 // The agent may only PROPOSE a map move (ADR 0006); a person asking for the
@@ -40,14 +42,18 @@ export function palVoiceLine(
   return { id: `pal-voice-${lineCounter}`, speaker, text: text.trim(), via };
 }
 
-/** Adds one line. An empty line, or the Pal repeating its last line, adds nothing. */
+/**
+ * Adds one line. An empty line adds nothing, and neither does the Pal sending
+ * its last line again. The person saying the same thing twice ("yes", "yes")
+ * is two lines, so their lines are never folded.
+ */
 export function appendPalVoiceLine(
   lines: readonly PalVoiceLine[],
   line: PalVoiceLine,
 ): PalVoiceLine[] {
   if (!line.text) return [...lines];
   const last = lines.at(-1);
-  if (last && last.speaker === line.speaker && last.text === line.text) return [...lines];
+  if (line.speaker === "pal" && last?.speaker === "pal" && last.text === line.text) return [...lines];
   return [...lines, line].slice(-PAL_VOICE_TRANSCRIPT_MAX_LINES);
 }
 

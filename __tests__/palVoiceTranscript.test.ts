@@ -49,11 +49,16 @@ describe("palAsksForMap", () => {
 });
 
 describe("the voice transcript", () => {
-  it("drops empty lines and an exact repeat of the last line", () => {
+  it("drops empty lines and a Pal line sent twice", () => {
     const first = appendPalVoiceLine([], palVoiceLine("pal", "Evening."));
     expect(appendPalVoiceLine(first, palVoiceLine("pal", "  "))).toHaveLength(1);
     expect(appendPalVoiceLine(first, palVoiceLine("pal", "Evening."))).toHaveLength(1);
     expect(appendPalVoiceLine(first, palVoiceLine("you", "Evening."))).toHaveLength(2);
+  });
+
+  it("keeps the person saying the same thing twice", () => {
+    const once = appendPalVoiceLine([], palVoiceLine("you", "Yes"));
+    expect(appendPalVoiceLine(once, palVoiceLine("you", "Yes")).map((line) => line.text)).toEqual(["Yes", "Yes"]);
   });
 
   it("keeps the newest lines only", () => {

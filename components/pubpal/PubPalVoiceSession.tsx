@@ -182,6 +182,11 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const conversationIdRef = useRef<string | null>(null);
   const [startController] = useState(createPubPalVoiceStartController);
 
+  const liveRef = useRef(false);
+  useEffect(() => {
+    liveRef.current = status === "connected";
+  }, [status]);
+
   const stayHere = useCallback((): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     mapTimerRef.current = null;
@@ -193,7 +198,8 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const openMap = useCallback((): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     setMapPending(true);
-    playPalVoiceSound("map");
+    // The cue belongs to a live voice chat; a typed ask with no session is silent.
+    if (liveRef.current) playPalVoiceSound("map");
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
       router.push(PAL_VOICE_MAP_HREF);

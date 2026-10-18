@@ -1156,6 +1156,8 @@ describe("Pub Pal voice transcript", () => {
     await mountAvailable();
     await typeAndSend("show me the map");
     expect(voice.sendUserMessage).not.toHaveBeenCalled();
+    // No live voice chat, so no cue.
+    expect(sounds.play).not.toHaveBeenCalled();
     expect(transcriptLines()[0]).toContain("show me the map");
     await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
