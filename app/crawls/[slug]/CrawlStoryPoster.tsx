@@ -4,7 +4,7 @@ import Link from "next/link";
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CrawlStoryOwnerControls from "@/components/crawl/CrawlStoryOwnerControls";
 import PlacePhoto from "@/components/listing/PlacePhoto";
-import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import ShareBar from "@/components/share/ShareBar";
 import Screen from "@/components/ui/screen";
 import { computeChaosScore } from "@/lib/chaosScore";

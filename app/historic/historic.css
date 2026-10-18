@@ -233,7 +233,7 @@
 }
 
 /* A photograph OF this pub, only on its own entry (components/listing/
-   placePhoto.ts). Small, under its sentence, with its credit. */
+   placePhotoRules.ts). Small, under its sentence, with its credit. */
 .historicEntryPhoto {
   max-width: 16rem;
   margin-top: var(--space-2);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhoto";
+import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhotoRules";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatGbp } from "@/lib/formatGbp";
@@ -68,7 +68,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 // The story's lead photograph, where one is honest: a photograph of the patch
-// EVERY stop is a short walk from (components/listing/placePhoto.ts). A stop
+// EVERY stop is a short walk from (components/listing/placePhotoRules.ts). A stop
 // the dataset cannot place could be anywhere, so then there is none.
 async function storyPhoto(story: DurableStory): Promise<PlacePhoto | null> {
   if (story.stops.length === 0) return null;
