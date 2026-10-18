@@ -81,3 +81,9 @@
   color: inherit;
   text-decoration: underline;
 }
+
+/* The Coke Zero or Diet Coke composer on a London counter's sheet
+   (components/map/LondonFoodPlaceSheet.tsx), which shares this sheet's frame. */
+.londonFoodPlaceLog {
+  margin-top: 18px;
+}

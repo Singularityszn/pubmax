@@ -386,17 +386,21 @@ export default function MessagesInboxClient({
         </>
       ) : null}
 
-      {!accountDataReady ? (
-        <p className="conversationPreview">With you in a sec.</p>
-      ) : viewerSession.unresolved ? (
-        <p className="conversationPreview">With you in a sec.</p>
-      ) : viewerSession.signedOut && (needsSignIn || !user) ? (
+      {viewerSession.signedOut && (needsSignIn || !user) ? (
         // The head's primary is the sign-in door, so the empty state carries
-        // no second copy of it.
+        // no second copy of it. A session that has answered "nobody" is the
+        // whole answer: there is no inbox to read, so this does not wait on the
+        // read the way a signed-in list does. It used to sit behind "With you
+        // in a sec." until auth bootstrap re-keyed the read, about a second
+        // after the courtesy note above had already said the same thing.
         <EmptyState title="Sign in to message">
           Private messages need a signed-in account, so each message carries
           the right handle.
         </EmptyState>
+      ) : !accountDataReady ? (
+        <p className="conversationPreview">With you in a sec.</p>
+      ) : viewerSession.unresolved ? (
+        <p className="conversationPreview">With you in a sec.</p>
       ) : handleNotOwned ? (
         <EmptyState
           title={`@${handle} isn\u2019t linked to your account.`}

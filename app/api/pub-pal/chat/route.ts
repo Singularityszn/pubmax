@@ -115,6 +115,8 @@ function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
 
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
+  // The limiter answers before anything else is asked: the token check is a
+  // GoTrue round trip, and a refused request must not reach the auth backend.
   if (
     await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
       failClosed: true,
