@@ -45,6 +45,11 @@ import {
   writeMenuPageCache,
 } from "./lib/harvestMenuCache.mjs";
 import { mapGreeneKingSectionToCategory } from "./lib/menuSectionCategory.mjs";
+import {
+  menuOwnerVerdict,
+  readMenuPageOwners,
+  venueKeyPoint,
+} from "./lib/menuPageOwners.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -196,7 +201,9 @@ function titleFromSlug(slug) {
 
 // --- venue keys (shared: scripts/lib/venueMatch.mjs) ------------------------
 
-function resolveVenueKey(url, indexes, menuUrlToId) {
+// main() refuses a key whose menu page belongs to a pub elsewhere. A shared
+// name resolves only to the one pub that page's owner stands beside, or none.
+function resolveVenueKey(url, indexes, menuUrlToId, owners) {
   const normalised = url.replace(/\/$/, "");
   const venueId = menuUrlToId.get(normalised);
   if (venueId && indexes.idToKey.has(venueId)) {
@@ -215,7 +222,12 @@ function resolveVenueKey(url, indexes, menuUrlToId) {
   const norm = normalisePubName(title);
   const keys = indexes.nameToKeys.get(norm);
   if (keys?.length === 1) return keys[0];
-  if (keys && keys.length > 1) return keys[0];
+  if (keys && keys.length > 1) {
+    const beside = keys.filter(
+      (key) => menuOwnerVerdict(url, venueKeyPoint(key), owners).verdict === "same-pub",
+    );
+    return beside.length === 1 ? beside[0] : null;
+  }
 
   const tokens = slug.split("-").filter((t) => t.length > 2 && t !== "the");
   return resolveVenueKeyFromHints(tokens, indexes);
@@ -267,7 +279,7 @@ function loadExistingUpdates() {
   }
 }
 
-async function retainPermittedExistingUpdates(existing, harvester) {
+async function retainPermittedExistingUpdates(existing, harvester, owners) {
   const decisions = new Map();
   const retained = [];
   for (const update of existing) {
@@ -277,6 +289,9 @@ async function retainPermittedExistingUpdates(existing, harvester) {
     }
     const url = update?.source?.url;
     if (!url) continue;
+    if (menuOwnerVerdict(url, venueKeyPoint(update.venueKey), owners).verdict === "other-pub") {
+      continue;
+    }
     if (!decisions.has(url)) {
       decisions.set(
         url,
@@ -343,8 +358,9 @@ async function main() {
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
   const menuUrlToId = menuUrlToVenueId(enrichment);
+  const owners = readMenuPageOwners(ROOT);
   const existing = merge
-    ? await retainPermittedExistingUpdates(loadExistingUpdates(), harvester)
+    ? await retainPermittedExistingUpdates(loadExistingUpdates(), harvester, owners)
     : [];
 
   const updates = [];
@@ -353,6 +369,7 @@ async function main() {
   let scraped = 0;
   let matched = 0;
   let unmatched = 0;
+  let wrongPub = 0;
   let refused = 0;
   let fetchFailed = 0;
   let budgetStopped = 0;
@@ -360,7 +377,17 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMenuUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, transport, `${slug}.md`);
-    const venueKey = resolveVenueKey(url, indexes, menuUrlToId);
+    const venueKey = resolveVenueKey(url, indexes, menuUrlToId, owners);
+    const owner = venueKey
+      ? menuOwnerVerdict(url, venueKeyPoint(venueKey), owners)
+      : { verdict: "owner-unknown" };
+    if (owner.verdict === "other-pub") {
+      wrongPub += 1;
+      console.warn(
+        `WRONG_PUB ${url} belongs to ${owner.owner.name}, ${owner.metres} m from ${venueKey.slice(0, 40)}…`,
+      );
+      continue;
+    }
     let page;
     try {
       page = await scrapeMenu(url, cachePath, harvester);
@@ -426,7 +453,7 @@ async function main() {
   writeFileSync(join(OUT_DIR, "latest.json"), `${JSON.stringify(payload, null, 2)}\n`);
 
   console.log(
-    `\nDone: transport=${transport} scraped=${scraped} matched=${matched} unmatched=${unmatched} refused=${refused} fetchFailed=${fetchFailed} budgetStopped=${budgetStopped} newRows=${updates.length} totalRows=${merged.length}`,
+    `\nDone: transport=${transport} scraped=${scraped} matched=${matched} unmatched=${unmatched} wrongPub=${wrongPub} refused=${refused} fetchFailed=${fetchFailed} budgetStopped=${budgetStopped} newRows=${updates.length} totalRows=${merged.length}`,
   );
   if (transport === "tavily") {
     console.log(`Tavily extracts spent: ${harvester.extractsSpent}/${harvester.extractBudget}`);

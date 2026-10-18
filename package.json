@@ -87,6 +87,7 @@
     "enrich:city": "tsx scripts/enrich_city_pubs_tavily.mjs",
     "tavily:correct": "tsx scripts/correct_tavily_rows.mjs",
     "tavily:reject": "tsx scripts/reject_tavily_rows.mjs",
+    "prices:drop-wrong-pub": "node scripts/drop_wrong_pub_menu_rows.mjs",
     "evaluate:open-pubs": "node scripts/evaluate_open_pubs.mjs",
     "evaluate:open-pubs:london": "node scripts/evaluate_open_pubs.mjs --london",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",

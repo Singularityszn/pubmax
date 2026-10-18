@@ -34,6 +34,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)
 - [The London Tavily pass and the London promotion are capped in code, and every row keeps its evidence.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-tavily-pass-and-the-london-promotion-are-capped-in-code)
 - [A PUB'S OWN FOOD MENU IS READ LIKE ITS DRINKS LIST, AND ONLY ITS PRICE FACT SHIPS.](../docs/rules/scripts-harvest-and-source-permission.md#a-pub-s-own-food-menu-is-read-like-its-drinks-list-and-only-its-price-fact-ships)
+- [A MENU IS THE PUB'S WHOSE WEBSITE IT IS, AND A SHARED NAME IS NOT A MATCH.](../docs/rules/scripts-harvest-and-source-permission.md#a-menu-is-the-pub-s-whose-website-it-is-and-a-shared-name-is-not-a-match)
 
 ## Builders and publishers
 
