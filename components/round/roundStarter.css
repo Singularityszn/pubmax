@@ -22,7 +22,8 @@
   align-self: flex-start;
   font-size: 12px;
   letter-spacing: 0.01em;
-  color: var(--state-active-ink);
+  /* A kicker is a label: muted ink, never the "you are here" marker. */
+  color: var(--color-text-muted);
   font-weight: 700;
 }
 
@@ -61,7 +62,8 @@
   outline-offset: 1px;
 }
 
-.roundStarterError {
+.roundStarterError,
+.roundCodeJoinError {
   margin: 0;
   color: #a4331f;
   font-size: 13px;
@@ -191,4 +193,47 @@
   border-color: var(--brass) !important;
   color: var(--brass) !important;
   filter: none;
+}
+
+/* Join by code on /rounds: a quiet secondary beside the page's one primary.
+   The code is a figure, so the field sets it in the data face. */
+.roundCodeJoin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.roundCodeJoin .roundCodeJoinInput {
+  flex: 1 1 140px;
+  min-height: 44px;
+  font-family: var(--font-data);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.roundCodeJoin .roundCodeJoinInput::placeholder {
+  font-family: var(--font-body);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.roundCodeJoinBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 11px 18px;
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.roundCodeJoinBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }

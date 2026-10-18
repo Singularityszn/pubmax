@@ -93,8 +93,12 @@ describe("silent user action feedback fence", () => {
 
     for (const file of [shareBar, recap]) {
       expect(file).toContain("Could not open");
-      expect(file).toContain("window.open");
     }
+    expect(shareBar).toContain("window.open");
+    // The recap opens WhatsApp through the helper, whose false is a blocker
+    // that really ate the tab (a "noopener" open is null even when it opened).
+    expect(recap).toContain("openExternalTab(");
+    expect(source("lib/openExternalTab.ts")).toContain("if (!tab) return false;");
   });
 
   it("does not claim optional clipboard writes succeeded", () => {

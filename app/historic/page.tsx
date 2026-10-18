@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { loadHistoricPubs } from "@/lib/historic";
-import { metadataSiteName } from "@/lib/brandNaming";
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import {
   allBoroughHeritageCounts,
   boroughHeritageForSlug,
@@ -30,8 +30,9 @@ import "./historic.css";
 // client component that owns filtering, sorting, and interactivity. Below it,
 // the server-rendered "Oldest pubs by borough" rail (Wave S3.4) cross-links each
 // borough's cited heritage section so crawlers can walk the graph.
-const HISTORIC_TITLE =
-  "London's historic pubs, cited from Wikipedia and Wikidata · PUBMAXX";
+// The layout's template adds the brand to the document title; the share card
+// is not templated, so it carries the brand itself.
+const HISTORIC_TITLE = "London's historic pubs, cited from Wikipedia and Wikidata";
 const HISTORIC_DESCRIPTION =
   "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.";
 
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
   // the homepage OG). siteName + the shared /og.png card carried over — this
   // index route has no file-convention OG image (only /historic/[slug] does).
   openGraph: {
-    title: HISTORIC_TITLE,
+    title: appPageTitle(HISTORIC_TITLE),
     description: HISTORIC_DESCRIPTION,
     url: "/historic",
     siteName: metadataSiteName(),

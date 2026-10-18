@@ -143,7 +143,9 @@ async function renderCard(id: string): Promise<string> {
 }
 
 function titleVenueName(title: unknown): string {
-  const named = String(title).match(/^The Bar Tab: (.+)\. PUBMAXX$/)?.[1];
+  // The document title is the page's own words; the layout's template adds the
+  // brand (__tests__/documentTitleBrandOnce.test.ts).
+  const named = String(title).match(/^The Bar Tab: (.+)$/)?.[1];
   if (!named) throw new Error(`Bar Tab title did not name a pub: ${String(title)}`);
   return named;
 }

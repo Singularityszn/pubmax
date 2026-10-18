@@ -132,6 +132,10 @@ no side effect, as above.
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
 | Read, log, correct or remove a Diary entry (`GET`, `POST /api/diary` with `action: "update"` or `"delete"`) | 401 | own entries only; a body owner is ignored | own entries only | n/a | n/a | n/a | own entries only |
 | `diary_entries` at the table | denied | no rows | no rows | n/a | n/a | n/a | own rows, SELECT only; a write is refused at the grant (0174) |
+| Add a pub, or read the pubs you added (`POST`, `GET /api/venue-submissions`) | 401 | own submissions only; a body owner is ignored | own submissions only | n/a | n/a | n/a | own submissions only |
+| Attach a menu file (`POST /api/venue-submissions`, multipart) | 401 | 404 on another account's submission | 404 on another account's submission | n/a | n/a | n/a | own pending submission, up to three files |
+| `venue_submissions`, `venue_submission_files` at the table | denied | denied | denied | n/a | n/a | n/a | denied: no browser grant, service role only (0189) |
+| Decide a submission, read the queue (`/api/admin/venue-submissions`) | 403 | 403 | 403 | 403 | 403 | 403 | 403; `ADMIN_TOKEN` only |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
@@ -223,7 +227,7 @@ from the follow-handle graph the seam reads, and it does not hide a PUBLIC
 profile card from a blocked account either, so this wave neither opens that door
 nor closes it. Folding the block into the seam is its own slice with its own
 cells; asserting Carol's current answer here would write the gap down as intent.
-A Social mute (`social_mutes`, migration `0181`) is narrower still: it moves only
+A Social mute (`social_mutes`, migration `0188`) is narrower still: it moves only
 the muter's own post lanes, and no browser role holds the table or its two
 functions (`__tests__/socialMutesMigrationEffective.test.ts`).
 

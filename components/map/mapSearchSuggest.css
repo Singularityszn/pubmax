@@ -257,6 +257,19 @@
   line-height: 1.45;
 }
 
+/* A quiet text link, never a second filled control in the panel. */
+.mapSearchSuggestEmptyAdd {
+  justify-self: start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--tint-ink-accent, var(--ink));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mapSearchSuggestPanel { animation: none; }
   .mapSearchSuggestRow { transition: none; }

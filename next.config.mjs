@@ -327,7 +327,7 @@ const nextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
-      // The five CDN documents answer with no function in front on the canonical
+      // The CDN documents answer with no function in front on the canonical
       // host (lib/cdnDocumentEdge.mjs), so their Content-Security-Policy ships
       // here: the same builder proxy.ts calls (lib/contentSecurityPolicy.mjs),
       // with 'unsafe-inline' in the nonce slot exactly as the proxy sent it, and

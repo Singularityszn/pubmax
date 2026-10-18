@@ -41,6 +41,7 @@ import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import type { DiaryEntryDTO } from "@/lib/diary";
+import type { VenueSubmission } from "@/lib/venueSubmissions";
 import type { WantedDTO } from "@/lib/wanted";
 
 const USER = "u0000000-0000-4000-8000-000000000001";
@@ -214,6 +215,37 @@ const wantedRow = {
   promotedAt: null,
 } as unknown as WantedDTO;
 
+const venueSubmissionRow = {
+  id: "submission-1",
+  ownerUserId: USER,
+  name: "The Missing Crown",
+  address: "1 Example Street, London",
+  postcode: "SE1 9AA",
+  latitude: null,
+  longitude: null,
+  website: "",
+  menuUrl: "",
+  openingHours: "",
+  note: "",
+  prices: [{ drinkCategory: "beer", drinkName: "", priceGbp: 5.2, measure: "pint" }],
+  status: "pending",
+  duplicateOfVenueId: null,
+  reviewerNote: null,
+  reviewedAt: null,
+  createdAt: "2026-10-17T12:00:00.000Z",
+  files: [{
+    id: "file-1",
+    submissionId: "submission-1",
+    ownerUserId: USER,
+    objectKey: `venue-submissions/${USER}/submission-1/file-1.jpg`,
+    kind: "image",
+    contentType: "image/jpeg",
+    byteSize: 2048,
+    sha256: "a".repeat(64),
+    createdAt: "2026-10-17T12:01:00.000Z",
+  }],
+} as unknown as VenueSubmission;
+
 const diaryRow = {
   id: "diary-1",
   ownerUserId: USER,
@@ -311,6 +343,10 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
       { venueId: "venue-2", band: "fine" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
       { venueId: "venue-1f5ygjb", band: "loved" as const, rankKey: 1, updatedAt: "2026-09-05T21:00:00.000Z" },
     ],
+    venueSubmissions: async (userId) => ({
+      status: "ready" as const,
+      submissions: userId === USER ? [venueSubmissionRow] : [],
+    }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
     prices: async () => ({ observations: [price], degraded: false }),
@@ -394,6 +430,15 @@ describe("buildAccountExport", () => {
     expect(document.savedPubs.items).toEqual([savedPub]);
     expect(document.wanted.items).toEqual([wantedRow]);
     expect(document.diary.items).toEqual([diaryRow]);
+    expect(document.venueSubmissions.items).toEqual([
+      expect.objectContaining({
+        id: "submission-1",
+        name: "The Missing Crown",
+        files: [{ kind: "image", byteSize: 2048, createdAt: "2026-10-17T12:01:00.000Z" }],
+      }),
+    ]);
+    expect(JSON.stringify(document.venueSubmissions)).not.toContain("venue-submissions/");
+    expect(document.venueSubmissions.items[0]).not.toHaveProperty("ownerUserId");
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
   });
@@ -873,6 +918,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   },
   "lib/venueOperatorsStore.ts": { excluded: "Venue operator claims, keyed on a venue rather than on a drinker's own account." },
   "lib/venuePhotoStore.ts": { lane: "wallPhotos" },
+  "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
   "lib/visitReportsStore.ts": { lane: "visitReports" },
   "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },
   "lib/wantedStore.ts": { lane: "wanted" },

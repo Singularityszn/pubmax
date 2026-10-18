@@ -51,6 +51,21 @@ describe("formatConditionDate", () => {
   });
 });
 
+describe("London calendar boundaries", () => {
+  it.each([
+    ["2026-10-15T22:59:59Z", "Thursday 15 Oct"],
+    ["2026-10-15T23:00:00Z", "Friday 16 Oct"],
+    ["2026-12-31T23:59:59Z", "Thursday 31 Dec"],
+    ["2027-01-01T00:00:00Z", "Friday 1 Jan"],
+    ["2026-03-29T00:59:59Z", "Sunday 29 Mar"],
+    ["2026-03-29T01:00:00Z", "Sunday 29 Mar"],
+    ["2026-10-25T00:59:59Z", "Sunday 25 Oct"],
+    ["2026-10-25T01:00:00Z", "Sunday 25 Oct"],
+  ])("dates %s on the London calendar", (instant, label) => {
+    expect(formatConditionDate(new Date(instant))).toBe(label);
+  });
+});
+
 describe("londonMonth", () => {
   it("returns 1-12 for the London wall-clock month", () => {
     expect(londonMonth(new Date("2026-07-18T12:00:00.000Z"))).toBe(7);

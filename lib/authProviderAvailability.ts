@@ -17,7 +17,8 @@ export function hasSocialAuthProviders(
   return availability.google || availability.apple || availability.microsoft;
 }
 
-type AuthStartResult = { error: string | null };
+/** `navigating` is set only when this page is already leaving for the provider. */
+export type AuthStartResult = { error: string | null; navigating?: boolean };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

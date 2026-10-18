@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
 import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
-import { metadataSiteName } from "@/lib/brandNaming";
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { landmarkById, nearestStoryPubs } from "@/lib/landmarks";
 import {
   STORY_PUBS_DISTANCE_CAVEAT,
@@ -61,7 +61,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!landmark) {
     return { title: "Landmark chapter", robots: { index: false, follow: false } };
   }
-  const title = `${landmark.name}: London story chapter · PUBMAXX`;
+  // The layout's template adds the brand to the document title; the share
+  // card is not templated, so it carries the brand itself.
+  const title = `${landmark.name}: London story chapter`;
+  const cardTitle = appPageTitle(title);
   const description = landmark.history.slice(0, 155);
   const canonical = `/landmark/${landmark.id}`;
   return {
@@ -73,14 +76,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // restated here or they'd be dropped on landmark shares. (This route has no
     // file-convention OG image of its own.)
     openGraph: {
-      title,
+      title: cardTitle,
       description,
       type: "article",
       url: canonical,
       siteName: metadataSiteName(),
       images: ["/og.png"],
     },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary", title: cardTitle, description },
   };
 }
 

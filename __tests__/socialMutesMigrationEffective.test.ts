@@ -1,4 +1,4 @@
-// Migration 0181, proved against a real PostgreSQL 16 holding every migration
+// Migration 0188, proved against a real PostgreSQL 16 holding every migration
 // before it.
 //
 // A mute is one-way and private: the muter's three Social lanes drop the muted
@@ -7,8 +7,8 @@
 // all untouched, and the relationship read answers only what the ACTOR set, so
 // it can never tell a blocked account who blocked it.
 //
-//   BEFORE 0181: no table, and the muter's lanes carry the other's posts.
-//   AFTER  0181: a mute empties exactly the muter's lanes of that author, an
+//   BEFORE 0188: no table, and the muter's lanes carry the other's posts.
+//   AFTER  0188: a mute empties exactly the muter's lanes of that author, an
 //                unmute puts them back, a self-mute is refused and no browser
 //                role can read the table or call either function.
 //   ROLLBACK:    0074's feed comes back byte for byte, the table and the two
@@ -31,9 +31,9 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261017120000_0181_social_mutes.sql";
+const FORWARD_NAME = "20261017120000_0188_social_mutes.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
-const ROLLBACK = join(MIGRATIONS, "rollback/20261017120000_0181_social_mutes_rollback.sql");
+const ROLLBACK = join(MIGRATIONS, "rollback/20261017120000_0188_social_mutes_rollback.sql");
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
   .filter((name) => name.endsWith(".sql") && name < FORWARD_NAME)
@@ -50,7 +50,7 @@ let database: PostgresSession | null = null;
 let feedBefore = "";
 
 function db(): PostgresSession {
-  if (!database) throw new Error("the 0181 proof cluster is not running");
+  if (!database) throw new Error("the 0188 proof cluster is not running");
   return database;
 }
 
@@ -79,7 +79,7 @@ function feedDefinition(): string {
 
 beforeAll(async () => {
   if (skipReason) return;
-  database = await startPostgres({ label: "social-mutes-0181", database: "pubmax_social_mutes_0181" });
+  database = await startPostgres({ label: "social-mutes-0188", database: "pubmax_social_mutes_0188" });
   database.applyFile(SESSION_FIXTURE);
   for (const path of PREREQUISITES) database.applyFile(path);
   database.sql(`
@@ -101,7 +101,7 @@ beforeAll(async () => {
 
 afterAll(async () => database?.stop());
 
-describe.skipIf(skipReason !== null)("migration 0181: Social mutes", () => {
+describe.skipIf(skipReason !== null)("migration 0188: Social mutes", () => {
   it("BEFORE: there is no mute, and the muter's lanes carry the other account's posts", () => {
     expect(value("select to_regclass('public.social_mutes') is null")).toBe("t");
     expect(lane(MUTER, "following")).toBe("muted friends|muted public");

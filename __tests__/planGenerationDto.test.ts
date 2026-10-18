@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPlanGenerationStops, planBudgetSummary } from "@/lib/planGenerationDto";
+import { buildPlanGenerationStops, planBudgetSummary, planRouteTimingDisclosure } from "@/lib/planGenerationDto";
+import { STREET_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -296,5 +297,39 @@ describe("plan generation response projection", () => {
       "openrouteservice foot-walking route duration",
     ]);
     expect(stops.map((stop) => stop.walkingMinutesFromPrevious)).toEqual([null, 4]);
+  });
+});
+
+describe("plan generation street-walk disclosure", () => {
+  const timing = { straightLineWalkingKm: 1, walkingMinutes: 20, transferUncertaintyMinutes: 10, scheduledRouteMinutes: 170 };
+
+  it("names the basis the walking minutes were measured on", () => {
+    expect(planRouteTimingDisclosure({ ...timing, walkingBasis: "street" })?.basis).toBe(
+      "street walking estimate; add five minutes uncertainty per transfer",
+    );
+    expect(planRouteTimingDisclosure({ ...timing, walkingBasis: "mixed" })?.basis).toMatch(/^street walking estimate where mapped, straight-line elsewhere/);
+    expect(planRouteTimingDisclosure(timing)?.basis).toBe(
+      "straight-line walking estimate; add five minutes uncertainty per transfer",
+    );
+  });
+
+  it("marks a stop reached by a street leg with the street transport basis", () => {
+    const first = candidate("first", -0.1);
+    const second = candidate("second", -0.099);
+    const stops = buildPlanGenerationStops({
+      chosen: [first, second],
+      candidates: [first, second],
+      groundedStops: null,
+      groundedAlternatives: null,
+      walkingEstimate: {
+        legs: [{ toIndex: 1, source: "street" }],
+        walkingMinutesFromPrevious: [null, 3],
+      },
+      area: AREA,
+      planningWeather: null,
+      priceContext: { drinkCategory: null, zeroProof: false },
+    });
+    expect(defined(stops[1]).operationalEvidence.transportBasis).toBe(STREET_WALK_TRANSPORT_BASIS);
+    expect(defined(stops[0]).operationalEvidence.transportBasis).toBe("compact-straight-line");
   });
 });

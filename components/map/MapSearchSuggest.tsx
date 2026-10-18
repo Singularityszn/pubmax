@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "@/components/ui/icon-button";
@@ -28,6 +29,7 @@ import {
   UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
+import { addPubHref } from "@/lib/venueSubmissions";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
@@ -784,6 +786,14 @@ export default function MapSearchSuggest({
                 <p className="mapSearchSuggestEmptyHint">
                   Try Soho, Willesden, or The Crown. Clear search to see every venue.
                 </p>
+                <Link
+                  href={addPubHref(trimmed)}
+                  prefetch={false}
+                  className="mapSearchSuggestEmptyAdd"
+                  data-testid="map-search-add-pub"
+                >
+                  Know a pub we&apos;re missing? Add it
+                </Link>
               </div>
             ) : null}
           </div>

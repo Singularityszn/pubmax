@@ -173,7 +173,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
   }
 
   function dismissAuthNudge(): void {
-    cancelAuthAttempt();
+    // "Not now" closes the prompt; a link it already sent stays usable.
+    cancelAuthAttempt({ keepEmailLink: true });
     markIdentityNudgeDismissed();
   }
 

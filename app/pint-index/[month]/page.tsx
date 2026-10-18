@@ -43,12 +43,12 @@ export async function generateStaticParams(): Promise<{ month: string }[]> {
 export async function generateMetadata({ params }: EditionPageProps): Promise<Metadata> {
   const { month } = await params;
   const edition = await loadArchivedPintIndexMonth(month);
-  if (!edition) return { title: "Edition not found · PUBMAXX" };
+  if (!edition) return { title: "Edition not found" };
   const label = pintIndexMonthLabel(month);
   const title = `The London Pint Index: ${label}`;
   const description = `The London Pint Index for ${label}, frozen on ${formatPintIndexDate(edition.archive.publishedAt)}. Sourced, dated prices only, and the figures never move again.`;
   return {
-    title: `${title} · PUBMAXX`,
+    title,
     description,
     alternates: { canonical: `/pint-index/${month}` },
     openGraph: { title, description, type: "article", url: `/pint-index/${month}` },
