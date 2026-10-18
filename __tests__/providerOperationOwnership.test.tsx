@@ -22,7 +22,7 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 }
-type Result = { error: string | null };
+type Result = { error: string | null; navigating?: boolean };
 let root: Root;
 let host: HTMLDivElement;
 let updateAccount: (user: User | null) => void;
@@ -113,6 +113,18 @@ describe.each(["page", "nav"] as const)("%s provider operation ownership", (surf
     expect(host.querySelector<HTMLInputElement>('input[type="email"]')?.disabled).toBe(false);
     expect(alertText()?.trim() ?? null).toBe(settlement === "success" ? null : settlement === "error"
       ? "Provider refused this attempt." : "Sign-in could not be started. Try again.");
+  });
+
+  // The page is leaving for the provider, so a second tap must not start a
+  // second attempt; a back-forward cache restore still releases the controls.
+  it("keeps controls busy while the browser navigates to the provider", async () => {
+    const result = deferred<Result>(); start.mockReturnValue(result.promise);
+    await mount(surface); await click(google());
+    await act(async () => result.resolve({ error: null, navigating: true }));
+    expect(google().disabled).toBe(true);
+    expect(alertText()).toBeNull();
+    await pageShow();
+    expect(google().disabled).toBe(false);
   });
 
   it("keeps a newer same-provider attempt busy after BFCache resets and stale completion", async () => {

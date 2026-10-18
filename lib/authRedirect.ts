@@ -504,10 +504,14 @@ export function releaseAuthAttempt(
   }
 }
 
-/** User-initiated cancel: clear the active browser claim so sign-in can restart before the TTL. */
+/**
+ * User-initiated cancel: clear the active browser claim so sign-in can restart
+ * before the TTL. `keepAttemptId` names a sent link whose claim must survive.
+ */
 export function cancelAuthAttempt(
   persistentStorage?: AuthFragmentStorage | null,
   tabStorage?: AuthFragmentStorage | null,
+  keepAttemptId?: string | null,
 ): boolean {
   let attemptId: string | null = null;
   try {
@@ -520,7 +524,7 @@ export function cancelAuthAttempt(
   } catch {
     // No tab marker means there may still be a browser-wide active claim.
   }
-  if (!attemptId) return false;
+  if (!attemptId || attemptId === keepAttemptId) return false;
   releaseAuthAttempt(attemptId, persistentStorage, tabStorage);
   return true;
 }
