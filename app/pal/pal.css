@@ -11,7 +11,9 @@
   position: relative;
   min-height: 100dvh;
   overflow: hidden;
-  padding: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
+  /* The shared top nav sits above this in the flow (app/pal/page.tsx), so the
+     page only needs the head's own breathing room, not a bar's clearance. */
+  padding: calc(var(--space-6) + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom));
   color: var(--pal-paper);
   font-family: var(--font-body);
 }
@@ -22,10 +24,9 @@
    read as a seam below Continue (UX sprint, 15 Oct 2026, 390x844 dark). The
    body paints the canvas, so one surface runs the full height. */
 body:has(.palExperience) {
-  background:
-    radial-gradient(circle at 76% 22%, color-mix(in srgb, var(--brass) 12%, transparent), transparent 31rem),
-    radial-gradient(circle at 18% 86%, color-mix(in srgb, var(--river) 10%, transparent), transparent 26rem),
-    var(--paper);
+  /* Plain paper: the coral and river washes behind the Pal spent the accent
+     on decoration (docs/DESIGN_SYSTEM.md, "Coral is spent twice"). */
+  background: var(--paper);
 }
 
 .palExperience *, .palExperience *::before, .palExperience *::after { box-sizing: border-box; }
@@ -59,7 +60,8 @@ body:has(.palExperience) {
 
 .palEyebrow {
   margin-bottom: .85rem !important;
-  color: var(--pal-accent);
+  /* A kicker is a label: muted ink, never coral. */
+  color: var(--color-text-muted);
   font: 650 var(--text-2xs)/1 var(--font-body);
   letter-spacing: .01em;
 }
@@ -77,7 +79,8 @@ body:has(.palExperience) {
    then the portrait. A desktop sets the portrait beside the head, the way the
    landing sets its pub card; the DOM order is the phone order. */
 .palMeeting .palMeetingStage {
-  width: min(84rem, 100%);
+  /* The page width every other route uses, so the head lines up under the nav. */
+  width: min(var(--content-max-wide), 100%);
   min-height: calc(100dvh - 10rem);
   padding-inline: 0;
   display: grid;
@@ -85,25 +88,28 @@ body:has(.palExperience) {
   align-content: center;
   gap: clamp(1.5rem, 4vw, 3rem);
 }
-.palMeeting .screenHead { max-width: 35rem; padding-block: 0; }
-.palMeeting .screenTitle { max-width: 11ch; }
+/* The head keeps the Screen's own measure, so the heading sets on two
+   balanced lines rather than three in an 11ch column. */
+.palMeeting .screenHead { max-width: 36rem; padding-block: 0; }
 @media (min-width: 960px) {
+  /* The head starts under the nav rather than floating in the middle of a
+     viewport-tall stage. With the glow field gone the portrait box no longer
+     needs the empty margin it was drawn into, so the box is tighter and the
+     photograph fills more of it (still about 400 CSS px at 1440, the size
+     PalPortrait's `sizes` hint is written for). */
   .palMeeting .palMeetingStage {
+    min-height: 0;
+    align-content: start;
     grid-template-columns: minmax(0, 1.04fr) minmax(20rem, .96fr);
     align-items: center;
     gap: clamp(2rem, 7vw, 8rem);
   }
+
+  .palMeeting .palPortrait { width: min(32rem, 44vw); }
+  .palMeeting .palPortraitCore { width: 80%; }
 }
+/* No halo behind the portrait: the blurred coral disc was a glow. */
 .palMeetingPortrait, .palHomePortrait, .palOnboardingPreview { position: relative; display: grid; place-items: center; }
-.palMeetingPortrait::before, .palHomePortrait::before, .palOnboardingPreview::before {
-  content: "";
-  position: absolute;
-  width: 70%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--pal-accent) 12%, transparent);
-  filter: blur(4rem);
-}
 .palHomeCopy { position: relative; z-index: 1; min-width: 0; max-width: 35rem; }
 .palHomeCopy h1 { font-size: clamp(4rem, 8vw, 8rem); line-height: .86; overflow-wrap: anywhere; }
 /* Focus lands here once when the Pal is created (components/pal/PalExperience.tsx). It is where a keyboard reader now is, so it keeps a visible ring (focus-visible, so a pointer press never draws one). */
@@ -148,7 +154,7 @@ body:has(.palExperience) {
   /* House surface: solid panel-raised + hairline, so the speech card reads on the
      app's own surfaces instead of picking up the accent-tinted page wash. */
   background: var(--panel-raised);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent), 0 1.25rem 3rem color-mix(in srgb, var(--ink-deep) 22%, transparent);
+  box-shadow: var(--shadow-sm);
   color: var(--pal-paper);
   font-size: .86rem;
   line-height: 1.45;
@@ -169,34 +175,25 @@ body:has(.palExperience) {
 .palPortrait-whisky { --signal: #d8984e; }
 .palPortrait-brandy { --signal: #d97568; }
 .palPortrait-vodka { --signal: #cbd2ff; }
-.palPortraitField { position: absolute; inset: 15%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--signal) 13%, transparent), transparent 65%); filter: blur(1.8rem); }
-.palPortraitCore, .palPortraitEcho { position: absolute; width: 58%; aspect-ratio: 1; display: grid; place-items: center; }
-.palPortraitCore { border-radius: 44% 56% 49% 51%; background: linear-gradient(145deg, color-mix(in srgb, var(--signal) 14%, transparent), color-mix(in srgb, var(--ink-deep) 5%, transparent)); box-shadow: inset 0 0 3rem color-mix(in srgb, var(--signal) 13%, transparent); overflow: hidden; }
-.palPortraitCore::before { content: ""; position: absolute; inset: 7%; border-radius: inherit; border: 1px solid color-mix(in srgb, var(--signal) 33%, transparent); }
-.palLegacyIcon { width: 62%; height: 62%; filter: drop-shadow(0 0 .8rem color-mix(in srgb, var(--signal) 35%, transparent)); }
+/* A calm frame: a plain circle that clips the photograph, on the panel ground
+   for a legacy icon. No glow field, no inner glow, no ring. */
+.palPortraitCore { position: absolute; width: 58%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; background: var(--panel); overflow: hidden; }
+.palLegacyIcon { width: 62%; height: 62%; }
 /* The mascot is a PHOTOGRAPH on its own dark ground, so it has to reach the
    core's edge and be clipped by it. Inset and contained, its four square sides
    sat inside the blob mask and never met it, and because the picture's ground is
    a different dark from the page's, all four read as straight seams across the
    portrait. Filling the core makes the existing mask do the cutting. */
 .palPortraitMascot { width: 100%; height: 100%; display: block; }
-.palPortraitMascot img { width: 100%; height: 100%; object-fit: cover; filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)); }
-.palPortraitEcho { opacity: .13; filter: blur(.5px); transform: translate(.8rem, .25rem); }
-.palPortraitSignalMark { width: 54%; aspect-ratio: 1; border: 1px solid currentColor; border-radius: 38% 62% 54% 46%; transform: rotate(24deg); }
-.palPortraitScan { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 .42rem, color-mix(in srgb, var(--signal) 12%, transparent) .45rem .49rem); mix-blend-mode: screen; }
+.palPortraitMascot img { width: 100%; height: 100%; object-fit: cover; }
 .palPortraitAccessory { position: absolute; z-index: 3; bottom: 22%; left: 50%; transform: translateX(-50%); padding: .35rem .65rem; border: 1px solid color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 2rem; background: color-mix(in srgb, var(--ink-deep) 82%, transparent); color: color-mix(in srgb, var(--signal) 70%, white); font: 650 .59rem/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
-.palPortrait-chrome .palPortraitCore { background: linear-gradient(135deg, rgba(251, 251, 254, .25), color-mix(in srgb, var(--signal) 10%, transparent) 46%, rgba(251, 251, 254, .06)); }
-/* Glass is a tint, not a blur: backdrop blur outside the sheet material is on
-   the template-pattern ban list (docs/VOICE.md). */
-.palPortrait-glass .palPortraitCore { background: linear-gradient(155deg, rgba(251, 251, 254, .16), color-mix(in srgb, var(--panel-raised) 30%, transparent) 42%, color-mix(in srgb, var(--signal) 18%, transparent)); }
+
 
 /* Every Pal is a rendered master now, so state motion moves the whole
    photograph: an idle breath, a celebration lift, a sleeping settle and an
    error shake. Nothing deforms the character, because the rigs whose parts
    used to move are gone (docs/PUB_PAL_CHARACTER_SHEETS_2026-09-04.md). */
-.palPortrait[data-pal-state="listening"] .palPortraitMascot img { filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)) drop-shadow(0 0 14px color-mix(in srgb, var(--signal) 55%, transparent)); }
-.palPortrait[data-pal-state="sleeping"] .palPortraitMascot img { filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)) brightness(.72); }
-.palPortrait[data-pal-state="error"] .palPortraitScan { opacity: .85; }
+.palPortrait[data-pal-state="sleeping"] .palPortraitMascot img { filter: brightness(.72); }
 
 @media (prefers-reduced-motion: no-preference) {
   .palPortrait[data-pal-state="idle"] .palPortraitMascot { animation: palMascotIdle 4.8s var(--ease-in-out-strong) infinite; transform-origin: center; }
@@ -344,8 +341,6 @@ body:has(.palExperience) {
 
 @keyframes palStepIn { from { opacity: 0; transform: translateY(1rem); } }
 @keyframes palBreathe { 50% { transform: translateY(-.45rem) scale(1.015); } }
-@keyframes palOrbit { to { transform: rotate(360deg); } }
-@keyframes palSignal { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
 @keyframes palLook { 0%, 36%, 100% { transform: translateX(0); } 42%, 58% { transform: translateX(-55%); } 64%, 82% { transform: translateX(35%); } }
 @keyframes palHeadTilt { 0%, 42%, 100% { translate: 0 0; rotate: 0deg; } 48%, 64% { translate: 0 -.15rem; rotate: -1.8deg; } 72%, 86% { rotate: 1.2deg; } }
 @keyframes palMascotIdle { 50% { transform: translateY(-4px) rotate(1deg); } }
@@ -356,8 +351,6 @@ body:has(.palExperience) {
 
 @media (prefers-reduced-motion: no-preference) {
   .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
-  .palPortraitOrbitA { animation: palOrbit 18s linear infinite; }
-  .palPortraitScan { animation: palSignal 5.5s linear infinite; }
 }
 
 @media (max-width: 760px) {

@@ -34,14 +34,13 @@ test("mobile Rounds index starts a round and explains link-based joining", async
   const response = await page.goto("/rounds");
   expect(response?.status()).toBe(200);
 
-  // EmptyState (components/ui/empty-state.tsx) titles with a paragraph, not a
-  // heading: the Screen owns the page's one heading.
-  await expect(page.locator(".emptyStateTitle", { hasText: "Join with a link" })).toBeVisible();
-  await expect(page.getByText(/A round opens from the link/i)).toBeVisible();
+  // The quiet secondary from the launch table, in plain words.
+  const openCode = page.getByText("Open a round code", { exact: true });
+  await expect(openCode).toBeVisible();
 
   // F18: "Start a round" is a real flow on this page, not a link to a bare map.
   // The starter's submit is the screen's one primary and it needs no account.
-  const start = page.getByRole("button", { name: "Start a Round", exact: true });
+  const start = page.getByRole("button", { name: "Start a round", exact: true });
   await expect(start).toHaveAttribute("data-primary-action", "");
   await expectTapTarget(start, "start round button");
   const handle = page.getByRole("textbox", { name: "Your handle" });
@@ -50,8 +49,9 @@ test("mobile Rounds index starts a round and explains link-based joining", async
 
   // A code read out loud opens the Round without editing a URL; a short one
   // answers in place.
+  await openCode.click();
   const code = page.getByRole("textbox", { name: "Round code" });
-  const openRound = page.getByRole("button", { name: "Open the Round" });
+  const openRound = page.getByRole("button", { name: "Open", exact: true });
   await expectTapTarget(code, "round code field");
   await expectTapTarget(openRound, "open round button");
   await code.fill("ab1");

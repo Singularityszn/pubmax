@@ -14,43 +14,11 @@ const DESKTOP_CASES = [
 const SIGNED_OUT_FITTED_SELECTOR =
   ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateLine";
 
-async function expectDesktopSplit(page: Page): Promise<void> {
-  const split = page.locator(".messagesSplit");
-  const inbox = page.locator(".messagesInboxPane");
-  const thread = page.locator(".messagesThreadPane");
-
-  await expect(split).toBeVisible();
-  await expect(inbox).toBeVisible();
-  await expect(thread).toBeVisible();
-  await expect(inbox).toHaveCSS("min-width", "0px");
-  await expect(thread).toHaveCSS("min-width", "0px");
-
-  const [splitBox, inboxBox, threadBox] = await Promise.all([
-    split.boundingBox(),
-    inbox.boundingBox(),
-    thread.boundingBox(),
-  ]);
-  expect(splitBox).not.toBeNull();
-  expect(inboxBox).not.toBeNull();
-  expect(threadBox).not.toBeNull();
-  if (!splitBox || !inboxBox || !threadBox) return;
-
-  expect(splitBox.width).toBeGreaterThan(900);
-  expect(inboxBox.width).toBeGreaterThanOrEqual(300);
-  expect(threadBox.width).toBeGreaterThan(500);
-  expect(threadBox.x).toBeGreaterThan(inboxBox.x + inboxBox.width - 2);
-
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBe(0);
-}
-
 async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
   // The signed-out card is the EmptyState idiom: its title is a line, not a
   // heading, so the pane's one heading stays the route's own.
   const heading = page.locator(".messagesInboxPane .emptyStateTitle", {
-    hasText: "Sign in to message",
+    hasText: "Your conversations show here.",
   });
   const fitted = page.locator(SIGNED_OUT_FITTED_SELECTOR);
 
@@ -102,7 +70,7 @@ async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
 }
 
 for (const viewport of DESKTOP_CASES) {
-  test(`messages use inbox and thread panes at ${viewport.width}px in ${viewport.theme} mode`, async ({
+  test(`signed-out messages are one column with one door at ${viewport.width}px in ${viewport.theme} mode`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -120,19 +88,18 @@ for (const viewport of DESKTOP_CASES) {
       await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
     }
     await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
-    // This case is SIGNED OUT (expectSignedOutCardFitsInbox below), and the
-    // thread pane reads the live session now: it may not tell somebody with no
-    // account to choose from an inbox they cannot have.
-    await expect(
-      page.getByRole("heading", { name: "Your conversations show here." }),
-    ).toBeVisible();
+    // SIGNED OUT there is no inbox and no thread to frame (taste plan,
+    // 18 Oct 2026): the two-pane panel folds away, and the page is the head's
+    // one door over one empty state.
+    await expect(page.locator(".messagesThreadPane")).toBeHidden();
+    await expect(page.locator(".messagesSplit")).toHaveCSS("border-top-width", "0px");
     await expect(page.getByRole("heading", { name: "Pick a message" })).toHaveCount(0);
-    await expect(page.locator(".messagesThreadEyebrow")).toHaveCSS("text-transform", "none");
-    await expectDesktopSplit(page);
     await expectSignedOutCardFitsInbox(page);
 
     await page.goto("/messages/nonexistent");
-    await expect(page.getByText(/sign in to read and send messages/i)).toBeVisible();
-    await expectDesktopSplit(page);
+    await expect(page.locator(".messagesThreadPane")).toBeHidden();
+    await expect(
+      page.locator(".messagesInboxPane .emptyStateTitle", { hasText: "Your conversations show here." }),
+    ).toBeVisible();
   });
 }

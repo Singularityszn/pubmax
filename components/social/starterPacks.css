@@ -12,39 +12,67 @@
 
 .starterPacks__title {
   margin: 0;
-  font-size: var(--text-lg, 1.15rem);
-  font-weight: 750;
+  font-size: var(--text-md);
+  font-weight: 700;
 }
 
+/* A list of packs, read down the column: one hairline between rows and no
+   box around each (docs/DESIGN_SYSTEM.md "Edges"; components/ui/row-list.tsx
+   is the same shape). A pack is not raised above the others, so it is a row. */
 .starterPacks__grid {
   list-style: none;
-  margin: var(--space-3) 0 0;
+  margin: var(--space-2) 0 0;
   padding: 0;
   display: grid;
-  gap: var(--space-2);
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 640px) {
-  .starterPacks__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .starterPacks__card {
   display: grid;
-  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: 2px;
   min-width: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md, 10px);
-  background: var(--panel-raised);
+  min-height: 56px;
+  padding: var(--space-3) 0;
+}
+
+/* Read-only rows carry no follow control, so no third track is held for one. */
+.starterPacks__card:not(:has(> .starterPacks__follow)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.starterPacks__card + .starterPacks__card {
+  border-top: 1px solid var(--line-soft);
+}
+
+.starterPacks__packTitle,
+.starterPacks__count {
+  grid-column: 1;
+}
+
+.starterPacks__faces {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.starterPacks__follow {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.starterPacks__summary,
+.starterPacks__results,
+.starterPacks__problem {
+  grid-column: 1 / -1;
+  margin-top: var(--space-2);
 }
 
 .starterPacks__packTitle {
   margin: 0;
-  font-size: var(--text-base, 1rem);
-  font-weight: 700;
+  font-size: var(--text-base);
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -62,11 +90,11 @@
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
-  /* The ring is the card's own background, so the pull has to clear both rings
+  /* The ring is the page's own background, so the pull has to clear both rings
      (2px each) before the faces read as a stack rather than a spaced row. */
   margin-inline-start: -12px;
-  border: 2px solid var(--panel-raised);
-  border-radius: 999px;
+  border: 2px solid var(--paper);
+  border-radius: var(--radius-pill);
   background: var(--panel);
   color: var(--ink-soft);
   font-size: var(--text-sm);
@@ -95,12 +123,13 @@
   justify-self: start;
   min-height: 44px;
   padding: 0.55rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md, 10px);
-  background: var(--panel);
+  border: 1px solid var(--control-secondary-border, var(--line));
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface, var(--panel-raised));
   color: var(--ink);
   font: inherit;
-  font-weight: 650;
+  font-size: var(--text-sm);
+  font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
 }

@@ -77,7 +77,10 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           }
         : {})}
     >
-      <span className="palPortraitField" aria-hidden="true" />
+      {/* One calm frame around the photograph: no glow field behind it, no
+          scanlines over it and no drifting echo beside it. Those were the
+          orbit-or-scanline and glow tells (docs/VOICE.md, "Template
+          patterns"; docs/DESIGN_SYSTEM.md, "no glow"). */}
       <span className="palPortraitCore" aria-hidden={!rendered}>
         {rendered ? (
           <PubPalMascot
@@ -91,9 +94,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
         ) : null}
-        <span className="palPortraitScan" />
       </span>
-      <span className="palPortraitEcho" aria-hidden="true"><span className="palPortraitSignalMark" /></span>
       {appearance.accessory !== "none" ? <span className="palPortraitAccessory" aria-hidden="true">{appearance.accessory.replace("-", " ")}</span> : null}
     </div>
   );

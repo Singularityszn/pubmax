@@ -84,16 +84,6 @@ html[data-theme="dark"] .messagesPage {
   line-height: 1.5;
 }
 
-/* The eyebrow is a WORD in the accent, so on the light ground it takes the
-   accent's ink: the raw --brass measured 2.9:1 here at 1440. */
-.messagesThreadEyebrow {
-  color: var(--color-text-muted);
-  /* Type token: :root --text-2xs is 0.68rem; html[data-legacy="1"] may bump it.
-     Fallback matches the :root value so the eyebrow never inherits a stray rem. */
-  font-size: var(--text-2xs, 0.68rem);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
 
 /* The inbox head is the shared Screen primitive (components/ui/screen.css).
    .messagesMain already pays the page gutters, so the head drops its own. */
@@ -191,13 +181,43 @@ html[data-theme="dark"] .messagesPage {
   color: var(--ink);
 }
 
-/* The one line about what messaging needs, shown to a reader who is not
-   signed in. A signed-in inbox does not restate it above every row. */
-.messagesCourtesyNote {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin: 0 0 1rem;
-  line-height: 1.5;
+/* SIGNED OUT, THE PAGE IS ONE EMPTY STATE AND ONE DOOR (taste plan,
+   18 Oct 2026). There is no inbox and no thread to frame, so the two-pane
+   panel folds away and the head reads like every other launch screen: the
+   title, the Sign in primary under it, then the one line on what this place
+   holds. On the thread route the same column shows, at every width, instead
+   of a pane that only said "sign in" again. */
+.messagesSplit:has(.messagesScreen--signedOut) .messagesThreadPane {
+  display: none;
+}
+
+.messagesSplit:has(.messagesScreen--signedOut) .messagesInboxPane {
+  display: block;
+}
+
+.messagesScreen--signedOut .screenHead {
+  display: grid;
+  justify-content: stretch;
+  gap: var(--space-3);
+  padding-block: var(--space-6) var(--space-2);
+}
+
+.messagesScreen--signedOut .screenTitle {
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-xl), 4.5vw, var(--text-3xl));
+}
+
+.messagesScreen--signedOut .screenActions {
+  margin-top: var(--space-2);
+}
+
+.messagesScreen--signedOut .screenPrimary > a {
+  min-width: 14rem;
+  max-width: 100%;
+}
+
+.messagesScreen--signedOut .emptyState {
+  text-align: start;
 }
 
 /* A refresh that failed over a list already on screen: it sits ABOVE the list
@@ -1352,7 +1372,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .profileMessageError {
   margin: 0.25rem 0;
-  color: #b3261e;
+  color: var(--color-negative);
   font-size: 0.85rem;
 }
 
@@ -1473,6 +1493,30 @@ html[data-theme="dark"] .messageBubblePhoto {
   .messagesThreadPane > .threadFailure,
   .messagesThreadPane > .messagesSignInPrompt {
     padding: 1.5rem;
+  }
+
+  /* Signed out: no panel, no pane edge, one column at the reading width. */
+  .messagesSplit:has(.messagesScreen--signedOut) {
+    display: block;
+    height: auto;
+    min-height: 0;
+    max-width: var(--content-max);
+    margin-inline: auto;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .messagesSplit:has(.messagesScreen--signedOut) .messagesInboxPane {
+    overflow: visible;
+    padding: 0;
+    border-right: 0;
+    background: transparent;
+  }
+
+  .messagesSplit:has(.messagesScreen--signedOut) .messagesInboxPane .screenHead {
+    padding-inline: 0;
   }
 }
 
