@@ -1295,7 +1295,9 @@
   .mobileLayersTheme .themeToggle { flex: 0 0 44px; width: 44px; height: 44px; }
 
   .mobileTflGroups { display: grid; gap: 16px; }
-  .mobileTflGroups section { min-width: 0; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
+  /* Transit is TfL's everyday home now, so it reads as a list: a heading and
+     hairlines between the lines, never a box round each group. */
+  .mobileTflGroups section { min-width: 0; }
   .mobileTflGroups h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: var(--text-md); }
   .mobileTflGroups ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
   .mobileTflGroups li { min-width: 0; display: grid; gap: 3px; padding-block: 8px; border-top: 1px solid var(--color-border); overflow-wrap: anywhere; }
