@@ -150,6 +150,38 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 16.4, drinkLabel: "Cantillon Gueuze" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15, drinkLabel: "Cantillon Rose de Gambrinus 37.5cl" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15 },
+  // Shard 3. The Imperial Arms PDF reads its columns out of order, so liqueurs
+  // land as coffee, gins as vodka and 0.5% beers as beer, and one £7.40 figure
+  // lands under five spirits. The Greyhound page mixes its food menu in.
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "beer", priceGbp: 4, drinkLabel: `Baby guinness` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "beer", priceGbp: 4.95, drinkLabel: `Impossibrew Lager 0.5% abv` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "beer", priceGbp: 4.95, drinkLabel: `NuWave Pale Ale 0.5% abv` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "cocktail", priceGbp: 5, drinkLabel: `Campari` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "cocktail", priceGbp: 5, drinkLabel: `Dry Martini` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "coffee", priceGbp: 3.9, drinkLabel: `Tia maria` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "coffee", priceGbp: 4, drinkLabel: `Pernod` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "coffee", priceGbp: 4.1, drinkLabel: `Amaretto` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "coffee", priceGbp: 4.9, drinkLabel: `Cazcabel Coffee` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "vodka", priceGbp: 3.9, drinkLabel: `Beefeater Pink` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "vodka", priceGbp: 5.2, drinkLabel: `Malfi` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "vodka", priceGbp: 6.2, drinkLabel: `Monkey 47` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "shot", priceGbp: 4.9, drinkLabel: `ams Vintage Port ${String.fromCodePoint(0x2013)} Quantities? Harveys Sherry TEQUILA 25ml 50ml Cazcabel Blanco` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "wine", priceGbp: 4, drinkLabel: `Tequila rose` },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "gin", priceGbp: 7.4 },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "rum", priceGbp: 7.4 },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "shot", priceGbp: 7.4 },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "vodka", priceGbp: 7.4 },
+  { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "whisky", priceGbp: 7.4 },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "alcohol-free", priceGbp: 8 },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "cocktail", priceGbp: 20, drinkLabel: `.50 Baked Camembert Youngs Sourdough, Caramelised Onion Chutney, Grapes 974Kcal` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "coffee", priceGbp: 6, drinkLabel: `Puddings Affogato Roasted arabica coffee (v) 111kcal` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "soft-drink", priceGbp: 4.5, drinkLabel: `While You Wait Mixed Pitted Olives 118Kcal` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "wine", priceGbp: 4.3, drinkLabel: `Corona Cero` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "wine", priceGbp: 5, drinkLabel: `424kcal` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "wine", priceGbp: 8, drinkLabel: `823kcal` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "wine", priceGbp: 9.65, drinkLabel: `Vanilia Vodka, Lime Juice, Pineapple Juice, Passionfruit Puree Shot of prosecco` },
+  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "wine", priceGbp: 12.5, drinkLabel: `nate Gin Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda` },
+  { sourceUrl: "https://www.crownofmitcham.co.uk/menu?menu=menu", category: "alcohol-free", priceGbp: 4.1, drinkLabel: `Heniken` },
 ];
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
