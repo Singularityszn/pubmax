@@ -220,7 +220,7 @@ describe("experience lens venue membership and presentation", () => {
     }],
   ]);
 
-  it("shows known no-alcohol pubs plus food places, and food view only food kinds", () => {
+  it("shows known no-alcohol pubs plus food places, and leaves food-unknown pubs out of food view", () => {
     const all = [pub, knownNoAlcohol, food, restaurantUnknown];
     expect(
       filterVenuesForExperienceLens(all, "no-alcohol", lensPrices).map((row) => row.id),
@@ -261,7 +261,7 @@ describe("experience lens venue membership and presentation", () => {
       "Could not check alcohol-free or soft drink prices right now. Food venues still show menu prices we have.",
     );
     expect(experienceLensSummary("food", 0, 0, "ready")).toBe(
-      "Food venues shown. No menu prices we have in this view yet.",
+      "Food venues shown. Open Menu for dish prices we have.",
     );
     expect(experienceLensSummary("food", 0, 1, "ready")).toBe(
       "1 menu price we have shown.",

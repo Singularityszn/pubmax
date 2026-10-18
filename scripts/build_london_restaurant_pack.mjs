@@ -54,11 +54,19 @@ const BUDGET_BYTES = 192 * 1024;
 
 /**
  * The restaurant rows of a published layer, in shard order then row order.
- * `readShard(url)` returns a shard body for a manifest URL. Throws when a shard
- * does not hold the row count its manifest entry promises, because a pack cut
- * from a half-written layer would drop restaurants with nothing saying so.
+ * `readShard(url)` returns a shard body for a manifest URL.
  */
-export async function restaurantRowsFromLayer(manifest, readShard) {
+export function restaurantRowsFromLayer(manifest, readShard) {
+  return kindRowsFromLayer(manifest, readShard, RESTAURANT_KIND);
+}
+
+/**
+ * The rows of one kind in a published layer, in shard order then row order.
+ * Throws when a shard does not hold the row count its manifest entry promises,
+ * or when the kind's total disagrees with `countsByKind`, because a pack cut
+ * from a half-written layer would drop places with nothing saying so.
+ */
+export async function kindRowsFromLayer(manifest, readShard, kind) {
   if (typeof manifest?.urlPrefix !== "string" || !Array.isArray(manifest?.shards)) {
     throw new Error("The London venue manifest is malformed.");
   }
@@ -72,13 +80,13 @@ export async function restaurantRowsFromLayer(manifest, readShard) {
       );
     }
     for (const row of venues) {
-      if (Array.isArray(row) && row[5] === RESTAURANT_KIND) rows.push(row);
+      if (Array.isArray(row) && row[5] === kind) rows.push(row);
     }
   }
-  const expected = manifest.countsByKind?.[RESTAURANT_KIND];
+  const expected = manifest.countsByKind?.[kind];
   if (Number.isInteger(expected) && expected !== rows.length) {
     throw new Error(
-      `The London venue shards hold ${rows.length} restaurants, the manifest counts ${expected}.`,
+      `The London venue shards hold ${rows.length} ${kind} rows, the manifest counts ${expected}.`,
     );
   }
   return rows;

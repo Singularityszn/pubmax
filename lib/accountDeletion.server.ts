@@ -64,6 +64,7 @@ import {
 } from "@/lib/accountOwnedObjects";
 import { log } from "@/lib/log";
 import { profileStore } from "@/lib/profileStore";
+import { isMissingTableSchema } from "@/lib/storeBackend";
 import { requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 /** One page of a Storage API folder listing. */
@@ -141,6 +142,12 @@ export type AccountDeletionDeps = {
    * older than its backfill.
    */
   messagePhotoKeys(profileId: string, handle: string): Promise<string[]>;
+  /**
+   * The keys of this profile's Social reels and photos 2 to 4 (migrations
+   * 0183 and 0185). They are named by rows the profile cascade deletes, so
+   * they are collected here or never. Throws on a read it could not run.
+   */
+  socialMediaKeys(profileId: string): Promise<string[]>;
   /** Remove these objects through the Storage API. Throws when the API refused. */
   removeObjects(keys: readonly string[]): Promise<void>;
   /** GoTrue's admin delete of the auth row. */
@@ -213,6 +220,27 @@ function supabaseDeps(): AccountDeletionDeps {
       }
       throw new Error(error.message);
     },
+    async socialMediaKeys(profileId) {
+      const keys: string[] = [];
+      // Every upload intent, attached or not, names a video object; the extra
+      // photo rows name photos 2 to 4. A table that is not there yet (before
+      // 0183 or 0185 is applied) owns nothing.
+      for (const table of ["social_video_uploads", "social_post_extra_photos"] as const) {
+        const { data, error } = await admin()
+          .from(table)
+          .select("object_key")
+          .eq("owner_profile_id", profileId);
+        if (error) {
+          if (isMissingTableSchema(error, [table])) continue;
+          throw new Error(error.message);
+        }
+        for (const row of data ?? []) {
+          const key = (row as { object_key?: unknown }).object_key;
+          if (typeof key === "string") keys.push(key);
+        }
+      }
+      return keys;
+    },
     async removeObjects(keys) {
       const { error } = await bucket().remove([...keys]);
       if (error) throw new Error(error.message);
@@ -242,6 +270,7 @@ export async function ownedObjectKeys(
     ? [
         ...(await deps.wallPhotoKeys(profile.id)),
         ...(await deps.messagePhotoKeys(profile.id, profile.handle)),
+        ...(await deps.socialMediaKeys(profile.id)),
       ]
     : [];
   // A walked folder already lists every object in it, staging twins included;

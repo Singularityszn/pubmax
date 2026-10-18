@@ -27,6 +27,26 @@ function valueId(value: string): string {
   return value.replace(/[^a-z0-9_-]/gi, "-");
 }
 
+/**
+ * The keyboard half of every tab row in the app (WAI-ARIA tabs pattern): the
+ * row is ONE tab stop, Left and Right move along it and wrap, Home and End jump
+ * to its ends. A hand-rolled `role="tablist"` pairs this with a roving
+ * `tabIndex` (the selected tab 0, the rest -1) rather than restating the
+ * arithmetic. `activate: false` moves focus alone and leaves Enter or Space to
+ * choose, for a row whose every choice is a navigation or a fetch;
+ * `__tests__/tablistKeyboard.test.tsx` holds every tablist to it.
+ */
+export function moveTablistFocus(event: React.KeyboardEvent<HTMLElement>, { activate = true }: { activate?: boolean } = {}): void {
+  if (event.defaultPrevented || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tabs = [...event.currentTarget.closest('[role="tablist"]')?.querySelectorAll<HTMLElement>('[role="tab"]') ?? []];
+  const current = tabs.indexOf(event.currentTarget);
+  if (current < 0) return;
+  const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+  event.preventDefault();
+  tabs[next]?.focus();
+  if (activate) tabs[next]?.click();
+}
+
 export function TabsTrigger({ value, className, onClick, onKeyDown, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { value: string }) {
   const context = React.useContext(TabsContext);
   if (!context) throw new Error("TabsTrigger must be inside Tabs");
@@ -34,13 +54,7 @@ export function TabsTrigger({ value, className, onClick, onKeyDown, ...props }: 
   const suffix = valueId(value);
   return <button type="button" role="tab" id={`${context.id}-tab-${suffix}`} aria-controls={`${context.id}-panel-${suffix}`} aria-selected={selected} tabIndex={selected ? 0 : -1} className={cn("min-h-9 shrink-0 rounded-[calc(var(--radius)-4px)] border-0 bg-transparent px-3 text-sm font-bold text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]", selected && "bg-[var(--color-surface-raised)] font-extrabold text-[var(--color-text)] shadow-sm", className)} onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) context.setValue(value); }} onKeyDown={(event) => {
     onKeyDown?.(event);
-    if (event.defaultPrevented || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    const tabs = [...event.currentTarget.closest('[role="tablist"]')?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []];
-    const current = tabs.indexOf(event.currentTarget);
-    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
-    event.preventDefault();
-    tabs[next]?.focus();
-    tabs[next]?.click();
+    moveTablistFocus(event);
   }} {...props} />;
 }
 

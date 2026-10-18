@@ -3,6 +3,8 @@
 
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import type { AskToolName } from "@/lib/ask/types";
+import type { DrinkCategory } from "@/lib/drinks";
+import { isKnownAskPlacePhrase } from "@/lib/ask/venueResolution";
 
 export type RoutedToolCall = {
   name: AskToolName;
@@ -11,12 +13,15 @@ export type RoutedToolCall = {
 
 const CITY_STATUS_RE =
   /\b(tube|transit|delay|delays|weather|city status|how'?s london|right now in london)\b/i;
+const TRANSIT_INTERROGATIVE_PREFIX = String.raw`(?:is|are)\s+(?:there\s+)?(?:(?:any|the)\s+)?(?:tube|transit)\s+(?:(?:services?|lines?|trains?)\s+)?(?:running|operating|working|open|closed|delays?|delayed|disruptions?|disrupted|suspended)\b`;
+const TRANSIT_INTERROGATIVE_RE = new RegExp(`^${TRANSIT_INTERROGATIVE_PREFIX}`, "i");
 const JOURNEY_RE =
   /\b(how (do|can) i get|journey|get (me )?to|directions to|route to)\b/i;
 const HERITAGE_RE =
   /\b(heritage|history|histor(?:y|ic)|listed building|when was|who built|story of|tell me about)\b/i;
+const VENUE_DISCOVERY_RE = /\b(?:somewhere|anywhere|a place|a (?:date[- ]night )?pub)\b/i;
 const PRICE_RE =
-  /\b(price|pint|how much|£|gbp|cost of a)\b/i;
+  /\b(prices?|pint|how much|£|gbp|costs?)\b/i;
 const PLAN_RE =
   /\b(plan|crawl|three[- ]stop|3[- ]stop|sort (me )?a night|route for)\b/i;
 const AREA_BUZZ_RE =
@@ -40,6 +45,228 @@ const TONIGHT_NOW_RE =
   /\b(on right now|on now|happening now|what'?s on now|busy right now|how busy)\b/i;
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
+const PRICE_COMPARISON_RE = /\b(cheapest|cheap|best value|lowest price|most affordable)\b/i;
+const ITEM_PRICE_RE = /\b(?:how much(?:\s+(?:is|are|does|for))?|prices?(?:\s+(?:of|for))?|costs?(?:\s+(?:of|for))?)\b/i;
+const FOOD_RE = /\b(food|meals?|lunch|dinner|breakfast|burgers?|pizza|sandwich(?:es)?|restaurants?)\b/i;
+const NON_PINT_DRINK_RE = /\b(?:wine|cocktails?|spirits?|coffee|whisk(?:y|ey)|gin|rum|vodka|shots?|soft drinks?|alcohol[- ]free|non[- ]alcoholic)\b/i;
+const RECORDED_DRINK_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|decent|good|local)\\s+)*${NON_PINT_DRINK_RE.source}$`, "i");
+const PINT_COMPARISON_SUBJECT_RE = /^(?:(?:listed|recorded|decent|good|good[- ]value|local|nearby)\s+)*(?:pints?|beer)(?:\s+(?:and|with)\s+food)?$/i;
+const VENUE_COMPARISON_MODIFIERS = "(?:quiet(?:-ish)?|calm|low-key|lively|buzzing|cosy|cozy|snug|fireside|garden|outdoor|riverside|waterside|sports|romantic|historic)";
+const IMPLICIT_PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:and\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}(?:\\s+(?:and\\s+)?${VENUE_COMPARISON_MODIFIERS})*)?$`, "i");
+const PUB_DISCOVERY_CONSTRAINT_RE = new RegExp(`\\b${VENUE_COMPARISON_MODIFIERS}\\b`, "i");
+const PUB_COMPARISON_SUBJECT_RE = new RegExp(`^(?:(?:listed|recorded|local|nearby|${VENUE_COMPARISON_MODIFIERS})\\s+)*pubs?(?:\\s+(?:with|serving|that serves?)\\s+(?:food|(?:a\\s+)?(?:beer\\s+)?garden|(?:live\\s+)?sports))?$`, "i");
+const PLAN_COMPARISON_SUBJECT = `(?:(?:3|three)[- ]stop\\s+)?(?:${VENUE_COMPARISON_MODIFIERS}\\s+)*(?:pub\\s+)?(?:crawl|night|route)`;
+const PLAN_COMPARISON_SUBJECT_RE = new RegExp(`^${PLAN_COMPARISON_SUBJECT}$`, "i");
+const PLAN_COMPARISON_TAIL_RE = new RegExp(`\\s+(?:and|with)\\s+(?:a\\s+)?${PLAN_COMPARISON_SUBJECT}$`, "i");
+const RECORDED_PRICE_CATEGORIES: ReadonlyArray<readonly [RegExp, DrinkCategory]> = [
+  [/^wine$/i, "wine"],
+  [/^cocktails?$/i, "cocktail"],
+  [/^coffee$/i, "coffee"],
+  [/^whisk(?:y|ey)$/i, "whisky"],
+  [/^gin$/i, "gin"],
+  [/^rum$/i, "rum"],
+  [/^vodka$/i, "vodka"],
+  [/^shots?$/i, "shot"],
+  [/^soft drinks?$/i, "soft-drink"],
+  [/^(?:alcohol[- ]free|non[- ]alcoholic)$/i, "alcohol-free"],
+];
+
+export type UnsupportedPriceComparison = {
+  code: "UNSUPPORTED_FOOD_PRICE_COMPARISON" | "UNSUPPORTED_DRINK_PRICE_COMPARISON" | "UNSUPPORTED_PRICE_COMPARISON";
+  answer: string;
+};
+
+type AskPriceIntent =
+  | { kind: "none" | "plan" | "drink-venues" }
+  | { kind: "menu"; venueName: string }
+  | { kind: "pub-price"; venueName: string | null }
+  | { kind: "pint"; venueName: string | null; foodAvailability: boolean }
+  | { kind: "recorded-drinks"; venueName: string; category?: DrinkCategory }
+  | { kind: "unsupported"; coverage: UnsupportedPriceComparison };
+
+function namedDrinkVenue(query: string): string | null {
+  const match = stripTrailingQualifiers(stripTrailingPunctuation(query))
+    .replace(/\s+costs?$/i, "")
+    .match(/\bat\s+([A-Za-z][A-Za-z\s&,'’-]{1,100})$/i);
+  if (!match?.[1] || PRICE_COMPARISON_RE.test(match[1]) || ITEM_PRICE_RE.test(match[1])) return null;
+  return stripTrailingQualifiers(match[1])
+    .split(/\s+(?:with|for)\s+/i)[0]!
+    .replace(/\s+(?:near|close to|by)\s+(?:the\s+)?(?:tube|(?:[A-Za-z&'’-]+\s+)*station)$/i, "")
+    .trim() || null;
+}
+
+function askRequestClauses(query: string): string[] {
+  const pricePrefix = String.raw`(?:${NON_PINT_DRINK_RE.source}|pints?|beer|drinks?)\s+${ITEM_PRICE_RE.source}`;
+  return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*)(?=(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|plan\b|directions to\b|route to\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
+}
+
+function isCityStatusRequest(query: string): boolean {
+  return CITY_STATUS_RE.test(query) && (TRANSIT_INTERROGATIVE_RE.test(query.trim()) || /^(?:any\s+)?(?:tube|transit|delays?|weather|city status)\b|^how(?:'s| is| are)\s+(?:the\s+)?(?:tube|transit|weather|london)\b|^(?:what|check|tell me)\b.*\b(?:delays?|weather|city status)\b|^right now in london\b/i.test(query.trim()));
+}
+
+export function resolveAskJourney(query: string): { from?: string; to: string } | null {
+  const clause = askRequestClauses(query).find((part) => JOURNEY_RE.test(part));
+  if (!clause) return null;
+  const match = clause.match(JOURNEY_RE)!;
+  const endpoints = stripTrailingQualifiers(stripTrailingPunctuation(
+    clause.slice((match.index ?? 0) + match[0].length).replace(/^\s*to\s+/i, "").trim(),
+  ));
+  const originFirst = endpoints.match(/^from\s+(.+?)\s+to\s+(.+)$/i);
+  if (originFirst) return { from: originFirst[1]!.trim(), to: originFirst[2]!.trim() };
+  const originLast = endpoints.match(/^(.+?)\s+from\s+(.+)$/i);
+  if (originLast) return { from: originLast[2]!.trim(), to: originLast[1]!.trim() };
+  return { to: endpoints };
+}
+
+function priceQuestion(query: string): string {
+  const clauses = askRequestClauses(query).map((clause) =>
+    stripTrailingQualifiers(stripTrailingPunctuation(clause)),
+  );
+  const priceClauses = clauses.filter((clause) =>
+    !socialTurnKind(clause) && !((isCityStatusRequest(clause) || JOURNEY_RE.test(clause))
+      && !ITEM_PRICE_RE.test(clause) && !PRICE_COMPARISON_RE.test(clause)),
+  );
+  return priceClauses.join(" and ");
+}
+
+export function namedMenuRequest(query: string): { venueName: string; subject: string } | null {
+  const question = priceQuestion(query);
+  const venueName = namedDrinkVenue(question);
+  if (!venueName || PRICE_COMPARISON_RE.test(question)) return null;
+  const subject = question.slice(0, question.search(/\bat\s+/i)).trim();
+  if (!/\b(?:prices?|costs?|how much|menu|food|meals?|calories|calorie|kcal|dietary|vegan|vegetarian|gluten[- ]free|servings?)\b/i.test(subject)) return null;
+  const priceSubject = priceComparisonSubject(question);
+  if (priceSubject !== null && (PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject) || !priceSubject)) return null;
+  return { venueName, subject };
+}
+
+function priceComparisonSubject(query: string): string | null {
+  const venueName = namedDrinkVenue(query);
+  if (venueName && !PRICE_COMPARISON_RE.test(venueName) && !ITEM_PRICE_RE.test(venueName)) {
+    const at = query.match(/\bat\s+/i)!;
+    const start = at.index ?? 0;
+    query = `${query.slice(0, start)} ${query.slice(start + at[0].length + venueName.length)}`;
+  }
+  const comparative = query.match(PRICE_COMPARISON_RE);
+  const itemPrice = query.match(ITEM_PRICE_RE);
+  const comparison = itemPrice ?? comparative;
+  if (!comparison) return null;
+  const normalizeSubject = (subject: string): string => stripTrailingQualifiers(
+    stripTrailingPunctuation(subject).replace(/\s+costs?$/i, ""),
+  ).replace(/^(?:a|an|the)(?:\s+|$)/i, "");
+  let precedingItem = !/^how much/i.test(comparison[0])
+    ? query.slice(0, comparison.index)
+      .replace(/^(?:what(?:'s|\s+(?:is|are|does|do)\b)|can you tell me|tell me|(?:please\s+)?(?:help me\s+)?(?:find(?: me| us)?|show me|get(?: me| us)?))\s*/i, "")
+    : "";
+  if (!itemPrice) {
+    precedingItem = precedingItem.replace(new RegExp(`^(?:plan|sort(?: me)?)\\s+(?:a\\s+)?(?:big\\s+)?${PLAN_COMPARISON_SUBJECT}(?:\\s+for\\s+(?:two|three|four|five|six|a few|\\d+)(?:\\s+of us)?)?\\s*,?(?:\\s*(?:with|and))?\\s*$`, "i"), "");
+    precedingItem = precedingItem
+      .replace(/^(?:somewhere|anywhere|a place)\b/i, "")
+      .replace(/^(?:plan(?: me)?|sort(?: me)?)(?:\s+(?:3|three))?(?:\s+(?:a|an|the))?\s*$/i, "");
+  }
+  const afterPrice = query.slice((comparison.index ?? 0) + comparison[0].length).trim()
+    .replace(/\bfor\s+(?:two|three|four|five|six|a few|\d+)(?:\s+(?:of us|people))?(?=\s+(?:in|near|at|around|with|tonight)\b|[?.!]*$)/gi, "")
+    .replace(/\bfor a quick one after work[?.!]*$/i, "");
+  const subjects = [precedingItem, afterPrice].flatMap((part) => part.split(/\bfor\b|,/i)).map((part) => {
+    const subject = part.replace(/(?:^|\s+)(?:in|near|nearby|at|around|round|close to)\b([^,]*?)(?=\s+(?:for|with)\b|,|$)/gi, (_location, place: string) => {
+      if (isKnownAskPlacePhrase(place)) return " ";
+      const conjunction = place.search(/\s+and\b/i);
+      return conjunction < 0 ? " " : place.slice(conjunction);
+    }).trim();
+    return normalizeSubject(subject.replace(/^(?:and|with)\s+/i, ""))
+      .replace(PRICE_COMPARISON_RE, "").trim();
+  });
+  return subjects.filter(Boolean).join(" ");
+}
+
+/** One semantic price decision, shared by free-text and raw model-tool boundaries. */
+export function resolveAskPriceIntent(query: string): AskPriceIntent {
+  query = priceQuestion(query);
+  const subject = priceComparisonSubject(query);
+  const menu = namedMenuRequest(query);
+  const bareCategory = subject && RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(subject));
+  if (menu && !bareCategory && !/^drinks?$/i.test(subject ?? "")) return { kind: "menu", venueName: menu.venueName };
+  if (subject === null) return { kind: "none" };
+  const comparative = PRICE_COMPARISON_RE.test(query);
+  const venueName = namedDrinkVenue(query);
+  if (!subject && !comparative) return { kind: "pub-price", venueName };
+  if (comparative && IMPLICIT_PUB_COMPARISON_SUBJECT_RE.test(subject)) {
+    const prefix = query.slice(0, query.search(PRICE_COMPARISON_RE)).trim();
+    if (/^(?:(?:find(?: me| us)?|show me)\s+)?(?:somewhere|anywhere|a place)$|^$/i.test(prefix)) {
+      return { kind: "none" };
+    }
+  }
+  const priceSubject = comparative && PLAN_RE.test(query)
+    ? subject.replace(PLAN_COMPARISON_TAIL_RE, "") : subject;
+  const food = FOOD_RE.test(priceSubject);
+  if ((PINT_COMPARISON_SUBJECT_RE.test(priceSubject) || PUB_COMPARISON_SUBJECT_RE.test(priceSubject)) && (!food || comparative)) {
+    return PLAN_RE.test(query) ? { kind: "plan" } : { kind: "pint", venueName, foodAvailability: food };
+  }
+  if (PLAN_RE.test(query) && PLAN_COMPARISON_SUBJECT_RE.test(subject)) return { kind: "plan" };
+  if (FOOD_RE.test(subject)) {
+    return {
+      kind: "unsupported",
+      coverage: {
+        code: "UNSUPPORTED_FOOD_PRICE_COMPARISON",
+        answer: "I can't compare meal prices or check dietary options yet. I can help you find pubs with food.",
+      },
+    };
+  }
+  const categorySubject = subject.replace(/^(?:(?:listed|recorded|decent|good|local)\s+)+/i, "");
+  const category = RECORDED_DRINK_COMPARISON_SUBJECT_RE.test(subject)
+    ? RECORDED_PRICE_CATEGORIES.find(([pattern]) => pattern.test(categorySubject))?.[1]
+    : undefined;
+  if (/^drinks?$/i.test(categorySubject)) {
+    return venueName ? { kind: "recorded-drinks", venueName } : { kind: "drink-venues" };
+  }
+  if (category && venueName) return { kind: "recorded-drinks", venueName, category };
+  if (NON_PINT_DRINK_RE.test(subject)) {
+    return {
+      kind: "unsupported",
+      coverage: {
+        code: "UNSUPPORTED_DRINK_PRICE_COMPARISON",
+        answer: venueName
+          ? "I can't verify a price for that drink or serving yet. Ask about a recorded drink category at this pub."
+          : "I can compare listed pint prices, but not other drinks across pubs yet. Name a pub and I'll check its recorded drinks.",
+      },
+    };
+  }
+  return {
+    kind: "unsupported",
+    coverage: {
+      code: "UNSUPPORTED_PRICE_COMPARISON",
+      answer: "I can compare listed pint prices, but not prices for that item yet. Ask about pints or name a pub to check its recorded drinks.",
+    },
+  };
+}
+
+export function isVenueDiscoveryAsk(query: string): boolean {
+  if (VENUE_DISCOVERY_RE.test(query)) return true;
+  const priceQuery = priceQuestion(query);
+  const intent = resolveAskPriceIntent(priceQuery);
+  return PRICE_COMPARISON_RE.test(priceQuery)
+    && (intent.kind === "none" || (intent.kind === "pint" && !intent.venueName
+      && (extractArea(priceQuery) !== null || !/^(?:pints?|beer|pubs?)$/i.test(priceComparisonSubject(priceQuery) ?? ""))));
+}
+
+export function isIndependentAskTool(name: string): boolean {
+  return name === "city_status" || name === "journey";
+}
+
+export function unsupportedPriceComparison(query: string): UnsupportedPriceComparison | null {
+  const intent = resolveAskPriceIntent(query);
+  return intent.kind === "unsupported" ? intent.coverage : null;
+}
+
+/** One pub's recorded drinks remain available even though cross-pub comparisons do not. */
+export function recordedDrinkComparison(query: string): RoutedToolCall | null {
+  const intent = resolveAskPriceIntent(query);
+  return intent.kind === "menu"
+    ? { name: "venue_drinks", args: { venueName: intent.venueName } }
+    : intent.kind === "recorded-drinks"
+    ? { name: "venue_drinks", args: { venueName: intent.venueName, ...(intent.category ? { drinkCategory: intent.category } : {}) } }
+    : null;
+}
 const FIND_DESK_RE =
   /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
 // "it's quiet" is missing on purpose: quiet is how a drinker asks for a pub,
@@ -53,7 +280,7 @@ const REPORT_OCCUPANCY_RE =
  * place Camden at all.
  */
 const TRAILING_QUALIFIER_RE =
-  /\s+(?:tonight|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
+  /(?:^|\s+)(?:tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
 
 function stripTrailingPunctuation(phrase: string): string {
   return phrase.replace(/[?.!,;:]+$/g, "").trim();
@@ -216,6 +443,8 @@ function tonightNowClaim(
 }
 
 function venueDrinksClaim(text: string): ConciergeClaim | null {
+  const comparison = recordedDrinkComparison(text);
+  if (comparison) return comparison;
   if (!VENUE_DRINKS_RE.test(text)) return null;
   // "drink prices in Camden" names a PLACE. This tool reads one pub, so a
   // place phrase leaves it to the tools that answer about an area.
@@ -226,7 +455,10 @@ function venueDrinksClaim(text: string): ConciergeClaim | null {
 }
 
 function cheapestNearClaim(text: string): ConciergeClaim | null {
+  text = priceQuestion(text);
   if (!CHEAPEST_NEAR_RE.test(text) || PLAN_RE.test(text)) return null;
+  const subject = priceComparisonSubject(text) ?? "";
+  if (PUB_COMPARISON_SUBJECT_RE.test(subject) && PUB_DISCOVERY_CONSTRAINT_RE.test(subject)) return null;
   // "in Camden" is a place and only a place. "near The Lamb" is a centre, so it
   // rides the anchor slot, where a named pub still resolves.
   const place = extractInPlace(text);
@@ -263,6 +495,7 @@ function conciergeClaim(
 export function routeAskDeterministically(query: string): RoutedToolCall[] {
   const text = query.trim();
   if (!text) return [];
+  const priceIntent = resolveAskPriceIntent(text);
 
   const calls: RoutedToolCall[] = [];
   const push = (name: AskToolName, args: Record<string, unknown> = {}) => {
@@ -271,9 +504,35 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     calls.push({ name, args });
   };
 
-  // The V0.1 concierge intents are each NARROWER than the generic ask they
-  // would otherwise fall into, so a satisfied one answers alone. One that
-  // cannot meet its own precondition falls through to the tools below.
+  const clauses = askRequestClauses(text);
+  if (clauses.some(isCityStatusRequest)) {
+    push("city_status");
+  }
+
+  const journey = resolveAskJourney(text);
+  if (journey) push("journey", { from: "London Bridge", ...journey });
+
+  if (priceIntent.kind === "unsupported") return calls;
+  if (priceIntent.kind === "menu") {
+    push("venue_drinks", { venueName: priceIntent.venueName });
+    return calls;
+  }
+
+  if (AREA_BUZZ_RE.test(text)) {
+    const area = extractArea(text) ?? "Westminster";
+    push("area_buzz", { area });
+  }
+
+  if (HERITAGE_RE.test(text) && !isVenueDiscoveryAsk(text)) {
+    const venueName = stripIntentWords(text);
+    push("venue_heritage", venueName ? { venueName, query: text } : { query: text });
+  }
+
+  if (priceIntent.kind === "drink-venues") {
+    push("search_venues", { query: text, limit: 4 });
+    return calls;
+  }
+
   const whatsOn = detectWhatsOnIntent(text);
   const claim = conciergeClaim(text, whatsOn);
   if (claim) {
@@ -286,27 +545,9 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     return calls;
   }
 
-  if (CITY_STATUS_RE.test(text)) {
-    push("city_status");
-  }
-
-  if (AREA_BUZZ_RE.test(text)) {
-    const area = extractArea(text) ?? "Westminster";
-    push("area_buzz", { area });
-  }
-
-  if (JOURNEY_RE.test(text)) {
-    const to = stripIntentWords(text) || text;
-    push("journey", { from: "London Bridge", to });
-  }
-
-  if (HERITAGE_RE.test(text)) {
-    const venueName = stripIntentWords(text);
-    push("venue_heritage", venueName ? { venueName, query: text } : { query: text });
-  }
-
-  if (PRICE_RE.test(text) && !PLAN_RE.test(text)) {
-    const venueName = stripIntentWords(text);
+  if (PRICE_RE.test(text) && !PLAN_RE.test(text) && !isVenueDiscoveryAsk(text)) {
+    const venueName = priceIntent.kind === "pint" || priceIntent.kind === "pub-price"
+      ? priceIntent.venueName ?? stripIntentWords(text) : stripIntentWords(text);
     push("venue_prices", venueName ? { venueName, query: text } : { query: text });
   }
 

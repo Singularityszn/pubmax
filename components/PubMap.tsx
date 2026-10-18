@@ -64,6 +64,7 @@ import {
 import {
   filterMapVenues,
   mapFiltersSuspendUkBasePubs,
+  createMemberStabilizer,
   withForcedVenue,
 } from "@/lib/filterMapVenues";
 import {
@@ -285,6 +286,11 @@ const LondonRestaurantSheet = dynamic(
   () => import("@/components/map/LondonRestaurantSheet"),
   { ssr: false },
 );
+// Only ever mounted for a linked London fast-food counter (the Lucia 🐐 lens).
+const LondonFoodPlaceSheet = dynamic(
+  () => import("@/components/map/LondonFoodPlaceSheet"),
+  { ssr: false },
+);
 // Only ever mounted when the coffee lens could not read the pilot.
 const CoffeePilotLoadFailed = dynamic(
   () => import("@/components/map/CoffeePilotLoadFailed"),
@@ -380,8 +386,8 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
-import { canonicalizeStoredSaved, getSaved } from "@/lib/savedPubs";
-import { loadVenueAliasMap, loadVenueAliasMaps } from "@/lib/venueAliasMap";
+import { getSaved, readCanonicalSaved } from "@/lib/savedPubs";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
@@ -403,7 +409,7 @@ import {
   type CityId,
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
-import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
+import { slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import {
   isUkBaseId,
@@ -417,6 +423,7 @@ import {
   useReleaseLondonVenueSelection,
 } from "@/components/map/useCoffeePilotCafes";
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
+import { useLondonFoodSelection } from "@/components/map/useLondonFoodPlaces";
 import {
   londonRestaurantLayerShown,
   londonRestaurantPackWanted,
@@ -466,12 +473,13 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
+  createMapResumeWriter,
   isCurrentMapResumeRefresh,
   isPersistableMapResumeViewport,
   type MapResumeLiveLoadStatus,
   readMapResume,
   readMapResumeSync,
-  writeMapResume,
+  scheduleMapResumeWrite,
 } from "@/lib/mapResume";
 import {
   readOpeningMapLocation,
@@ -710,11 +718,10 @@ const NearMeNow = dynamic(() => import("@/components/nearme/NearMeNow"), { ssr: 
 // useSheetDrag (components/map/useSheetDrag.ts). PubMap only owns WHICH snap is
 // default on a fresh pick and renders the sheet chrome.
 
-// The set of venue ids this device has saved (any list). Read from the client
-// saved-pub store; SSR-safe (getSaved returns [] on the server). Used only to
-// narrow the map/list when the viewer flips "Saved only" on.
-function readSavedVenueIds(): Set<string> {
-  return new Set(getSaved().map((entry) => entry.venueId));
+// Read this device's saved venue ids for the "Saved only" filter.
+// readCanonicalSaved() owns alias resolution.
+function readSavedVenueIds(): Promise<Set<string>> {
+  return readCanonicalSaved().then((saved) => new Set(saved.map((entry) => entry.venueId)));
 }
 
 // SSR-safe read of the current URL query. Kept in one place so the several
@@ -1840,17 +1847,13 @@ export default function PubMap({
   // fine, this is a per-viewer view, not shared state.
   const [savedOnly, setSavedOnly] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(() =>
-    typeof window === "undefined" ? new Set<string>() : readSavedVenueIds(),
+    typeof window === "undefined" ? new Set<string>() : new Set(getSaved().map((entry) => entry.venueId)),
   );
-  // A save this device stored under a venue id that has since been merged or
-  // superseded is rewritten under the id the map serves now, once per page.
   useEffect(() => {
     if (getSaved().length === 0) return;
     let cancelled = false;
-    void loadVenueAliasMap().then((aliases) => {
-      if (cancelled || aliases.size === 0) return;
-      canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
-      setSavedIds(readSavedVenueIds());
+    void readSavedVenueIds().then((ids) => {
+      if (!cancelled) setSavedIds(ids);
     });
     return () => {
       cancelled = true;
@@ -3116,15 +3119,20 @@ export default function PubMap({
     }));
     return openNowStatesForVenues(matchVenues, wetherspoonsDirectoryPubs);
   }, [venues, wetherspoonsDirectoryPubs, filters.openNow]);
+  // Held across signal-only changes (createMemberStabilizer): a sheet's own
+  // reads rebuild the signals, but almost never which pins pass.
+  const [stablePipelineVenues] = useState(() => createMemberStabilizer<Venue>());
   const pipelineVenues = useMemo(
     () =>
-      filterMapVenues(
-        venues,
-        effectiveMapFilters,
-        (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
-        (id) => openNowStateById?.get(id) ?? "unknown",
+      stablePipelineVenues(
+        filterMapVenues(
+          venues,
+          effectiveMapFilters,
+          (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+          (id) => openNowStateById?.get(id) ?? "unknown",
+        ),
       ),
-    [effectiveMapFilters, venues, venueSignals, openNowStateById],
+    [effectiveMapFilters, venues, venueSignals, openNowStateById, stablePipelineVenues],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
@@ -3239,6 +3247,15 @@ export default function PubMap({
   });
   const selectedCoffeeCafe = londonPlacePick.cafe;
   const selectedLondonRestaurant = londonPlacePick.restaurant;
+  // A London fast-food counter has no pin: it opens only from a link (the
+  // soft drinks page's "Add a price"), so its small pack is read only for a
+  // `venue-osm-` selection, and on every London map whatever lens is on.
+  const londonFoodPick = useLondonFoodSelection({
+    isLondon,
+    selectedVenueId,
+    otherSourcesRelease: londonPlacePick.release,
+  });
+  const selectedLondonFoodPlace = londonFoodPick.place;
   // The map's filters narrow the layer as they narrow curated pins, and a
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
   const filteredLondonRestaurants = useMemo(
@@ -3518,6 +3535,7 @@ export default function PubMap({
         selectedBasePub,
         selectedCoffeeCafe,
         selectedLondonRestaurant,
+        selectedLondonFoodPlace,
         venueById,
         isPubVenue,
         lookupFailed: selectedDetailStatus === "unavailable",
@@ -3526,6 +3544,7 @@ export default function PubMap({
       selectedBasePub,
       selectedCoffeeCafe,
       selectedDetailStatus,
+      selectedLondonFoodPlace,
       selectedLondonRestaurant,
       selectedVenue,
       selectedVenueId,
@@ -3743,6 +3762,7 @@ export default function PubMap({
   const basePubOpen = mapSelection.basePubOpen;
   const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
   const londonRestaurantOpen = mapSelection.londonRestaurantOpen;
+  const londonFoodPlaceOpen = mapSelection.londonFoodPlaceOpen;
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -4193,7 +4213,7 @@ export default function PubMap({
   // (event handler, not an effect) so a venue saved elsewhere this session is
   // reflected the moment the filter is turned on — no stale set, no reload.
   const changeSavedOnly = useCallback((next: boolean) => {
-    if (next) setSavedIds(readSavedVenueIds());
+    if (next) void readSavedVenueIds().then(setSavedIds);
     setSavedOnly(next);
   }, []);
 
@@ -4397,7 +4417,7 @@ export default function PubMap({
 
   const resetLogIntentFilters = useCallback(() => {
     setSavedOnly(false);
-    setSavedIds(readSavedVenueIds());
+    void readSavedVenueIds().then(setSavedIds);
     setFilters((current) => ({
       ...seedCrawlState("").filters,
       ...(hasCategoryPriceIntent ? { drinkCategory: current.drinkCategory } : {}),
@@ -5379,7 +5399,7 @@ export default function PubMap({
   // can open (off the coffee lens or off the restaurant layer, not held, or not
   // read) has no sheet to open: let it go rather than hold a skeleton.
   useReleaseLondonVenueSelection(
-    londonPlacePick.release,
+    londonFoodPick.release,
     selectedVenueId,
     rejectMapSelection,
     setSelectedVenueId,
@@ -5568,6 +5588,7 @@ export default function PubMap({
     });
   }, [activeNightAreaSlug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
+  const [writeMapResume] = useState(() => createMapResumeWriter());
   useEffect(() => {
     if (
       ukPlaceArrival ||
@@ -5579,15 +5600,10 @@ export default function PubMap({
       liveShardLoadStatusRef.current !== "ready" ||
       venueIndexFailed
     ) return;
-    const timer = window.setTimeout(() => {
-      writeMapResume({
-        cityId,
-        viewport: mapViewport,
-        rows: pinsToSlimVenues(slimPins),
-      });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed]);
+    // The snapshot is a speed layer for the next visit, so it waits for idle
+    // time instead of landing beside the next tap's frame.
+    return scheduleMapResumeWrite(() => writeMapResume(cityId, mapViewport, slimPins));
+  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed, writeMapResume]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
@@ -6088,6 +6104,16 @@ export default function PubMap({
     if (selectedCoffeeCafe) return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
     if (selectedLondonRestaurant) {
       return <LondonRestaurantSheet restaurant={selectedLondonRestaurant} />;
+    }
+    if (selectedLondonFoodPlace) {
+      return (
+        <LondonFoodPlaceSheet
+          place={selectedLondonFoodPlace}
+          communityPrices={communityPrices}
+          logRequested={hasReactiveLogIntent}
+          onLogRequestConsumed={clearLogIntent}
+        />
+      );
     }
     return renderVenuePanel();
   }
@@ -7094,7 +7120,9 @@ export default function PubMap({
                     ? selectedCoffeeCafe?.name ?? "Cafe"
                     : londonRestaurantOpen
                       ? selectedLondonRestaurant?.name ?? "Restaurant"
-                      : selectedVenue?.name ?? selectedVenueLabels.detailLabel
+                      : londonFoodPlaceOpen
+                        ? selectedLondonFoodPlace?.name ?? "Fast food"
+                        : selectedVenue?.name ?? selectedVenueLabels.detailLabel
                 : planningOpen
                   ? "Plan an outing"
                   : activeLandmark?.name ?? "Landmark"

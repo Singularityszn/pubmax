@@ -133,7 +133,7 @@ test.describe("map / venue sheet tabs", () => {
     await expect(overviewSource).toHaveAttribute("href", DOVE_PRICE_SOURCE);
 
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
-    await tablist.getByRole("tab", { name: "Drinks", exact: true }).click();
+    await tablist.getByRole("tab", { name: "Menu", exact: true }).click();
     const menu = page.locator("#venuePanel-menu");
     await menu.getByRole("button", { name: /^Drinks/ }).click();
 
@@ -159,7 +159,7 @@ test.describe("map / venue sheet tabs", () => {
     await page.goto(`/map?sel=${OLD_BELL_ID}`);
 
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
-    const drinksTab = tablist.getByRole("tab", { name: "Drinks", exact: true });
+    const drinksTab = tablist.getByRole("tab", { name: "Menu", exact: true });
     await drinksTab.click();
 
     await page
@@ -187,7 +187,7 @@ test.describe("map / venue sheet tabs", () => {
     const expectedTabs = [
       "Overview",
       "Photos",
-      "Drinks",
+      "Menu",
       "Stories",
       "Lore",
     ];
@@ -212,7 +212,7 @@ test.describe("map / venue sheet tabs", () => {
     for (const [label, panelId] of [
       ["Overview", "venuePanel-overview"],
       ["Photos", "venuePanel-photos"],
-      ["Drinks", "venuePanel-menu"],
+      ["Menu", "venuePanel-menu"],
       ["Lore", "venuePanel-story"],
     ] as const) {
       const tab = tablist.getByRole("tab", { name: label, exact: true });

@@ -58,6 +58,35 @@ describe("what a bundle row owes", () => {
     expect(isValidUkPriceBundleRow(listed)).toBe(true);
   });
 
+  it("takes a London place only whole, inside London, on a listed base subtype row", () => {
+    const placed = {
+      ...listed,
+      category: "soft-drink",
+      drinkLabel: "Diet Coke",
+      drinkSubtype: "soft-drink-diet-coke",
+      lat: 51.4648,
+      lng: -0.0337,
+      londonBorough: "Lewisham",
+    };
+    expect(isValidUkPriceBundleRow(placed)).toBe(true);
+    expect(isValidUkPriceBundleRow({ ...placed, londonBorough: undefined })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, lat: undefined })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, lat: 53.48, lng: -2.24 })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, venueId: "venue-abc123" })).toBe(false);
+    expect(isValidUkPriceBundleRow({ ...placed, drinkSubtype: undefined })).toBe(false);
+    expect(
+      isValidUkPriceBundleRow({
+        ...placed,
+        lane: "estimate",
+        standing: "estimate",
+        sourceUrl: null,
+        basis: "b",
+        sampleSize: 5,
+        operatorCount: 3,
+      }),
+    ).toBe(false);
+  });
+
   it("accepts bounded explicit servings while preserving unknown volume", () => {
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125ml" })).toBe(true);
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "Btl" })).toBe(true);

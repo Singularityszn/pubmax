@@ -6,6 +6,7 @@ import {
   composerRouteMutation,
   createdPlanMetadataPatch,
   createdPlanNeedsReadyTransition,
+  crawlLockedTelemetry,
   errorMessageFromBody,
   applyPlanStopCount,
   generatedPlanAnchorFromResponse,
@@ -666,6 +667,17 @@ describe("PlanComposer route preview seam", () => {
     expect(planAcceptanceTelemetry({ created: false, grounded: true }, 3)).toEqual({ stops: 3, grounded: true });
     expect(planAcceptanceTelemetry({ created: true, grounded: "true" }, 3)).toBeNull();
     expect(serverPlanCreationAttribution({ created: false, grounded: false })).toEqual({ created: false, grounded: false });
+  });
+
+  it("counts the lock for every attributed plan, signed tokens or not", () => {
+    // A plan without an anchor gets no meaningful-action token, so the signed
+    // acceptance events fail closed for it. The lock count must not.
+    expect(crawlLockedTelemetry({ created: true, grounded: false }, 3)).toEqual({ stops: 3 });
+    expect(crawlLockedTelemetry({ created: false, grounded: true, eventTokens: { planAccepted: "", meaningfulCoreAction: "" } }, 4)).toEqual({ stops: 4 });
+    expect(crawlLockedTelemetry({ created: true, grounded: "true" }, 3)).toBeNull();
+    expect(crawlLockedTelemetry({ created: true, grounded: true }, 0)).toBeNull();
+    // Outside the band the sanitizer would drop it anyway; do not send it.
+    expect(crawlLockedTelemetry({ created: true, grounded: true }, 11)).toBeNull();
   });
 
   it("uses the generator's explicit grounding assertion instead of route revision metadata", () => {

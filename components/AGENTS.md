@@ -67,3 +67,4 @@ Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../
 - [A CHIP READS THE SAME ROW, AND A NUMBER SQUARE IS ONE FAMILY.](../docs/rules/components-design-system-and-launch-primitives.md#a-chip-reads-the-same-row-and-a-number-square-is-one-family)
 - [NEXT/IMAGE DROPS A `srcSet` PROP, AND A PROXIED PHOTO IS RESIZED THROUGH ITS LOADER.](../docs/rules/components-design-system-and-launch-primitives.md#next-image-drops-a-srcset-prop-and-a-proxied-photo-is-resized-through-its-loader)
 - [EVERY FIRST-RUN QUESTION GIVES ITS REASON, AND ONLY THE ONES THE JOURNEY USES.](../docs/rules/components-design-system-and-launch-primitives.md#every-first-run-question-gives-its-reason-and-only-the-ones-the-journey-uses)
+- [A TAB ROW IS ONE TAB STOP, AND ITS SELECTION READS IN INK.](../docs/rules/components-design-system-and-launch-primitives.md#a-tab-row-is-one-tab-stop-and-its-selection-reads-in-ink)

@@ -192,6 +192,13 @@ On upstream failure the strip stays hidden without a red error state.
 
 ## Related tests
 
+The keyless Playwright-managed server preloads `e2e/fixtures/cityMcpJourney.cjs`
+through `NODE_OPTIONS` in `playwright.config.ts`.
+It supplies deterministic `get_journey` service data while preserving the app's request and destination resolution.
+Other CityMCP tools still use the normal fetch path.
+These journey cases do not prove live transit availability.
+Use the normal application server for live smoke checks.
+
 - `__tests__/citymcpClient.test.ts` — SSE parser, `trimSignals`, generic
   `tools/call` behaviour, city_status cache, `search_places` filters,
   `trimCityPlace` whitelist, `fetchCityPlace` cache, `fetchThingsToDo`

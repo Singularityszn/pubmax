@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+  "observedAt": "2026-10-17T12:29:05.127Z",
+  "evidence": "Elderflower, Apple, Raspberry, Orange Blossom, Soda - £5.20 Cranberry, Moroccan & English mint, Fever-Tree Ginger Ale - £5.20 Fever-Tree Raspberry & Rose Lemonade - £4.20 ###### Mindful Blends (AF) Crafted alcohol-free drinks for every occasion Magnesium, Lion’s Mane, Chamomile 25kcal - £4.70 Magnesium, Lion's Mane, Lemon Balm 22kcal - £4.70 Three Spirit Social, Yuzu Sherbet, Fever-Tree Ginger Ale - £7.50 ###### Alcohol Free Sparkling Wine 28kcal per 125ml serve - £34.50 Available by the glass or bottle 22kcal per",
+  "reader": "scripts/harvest_soft_drinks_menus.mjs --chain youngs (playwright transport, sourcePolicy youngs-menu-prices, live robots); re-observation of a URL already in the historical ledger",
+  "rows": [
+    {
+      "host": "theguardhousewoolwich.co.uk",
+      "venueId": "venue-kkpnq8",
+      "name": "The Guardhouse",
+      "category": "soft-drink",
+      "priceGbp": 4.2,
+      "drinkLabel": "Raspberry & Rose Fever-Tree Raspberry & Rose Lemonade",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 3
+    },
+    {
+      "host": "theguardhousewoolwich.co.uk",
+      "venueId": "venue-kkpnq8",
+      "name": "The Guardhouse",
+      "category": "soft-drink",
+      "priceGbp": 4.2,
+      "drinkLabel": "Sicilian lemon Fever-Tree Sicilian Lemonade",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 3
+    },
+    {
+      "host": "theguardhousewoolwich.co.uk",
+      "venueId": "venue-kkpnq8",
+      "name": "The Guardhouse",
+      "category": "soft-drink",
+      "priceGbp": 4.7,
+      "drinkLabel": "TRIP Elderflower Mint Magnesium, Lion's Mane, Lemon Balm 22kcal",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "observedAt": "2026-10-17T12:29:05.127Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 3
+    }
+  ]
+}

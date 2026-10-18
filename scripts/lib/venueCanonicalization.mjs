@@ -196,8 +196,128 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
 
 // Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
 // Keep its old id resolvable without loosening name matching for other pubs.
-const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
-const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
+// The Guard House, No 1 Street, SE18 6GH: the Young's seed spells it
+// "The Guardhouse" 0.1 m from OSM node/4515363508's "The Guard House", and its
+// own site prints both. Token matching cannot join one word to two.
+const VERIFIED_VENUE_ALIASES = {
+  "venue-1sw9ofl": "venue-eltcmh",
+  "venue-kkpnq8": "venue-9e93hd",
+  // Verified 2026-10-17 by street address or the pub's own website, each pair
+  // within 33 m. The first three differ only by an apostrophe or a space, which
+  // normalizeVenueIdentityName reads as a word break. The record kept is the one with the full street address and
+  // coordinates, since its name and address are written onto the merged rows;
+  // where both have one, the correctly spelled name is kept.
+  "venue-ydvsco": "venue-6bh8l6", // The King's Tun -> The Kings Tun, Wetherspoon, Kingston
+  "venue-9otpi8": "venue-x49k8g", // O'Neills -> O'Neill's
+  "venue-1g7sv3b": "venue-y78jw5", // Mc Glynn's Bar -> McGlynn's Bar, 70 Willesden Lane NW6
+  "venue-ttu2zy": "venue-l6qdob", // Price Albert -> The Prince Albert, 418 Coldharbour Lane SW9
+  "venue-4lt7c6": "venue-c0r9ym", // Flowes -> Flowers of the Forest, 14 Westminster Bridge Rd SE1
+  "venue-1fudad7": "venue-14alocj", // Richard the First -> Richard I, 52-54 Royal Hill SE10
+  "venue-1gnufko": "venue-16xmzi7", // Ye Olde London City -> Ye Olde London, 42 Ludgate Hill EC4M
+  "venue-oyallt": "venue-cgh71l", // The Alma Newington Green -> The Alma, 59 Newington Green Rd N1
+  "venue-g295gw": "venue-698bu3", // The Old Shades (Wikipedia, borough only) -> 37 Whitehall SW1A
+  "venue-lkjwk4": "venue-68ns7y", // Ye Olde Mitre (Wikipedia, borough only) -> EC1N 6SJ record
+  "venue-1r0yf7r": "venue-s68ndf", // Greene Man (Wikipedia, borough only) -> 383 Euston Road NW1
+  "venue-67akji": "venue-pzbwmw", // Cask -> Cask Pub & Kitchen, 6 Charlwood St SW1V
+  "venue-6hsjmi": "venue-1b9434y", // The Only Running Footman -> The Footman, 5 Charles St W1J
+  "venue-bb2v2w": "venue-1xmac", // The Grapes (Wikipedia) -> The Grapes SW18, 39 Fairfield St
+  "venue-cxy85g": "venue-1gy9xkj", // Queens, Crouch End (Wikipedia) -> The Queens, 26 Tottenham Lane N8
+  "venue-204w0t": "venue-bdf9cy", // Temperance Billiard Hall (Wikipedia) -> The Temperance, 90 Fulham High St
+  "venue-806vol": "venue-mz6byd", // The Ship Soho -> The Ship, 116 Wardour St W1F
+  "venue-1pzhx7d": "venue-qw9l0q", // The Castle Inn, Ealing -> The Castle Inn, 36 St Mary's Rd W5
+  "venue-172mx8n": "venue-168ndjw", // Crown & Horseshoes (Enfield) -> 12-15 Horseshoe Lane EN2
+  "venue-1hq7rkl": "venue-1yiyopd", // Windsor Fenchurch -> The Windsor, 2 New London St EC3R
+  "venue-1hd5y0u": "venue-18x41hr", // Yeh Olde Watling -> Ye Olde Watling, 29 Watling St
+  "venue-w1qzhg": "venue-13z79s7", // Churchills, Clapham -> Churchills, 151 St John's Hill SW11
+  "venue-jlqlve": "venue-hvsgg4", // Cricketers Arms -> Cricketers Enfield, Chase Side Place
+  "venue-13wpw9e": "venue-gv8lwa", // Anchor - Bankside -> Anchor, 34 Park Street SE1
+  "venue-1i9h4wb": "venue-x8tw9t", // The Cock, Fulham (Wikipedia) -> Cock Tavern, 360 North End Rd SW6
+  "venue-1n7o6gw": "venue-1qb9nzj", // The Fox, Palmers Green (Wikipedia) -> The Fox (OSM)
+};
+// Verified 2026-10-17 like the pairs above, but 50-66 m apart, past the fuzzy
+// radius those may bypass. Each is joined by id alone, within
+// VERIFIED_FAR_MERGE_METERS and never across a postcode; no other pair gains
+// any reach.
+const VERIFIED_FAR_VENUE_ALIASES = {
+  "venue-11mu12n": "venue-o98nz5", // J.J. Moons (Tooting Broadway) -> J.J. Moon's, 56a High St SW17
+  "venue-1clnw4x": "venue-1lj3hj4", // Trafalgar Tavern (Wikipedia) -> The Trafalgar, Park Row SE10
+  "venue-1r6x415": "venue-1c7e71q", // The Cross Keys, Hammersmith (Wikipedia) -> 57 Black Lion Lane W6
+  "venue-1brmot5": "venue-whwqzo", // Queens Head Winchmore Hill -> The Queens Head, 41-43 Station Rd N21
+};
+const VERIFIED_FAR_MERGE_METERS = 100;
+// Deliberately NOT merged (2026-10-17): The Millers Well (venue-10paqy, E6 2JX)
+// and its OSM twin The Miller's Well (venue-1i5w333). The twin still carries
+// the Wetherspoon website for a pub the chain left in 2023, so a merge would
+// label it a Wetherspoon again. Merge once an OSM refresh drops that tag.
+
+// A record whose address names only a street, so a street-level geocode put it
+// hundreds of metres off its pub, and whose name is misspelled past what the
+// name matcher forgives. Neither check can see it is the same pub, so each
+// entry is a verified pair of ids. An id hashes the record's name, address and
+// point, so an edit to either record changes its id and stops the merge rather
+// than stretching it to a record nobody checked.
+export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
+  Object.freeze({
+    // "Maruquis of Cornwallis", Bethnal Green Road, about 640 m west of the pub.
+    from: "venue-j71x23",
+    // The Marquis of Cornwallis, 304 Bethnal Green Rd, E2 0AG. OpenStreetMap
+    // way/1059879142 is the only Marquis of Cornwallis on Bethnal Green Road,
+    // and no pub stands at the misplaced point.
+    to: "venue-1eyb3zz",
+  }),
+  Object.freeze({
+    // "The Moon on the Square - JD Wetherspoon", Unit 30, The Centre, Feltham.
+    // The Wetherspoon directory geocodes the shopping centre, 177 m from the pub.
+    from: "venue-g9jxzs",
+    // The Moon on the Square, 30 High Street, Feltham TW13 4AU, at the pub door
+    // in OpenStreetMap. Both records share the postcode.
+    to: "venue-86sj0g",
+  }),
+]);
+
+// A pub's own website that the source also printed on a namesake across town.
+// Each entry is the one site and the postcode of the pub it belongs to; a row
+// at any other postcode loses the link, so every export (`npm run export:data`
+// runs this pass straight after it) clears it again rather than letting the
+// CSV hand it back. A row with a different site, or none, is left alone.
+export const VERIFIED_BORROWED_WEBSITES = Object.freeze([
+  // The Marquis Cornwallis, 31 Marchmont St. The Bethnal Green Road pub (E2)
+  // carried it.
+  Object.freeze({ site: "themarquiscornwalliswc1.co.uk", ownerPostcode: "WC1N 1AP" }),
+  // Greene King's Goat Tavern, 3a Kensington High Street. The Mayfair Goat
+  // Tavern (W1S) carried it.
+  Object.freeze({ site: "greeneking.co.uk/pubs/greater-london/goat-tavern", ownerPostcode: "W8 5NP" }),
+]);
+
+function normalisedSite(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/[#?].*$/, "")
+    .replace(/\/+$/, "");
+}
+
+function compactPostcode(value) {
+  return String(value ?? "").toUpperCase().replace(/\s+/g, "");
+}
+
+// The row with a borrowed website cleared, or the same row when it keeps its own.
+function withoutBorrowedWebsite(row) {
+  const site = normalisedSite(row.website);
+  if (!site) return row;
+  const entry = VERIFIED_BORROWED_WEBSITES.find((candidate) => candidate.site === site);
+  if (!entry) return row;
+  if (compactPostcode(row.address).includes(compactPostcode(entry.ownerPostcode))) return row;
+  return { ...row, website: "" };
+}
+
+const VERIFIED_CANONICAL_IDS = new Set([
+  ...Object.values(VERIFIED_VENUE_ALIASES),
+  ...Object.values(VERIFIED_FAR_VENUE_ALIASES),
+  ...VERIFIED_MISPLACED_RECORDS.map((entry) => entry.to),
+]);
 
 // A verified alias can bypass name matching, but never distance or postcode
 // checks. Other pairs use the caller's matcher or namesLikelySamePub.
@@ -298,6 +418,20 @@ export function mergeAliasMaps(prevAliases, currentAliases) {
 // removing folded units. A naive all-pairs scan is O(units²) and too slow on the
 // full dataset, so candidate pairs come from a spatial grid: the fuzzy radius is
 // tiny, so only groups in the same or an adjacent cell can possibly match.
+function unionVerifiedFarPairs(units, groupList) {
+  const byId = new Map(groupList.map((g) => [g.id, g]));
+  for (const [fromId, toId] of Object.entries(VERIFIED_FAR_VENUE_ALIASES)) {
+    const a = byId.get(fromId);
+    const b = byId.get(toId);
+    if (!a || !b || !looksSamePub(a, b, VERIFIED_FAR_MERGE_METERS)) continue;
+    const ua = units.find((u) => u.includes(a));
+    const ub = units.find((u) => u.includes(b));
+    if (!ua || !ub || ua === ub || clusterHasPostcodeConflict([...ua, ...ub])) continue;
+    units.splice(units.indexOf(ub), 1);
+    ua.push(...ub);
+  }
+}
+
 function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
   const unitOf = new Map(); // group -> its unit array
   for (const u of units) for (const g of u) unitOf.set(g, u);
@@ -341,6 +475,25 @@ function fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch) {
         }
       }
     }
+  }
+}
+
+// Fold each verified misplaced record into its pub (VERIFIED_MISPLACED_RECORDS).
+// A pair whose records are absent is skipped: once merged, the loser's rows
+// carry the pub's identity, so a later run finds nothing to fold. Mutates
+// `units` in place.
+function unionVerifiedMisplacedRecords(units, groupList) {
+  const groupById = new Map(groupList.map((g) => [g.id, g]));
+  for (const entry of VERIFIED_MISPLACED_RECORDS) {
+    const from = groupById.get(entry.from);
+    const to = groupById.get(entry.to);
+    if (!from || !to) continue;
+    const fromUnit = units.find((u) => u.includes(from));
+    const toUnit = units.find((u) => u.includes(to));
+    if (!fromUnit || !toUnit || fromUnit === toUnit) continue;
+    if (clusterHasPostcodeConflict([...fromUnit, ...toUnit])) continue;
+    units.splice(units.indexOf(fromUnit), 1);
+    toUnit.push(...fromUnit);
   }
 }
 
@@ -452,6 +605,13 @@ export function canonicalizeDataset(rows, options = {}) {
   //     exact pass can't see (see fuzzyUnionUnits).
   fuzzyUnionUnits(units, groupList, fuzzyMergeMeters, samePubMatch);
 
+  // 2c. The verified pairs too far apart for the fuzzy grid to ever compare.
+  unionVerifiedFarPairs(units, groupList);
+
+  // 2c. Verified misplaced records: a street-only geocode and a misspelt name
+  //     that no distance or name check can bridge.
+  unionVerifiedMisplacedRecords(units, groupList);
+
   const clusters = units.filter((u) => u.length > 1);
 
   // 3. Pick the canonical identity per cluster and plan the row rewrites.
@@ -483,10 +643,15 @@ export function canonicalizeDataset(rows, options = {}) {
   // 4. Rewrite only the four identity fields of losing rows; every other field
   //    (price, pint_name, source_datasets, …) is preserved so per-row
   //    provenance stays honest.
+  //    A verified borrowed website is cleared from any row at another pub's
+  //    postcode (VERIFIED_BORROWED_WEBSITES).
+  let borrowedWebsitesCleared = 0;
   const newRows = rows.map((row, idx) => {
     const rw = rewriteByRowIdx.get(idx);
-    if (!rw) return row;
-    return { ...row, ...rw };
+    const rewritten = rw ? { ...row, ...rw } : row;
+    const cleaned = withoutBorrowedWebsite(rewritten);
+    if (cleaned !== rewritten) borrowedWebsitesCleared += 1;
+    return cleaned;
   });
 
   return {
@@ -499,6 +664,7 @@ export function canonicalizeDataset(rows, options = {}) {
       duplicateClusters: clusters.length,
       mergedRecords: Object.keys(aliases).length,
       venueIdentitiesAfter: groupList.length - Object.keys(aliases).length,
+      borrowedWebsitesCleared,
     },
   };
 }

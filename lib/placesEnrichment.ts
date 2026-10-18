@@ -102,8 +102,14 @@ export function placesEnrichmentRecord(
   return record;
 }
 
-/** A copied field past this age stays shown under its own date, stops deciding open state and is due for a --refresh push. */
+/** A copied field past this age stays shown under its own date and stops deciding open state. */
 export const PLACES_REFRESH_DAYS = OPENING_EVIDENCE_FRESH_DAYS;
+
+/** Days of warning before copied hours lapse: the freshness lane reads stale and a --refresh push may start this long before PLACES_REFRESH_DAYS. */
+const PLACES_REFRESH_LEAD_DAYS = 14;
+
+/** A copied field past this age is due for a --refresh push, while its hours are still served. */
+export const PLACES_REFRESH_START_DAYS = PLACES_REFRESH_DAYS - PLACES_REFRESH_LEAD_DAYS;
 
 /** Copied fields keep showing with their own observedAt; only invalid, future-dated or (with maxAgeDays) older values are refused. */
 export function usablePlacesObservation<T>(field: PlacesObservation<T> | undefined, now: Date, maxAgeDays = Infinity): field is PlacesObservation<T> {

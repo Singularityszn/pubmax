@@ -444,15 +444,16 @@
 .planComposer__submit { background: var(--accent-action); color: var(--color-on-accent); }
 .planComposer__submit:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-action-strong); }
 .planCrew__join button:disabled { opacity: 0.58; cursor: wait; }
-/* M3: disabled primary CTAs stay coral (accent-action) at ~0.58 opacity —
-   never a muddy brick hue that reads "broken" next to vivid enabled coral. */
+/* M3: a disabled primary CTA is a neutral raised surface, and coral arrives
+   only when it can act. Coral at reduced opacity read as a muddy brick on the
+   dark canvas, an error button rather than one still waiting on a field. */
 .planComposer__submit:disabled,
 .planComposer__submit[aria-disabled="true"],
 .planComposer__conciergeInput button:disabled,
 .planComposer__conciergeInput button[aria-disabled="true"] {
-  background: var(--accent-action);
-  color: var(--color-on-accent);
-  opacity: 0.58;
+  background: var(--panel-raised);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-soft);
   cursor: wait;
   filter: none;
 }
@@ -1563,10 +1564,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   color: var(--ink);
   text-wrap: balance;
 }
+/* Prose with figures in it ("3 stops", "each for pints"), so the UI sans with
+   tabular figures: monospace is for figures alone (docs/DESIGN_SYSTEM.md). */
 .planResult__summary {
   min-width: 0;
   margin: 0;
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-size: 0.9375rem;
   font-weight: 700;
   line-height: 1.35;

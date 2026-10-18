@@ -22,6 +22,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import registry from "@/data/freshness_registry.json";
+import lateFoodEvidence from "@/public/data/late_food_evidence.json";
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
 import {
   datasetOpensArtifact,
@@ -199,8 +200,13 @@ describe("late_food_evidence", () => {
 
   it("reads stale against its committed rows once their last expiry has passed", async () => {
     const reg = { version: 1, datasets: [{ ...defined(entry) }] };
-    const before = await evaluateFreshness({ now: new Date("2026-08-01T20:00:00Z"), registry: reg });
-    const after = await evaluateFreshness({ now: new Date("2026-08-17T20:00:00Z"), registry: reg });
+    const latest = Math.max(
+      ...Object.values(lateFoodEvidence.areas).flatMap((area) =>
+        area.options.map((option) => Date.parse(option.source.expiresAt)),
+      ),
+    );
+    const before = await evaluateFreshness({ now: new Date(latest - 60 * 60 * 1000), registry: reg });
+    const after = await evaluateFreshness({ now: new Date(latest + 60 * 60 * 1000), registry: reg });
     expect(defined(before.results[0]).status).not.toBe("stale");
     expect(defined(after.results[0]).status).toBe("stale");
   });

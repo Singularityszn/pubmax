@@ -305,7 +305,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `plan_one_tap` | The one tap on the empty /plan page, and what it did: planned the remembered area, planned the crawl-ready area the reader stood in, found no location, or found no crawl-ready area near. |
 | `stop_added` | A pub joined the crawl being built, and on which surface. |
 | `route_opened` | A route of two or more stops was drawn on the Map, and from which surface. |
-| `crawl_locked` | A plan was accepted, with its stop count. |
+| `crawl_locked` | A plan was locked, with its stop count. Unsigned, so it counts plans `plan_accepted` cannot. |
 | `plan_draft_saved` | An anchored one-stop draft was kept. |
 | `plan_accepted` | A grounded, route-ready three-stop plan was verified server-side. |
 | `plan_saved` | The plan and its route finished saving. |

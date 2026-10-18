@@ -16,7 +16,7 @@ import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
-import { socialMemoryBlockedProfiles } from "@/lib/socialBlockMemory";
+import { socialMemoryBlockedProfiles, socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
 
 export type SocialPostActor = {
   accountId: string;
@@ -28,6 +28,12 @@ export type SocialPostRelationships = {
   followingProfileIds: Set<string>;
   mutualProfileIds: Set<string>;
   blockedProfileIds?: Set<string>;
+  /**
+   * Accounts the viewer has muted. One-way and private: a muted author's posts
+   * leave the viewer's lanes and nothing else changes, so a direct read, a
+   * follow and the author's own view are untouched (`read_social_post_feed`).
+   */
+  mutedProfileIds?: Set<string>;
 };
 
 type SocialPostFeedLane = "discover" | "nearby" | "following";
@@ -324,6 +330,7 @@ async function defaultRelationships(actor: SocialPostActor): Promise<SocialPostR
     followingProfileIds: new Set(following.flatMap((profile) => profile ? [profile.id] : [])),
     mutualProfileIds: new Set(mutual.flatMap((profile) => profile ? [profile.id] : [])),
     blockedProfileIds: socialMemoryBlockedProfiles(actor.profileId),
+    mutedProfileIds: socialMemoryMutedProfiles(actor.profileId),
   };
 }
 
@@ -335,6 +342,7 @@ function feedAllows(
   area: string | null,
 ): boolean {
   if (!canRead(post, viewer, relationships)) return false;
+  if (relationships.mutedProfileIds?.has(post.authorProfileId)) return false;
   if (lane === "discover") return post.visibility === "public";
   if (lane === "nearby") return post.visibility === "public" && post.area === area;
   if (!relationships.followingProfileIds.has(post.authorProfileId)) return false;

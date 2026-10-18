@@ -391,6 +391,7 @@ a.lpPubPint:hover { color: var(--ink); }
 .dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
 .dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
 .dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dropStripLead { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
 .dropStripPrice { flex: 0 0 auto; }
 .dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }

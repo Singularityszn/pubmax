@@ -88,7 +88,7 @@ describe("pubpal:agent dry run", () => {
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {
       conversation_config: {
-        agent: { prompt: { prompt: string; llm: string; tool_ids: string[] } };
+        agent: { prompt: { prompt: string; llm: string; reasoning_effort: null; tool_ids: string[] } };
       };
       webhook_tools: Array<{
         api_schema: {
@@ -114,6 +114,7 @@ describe("pubpal:agent dry run", () => {
     };
     expect(body.llm).toBe("gemini-2.5-flash-lite");
     expect(body.conversation_config.agent.prompt.llm).toBe("gemini-2.5-flash-lite");
+    expect(body.conversation_config.agent.prompt.reasoning_effort).toBeNull();
     expect(body.webhook_tools.map((tool) => tool.api_schema.url)).toContain(
       "https://pubmaxxing.com/api/pub-pal/tools/search_venues",
     );

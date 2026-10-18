@@ -184,6 +184,19 @@ export const REGENERATED_LANES = [
     ],
   },
   {
+    id: "heritage_listings",
+    output: /^public\/data\/heritage_listings\.json$/,
+    inputs: [
+      /^scripts\/build_heritage_listings\.mjs$/,
+      /^scripts\/lib\/heritageMatch\.mjs$/,
+      /^scripts\/lib\/heritageBaseVenues\.mjs$/,
+      /^public\/data\/pint_prices_app_dataset\.json$/,
+      /^data\/osm\/uk\/uk_osm_pubs\.json$/,
+      /^public\/data\/venue_id_aliases\.json$/,
+      /^public\/data\/uk_base\/(?!README\.md$).+/,
+    ],
+  },
+  {
     id: "database_types",
     output: /^types\/database\.ts$/,
     inputs: [

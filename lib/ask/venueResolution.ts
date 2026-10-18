@@ -85,6 +85,11 @@ const PLACE_PHRASES: readonly string[][] = [
   .map((phrase) => phrase.split(" "))
   .filter((words) => words.length > 1);
 
+export function isKnownAskPlacePhrase(value: string): boolean {
+  const phrase = wordsOnly(value).replace(/^the\s+/, "");
+  return PLACE_PHRASES.some((words) => words.join(" ") === phrase);
+}
+
 /** Words any pub may carry: a name made only of these names no pub in particular. */
 const GENERIC_PUB_WORDS = new Set([
   "the", "and", "ye", "olde", "old", "new", "bar", "pub", "tap", "room", "rooms",
@@ -164,13 +169,13 @@ export function matchVenueByNameKeyless<T extends VenueNameMatchInput>(
   venues: readonly T[],
   name: string,
 ): T | null {
-  const needle = name.trim().toLowerCase();
+  const needle = wordsOnly(name);
   if (!needle) return null;
-  const exact = venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase() === needle));
+  const exact = venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label) === needle));
   if (exact) return exact;
-  const starts = venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase().startsWith(needle)));
+  const starts = venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label).startsWith(needle)));
   if (starts) return starts;
-  return venues.find((v) => venueSearchNames(v).some((label) => label.toLowerCase().includes(needle))) ?? null;
+  return venues.find((v) => venueSearchNames(v).some((label) => wordsOnly(label).includes(needle))) ?? null;
 }
 
 function queryTokens(query: string): string[] {
@@ -222,9 +227,9 @@ export function uniqueExactVenueNameMatch<T extends VenueNameMatchInput>(
   venues: readonly T[],
   name: string,
 ): T | null {
-  const needle = name.trim().toLowerCase();
+  const needle = wordsOnly(name);
   if (!needle) return null;
-  const hits = venues.filter((v) => venueSearchNames(v).some((label) => label.toLowerCase() === needle));
+  const hits = venues.filter((v) => venueSearchNames(v).some((label) => wordsOnly(label) === needle));
   return hits.length === 1 ? (hits[0] ?? null) : null;
 }
 
