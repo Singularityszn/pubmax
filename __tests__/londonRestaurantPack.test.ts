@@ -176,6 +176,6 @@ describe("restaurantRowsFromLayer", () => {
     ).rejects.toThrow(/holds 2 rows, its manifest says 3/);
     await expect(
       restaurantRowsFromLayer({ ...layer, countsByKind: { restaurant: 2 } }, async () => shardBody),
-    ).rejects.toThrow(/hold 1 restaurants, the manifest counts 2/);
+    ).rejects.toThrow(/hold 1 restaurant rows, the manifest counts 2/);
   });
 });
