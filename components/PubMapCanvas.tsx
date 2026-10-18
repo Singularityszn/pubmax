@@ -1209,6 +1209,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const selectedIdRef = useRef(selectedVenueId);
   // The reader's Pub Pal perched beside the selected pin (palMarker.ts).
   const palMarkerRef = useRef<PalMapMarker | null>(null);
+  // The last crawl stop the Pal was sent to, so a re-render never resends it.
+  const palVisitKeyRef = useRef("");
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
   // (settleSceneReady when the D2 tile-paint gate never armed, else that
   // gate's revealPins), and driven off the shared entrance/dash/pulse RAF loop
@@ -4289,17 +4291,24 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [routeCoordKey, mapReady, applyRouteData]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
-  // above once routed); with no crawl it perches beside the selected pin.
+  // above once routed), and goes to a stop the reader taps; with no crawl it
+  // perches beside the selected pin.
+  const routeIds = route.map((v) => v.id).join(",");
   useEffect(() => {
     if (!mapReady) return;
     const stops = palWalkStopsFromKey(routeCoordKey);
     if (stops.length > 1) {
       palMarkerRef.current?.walk({ key: routeCoordKey, stops, path: stops });
+      const stop = selectedVenueId ? routeIds.split(",").indexOf(selectedVenueId) : -1;
+      const visitKey = `${routeCoordKey}|${selectedVenueId}`;
+      if (stop >= 0 && visitKey !== palVisitKeyRef.current) palMarkerRef.current?.visit(stop);
+      palVisitKeyRef.current = visitKey;
       return;
     }
+    palVisitKeyRef.current = "";
     const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null);
-  }, [routeCoordKey, selectedVenueId, venues, mapReady]);
+  }, [routeCoordKey, routeIds, selectedVenueId, venues, mapReady]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {

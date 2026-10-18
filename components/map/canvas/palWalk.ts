@@ -17,6 +17,8 @@ export type PalWalkPlan = {
 
 export type PalWalkMoment = {
   at: LngLat;
+  /** Metres along the path. */
+  metres: number;
   /** 1 walking east, -1 walking west. */
   heading: 1 | -1;
   /** The index of the stop the Pal is pausing at, or null while it walks. */
@@ -27,6 +29,10 @@ export type PalWalkMoment = {
 /** The pause at each stop between the first and the last. */
 export const PAL_WALK_PAUSE_MS = 700;
 const MS_PER_METRE = 6;
+// A trip to a stop the reader tapped is brisker than the crawl walk.
+const VISIT_MS_PER_METRE = 4;
+const MIN_VISIT_MS = 600;
+const MAX_VISIT_MS = 3_500;
 const MIN_WALK_MS = 5_000;
 const MAX_WALK_MS = 16_000;
 const METRES_PER_DEGREE = 111_320;
@@ -41,6 +47,11 @@ function metresBetween(a: LngLat, b: LngLat): number {
 /** The walking time for a route of this length, before the pauses. */
 export function palWalkMs(totalMetres: number): number {
   return Math.min(MAX_WALK_MS, Math.max(MIN_WALK_MS, totalMetres * MS_PER_METRE));
+}
+
+/** The time a trip of this many metres along the route takes. */
+export function palVisitMs(metres: number): number {
+  return Math.min(MAX_VISIT_MS, Math.max(MIN_VISIT_MS, Math.abs(metres) * VISIT_MS_PER_METRE));
 }
 
 /** Every LineString in a route FeatureCollection, joined in order. */
@@ -102,7 +113,8 @@ export function palWalkPlan(path: LngLat[], stops: LngLat[]): PalWalkPlan | null
   };
 }
 
-function pointAt(plan: PalWalkPlan, metres: number): { at: LngLat; heading: 1 | -1 } {
+/** The point `metres` along the path, and which way that stretch runs. */
+export function palWalkPointAt(plan: PalWalkPlan, metres: number): { at: LngLat; metres: number; heading: 1 | -1 } {
   const { path, cumulative } = plan;
   let segment = 1;
   while (segment < path.length - 1 && cumulative[segment]! < metres) segment += 1;
@@ -112,6 +124,7 @@ function pointAt(plan: PalWalkPlan, metres: number): { at: LngLat; heading: 1 | 
   const t = span > 0 ? Math.min(1, Math.max(0, (metres - cumulative[segment - 1]!) / span)) : 1;
   return {
     at: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
+    metres,
     heading: b[0] < a[0] ? -1 : 1,
   };
 }
@@ -124,13 +137,13 @@ export function palWalkAt(plan: PalWalkPlan, elapsedMs: number): PalWalkMoment {
     const from = plan.stopsAt[leg]!;
     const to = plan.stopsAt[leg + 1]!;
     const legMs = (to - from) * msPerMetre;
-    if (left < legMs) return { ...pointAt(plan, from + left / msPerMetre), pausedAt: null, done: false };
+    if (left < legMs) return { ...palWalkPointAt(plan, from + left / msPerMetre), pausedAt: null, done: false };
     left -= legMs;
     const last = leg + 1 === plan.stopsAt.length - 1;
     if (!last) {
-      if (left < PAL_WALK_PAUSE_MS) return { ...pointAt(plan, to), pausedAt: leg + 1, done: false };
+      if (left < PAL_WALK_PAUSE_MS) return { ...palWalkPointAt(plan, to), pausedAt: leg + 1, done: false };
       left -= PAL_WALK_PAUSE_MS;
     }
   }
-  return { ...pointAt(plan, plan.total), pausedAt: null, done: true };
+  return { ...palWalkPointAt(plan, plan.total), pausedAt: null, done: true };
 }

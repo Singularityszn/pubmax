@@ -4,7 +4,7 @@ import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { pubPalMascotSlugFor, pubPalMascotSrc } from "@/lib/pubPalMascot";
 import type { PubPal } from "@/lib/pubPal";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { palWalkAt, palWalkPlan, type LngLat, type PalWalkPlan } from "./palWalk";
+import { palVisitMs, palWalkAt, palWalkPlan, palWalkPointAt, type LngLat, type PalWalkPlan } from "./palWalk";
 import "./palMarker.css";
 
 // The Pal on the map: the reader's own Pub Pal perched beside the pub they
@@ -19,6 +19,9 @@ import "./palMarker.css";
 //   the last stop: it moves for a window after a change, then rests, like the
 //   route dash. Under reduced motion it never walks and waits at the first
 //   stop. Its clock only runs on painted frames, so a hidden tab holds it;
+// - when the reader taps a crawl stop it walks along the route to that stop,
+//   backwards if it must, and jumps for joy beside it. A still Pal (reduced
+//   motion, or muted) steps straight there instead;
 // - it sits up and to the right of the pin, never over it, and takes no
 //   pointer events, so every pin under it stays tappable and the painted-pin
 //   probe still finds the pin it names;
@@ -52,10 +55,12 @@ export type PalMapMarker = {
   perch: (lngLat: LngLat | null) => void;
   /** Walk this crawl route once, then rest beside its last stop. */
   walk: (route: PalMapWalk) => void;
+  /** The reader tapped this stop of the crawl (its index): go to it. */
+  visit: (stop: number) => void;
   destroy: () => void;
 };
 
-const NO_PAL: PalMapMarker = { perch: () => {}, walk: () => {}, destroy: () => {} };
+const NO_PAL: PalMapMarker = { perch: () => {}, walk: () => {}, visit: () => {}, destroy: () => {} };
 
 function prefersReducedMotion(): boolean {
   try {
@@ -111,7 +116,20 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
 
   let marker: maplibregl.Marker | null = null;
   let perchedAt: string | null = null;
-  let walk: { key: string; road: boolean; plan: PalWalkPlan; stops: LngLat[]; elapsed: number } | null = null;
+  type Visit = { from: number; to: number; stop: number; elapsed: number; durationMs: number };
+  let walk: {
+    key: string;
+    road: boolean;
+    plan: PalWalkPlan;
+    stops: LngLat[];
+    /** Time into the one crawl walk; at its duration, the walk is over. */
+    elapsed: number;
+    /** Metres along the route the Pal stands at. */
+    metres: number;
+    /** The stop it rests beside, if any. */
+    restAt: number | null;
+    visit: Visit | null;
+  } | null = null;
   let frame = 0;
   let lastFrameAt = 0;
   let pausedAt: number | null = null;
@@ -142,31 +160,54 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
     frame = 0;
     walk = null;
     pausedAt = null;
-    element.classList.remove("isWalking");
+    element.classList.remove("isWalking", "isCheering");
     delete element.dataset.palWalk;
   };
 
-  const rest = (lngLat: LngLat) => {
+  // Rest beside a stop: "rested" at the end of the crawl walk, "visited"
+  // after the reader sent it there, when it jumps for joy.
+  const restBeside = (stop: number, state: "rested" | "visited") => {
+    if (!walk) return;
+    walk.visit = null;
+    walk.elapsed = walk.plan.durationMs;
+    walk.restAt = stop;
+    walk.metres = walk.plan.stopsAt[stop]!;
     element.classList.remove("isWalking");
-    element.dataset.palWalk = "rested";
+    element.dataset.palWalk = state;
     perchedAt = null;
-    place(lngLat, PERCH_OFFSET);
-    restartClass("isLanding");
+    place(walk.stops[stop]!, PERCH_OFFSET);
+    restartClass(state === "visited" ? "isCheering" : "isLanding");
   };
 
   const step = (now: number) => {
     frame = 0;
     if (!walk) return;
-    walk.elapsed += Math.min(MAX_FRAME_MS, Math.max(0, now - lastFrameAt));
+    const delta = Math.min(MAX_FRAME_MS, Math.max(0, now - lastFrameAt));
     lastFrameAt = now;
-    const moment = palWalkAt(walk.plan, walk.elapsed);
-    if (moment.done) {
-      const last = walk.stops[walk.stops.length - 1]!;
-      frame = 0;
-      walk.elapsed = walk.plan.durationMs;
-      rest(last);
+    if (walk.visit) {
+      const visit = walk.visit;
+      visit.elapsed += delta;
+      const t = Math.min(1, visit.elapsed / visit.durationMs);
+      if (t >= 1) {
+        restBeside(visit.stop, "visited");
+        return;
+      }
+      const eased = t * t * (3 - 2 * t);
+      const { at, metres, heading } = palWalkPointAt(walk.plan, visit.from + (visit.to - visit.from) * eased);
+      walk.metres = metres;
+      body.style.setProperty("--pal-facing", String(visit.to < visit.from ? -heading : heading));
+      element.classList.add("isWalking");
+      place(at, WALK_OFFSET);
+      frame = requestAnimationFrame(step);
       return;
     }
+    walk.elapsed += delta;
+    const moment = palWalkAt(walk.plan, walk.elapsed);
+    if (moment.done) {
+      restBeside(walk.stops.length - 1, "rested");
+      return;
+    }
+    walk.metres = moment.metres;
     body.style.setProperty("--pal-facing", String(moment.heading));
     element.classList.toggle("isWalking", moment.pausedAt === null);
     if (moment.pausedAt !== null && moment.pausedAt !== pausedAt) restartClass("isLanding");
@@ -200,18 +241,25 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
       if (!plan) return;
       perchedAt = null;
       if (walk && walk.key === route.key) {
-        // The road line for the same stops: carry on at the same point of the walk.
+        // The road line for the same stops: carry on at the same point of the
+        // walk, or of the trip to a tapped stop.
         const share = walk.plan.durationMs > 0 ? walk.elapsed / walk.plan.durationMs : 1;
         const finished = walk.elapsed >= walk.plan.durationMs;
-        walk = { ...walk, road, plan, elapsed: share * plan.durationMs };
+        const scale = plan.total / walk.plan.total;
+        const visit = walk.visit
+          ? { ...walk.visit, from: walk.visit.from * scale, to: plan.stopsAt[walk.visit.stop]! }
+          : null;
+        const metres = walk.restAt !== null ? plan.stopsAt[walk.restAt]! : walk.metres * scale;
+        walk = { ...walk, road, plan, elapsed: share * plan.durationMs, metres, visit };
         if (finished) return;
       } else {
         stopWalking();
-        walk = { key: route.key, road, plan, stops: route.stops, elapsed: 0 };
+        walk = { key: route.key, road, plan, stops: route.stops, elapsed: 0, metres: 0, restAt: null, visit: null };
       }
       // A sleeping (muted) Pal, like reduced motion, waits at the first stop.
       if (pal.muted || prefersReducedMotion()) {
         walk.elapsed = plan.durationMs;
+        walk.restAt = 0;
         element.dataset.palWalk = "waiting";
         place(route.stops[0]!, PERCH_OFFSET);
         return;
@@ -220,7 +268,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
         cancelStart?.();
         cancelStart = null;
         if (!walk || frame) return;
-        element.dataset.palWalk = "walking";
+        if (!walk.visit) element.dataset.palWalk = "walking";
         lastFrameAt = performance.now();
         frame = requestAnimationFrame(step);
       };
@@ -238,6 +286,35 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
         return;
       }
       start();
+    },
+    visit: (stop) => {
+      if (!walk || !Number.isInteger(stop) || stop < 0 || stop >= walk.stops.length) return;
+      if (pal.muted || prefersReducedMotion()) {
+        // A still Pal steps straight to the stop.
+        cancelStart?.();
+        cancelStart = null;
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
+        restBeside(stop, "visited");
+        return;
+      }
+      if (!walk.visit && walk.restAt === stop && walk.elapsed >= walk.plan.durationMs) {
+        // Already beside it: just the jump.
+        element.dataset.palWalk = "visited";
+        restartClass("isCheering");
+        return;
+      }
+      const to = walk.plan.stopsAt[stop]!;
+      walk.visit = { from: walk.metres, to, stop, elapsed: 0, durationMs: palVisitMs(to - walk.metres) };
+      // A tap ends the crawl walk: the Pal does not go back to it.
+      walk.elapsed = walk.plan.durationMs;
+      walk.restAt = null;
+      element.classList.remove("isCheering");
+      element.dataset.palWalk = "visiting";
+      // A walk still waiting for the map to load takes the trip when it starts.
+      if (frame || cancelStart) return;
+      lastFrameAt = performance.now();
+      frame = requestAnimationFrame(step);
     },
     destroy: () => {
       stopWalking();

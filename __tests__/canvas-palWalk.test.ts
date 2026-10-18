@@ -6,7 +6,9 @@ import {
   palWalkMs,
   palWalkPathFrom,
   palWalkPlan,
+  palWalkPointAt,
   palWalkStopsFromKey,
+  palVisitMs,
   type LngLat,
 } from "@/components/map/canvas/palWalk";
 
@@ -81,4 +83,16 @@ describe("the Pal's walk along a crawl", () => {
     expect(palWalkStopsFromKey("-0.1,51.5;-0.09,51.51")).toEqual([[-0.1, 51.5], [-0.09, 51.51]]);
     expect(palWalkStopsFromKey("")).toEqual([]);
   });
+
+  it("keeps a trip to a tapped stop brisk, either way along the route", () => {
+    expect(palVisitMs(0)).toBe(600);
+    expect(palVisitMs(-500)).toBe(2_000);
+    expect(palVisitMs(500)).toBe(2_000);
+    expect(palVisitMs(10_000)).toBe(3_500);
+    const plan = palWalkPlan(stops, stops)!;
+    const middle = palWalkPointAt(plan, plan.stopsAt[1]!);
+    expect(middle.metres).toBe(plan.stopsAt[1]);
+    expect(middle.at[0]).toBeCloseTo(stops[1]![0], 9);
+  });
 });
+

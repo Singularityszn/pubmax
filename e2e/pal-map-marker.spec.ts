@@ -94,5 +94,39 @@ test.describe("the Pal on the map", () => {
     const later = (await marker.boundingBox())!;
     expect(Math.hypot(later.x - first.x, later.y - first.y)).toBeLessThan(1);
   });
+
+  test("walks to a crawl stop the reader taps, and jumps beside it", async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedPal(page);
+    // The road request carries the crawl's stops, in order, as lng,lat pairs.
+    const routed = page.waitForRequest(/\/api\/walk-route\?/, { timeout: 60_000 });
+    await page.goto(`/map?mode=build&pubs=${CRAWL}`);
+    const stops = new URL((await routed).url()).searchParams.get("stops")!
+      .split(";").map((pair) => pair.split(",").map(Number) as [number, number]);
+    expect(stops).toHaveLength(3);
+
+    const marker = page.locator(".palMapMarker");
+    await expect(marker).toHaveAttribute("data-pal-walk", "rested", { timeout: 60_000 });
+    const tap = await page.evaluate((lngLat) => (
+      window as Window & { __pubmaxMapCamera?: { project: (point: [number, number]) => { x: number; y: number } } }
+    ).__pubmaxMapCamera!.project(lngLat), stops[0]!);
+    await page.mouse.click(tap.x, tap.y);
+
+    await expect(marker).toHaveAttribute("data-pal-walk", "visiting");
+    await mkdir(SHOTS, { recursive: true });
+    await page.screenshot({ path: `${SHOTS}/pal-visiting-390.png` });
+    await expect(marker).toHaveAttribute("data-pal-walk", "visited", { timeout: 10_000 });
+    await expect(marker).toHaveClass(/isCheering/);
+    // It perches up and to the right of the stop it was sent to.
+    const at = await page.evaluate((lngLat) => (
+      window as Window & { __pubmaxMapCamera?: { project: (point: [number, number]) => { x: number; y: number } } }
+    ).__pubmaxMapCamera!.project(lngLat), stops[0]!);
+    const box = (await marker.boundingBox())!;
+    expect(Math.abs(box.x - 14 - at.x)).toBeLessThan(3);
+    expect(Math.abs(box.y + box.height + 12 - at.y)).toBeLessThan(3);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${SHOTS}/pal-visited-390.png` });
+  });
 });
 

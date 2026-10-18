@@ -39,6 +39,10 @@
   .palMapMarker.isLanding:not([data-pal-state="sleeping"]) .palMapMarkerBody {
     animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both, palMapBob 3.2s ease-in-out .6s infinite;
   }
+  /* Sent to a crawl stop the reader tapped: a jump for joy, then the bob. */
+  .palMapMarker.isCheering:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapCheer .8s cubic-bezier(.3, .7, .4, 1) both, palMapBob 3.2s ease-in-out 1s infinite;
+  }
   /* Walking a crawl: a quick step bounce in place of the idle bob. */
   .palMapMarker.isWalking .palMapMarkerBody,
   .palMapMarker.isWalking:not([data-pal-state="sleeping"]) .palMapMarkerBody {
@@ -48,6 +52,13 @@
 @keyframes palMapLand {
   0% { opacity: 0; transform: translateY(-1.6rem) scale(.6); }
   60% { opacity: 1; transform: translateY(0) scale(1.08, .9); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes palMapCheer {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-.95rem) scale(1.12) rotate(-10deg); }
+  55% { transform: translateY(0) scale(1.1, .88); }
+  72% { transform: translateY(-.35rem) scale(1) rotate(7deg); }
   100% { transform: translateY(0) scale(1); }
 }
 @keyframes palMapStep {

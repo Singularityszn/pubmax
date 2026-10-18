@@ -256,5 +256,88 @@ describe("the Pal on the map", () => {
     runFrames(2);
     expect(instance!.lngLat![0]).toBeGreaterThan(crawl[0]![0]);
   });
+
+  it("walks back along the route to a tapped stop and jumps for joy beside it", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(1_000);
+    const [instance] = markerHarness.instances;
+    const element = instance!.options.element;
+    expect(element.dataset.palWalk).toBe("rested");
+
+    // From the last stop back to the first: it walks, facing the way it goes.
+    marker.visit(0);
+    expect(element.dataset.palWalk).toBe("visiting");
+    runFrames(5);
+    expect(element.classList.contains("isWalking")).toBe(true);
+    const between = instance!.lngLat!;
+    expect(between).not.toEqual(crawl[2]);
+    expect(between).not.toEqual(crawl[0]);
+    // The second leg runs east to west, so walking it backwards faces east.
+    expect(element.querySelector<HTMLElement>(".palMapMarkerBody")!.style.getPropertyValue("--pal-facing")).toBe("1");
+
+    runFrames(200);
+    expect(frames).toHaveLength(0);
+    expect(element.dataset.palWalk).toBe("visited");
+    expect(element.classList.contains("isCheering")).toBe(true);
+    expect(element.classList.contains("isWalking")).toBe(false);
+    expect(instance!.lngLat).toEqual(crawl[0]);
+    expect(instance!.options.offset).toEqual([14, -12]);
+
+    // Tapping the stop it already stands beside: just the jump again.
+    marker.visit(0);
+    expect(frames).toHaveLength(0);
+    expect(element.classList.contains("isCheering")).toBe(true);
+    // A stop that is not on the crawl does nothing.
+    marker.visit(7);
+    expect(element.dataset.palWalk).toBe("visited");
+  });
+
+  it("leaves the crawl walk for a stop tapped mid-walk, and does not go back to it", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    runFrames(10);
+    marker.visit(2);
+    runFrames(200);
+    const [instance] = markerHarness.instances;
+    expect(instance!.options.element.dataset.palWalk).toBe("visited");
+    expect(instance!.lngLat).toEqual(crawl[2]);
+    runFrames(200);
+    expect(frames).toHaveLength(0);
+  });
+
+  it("steps a still Pal straight to a tapped stop", () => {
+    reducedMotion(true);
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    marker.visit(1);
+    expect(frames).toHaveLength(0);
+    const [instance] = markerHarness.instances;
+    expect(instance!.lngLat).toEqual(crawl[1]);
+    expect(instance!.options.element.dataset.palWalk).toBe("visited");
+    expect(instance!.options.element.classList.contains("isWalking")).toBe(false);
+  });
+
+  it("takes a stop tapped while the map loads as soon as the map is ready", () => {
+    store(pal());
+    const handlers: Array<() => void> = [];
+    const loading = {
+      loaded: () => false,
+      once: (_event: string, handler: () => void) => handlers.push(handler),
+      off: vi.fn(),
+    } as unknown as maplibregl.Map;
+    const marker = createPalMapMarker(loading);
+    marker.walk({ key: crawlKey, stops: crawl, path: crawl });
+    marker.visit(1);
+    expect(frames).toHaveLength(0);
+    handlers.forEach((handler) => handler());
+    runFrames(200);
+    const [instance] = markerHarness.instances;
+    expect(instance!.options.element.dataset.palWalk).toBe("visited");
+    expect(instance!.lngLat).toEqual(crawl[1]);
+  });
 });
 
