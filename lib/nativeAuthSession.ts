@@ -28,8 +28,15 @@ export async function cancelNativeAuthSession(attemptId: string): Promise<void> 
 /** Invalidations stop pending exchanges. Account actions wait for an already-started install. */
 export function createNativeAuthLifetime() {
   let generation = 0;
+  let reservations = 0;
   let installation: Promise<unknown> | null = null;
   return {
+    /** Holds a place without stopping older work: a later begin, invalidation or reservation ends it. */
+    reserve() {
+      const at = generation;
+      const mine = ++reservations;
+      return { current: () => at === generation && mine === reservations };
+    },
     begin() {
       const ticket = ++generation;
       return {
