@@ -11,7 +11,7 @@ import {
   palPostcardPoints,
   palPostcardStops,
   type PalPostcardPoint,
-} from "@/components/pal/palPostcard";
+} from "@/components/pal/palPostcardLayout";
 import { readLocalPal } from "@/lib/localPal";
 import { PAL_PRINT_SIZE, palGenomeFor, palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import type { PubPal } from "@/lib/pubPal";
@@ -123,7 +123,14 @@ export default function PalPostcard({
             {points.map((point, index) => (
               <g key={index} className="palPostcardStop">
                 <circle className="palPostcardDot" cx={point.x} cy={point.y} r={20} />
-                <text className="palPostcardNumber" x={point.x} y={point.y} dominantBaseline="central" textAnchor="middle">
+                <text
+                  className="palPostcardNumber"
+                  x={point.x}
+                  y={point.y}
+                  fontSize={20}
+                  dominantBaseline="central"
+                  textAnchor="middle"
+                >
                   {index + 1}
                 </text>
               </g>

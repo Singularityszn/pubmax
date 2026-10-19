@@ -10,7 +10,7 @@ import {
   palPostcardPath,
   palPostcardPoints,
   palPostcardStops,
-} from "@/components/pal/palPostcard";
+} from "@/components/pal/palPostcardLayout";
 import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
