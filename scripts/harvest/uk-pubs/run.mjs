@@ -375,6 +375,9 @@ async function enrichSeed(rows, { mock, startedAt, seedCount, paths }) {
       buffer.push(await enrichPubWithClient(pub, client, fetchedAt));
     } catch (error) {
       if (isFatalExaError(error)) {
+        // Out of credit or a bad key. The pubs already read were paid for, so
+        // they are written as a short shard and a resume starts after them.
+        await flush();
         throw error;
       }
       console.warn(`  enrich failed for ${pub.osmId}: ${error instanceof Error ? error.message : error}`);
