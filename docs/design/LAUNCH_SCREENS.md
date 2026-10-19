@@ -50,7 +50,7 @@ Rules the table obeys:
 | `/map` and `/map/[city]` | London (the city name) | (no heading: the map is the surface) | Use my location | Choose an area |
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
-| `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | See them on the map | Find my pint |
+| `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | Open the map | Find my pint |
 | `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Plan | Plan a pub crawl | Plan it (submit the ask) | Step by step |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |

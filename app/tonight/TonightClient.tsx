@@ -642,7 +642,7 @@ export default function TonightClient({
       <NowSegment current="tonight" />
 
       {/* Screen composition follows docs/design/LAUNCH_SCREENS.md: the one
-          painted primary, "See them on the map", sits in the head with its one
+          painted primary, "Open the map", sits in the head with its one
           quiet secondary beside it. The head is short enough now (no credits,
           no chips above the list) that the first pub still clears a phone's
           tab bar with the row in it; the rule and its measure are in
@@ -655,7 +655,7 @@ export default function TonightClient({
         titleId="tonight-title"
         primary={
           <Link prefetch={false} href="/map" className="tonightFootLink">
-            See them on the map
+            Open the map
           </Link>
         }
         secondary={
