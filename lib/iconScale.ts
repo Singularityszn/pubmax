@@ -21,8 +21,6 @@ export const ICON_SIZE = {
   large: 24,
 } as const;
 
-export type IconSize = (typeof ICON_SIZE)[keyof typeof ICON_SIZE];
-
 export const ICON_SIZES: readonly number[] = Object.values(ICON_SIZE);
 
 /**

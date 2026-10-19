@@ -600,8 +600,6 @@ export function formatPrice(value: number | null): string {
   return typeof value === "number" ? formatGbp(value) : "No price";
 }
 
-export { formatGbp };
-
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
