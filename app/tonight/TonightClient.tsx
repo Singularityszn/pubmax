@@ -181,6 +181,11 @@ function areaNewsSlug(
   return area?.slug ?? null;
 }
 
+function TonightUnmatchedNotice({ out }: { out: TonightOutAnswer }): ReactNode {
+  if (!out.body?.events.some((row) => !row.venueId)) return null;
+  return <p className="tonightProvenance">Some event listings are not matched to a pub.</p>;
+}
+
 // The rail leads with a photograph of the place the page is about: the Night
 // Area the reader told us (the same coarse area the news rail reads), else
 // London when the heading is London's. Never a pub's photograph: those go
@@ -975,6 +980,7 @@ export default function TonightClient({
           are about. A stamp is a footnote on the data, and nobody shares a list
           they have not read yet. */}
       <div className="tonightHeadCredits">
+        <TonightUnmatchedNotice out={outAnswer} />
         {ready || empty ? (
           <TonightProvenanceLines
             provenance={provenance}

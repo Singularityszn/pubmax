@@ -32,7 +32,15 @@ Each `data/places_enrichment*.json` pack holds each returned field with `source:
 
 <a id="a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n"></a>
 
-- **A venue KIND is a closed list with one owner, and a non-pub kind is present-but-neutral.** `VENUE_KINDS` (`lib/venues.ts`) is the ONE list every reader narrows from, and `isVenueKind` is the single guard, because `buildVenueIndexFromSlim`, `isValidSlimVenue` and the zone index each restated it and a kind added in one place was discarded by the next. The first five kinds are CURATED and carry prices, pint lanes and every pub surface. The kinds that arrived with the UK-wide OSM venue pack are neutral by construction: `isPubVenueKind` answers false, so no price is assumed and no pint lane opens, and `curatedVenueKind` answers null so the map's kind filter does not offer them. Every kind NAMES itself in `venueKindLabel` and `venueKindNoun`, because a fall-through would print the wrong noun the moment the vocabulary widened. Pins: `__tests__/ukOsmVenueSeed.test.ts`, `__tests__/venueKindFilters.test.ts`.
+- **Venue kind and price meaning are separate contracts.** `VENUE_KINDS` in `lib/venues.ts` owns the vocabulary, and `isVenueKind` guards it. An absent kind means pub for older payloads and caches. `venueKindLabel` and `venueKindNoun` name every kind. `curatedVenueKind` controls map-filter membership. Other UK-wide OSM kinds remain neutral and have no curated filter control.
+
+  `legacyOsmVenueKind` in `lib/legacyOsmVenueKind.mjs` preserves a recorded bar kind only when the stamped OSM identity matches the bar comment's identity. The full loader, slim builder and validator share this rule without a name blacklist or a runtime seed read. The builder stamps `legacyOsmBar: true`, and the validator checks that marker against the committed source rows.
+
+  `hasPintPriceSemantics` in `lib/venues.ts` separates price meaning from venue kind. Pubs and marked legacy bars retain pint filtering, map figures, hover labels, list prices and legend meaning. A legacy bar remains a bar. It cannot enter the pub match index or Tonight's pub-only lists. Curated item anchors retain type-relative bands, labelled prices and exemption from the maximum-pint-price filter. The [price-band guide](../PRICE_BANDS.md#current-thresholds) owns threshold sampling.
+
+  The slim reader checks legacy price evidence separately from complete curated anchors. `hasValidAnchor` in `lib/venuesSlim.ts` owns these checks. Pin and resume conversions preserve the marker and price evidence.
+
+  Regression coverage lives in `__tests__/venuesSlim.test.ts`, `__tests__/outHonestyGuard.test.ts`, `__tests__/londonOsmPromotion.test.ts` and `__tests__/validateDrinkPriceUpdatesScript.test.ts`. Vocabulary coverage remains in `__tests__/ukOsmVenueSeed.test.ts` and `__tests__/venueKindFilters.test.ts`.
 
 <a id="near-desk-mode-is-a-second-question-never-a-second-map"></a>
 

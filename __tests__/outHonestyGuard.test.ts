@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { groupVenuePrices } from "@/lib/venues";
 // P1 guard — Out honesty (ClaudeFix, 1 Oct 2026).
 //
 // ON PUBMAXX only for rows with a confirmed pub match. Everything else sits under
@@ -12,7 +14,6 @@ import { describe, expect, it } from "vitest";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import {
   OUT_LISTING_PUB_ABSENT_LINE,
-  OUT_LISTING_VENUE_BADGE_LABEL,
   outListingPubPair,
   outVenueMatchNotice,
 } from "@/lib/outDesktopGrouping";
@@ -33,6 +34,7 @@ import { defined } from "@/__tests__/helpers/defined";
 const ABBA_ARENA: VenueRef = {
   id: "venue-16cduf6",
   name: "ABBA Arena",
+  kind: "bar",
   borough: "Newham",
   lat: 51.5331758,
   lng: -0.0131831,
@@ -114,8 +116,8 @@ describe("out honesty guard — request-time matching", () => {
     expect(defined(attached.rows[0]).venueId).toBeUndefined();
   });
 
-  it("only attaches ABBA Arena when the place name and coordinates confirm the pin", () => {
-    expect(matchOutRowVenue(ABBA_VOYAGE, SLIM_INDEX)).toBe("venue-16cduf6");
+  it("does not call an arena bar a pub when its name and coordinates match", () => {
+    expect(matchOutRowVenue(ABBA_VOYAGE, SLIM_INDEX)).toBeNull();
     const wrongCoords = { ...ABBA_VOYAGE, lat: 51.5, lng: 0 };
     expect(matchOutRowVenue(wrongCoords, SLIM_INDEX)).toBeNull();
   });
@@ -152,8 +154,8 @@ describe("out honesty guard — /out lead and wording", () => {
     const matchedHtml = renderToStaticMarkup(
       createElement(OutListingPubPair, { row: defined(matched) }),
     );
-    expect(matchedHtml).toContain(OUT_LISTING_VENUE_BADGE_LABEL);
-    expect(matchedHtml).toContain("/map?sel=venue-16cduf6");
+    expect(matchedHtml).toContain(OUT_LISTING_PUB_ABSENT_LINE);
+    expect(matchedHtml).not.toContain("/map?sel=venue-16cduf6");
 
     const theatreHtml = renderToStaticMarkup(
       createElement(OutListingPubPair, { row: SIX_VAUDEVILLE }),
@@ -181,6 +183,23 @@ describe("out honesty guard — no map pin for unmatched listings", () => {
     expect(tonightRowHasListedPub(SIX_VAUDEVILLE, selectable)).toBe(false);
     expect(tonightRowHasListedPub(NEW_CROSS_WREX, selectable)).toBe(false);
     const merged = mergeTonightListingRows([], attached.rows, NOW, "ready", selectable);
-    expect(merged.map((row) => row.id)).toEqual(["events-tm-abba-voyage"]);
+    expect(merged.map((row) => row.id)).toEqual([]);
+  });
+});
+
+
+describe("the published arena bar on the pub listing boundary", () => {
+  it("keeps both generated and hydrated arena bars unmatched to a pub", () => {
+    const slim = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")).rows;
+    const raw = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8"));
+    const full = groupVenuePrices(raw).find((venue) => venue.id === "venue-16cduf6");
+    const arena = slim.find((venue: { id: string }) => venue.id === "venue-16cduf6");
+    expect(full?.kind).toBe("bar");
+    expect(arena.kind).toBe("bar");
+    const attached = attachOutVenues([ABBA_VOYAGE], buildOutVenueMatchIndex([arena]));
+    expect(attached.rows[0]?.venueId).toBeUndefined();
+    const html = renderToStaticMarkup(createElement(OutListingPubPair, { row: defined(attached.rows[0]) }));
+    expect(html).toContain(OUT_LISTING_PUB_ABSENT_LINE);
+    expect(html).not.toContain("On PUBMAXX");
   });
 });

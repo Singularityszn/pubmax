@@ -1,0 +1,29 @@
+{
+  "base": "fa9e86c767aa12ca9a3062f7b6570a9cf7c18f8d",
+  "startingHead": "e6baa97a957de906afd6324d0956d0326a705c49",
+  "venues": 2262,
+  "kindCorrectionsAgainstBase": 147,
+  "extraRowField": {
+    "name": "legacyOsmBar",
+    "value": true,
+    "rows": 147,
+    "derivedFrom": "legacyOsmVenueKind over committed source identity and recorded bar observation"
+  },
+  "allOtherRowValuesUnchangedAgainstBase": true,
+  "allOtherRowValuesUnchangedAgainstStartingHead": true,
+  "generatedAt": "2026-10-05T00:00:00.000Z",
+  "generatedAtUnchanged": true,
+  "spatialCellsCompared": 273,
+  "markerOccurrencesAcrossPayloads": 294,
+  "revisions": {
+    "starting": "local",
+    "regenerated": "e6baa97a957d"
+  },
+  "priceBands": {
+    "startingSample": 942,
+    "finalSample": 939,
+    "cheapMaxGbp": 5.2,
+    "averageMaxGbp": 6.15,
+    "unchangedAgainstStartingHead": true
+  }
+}
