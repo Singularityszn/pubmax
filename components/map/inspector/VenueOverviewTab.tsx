@@ -1155,7 +1155,7 @@ export default function VenueOverviewTab({
       {/* Patch yardstick: this pint against the borough Pint Index average, or
           the fare-zone median when the Index has no row. Same displayable pint
           stack as the then-and-now block. Renders nothing without a yardstick. */}
-      {experienceLens === "all" && isPubVenue(venue) ? (
+      {restingPintView && isPubVenue(venue) ? (
         <VenueAreaPriceCompare
           priceGbp={overviewPintGbp}
           primaryBorough={venue.primaryBorough}
