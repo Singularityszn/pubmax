@@ -19,8 +19,8 @@ test("the Pal reads the year back from this device", async ({ page }) => {
   await installAuthDoubles(page);
   const now = "2026-10-04T12:00:00.000Z";
   const serverPal = {
-    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id, name: "Ripley",
-    adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, muted: false, hidden: false,
+    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
+    adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, name: "Ripley", muted: false, hidden: false,
     proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
   };
   await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: serverPal, adultOnFile: true } }));
