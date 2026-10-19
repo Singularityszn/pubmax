@@ -164,8 +164,10 @@ describe("resolveMapDisplayName", () => {
     ).toBe("Bristol");
   });
 
-  it("names the newest London read, and nothing for a blank day", () => {
-    expect(mapPricesReadLine("2 October 2026")).toBe("Newest London price read 2 October 2026.");
+  it("dates the bundled London snapshot, never as the newest price, and nothing for a blank day", () => {
+    const line = mapPricesReadLine("2 October 2026");
+    expect(line).toBe("London pint prices: a snapshot from 2 October 2026.");
+    expect(line).not.toMatch(/newest|latest/i);
     expect(mapPricesReadLine("  ")).toBeNull();
   });
 });

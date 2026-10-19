@@ -25,7 +25,7 @@ type MapLoadingSkeletonProps = {
   cityDisplayName?: string;
   /** The route-level frame, which stands in for a page that owns its <main>. */
   routeLevel?: boolean;
-  /** When the newest London price was read, or null off London's bundled prices. */
+  /** The bundled London pint snapshot's date line, or null off London's bundled prices. */
   pricesReadLine?: string | null;
 };
 

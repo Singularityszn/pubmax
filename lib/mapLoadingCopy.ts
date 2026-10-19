@@ -12,13 +12,15 @@ export function mapLoadingPrimaryLine(cityDisplayName: string): string {
 }
 
 /**
- * The loading screens' freshness line. It names the NEWEST London read, which
- * is a page stamp and not a covering line, so it claims nothing about the
- * oldest price on the map. `day` arrives formatted by the server.
+ * The loading screens' freshness line. It dates the bundled London pint
+ * snapshot, in the same words as `formatPintDatasetAsOf`, and nothing more:
+ * Pint Drops and sourced menu rows carry their own, sometimes newer, dates, so
+ * calling this day the newest price on the map would understate them (Codex on
+ * #2276). `day` arrives formatted by the server.
  */
 export function mapPricesReadLine(day: string): string | null {
   const trimmed = day.trim();
-  return trimmed ? `Newest London price read ${trimmed}.` : null;
+  return trimmed ? `London pint prices: a snapshot from ${trimmed}.` : null;
 }
 
 /**

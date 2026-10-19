@@ -2152,7 +2152,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 0;
 }
 
-/* The newest London price read, on both loading screens: the same line in
+/* The London pint snapshot date, on both loading screens: the same line in
    the same type, so the handover from skeleton to live frame repaints nothing. */
 .mapSkeletonCopy p.mapSkeletonReads,
 .mapLoadingReads {
