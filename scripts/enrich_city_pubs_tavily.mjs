@@ -440,8 +440,21 @@ export function pruneManagedCityPrices(existing, cityVenueKeys) {
   );
 }
 
+function readPriceFile(filePath) {
+  return existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf8")) : {};
+}
+
 function readUpdates(filePath) {
-  return existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf8")).updates ?? [] : [];
+  return readPriceFile(filePath).updates ?? [];
+}
+
+/**
+ * A price file rewritten with this pass's updates. The pass owns `updates` and
+ * nothing else, so every other field (a reviewed import's receipt in
+ * `reviewedImports`, say) is carried over as it was.
+ */
+export function rewritePriceFile(existing, { generatedAt, updates }) {
+  return { ...existing, version: 1, generatedAt, updates };
 }
 
 function writeEvidence(city, state, runResult, cityVenueKeys, observedAt) {
@@ -470,24 +483,24 @@ function writeEvidence(city, state, runResult, cityVenueKeys, observedAt) {
 
   if (state.prices.length === 0) return;
   const datedPath = path.join(PRICE_DIR, `prices_${stamp}.json`);
-  atomicWriteJson(datedPath, {
-    version: 1,
-    generatedAt,
-    updates: mergeCanonicalPrices(
-      pruneManagedCityPrices(readUpdates(datedPath), cityVenueKeys),
-      state.prices,
-    ),
-  });
+  const datedFile = readPriceFile(datedPath);
+  atomicWriteJson(
+    datedPath,
+    rewritePriceFile(datedFile, {
+      generatedAt,
+      updates: mergeCanonicalPrices(pruneManagedCityPrices(datedFile.updates ?? [], cityVenueKeys), state.prices),
+    }),
+  );
 
   const latestPath = path.join(PRICE_DIR, "latest.json");
-  atomicWriteJson(latestPath, {
-    version: 1,
-    generatedAt,
-    updates: mergeCanonicalPrices(
-      pruneManagedCityPrices(readUpdates(latestPath), cityVenueKeys),
-      state.prices,
-    ),
-  });
+  const latestFile = readPriceFile(latestPath);
+  atomicWriteJson(
+    latestPath,
+    rewritePriceFile(latestFile, {
+      generatedAt,
+      updates: mergeCanonicalPrices(pruneManagedCityPrices(latestFile.updates ?? [], cityVenueKeys), state.prices),
+    }),
+  );
 }
 
 async function main() {

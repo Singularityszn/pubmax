@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-19T14:49:15.850Z",
+  "updates": [
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "SAINT MONDAY - WEST COAST IPA",
+      "category": "beer",
+      "priceGbp": 6.9,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "SANDFORD - DEVON RED - CIDER",
+      "category": "beer",
+      "priceGbp": 6.5,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "BRISTOL BEER FACTORY - LASER JUICE - SIPA",
+      "category": "beer",
+      "priceGbp": 7.4,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "PILLARS - VIENNA LAGER",
+      "category": "beer",
+      "priceGbp": 5.2,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "REDEMPTION - BIG CHIEF - IPA",
+      "category": "beer",
+      "priceGbp": 5.8,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "FIVE POINTS - BRICK FIELD BROWN",
+      "category": "beer",
+      "priceGbp": 5.8,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "THORNBRIDGE - HOPTON - ENGLISH PALE ALE",
+      "category": "beer",
+      "priceGbp": 6,
+      "servingSize": "pint",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    },
+    {
+      "venueKey": "duke of st. albans|15, highgate road, london, nw5 1qx|51.56143|-0.15045",
+      "drinkName": "LAGER Modelo - Mexican Lager",
+      "category": "beer",
+      "priceGbp": 6,
+      "servingSize": "568ml",
+      "source": {
+        "label": "Duke of St. Albans - official site",
+        "url": "https://www.dukeofstalbans.com/s/Dukes-Drink-Menu-010525.pdf",
+        "licence": "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact."
+      },
+      "observedAt": "2026-10-19T14:25:02.579Z"
+    }
+  ]
+}

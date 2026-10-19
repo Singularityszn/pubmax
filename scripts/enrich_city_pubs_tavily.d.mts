@@ -54,6 +54,12 @@ export type RejectedRow = { venueKey: string; sourceUrl: string; rejectedAt?: st
 
 export function loadCityPubs(cityId: string): OsmPub[];
 
+/** A price file rewritten with a pass's updates; every field it does not own is kept. */
+export function rewritePriceFile<T extends Record<string, unknown>, U>(
+  existing: T,
+  next: { generatedAt: string; updates: U[] },
+): Omit<T, "version" | "generatedAt" | "updates"> & { version: 1; generatedAt: string; updates: U[] };
+
 export function readRejectedRows(value: unknown): RejectedRow[];
 
 export type CorrectedRow = { venueKey: string; drinkName: string; category: string; correctedAt?: string };
