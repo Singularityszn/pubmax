@@ -1132,27 +1132,6 @@ export default function VenueOverviewTab({
           }
         />
       ) : null}
-      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
-          Spoons value ranking holds. Sits under today's price because it is a
-          different question about the same bar, and renders nothing for every
-          other pub. Never a price lane: the figure is a units count somebody
-          else read off a menu (lib/spoonsValue.ts). */}
-      <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
-      {/* What a pint here used to cost: one dated figure from the archives,
-          against the price on record now. Sits directly under today's price
-          because the comparison IS the point. History only - the old figure
-          never enters bands, pins, cheapest buckets or the Pint Index
-          (lib/priceHistory.ts). Renders nothing for a pub with no history.
-          Hidden under a drink lens: an old pint does not answer coffee. */}
-      {restingPintView ? (
-        <VenuePriceThen
-          venueId={venue.id}
-        // "Now" is only offered where today's figure is a pint. A bar or food
-        // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
-        // is withheld rather than compared against an old pint.
-          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
-        />
-      ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a bar or late-food venue would
@@ -1263,12 +1242,35 @@ export default function VenueOverviewTab({
           <NextBadgeChips />
       </Disclosure>
       {gettingHome}
-      {/* BELOW THE FOLD BECAUSE THEY LAND LATE (captain, 19 Oct 2026). Both rows
-          render nothing until their own read answers, which is 3 to 5 seconds
-          after the sheet opens on a slow phone. Above the getting-home fold
-          they pushed its summary down about 80px under a reader's finger, and
-          a tap whose press and release straddled the move was lost. A row
-          that appears after the sheet opens may not sit above a control. */}
+      {/* BELOW THE FOLD BECAUSE THEY LAND LATE (captain, 19 Oct 2026). Each of
+          these rows renders nothing until its own read answers, which is 3 to
+          5 seconds after the sheet opens on a slow phone. Above the
+          getting-home fold the area line and the hygiene rating pushed its
+          summary down about 80px under a reader's finger, and a tap whose
+          press and release straddled the move was lost. A row that appears
+          after the sheet opens may not sit above a control. */}
+      {/* What a tenner buys here, when this pub is one of the Wetherspoons the
+          Spoons value ranking holds. Its own heading names the question, so it
+          reads on its own away from today's price, and it renders nothing for
+          every other pub. Never a price lane: the figure is a units count
+          somebody else read off a menu (lib/spoonsValue.ts). */}
+      <VenueSpoonsValueRow venueId={venue.id} visible={restingPintView} />
+      {/* What a pint here used to cost: one dated figure from the archives,
+          against the price on record now. Its line prints both figures
+          ("£3.10 in Jun 2019. £5.40 now."), so it reads on its own away from
+          today's price. History only - the old figure never enters bands,
+          pins, cheapest buckets or the Pint Index (lib/priceHistory.ts).
+          Renders nothing for a pub with no history. Hidden under a drink
+          lens: an old pint does not answer coffee. */}
+      {restingPintView ? (
+        <VenuePriceThen
+          venueId={venue.id}
+        // "Now" is only offered where today's figure is a pint. A bar or food
+        // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
+        // is withheld rather than compared against an old pint.
+          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
+        />
+      ) : null}
       {/* Patch yardstick: this pint against the borough Pint Index average, or
           the fare-zone median when the Index has no row. Its line names the
           pint it compares ("£4.20 here."), so it reads on its own away from
