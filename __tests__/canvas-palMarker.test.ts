@@ -36,7 +36,7 @@ vi.mock("maplibre-gl", () => ({
   },
 }));
 
-import { createPalMapMarker, palMarkerElement } from "@/components/map/canvas/palMarker";
+import { createPalMapMarker, palMarkerElement, palPinIsCheap } from "@/components/map/canvas/palMarker";
 import { palWalkPlan, type LngLat } from "@/components/map/canvas/palWalk";
 import { announcePalMoment } from "@/lib/palMoments";
 import type { PubPal } from "@/lib/pubPal";
@@ -154,6 +154,32 @@ describe("the Pal on the map", () => {
     expect(markerHarness.instances).toHaveLength(2);
     marker.destroy();
     expect(markerHarness.instances[1]!.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the band the pin itself paints: the Spoons value band first, else the price bucket", () => {
+    expect(palPinIsCheap({ bucket: 0 })).toBe(true);
+    expect(palPinIsCheap({ bucket: 1 })).toBe(false);
+    expect(palPinIsCheap({ bucket: 3 })).toBe(false);
+    expect(palPinIsCheap({ bucket: 2, spoonsBucket: 0 })).toBe(true);
+    expect(palPinIsCheap({ bucket: 0, spoonsBucket: 2 })).toBe(false);
+    expect(palPinIsCheap({ bucket: "0" })).toBe(false);
+    expect(palPinIsCheap({})).toBe(false);
+    expect(palPinIsCheap(undefined)).toBe(false);
+  });
+
+  it("lands with a happy hop beside a cheap pin, and a plain landing beside any other", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.perch([-0.1, 51.5], { cheap: true });
+    const element = markerHarness.instances[0]!.options.element;
+    expect(element.classList.contains("isCheering")).toBe(true);
+    expect(element.dataset.palPin).toBe("cheap");
+
+    marker.perch([-0.12, 51.51], { cheap: false });
+    expect(element.classList.contains("isCheering")).toBe(false);
+    expect(element.classList.contains("isLanding")).toBe(true);
+    expect(element.dataset.palPin).toBeUndefined();
+    marker.destroy();
   });
 
   it("walks a crawl once, standing on the line, then rests beside the last stop", () => {
