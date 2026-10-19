@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
   platform: "ios" as "ios" | "android" | null,
   realIdentity: false,
   realAuth: null as SupabaseClient | null, persist: vi.fn(), stopAutoRefresh: vi.fn(),
-  navigate: vi.fn(), available: true, switchAccount: vi.fn(), canonicalEmail: vi.fn(),
+  navigate: vi.fn(), available: true, providerRefused: false, switchAccount: vi.fn(), canonicalEmail: vi.fn(),
   listeners: new Set<(event: { url: string }) => void>(), launchUrl: null as string | null,
   bootstrap: vi.fn(), tokenRequests: 0, referralBodies: [] as Record<string, unknown>[], tokenDelay: null as Promise<unknown> | null, resumeBody: null as null | Record<string, unknown>,
   identityRequests: 0, identityDelay: null as Promise<unknown> | null, referralDelay: null as Promise<unknown> | null,
@@ -60,7 +60,9 @@ vi.mock("@/lib/authSessionBootstrap", () => ({
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
-  guardSocialAuthProvider: async (_provider: string, start: () => Promise<unknown>) => ({ result: await start() }),
+  guardSocialAuthProvider: async (_provider: string, start: () => Promise<unknown>) => h.providerRefused
+    ? ({ availability: { google: false, apple: false, microsoft: false }, result: { error: "Google sign-in is unavailable right now." } })
+    : ({ result: await start() }),
 }));
 vi.mock("@/lib/deviceAccountSwitch", () => ({
   activateDeviceAccount: h.switchAccount,
@@ -100,7 +102,7 @@ let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
-  h.platform = "ios"; h.realIdentity = false; h.session = null; h.realAuth = null; h.available = true; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
+  h.platform = "ios"; h.realIdentity = false; h.session = null; h.realAuth = null; h.available = true; h.providerRefused = false; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.listeners.clear(); h.launchUrl = null; h.callbackUrl = ""; h.otpBody = null; h.tokenBody = null; h.tokenRequests = 0; h.referralBodies = []; h.tokenDelay = null; h.resumeBody = null;
@@ -378,6 +380,25 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect(h.tokenRequests).toBe(1);
     expect(h.navigate).toHaveBeenCalledWith("/u/you");
+  });
+
+  it("keeps a sent link usable when the provider check refuses a social start", async () => {
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test", "/u/you")).status).toBe("sent"); });
+    const callback = await emailCallback();
+    h.providerRefused = true;
+    await act(async () => { expect((await actions.signInWithGoogle()).error).toBe("Google sign-in is unavailable right now."); });
+    expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).not.toBeNull();
+    await openApp(callback);
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    expect(h.tokenRequests).toBe(1);
+    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+  });
+
+  it("ends a sent link once the provider check lets a social start begin", async () => {
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("sent"); });
+    await act(async () => { await actions.signInWithGoogle(); });
+    expect(h.authenticate).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
   });
 
   it.each(["superseded", "expired"] as const)("says a %s email link could not be completed instead of doing nothing", async (reason) => {

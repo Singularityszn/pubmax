@@ -1000,9 +1000,11 @@ export function AuthProvider({
     }).catch(() => {});
   }, [router]);
 
+  // The claim keeps a sent email link: the provider check may still refuse
+  // this start, and then the email form still says the link was sent.
   const claimNativeIOSOAuth = useCallback(() => {
     if (typeof window === "undefined" || nativePlatform() !== "ios") return null;
-    const installation = cancelPendingNativeAuth();
+    const installation = cancelPendingNativeAuth(true);
     return { installation, ticket: nativeAuthLifetime.current.begin() };
   }, [cancelPendingNativeAuth]);
 
@@ -1013,6 +1015,8 @@ export function AuthProvider({
   ): Promise<AuthStartResult | { useExistingOAuth: true }> => {
     await installation;
     if (!ticket.current()) return { error: null };
+    // The provider passed its check, so this start now replaces a sent link.
+    discardNativeEmailAttempt(browserLocalStorage(), browserSessionStorage(), window.location.origin);
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!ticket.current()) return { error: null };
     if (!supabase) return { error: "Sign-in is not configured." };
