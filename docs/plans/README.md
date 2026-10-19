@@ -12,6 +12,7 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
 | [`PAVEMENT_ANSWERS_WAVE.md`](./PAVEMENT_ANSWERS_WAVE.md) | SHIPPING | Research-led: open now, mug-check, cheapest-in-view, saved pubs, Tonight cold-start |
 | [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | SHIPPING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
+| [`RECAP_VIDEO_EXPORT.md`](./RECAP_VIDEO_EXPORT.md) | PROPOSAL, CAPTAIN DECIDES | MP4 export of the recap video: Remotion Lambda versus a render script, with cost for each 1,000 renders |
 | [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |
 
 **Desktop-parity isolation note:** that plan’s away-mode rules still apply (no push/merge of D1–D6 without owner review). Re-read its §5.1 freeze map before any desktop parity build.

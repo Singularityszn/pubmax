@@ -11,9 +11,15 @@
 // This makes the same reads and DOM writes as theme-init.js, each only where
 // its attribute is missing, and renders nothing. It never overrides a value
 // that is already set.
+//
+// It also keeps the browser bar on the page's colour. The root viewport ships
+// two theme-color tags keyed to the OS scheme, so a reader who picks dark in
+// the app on a light phone would see a cream bar over a dark page. Whenever
+// html[data-theme] is set or changes, both tags take that theme's colour.
 
 import { useEffect } from "react";
 
+import { BROWSER_BAR_COLOR } from "@/lib/browserBarColor";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { resolveThemePreference, storedThemePreference } from "@/lib/themePreference";
 import {
@@ -23,6 +29,13 @@ import {
   parseMode,
   resolveMode,
 } from "@/lib/viewMode";
+
+function paintBrowserBar(theme: string | undefined): void {
+  if (theme !== "light" && theme !== "dark") return;
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    meta.content = BROWSER_BAR_COLOR[theme];
+  }
+}
 
 function storedValue(storage: Storage | null, key: string): string | null {
   try {
@@ -53,6 +66,11 @@ export default function ThemeAttribute(): null {
         root.dataset.legacy = "1";
       }
     }
+
+    paintBrowserBar(root.dataset.theme);
+    const observer = new MutationObserver(() => paintBrowserBar(root.dataset.theme));
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
   }, []);
 
   return null;

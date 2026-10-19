@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundCodeJoin from "@/components/round/RoundCodeJoin";
 import RoundStarter from "@/components/round/RoundStarter";
-import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 
 import "./[code]/round.css";
@@ -32,11 +31,11 @@ export default function RoundsIndex(): React.JSX.Element {
         title="Who bought the last round."
         titleId="rounds-title"
       >
-        <RoundStarter primaryAction />
-        <EmptyState title="Join with a link" action={<RoundCodeJoin />}>
-          A round opens from the link whoever started it sent you. Got the
-          code instead? Type it here.
-        </EmptyState>
+        {/* The start form IS the page: no card, no second title under the
+            head. Its submit is the one primary; opening a code a mate read out
+            is the quiet secondary under it (docs/design/LAUNCH_SCREENS.md). */}
+        <RoundStarter primaryAction bare />
+        <RoundCodeJoin />
       </Screen>
     </main>
   );

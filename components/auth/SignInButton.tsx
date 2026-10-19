@@ -553,7 +553,7 @@ export default function SignInButton({
             aria-label="Sign in"
           >
             <span className="authCompactIcon">
-              <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+              <LogIn size={16} aria-hidden="true" />
             </span>
             <span className="authCompactLabel" aria-hidden="true">
               <span>Sign in</span>
@@ -587,7 +587,7 @@ export default function SignInButton({
           aria-label="Sign in"
         >
           <span className="authCompactIcon">
-            <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+            <LogIn size={16} aria-hidden="true" />
           </span>
           {/* Visually hidden on the densest tablet band (auth.css ≤900px);
               the aria-label above keeps the accessible name either way. */}

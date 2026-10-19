@@ -390,7 +390,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
           aria-label="Dismiss city status"
           onClick={dismiss}
         >
-          <X size={12} strokeWidth={2.25} aria-hidden="true" />
+          <X size={14} aria-hidden="true" />
         </button>
       </div>
       {expanded && hasDetails ? (
@@ -409,7 +409,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
               aria-label="Close signals list"
               onClick={closeDetails}
             >
-              <X size={14} strokeWidth={2.25} aria-hidden="true" />
+              <X size={14} aria-hidden="true" />
             </button>
           </div>
           {affectedLines.length > 0 ? (

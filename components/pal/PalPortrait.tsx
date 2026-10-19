@@ -5,6 +5,7 @@ import {
   type PubPalAppearance,
   type PubPalSpecies,
 } from "@/lib/pubPal";
+import { palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 
@@ -51,13 +52,15 @@ function legacyIconFor(species: PubPalSpecies): { Icon: LucideIcon; description:
 const PORTRAIT_MASCOT_SIZES =
   "(max-width: 760px) min(10.44rem, 41.76vw), min(24.36rem, 42.92vw)";
 
-export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false }: {
+export default function PalPortrait({ appearance, name, compact = false, state = "idle", priority = false, genome }: {
   appearance: PubPalAppearance;
   name: string;
   compact?: boolean;
   state?: PalAnimationState;
   /** True where this portrait is the largest thing on the screen it opens. */
   priority?: boolean;
+  /** This Pal's genome: how its photograph is held. None for a draft. */
+  genome?: PalGenome;
 }) {
   const mascotSize = compact ? 96 : 192;
   // A species that ships a master is drawn as that photograph. The legacy
@@ -70,6 +73,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
     <div
       className={`palPortrait palPortrait-${appearance.signalAffinity} palPortrait-${appearance.material} ${compact ? "isCompact" : ""}`}
       data-pal-state={state}
+      {...(genome ? { "data-genome": "", style: palGenomeStyle(genome) as React.CSSProperties } : {})}
       {...(legacy
         ? {
             role: "img" as const,
@@ -77,7 +81,10 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           }
         : {})}
     >
-      <span className="palPortraitField" aria-hidden="true" />
+      {/* One calm frame around the photograph: no glow field behind it, no
+          scanlines over it and no drifting echo beside it. Those were the
+          orbit-or-scanline and glow tells (docs/VOICE.md, "Template
+          patterns"; docs/DESIGN_SYSTEM.md, "no glow"). */}
       <span className="palPortraitCore" aria-hidden={!rendered}>
         {rendered ? (
           <PubPalMascot
@@ -91,9 +98,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
         ) : legacy ? (
           <legacy.Icon className="palLegacyIcon" strokeWidth={1.15} />
         ) : null}
-        <span className="palPortraitScan" />
       </span>
-      <span className="palPortraitEcho" aria-hidden="true"><span className="palPortraitSignalMark" /></span>
       {appearance.accessory !== "none" ? <span className="palPortraitAccessory" aria-hidden="true">{appearance.accessory.replace("-", " ")}</span> : null}
     </div>
   );

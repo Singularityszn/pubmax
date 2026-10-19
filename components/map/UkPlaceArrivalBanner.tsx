@@ -20,7 +20,7 @@ export default function UkPlaceArrivalBanner({
       className="ukPlaceArrival"
       aria-label={`${arrival.name} map coverage`}
     >
-      <MapPin className="ukPlaceArrivalIcon" size={18} aria-hidden="true" />
+      <MapPin className="ukPlaceArrivalIcon" size={16} aria-hidden="true" />
       <span className="ukPlaceArrivalCopy">
         <strong>{arrival.name} pubs are on the map.</strong>
         <span>
@@ -33,7 +33,7 @@ export default function UkPlaceArrivalBanner({
         onClick={() => setDismissed(true)}
         aria-label={`Dismiss ${arrival.name} map note`}
       >
-        <X size={18} aria-hidden="true" />
+        <X size={20} aria-hidden="true" />
       </button>
     </aside>
   );

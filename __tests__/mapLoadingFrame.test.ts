@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapLoading from "@/app/map/loading";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
+import { MapPricesReadContext } from "@/components/map/mapPricesReadContext";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import { MAP_LOADING_SLOW_AFTER_MS } from "@/lib/mapLoadingCopy";
@@ -130,7 +131,22 @@ describe("the map's held loading frame", () => {
     expect(glass?.textContent).toBe("");
     expect(
       Array.from(stack?.children ?? []).map((line) => line.textContent),
-    ).toEqual(["London pub map", "Loading London pubs…", "Still loading pubs…"]);
+    ).toEqual(["Loading London pubs…", "Still loading pubs…"]);
+  });
+
+  // The taste pass of 18 Oct 2026: the frame is a plain field with the glass
+  // and its one line. The fake map (streets, a river, pins drawn in spans) and
+  // the eyebrow over the line are gone, not hidden.
+  it("draws no fake map and no eyebrow, only the glass and its line", () => {
+    act(() => {
+      root.render(
+        createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 12 }),
+      );
+    });
+
+    expect(host.querySelector(".mapLoadingScene")).toBeNull();
+    expect(host.querySelector(".mapLoadingEyebrow")).toBeNull();
+    expect(frame().textContent).not.toContain("pub map");
   });
 
   it("draws the progress bar without announcing a second time", () => {
@@ -254,5 +270,44 @@ describe("useMapPinsRevealed", () => {
       window.dispatchEvent(new CustomEvent(MAP_PIN_REVEAL_EVENT));
     });
     expect(revealed()).toBe("true");
+  });
+});
+
+// Site review, 18 Oct 2026: "the map opens on a 'Loading pubs' shell". Both
+// loading screens now date the bundled London pint snapshot, from a line
+// the page builds on the server, and say nothing where none was handed in.
+describe("the map's loading screens date the London pint snapshot", () => {
+  const line = "London pint prices. Snapshot from 2 October 2026.";
+
+  it("prints the line the shell hands the held frame, and nothing without one", () => {
+    act(() => {
+      root.render(
+        createElement(
+          MapPricesReadContext.Provider,
+          { value: line },
+          createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 35 }),
+        ),
+      );
+    });
+    expect(frame().querySelector(".mapLoadingReads")?.textContent).toBe(line);
+
+    act(() => {
+      root.render(createElement(MapLoadingFrame, { mapDisplayName: "Manchester", progress: 35 }));
+    });
+    expect(frame().querySelector(".mapLoadingReads")).toBeNull();
+  });
+
+  it("prints the same line on the first skeleton, and nothing without one", () => {
+    act(() => {
+      root.render(
+        createElement(MapLoadingSkeleton, { cityDisplayName: "London", pricesReadLine: line }),
+      );
+    });
+    expect(host.querySelector(".mapSkeletonReads")?.textContent).toBe(line);
+
+    act(() => {
+      root.render(createElement(MapLoadingSkeleton, { cityDisplayName: "Manchester" }));
+    });
+    expect(host.querySelector(".mapSkeletonReads")).toBeNull();
   });
 });

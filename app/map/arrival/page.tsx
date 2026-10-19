@@ -5,6 +5,7 @@ import PubMaxingShell from "@/components/PubMaxingShell";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 import { pintShareCardVenue, pintShareMetadata } from "@/lib/pintShare";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import {
@@ -136,13 +137,21 @@ export default async function MapArrivalPage({
   const sp = searchParams ? await searchParams : undefined;
   const placeArrival = placeArrivalFor(sp);
   const zonePintIndex = await loadZonePintIndex();
+  const ukNationalBrowse = nationalBrowseFor(sp, placeArrival);
+  // London's bundled prices date the London map only: a UK-wide browse or an
+  // uncovered place arrival opens somewhere those prices do not describe.
+  const pricesReadLine =
+    placeArrival || ukNationalBrowse
+      ? null
+      : mapPricesReadLineFor("london");
   return (
     <>
       <PubMaxingShell
         cityId="london"
         placeArrival={placeArrival}
-        ukNationalBrowse={nationalBrowseFor(sp, placeArrival)}
+        ukNationalBrowse={ukNationalBrowse}
         zonePintIndex={zonePintIndex}
+        pricesReadLine={pricesReadLine}
       />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

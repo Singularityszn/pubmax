@@ -24,6 +24,13 @@ type SavedPubListProps = {
   ownerHandle?: string;
   groups: Partial<Record<ListType, SavedPubDTO[]>> | null;
   followedLists?: FollowedSavedListDTO[];
+  /**
+   * Whether the reader owns these lists. An owner with none is told how to
+   * start one; a visitor on somebody else's empty lists meets no section at
+   * all, because "save a venue to start a list" is advice to the wrong person
+   * and a section that opens on an empty state says nothing (taste plan).
+   */
+  isOwner?: boolean;
 };
 
 function formatCount(count: number, singular: string, plural: string): string {
@@ -34,6 +41,7 @@ export default function SavedPubList({
   ownerHandle,
   groups,
   followedLists = [],
+  isOwner = true,
 }: SavedPubListProps) {
   const owner = normalizeHandle(ownerHandle);
   if (groups === null) {
@@ -56,6 +64,10 @@ export default function SavedPubList({
     .filter((t) => !builtInSet.has(t) && (groups[t]?.length ?? 0) > 0)
     .sort((a, b) => a.localeCompare(b));
   const populated = [...builtIns, ...custom];
+
+  if (populated.length === 0 && !isOwner) {
+    return <FollowedLists lists={followedLists} />;
+  }
 
   if (populated.length === 0) {
     return (

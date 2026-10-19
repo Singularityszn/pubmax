@@ -33,8 +33,10 @@ than quietly shorter.
 
 The ingest FILLS IN a `venueId` when the name matches exactly one curated
 venue, using the area to tell two pubs of one name apart. An ambiguous name is
-left unmatched on purpose: the row still shows, and says it is not on our map
-yet, because the wrong pin under the right name is the worst answer available.
+left unmatched on purpose: the row stays in the pack, and says it is not on our
+map yet, because the wrong pin under the right name is the worst answer
+available. The page fills its places with pinned rows first, so an unmatched
+row shows only when the pinned rows leave a place empty.
 
 ## Rules a reader should know
 

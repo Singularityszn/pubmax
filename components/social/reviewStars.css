@@ -30,7 +30,7 @@
 .reviewStars__figure {
   margin-left: 6px;
   font-family: var(--font-data);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

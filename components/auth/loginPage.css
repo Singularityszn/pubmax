@@ -11,13 +11,9 @@
     max(1rem, env(safe-area-inset-right))
     max(1.5rem, env(safe-area-inset-bottom))
     max(1rem, env(safe-area-inset-left));
-  background:
-    radial-gradient(
-      120% 80% at 50% -10%,
-      color-mix(in srgb, var(--brass) 14%, transparent),
-      transparent 55%
-    ),
-    var(--paper);
+  /* Plain paper. A coral wash behind the head spent the accent on decoration
+     (docs/DESIGN_SYSTEM.md "Coral is spent twice"); the submit is the coral. */
+  background: var(--paper);
   color: var(--ink);
 }
 
@@ -35,24 +31,35 @@
   padding-inline: 0;
 }
 
+/* The form-screen head (no painted primary) is a plain header: kicker,
+   heading, lede, spaced the way the Screen head spaces them. */
+header.loginPageHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
 .loginPageInner .loginPageHead .screenHead {
   padding-top: 0;
 }
 
+/* Balanced, so a two-line heading never leaves "account" alone on its line,
+   and a lede that ends on a whole phrase rather than "lands.". */
 .loginPageHead .loginPageTitle {
   margin: 0;
-  font-size: clamp(1.75rem, 6vw, 2.15rem);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  font-size: clamp(var(--text-xl), 6vw, var(--text-2xl));
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   font-weight: 800;
+  text-wrap: balance;
 }
 
 .loginPageLead {
   margin: 0;
   max-width: 36ch;
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.45;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
 .loginPageNotice {
@@ -62,7 +69,7 @@
   border-radius: 0.85rem;
   background: var(--panel);
   color: var(--ink-soft);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -96,7 +103,7 @@
   gap: 0.25rem;
   padding: 0.25rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
 }
 
@@ -116,13 +123,13 @@
 
 .loginPageSkeletonPill {
   height: 44px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .loginPageSkeletonBar,
 .loginPageSkeletonField,
 .loginPageSkeletonButton {
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
 }
 
 .loginPageSkeletonBar {
@@ -165,7 +172,7 @@
   gap: 0.25rem;
   padding: 0.25rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
 }
 
@@ -173,11 +180,11 @@
   min-height: 44px;
   padding: 0.4rem 0.75rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 750;
   cursor: pointer;
   transition:
@@ -188,7 +195,6 @@
 .loginPageDoor[data-selected] {
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink-deep) 14%, transparent);
 }
 
 /* Inside the one-hairline group, focus marks the door itself rather than
@@ -196,7 +202,7 @@
 .loginPageDoor:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: -2px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .loginPageForm .authOptions {
@@ -206,7 +212,7 @@
 
 .loginPageError {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -216,15 +222,15 @@
   justify-items: start;
   padding: 1.1rem;
   border: 1px solid var(--line);
-  border-radius: 1.15rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: 0 16px 40px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+  box-shadow: var(--shadow-sm);
 }
 
 .loginPageWelcomeBackLead {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -234,9 +240,9 @@
   gap: 1rem;
   padding: 1.1rem;
   border: 1px solid var(--line);
-  border-radius: 1.15rem;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: 0 16px 40px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+  box-shadow: var(--shadow-sm);
 }
 
 .loginPageIdentity {
@@ -250,8 +256,8 @@
   width: 48px;
   height: 48px;
   flex: 0 0 auto;
-  border-radius: 999px;
-  font-size: 0.95rem;
+  border-radius: 50%;
+  font-size: var(--text-base);
 }
 
 .loginPageIdentityText {
@@ -262,7 +268,7 @@
 
 .loginPageWho {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-weight: 750;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -271,7 +277,7 @@
 .loginPageHandle {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 650;
   line-height: 1.3;
   overflow-wrap: anywhere;
@@ -280,7 +286,7 @@
 .loginPageEmail {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
@@ -292,7 +298,32 @@
 
 /* The email form's own submit is the page's ONE painted control (captain's
    ruling, 7 Sep 2026), so it keeps the accent fill app/auth/auth.css gives it;
-   the head paints nothing while the form is on screen. */
+   the head paints nothing while the form is on screen.
+
+   NOT READY READS AS NOT READY, NEVER AS AN ERROR. Until the field holds an
+   address (and while a link is sending or sent) the submit is disabled, and
+   the shared `.authSignIn:disabled` dims the deep coral to 60%: a muddy maroon
+   with a white label under 3:1 that read like a fault. Here it takes the
+   neutral control surface instead, with a muted label that still clears AA,
+   and the coral arrives the moment the address is valid. */
+.loginPage .authSignIn.authMagicLinkButton:disabled {
+  opacity: 1;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+/* Every control on the page is one height (the --control-height row): the
+   provider buttons measured 36px beside the 44px field and submit above the
+   phone breakpoint, where app/auth/auth.css only floors them at 44px below
+   480px. */
+.loginPage .authSignIn {
+  min-height: var(--control-height);
+}
+
+.loginPage .authMagicLinkLabel {
+  font-size: var(--text-sm);
+}
 
 .loginPageSignOut {
   width: 100%;
@@ -325,29 +356,33 @@
   background: none;
   color: var(--ink-soft);
   font-family: inherit;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 650;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 
-.loginPageQuietLink:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .loginPageQuietLink:hover {
+    color: var(--ink);
+  }
 }
 
 .loginPageLegal {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
 }
 
+/* A link inside a sentence keeps the sentence's own spacing. The old 44px
+   minimum WIDTH centred "terms" in a box wider than the word, so it printed
+   with a gap on each side. The tap height stays. */
 .loginPageLegal a {
   display: inline-flex;
   align-items: center;
-  min-width: 44px;
-  justify-content: center;
   min-height: 44px;
   vertical-align: middle;
   color: inherit;
@@ -367,17 +402,19 @@
   margin-top: 0.25rem;
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel);
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   text-align: center;
 }
 
-.loginPageHandlePasswordToggle:hover {
-  border-color: var(--brass);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .loginPageHandlePasswordToggle:hover {
+    border-color: var(--brass);
+    color: var(--ink);
+  }
 }
 
 .loginPageHandlePassword {
@@ -391,14 +428,14 @@
 
 .loginPageHandlePasswordTitle {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 700;
 }
 
 .loginPageHandlePasswordField {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 650;
   color: var(--ink-soft);
 }
@@ -407,18 +444,18 @@
   min-height: 44px;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: var(--radius);
   background: var(--paper);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 /* Shown under EVERY failure, never only for an account with no password: a
    line that appeared conditionally would answer "does this handle exist". */
 .loginPageHandlePasswordGuidance {
   margin: 0;
-  color: var(--ink-muted);
-  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .loginPageHandlePasswordActions {

@@ -14,7 +14,7 @@ export default function MomentPage(): React.JSX.Element {
     <Suspense
       fallback={
         <main id="main" className="momentPage" aria-busy="true" aria-label="Loading Moment composer">
-          <div className="momentMain">
+          <div className="screen momentMain">
             <div className="momentSkeleton" aria-hidden="true">
               <span className="momentSkeletonEyebrow" />
               <span className="momentSkeletonTitle" />

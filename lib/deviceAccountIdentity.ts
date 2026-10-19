@@ -51,6 +51,9 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   "pubmax-badge-event-opt-ins",
   // The host name the plan composer remembers prints on every share card.
   "pubmax:plan-host-name:v1",
+  // The Pub Pal this browser last saved (lib/localPal.ts): its name and
+  // portrait stand in the dock, on the map and on the recap postcard.
+  "pubmax_pub_pal_v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */

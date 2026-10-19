@@ -136,12 +136,12 @@ export default function LandlordPanel(props: {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      <BookOpen size={11} />
+                      <BookOpen size={14} />
                       {citationSourceLabel(c.source)}
                     </a>
                   ) : (
                     <span key={`${c.source}-${i}`} className="citationChip">
-                      <BookOpen size={11} />
+                      <BookOpen size={14} />
                       {citationSourceLabel(c.source)}
                     </span>
                   ),

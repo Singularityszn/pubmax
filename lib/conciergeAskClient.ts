@@ -132,12 +132,20 @@ function asProposals(raw: unknown): AskProposal[] {
       continue;
     }
     if (record.kind === "remember_memory" && isPubPalMemoryKind(record.memoryKind) && str(record.value).trim()) {
+      const supersedesMemoryId = str(record.supersedesMemoryId).trim();
+      const relation: "update" | "delete" | null =
+        record.relation === "update" ? "update" : record.relation === "delete" ? "delete" : null;
+      const supersedes =
+        relation && supersedesMemoryId
+          ? { relation, supersedesMemoryId, supersedesValue: str(record.supersedesValue).trim() }
+          : {};
       out.push({
         id: id || `remember:${record.memoryKind}`,
         kind: "remember_memory",
         label,
         memoryKind: record.memoryKind,
         value: str(record.value).trim(),
+        ...supersedes,
       });
     }
   }

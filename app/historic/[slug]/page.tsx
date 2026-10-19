@@ -13,6 +13,7 @@ import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import HistoricPubDetail from "./HistoricPubDetail";
 
+import "@/components/listing/listing.css";
 import "./historic-detail.css";
 
 // Per-pub heritage DETAIL page: /historic/[slug]. The canonical, shareable,
@@ -145,7 +146,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   if (!pub) notFound();
 
   return (
-    <main id="main" className="hdPage">
+    <main id="main" className="hdPage listingShell">
       <JsonLd data={historicPubJsonLd(pub)} />
       <SiteNav active="historic" />
 

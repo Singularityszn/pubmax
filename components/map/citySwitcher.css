@@ -15,14 +15,14 @@
   gap: 4px;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
   /* The toolbar row's type: it read 11.52px at 800 beside Filters, Drink and
      Plan an outing at 13.76px (site audit 13 Sep 2026, D7). */
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
   touch-action: manipulation;
   box-sizing: border-box;
@@ -32,11 +32,18 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.citySwitcher.isOpen .citySwitcherTrigger,
-.citySwitcherTrigger:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
-  color: var(--tint-ink-accent);
+.citySwitcher.isOpen .citySwitcherTrigger {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .citySwitcherTrigger:hover {
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
+  }
 }
 
 .citySwitcherLabel {
@@ -72,10 +79,10 @@
   margin: 0;
   padding: 4px;
   list-style: none;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-  border-radius: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--panel-raised);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+  box-shadow: var(--shadow);
 }
 
 .citySwitcherLink {
@@ -85,11 +92,11 @@
   min-height: 44px;
   padding: 8px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-align: left;
   text-decoration: none;
@@ -99,19 +106,19 @@
 .citySwitcherLocation {
   padding-bottom: 4px;
   margin-bottom: 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-bottom: 1px solid var(--line);
 }
 
 .citySwitcherLocationLink {
   justify-content: flex-start;
   gap: 8px;
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  background: var(--panel-raised);
 }
 
 .citySwitcherArea {
   margin-bottom: 4px;
   padding-bottom: 4px;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-bottom: 1px solid var(--line);
 }
 
 .citySwitcherAreaLink {
@@ -135,14 +142,16 @@
   display: none;
 }
 
-.citySwitcherLink:hover {
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .citySwitcherLink:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
 }
 
 .citySwitcherLink.isActive {
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  color: var(--brass);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .citySwitcherNational {
@@ -197,7 +206,7 @@
     min-height: 44px;
     height: 44px;
     padding: 0 8px;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     line-height: 1;
     box-sizing: border-box;
   }

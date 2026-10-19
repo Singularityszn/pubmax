@@ -178,7 +178,6 @@ describe("monospace is for figures", () => {
     ["components/landing/landing.css", ".lpFooterCredit"],
     ["components/landing/landing.css", ".lpFooterLegal"],
     ["components/landing/landing.css", ".dropStripEra, .provChip"],
-    ["app/globals.css", ".mapLoadingEyebrow"],
     ["app/globals.css", ".venueHoverEyebrow"],
     ["app/places/places.css", ".placesPill"],
     ["app/legal.css", ".legalRow dt"],

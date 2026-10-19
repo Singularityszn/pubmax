@@ -166,13 +166,13 @@ test.describe("the account's own data doors", () => {
       await expect(doors).toBeAttached({ timeout: 30_000 });
       await expect(doors.locator("#export-account")).toBeVisible();
       await expect(doors.locator("#delete-account")).toBeVisible();
-      // Two panels side by side above 760px, stacked on a phone.
+      // Two panels side by side above 640px, stacked on a phone.
       const [exportBox, deleteBox] = await Promise.all([
         doors.locator("#export-account").boundingBox(),
         doors.locator("#delete-account").boundingBox(),
       ]);
       expect(exportBox && deleteBox).toBeTruthy();
-      if (size.width > 760) {
+      if (size.width > 640) {
         expect(Math.round(exportBox!.y)).toBe(Math.round(deleteBox!.y));
         expect(exportBox!.x + exportBox!.width).toBeLessThanOrEqual(deleteBox!.x + 1);
       } else {

@@ -12,6 +12,18 @@
 :root {
   --tabbar-h: 64px;
 
+  /* THE FOOT EVERY SCROLLING PAGE RESERVES, AND ONLY THE BODY RESERVES IT.
+     On a phone the tab bar, the home indicator and the floating create disc
+     all stand over the bottom of the page. The body pads its foot by this one
+     token (the phone rules further down), so the last line of a page scrolls
+     clear of all three. A page never adds the bar's height to its own bottom
+     padding: that drew a second empty band, up to 200px deep on /social and
+     /u/<handle>. A page that needs the number for another reason (a sticky
+     foot, a min-height that should end above the chrome) reads this token,
+     never --tabbar-h. Zero above the phone breakpoint, where nothing floats
+     over the foot of the page. Fence: __tests__/chromeBottomClearance.test.ts. */
+  --chrome-bottom-clearance: 0px;
+
   /* ── The right-edge floating stack ────────────────────────────────────────
      Every fixed control that parks above the tab bar is a MEMBER, and every
      member publishes its own bottom offset and its own height here. That is
@@ -198,14 +210,16 @@ body:has(.mobileMapUtilityCorner) {
    with a quiet pulse that reduced-motion freezes here, plus the shared pint
    loader, whose pour is gated in components/ui/pintLoader.css. */
 .routeLoadingShell {
-  min-height: 100dvh;
-  min-height: 100svh;
+  /* It fills the screen down to the chrome, never under it: the body already
+     reserves the chrome's foot, so a full 100svh scrolled by exactly that. */
+  min-height: calc(100dvh - var(--chrome-bottom-clearance));
+  min-height: calc(100svh - var(--chrome-bottom-clearance));
   box-sizing: border-box;
-  /* The same top padding as the loaded page (app/tonight/tonight.css). The nav
+  /* The same padding as the loaded page (app/tonight/tonight.css). The nav
      bar adds the top safe-area inset itself (components/nav/siteNav.css), so
-     adding it here too drew the nav 38px lower than the page it stood in for. */
-  padding: 16px 20px
-    calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
+     adding it here too drew the nav 38px lower than the page it stood in for,
+     and the body reserves the bottom chrome, so the foot is reading room. */
+  padding: 16px 20px var(--space-6);
   background: var(--paper);
   color: var(--ink);
 }
@@ -223,8 +237,8 @@ body:has(.mobileMapUtilityCorner) {
 .routeLoadingShellBar,
 .routeLoadingShellCard {
   display: block;
-  border-radius: var(--radius-sm, 10px);
-  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised, var(--paper)));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised));
   animation: routeLoadingPulse 1.4s ease-in-out infinite;
 }
 .routeLoadingShellBar {
@@ -273,19 +287,31 @@ body:has(.mobileMapUtilityCorner) {
 }
 
 @media (max-width: 640px) {
-  body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
-    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  /* The bar alone: its lane, the home indicator and one gap, so the last line
+     of a page that hides the create disc ends a gap above the rail instead of
+     touching it. */
+  :root:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
+    --chrome-bottom-clearance: calc(
+      var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
+    );
   }
 
-  /* The create action floats one gap ABOVE that reserved lane, so a page whose
+  /* The create action floats one gap ABOVE the bar's lane, so a page whose
      content simply ends there had its last row occluded at rest with no way to
-     scroll clear. The lane it owns is its own published top edge, never a
-     number restated here, and it is reserved from the BASE berth: the pages
-     that push the control higher (the map, the planner) do not scroll their
-     body at all. The fixed-height map shell never needs body clearance. A
-     page that hides the control keeps the bar's clearance and nothing more. */
+     scroll clear. While the control is on screen the reserve is its own
+     published top edge, never a number restated here. It is declared on the
+     body because the body is where every member that lifts the control (the
+     Night pill, the Pub Pal pill) publishes its berth. A page that hides the
+     control keeps the bar's clearance and nothing more. */
   body:has(.createFabRoot):not(:has(.mapStage)):not(:has(.pageHidesCreateFab)):not(:has(.analyticsConsentPrompt)):not(:has(.planComposer__lock)):not(:has(.mapArrivalCard)):not(:has(.appShell.detail-open)):not(:has(.appShell.planning-open)):not(:has(.nightCard)):not(:has(.createFabRoot.isKeyboardHidden)) {
-    padding-bottom: var(--float-stack-top-create);
+    --chrome-bottom-clearance: var(--float-stack-top-create);
+  }
+
+  /* The one reserve. The fixed-height map shell never scrolls its body, so it
+     keeps its own geometry and reserves nothing here. While the analytics
+     consent card is up, globals.css adds the card's measured lane instead. */
+  body:has(.mobileTabBar, .mobileTabBarClearance, .createFabRoot):not(:has(.mapStage)) {
+    padding-bottom: var(--chrome-bottom-clearance);
   }
 
   .mobileTabBar {
@@ -363,7 +389,7 @@ body:has(.mobileMapUtilityCorner) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 5;
+    --tab-count: 6;
     --tab-inset: 4px;
     /* THE PRESSED RAIL. The dock is a raised mat and the page you are on is a
        well pressed into it (the bar-mat tactility in docs/DESIGN_SYSTEM.md),
@@ -380,8 +406,12 @@ body:has(.mobileMapUtilityCorner) {
     box-shadow:
       0 -2px 10px color-mix(in srgb, var(--ink-deep) 6%, transparent),
       0 10px 24px -10px color-mix(in srgb, var(--ink-deep) 32%, transparent);
-    /* Clip the gliding highlight to the pill's own rounded rect (#1544). */
-    overflow: hidden;
+    /* The rail does not clip: the Pub Pal's face rises out of it
+       (PalNavButton.tsx). The gliding highlight stays inside the rounded rect
+       by its own geometry (#1544): it is inset by --tab-inset, one column
+       wide, and with no tab lit it fades where it stands rather than sliding
+       to a column outside the rail. */
+    overflow: visible;
     pointer-events: auto;
   }
 
@@ -400,9 +430,7 @@ body:has(.mobileMapUtilityCorner) {
     width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
     border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
     background: var(--state-selected-surface);
-    box-shadow:
-      inset 0 1.5px 3px color-mix(in srgb, var(--ink-deep) 22%, transparent),
-      inset 0 -1px 0 color-mix(in srgb, var(--paper) 80%, transparent);
+    box-shadow: var(--shadow-inset-press);
     transform: translateX(calc(var(--active-index, -1) * 100%));
     z-index: 0;
     pointer-events: none;
@@ -435,12 +463,12 @@ body:has(.mobileMapUtilityCorner) {
     min-height: 44px;
     padding: 4px 2px;
     border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
-    color: var(--muted, var(--ink-soft));
+    color: var(--muted);
     text-decoration: none;
     /* iOS-convention tab labels — floored at 11px (the one sub-12px exception),
        ellipsis preserved by .mobileTabLabel. Idle words stay a step lighter
        so the page you are on is the one that carries weight. */
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     font-weight: 600;
     letter-spacing: 0.01em;
     line-height: 1.05;
@@ -500,7 +528,7 @@ body:has(.mobileMapUtilityCorner) {
     width: 0.35rem;
     height: 0.35rem;
     border-radius: 50%;
-    background: var(--brass, currentcolor);
+    background: currentcolor;
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */
@@ -546,7 +574,7 @@ body:has(.mobileMapUtilityCorner) {
   }
 }
 
-@media (max-width: 390px) {
+@media (max-width: 640px) {
   .mobileTabBar {
     padding-inline: 10px;
   }
@@ -563,7 +591,7 @@ body:has(.mobileMapUtilityCorner) {
   .mobileTab {
     /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
        the 11px floor (iOS-convention exception) to fit five tabs across ~340px. */
-    font-size: 0.6875rem;
+    font-size: var(--text-2xs);
     padding: 2px 0;
     min-height: 44px;
   }

@@ -29,7 +29,7 @@ export default function MapHeroCard({
           onClick={onDismiss}
           aria-label="Dismiss featured story pub"
         >
-          <X size={13} />
+          <X size={14} />
         </button>
       </div>
       <strong>{venue.name}</strong>

@@ -39,8 +39,8 @@ describe("Pub Pal domain", () => {
 
   it("ships seven reviewed launch visuals with every emotional state", () => {
     expect(Object.keys(PAL_VISUAL_MANIFEST)).toEqual(["robin", "greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
-    expect(PAL_ANIMATION_STATES).toEqual(["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]);
-    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => visual.format === palMascotSlug(visual.species) && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === 8)).toBe(true);
+    expect(PAL_ANIMATION_STATES).toEqual(["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "waking", "error"]);
+    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => visual.format === palMascotSlug(visual.species) && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === PAL_ANIMATION_STATES.length)).toBe(true);
   });
 
   it("round-trips an incomplete five-step onboarding draft safely", () => {

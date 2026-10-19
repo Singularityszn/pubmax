@@ -118,7 +118,7 @@ export default function TonightYourPubs() {
                 <span className="tonightYourPubsName">{row.name}</span>
                 <span className="tonightYourPubsMeta">{row.listType}</span>
               </span>
-              <ArrowRight size={15} aria-hidden="true" className="tonightYourPubsArrow" />
+              <ArrowRight size={16} aria-hidden="true" className="tonightYourPubsArrow" />
             </Link>
           </li>
         ))}

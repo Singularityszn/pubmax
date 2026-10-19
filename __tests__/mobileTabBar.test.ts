@@ -91,7 +91,8 @@ describe("mobile tab bar contract", () => {
     expect(activeLabel("/choose-city")).toBeUndefined();
     expect(activeLabel("/social")).toBe("Social");
     expect(activeLabel("/feed")).toBe("Social");
-    expect(activeLabel("/crawls/soho")).toBe("Social");
+    expect(activeLabel("/crawls/soho")).toBe("Plan");
+    expect(activeLabel("/crawls")).toBe("Plan");
     expect(activeLabel("/moment")).toBeUndefined();
   });
 });

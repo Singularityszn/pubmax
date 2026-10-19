@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { MapPin, X } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { PintPriceBadge } from "@/components/PriceBadge";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
@@ -297,14 +298,16 @@ export default function MapConciergeAsk({
                       <div className="mapConciergeAskCardTop">
                         <p className="mapConciergeAskCardTitle">{card.title}</p>
                         {typeof card.price === "number" ? (
-                          <span className="mapConciergeAskCardPrice">
-                            £{card.price.toFixed(2)}
-                          </span>
+                          <PintPriceBadge
+                            className="mapConciergeAskCardPrice"
+                            priceGbp={card.price}
+                            venueId={card.venueId || null}
+                          />
                         ) : null}
                       </div>
                       {card.place ? (
                         <p className="mapConciergeAskCardPlace">
-                          <MapPin size={12} aria-hidden="true" />
+                          <MapPin size={14} aria-hidden="true" />
                           <span>{card.place}</span>
                         </p>
                       ) : null}

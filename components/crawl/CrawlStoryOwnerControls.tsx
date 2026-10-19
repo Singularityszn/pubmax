@@ -88,7 +88,7 @@ export default function CrawlStoryOwnerControls({
         {busy ? "Deleting…" : "Delete crawl"}
       </button>
       {message ? (
-        <p role="alert" style={{ margin: "6px 0 0", fontSize: "13px", color: "var(--brass)" }}>
+        <p role="alert" style={{ margin: "6px 0 0", fontSize: "13px", color: "var(--color-negative)" }}>
           {message}
         </p>
       ) : null}

@@ -73,6 +73,7 @@ export type SlimVenue = {
   filterHints?: VenueFilterHints;
   /** Absent means pub, preserving existing payloads and offline caches. */
   kind?: VenueKind;
+  legacyOsmBar?: true;
   /** Type-relative price band for famous non-pub venue anchors. */
   priceBand?: 0 | 1 | 2;
   anchorLabel?: string;
@@ -132,6 +133,23 @@ function hasValidAnchor(row: Record<string, unknown>): boolean {
     row.anchorCourse !== undefined ||
     row.anchorObservedAt !== undefined ||
     row.anchorSourceUrl !== undefined;
+  if (row.legacyOsmBar !== undefined) {
+    return (
+      row.legacyOsmBar === true &&
+      row.kind === "bar" &&
+      typeof row.id === "string" &&
+      /^venue-[a-z0-9]+$/.test(row.id) &&
+      row.priceBand === undefined &&
+      !hasAnyAnchor &&
+      (row.cheapestPrice === null ||
+        (typeof row.cheapestPrice === "number" &&
+          row.cheapestPrice > 0 &&
+          typeof row.priceSource === "string" &&
+          row.priceSource.trim().length > 0 &&
+          typeof row.priceObservedAt === "string" &&
+          Number.isFinite(Date.parse(row.priceObservedAt))))
+    );
+  }
   // Presence records carry no price claim and therefore need no price anchor.
   // Partial anchor claims still fail the complete-provenance checks below.
   if (row.cheapestPrice === null && !hasAnyAnchor) return true;
@@ -221,6 +239,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+    ...(venue.legacyOsmBar === true ? { legacyOsmBar: true as const } : {}),
     ...(venue.priceBand !== undefined ? { priceBand: venue.priceBand } : {}),
     ...(venue.anchorLabel !== undefined
       ? { anchorLabel: venue.anchorLabel }

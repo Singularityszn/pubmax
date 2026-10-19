@@ -8,6 +8,7 @@ import { useMemo, useSyncExternalStore } from "react";
 
 import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
+import { PalSiteNavButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SiteNavMore, {
   siteNavMoreItems,
@@ -97,9 +98,11 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
   // Social is a primary tab, and its aliases light it too.
-  if (active === "social" || active === "feed" || active === "discover" || active === "crawls") {
+  if (active === "social" || active === "feed" || active === "discover") {
     return "social";
   }
+  // The crawl routes are walks to plan, never Social (PLAN_NAV_MATCH).
+  if (active === "crawls") return "plan";
   // Out folded into Tonight, so the retired Out page lights Tonight.
   if (active === "tonight" || active === "out") return "now";
   // The city picker is a setting reached from the map's chip, not a door.
@@ -149,6 +152,10 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
           theme row. Social is a primary tab, so it is not repeated here. Desktop
           only — siteNav.css hides .siteNavMore at ≤640 so mobile is
           unchanged. */}
+      {/* The Pub Pal's own door (PalNavButton.tsx): the person's Pal and its
+          name, first among the actions. Hidden <=640px, where it rises out of
+          the phone dock instead. */}
+      <PalSiteNavButton pathname={pathname} />
       <SiteNavMore items={moreItems} />
       {/* Moment compose (desktop). On phones the floating create action owns
           this; the top bar has no such affordance, so desktop users reach
@@ -161,7 +168,7 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
         aria-label="Share a Moment"
         title="Share a Moment"
       >
-        <CirclePlus size={18} aria-hidden="true" />
+        <CirclePlus size={20} aria-hidden="true" />
       </Link>
       {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
           hidden on phones (the bottom tab bar owns nav and there's no keyboard

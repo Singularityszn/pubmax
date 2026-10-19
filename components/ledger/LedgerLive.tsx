@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
+import PriceBadge from "@/components/PriceBadge";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import type { VenueClaim } from "@/lib/curation";
 import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/ledger";
@@ -228,7 +229,7 @@ export function LedgerLogSections({
                   {entry.priceLabel ? (
                     <p className="ledgerEntryPrice">
                       <span className="ledgerEntryPriceLabel">Paid</span>{" "}
-                      <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
+                      <PriceBadge className="ledgerEntryPriceValue">{entry.priceLabel}</PriceBadge>
                     </p>
                   ) : null}
                 </article>
@@ -276,7 +277,7 @@ export function LedgerLogSections({
                       {entry.priceLabel ? (
                         <p className="ledgerEntryPrice">
                           <span className="ledgerEntryPriceLabel">Paid</span>{" "}
-                          <span className="ledgerEntryPriceValue">{entry.priceLabel}</span>
+                          <PriceBadge className="ledgerEntryPriceValue">{entry.priceLabel}</PriceBadge>
                         </p>
                       ) : null}
                     </>

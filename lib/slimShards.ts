@@ -562,11 +562,13 @@ export function createSlimShardLoader(
   // operation shares these slots, including queued reads in shardPromises.
   const shardReadLimit = 4;
   let activeShardReads = 0;
-  const queuedShardReads: Array<() => void> = [];
+  const queuedShardReads: Array<{ key: string; start: () => void }> = [];
+  const queuedForegroundShardReads: typeof queuedShardReads = [];
 
   async function readShardWithSlot(
     path: string,
     readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
+    foreground: boolean,
   ): Promise<SlimShardLoadResult> {
     await new Promise<void>((resolve) => {
       const start = () => {
@@ -574,13 +576,13 @@ export function createSlimShardLoader(
         resolve();
       };
       if (activeShardReads < shardReadLimit) start();
-      else queuedShardReads.push(start);
+      else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key: path, start });
     });
     try {
       return await loadSlimVenuesFromPathResult(path, readOptions);
     } finally {
       activeShardReads -= 1;
-      queuedShardReads.shift()?.();
+      (queuedForegroundShardReads.shift() ?? queuedShardReads.shift())?.start();
     }
   }
 
@@ -725,9 +727,20 @@ export function createSlimShardLoader(
   // loaded, so a later call retries it. A SPECULATIVE read (the core guessed
   // before the manifest answered) never reports a refusal: the manifest may
   // yet adopt the very revision it was refused for.
-  function loadShard(url: string, speculative = false): Promise<SlimShardLoadResult> {
+  function loadShard(
+    url: string,
+    speculative = false,
+    foreground = false,
+  ): Promise<SlimShardLoadResult> {
     const key = shardRequestPath(url, packRequestRevision);
     let p = shardPromises.get(key);
+    if (p && foreground) {
+      const queuedIndex = queuedShardReads.findIndex((read) => read.key === key);
+      if (queuedIndex !== -1) {
+        const queued = queuedShardReads.splice(queuedIndex, 1)[0];
+        if (queued) queuedForegroundShardReads.push(queued);
+      }
+    }
     if (!p) {
       const expectedRevision = packRevision;
       const shardOptions =
@@ -739,7 +752,7 @@ export function createSlimShardLoader(
               onRevisionSkew: (served: unknown) => shardSkews.set(key, { served }),
             };
       shardSkews.delete(key);
-      const created = readShardWithSlot(key, shardOptions)
+      const created = readShardWithSlot(key, shardOptions, foreground)
         .then((result) => {
           if (result.status === "ready") {
             // A read that lands after another pack was adopted contributed
@@ -838,7 +851,9 @@ export function createSlimShardLoader(
       if (!m) return [];
       const needed = shardsForBounds(m, bounds, ring, true).filter((s) => !loadedUrls.has(s.url));
       if (needed.length === 0) return [];
-      const results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      const results = await Promise.all(
+        needed.map((s) => loadShard(s.url, false, ring === VIEWPORT_SHARD_RING)),
+      );
       return results.flatMap((result) => result.rows);
     },
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
 import InvitePageView from "@/components/plan/InvitePageView";
+import { PintPriceBadge } from "@/components/PriceBadge";
 import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
@@ -294,7 +295,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
             <li className="invite__stop" key={`${stop.position}-${stop.venueId}`}>
               <span className="invite__stopPosition">{stop.position + 1}</span>
               <span className="invite__stopName">{stop.venueName}</span>
-              {stop.price ? <span className="invite__stopPrice">{stop.price}</span> : null}
+              {stop.priceGbp !== null ? (
+                <PintPriceBadge className="invite__stopPrice" priceGbp={stop.priceGbp} venueId={stop.venueId} />
+              ) : null}
             </li>
           ))}
         </ol>

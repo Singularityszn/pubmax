@@ -2,23 +2,32 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { drinkFromPriceUpdate, parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import { menuOwnerVerdict, readMenuPageOwners, venueKeyPoint } from "@/scripts/lib/menuPageOwners.mjs";
 import receipt from "@/data/enrichment/firecrawl/london/eagle-drinks-reviewed-20261013.json";
 import baseline from "@/__tests__/fixtures/harvest/drink-legacy-baseline-a3a21996f.json";
 
 const sha = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const NOW = Date.parse("2026-10-13T12:00:00.000Z");
 
+type UpdateRow = { venueKey: string; itemId?: unknown; source?: { url?: string } };
+
 describe("reviewed Eagle source snapshot", () => {
   it("publishes exactly the reviewed atoms and preserves all earlier prices and rating IDs", () => {
     const latest = JSON.parse(readFileSync("public/data/drink_price_updates/latest.json", "utf8"));
     const edition = JSON.parse(readFileSync("public/data/drink_price_updates/prices_20261013.json", "utf8"));
-    const parsed = parseDrinkPriceUpdates(latest, NOW);
-    const legacy = latest.updates.filter((row: { itemId?: unknown }) => row.itemId === undefined);
-    const newRows = latest.updates.filter((row: { venueKey: string }) => row.venueKey === receipt.venueKey);
+    const legacy = edition.updates.filter((row: UpdateRow) => row.itemId === undefined);
+    const newRows = latest.updates.filter((row: UpdateRow) => row.venueKey === receipt.venueKey);
 
-    expect(latest).toEqual(edition);
-    expect(latest.updates).toHaveLength(1585);
-    expect(parsed).toHaveLength(1585);
+    // The edition is the 13 October import as written. latest.json is that
+    // edition less the 415 Greene King rows whose menu is another pub's
+    // (`npm run prices:drop-wrong-pub`), and nothing else.
+    const owners = readMenuPageOwners(process.cwd());
+    const ownMenu = (row: UpdateRow) =>
+      menuOwnerVerdict(row.source?.url, venueKeyPoint(row.venueKey), owners).verdict !== "other-pub";
+    expect(latest).toEqual({ ...edition, updates: edition.updates.filter(ownMenu) });
+    expect(edition.updates).toHaveLength(1585);
+    expect(latest.updates).toHaveLength(1170);
+    expect(parseDrinkPriceUpdates(latest, NOW)).toHaveLength(1170);
     expect(legacy).toHaveLength(1563);
     expect(sha(legacy)).toBe(baseline.sourceRowsSha256);
     expect(sha(parseDrinkPriceUpdates(legacy, NOW).map((row) => drinkFromPriceUpdate(row).id))).toBe(baseline.ratingIdsSha256);

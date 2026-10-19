@@ -1,4 +1,4 @@
-// The mark. Small, brass, and said the same way everywhere it appears.
+// The mark. Small, neutral, and said the same way everywhere it appears.
 //
 // It is one component rather than a line of JSX on each surface because the
 // profile card, the account hub and the founders wall all print the same fact,
@@ -33,7 +33,6 @@ export default function FoundingMemberMark({
       className={className ? `foundingMark ${className}` : "foundingMark"}
       {...(detail ? { title: detail } : {})}
     >
-      <span aria-hidden="true" className="foundingMarkDot" />
       <span className="foundingMarkLabel">{mark}</span>
     </span>
   );

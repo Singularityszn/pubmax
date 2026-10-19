@@ -159,6 +159,87 @@ for (const size of SIZES) {
   });
 }
 
+// The tab's handoff is optional restoration. When the browser refuses to hold
+// it, Plan my night still opens on the choices the reader just made, and an
+// older handoff left in the tab never stands in for them.
+const HANDOFF_KEY = "pubmax:onboarding:planner-handoff:v1";
+const REFUSAL_KEY = "pubmax:e2e:planner-handoff-refusal";
+const SOHO_AT_SIX = "3 pubs in Soho, under £18 per person, maximum £6 per pint";
+const HANDOFF_CASES = [
+  { name: "writable storage", refuse: false, prior: false },
+  { name: "a refused handoff write", refuse: true, prior: false },
+  { name: "a refused replacement of an older handoff", refuse: true, prior: true },
+] as const;
+
+for (const size of SIZES) {
+  for (const handoffCase of HANDOFF_CASES) {
+    test(`Plan my night keeps the reader's choices with ${handoffCase.name} at ${size.name}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      // Only the one write the journey makes is refused. Every other key, and
+      // every read, still works. The refusal records what the tab held at
+      // that moment, so the test proves it ran and the older handoff was there.
+      await page.addInitScript(({ handoffKey, refusalKey, refuse }) => {
+        const setItem = Storage.prototype.setItem;
+        Object.defineProperty(window, "__seedPlannerHandoff", {
+          value: (raw: string) => setItem.call(window.sessionStorage, handoffKey, raw),
+        });
+        if (!refuse) return;
+        Storage.prototype.setItem = function (key: string, value: string) {
+          if (this === window.sessionStorage && key === handoffKey) {
+            setItem.call(this, refusalKey, JSON.stringify({ refused: value, held: this.getItem(handoffKey) }));
+            throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+          }
+          return setItem.call(this, key, value);
+        };
+      }, { handoffKey: HANDOFF_KEY, refusalKey: REFUSAL_KEY, refuse: handoffCase.refuse });
+      await openJourneyFromTheApp(page);
+
+      const prior = JSON.stringify({ nightArea: "clapham", patch: null, budget: "five", at: Date.now() });
+      if (handoffCase.prior) {
+        await page.evaluate((raw) => (window as unknown as { __seedPlannerHandoff(raw: string): void }).__seedPlannerHandoff(raw), prior);
+        expect(await page.evaluate((key) => window.sessionStorage.getItem(key), HANDOFF_KEY)).toBe(prior);
+      }
+
+      await page.getByRole("button", { name: "Use London" }).click();
+      await page.getByRole("button", { name: "£6 or less" }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page.getByRole("button", { name: "Pick a London patch instead" }).click();
+      await page.getByRole("button", { name: "Soho" }).click();
+      await page.getByRole("button", { name: "That looks right" }).click({ timeout: 45_000 });
+      const fox = page.getByRole("button", { name: /^Fox/ });
+      await fox.click();
+      await expect(fox).toHaveAttribute("aria-pressed", "true");
+      const generated = page.waitForRequest((request) => request.url().includes("/api/plans/generate") && request.method() === "POST");
+      await page.getByRole("button", { name: "Plan my night" }).click();
+
+      await expect(page).toHaveURL(/\/plan\?/);
+      const arrival = new URL(page.url());
+      expect(arrival.searchParams.get("query")).toBe(SOHO_AT_SIX);
+      expect(arrival.searchParams.get("from")).toBe("onboarding");
+      const request = await generated;
+      expect(request.postDataJSON().query).toBe(SOHO_AT_SIX);
+
+      const after = await page.evaluate(({ handoffKey, refusalKey }) => ({
+        held: window.sessionStorage.getItem(handoffKey),
+        refusal: window.sessionStorage.getItem(refusalKey),
+        companion: window.localStorage.getItem("pubmax:first-run-companion:v1"),
+        budget: window.localStorage.getItem("pubmax:onboarding:budget:v1"),
+      }), { handoffKey: HANDOFF_KEY, refusalKey: REFUSAL_KEY });
+      expect(after).toMatchObject({ held: null, companion: "fox", budget: "six" });
+      if (handoffCase.refuse) {
+        const refusal = JSON.parse(after.refusal ?? "null") as { refused: string; held: string | null } | null;
+        expect(refusal).not.toBeNull();
+        expect(JSON.parse(refusal!.refused)).toMatchObject({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "six" });
+        expect(refusal!.held).toBe(handoffCase.prior ? prior : null);
+      } else {
+        expect(after.refusal).toBeNull();
+      }
+    });
+  }
+}
+
 test.describe("with location allowed", () => {
   test.use({ geolocation: { latitude: 51.5136, longitude: -0.1365 }, permissions: ["geolocation"] });
 
