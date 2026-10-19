@@ -5,29 +5,34 @@ type ScreenPoint = { x: number; y: number };
 
 /** Separate nearby numbered buttons while their stems retain the real locations. */
 export function palRecommendationPinOffsets(points: readonly ScreenPoint[]): ScreenPoint[] {
-  const offsets = points.map(() => ({ x: 0, y: 0 }));
-  const seen = new Set<number>();
-  for (let first = 0; first < points.length; first += 1) {
-    if (seen.has(first)) continue;
-    const group = [first];
-    seen.add(first);
-    for (let cursor = 0; cursor < group.length; cursor += 1) {
-      const point = points[group[cursor]!]!;
-      for (let next = 0; next < points.length; next += 1) {
-        if (seen.has(next) || Math.hypot(point.x - points[next]!.x, point.y - points[next]!.y) >= 56) continue;
-        seen.add(next);
-        group.push(next);
+  const groups = points.map((_, index) => [index]);
+  let placed = points.map((point) => ({ ...point }));
+  for (;;) {
+    placed = points.map((point) => ({ ...point }));
+    for (const group of groups) {
+      if (group.length < 2) continue;
+      const centre = group.reduce((sum, index) => ({ x: sum.x + points[index]!.x / group.length, y: sum.y + points[index]!.y / group.length }), { x: 0, y: 0 });
+      const radius = Math.max(56, 32 / Math.sin(Math.PI / group.length));
+      group.forEach((index, position) => {
+        const angle = -Math.PI / 2 + position * Math.PI * 2 / group.length;
+        placed[index] = { x: centre.x + Math.cos(angle) * radius, y: centre.y + Math.sin(angle) * radius };
+      });
+    }
+    let merged = false;
+    merge: for (let first = 0; first < groups.length; first += 1) {
+      for (let next = first + 1; next < groups.length; next += 1) {
+        const collision = groups[first]!.some((a) => groups[next]!.some((b) =>
+          Math.max(Math.abs(placed[a]!.x - placed[b]!.x), Math.abs(placed[a]!.y - placed[b]!.y)) < 48,
+        ));
+        if (!collision) continue;
+        groups[first]!.push(...groups[next]!);
+        groups.splice(next, 1);
+        merged = true;
+        break merge;
       }
     }
-    if (group.length < 2) continue;
-    const centre = group.reduce((sum, index) => ({ x: sum.x + points[index]!.x / group.length, y: sum.y + points[index]!.y / group.length }), { x: 0, y: 0 });
-    const radius = Math.max(56, 32 / Math.sin(Math.PI / group.length));
-    group.forEach((index, position) => {
-      const angle = -Math.PI / 2 + position * Math.PI * 2 / group.length;
-      offsets[index] = { x: centre.x + Math.cos(angle) * radius - points[index]!.x, y: centre.y + Math.sin(angle) * radius - points[index]!.y };
-    });
+    if (!merged) return placed.map((point, index) => ({ x: point.x - points[index]!.x, y: point.y - points[index]!.y }));
   }
-  return offsets;
 }
 
 export type PalRecommendationPoint = {

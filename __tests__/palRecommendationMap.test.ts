@@ -9,6 +9,19 @@ const card = (venueId: string, title = venueId): PalCard => ({
 });
 
 describe("the recommendation map", () => {
+  it.each([
+    [{ x: 100, y: 100 }, { x: 140, y: 140 }],
+    [{ x: 100, y: 100 }, { x: 110, y: 100 }, { x: 105, y: 30 }],
+  ])("keeps square hit areas clear when separated groups would collide", (...points) => {
+    const offsets = palRecommendationPinOffsets(points);
+    const placed = points.map((point, index) => ({ x: point.x + offsets[index]!.x, y: point.y + offsets[index]!.y }));
+    for (let i = 0; i < placed.length; i += 1) {
+      for (let j = i + 1; j < placed.length; j += 1) {
+        expect(Math.max(Math.abs(placed[i]!.x - placed[j]!.x), Math.abs(placed[i]!.y - placed[j]!.y))).toBeGreaterThanOrEqual(44);
+      }
+    }
+  });
+
   it("keeps four coincident pins distinct while retaining each pub's anchor", () => {
     const offsets = palRecommendationPinOffsets([{ x: 100, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 100 }]);
     expect(offsets).toHaveLength(4);

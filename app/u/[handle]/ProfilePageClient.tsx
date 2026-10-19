@@ -1354,7 +1354,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           aria-labelledby="profile-editing-title"
         >
           <h2 id="profile-editing-title">Editing your profile</h2>
-          <ProfileEditor
+          {/* Text fields keep their opening values. Wait for the full card so
+              a late read cannot leave a writable form full of empty fields. */}
+          {publicRead === "answered" && projection === "full" ? <ProfileEditor
             handle={routeHandle}
             initial={{
               // Only pre-fill from durable, user-owned values — never the
@@ -1377,11 +1379,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             onSaved={handleSaved}
             onProfileChanged={handleProfileChanged}
             onClose={() => setEditing(false)}
-          />
+          /> : (
+            <div role="status">
+              <p>{publicRead === "asking" ? "Loading your profile…" : "Your profile could not be loaded."}</p>
+              {publicRead !== "asking" ? <a href={`/u/${encodeURIComponent(routeHandle)}?edit=1`}>Try again</a> : null}
+            </div>
+          )}
           {/* Linked socials are public content the owner typed in,
               so they edit beside the public fields. Account
               plumbing lives in Account settings below. */}
-          {user ? <SocialLinksEditor /> : null}
+          {user && publicRead === "answered" && projection === "full" ? <SocialLinksEditor /> : null}
         </section>
       ) : null
     );

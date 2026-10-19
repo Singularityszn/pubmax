@@ -96,6 +96,45 @@ async function visit() {
   });
 }
 
+it("waits for the owner's stored fields before opening a form that can save", async () => {
+  let release!: (value: Response) => void;
+  const storedRead = new Promise<Response>((resolve) => { release = resolve; });
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/profiles/focus_pints" && init?.method !== "PATCH") return storedRead;
+    return originalFetch(input, init);
+  });
+  await visit();
+  await act(async () => button(".profileEditToggle").click());
+  expect(host.querySelector('[aria-label="Edit your profile"]')).toBeNull();
+  expect(host.querySelector("#profile-editing")?.textContent).toContain("Loading your profile");
+  expect(writes).toEqual([]);
+  await act(async () => release(json({
+    profile: { ...profile, bio: "My existing bio", favouriteDrink: "Gin and beer" },
+    projection: "full", socialLinks: [], counts: { followers: 0, following: 0 },
+  })));
+  expect(host.querySelector<HTMLInputElement>("#pe-displayName")?.value).toBe("Focus Pints");
+  expect(host.querySelector<HTMLTextAreaElement>("#pe-bio")?.value).toBe("My existing bio");
+  expect(host.querySelector<HTMLInputElement>("#pe-favouriteDrink")?.value).toBe("Gin and beer");
+});
+
+it("cannot save missing private fields when the read returns a limited card", async () => {
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((input, init) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/profiles/focus_pints" && init?.method !== "PATCH") {
+      return Promise.resolve(json({ profile: { handle: "focus_pints", displayName: "Focus Pints" }, projection: "limited", socialLinks: [] }));
+    }
+    return originalFetch(input, init);
+  });
+  await visit();
+  await act(async () => button(".profileEditToggle").click());
+  expect(host.querySelector('[aria-label="Edit your profile"]')).toBeNull();
+  expect(host.querySelector('#profile-editing a')?.getAttribute("href")).toBe("/u/focus_pints?edit=1");
+  expect(writes).toEqual([]);
+});
+
 it("returns focus to Edit profile when Cancel removes the inline editor", async () => {
   await visit();
   const opener = button(".profileEditToggle");

@@ -21,7 +21,7 @@ void main() {
   P=rotation*(position*size+centre);
   N=normalize(rotation*(normal/size));
   float depth=4.8-P.z;
-  gl_Position=vec4(P.x*3.3/aspect,P.y*3.3,-P.z*.15,depth);
+  gl_Position=vec4(P.x*2.7/aspect,(P.y-.15)*2.7,-P.z*.15,depth);
 }`;
 const FRAGMENT = `#version 300 es
 precision highp float;

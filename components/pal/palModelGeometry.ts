@@ -28,14 +28,14 @@ export function palModelParts(species: PubPalSpecies): PalModelPart[] {
     add([side * 0.34 - 0.028, 0.8, 0.815], [0.027, 0.032, 0.015], [0.84, 1, 1], 1).eye = true;
     add([side * 0.48, 0.47, 0.665], [0.1, 0.05, 0.025], [0.5, 0.13, 0.14]);
     // One restrained trace on each wing or ear, with a rounded terminal.
-    const traceY = bird ? -0.17 : 1.35;
+    const longEar = species === "cat" || species === "fox" || species === "corgi";
+    const traceY = bird ? -0.17 : longEar ? 1.25 : .92;
     const traceX = bird ? 0.83 : 0.52;
     add([side * traceX, traceY, bird ? 0.25 : 0.12], [0.018, 0.14, 0.018], AMBER, 0.5);
     add([side * traceX, traceY + 0.14, bird ? 0.25 : 0.12], [0.035, 0.035, 0.025], AMBER, 0.5);
     if (!bird) {
-      const longEar = species === "cat" || species === "fox" || species === "corgi";
       add([side * 0.52, longEar ? 1.28 : 0.99, -0.02], [longEar ? 0.25 : 0.24, longEar ? 0.44 : 0.25, 0.22]);
-      if (species === "badger") add([side * 0.35, 0.82, 0.63], [0.11, 0.43, 0.065], [0.7, 0.72, 0.68]);
+      if (species === "badger") add([side * 0.35, 0.82, 0.52], [0.11, 0.34, 0.065], [0.7, 0.72, 0.68]);
     }
   }
   add([0, bird ? 0.47 : 0.42, bird ? 0.79 : 0.7], bird ? [0.12, 0.1, 0.19] : [dog ? 0.28 : 0.2, 0.16, dog ? 0.28 : 0.16], bird ? AMBER : CHARCOAL);
