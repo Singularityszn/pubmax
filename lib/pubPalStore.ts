@@ -19,6 +19,25 @@ export function __resetPubPalStore(): void {
 // A Pal saved with them off keeps them off.
 const DEFAULT_PROPOSAL_PREFERENCES: PalProposalPreferences = { memories: true, routes: true, taste: true };
 export type PubPalStoreResult<T> = { ok: true; value: T } | { ok: false; error: "not_found" | "error" };
+/** An edit or delete that names the value it expects answers "conflict" when the memory has changed since. */
+export type PalMemoryWriteResult<T> = PubPalStoreResult<T> | { ok: false; error: "conflict" };
+
+export function palMemoryExpectedValue(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const expected = (raw as Record<string, unknown>).expectedValue;
+  return typeof expected === "string" ? expected : null;
+}
+
+/** After a conditional write matched no row: was the memory gone, or changed? */
+async function missingOrChanged(palId: string, memoryId: string): Promise<"not_found" | "conflict" | "error"> {
+  try {
+    const { data, error } = await admin().from("pub_pal_memories").select("id").eq("id", memoryId).eq("pal_id", palId).maybeSingle();
+    if (error) return "error";
+    return data ? "conflict" : "not_found";
+  } catch {
+    return "error";
+  }
+}
 
 function proposalPreferences(value: unknown, fallback: PalProposalPreferences = DEFAULT_PROPOSAL_PREFERENCES): PalProposalPreferences {
   if (!value || typeof value !== "object") return fallback;
@@ -177,7 +196,7 @@ export async function confirmPalMemoryResult(ownerId: string, raw: unknown): Pro
   }
 }
 
-export async function updatePalMemoryResult(ownerId: string, memoryId: string, raw: unknown): Promise<PubPalStoreResult<PubPalMemory>> {
+export async function updatePalMemoryResult(ownerId: string, memoryId: string, raw: unknown): Promise<PalMemoryWriteResult<PubPalMemory>> {
   const palResult = await getPubPalResult(ownerId);
   if (!palResult.ok) return palResult;
   const pal = palResult.value;
@@ -185,51 +204,57 @@ export async function updatePalMemoryResult(ownerId: string, memoryId: string, r
   const input = raw as Record<string, unknown>;
   const value = cleanText(input.value, 500);
   if (!value) return { ok: false, error: "not_found" };
+  // A replacement card names the kind the new fact is; a plain correction keeps the old kind.
+  const kind = isPubPalMemoryKind(input.kind) ? input.kind : null;
+  const expected = palMemoryExpectedValue(raw);
   const timestamp = new Date().toISOString();
   if (!isSupabaseConfigured()) {
     const current = memories.get(pal.id) ?? [];
     const existing = current.find((memory) => memory.id === memoryId);
     if (!existing) return { ok: false, error: "not_found" };
-    const updated: PubPalMemory = { ...existing, value, provenance: "user_correction", updatedAt: timestamp };
+    if (expected !== null && existing.value !== expected) return { ok: false, error: "conflict" };
+    const updated: PubPalMemory = { ...existing, ...(kind ? { kind } : {}), value, provenance: "user_correction", updatedAt: timestamp };
     memories.set(pal.id, current.map((memory) => memory.id === memoryId ? updated : memory));
     return { ok: true, value: updated };
   }
   try {
-    const { data, error } = await admin().from("pub_pal_memories")
-      .update({ value, provenance: "user_correction", updated_at: timestamp })
+    let query = admin().from("pub_pal_memories")
+      .update({ ...(kind ? { kind } : {}), value, provenance: "user_correction", updated_at: timestamp })
       .eq("id", memoryId)
-      .eq("pal_id", pal.id)
-      .select("*")
-      .maybeSingle();
+      .eq("pal_id", pal.id);
+    if (expected !== null) query = query.eq("value", expected);
+    const { data, error } = await query.select("*").maybeSingle();
     if (error) return { ok: false, error: "error" };
-    return data
-      ? { ok: true, value: memoryFromRow(data as Record<string, unknown>) }
-      : { ok: false, error: "not_found" };
+    if (data) return { ok: true, value: memoryFromRow(data as Record<string, unknown>) };
+    return { ok: false, error: expected === null ? "not_found" : await missingOrChanged(pal.id, memoryId) };
   } catch {
     return { ok: false, error: "error" };
   }
 }
 
-export async function deletePalMemoryResult(ownerId: string, memoryId: string): Promise<PubPalStoreResult<true>> {
+export async function deletePalMemoryResult(ownerId: string, memoryId: string, expected: string | null = null): Promise<PalMemoryWriteResult<true>> {
   const palResult = await getPubPalResult(ownerId);
   if (!palResult.ok) return palResult;
   const pal = palResult.value;
   if (!pal || !memoryId) return { ok: false, error: "not_found" };
   if (!isSupabaseConfigured()) {
     const current = memories.get(pal.id) ?? [];
-    if (!current.some((memory) => memory.id === memoryId)) return { ok: false, error: "not_found" };
+    const existing = current.find((memory) => memory.id === memoryId);
+    if (!existing) return { ok: false, error: "not_found" };
+    if (expected !== null && existing.value !== expected) return { ok: false, error: "conflict" };
     memories.set(pal.id, current.filter((memory) => memory.id !== memoryId));
     return { ok: true, value: true };
   }
   try {
-    const { data, error } = await admin().from("pub_pal_memories")
+    let query = admin().from("pub_pal_memories")
       .delete()
       .eq("id", memoryId)
-      .eq("pal_id", pal.id)
-      .select("id")
-      .maybeSingle();
+      .eq("pal_id", pal.id);
+    if (expected !== null) query = query.eq("value", expected);
+    const { data, error } = await query.select("id").maybeSingle();
     if (error) return { ok: false, error: "error" };
-    return data ? { ok: true, value: true } : { ok: false, error: "not_found" };
+    if (data) return { ok: true, value: true };
+    return { ok: false, error: expected === null ? "not_found" : await missingOrChanged(pal.id, memoryId) };
   } catch {
     return { ok: false, error: "error" };
   }

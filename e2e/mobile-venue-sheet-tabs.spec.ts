@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
 
+import { routeHygieneBadge } from "./helpers/hygieneBadge";
+
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i += 1) {
@@ -466,4 +468,39 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   const ask = portal.locator("#venuePanel-story #venueSection-ask");
   await expect(ask).toBeVisible();
   await expect(ask.getByRole("button", { name: /Tell me about this/ })).toBeVisible();
+});
+
+/**
+ * The Overview rows that render only after their own read answers (the area
+ * price line and the food hygiene rating) sit below the getting-home fold, so
+ * the fold's summary does not move under a finger once it is painted.
+ */
+test("the getting-home fold stays put while the late Overview rows land", async ({ page }) => {
+  // The pin needs the hygiene row to land, so it may not hang on the live FSA service.
+  await routeHygieneBadge(page);
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+  expect(response?.status()).toBe(200);
+
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const overview = portal.locator("#venuePanel-overview");
+  await expect(overview).toBeVisible();
+  const summary = overview.locator("#venueSection-getting-home > summary");
+  await expect(summary).toHaveText("Last train");
+  // Measured against the panel, so scrolling the sheet does not move it.
+  const offset = (target: Locator) =>
+    target.evaluate((element) => {
+      const panel = element.closest("#venuePanel-overview");
+      return Math.round(element.getBoundingClientRect().top - (panel?.getBoundingClientRect().top ?? 0));
+    });
+  const before = await offset(summary);
+
+  const hygiene = overview.locator(".venueHygiene");
+  const areaPrice = overview.locator(".venueAreaPriceCompare");
+  await expect(hygiene).toBeVisible({ timeout: 20_000 });
+  await expect(areaPrice).toBeVisible({ timeout: 20_000 });
+
+  expect(await offset(summary), "the fold summary did not move").toBe(before);
+  expect(await offset(areaPrice)).toBeGreaterThan(before);
+  expect(await offset(hygiene)).toBeGreaterThan(before);
 });

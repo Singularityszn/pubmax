@@ -49,11 +49,12 @@ describe("the sentence a tap submits", () => {
 describe("which area a tap plans", () => {
   it("plans the patch this device last chose when it maps to a crawl-ready area", () => {
     expect(rememberedOneTapArea({ kind: "patch", id: "clapham" }, NOW)?.slug).toBe("clapham");
-    expect(rememberedOneTapArea({ kind: "patch", id: "soho" }, NOW)?.slug).toBe("piccadilly-soho");
   });
 
   it("never offers an area that is not crawl-ready, a borough, or nothing", () => {
     expect(rememberedOneTapArea({ kind: "patch", id: "brixton" }, NOW)).toBeNull();
+    // Piccadilly & Soho is reviewed with its pint prices still missing.
+    expect(rememberedOneTapArea({ kind: "patch", id: "soho" }, NOW)).toBeNull();
     expect(rememberedOneTapArea({ kind: "patch", id: "hackney" }, NOW)).toBeNull();
     expect(rememberedOneTapArea({ kind: "borough", name: "Lambeth" }, NOW)).toBeNull();
     expect(rememberedOneTapArea(null, NOW)).toBeNull();

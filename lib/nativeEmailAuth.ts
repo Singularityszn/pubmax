@@ -6,6 +6,7 @@ import {
 import { isAuthUserBannedUntil } from "@/lib/authAccountBan";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
 import { requestMagicLink, type PasswordlessAuthClient, type MagicLinkResult } from "@/lib/passwordlessAuth";
+import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig, type SupabaseConfig } from "@/lib/supabaseConfig";
 import { nativeAuthLandingUrl, nativeSessionCanInstall } from "@/lib/nativeIOSOAuth";
 import { readNativeEmailCallback } from "@/lib/nativeEmailLinks";
@@ -21,15 +22,20 @@ export function nativeEmailAuthConfig(): SupabaseConfig | null {
     requireHttps: process.env.NODE_ENV === "production",
   });
 }
+// Only "storage" means the browser refused the receipt. A superseded start is
+// "obsolete", and crypto or malformed input is "failed".
+export type NativeEmailReceiptPreparation =
+  | { status: "prepared"; receipt: NativeEmailReceipt; challenge: string }
+  | { status: "obsolete" | "storage" | "failed" };
 export async function prepareNativeEmailReceipt(
   attempt: Extract<AuthAttemptStart, { ok: true }>, email: string | null,
   storage: AuthFragmentStorage | null, now = Date.now(), current: () => boolean = () => true,
   config: SupabaseConfig | null = nativeEmailAuthConfig(),
-): Promise<{ receipt: NativeEmailReceipt; challenge: string } | null> {
+): Promise<NativeEmailReceiptPreparation> {
   try {
-    if (!config) return null;
+    if (!config) return { status: "failed" };
     const pkce = await createEmailPkce();
-    if (!current()) return null;
+    if (!current()) return { status: "obsolete" };
     const callback = new URL(attempt.callbackUrl);
     callback.searchParams.set("native", IOS_EMAIL_AUTH_MODE);
     const receipt: NativeEmailReceipt = {
@@ -39,10 +45,10 @@ export async function prepareNativeEmailReceipt(
     };
     if (!storeNativeEmailReceipt(storage, receipt) || !readNativeEmailReceipt(storage, callback.origin, now)) {
       removeNativeEmailReceipt(storage, receipt.id);
-      return null;
+      return { status: "storage" };
     }
-    return { receipt, challenge: pkce.challenge };
-  } catch { return null; }
+    return { status: "prepared", receipt, challenge: pkce.challenge };
+  } catch { return { status: "failed" }; }
 }
 export function discardNativeEmailAttempt(storage: AuthFragmentStorage | null, tabStorage: AuthFragmentStorage | null, origin: string): void {
   const receipt = readNativeEmailReceipt(storage, origin);
@@ -63,7 +69,7 @@ export async function requestNativeEmailLink(
           body: JSON.stringify({ email: address, create_user: options.shouldCreateUser, code_challenge: challenge, code_challenge_method: "s256" }),
           cache: "no-store", credentials: "omit", redirect: "error",
         });
-        if (response.ok) return { error: null };
+        if (response.ok) { discardBody(response); return { error: null }; }
         const detail = await response.json().catch(() => ({})) as { error_code?: string; code?: string; msg?: string; message?: string };
         return { error: { status: response.status, code: detail.error_code ?? detail.code, message: detail.msg ?? detail.message } };
       } catch { return { error: { status: 500 } }; }
@@ -104,7 +110,7 @@ export async function completeNativeEmailLink(raw: string, deps: {
       method: "POST", headers, body: JSON.stringify({ auth_code: callback.code, code_verifier: receipt.verifier }),
       cache: "no-store", credentials: "omit", redirect: "error",
     });
-    if (!response.ok || !deps.current()) return { status: "failed" };
+    if (!response.ok || !deps.current()) { discardBody(response); return { status: "failed" }; }
     const session = await response.json() as Session;
     if (typeof session.access_token !== "string" || typeof session.refresh_token !== "string" ||
         typeof session.user?.id !== "string" || !session.user.id || !nativeSessionCanInstall(session)) return { status: "failed" };
@@ -112,7 +118,7 @@ export async function completeNativeEmailLink(raw: string, deps: {
       headers: { ...headers, authorization: `Bearer ${session.access_token}` },
       cache: "no-store", credentials: "omit", redirect: "error",
     });
-    if (!verified.ok || !deps.current()) return { status: "failed" };
+    if (!verified.ok || !deps.current()) { discardBody(verified); return { status: "failed" }; }
     const user = await verified.json() as Session["user"] & { banned_until?: string | null };
     if (!verifiedEmailUserMatches(user, session.user.id, receipt.expectedEmail)) return { status: "failed" };
     const installed = await deps.install({ ...session, user });

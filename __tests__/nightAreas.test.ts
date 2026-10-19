@@ -105,8 +105,8 @@ describe("nearestRouteReadyNightArea", () => {
     expect(isNightAreaRouteReady(found!, now)).toBe(true);
   });
 
-  it("answers Soho for the Soho patch", () => {
-    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], now)?.slug).toBe("piccadilly-soho");
+  it("answers the nearest checked area for the Soho patch, while Soho's pint prices are missing", () => {
+    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], now)?.slug).toBe("victoria");
   });
 
   it("answers nothing once every area's review has lapsed", () => {

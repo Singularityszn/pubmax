@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "18 October 2026";
+const LAST_UPDATED = "19 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -777,10 +777,14 @@ export default function PrivacyPage() {
               travel after drinking? Are you asking how to get home? Your
               message and up to six recent turns of that
               conversation go to <code>api.typesafe.ai</code> for those
-              judgments, and nothing else about you goes with them. It is off
-              and sends nothing unless a TypeSafe key is set on the deployment;
-              without one Pub Pal falls back to a fixed word list on our own
-              server.
+              judgments. When Pub Pal offers to remember something in a typed
+              chat, the new fact and up to five of the memories you confirmed
+              that are about the same thing also go to TypeSafe, which says
+              whether the fact is new, repeats one of them or replaces one.
+              Nothing else about you goes with them. It is off and sends
+              nothing unless a TypeSafe key is set on the deployment; without
+              one Pub Pal falls back to a fixed word list on our own server,
+              and every memory offer is an ordinary card.
             </dd>
           </div>
           <div className="legalRow">
@@ -819,6 +823,38 @@ export default function PrivacyPage() {
               about a pub on your list to try near your night patch, an open
               plan for tonight, or a sourced deal. Turning it off withdraws the
               preference and removes the bound subscription.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Apple and Google push</dt>
+            <dd>
+              If you allow notifications in the iPhone or Android app, your
+              phone gives the app a device token, and we store that token with
+              the platform name. The token carries no account, handle or email.
+              To deliver a notification, our server sends the token with the
+              notification title and text to the Apple Push Notification
+              service at <code>api.push.apple.com</code> (or{" "}
+              <code>api.sandbox.push.apple.com</code> for development builds),
+              or to Firebase Cloud Messaging at <code>fcm.googleapis.com</code>.
+              We keep the token until Apple or Google reports it invalid, for
+              example after you delete the app. Because the token carries no
+              account, we cannot find it from an account or email request.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Sign-in and connected profiles</dt>
+            <dd>
+              If you choose Microsoft, Google or Apple sign-in, that provider
+              confirms who you are to our Supabase sign-in service and shares
+              your email address and the basic profile details it releases. If
+              you connect an X, Instagram or TikTok profile, our server
+              exchanges the sign-in code with that platform at{" "}
+              <code>api.x.com</code>, <code>api.instagram.com</code> and{" "}
+              <code>graph.instagram.com</code>, or{" "}
+              <code>open.tiktokapis.com</code>, and reads your username, profile
+              link and, where the platform gives it, display name and picture.
+              Disconnecting the profile, or deleting your account, removes the
+              stored details and tokens.
             </dd>
           </div>
         </dl>

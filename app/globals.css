@@ -2152,6 +2152,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 0;
 }
 
+/* The London pint snapshot date, on both loading screens: the same line in
+   the same type, so the handover from skeleton to live frame repaints nothing.
+   It is a loader caption, so it is set in the body face (DESIGN_SYSTEM.md,
+   "Monospace is for figures"). */
+.mapSkeletonCopy p.mapSkeletonReads,
+.mapLoadingReads {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font: 500 var(--text-xs)/1.4 var(--font-body);
+}
+
 /* The type is the live frame's, so the first paint is already the final one:
    a size step at the handover is a new largest contentful paint for a reader
    who has been shown nothing new. */

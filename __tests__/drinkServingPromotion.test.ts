@@ -109,8 +109,10 @@ describe("reviewed Eagle serving promotion", () => {
     }
   });
 
+  // The 13 October edition is the import as written. latest.json has since lost
+  // the wrong-pub Greene King rows, which __tests__/reviewedDrinkSourceImport.test.ts pins.
   it("preserves all 1563 legacy rows, observation dates and rating references", () => {
-    const raw = JSON.parse(readFileSync("public/data/drink_price_updates/latest.json", "utf8")) as {
+    const raw = JSON.parse(readFileSync("public/data/drink_price_updates/prices_20261013.json", "utf8")) as {
       updates: Array<{ itemId?: unknown }>;
     };
     const legacy = raw.updates.filter((row) => row.itemId === undefined);

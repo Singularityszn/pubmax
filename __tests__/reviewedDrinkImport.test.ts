@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { importReviewedDrinkPrices } from "@/scripts/refresh_drink_prices.mjs";
 import { drinkFromPriceUpdate, parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
 import fixture from "@/__tests__/fixtures/harvest/eagle-reviewed-drinks-20261013.json";
-import baseline from "@/__tests__/fixtures/harvest/drink-legacy-baseline-a3a21996f.json";
 
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const NOW = Date.parse("2026-10-13T12:00:00.000Z");
@@ -49,15 +48,19 @@ describe("bounded reviewed drink import", () => {
     const body = result.written
       ? JSON.parse(readFileSync(join(prepared.options.scratchDir, "latest.json"), "utf8"))
       : current;
-    const existing = current.updates.slice(0, 1563);
+    // The legacy rows are whatever latest.json holds before the Eagle's 22; the
+    // pin on what they are is __tests__/reviewedDrinkSourceImport.test.ts.
+    const legacyCount = current.updates.filter((row: { itemId?: unknown }) => row.itemId === undefined).length;
+    const existing = current.updates.slice(0, legacyCount);
 
-    expect(result.addedRows).toBe(current.updates.length === 1563 ? 22 : 0);
-    expect(result.totalRows).toBe(1585);
-    expect(body.updates.slice(0, 1563)).toEqual(existing);
-    expect(sha(JSON.stringify(body.updates.slice(0, 1563)))).toBe(baseline.sourceRowsSha256);
+    expect(result.addedRows).toBe(current.updates.length === legacyCount ? 22 : 0);
+    expect(result.totalRows).toBe(legacyCount + 22);
+    expect(body.updates.slice(0, legacyCount)).toEqual(existing);
     const parsed = parseDrinkPriceUpdates(body.updates, NOW);
-    expect(parsed).toHaveLength(1585);
-    expect(sha(JSON.stringify(parsed.slice(0, 1563).map((row) => drinkFromPriceUpdate(row).id)))).toBe(baseline.ratingIdsSha256);
+    expect(parsed).toHaveLength(legacyCount + 22);
+    expect(parsed.slice(0, legacyCount).map((row) => drinkFromPriceUpdate(row).id)).toEqual(
+      parseDrinkPriceUpdates(existing, NOW).map((row) => drinkFromPriceUpdate(row).id),
+    );
     const eagle = parsed.filter((row) => row.venueKey === fixture.updates[0]!.venueKey);
     expect(eagle).toHaveLength(22);
     expect(new Set(eagle.map((row) => drinkFromPriceUpdate(row).id)).size).toBe(22);

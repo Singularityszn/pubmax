@@ -393,6 +393,48 @@ function DoorSwitch({
   );
 }
 
+function renderLoginPageHeadActions({
+  showSignedIn,
+  showWelcomeBack,
+  resumeStatus,
+  maskedEmail,
+  onResume,
+  onUseDifferentAccount,
+}: {
+  showSignedIn: boolean;
+  showWelcomeBack: boolean;
+  resumeStatus: "idle" | "sending" | MagicLinkResult["status"];
+  maskedEmail: string | null | undefined;
+  onResume: () => Promise<void>;
+  onUseDifferentAccount: () => void;
+}): {
+  primary: ReactElement | undefined;
+  secondary: ReactElement | undefined;
+} {
+  const resumeSettled = resumeStatus === "sending" || resumeStatus === "sent";
+  const primary: ReactElement | undefined = showSignedIn ? (
+    <Link href="/map">Continue to the map</Link>
+  ) : showWelcomeBack ? (
+    <button type="button" onClick={() => void onResume()} disabled={resumeSettled}>
+      {resumeStatus === "sending"
+        ? "Sending…"
+        : resumeStatus === "sent"
+          ? "Link sent"
+          : maskedEmail
+            ? `Continue as ${maskedEmail}`
+            : "Email me a sign-in link"}
+    </button>
+  ) : undefined;
+  const secondary: ReactElement | undefined = showSignedIn ? (
+    <Link href="/u/you">Your profile</Link>
+  ) : showWelcomeBack ? (
+    <button type="button" onClick={onUseDifferentAccount}>
+      Use a different account
+    </button>
+  ) : undefined;
+  return { primary, secondary };
+}
+
 /**
  * Full-page sign-in surface. Owns the email-link flow as a first-class page
  * (not only the nav popover). Phone nav Sign in routes here; desktop may still
@@ -561,7 +603,7 @@ export default function LoginPage({
     const result = providerDestination
       ? await resumeSignIn(providerDestination)
       : await resumeSignIn();
-    setResumeStatus(result.status);
+    setResumeStatus(result.status === "cancelled" ? "idle" : result.status);
     setResumeMessage(result.message);
   }, [providerDestination, resumeSignIn, resumeStatus]);
 
@@ -626,10 +668,6 @@ export default function LoginPage({
     !loading && !showSignedIn && hasAuthSurface && Boolean(welcomeBack) && !useDifferentAccount;
 
 
-  // ONE primary for the page, decided by the same state the body is. A signed-in
-  // reader's is the map; a returning device's is the one-tap resume; everybody
-  // else's is the link.
-  const resumeSettled = resumeStatus === "sending" || resumeStatus === "sent";
   // ONE painted control for the page. A signed-in reader gets the map door and
   // a returning one the resume tap; while the FORM is on screen the head paints
   // nothing, because the form's own submit beside the field is the primary
@@ -637,26 +675,14 @@ export default function LoginPage({
   // submit under it were two doors for one action). A reader with no session
   // hint paints that form immediately. A hint keeps the skeleton where the
   // card will be, and no door is painted until the session answers.
-  const headPrimary: ReactElement | undefined = showSignedIn && !loading ? (
-    <Link href="/map">Continue to the map</Link>
-  ) : showWelcomeBack ? (
-    <button type="button" onClick={() => void onResume()} disabled={resumeSettled}>
-      {resumeStatus === "sending"
-        ? "Sending…"
-        : resumeStatus === "sent"
-          ? "Link sent"
-          : welcomeBack?.maskedEmail
-            ? `Continue as ${welcomeBack.maskedEmail}`
-            : "Email me a sign-in link"}
-    </button>
-  ) : undefined;
-  const headSecondary: ReactElement | undefined = showSignedIn && !loading ? (
-    <Link href="/u/you">Your profile</Link>
-  ) : showWelcomeBack ? (
-    <button type="button" onClick={() => setUseDifferentAccount(true)}>
-      Use a different account
-    </button>
-  ) : undefined;
+  const { primary: headPrimary, secondary: headSecondary } = renderLoginPageHeadActions({
+    showSignedIn: showSignedIn && !loading,
+    showWelcomeBack,
+    resumeStatus,
+    maskedEmail: welcomeBack?.maskedEmail,
+    onResume,
+    onUseDifferentAccount: () => setUseDifferentAccount(true),
+  });
 
   return (
     <main className="loginPage">
