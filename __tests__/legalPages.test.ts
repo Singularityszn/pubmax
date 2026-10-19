@@ -506,6 +506,7 @@ describe("legal content pages", () => {
       privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
     const recipients = [
       { name: "Apple", host: "api.push.apple.com", source: "lib/pushProvider.ts" },
+      { name: "Apple", host: "api.sandbox.push.apple.com", source: "lib/pushProvider.ts" },
       { name: "Firebase", host: "fcm.googleapis.com", source: "lib/fcmPushProvider.ts" },
       { name: "X", host: "api.x.com", source: "lib/socialOAuth.ts" },
       { name: "Instagram", host: "api.instagram.com", source: "lib/socialOAuth.ts" },
@@ -518,6 +519,10 @@ describe("legal content pages", () => {
       expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
         .toContain(recipient.host);
     }
+    // lib/nativePush.ts only ever POSTs a token, and the row holds no account,
+    // so a person cannot have one removed on request. The page must say so.
+    expect(read("lib/nativePush.ts")).not.toMatch(/method:\s*"DELETE"/);
+    expect(thirdPartySection).toMatch(/cannot find it from an account or email request/);
   });
 
   it("describes remembered-area request use without claiming all state stays local", () => {

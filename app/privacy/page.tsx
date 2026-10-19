@@ -829,10 +829,12 @@ export default function PrivacyPage() {
               the platform name. The token carries no account, handle or email.
               To deliver a notification, our server sends the token with the
               notification title and text to the Apple Push Notification
-              service at <code>api.push.apple.com</code>, or to Firebase Cloud
-              Messaging at <code>fcm.googleapis.com</code>. We keep the token
-              until Apple or Google reports it invalid, or you ask us to remove
-              it.
+              service at <code>api.push.apple.com</code> (or{" "}
+              <code>api.sandbox.push.apple.com</code> for development builds),
+              or to Firebase Cloud Messaging at <code>fcm.googleapis.com</code>.
+              We keep the token until Apple or Google reports it invalid, for
+              example after you delete the app. Because the token carries no
+              account, we cannot find it from an account or email request.
             </dd>
           </div>
           <div className="legalRow">
