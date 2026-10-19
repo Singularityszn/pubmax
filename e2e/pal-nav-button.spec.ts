@@ -20,8 +20,8 @@ async function seed(
     await installAuthDoubles(page);
     const now = "2026-10-04T12:00:00.000Z";
     const serverPal = {
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id, name,
-      adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, muted: false, hidden: false,
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
+      adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, name, muted: false, hidden: false,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     };
     await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: serverPal, adultOnFile: true } }));
@@ -42,7 +42,7 @@ async function seed(
         proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
       }));
     }
-  }, { theme, withPal, ownerId: ACCOUNTS.A.id, name, ...DEFAULT_PAL_DRAFT });
+  }, { theme, withPal, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT, name });
   if (withPal) await seedSignedIn(page, "A");
 }
 
