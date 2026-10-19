@@ -213,6 +213,9 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "wine", priceGbp: 6, drinkLabel: `Lemon verbena` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "wine", priceGbp: 6, drinkLabel: `Roasted buckwheat` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "wine", priceGbp: 7, drinkLabel: `Rose bud tea, Cyprus` },
+  { sourceUrl: "https://www.lambsurbiton.co.uk/bar-hire-london", category: "beer", priceGbp: 2 },
+  { sourceUrl: "https://www.lambsurbiton.co.uk/bar-hire-london", category: "beer", priceGbp: 5, drinkLabel: "ge Cooling Jackets Remote Cooler 1-6 Barrels Taps Drip Buckets Product Boards \u200b" },
+  { sourceUrl: "https://www.thejollycoopers.co.uk/menus/", category: "gin", priceGbp: 6.5, drinkLabel: "Martell" },
 ];
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {

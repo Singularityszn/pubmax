@@ -10098,8 +10098,8 @@
         "rowIdentitySetSha256": "565129e3d7f5e0bdd16f6072751d0b8c98e8920e8aa524400a4382dd0c67cefb"
       },
       "currentBundle": {
-        "rowCount": 7824,
-        "siteHarvestRows": 3701
+        "rowCount": 7821,
+        "siteHarvestRows": 3698
       }
     },
     {
@@ -10114,8 +10114,8 @@
         "rowIdentitySetSha256": "41c3134f5d2fe9c93a78be5ae983ce8472759c8654ceba5bc21008cbe1e0a2d8"
       },
       "currentBundle": {
-        "rowCount": 7824,
-        "siteHarvestRows": 3701
+        "rowCount": 7821,
+        "siteHarvestRows": 3698
       }
     },
     {
@@ -10130,8 +10130,8 @@
         "rowIdentitySetSha256": "d869bb52cbe7adfce0abb058c135a16339b99c1f74103758346dfdc069a2ad66"
       },
       "currentBundle": {
-        "rowCount": 7824,
-        "siteHarvestRows": 3701
+        "rowCount": 7821,
+        "siteHarvestRows": 3698
       }
     }
   ]
