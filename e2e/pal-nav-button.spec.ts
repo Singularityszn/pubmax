@@ -10,21 +10,24 @@ import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDouble
 
 const SHOTS = "artifacts/pal-nav-button";
 
-async function seed(page: Page, { theme, withPal }: { theme: "light" | "dark"; withPal: boolean }): Promise<void> {
+async function seed(
+  page: Page,
+  { theme, withPal, name = "Ripley" }: { theme: "light" | "dark"; withPal: boolean; name?: string },
+): Promise<void> {
   // The door wears a stored Pal only for the account that owns it, so the
   // person with a Pal is signed in as account A.
   if (withPal) {
     await installAuthDoubles(page);
     const now = "2026-10-04T12:00:00.000Z";
     const serverPal = {
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id, name: "Ripley",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id, name,
       adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, muted: false, hidden: false,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     };
     await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: serverPal, adultOnFile: true } }));
     await page.route("**/api/pub-pal/memories", (route) => route.fulfill({ json: { memories: [] } }));
   }
-  await page.addInitScript(({ theme: chosen, withPal: seeded, ownerId, appearance, personality, voice }) => {
+  await page.addInitScript(({ theme: chosen, withPal: seeded, ownerId, name: palName, appearance, personality, voice }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -34,12 +37,12 @@ async function seed(page: Page, { theme, withPal }: { theme: "light" | "dark"; w
     if (seeded) {
       window.localStorage.setItem("pubmax_account_owner", ownerId);
       window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: palName,
         adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
         proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
       }));
     }
-  }, { theme, withPal, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT });
+  }, { theme, withPal, ownerId: ACCOUNTS.A.id, name, ...DEFAULT_PAL_DRAFT });
   if (withPal) await seedSignedIn(page, "A");
 }
 
@@ -119,10 +122,12 @@ for (const width of [641, 700, 768, 900] as const) {
   test(`${width}px: the Pal's door fits the signed-in tablet bar`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width, height: 900 });
-    await seed(page, { theme: "light", withPal: true });
+    // A name at the 32-character limit of the Pal form (lib/pubPal.ts).
+    const name = "Bartholomew Fitzgerald the Third";
+    await seed(page, { theme: "light", withPal: true, name });
     await page.goto("/tonight");
     const bar = page.getByRole("navigation", { name: "Site navigation" });
-    const door = bar.getByRole("link", { name: "Pub Pal, Ripley", exact: true });
+    const door = bar.getByRole("link", { name: `Pub Pal, ${name}`, exact: true });
     await expect(door).toBeVisible({ timeout: 60_000 });
     const box = (await door.boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(44);
