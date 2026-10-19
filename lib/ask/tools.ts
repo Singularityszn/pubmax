@@ -788,6 +788,7 @@ async function toolProposeMapAction(
         lat: venue.lat,
         lng: venue.lng,
         place: venue.name,
+        venueId: venue.id,
       },
     ];
     return {

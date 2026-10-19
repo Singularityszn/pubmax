@@ -63,6 +63,7 @@ import {
 import {
   appendPalVoiceLine,
   correctPalVoiceLine,
+  palAsksForMap,
   palVoiceMapIntent,
   palNextStop,
   palNightStopsFrom,
@@ -76,6 +77,9 @@ import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
 import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
 import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import type { PalGenome } from "@/lib/palGenome";
+import { palPubAskVenue } from "@/lib/palMapAsk";
+import { venueMapUrl } from "@/lib/venueMapUrl";
+import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
@@ -248,6 +252,26 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   useEffect(() => {
     openNextStopRef.current = openNextStop;
   }, [openNextStop]);
+  // "Take me there" or "where is The Lamb?": one pub, named by the Pal's own
+  // newest line or by the person (lib/palMapAsk.ts). True when the map opens.
+  const palLinesRef = useRef<string[]>([]);
+  useEffect(() => {
+    palLinesRef.current = lines.filter((line) => line.speaker === "pal").map((line) => line.text);
+  }, [lines]);
+  const openPub = useCallback(async (text: string): Promise<boolean> => {
+    const request = ++nextStopRequestRef.current;
+    const venue = await palPubAskVenue(text, {
+      lastVenue: null,
+      palLines: palLinesRef.current,
+      loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
+    });
+    if (disposedRef.current || request !== nextStopRequestRef.current) return true;
+    if (venue) openMapRef.current(venueMapUrl(venue.id), `Opening ${venue.name}`);
+    else if (palAsksForMap(text)) openMapRef.current();
+    else return false;
+    return true;
+  }, []);
+  const openPubRef = useRef(openPub);
   useEffect(() => () => {
     nextStopRequestRef.current += 1;
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
@@ -436,6 +460,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             nextStopRequestRef.current += 1;
             const intent = palVoiceMapIntent(content, nightIsOnRef.current());
             if (intent === "next-stop") void openNextStopRef.current();
+            else if (intent === "pub") void openPubRef.current(content);
             else if (intent === "map") openMapRef.current();
             const conversationId = conversationIdRef.current;
             if (!conversationId) return;
@@ -550,6 +575,15 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     // A newer line from the person retires a "next stop" read still on its way.
     nextStopRequestRef.current += 1;
     const intent = palVoiceMapIntent(value, nightIsOn());
+    if (intent === "pub") {
+      // One pub: opened when it can be named, else the line goes to the Pal.
+      setText("");
+      void openPub(value).then((opened) => {
+        if (opened) setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
+        else sendToPal(value);
+      });
+      return;
+    }
     if (intent) {
       setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
       setText("");
@@ -557,6 +591,10 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       else openMap();
       return;
     }
+    sendToPal(value);
+  };
+
+  const sendToPal = (value: string) => {
     if (status !== "connected") {
       // No live conversation: sendUserMessage would throw and the Pal would
       // sit on "thinking" forever. Ask the written Pal instead.
