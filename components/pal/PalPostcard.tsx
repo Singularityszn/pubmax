@@ -134,7 +134,8 @@ export default function PalPostcard({
   }, []);
   useEffect(() => {
     preparedRef.current = null;
-    const content = postcardContent(pal, stopsKey.split("\n"), title, completedAt);
+    const own = pal && accountId && pal.ownerId === accountId ? pal : null;
+    const content = postcardContent(own, stopsKey.split("\n"), title, completedAt);
     const card = cardRef.current;
     if (!content || !card) return;
     let cancelled = false;
@@ -151,9 +152,12 @@ export default function PalPostcard({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [pal, stopsKey, title, completedAt, themeVersion]);
+  }, [pal, accountId, stopsKey, title, completedAt, themeVersion]);
 
-  const content = postcardContent(pal, stops, title, completedAt);
+  // Checked again against the account signed in now, during render, so an
+  // account switch never paints the last account's Pal before the read above.
+  const ownPal = pal && accountId && pal.ownerId === accountId ? pal : null;
+  const content = postcardContent(ownPal, stops, title, completedAt);
   if (!content) return null;
   const { pal: shown, genome, names, line, date } = content;
   const points = palPostcardPoints(names.length, VIEW_W, VIEW_H, VIEW_INSET, VIEW_TOP);

@@ -1212,6 +1212,32 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-b");
   });
 
+  it("goes from the person's current stop when they move on while the plan read is out", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const startTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    writeActivePlan({ id: NIGHT_PLAN_ID, startTime, stopIndex: 0 });
+    let land: (body: unknown) => void = () => {};
+    planRead.read.mockReturnValue(new Promise((resolve) => { land = resolve; }));
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "What's next?" });
+      await Promise.resolve();
+    });
+    // They reach The Crown in Night Mode before the read lands.
+    writeActivePlan({ id: NIGHT_PLAN_ID, startTime, stopIndex: 1 });
+    await act(async () => {
+      land({ stops: [
+        { venueId: "venue-a", venueName: "The Nellie Dean", position: 0 },
+        { venueId: "venue-b", venueName: "The Crown", position: 1 },
+        { venueId: "venue-c", venueName: "The Lamb", position: 2 },
+      ] });
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".palVoiceMapCard")?.textContent).toContain("Opening The Lamb, your next stop");
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-c");
+  });
+
   it("opens nothing when the plan read lands after the person left /pal", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
