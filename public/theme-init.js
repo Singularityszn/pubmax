@@ -212,5 +212,12 @@
     if (localStorage.getItem("pubmax:first-pins-seen:v1") === "1") return;
     if (localStorage.getItem("pubmax:map-opening-location:v1")) return;
     document.documentElement.dataset.mapPreview = "on";
+    // The picture of the opening streets under those prices covers a screen
+    // up to 440 x 960 CSS px (lib/mapOpeningSnapshot.ts,
+    // MAP_OPENING_SNAPSHOT_MAX_VIEWPORT). Decided here rather than in a media
+    // query, because the screen is only cut at named breakpoints.
+    if (window.innerWidth <= 440 && window.innerHeight <= 960) {
+      document.documentElement.dataset.mapGround = "on";
+    }
   } catch {}
 })();

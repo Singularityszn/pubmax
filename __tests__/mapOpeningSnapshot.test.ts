@@ -129,10 +129,17 @@ describe("where the picture may show", () => {
 
   it("is limited by the stylesheet to the viewport the picture covers", () => {
     const css = readFileSync(join(ROOT, "components/map/mapOpeningPreview.css"), "utf8");
+    const init = readFileSync(join(ROOT, "public/theme-init.js"), "utf8");
     const { width, height } = MAP_OPENING_SNAPSHOT_MAX_VIEWPORT;
-    expect(css).toContain(`@media (max-width: ${width}px) and (max-height: ${height}px)`);
-    // Shown only while the preview is on, and only where the document carries
-    // a picture at all.
-    expect(css).toMatch(/html\[data-map-preview="on"\]:has\(\.mapOpeningGround\) \.mapOpeningGround \{\s*display: block;/);
+    // The pre-paint script measures the screen against the picture's own
+    // numbers, and the stylesheet keeps it to portrait.
+    expect(init).toContain(`window.innerWidth <= ${width} && window.innerHeight <= ${height}`);
+    expect(init).toContain('document.documentElement.dataset.mapGround = "on"');
+    expect(css).toContain("@media (orientation: portrait)");
+    // Shown only while the preview is on, on a screen the picture covers, and
+    // only where the document carries a picture at all.
+    expect(css).toMatch(
+      /html\[data-map-preview="on"\]\[data-map-ground="on"\]:has\(\.mapOpeningGround\) \.mapOpeningGround \{\s*display: block;/,
+    );
   });
 });

@@ -60,8 +60,12 @@ html[data-map-preview="done"] .mapOpeningPreview {
    once, which on the ordinary path is the frame the loading frame lifts in.
 
    PHONES ONLY: the picture covers a portrait viewport up to 440 x 960 CSS px
-   (MAP_OPENING_SNAPSHOT_MAX_VIEWPORT, held to these numbers by
-   __tests__/mapOpeningSnapshot.test.ts). A larger one opens as it always did.
+   (MAP_OPENING_SNAPSHOT_MAX_VIEWPORT). public/theme-init.js measures the
+   screen before paint and sets data-map-ground="on" when it fits, because the
+   screen is only cut at named breakpoints (__tests__/breakpoints.test.ts);
+   portrait keeps a phone turned mid-opening from showing the picture's edge.
+   __tests__/mapOpeningSnapshot.test.ts holds both to the numbers. A larger
+   screen opens as it always did.
    `:has()` keeps a browser without it from fetching a picture it would only
    ever draw under the loading paper, and a background image under
    `display: none` is never fetched, so a visit the preview is not on, and the
@@ -95,14 +99,14 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
   background-image: var(--ground-dark);
 }
 
-@media (max-width: 440px) and (max-height: 960px) {
+@media (orientation: portrait) {
   @supports (container-type: size) {
-    html[data-map-preview="on"]:has(.mapOpeningGround) .mapOpeningGround {
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapOpeningGround {
       display: block;
     }
 
-    html[data-map-preview="on"]:has(.mapOpeningGround) .mapSkeleton,
-    html[data-map-preview="on"]:has(.mapOpeningGround) .mapLoading {
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapSkeleton,
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapLoading {
       background: transparent;
     }
 
@@ -113,11 +117,11 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
        screen over the picture of that same basemap. The container's own
        paper is an inline style (paintContainerBase in PubMapCanvas.tsx), so
        only !important lets the picture show through it. */
-    html[data-map-preview="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-canvas-container {
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-canvas-container {
       opacity: 0;
     }
 
-    html[data-map-preview="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-map {
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapOpeningGround) .mapCanvasWrap .maplibregl-map {
       background: transparent !important;
     }
   }
