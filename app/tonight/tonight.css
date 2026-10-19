@@ -43,6 +43,35 @@
   }
 }
 
+/* The smallest phones (320 to 360 wide) still hold the pair on one row: the
+   gap tightens and the primary gives back side padding, so the first pub
+   clears a docked consent card at 320x568 (e2e/consent-after-first-answer). */
+@media (max-width: 360px) {
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenActions {
+    flex-wrap: nowrap;
+    column-gap: var(--space-3);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenPrimary > :is(a, button) {
+    padding-inline: var(--space-4);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead .screenActions a {
+    white-space: nowrap;
+  }
+
+  /* Section headings take one step down the scale here, so the list's own
+     title holds one line beside a 276px column. */
+  .tonightPage .tonightSectionTitle {
+    font-size: var(--text-base);
+  }
+
+  .tonightPage > .tonightDesktopGrid > .screenHead {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+  }
+}
+
 /* The credit lines and the share control, directly under the listings they are
    about (app/tonight/TonightClient.tsx says why they left the head). */
 .tonightHeadCredits {

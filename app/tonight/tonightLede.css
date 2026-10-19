@@ -165,6 +165,34 @@
   padding-bottom: var(--space-1);
 }
 
+/* On the smallest phones "Why this pub" shares the area's line, so a card is
+   three short lines rather than four and the first one clears a docked
+   consent card at 320x568. Opened, the fold takes the whole width. */
+@media (max-width: 360px) {
+  .tonightHypedRow {
+    padding-block: var(--space-2);
+  }
+
+  .tonightHypedRow > .rowListBody {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-3);
+  }
+
+  .tonightHypedRow > .rowListBody > .tonightHypedName {
+    flex-basis: 100%;
+  }
+
+  .tonightHypedRow .tonightHypedReason[open] {
+    flex-basis: 100%;
+  }
+
+  .tonightHypedRow .tonightHypedReasonToggle {
+    margin-block: calc(-1 * var(--space-3));
+  }
+}
+
 /* The listed pint and its day take the trailing cell, the figure over the
    day, so a column of prices lines up down the list. */
 .tonightHypedPrice {
