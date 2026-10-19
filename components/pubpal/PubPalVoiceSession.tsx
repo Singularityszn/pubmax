@@ -199,7 +199,11 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     liveRef.current = status === "connected";
   }, [status]);
 
+  // Each "next stop" ask waits for the plan read. A newer ask, "Stay here" or
+  // leaving /pal moves this on, so a read that lands late opens nothing.
+  const nextStopRequestRef = useRef(0);
   const stayHere = useCallback((): void => {
+    nextStopRequestRef.current += 1;
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
     mapTimerRef.current = null;
     setMapPending(false);
@@ -230,7 +234,10 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const openNextStop = useCallback(async (): Promise<void> => {
     const plan = readActivePlan();
     if (!plan) return;
-    const next = palNextStop(palNightStopsFrom(await readPlanMemberProjection(plan.id)), plan.stopIndex);
+    const request = ++nextStopRequestRef.current;
+    const body = await readPlanMemberProjection(plan.id);
+    if (disposedRef.current || request !== nextStopRequestRef.current) return;
+    const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
     if (next) openMapRef.current(next.href, `Opening ${next.venueName}, your next stop`);
     else openMapRef.current();
   }, []);
@@ -240,6 +247,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     openNextStopRef.current = openNextStop;
   }, [openNextStop]);
   useEffect(() => () => {
+    nextStopRequestRef.current += 1;
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
   }, []);
 

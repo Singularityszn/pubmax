@@ -1193,6 +1193,51 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-b");
   });
 
+  it("opens nothing when the plan read lands after the person left /pal", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+    let land: (body: unknown) => void = () => {};
+    planRead.read.mockReturnValue(new Promise((resolve) => { land = resolve; }));
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "What's next?" });
+      await Promise.resolve();
+    });
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => {
+      land({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
+      await Promise.resolve();
+    });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  it("opens only the stop from the newest ask when two reads land out of order", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+    let landFirst: (body: unknown) => void = () => {};
+    planRead.read
+      .mockReturnValueOnce(new Promise((resolve) => { landFirst = resolve; }))
+      .mockResolvedValueOnce({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-c", venueName: "The Lamb", position: 1 }] });
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "What's next?" });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Where to next?" });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      landFirst({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".palVoiceMapCard")?.textContent).toContain("Opening The Lamb, your next stop");
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-c");
+  });
+
   it("leaves \"next stop\" to the Pal when no night is on", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const session = await startLiveSession();
