@@ -86,7 +86,7 @@
 
 .addPubHint {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--muted);
 }
@@ -128,7 +128,7 @@
 
 .addPubAddedStatus {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .addPubRemove {

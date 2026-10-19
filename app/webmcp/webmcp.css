@@ -361,7 +361,7 @@
   color: var(--ink-soft);
 }
 
-@media (min-width: 760px) {
+@media (min-width: 901px) {
   .webmcpHead { grid-template-columns: minmax(0, 1fr) auto; }
   .webmcpGrid { grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr); }
   .webmcpRoute,
@@ -369,7 +369,7 @@
   .webmcpOpen { width: auto; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .webmcpStops li { grid-template-columns: 34px minmax(0, 1fr); }
   .webmcpStops li button { grid-column: 2; justify-self: start; }
 }

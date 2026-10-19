@@ -254,7 +254,7 @@
 }
 
 /* Give the card a touch more room on narrow phones. */
-@media (max-width: 400px) {
+@media (max-width: 640px) {
   .tourCard {
     padding: var(--space-5) var(--space-5) var(--space-4);
   }

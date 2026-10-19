@@ -22,7 +22,7 @@
   background: var(--panel-raised);
   border-radius: var(--radius-sm);
   color: var(--color-text-soft);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
 }
 

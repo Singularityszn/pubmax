@@ -178,7 +178,7 @@ html[data-legacy="1"] .drinkCategoryTitle {
 
 .drinkName {
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
 }
@@ -190,7 +190,7 @@ html[data-legacy="1"] .drinkCategoryTitle {
 }
 
 .drinkServing {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
   opacity: 0.85;
 }
@@ -203,7 +203,7 @@ html[data-legacy="1"] .drinkCategoryTitle {
   border: 1px solid color-mix(in srgb, var(--pint) 45%, var(--line));
   background: color-mix(in srgb, var(--pint) 9%, transparent);
   color: var(--ink);
-  font-size: 0.64rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1.1;
@@ -274,13 +274,13 @@ html[data-legacy="1"] .drinkCategoryTitle {
 .drinkPrice {
   min-inline-size: 4.2rem;
   padding: 4px 8px;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 
 /* ── Provenance chip ───────────────────────────────────────────────────────── */
 .drinkProvChip {
-  font-size: 0.64rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -362,7 +362,7 @@ html[data-legacy="1"] .drinkCategoryTitle {
 /* ── Footnote ──────────────────────────────────────────────────────────────── */
 .drinkMenuFootnote {
   margin: 4px 0 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
   line-height: 1.4;
 }

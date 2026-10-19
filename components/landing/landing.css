@@ -398,7 +398,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   max-width: 36rem;
   margin: var(--space-4) 0 0;
   color: var(--ink-soft);
-  font-size: 17px;
+  font-size: var(--text-base);
   line-height: 1.6;
   text-wrap: pretty;
 }
@@ -450,7 +450,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 .lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-body); letter-spacing: .01em; }
-.lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
+.lpFooterCol a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: var(--text-base); font-weight: 600; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {
   .lpFooterCol a:hover {
     color: var(--ink);
@@ -538,9 +538,9 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 /* SiteNav's lower-tablet band (siteNav.css) widens its capsule to a 24px
-   inset from 641px to 767px. Mirror it, after the phone frame below so it
-   wins on 641 to 700 too, or the bar narrowed by 24px (and by 4px under 701)
-   on the way from the front door into the app. */
+   inset from 641px to 767px. Mirror it, or the bar narrowed by 24px on the
+   way from the front door into the app. The phone frame below ends at 640,
+   the same cut the in-app bar takes. */
 
 @media (max-width: 960px) {
   .lpNav { gap: 10px; padding-left: 12px; }
@@ -584,7 +584,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   /* Shared top-bar FRAME (siteNav.css :root --topbar-*): on a phone the landing
      bar takes the same 52px height, --topbar-radius corner and tight shadow as the in-app
      bars so landing to app never jumps. The top offset keeps its max() literal. */
@@ -628,12 +628,12 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Mobile legibility floor: every visible micro-label rides at least 12px on a
    phone. Desktop keeps the tighter display sizes. */
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: var(--text-xs); }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
 }
 
-@media (max-width: 350px) {
+@media (max-width: 360px) {
   .lpNavActions .authUserNav { display: none; }
 }
 
@@ -709,7 +709,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 .lpRailPrice { flex: none; }
 .lpRailPrice .priceBadge { font-size: var(--text-sm); }
 
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .lpAnswerCard { width: 100%; }
 }
 
@@ -749,7 +749,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 /* Phone: the answer sits between the heading and the tap, so the heading
    gives up one size step and the card its outer padding, and the whole
    screen still reads kicker, claim, answer, action inside 844px. */
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
   .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
   .lpHero .lpAnswerCard { gap: var(--space-1); padding: var(--space-4); }
@@ -829,7 +829,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 641px) {
   .lpAnswersGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* The Pub Pal door spans both answers rather than leaving one alone. */
   .lpAnswerTileWide { grid-column: 1 / -1; }
@@ -891,7 +891,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   max-width: 36rem;
   margin: var(--space-4) 0 0;
   color: var(--ink-soft);
-  font-size: 17px;
+  font-size: var(--text-base);
   line-height: 1.6;
   text-wrap: pretty;
 }

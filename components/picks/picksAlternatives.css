@@ -46,7 +46,7 @@
   }
 }
 
-@media (max-width: 430px) {
+@media (max-width: 640px) {
   .picksAlternativesList {
     flex-direction: column;
     gap: 0;

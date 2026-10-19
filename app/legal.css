@@ -207,7 +207,7 @@
   color: var(--ink-soft);
 }
 
-@media (min-width: 640px) {
+@media (min-width: 641px) {
   .legalRow {
     grid-template-columns: 12rem 1fr;
     gap: var(--space-4);

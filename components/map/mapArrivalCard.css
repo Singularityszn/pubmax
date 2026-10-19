@@ -144,14 +144,14 @@
     grid-column: 1 / -1;
     grid-row: 2;
     padding-left: 6px;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     line-height: 1.25;
   }
 }
 
 /* The narrowest phones keep both answers on one row by tightening the label
    padding, never by dropping one. */
-@media (max-width: 359px) {
+@media (max-width: 360px) {
   .mapArrivalCardActions {
     gap: 6px;
   }

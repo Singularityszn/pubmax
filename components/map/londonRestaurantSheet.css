@@ -36,7 +36,7 @@
 .londonRestaurantName {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.32rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1.15;
   color: var(--ink);
@@ -66,14 +66,14 @@
 .londonRestaurantLead {
   margin: 14px 0 0;
   color: var(--ink-soft);
-  font-size: 0.94rem;
+  font-size: var(--text-base);
   line-height: 1.45;
 }
 
 .londonRestaurantSource {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 

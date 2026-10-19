@@ -204,7 +204,7 @@ html[data-text-scale="large"] .socialPage .screenHead {
 .socialBoundary h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   text-wrap: balance;
 }
 
@@ -226,7 +226,6 @@ html[data-text-scale="large"] .socialPage .screenHead {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 7%, transparent);
   overflow: hidden;
   overflow-wrap: anywhere;
 }
@@ -468,7 +467,7 @@ span.socialPostAvatar {
 .socialComposer h2 {
   margin: 0;
   text-align: center;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
 }
 
 .socialComposer button {
@@ -723,7 +722,7 @@ span.socialPostAvatar {
 }
 
 .socialPhotoCue {
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   line-height: 1;
 }
 
@@ -793,7 +792,7 @@ span.socialPostAvatar {
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
 }
 
-@media (min-width: 700px) {
+@media (min-width: 641px) {
   .socialComposerBackdrop { place-items: center; }
   .socialComposer { border-radius: 20px; }
 }
@@ -826,7 +825,7 @@ span.socialPostAvatar {
 .socialContextRail h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   text-wrap: balance;
 }
 
@@ -1682,7 +1681,7 @@ span.socialPostAvatar {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  font-size: 0.9375rem;
+  font-size: var(--text-base);
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;

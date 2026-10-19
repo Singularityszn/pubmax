@@ -22,7 +22,7 @@
 }
 
 /* On narrow phones let the six cells wrap to two rows instead of squashing. */
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .zonePintIndexRow {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -124,7 +124,7 @@ button.zonePintCell:active {
 }
 
 .isCompact .zonePintCellValue {
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .zonePintCellHint {
@@ -142,14 +142,14 @@ button.zonePintCell:active {
 }
 
 .isCompact .zonePintIndexTax {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 /* Sits between the tax line and the method note: quieter than the figure it
    explains, louder than the method it is not part of. */
 .zonePintIndexOrderNote {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--ink-soft);
 }
@@ -252,7 +252,7 @@ button.zonePintCell:active {
 /* The figure keeps the mono price idiom and the brass it earned as price data. */
 .zonePintIndex.isCompact .zonePintCellValue {
   font-family: var(--font-data);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--accent-price-ink);
 }
 
@@ -265,7 +265,7 @@ button.zonePintCell:active {
 }
 
 /* The compact strip's cells stack, so the six-across grid media rule is moot. */
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .zonePintIndex.isCompact .zonePintIndexRow {
     grid-template-columns: none;
   }
@@ -374,7 +374,7 @@ button.zonePintCell:active {
   white-space: nowrap;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .zoneDotPlot {
     --zone-dot-label: 3.75rem;
     --zone-dot-value: 4.5rem;

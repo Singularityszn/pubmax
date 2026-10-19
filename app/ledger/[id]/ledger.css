@@ -67,7 +67,7 @@
 
 .ledgerAddress {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
 }
 
@@ -85,7 +85,7 @@
   align-items: center;
   min-height: 48px;
   padding: 12px 22px;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   font-weight: 700;
   text-decoration: none;
   color: var(--panel-raised);
@@ -156,7 +156,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 .ledgerClaimBody {
   margin: 10px 0 0;
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   line-height: 1.6;
   color: var(--ink);
 }
@@ -169,7 +169,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 /* Provenance chips — kept visually distinct per kind, never blurred together. */
 .ledgerProvenance {
   display: inline-block;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -238,7 +238,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 .ledgerEntryNote {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: var(--text-lg);
   line-height: 1.6;
   color: var(--ink);
 }
@@ -246,7 +246,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 .ledgerEntryPrice {
   margin: 10px 0 0;
   font-family: var(--font-data);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
 }
 
@@ -268,7 +268,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 /* ── Lane wayfinding — one quiet line explaining Public vs Legacy ─────────── */
 .ledgerLaneNote {
   margin: 0 0 28px;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-style: italic;
   color: var(--ink-soft);
 }
@@ -301,7 +301,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 .ledgerFamilyIntro {
   margin: -8px 0 20px;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   color: var(--ink-soft);
 }
 
@@ -332,7 +332,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 .ledgerFamilyEntryDate {
   font-family: var(--serif);
   font-style: italic;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
 }
 
@@ -354,7 +354,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 .ledgerFamilyEntryPrice {
   margin: 10px 0 0;
   font-family: var(--font-data);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--ink-soft);
   opacity: 0.8;
 }
@@ -418,7 +418,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 /* Ensure comfortable reading at 200% browser zoom: single column, generous
    line length cap already set by max-width above, no fixed-height clipping
    anywhere in this file. */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .ledgerHeadActions {
     flex-direction: column;
     align-items: stretch;
@@ -460,7 +460,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 }
 
 .ledgerListedSource {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;

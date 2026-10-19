@@ -102,11 +102,11 @@
 .mapExperienceLensSummary {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .mapExperienceLensHead {
     align-items: flex-start;
     flex-direction: column;

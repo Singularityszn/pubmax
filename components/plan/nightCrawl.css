@@ -139,7 +139,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 800;
 }
 .nightCrawl__done[data-disposition="arrived"] .nightCrawl__mark {
@@ -156,7 +156,7 @@
 }
 .nightCrawl__doneBody { min-width: 0; }
 .nightCrawl__doneName {
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--nc-ink-soft);
   white-space: nowrap;
@@ -192,7 +192,6 @@
     radial-gradient(130% 90% at 50% 0%, rgba(255, 90, 95, 0.16), transparent 62%),
     linear-gradient(180deg, #1c1614, var(--nc-panel-raised));
   border: 1px solid rgba(255, 90, 95, 0.32);
-  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5);
 }
 /* One-thumb glance: now / then / get home above the fold. */
 .nightCrawl__glance {
@@ -287,7 +286,7 @@
 }
 .nightCrawl__whoState {
   font-family: var(--nc-data);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--nc-muted);
@@ -348,13 +347,12 @@
   justify-content: center;
   gap: 3px;
   cursor: pointer;
-  box-shadow: 0 14px 34px rgba(255, 90, 95, 0.38), inset 0 2px 0 rgba(255, 255, 255, 0.22);
   transition: transform 0.12s ease;
 }
 .nightCrawl__arrive small,
 .nightCrawl__skip small {
   font-family: var(--nc-data);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -368,7 +366,7 @@
   background: transparent;
   color: var(--nc-brick);
   font-family: var(--nc-display);
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -419,7 +417,7 @@
   border: 1px solid var(--nc-line);
   color: var(--nc-ink-soft);
   font-family: var(--nc-display);
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -428,7 +426,7 @@
 }
 .nightCrawl__escape small {
   font-family: var(--nc-data);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -453,14 +451,14 @@
 }
 .nightCrawl__enterText { min-width: 0; }
 .nightCrawl__enterKicker {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--color-text-muted);
 }
 .nightCrawl__enterLede {
   margin-top: 4px;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .nightCrawl__enterBtn {

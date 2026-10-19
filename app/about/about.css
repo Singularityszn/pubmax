@@ -209,7 +209,7 @@
 }
 
 /* Wider viewports: give press-kit rows a label/value split. */
-@media (min-width: 560px) {
+@media (min-width: 641px) {
   .aboutPressRow {
     grid-template-columns: 8rem 1fr;
     gap: var(--space-3);
@@ -224,10 +224,10 @@
    a wide desktop row keeps its measure. The width clause is not redundant: on
    16 October 2026 the macOS layout-pins shard measured these links at 23px on
    a 390px touch-emulated load where the pointer query had not matched, and
-   the floor must not hang on that one signal. 559px is the press-kit row's
-   own breakpoint. e2e/launch-phone-controls.spec.ts measures it, with and
+   the floor must not hang on that one signal. 640px is the phone breakpoint, where
+   the press-kit row stacks. e2e/launch-phone-controls.spec.ts measures it, with and
    without a coarse pointer. */
-@media (pointer: coarse), (max-width: 559px) {
+@media (pointer: coarse), (max-width: 640px) {
   .aboutLogoLinks .aboutLink {
     display: inline-flex;
     align-items: center;

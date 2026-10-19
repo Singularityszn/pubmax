@@ -348,7 +348,7 @@
 
 /* With room for them, the chips wrap into a block rather than hiding a cut
    behind a scroll nobody looks for. */
-@media (min-width: 768px) {
+@media (min-width: 641px) {
   .spoonsTableCuts {
     flex-wrap: wrap;
     overflow-x: visible;

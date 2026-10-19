@@ -12,7 +12,6 @@
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 .gardenTonightKicker {
@@ -36,7 +35,7 @@
 
 .gardenTonightDek {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -68,7 +67,7 @@
 }
 
 .gardenTonightPubName {
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
   overflow: hidden;
@@ -104,7 +103,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--ink);
   text-decoration: underline;

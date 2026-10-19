@@ -123,7 +123,7 @@
   max-width: min(100%, 28ch);
   margin: 0;
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -362,7 +362,7 @@
   border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
@@ -451,7 +451,7 @@
 
 .tonightRowTitle {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink);
@@ -462,7 +462,7 @@
   align-items: center;
   gap: 5px;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
@@ -494,7 +494,7 @@
 /* Wraps rather than truncating: half a listing age is worse than none. */
 .tonightRowListingAge {
   margin: 6px 0 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.35;
   color: var(--ink-soft);
@@ -668,7 +668,7 @@
 
 .tonightGetHomeCopy {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -777,11 +777,11 @@
    around the column opened about 1,000px of empty rail beside the lede, the
    defect D8 was filed for, so the editorial rail lives in the rail too.
 
-   Below 1100px the rail contributes no box, so a phone and a tablet read one
+   Below 1024px the rail contributes no box, so a phone and a tablet read one
    column in DOM order: head, lede, weather, credits, cheap pints, chain
    blocks, vibe chips, the full Deals and Music lanes, the editorial rail, the
    soft plans, the area news, the rest, and the way-onward row. */
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .tonightPage {
     max-width: var(--content-max-wide);
   }

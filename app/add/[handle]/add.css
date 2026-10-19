@@ -92,21 +92,21 @@
 .confirmFollowEyebrow {
   margin: 0;
   font-weight: 700;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.01em;
   color: var(--ink-soft);
 }
 
 .confirmFollowTitle {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: var(--text-xl);
   line-height: 1.15;
   color: var(--ink);
 }
 
 .confirmFollowBody {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -125,7 +125,7 @@
 .confirmFollowError {
   margin: 0;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--brick);
 }
 
@@ -181,7 +181,7 @@
   align-items: center;
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   text-decoration: none;
 }
 
@@ -191,7 +191,7 @@
   margin: -6px 0 0;
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 
 .confirmFollowSecondary {
@@ -207,7 +207,7 @@
   color: var(--ink);
   font: inherit;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   text-decoration: none;
   cursor: pointer;
 }

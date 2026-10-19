@@ -91,7 +91,7 @@ body:has(.palExperience) {
 /* The head keeps the Screen's own measure, so the heading sets on two
    balanced lines rather than three in an 11ch column. */
 .palMeeting .screenHead { max-width: 36rem; padding-block: 0; }
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   /* The head starts under the nav rather than floating in the middle of a
      viewport-tall stage. With the glow field gone the portrait box no longer
      needs the empty margin it was drawn into, so the box is tighter and the
@@ -345,7 +345,7 @@ body:has(.palExperience) {
 /* The panel's edge says who has the floor: coral while the Pal talks, ink
    while it listens. Solid surface, no blur: this is a card, not chrome. */
 .palVoice[data-mode="listening"] { --voice-tone: color-mix(in srgb, var(--pal-paper) 38%, var(--pal-line)); }
-.palVoice[data-mode="speaking"] { --voice-tone: var(--pal-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pal-accent) 14%, transparent); }
+.palVoice[data-mode="speaking"] { --voice-tone: var(--pal-accent); outline: 4px solid color-mix(in srgb, var(--pal-accent) 14%, transparent); }
 .palVoice[data-mode="connecting"] { --voice-tone: color-mix(in srgb, var(--pal-accent) 45%, var(--pal-line)); }
 .palVoiceHead { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .palVoiceStatus { display: flex; align-items: center; gap: .45rem; font-weight: 600; }
@@ -366,7 +366,7 @@ body:has(.palExperience) {
   outline: 2px solid color-mix(in srgb, var(--voice-tone) 70%, transparent);
   will-change: transform;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .palVoiceFace { display: block; }
 }
 
@@ -474,7 +474,7 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
   .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   body:has(.palOnboarding) .mobileTabBar { display: none; }
   /* House tab-bar + pill clearance: bind the bottom pad to the shared --tabbar-h
      token (mobileNav.css) + the home-indicator inset + the re-open pill's

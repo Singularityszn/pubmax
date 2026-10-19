@@ -92,7 +92,7 @@
   margin: 0;
   min-width: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   /* A coverage line carries a drink name and a claim about the map. It wraps;
      it never truncates (the phone-chrome rule for price captions). */

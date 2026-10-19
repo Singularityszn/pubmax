@@ -135,7 +135,7 @@
   line-height: var(--leading-snug);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .routeEndingCard {
     gap: var(--space-4);
   }

@@ -15,7 +15,7 @@
   border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -61,7 +61,7 @@
 }
 
 .cheersGlyph {
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   line-height: 1;
   /* A tiny lift on cheer, so the glyph "pops" as the state flips. */
   transition: transform 0.18s ease;

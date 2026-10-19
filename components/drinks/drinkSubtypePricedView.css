@@ -20,7 +20,7 @@
   margin-top: 20px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 901px) {
   .softDrinksWater__layout {
     grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
     align-items: start;

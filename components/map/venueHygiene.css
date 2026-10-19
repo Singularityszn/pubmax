@@ -13,7 +13,7 @@
   border: 1px solid var(--badge-border);
   background: var(--badge-surface);
   color: var(--badge-ink);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.3;
   /* 44px, not 32px: on the venue sheet this is a real link out to the FSA
      record, sitting in a column of thumb-sized controls. */
@@ -62,7 +62,7 @@ a.venueHygiene:focus-visible {
    the token that means "quieter", and it stays measurable. */
 .venueHygieneSource {
   color: var(--color-text-muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 /* The way to every source and its licence, beside the badge rather than inside

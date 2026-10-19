@@ -611,7 +611,7 @@
 .venuePriceSignInGate h3 {
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: var(--text-base);
 }
 
 .venuePriceSignInGate p {
@@ -965,7 +965,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   border-color: var(--line);
   background: var(--panel-raised);
   color: var(--color-text-muted);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1050,7 +1049,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 .venueTabPanel .placeStoriesLead {
   margin: 0 0 10px;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--ink);
 }
@@ -1070,7 +1069,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 .venueTabPanel .placeStoryTitle {
   margin: 0 0 6px;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .venueTabPanel .placeStoryCopy {
@@ -1185,7 +1184,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   --line: color-mix(in srgb, var(--river) 36%, var(--line-soft));
   --panel-raised: color-mix(in srgb, var(--river) 7%, var(--paper));
 
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--river) 14%, transparent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1219,7 +1217,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     min-width: 44px;
     min-height: 44px;
     padding: 7px 10px;
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     /* Tighter tracking (not just a smaller size) buys back a couple of px per
        tab so the short labels sit comfortably instead of clipping. */
     letter-spacing: -0.01em;
@@ -1241,7 +1239,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 /* Tighter tab spacing keeps all five tabs in one row at the common 400px and
    430px phone widths. Large text wraps the strip instead (the ≤640 block
    above). */
-@media (max-width: 430px) {
+@media (max-width: 640px) {
   .venueTabs {
     gap: 2px;
   }
@@ -1283,7 +1281,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
   .venueTab {
     padding-inline: 2px;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
 }
 
@@ -1358,8 +1356,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 /* ── Desktop docked-panel treatment (N3) ─────────────────────────────────────
    ≥1024px matches the app's established "real desktop" cut (see globals.css
-   .logDropBar / .mapLegend @media (max-width: 1050px) — the inverse of that
-   is roughly here) rather than the 641px mobile-gesture cut above, which only
+   .logDropBar / .mapLegend @media (max-width: 1023px), its exact inverse) rather than the 641px mobile-gesture cut above, which only
    tells us the drag-sheet is off; a narrow tablet width still wants the
    mobile-shaped strip. Scoped to the right drawer that actually hosts the
    open right drawer so the planner's left drawer — a different, already
@@ -1403,7 +1400,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
        seven tabs asked 591px of a 603px strip at 16px a side on a 1440
        desktop (measured 6 Sep 2026); five tabs leave the row more to spare. */
     padding: 9px 12px;
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
   }
 
   .venueInspector .venueTabFull {
@@ -1617,7 +1614,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
 }
 
 @media (hover: hover) and (pointer: fine) {

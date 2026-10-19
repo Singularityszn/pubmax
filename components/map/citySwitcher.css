@@ -82,7 +82,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+  box-shadow: var(--shadow);
 }
 
 .citySwitcherLink {

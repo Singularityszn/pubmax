@@ -71,7 +71,7 @@
 }
 
 .chooseAreaRowName {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .chooseAreaRowMeta {

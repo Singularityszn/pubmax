@@ -103,7 +103,7 @@ html[data-theme="dark"] .messagesPage {
 
 .messagesScreen .screenTitle {
   font-family: var(--font-body);
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
@@ -358,7 +358,7 @@ html[data-theme="dark"] .messagesPage {
 }
 
 .conversationTime {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -377,7 +377,7 @@ html[data-theme="dark"] .messagesPage {
   border-radius: var(--radius-pill);
   background: var(--ink);
   color: var(--paper);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1;
   display: inline-flex;
@@ -491,7 +491,7 @@ html[data-theme="dark"] .messagesPage {
   display: flex;
   justify-content: center;
   margin: 0.9rem 0 0.4rem;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.01em;
@@ -520,7 +520,7 @@ html[data-theme="dark"] .messagesPage {
 
 .threadEmptyLine {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -565,7 +565,7 @@ html[data-theme="dark"] .messagesPage {
   max-width: 100%;
   padding: 0.55rem 0.85rem;
   border-radius: 20px;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.38;
   word-wrap: break-word;
   overflow-wrap: anywhere;
@@ -785,7 +785,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   aspect-ratio: var(--message-photo-aspect, 0.8);
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--ink) 6%, transparent);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -803,7 +803,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   display: flex;
   align-items: center;
   min-height: 44px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -898,7 +898,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageVenueCardPrice,
 .messageVenueCardUnresolved {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: inherit;
   opacity: 0.85;
 }
@@ -1148,7 +1148,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .composerCount {
   align-self: flex-end;
   padding-right: 0.5rem;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1273,7 +1273,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 22%);
+  box-shadow: var(--shadow);
 }
 
 .threadError {
@@ -1348,7 +1348,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   background: transparent;
   color: var(--color-text-muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   text-decoration: none;
   cursor: pointer;
 }
@@ -1622,7 +1622,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -1806,7 +1806,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagesNewGroupHint,
 .messagesNewGroupStatus {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -1921,7 +1921,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageContactCardHandle {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: inherit;
   opacity: 0.85;
 }
@@ -1936,7 +1936,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageEventCardStops,
 .messageEventCardPrivacy {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: inherit;
   opacity: 0.85;
 }
@@ -2013,7 +2013,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagePollTotal,
 .messagePollError {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   opacity: 0.8;
 }
 

@@ -372,7 +372,7 @@
       color: var(--color-text);
     }
   }
-  .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: .72rem; }
+  .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: var(--text-xs); }
   .citySwitcher--mobile .citySwitcherLabelShort { display: none; }
   .mobileMapTopbar > button { border: 0; background: transparent; }
   .mobileMapPalButton { color: var(--color-text-muted); }
@@ -731,7 +731,7 @@
     border-radius: var(--radius-pill);
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     font: inherit;
     transform: none;
   }
@@ -770,7 +770,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background: var(--color-surface-raised);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     /* The whole card is the gesture surface: a pull on it must never scroll
        the page or pan the map behind it. */
     touch-action: none;
@@ -896,7 +896,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: .9375rem;
+    font-size: var(--text-base);
     font-weight: 600;
   }
   .mapPeekWalk {
@@ -905,7 +905,7 @@
     color: var(--color-text-muted);
     white-space: nowrap;
   }
-  .mapPeekHush { font-size: .9375rem; color: var(--color-text-muted); }
+  .mapPeekHush { font-size: var(--text-base); color: var(--color-text-muted); }
   /* The loading line holds the answer's own height so the card never resizes
      when the answer lands. */
   .mapPeekSkeleton { display: none; }

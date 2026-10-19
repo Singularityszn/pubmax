@@ -426,9 +426,7 @@ body:has(.mobileMapUtilityCorner) {
     width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
     border-radius: calc(var(--tab-rail-radius) - var(--tab-inset));
     background: var(--state-selected-surface);
-    box-shadow:
-      inset 0 1.5px 3px color-mix(in srgb, var(--ink-deep) 22%, transparent),
-      inset 0 -1px 0 color-mix(in srgb, var(--paper) 80%, transparent);
+    box-shadow: var(--shadow-inset-press);
     transform: translateX(calc(var(--active-index, -1) * 100%));
     z-index: 0;
     pointer-events: none;
@@ -572,7 +570,7 @@ body:has(.mobileMapUtilityCorner) {
   }
 }
 
-@media (max-width: 390px) {
+@media (max-width: 640px) {
   .mobileTabBar {
     padding-inline: 10px;
   }
