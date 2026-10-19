@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, Fragment, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -145,6 +145,29 @@ describe("the Pal's own door", () => {
     window.localStorage.removeItem("pubmax_pub_pal_v1");
     await act(async () => { announceLocalPalChange(); });
     expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
+  });
+
+  it("never paints the last account's Pal on the frame an account switch lands", async () => {
+    store(pal());
+    // Layout effects run after the DOM is written and before the door's own
+    // read runs, so this sees exactly what the switch paints first.
+    const painted: string[] = [];
+    function Probe() {
+      useLayoutEffect(() => {
+        painted.push(document.querySelector("a.mobileTabPal")?.getAttribute("aria-label") ?? "");
+      });
+      return null;
+    }
+    const tree = () => createElement(Fragment, null, createElement(PalDockButton, { pathname: "/tonight" }), createElement(Probe));
+    await render(tree());
+    await act(async () => root!.render(tree()));
+    expect(painted.at(-1)).toBe("Pub Pal, Ripley");
+
+    painted.length = 0;
+    auth.userId = "someone-else";
+    await act(async () => root!.render(tree()));
+    expect(painted.length).toBeGreaterThan(0);
+    expect(painted).not.toContain("Pub Pal, Ripley");
   });
 
   it("marks itself as the page on /pal", async () => {

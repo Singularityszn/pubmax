@@ -44,6 +44,7 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PalNightQuestion from "./PalNightQuestion";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
 import { usePalHead3D } from "./usePalHead3D";
@@ -342,6 +343,7 @@ function PalHomeScreen({
           <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} />
         </div>
       </section>
+      <PalNightQuestion muted={pal.muted} palName={pal.name} />
       <PalYear palName={pal.name} print={genome.print} />
       <section className="palControls" aria-labelledby="pal-controls-title">
         <div>
@@ -589,6 +591,16 @@ export default function PalExperience() {
   const palMutationRef = useRef<{ ownerId: string; requestId: number } | null>(null);
   const controlSavingRef = useRef<{ ownerId: string; requestId: number } | null>(null);
   const controlRequestIdRef = useRef(0);
+  const palAnimationTimerRef = useRef(0);
+
+  // One animation at a time: a new one cancels the last one's return to idle,
+  // and leaving the page cancels it too, so no timer fires after unmount.
+  useEffect(() => () => window.clearTimeout(palAnimationTimerRef.current), []);
+  const playPalAnimation = (state: PalAnimationState, ms: number) => {
+    window.clearTimeout(palAnimationTimerRef.current);
+    setPalAnimationState(state);
+    palAnimationTimerRef.current = window.setTimeout(() => setPalAnimationState("idle"), ms);
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -847,8 +859,7 @@ export default function PalExperience() {
       // A Pal the person just unmuted stretches awake. Any other setting
       // gets the plain "saved" celebration.
       const woke = patch.muted === false && !body.pal.muted;
-      setPalAnimationState(woke ? "waking" : "celebrating");
-      window.setTimeout(() => setPalAnimationState("idle"), woke ? PAL_WAKE_MS : 900);
+      playPalAnimation(woke ? "waking" : "celebrating", woke ? PAL_WAKE_MS : 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPalAnimationState("error");
@@ -890,8 +901,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
       writeStored(LOCAL_PAL_KEY, body.pal);
-      setPalAnimationState("celebrating");
-      window.setTimeout(() => setPalAnimationState("idle"), 900);
+      playPalAnimation("celebrating", 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPal(previous);
@@ -931,8 +941,7 @@ export default function PalExperience() {
       setMemories((current) => current.map((memory) => memory.id === memoryId ? body.memory! : memory));
       setEditingMemoryId("");
       setEditingMemoryValue("");
-      setPalAnimationState("celebrating");
-      window.setTimeout(() => setPalAnimationState("idle"), 900);
+      playPalAnimation("celebrating", 900);
     } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setError(cause instanceof Error ? cause.message : "We couldn't save that correction.");

@@ -243,7 +243,11 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
     const request = ++nextStopRequestRef.current;
     const body = await readPlanMemberProjection(plan.id);
     if (disposedRef.current || request !== nextStopRequestRef.current) return;
-    const next = palNextStop(palNightStopsFrom(body), plan.stopIndex);
+    // The cursor may have moved while the read was out: go from where the
+    // person is now, and only while the same night is still on.
+    const current = readActivePlan();
+    if (!current || current.id !== plan.id || !isPlanActiveNow(current, Date.now())) return;
+    const next = palNextStop(palNightStopsFrom(body), current.stopIndex);
     if (next) openMapRef.current(next.href, `Opening ${next.venueName}, your next stop`);
     else openMapRef.current();
   }, []);

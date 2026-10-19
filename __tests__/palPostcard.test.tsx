@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, Fragment, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -152,6 +152,32 @@ describe("the postcard on the recap", () => {
     auth.userId = null;
     await render();
     expect(host.querySelector(".palPostcard")).toBeNull();
+    auth.userId = "owner";
+  });
+
+  it("never paints the last account's Pal on the frame an account switch lands", async () => {
+    store(pal());
+    const painted: boolean[] = [];
+    function Probe() {
+      useLayoutEffect(() => {
+        painted.push(document.querySelector(".palPostcard") !== null);
+      });
+      return null;
+    }
+    const tree = () => createElement(Fragment, null, createElement(PalPostcard, NIGHT), createElement(Probe));
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => root!.render(tree()));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => root!.render(tree()));
+    expect(painted.at(-1)).toBe(true);
+
+    painted.length = 0;
+    auth.userId = "someone-else";
+    await act(async () => root!.render(tree()));
+    expect(painted.length).toBeGreaterThan(0);
+    expect(painted).not.toContain(true);
     auth.userId = "owner";
   });
 

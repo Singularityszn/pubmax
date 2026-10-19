@@ -77,7 +77,9 @@ function usePalForNav(pathname: string): { pal: PubPal | null; cheering: boolean
       window.clearTimeout(timer);
     };
   }, []);
-  return { pal, cheering };
+  // Checked again against the account signed in NOW, during render, so a switch
+  // never paints the last account's Pal for the frame before the read above.
+  return { pal: palForNav(pal, accountId), cheering };
 }
 
 function PalNavFace({ pal, size }: { pal: PubPal | null; size: 48 | 32 }) {
