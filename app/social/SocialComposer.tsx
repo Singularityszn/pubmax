@@ -512,6 +512,9 @@ export default function SocialComposer({
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [extraPhotos, setExtraPhotos] = useState<ExtraPhotoDraft[]>([]);
   const [draftReady, setDraftReady] = useState(false);
+  // The pending debounced write of the draft. Clear draft cancels it first,
+  // or a write scheduled before the clear lands after it and restores the text.
+  const draftSaveTimerRef = useRef<number | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState(post?.mutationVersion ?? 0);
   const [busy, setBusy] = useState(false);
@@ -552,6 +555,8 @@ export default function SocialComposer({
   }
 
   async function clearDraft() {
+    if (draftSaveTimerRef.current !== null) window.clearTimeout(draftSaveTimerRef.current);
+    draftSaveTimerRef.current = null;
     localStorage.removeItem(draftKey);
     await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
     setDraft(initialDraft(initialPostRef.current));
@@ -608,11 +613,15 @@ export default function SocialComposer({
 
   useEffect(() => {
     if (!draftReady) return;
-    const timer = window.setTimeout(
-      () => localStorage.setItem(draftKey, JSON.stringify(draft)),
-      300,
-    );
-    return () => window.clearTimeout(timer);
+    const timer = window.setTimeout(() => {
+      draftSaveTimerRef.current = null;
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    }, 300);
+    draftSaveTimerRef.current = timer;
+    return () => {
+      window.clearTimeout(timer);
+      if (draftSaveTimerRef.current === timer) draftSaveTimerRef.current = null;
+    };
   }, [draft, draftKey, draftReady]);
 
   useEffect(() => {
