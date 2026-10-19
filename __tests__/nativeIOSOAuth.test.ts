@@ -173,3 +173,27 @@ describe("an iPhone OAuth return", () => {
     expect(await ticket.install(async () => "late install")).toBeNull();
   });
 });
+
+describe("native auth lifetime reservation", () => {
+  it("holds a place without stopping older work", () => {
+    const lifetime = createNativeAuthLifetime();
+    const older = lifetime.begin();
+    const reservation = lifetime.reserve();
+    expect(older.current()).toBe(true);
+    expect(reservation.current()).toBe(true);
+  });
+
+  it("ends at a later begin, invalidation or reservation", () => {
+    const lifetime = createNativeAuthLifetime();
+    const beforeBegin = lifetime.reserve();
+    lifetime.begin();
+    expect(beforeBegin.current()).toBe(false);
+    const beforeInvalidate = lifetime.reserve();
+    void lifetime.invalidate();
+    expect(beforeInvalidate.current()).toBe(false);
+    const earlier = lifetime.reserve();
+    const later = lifetime.reserve();
+    expect(earlier.current()).toBe(false);
+    expect(later.current()).toBe(true);
+  });
+});

@@ -64,6 +64,15 @@ describe("next.config redirects", () => {
     });
   });
 
+  it.each([
+    ["/pub-pal", "/pal"],
+    ["/pub-pal/:path*", "/pal/:path*"],
+    ["/pubpal", "/pal"],
+  ])("sends the Pub Pal vanity path %s to %s permanently", async (source, destination) => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === source);
+    expect(rule).toMatchObject({ source, destination, permanent: true });
+  });
+
   it("sends /story to /about permanently", async () => {
     const rule = (await loadRedirects()).find((entry) => entry.source === "/story");
     expect(rule).toMatchObject({

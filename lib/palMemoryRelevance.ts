@@ -44,7 +44,8 @@ const STOPWORDS = new Set([
   "fancy", "like", "likes", "want", "need", "please", "just", "really", "mates", "near", "pub", "pubs",
 ]);
 
-function stems(text: string): Set<string> {
+/** The four-letter word stems two memory texts are compared on (`lib/palMemoryRelation.ts` reuses them). */
+export function palMemoryStems(text: string): Set<string> {
   const out = new Set<string>();
   for (const word of text.toLocaleLowerCase("en-GB").match(/[a-z]+/g) ?? []) {
     if (word.length < 3 || STOPWORDS.has(word)) continue;
@@ -58,7 +59,7 @@ type Recallable = { kind: PubPalMemoryKind; value: string };
 
 function relevance(memory: Recallable, askTopics: ReadonlySet<PubPalMemoryKind>, askStems: ReadonlySet<string>): number {
   let shared = 0;
-  for (const stem of stems(memory.value)) if (askStems.has(stem)) shared += 1;
+  for (const stem of palMemoryStems(memory.value)) if (askStems.has(stem)) shared += 1;
   return (askTopics.has(memory.kind) ? 2 : 0) + 3 * shared;
 }
 
@@ -71,7 +72,7 @@ export function selectPalMemoriesForAsk<T extends Recallable>(newestFirst: reado
   const pinned = newestFirst.filter((memory) => PINNED_KINDS.has(memory.kind));
   const rest = newestFirst.filter((memory) => !PINNED_KINDS.has(memory.kind));
   const askTopics = new Set(KIND_TOPICS.filter(([, pattern]) => pattern.test(query)).map(([kind]) => kind));
-  const askStems = stems(query);
+  const askStems = palMemoryStems(query);
   const relevant = rest
     .map((memory, position) => ({ memory, position, score: relevance(memory, askTopics, askStems) }))
     .filter((entry) => entry.score > 0)

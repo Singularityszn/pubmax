@@ -50,15 +50,15 @@ Rules the table obeys:
 | `/map` and `/map/[city]` | London (the city name) | (no heading: the map is the surface) | Use my location | Choose an area |
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
-| `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | See them on the map | Find my pint |
+| `/tonight` | Tonight in London | What's on across London tonight. (or: What's on near you tonight.) | Open the map | Find my pint |
 | `/social` | Social | Crews and people who are already here. | Post (a verified account); Sign in (a stranger on the posts tab); Open the map (a stranger on `?tab=discover`, and a stranger while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`) | Find your lot |
 | `/plan` | Plan | Plan a pub crawl | Plan it (submit the ask) | Step by step |
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | A little signal that becomes yours. | Meet your Pub Pal | Back to the map |
 | `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
 | `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
-| `/login` | Sign in | Welcome back (or: Make an account) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
-| `/places` | Places | Pick a city. | Open London | Browse pubs across the UK |
+| `/login` | Sign in | Welcome back (a returning session), Make an account (the New here door), or Sign in or create your account (a first visit, which may not be greeted as a return: `lib/loginPageFraming.ts`) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
+| `/places` | Places | London only, for now. | Open London | Want your city next? Tell us. (the UK map is a link in the section under the head) |
 | `/pubs` | Pubs | Pub chains in London (the count rides in the lede) | Open the map | Find my pint |
 | `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |
 | `/borough/[slug]` | (the borough) | Pubs in (the borough). | Open the map here | Find my pint |
@@ -69,7 +69,7 @@ Rules the table obeys:
 | `/historic/[slug]` | Historic pub | (the pub's own name) | Open on the map | Plan a night here |
 | `/pint-index` | Pint Index | London pint prices, month by month. | Open the map | Download the CSV |
 | `/pint-index/[month]` | Pint Index | London pint prices, (month). | Open the map | Download the CSV |
-| `/rounds` | Rounds | Who bought the last round. | the start form's own submit (Start a Round), no head primary | Open a round code |
+| `/rounds` | Rounds | Who bought the last round. | the start form's own submit (Start a round), no head primary | Open a round code |
 | `/add-a-pub` | Add a pub | Know a pub we're missing? | the form's own send (Send it for a check), no head primary; an account is asked for at the send | Back to the map (after a send) |
 | `/messages` | (none) | Messages | New message (signed in); Sign in (signed out) | (none) |
 | `/activity` | Activity | Activity. | Open the map | Find your lot |

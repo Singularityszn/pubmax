@@ -78,9 +78,11 @@
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.screenPrimary > :is(a, button):hover {
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .screenPrimary > :is(a, button):hover {
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 /* Press feedback owned here, so the shared press layer in app/globals.css is
@@ -121,8 +123,10 @@
   cursor: pointer;
 }
 
-.screenSecondary > :is(a, button):hover {
-  color: var(--color-accent);
+@media (hover: hover) and (pointer: fine) {
+  .screenSecondary > :is(a, button):hover {
+    color: var(--color-accent);
+  }
 }
 
 @media (max-width: 640px) {

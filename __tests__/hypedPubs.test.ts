@@ -234,4 +234,27 @@ describe("hyped pubs pack", () => {
       "Not selectable",
     ]);
   });
+
+  it("fills the page with pinned pubs first, and an unpinned one only fills a gap", () => {
+    // Site review, 18 Oct 2026: the third card on /tonight was Simmons, which
+    // ends in "Not on our map yet" while louder-than-the-rest pinned pubs sat
+    // past the page limit.
+    const rows = parseHypedPubs({
+      rows: [
+        row({ name: "Loud unpinned", venueId: undefined, score: 9 }),
+        row({ name: "Pinned A", venueId: "venue-a", score: 8 }),
+        row({ name: "Pinned B", venueId: "venue-b", score: 7 }),
+      ],
+    }).rows;
+    expect(hypedPubsForPage(rows, { now: NOW, limit: 2 }).map((entry) => entry.name)).toEqual([
+      "Pinned A",
+      "Pinned B",
+    ]);
+    // With room to spare the unpinned row still shows, after the pinned ones.
+    expect(hypedPubsForPage(rows, { now: NOW, limit: 3 }).map((entry) => entry.name)).toEqual([
+      "Pinned A",
+      "Pinned B",
+      "Loud unpinned",
+    ]);
+  });
 });

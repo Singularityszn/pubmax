@@ -12,6 +12,7 @@ import {
   firstSearchParam,
   stopCountFromPubsParam,
 } from "@/lib/cityShare";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 import { pintShareCardVenue, pintShareMetadata } from "@/lib/pintShare";
 
 type CityMapPageProps = {
@@ -59,7 +60,7 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
         // Deferred for the reason app/map/page.tsx states beside its own copy.
         <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
-      <PubMaxingShell cityId={cityId} />
+      <PubMaxingShell cityId={cityId} pricesReadLine={mapPricesReadLineFor(cityId)} />
     </>
   );
 }

@@ -52,7 +52,7 @@ import { formatPrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
-import { LONDON_MAP_PUB_COUNT } from "./londonMapGeometry";
+import { HISTORIC_PUB_COUNT } from "./londonMapGeometry";
 
 // The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask, and
 // trimmed after the 16 Oct 2026 UX audit): the claim, one line under it, the
@@ -222,7 +222,7 @@ async function readEvidence(
 }
 
 /** The line under the claim when the dataset cannot back a saving. */
-const MAP_LEDE = `London on one map, with ${LONDON_MAP_PUB_COUNT} historic pubs marked and a listed price wherever we hold one.`;
+const MAP_LEDE = `London on one map, with ${HISTORIC_PUB_COUNT} historic pubs cited and a listed price wherever we hold one.`;
 
 export default function LandingHero({
   card,
@@ -437,8 +437,15 @@ function AnswerCard({
   // one, and none for a row that records no read.
   const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
+    // createFabLane: at rest on a phone the compose disc floats over this
+    // card's right edge, and "collected 2 October 2026" ran under it (taste
+    // plan, 18 Oct 2026), so the card keeps the control's lane.
     <article
-      className={photo ? "lpPubCard lpAnswerCard lpPubCard--photo" : "lpPubCard lpAnswerCard"}
+      className={
+        photo
+          ? "lpPubCard lpAnswerCard lpPubCard--photo createFabLane"
+          : "lpPubCard lpAnswerCard createFabLane"
+      }
       aria-labelledby="lp-answer-name"
     >
       {photo ? (

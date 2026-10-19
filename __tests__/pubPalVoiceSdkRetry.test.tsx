@@ -17,6 +17,10 @@ type FakeConversation = {
   endSession: ReturnType<typeof vi.fn<() => Promise<void>>>;
   setMicMuted: ReturnType<typeof vi.fn>;
   sendUserMessage: ReturnType<typeof vi.fn>;
+  getInputVolume: () => number;
+  getOutputVolume: () => number;
+  getInputByteFrequencyData: () => Uint8Array;
+  getOutputByteFrequencyData: () => Uint8Array;
 };
 
 const client = vi.hoisted(() => ({
@@ -31,6 +35,8 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }) }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.authedActionFetch }));
+// jsdom cannot play audio; the cues are proved in pubPalVoice.test.tsx.
+vi.mock("@/components/pubpal/palVoiceSounds", () => ({ playPalVoiceSound: vi.fn() }));
 vi.mock("@/lib/analytics", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/analytics")>()),
   trackEvent: vi.fn(),
@@ -53,6 +59,12 @@ function fakeConversation(options: FakeSessionOptions, id: string): FakeConversa
     getId: () => id,
     setMicMuted: vi.fn(),
     sendUserMessage: vi.fn(),
+    // The level meter reads these on every animation frame while a session
+    // is live. Without them a frame that lands mid-test throws in the SDK.
+    getInputVolume: () => 0,
+    getOutputVolume: () => 0,
+    getInputByteFrequencyData: () => new Uint8Array(0),
+    getOutputByteFrequencyData: () => new Uint8Array(0),
     endSession: vi.fn(async () => {
       options.onStatusChange?.({ status: "disconnected" });
       options.onDisconnect?.({ reason: "user" });

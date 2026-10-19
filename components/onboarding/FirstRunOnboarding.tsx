@@ -52,7 +52,6 @@ import {
   previousOnboardingStep,
   readBudgetChoice,
   readOnboardingPatch,
-  readPlannerHandoff,
   clearPlannerHandoff,
   writeBudgetChoice,
   writeOnboardingPatch,
@@ -60,6 +59,7 @@ import {
   type BudgetChoiceId,
   type OnboardingOrigin,
   type OnboardingStep,
+  type PlannerHandoff,
 } from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
@@ -92,9 +92,10 @@ const GEO_OPTIONS: PositionOptions = {
 /**
  * The shared planner generates from this handoff instead of displaying the
  * map's unrelated default crawl. A document load carries its query on mount.
+ * The current choice supplies the link when session storage refuses a write.
  */
-function openPlannerDocument(): void {
-  const href = onboardingPlanHref(readPlannerHandoff());
+function openPlannerDocument(handoff: PlannerHandoff): void {
+  const href = onboardingPlanHref(handoff);
   clearPlannerHandoff();
   window.location.assign(new URL(href, window.location.origin).href);
 }
@@ -145,7 +146,7 @@ export default function FirstRunOnboarding({
   /** Where Skip lands: where the reader was going before the journey. */
   skipHref: Route;
   /** How "Plan my night" reaches the planner. Tests replace the page load. */
-  openPlanner?: () => void;
+  openPlanner?: (handoff: PlannerHandoff) => void;
 }) {
   const router = useRouter();
   // A reload lands on the step the reader was on. The answer screen is rebuilt
@@ -365,14 +366,15 @@ export default function FirstRunOnboarding({
     // action allowed to arm the native permission explainer.
     releaseTourPromptBudget();
     // The planner opens on the patch and budget the reader just gave.
-    writePlannerHandoff({
+    const handoff: PlannerHandoff = {
       patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
       budget,
       ...(origin?.kind === "location" ? {
         nightArea: locatedArea,
       } : {}),
-    });
-    stepHistory.leave(openPlanner);
+    };
+    writePlannerHandoff(handoff);
+    stepHistory.leave(() => openPlanner(handoff));
   }
 
   const stepNumber = onboardingStepNumber(step);
@@ -499,7 +501,7 @@ export default function FirstRunOnboarding({
                 <div className="firstRunAreaList" aria-label="Reviewed London route areas">
                   {reviewedAreas.map((area) => (
                     <article key={area.name}>
-                      <MapPinned size={19} aria-hidden="true" />
+                      <MapPinned size={20} aria-hidden="true" />
                       {/* The stamp rides INSIDE the text block, so a short
                           phone can fold it onto the way-home line
                           (app/onboarding/onboarding.css, the short phone). */}
@@ -563,7 +565,7 @@ export default function FirstRunOnboarding({
                       >
                         <span>{choice.label}</span>
                         <small>{choice.note}</small>
-                        {selected ? <Check size={18} aria-hidden="true" /> : null}
+                        {selected ? <Check size={16} aria-hidden="true" /> : null}
                       </button>
                     );
                   })}
@@ -589,13 +591,13 @@ export default function FirstRunOnboarding({
               beginAnswer();
               goTo(step === "companion" ? resultStep : previous);
             }}>
-              <ArrowLeft size={18} aria-hidden="true" /> Back
+              <ArrowLeft size={16} aria-hidden="true" /> Back
             </button>
           ) : null}
           <button type="button" className="firstRunPrimary pressable" disabled={primaryDisabled} onClick={advance}>
-            {step === "location" ? <LocateFixed size={18} aria-hidden="true" /> : null}
+            {step === "location" ? <LocateFixed size={16} aria-hidden="true" /> : null}
             {primaryLabel}
-            {step !== "location" ? <ArrowRight size={18} aria-hidden="true" /> : null}
+            {step !== "location" ? <ArrowRight size={16} aria-hidden="true" /> : null}
           </button>
         </div>
       </footer>

@@ -307,7 +307,7 @@ function PriceDoor({
       aria-label={`${LOG_PRICE_DOOR_LABEL} at ${venue.name}`}
       onClick={onLogTonightPrice}
     >
-      <PlusCircle size={15} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
+      <PlusCircle size={16} aria-hidden="true" /> {LOG_PRICE_DOOR_LABEL}
     </button>
   );
 }
@@ -1152,17 +1152,6 @@ export default function VenueOverviewTab({
           currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
         />
       ) : null}
-      {/* Patch yardstick: this pint against the borough Pint Index average, or
-          the fare-zone median when the Index has no row. Same displayable pint
-          stack as the then-and-now block. Renders nothing without a yardstick. */}
-      {experienceLens === "all" && isPubVenue(venue) ? (
-        <VenueAreaPriceCompare
-          priceGbp={overviewPintGbp}
-          primaryBorough={venue.primaryBorough}
-          zone={venue.zone}
-          zoneIndex={zoneIndex}
-        />
-      ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a bar or late-food venue would
@@ -1223,14 +1212,6 @@ export default function VenueOverviewTab({
         active={tab === "overview"}
         onOpenFull={onOpenVisitReports}
       />
-      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
-          server-side. Renders nothing for an unmatched pub. Kept above the
-          practical-info disclosure so a matched rating is not buried. */}
-      <VenueHygiene
-        venueId={venue.id}
-        venueName={venue.name}
-        address={venue.address}
-      />
       <Disclosure
         className="venueOverviewMore"
         bodyClassName="venueOverviewMoreBody"
@@ -1281,6 +1262,31 @@ export default function VenueOverviewTab({
           <NextBadgeChips />
       </Disclosure>
       {gettingHome}
+      {/* BELOW THE FOLD BECAUSE THEY LAND LATE (captain, 19 Oct 2026). Both rows
+          render nothing until their own read answers, which is 3 to 5 seconds
+          after the sheet opens on a slow phone. Above the getting-home fold
+          they pushed its summary down about 80px under a reader's finger, and
+          a tap whose press and release straddled the move was lost. A row
+          that appears after the sheet opens may not sit above a control. */}
+      {/* Patch yardstick: this pint against the borough Pint Index average, or
+          the fare-zone median when the Index has no row. Its line names the
+          pint it compares ("£4.20 here."), so it reads on its own away from
+          the price block. Renders nothing without a yardstick. */}
+      {restingPintView && isPubVenue(venue) ? (
+        <VenueAreaPriceCompare
+          priceGbp={overviewPintGbp}
+          primaryBorough={venue.primaryBorough}
+          zone={venue.zone}
+          zoneIndex={zoneIndex}
+        />
+      ) : null}
+      {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
+          server-side. Renders nothing for an unmatched pub. */}
+      <VenueHygiene
+        venueId={venue.id}
+        venueName={venue.name}
+        address={venue.address}
+      />
       {/* Read-first community observations: character, access and eating sit
           here so drinkers see them without opening price submit. Authoring
           stays on the price-entry path above (VenuePriceEntryPanel). The same
@@ -1331,10 +1337,10 @@ export default function VenueOverviewTab({
               margin: "12px 0 0",
               minHeight: "42px",
               fontWeight: 700,
-              color: "var(--brass)",
+              color: "var(--state-active-ink)",
             }}
           >
-            <MapPin size={15} aria-hidden="true" /> You&rsquo;re here
+            <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
           </p>
         ) : (
           <button
@@ -1353,7 +1359,7 @@ export default function VenueOverviewTab({
               gap: "6px",
             }}
           >
-            <MapPin size={15} aria-hidden="true" />
+            <MapPin size={16} aria-hidden="true" />
             {presenceState === "sending" ? "Checking in…" : "I'm here"}
           </button>
         )}

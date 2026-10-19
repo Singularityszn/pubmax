@@ -72,7 +72,7 @@ export default function VenueListedBuilding({ venueId, venueName }: Props) {
             {" · "}
             <a href={listed.sourceRef} target="_blank" rel="noopener noreferrer">
               List entry
-              <ExternalLink size={12} aria-hidden="true" />
+              <ExternalLink size={14} aria-hidden="true" />
             </a>
           </>
         ) : null}

@@ -108,7 +108,7 @@ export default function MenuCategoryGrid({
                       <span className="menuHub__label">{tile.label}</span>
                       {tile.hint ? <span className="menuHub__hint">{tile.hint}</span> : null}
                     </span>
-                    <ExternalLink size={13} className="menuHub__ext" aria-hidden="true" />
+                    <ExternalLink size={14} className="menuHub__ext" aria-hidden="true" />
                   </a>
                 </li>
               );

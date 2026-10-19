@@ -58,7 +58,7 @@
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "kern" 0;
   letter-spacing: -0.01em;
-  font-size: 1rem;
+  font-size: var(--text-base);
   min-inline-size: 4.9rem;
 }
 
@@ -73,7 +73,7 @@
 .vpsArrow {
   align-self: center;
   padding-bottom: 6px;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   color: var(--ink-soft);
 }
 
@@ -92,7 +92,7 @@
 }
 
 .vpsBarLabel {
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -102,7 +102,7 @@
 .vpsBarTrack {
   position: relative;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   border: 1px solid var(--line);
   overflow: hidden;
@@ -111,7 +111,7 @@
 .vpsBarFill {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .vpsBarFillThen {
@@ -124,7 +124,7 @@
 
 .vpsBarValue {
   font-family: var(--font-data);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
@@ -136,7 +136,7 @@
   align-items: center;
   gap: 6px;
   margin: 8px 0 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -165,7 +165,7 @@
 .vpsInflationLine {
   margin: 0;
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -174,7 +174,7 @@
 }
 
 .vpsInflationLine .vpsToday {
-  color: var(--accent-price-ink);
+  color: var(--ink);
 }
 
 .vpsInflationMeta {
@@ -185,13 +185,13 @@
 }
 
 .vpsInflationBy {
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
 }
 
 .vpsFootnote {
   margin: 10px 0 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--ink-soft);
   line-height: 1.4;
 }
@@ -217,16 +217,21 @@
   padding: 6px 10px;
   min-height: 44px;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--muted);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-sm);
 }
-.vpsChangedBtn:hover,
 .vpsChangedBtn:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vpsChangedBtn:hover {
+    color: var(--ink);
+  }
 }
 .vpsChangedBtn:active {
   transform: scale(0.97);
