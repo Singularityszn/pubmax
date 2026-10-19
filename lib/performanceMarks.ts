@@ -12,7 +12,8 @@ export type PubmaxPerformanceMark =
   | "pubmax:map-scene-built"
   | "pubmax:pubs-source-loaded"
   | "pubmax:pins-visible"
-  | "pubmax:pin-entrance-settled";
+  | "pubmax:pin-entrance-settled"
+  | "pubmax:map-full-resolution";
 
 const FIRST_PINS_EVENT = "pubmax:first-pins";
 /** Dispatched on window when the pin layers are first made visible. */
