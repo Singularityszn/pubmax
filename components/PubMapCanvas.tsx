@@ -9,11 +9,6 @@ import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { mapPixelRatio, probeWebGl2 } from "@/components/map/canvas/webgl";
-import {
-  armFullResolution,
-  fullRatioSpriteRequest,
-  openingMapPixelRatio,
-} from "@/components/map/canvas/openingPixelRatio";
 import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { crewPalLook, type CrewPal } from "@/lib/crewPals";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
@@ -848,10 +843,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Who owns the camera right now. lib/mapGestureGuard.ts holds the rule; this
   // ref is the live reading of it, written from MapLibre's own gesture events.
   const gestureCameraRef = useRef<GestureCameraState>(idleGestureCameraState());
-  // Once this canvas has drawn at its full pixel ratio, a rebuilt map (context
-  // loss, Retry) starts there rather than at the opening's 1x
-  // (openingPixelRatio.ts).
-  const fullResolutionReachedRef = useRef(false);
   const publishCurrentViewportRef = useRef<(() => void) | null>(null);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
@@ -1611,7 +1602,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // callers can attach a listener, so use a supported browser capability
     // probe first and route failure through the existing bounded retry.
     const lowPower = initAttempt >= 1;
-    const fullPixelRatio = mapPixelRatio();
     let map: maplibregl.Map;
     try {
       const webgl2 = probeWebGl2();
@@ -1624,13 +1614,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
         // A 3x phone draws at 2x: a third of the canvas pixels gone, and the
-        // pins still sharp (webgl.ts). The opening draws at 1x, a quarter of
-        // those, and armFullResolution below switches to the full ratio once
-        // the pins have arrived and the camera is at rest
-        // (openingPixelRatio.ts). The basemap sprite is fetched at the full
-        // ratio from the start, because setPixelRatio never fetches it again.
-        pixelRatio: openingMapPixelRatio(fullPixelRatio, fullResolutionReachedRef.current),
-        transformRequest: fullRatioSpriteRequest(fullPixelRatio),
+        // pins still sharp (webgl.ts).
+        pixelRatio: mapPixelRatio(),
         // ODbL credit for the pub layers we draw ourselves. Set on the map, not
         // on a source, so it survives every style swap (theme toggle, fallback
         // styles) and shows in every city - the rail-lines source's own
@@ -3613,7 +3598,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const removePaintedPinProbe = installPaintedPinProbe(map);
     // Camera side of the same answer: what a gesture left behind, and where a
     // geographic point is being painted (cameraProbe.ts).
-    const mapCameraOwed = () =>
+    const removeMapCameraProbe = installMapCameraProbe(map, () =>
       mapCameraSettling({
         arrivalTurnSpent: arrivalBearingSpentRef.current,
         cameraLanePending: cameraLanePending(),
@@ -3621,20 +3606,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         focusMoves: mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
         nearMePending: nearMePendingRef.current,
         nearbyFramingOwed: nearbyFramingOwedRef.current,
-      });
-    const removeMapCameraProbe = installMapCameraProbe(map, mapCameraOwed);
-    // The opening drew at 1x. Full resolution waits for the pins' entrance,
-    // a still camera the app owes no move, and no finger on the map, with a
-    // ceiling (openingPixelRatio.ts).
-    const disarmFullResolution = armFullResolution(map, {
-      fullRatio: fullPixelRatio,
-      entranceSettled: () => pinEntranceSettled,
-      cameraOwed: mapCameraOwed,
-      onFullResolution: () => {
-        fullResolutionReachedRef.current = true;
-        markPubmaxTiming("pubmax:map-full-resolution");
-      },
-    });
+      }),
+    );
     const removeMapReaderPositionProbe = installMapReaderPositionProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
@@ -3783,7 +3756,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // not construction was deferred by the size gate.
     constructCleanup = () => {
       cancelAnimationFrame(rafId);
-      disarmFullResolution();
       if (firstFrameTimer) clearTimeout(firstFrameTimer);
       map.off("render", onFirstFrame);
       // Black-canvas recovery net teardown.
