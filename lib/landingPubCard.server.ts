@@ -10,6 +10,10 @@ import {
   type LandingPubCardData,
 } from "@/lib/landingPubCard";
 import { formatObservedDate } from "@/lib/dataFreshness";
+import {
+  buildLondonCollageAreaPrices,
+  type LondonCollageAreaPrice,
+} from "@/lib/landingLondonCollage";
 import { pintFactStats } from "@/lib/pintFacts";
 import { pintPriceAverages, pubCheapestPrices, type PintPriceAverages } from "@/lib/pintSavings";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
@@ -36,6 +40,12 @@ export type LandingHeroData = {
    * no price records a read. Site review, 18 Oct 2026: "Freshness is quiet."
    */
   priceReadLine: string | null;
+  /**
+   * The cheapest listed pint within a short walk of each photographed patch in
+   * the founder collage, from this same read. An area with no priced pub nearby
+   * is absent, so its tile prints no figure.
+   */
+  collagePrices: Record<string, LondonCollageAreaPrice>;
 };
 
 // The landing document is prerendered (app/page.tsx, force-static), so this
@@ -54,13 +64,14 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
       const rail = card ? buildLandingAnchorRail(venues, card, archive) : [];
       const averages = pintPriceAverages(pubCheapestPrices(venues));
       const priceReadLine = averages ? landingPriceReadLine(venues) : null;
-      return { card, archive, rail, averages, priceReadLine };
+      const collagePrices = buildLondonCollageAreaPrices(venues);
+      return { card, archive, rail, averages, priceReadLine, collagePrices };
     })
     .catch(() => {
       // A failed read renders no card rather than an invented one, and the
       // next build gets a fresh attempt.
       cached = null;
-      return { card: null, archive: {}, rail: [], averages: null, priceReadLine: null };
+      return { card: null, archive: {}, rail: [], averages: null, priceReadLine: null, collagePrices: {} };
     });
   return cached;
 }

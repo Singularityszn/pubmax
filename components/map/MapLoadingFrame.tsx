@@ -40,19 +40,13 @@ export default function MapLoadingFrame({
       // carries the dry aside, the announced one states the fact.
       aria-label={`Loading the ${mapDisplayName} pub map.`}
     >
-      <div className="mapLoadingScene" aria-hidden="true">
-        <span className="mapLoadingStreet mapLoadingStreet--one" />
-        <span className="mapLoadingStreet mapLoadingStreet--two" />
-        <span className="mapLoadingRiver" />
-        <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--one" />
-        <span className="mapLoadingPin mapLoadingPin--amber mapLoadingPin--two" />
-        <span className="mapLoadingPin mapLoadingPin--brick mapLoadingPin--three" />
-        <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
-      </div>
+      {/* A plain field, the pint glass and its one line. The frame used to
+          draw a fake map out of spans (streets, a river, four pins) on a dot
+          grid; the map is about to paint here, so the frame does not pretend
+          to be it. */}
       <div className="mapLoadingCopy">
         <PintLoader size="sm" />
         <div className="mapLoadingLines">
-          <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
           <span>
             {openingLocationPromptActive
               ? "Using your location to find nearby pints."

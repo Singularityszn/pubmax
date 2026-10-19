@@ -13,8 +13,8 @@
   max-width: 440px;
   margin-inline: auto;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
-  border-radius: var(--radius-sm, 10px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
   background: var(--panel-raised);
   box-shadow: var(--shadow);
   color: var(--ink);
@@ -47,17 +47,24 @@
     color 0.15s ease;
 }
 
-.logIntentClose:hover,
 .logIntentClose:focus-visible {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: var(--ink);
   outline: none;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .logIntentClose:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+    outline: none;
+  }
+}
+
 .logIntentFallback strong {
   display: block;
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.02rem;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--ink);
@@ -65,8 +72,8 @@
 
 .logIntentFallback .description {
   margin: 6px 0 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.88rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -99,11 +106,18 @@
     background 0.15s ease;
 }
 
-.logIntentNearbyBtn:hover,
 .logIntentNearbyBtn:focus-visible {
   border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel));
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel));
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .logIntentNearbyBtn:hover {
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel));
+    outline: none;
+  }
 }
 
 .logIntentNearbyMeta {
@@ -112,13 +126,13 @@
   gap: 8px;
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .logIntentNearbyDist {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 700;
 }
 

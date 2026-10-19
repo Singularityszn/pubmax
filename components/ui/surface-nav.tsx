@@ -35,7 +35,7 @@ import "./surfaceNav.css";
  * assert the icon reads THIS.
  */
 const SURFACE_NAV_BACK_ICON_SIZE = 20;
-export const SURFACE_NAV_HOME_ICON_SIZE = 19;
+export const SURFACE_NAV_HOME_ICON_SIZE = 20;
 
 export default function SurfaceNav({
   backLabel,

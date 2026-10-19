@@ -65,10 +65,10 @@ export default function ReelsViewer({
     <div ref={dialogRef} className="reels" role="dialog" aria-modal="true" aria-label="Reels">
       <div className="reels__chrome">
         <button ref={closeRef} type="button" className="reels__button" onClick={onClose} aria-label="Close reels">
-          <X size={22} aria-hidden="true" />
+          <X size={24} aria-hidden="true" />
         </button>
         <button type="button" className="reels__button" onClick={() => setMuted((value) => !value)} aria-pressed={!muted} aria-label={muted ? "Sound on" : "Sound off"}>
-          {muted ? <VolumeX size={22} aria-hidden="true" /> : <Volume2 size={22} aria-hidden="true" />}
+          {muted ? <VolumeX size={24} aria-hidden="true" /> : <Volume2 size={24} aria-hidden="true" />}
         </button>
       </div>
       <div className="reels__track">

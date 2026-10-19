@@ -118,7 +118,6 @@ export default function AccountSwitcher({
         <ChevronDown
           className="authSwitcherChevron"
           size={16}
-          strokeWidth={2}
           aria-hidden="true"
         />
       </button>

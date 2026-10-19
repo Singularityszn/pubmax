@@ -154,7 +154,7 @@ export default function PintDropStrip() {
     <div className="dropStrip" aria-labelledby="dropStrip-title">
       <div className="dropStripHead">
         <p className="eyebrow" id="dropStrip-title">
-          <HandCoins size={15} strokeWidth={1.5} aria-hidden="true" />
+          <HandCoins size={16} aria-hidden="true" />
           Recent prices
         </p>
       </div>

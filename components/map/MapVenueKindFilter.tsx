@@ -122,7 +122,7 @@ export default function MapVenueKindFilter({
         aria-label={venueKindFilterAriaLabel(refinements)}
         onClick={() => setOpen((current) => !current)}
       >
-        <SlidersHorizontal size={15} aria-hidden="true" />
+        <SlidersHorizontal size={16} aria-hidden="true" />
         {/* The word goes under 900px, where the toolbar row is a budget and the
             search field is what pays for a longer label (the top bar drops its
             own "More" label in the same band). The count stays, and the

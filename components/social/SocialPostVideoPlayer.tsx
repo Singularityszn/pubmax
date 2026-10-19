@@ -50,7 +50,7 @@ export default function SocialPostVideoPlayer({
       />
       {onOpen ? (
         <button type="button" className="socialPostVideo__open" onClick={onOpen} aria-label="Watch full screen">
-          <Play size={18} aria-hidden="true" />
+          <Play size={16} aria-hidden="true" />
           {video.durationSeconds !== null ? <span>{formatSocialVideoDuration(video.durationSeconds)}</span> : null}
         </button>
       ) : null}

@@ -1,0 +1,108 @@
+/* The Pal on the map (palMarker.ts). One small, decorative marker beside the
+   selected pin: it takes no pointer events, so the pins under it stay
+   tappable, and under reduced motion it lands and stays still. */
+.palMapMarker {
+  width: 2.375rem;
+  height: 2.375rem;
+  pointer-events: none;
+  z-index: 2;
+}
+.palMapMarkerBody {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 2px solid var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+  background: var(--ink-deep);
+  transform-origin: 50% 100%;
+}
+.palMapMarkerBody img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The Pal genome holds the avatar here as it does on /pal. */
+  transform-origin: 50% 55%;
+  transform: translate(var(--genome-x, 0%), var(--genome-y, 0%)) scale(var(--genome-zoom, 1)) scaleX(var(--genome-flip, 1));
+  rotate: var(--genome-tilt, 0deg);
+  /* On a crawl the Pal turns to face the way it walks. */
+  scale: var(--pal-facing, 1) 1;
+  transition: scale .18s ease-out;
+}
+.palMapMarker[data-pal-state="sleeping"] .palMapMarkerBody img { filter: brightness(.72); }
+/* The victory burst sits behind the Pal and shows only while it plays. */
+.palMapSparks {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.palMapSparks i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: .4rem;
+  height: .4rem;
+  margin: -.2rem 0 0 -.2rem;
+  border-radius: 50%;
+  /* No coral on the map's chrome: the sparks are the pint's green and amber. */
+  background: var(--amber);
+  opacity: 0;
+}
+.palMapSparks i:nth-child(even) { background: var(--pint); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .palMapMarker.isLanding .palMapMarkerBody { animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both; }
+  .palMapMarker:not([data-pal-state="sleeping"]) .palMapMarkerBody { animation: palMapBob 3.2s ease-in-out .6s infinite; }
+  .palMapMarker.isLanding:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapLand .55s cubic-bezier(.2, .9, .3, 1.25) both, palMapBob 3.2s ease-in-out .6s infinite;
+  }
+  /* Sent to a crawl stop the reader tapped: a jump for joy, then the bob. */
+  .palMapMarker.isCheering:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapCheer .8s cubic-bezier(.3, .7, .4, 1) both, palMapBob 3.2s ease-in-out 1s infinite;
+  }
+  /* A finished crawl or night: a big leap, a spin and the burst. */
+  .palMapMarker.isVictory:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapVictory 1.1s cubic-bezier(.3, .7, .4, 1) both, palMapBob 3.2s ease-in-out 1.3s infinite;
+  }
+  .palMapMarker.isVictory:not([data-pal-state="sleeping"]) .palMapSparks i {
+    animation: palMapSpark .9s cubic-bezier(.2, .8, .3, 1) .25s both;
+  }
+  /* Walking a crawl: a quick step bounce in place of the idle bob. */
+  .palMapMarker.isWalking .palMapMarkerBody,
+  .palMapMarker.isWalking:not([data-pal-state="sleeping"]) .palMapMarkerBody {
+    animation: palMapStep .34s ease-in-out infinite;
+  }
+}
+@keyframes palMapLand {
+  0% { opacity: 0; transform: translateY(-1.6rem) scale(.6); }
+  60% { opacity: 1; transform: translateY(0) scale(1.08, .9); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes palMapCheer {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-.95rem) scale(1.12) rotate(-10deg); }
+  55% { transform: translateY(0) scale(1.1, .88); }
+  72% { transform: translateY(-.35rem) scale(1) rotate(7deg); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes palMapVictory {
+  0% { transform: translateY(0) scale(1); }
+  20% { transform: translateY(.15rem) scale(1.12, .85); }
+  45% { transform: translateY(-1.5rem) scale(1.15) rotate(180deg); }
+  70% { transform: translateY(0) scale(1.12, .88) rotate(360deg); }
+  85% { transform: translateY(-.3rem) scale(1) rotate(360deg); }
+  100% { transform: translateY(0) scale(1) rotate(360deg); }
+}
+@keyframes palMapSpark {
+  0% { opacity: 1; transform: rotate(calc(var(--spark) * 45deg)) translateY(0) scale(1); }
+  100% { opacity: 0; transform: rotate(calc(var(--spark) * 45deg)) translateY(-2.6rem) scale(.4); }
+}
+@keyframes palMapStep {
+  50% { transform: translateY(-.22rem) rotate(2deg); }
+}
+@keyframes palMapBob {
+  50% { transform: translateY(-.18rem); }
+}

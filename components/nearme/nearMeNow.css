@@ -20,7 +20,7 @@
 .nmnLede {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: var(--text-md);
   line-height: 1.25;
   color: var(--ink);
 }
@@ -42,7 +42,7 @@
 
 .nmnHint {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -56,9 +56,16 @@
 
 .nmnQuickPatchesLabel {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--ink-soft);
+}
+
+.nmnQuickPatchesNote {
+  margin: calc(-1 * var(--space-1)) 0 var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
 }
 
 .nmnLocate {
@@ -72,14 +79,16 @@
   background: var(--brass);
   color: var(--color-on-accent);
   font-family: var(--font-display);
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
   transition: transform 180ms ease-out, background-color 180ms ease-out;
 }
 
-.nmnLocate:hover {
-  background: var(--brass-bright);
+@media (hover: hover) and (pointer: fine) {
+  .nmnLocate:hover {
+    background: var(--brass-bright);
+  }
 }
 
 .nmnLocate:active {
@@ -94,7 +103,7 @@
   gap: var(--space-3);
   min-height: 44px;
   color: var(--ink-soft);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
 }
 
 /* The failed-read block wears the status idiom rather than a shape of its own:
@@ -138,7 +147,7 @@
 .nmnHead h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   line-height: 1.2;
   color: var(--ink);
 }
@@ -148,7 +157,7 @@
 .nmnHeadline {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   line-height: 1.25;
   letter-spacing: -0.01em;
   color: var(--ink);
@@ -157,7 +166,7 @@
 .nmnSub,
 .nmnWiden {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
@@ -168,7 +177,7 @@
 /* Honest, derived patch coverage note (Wayfinder 3.1). */
 .nmnPatchTier {
   margin: var(--space-1) 0 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -219,8 +228,10 @@
   transition: transform 160ms ease-out, background-color 160ms ease-out;
 }
 
-.nmnCard:hover {
-  background: color-mix(in srgb, var(--brass) 7%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .nmnCard:hover {
+    background: var(--panel);
+  }
 }
 
 .nmnCard:active {
@@ -240,7 +251,7 @@
    already follows. */
 .nmnCardName {
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
   white-space: normal;
@@ -251,14 +262,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .nmnCardTrust {
   max-width: 100%;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   line-height: 1.35;
   white-space: normal;
 }
@@ -288,14 +299,14 @@
 /* A PriceBadge plaque: its ink, fill and border are the band's own
    (lib/priceBand.ts), so only the size is set here. */
 .nmnCardPrice .nmnCardPriceValue {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .nmnPriceCollected {
   margin: 0;
   padding-inline: var(--space-2);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -370,10 +381,10 @@
   justify-content: center;
   min-height: var(--control-height);
   padding: 0 var(--control-pad-x);
-  border: 1px solid var(--control-tint-border);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--control-tint-surface);
-  color: var(--state-active-ink);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
   white-space: nowrap;
@@ -381,8 +392,10 @@
   transition: transform 160ms ease-out, background-color 160ms ease-out;
 }
 
-.nmnAccept:hover {
-  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink));
+@media (hover: hover) and (pointer: fine) {
+  .nmnAccept:hover {
+    border-color: var(--state-selected-border);
+  }
 }
 
 .nmnAccept:active {
@@ -392,14 +405,14 @@
 
 .nmnAcceptReceipt {
   margin: 0 0 var(--space-2);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .nmnAcceptError {
   margin: var(--space-2) 0 0;
-  color: var(--color-negative, var(--brick));
-  font-size: 0.8rem;
+  color: var(--color-negative);
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -420,14 +433,14 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
-  background: var(--control-secondary-surface, var(--panel-raised));
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
   text-decoration: none;
   transition: transform 160ms ease-out, border-color 160ms ease-out;
@@ -444,20 +457,22 @@
   --shared-press-scale: 1;
 }
 
-.nmnRetry:hover,
-.nmnBack:hover {
-  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+@media (hover: hover) and (pointer: fine) {
+  .nmnRetry:hover,
+  .nmnBack:hover {
+    border-color: var(--state-selected-border);
+  }
 }
 
 .nmnBack {
   align-self: flex-start;
   min-height: 40px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .nmnFresh {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -490,9 +505,9 @@
   gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg, 14px);
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: var(--shadow);
   transform-origin: bottom left;
   transform: scale(0.97) translateY(4px);
   opacity: 0;
@@ -531,18 +546,22 @@
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
 }
 
-.nmnAreaMore:hover {
-  color: var(--ink-soft);
+@media (hover: hover) and (pointer: fine) {
+  .nmnAreaMore:hover {
+    color: var(--ink-soft);
+  }
 }
 
+/* The chosen area is a selection, so it reads in ink, never a coral tint. */
 .nmnBoroughChip[data-active] {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
 }
 
 .nmnBoroughChip {
@@ -552,15 +571,16 @@
   border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
   transition: transform 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
 }
 
-.nmnBoroughChip:hover {
-  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .nmnBoroughChip:hover {
+    border-color: var(--state-selected-border);
+  }
 }
 
 /* Lightly-covered patch chip: a quiet honesty flag, not an alarm. */
@@ -573,7 +593,7 @@
 }
 
 .nmnChipTier {
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--muted);

@@ -131,7 +131,22 @@ describe("the map's held loading frame", () => {
     expect(glass?.textContent).toBe("");
     expect(
       Array.from(stack?.children ?? []).map((line) => line.textContent),
-    ).toEqual(["London pub map", "Loading London pubs…", "Still loading pubs…"]);
+    ).toEqual(["Loading London pubs…", "Still loading pubs…"]);
+  });
+
+  // The taste pass of 18 Oct 2026: the frame is a plain field with the glass
+  // and its one line. The fake map (streets, a river, pins drawn in spans) and
+  // the eyebrow over the line are gone, not hidden.
+  it("draws no fake map and no eyebrow, only the glass and its line", () => {
+    act(() => {
+      root.render(
+        createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 12 }),
+      );
+    });
+
+    expect(host.querySelector(".mapLoadingScene")).toBeNull();
+    expect(host.querySelector(".mapLoadingEyebrow")).toBeNull();
+    expect(frame().textContent).not.toContain("pub map");
   });
 
   it("draws the progress bar without announcing a second time", () => {
