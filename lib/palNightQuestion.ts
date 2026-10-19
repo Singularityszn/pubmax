@@ -5,7 +5,7 @@
 // drinks. Asked from noon to midnight London time; the small hours belong to
 // "get home" (lib/palSummonLine.ts), so it is never asked then.
 
-import { londonHour } from "@/lib/londonHour";
+import { LONDON_DAY_MS, londonHour, londonMsSinceMidnight } from "@/lib/londonHour";
 import { londonEveningKey } from "@/lib/visitReports";
 
 export const PAL_NIGHT_QUESTION = "Right. Quiet couple, or is it one of those nights?";
@@ -54,6 +54,16 @@ const PAL_NIGHT_QUESTION_FROM_HOUR = 12;
 export function palNightQuestionOpen(now: Date): boolean {
   const hour = londonHour(now);
   return Number.isFinite(hour) && hour >= PAL_NIGHT_QUESTION_FROM_HOUR;
+}
+
+/**
+ * How long until the question next opens (noon) or closes (midnight), London
+ * time, so a page left open re-checks at the boundary rather than on a poll.
+ */
+export function msUntilPalNightBoundary(now: Date): number {
+  const sinceMidnight = londonMsSinceMidnight(now);
+  const noon = PAL_NIGHT_QUESTION_FROM_HOUR * 60 * 60 * 1000;
+  return (sinceMidnight < noon ? noon : LONDON_DAY_MS) - sinceMidnight;
 }
 
 export function palNightChoice(id: unknown): PalNightChoice | null {

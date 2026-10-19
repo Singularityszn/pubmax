@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
+  msUntilPalNightBoundary,
+  PAL_NIGHT_ANSWER_STORAGE_KEY,
   PAL_NIGHT_CHOICES,
   PAL_NIGHT_QUESTION,
   palNightQuestionOpen,
@@ -19,7 +21,8 @@ import "./palNightQuestion.css";
 // The Pal's evening question on /pal (lib/palNightQuestion.ts). Each answer is
 // a link straight into a plan of that shape, and the Pal remembers it for the
 // rest of the evening so it never asks twice. An asleep (muted) Pal asks
-// nothing, and nothing is asked in the small hours.
+// nothing, and nothing is asked in the small hours. A page left open checks
+// again at noon and at midnight, and when another tab answers.
 
 type Asked = { open: boolean; answer: PalNightChoice | null };
 
@@ -27,9 +30,26 @@ export default function PalNightQuestion({ muted }: { muted: boolean }) {
   const [asked, setAsked] = useState<Asked | null>(null);
 
   useEffect(() => {
-    const now = new Date();
-    const read = { open: palNightQuestionOpen(now), answer: readPalNightAnswer(safeLocalStorage(), now) };
-    queueMicrotask(() => setAsked(read));
+    let active = true;
+    let timer = 0;
+    const read = () => {
+      if (!active) return;
+      const now = new Date();
+      setAsked({ open: palNightQuestionOpen(now), answer: readPalNightAnswer(safeLocalStorage(), now) });
+      window.clearTimeout(timer);
+      // A second past the boundary, so the clock has crossed it.
+      timer = window.setTimeout(read, msUntilPalNightBoundary(now) + 1000);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === PAL_NIGHT_ANSWER_STORAGE_KEY) read();
+    };
+    queueMicrotask(read);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (muted || !asked?.open) return null;

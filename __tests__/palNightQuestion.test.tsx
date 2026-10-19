@@ -12,6 +12,7 @@ import PalNightQuestion from "@/components/pal/PalNightQuestion";
 import { DEVICE_IDENTITY_LOCAL_KEYS } from "@/lib/deviceAccountIdentity";
 import { inferNightContext } from "@/lib/nightPlanning";
 import {
+  msUntilPalNightBoundary,
   PAL_NIGHT_ANSWER_STORAGE_KEY,
   PAL_NIGHT_CHOICES,
   PAL_NIGHT_QUESTION,
@@ -44,6 +45,13 @@ describe("the Pal's evening question", () => {
     expect(palNightQuestionOpen(LONDON_NOON)).toBe(true);
     expect(palNightQuestionOpen(LONDON_LATE)).toBe(true);
     expect(palNightQuestionOpen(LONDON_SMALL_HOURS)).toBe(false);
+  });
+
+  it("knows how long until the question next opens or closes", () => {
+    // 11:59 London: one minute to noon. 23:30 London: half an hour to midnight.
+    expect(msUntilPalNightBoundary(LONDON_MORNING)).toBe(60_000);
+    expect(msUntilPalNightBoundary(LONDON_LATE)).toBe(30 * 60_000);
+    expect(msUntilPalNightBoundary(LONDON_NOON)).toBe(12 * 60 * 60_000);
   });
 
   it("hands the planner a plan of the size it promises, cheapest first, for tonight", () => {
@@ -109,7 +117,7 @@ describe("the question on /pal", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
-    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     vi.setSystemTime(LONDON_LATE);
   });
   afterEach(() => {
@@ -152,6 +160,34 @@ describe("the question on /pal", () => {
     await render();
     expect(host.textContent).not.toContain(PAL_NIGHT_QUESTION);
     expect(host.querySelector("[role='status']")?.textContent).toBe("A quiet couple it is. Two pubs, nothing pricey.");
+  });
+
+  it("starts asking at noon on a page left open since the morning", async () => {
+    vi.setSystemTime(LONDON_MORNING);
+    await render();
+    expect(host.querySelector("[data-testid='pal-night-question']")).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(2 * 60_000); });
+    expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
+  });
+
+  it("stops asking at midnight on a page left open since the evening", async () => {
+    await render();
+    expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
+    await act(async () => { vi.advanceTimersByTime(31 * 60_000); });
+    expect(host.querySelector("[data-testid='pal-night-question']")).toBeNull();
+  });
+
+  it("takes an answer given in another tab, so it never asks twice", async () => {
+    await render();
+    expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
+    writePalNightAnswer(window.localStorage, "carnage", LONDON_LATE);
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: PAL_NIGHT_ANSWER_STORAGE_KEY }));
+    });
+    expect(host.textContent).not.toContain(PAL_NIGHT_QUESTION);
+    expect(host.querySelector("[role='status']")?.textContent).toBe(
+      "Absolute carnage it is. Six pubs, cheapest first, and mind the last train.",
+    );
   });
 
   it("asks nothing in the morning, in the small hours, or while the Pal is asleep", async () => {
