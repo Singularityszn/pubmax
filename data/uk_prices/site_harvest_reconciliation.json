@@ -22,7 +22,7 @@
       "rowIdentitySetSha256": "685286bb4c197ef95568be98c0d933017867f220754c9c098543a21c38c49320"
     },
     "currentBundle": {
-      "rowCount": 7200,
+      "rowCount": 7208,
       "siteHarvestRows": 3085
     }
   },
@@ -10036,6 +10036,54 @@
       "currentBundle": {
         "rowCount": 7730,
         "siteHarvestRows": 3615
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-godetlondon-com-wine.json",
+      "sourceEvidenceSha256": "22da756a42994340b1ae1e5a1d6acd930ba47198896b1582d6e620624c7d7254",
+      "sourceUrl": "https://godetlondon.com/wine/",
+      "sourceObservedAt": "2026-10-19T15:09:51.397Z",
+      "addedRows": 8,
+      "currentLedger": {
+        "sha256": "8a0b6c4a5310df07933826765f39cd7f1075a5dd6276a09c5980b34bd0209bba",
+        "rowCount": 3694,
+        "rowIdentitySetSha256": "911cf978b51ee51174cc8d3a96acb791c843d914315f229cf49f748f3a259323"
+      },
+      "currentBundle": {
+        "rowCount": 7790,
+        "siteHarvestRows": 3667
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-parkhotelteddington-com-food-drink.json",
+      "sourceEvidenceSha256": "08a0e1ead9663b4905228c0322dba938628e2e0d6fedd98ca44dc08db4df7d3f",
+      "sourceUrl": "https://www.parkhotelteddington.com/food-drink/",
+      "sourceObservedAt": "2026-10-19T15:10:49.637Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "69885ff212092afc7de17202e95c49d6eece2bae6734e22c59a83f2b20a6eab2",
+        "rowCount": 3709,
+        "rowIdentitySetSha256": "538b26cbca88327b5b58dc46d82893909c171c290134bea68aa8b1c2e1c61b3a"
+      },
+      "currentBundle": {
+        "rowCount": 7790,
+        "siteHarvestRows": 3667
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-thedysartpetersham-co-uk-wine-drink.json",
+      "sourceEvidenceSha256": "c6a47b35f692e7d6aaf81f9fa42e03223422591692e3c0f4f0ed3f4eb2ea8840",
+      "sourceUrl": "https://www.thedysartpetersham.co.uk/wine-drink/",
+      "sourceObservedAt": "2026-10-19T15:11:12.995Z",
+      "addedRows": 49,
+      "currentLedger": {
+        "sha256": "e1e39ecd8ae61551ee8f5437f5d8a5ec2621e03bbc24ea305e919a771e5f7221",
+        "rowCount": 3758,
+        "rowIdentitySetSha256": "187ef40545627609c98fb5f9877ccc4c55dc65ec40abc0c6be79f4292041b967"
+      },
+      "currentBundle": {
+        "rowCount": 7790,
+        "siteHarvestRows": 3667
       }
     }
   ]
