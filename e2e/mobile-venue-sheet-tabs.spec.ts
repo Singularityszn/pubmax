@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
 
+import { routeHygieneBadge } from "./helpers/hygieneBadge";
+
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i += 1) {
@@ -435,6 +437,8 @@ for (const width of [320, 390, 430] as const) {
  * sheet: the getting-home fold on the Overview, and Ask inside Lore.
  */
 test("the getting-home fold and Ask are one tap from their tabs", async ({ page }) => {
+  // The wait below needs the hygiene row, so it may not hang on the live FSA service.
+  await routeHygieneBadge(page);
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
