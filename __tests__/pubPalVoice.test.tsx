@@ -80,6 +80,7 @@ import {
 } from "@/lib/elevenlabsWorkletAssets";
 import {
   PAL_MICROPHONE_PERMISSION_ERROR,
+  PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
@@ -1021,7 +1022,7 @@ describe("Pub Pal voice controls", () => {
 
 type LiveSession = {
   onConnect?: () => void;
-  onDisconnect?: () => void;
+  onDisconnect?: (details?: unknown) => void;
   onMessage?: (message: { role: string; message: string }) => void;
   onAgentResponseCorrection?: (event: { original_agent_response: string; corrected_agent_response: string }) => void;
   onDebug?: (event: unknown) => void;
@@ -1134,6 +1135,36 @@ describe("Pub Pal voice transcript", () => {
       session.onDisconnect?.();
     });
     expect(sounds.play.mock.calls).toEqual([["start"], ["end"]]);
+  });
+
+  it("says the line dropped when the provider's socket closes under a live call", async () => {
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Cheap pints near" });
+      voice.status = "disconnected";
+      session.onDisconnect?.({ reason: "error", closeCode: 1006, message: "" });
+      root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+    });
+    await settle();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(PAL_VOICE_LINE_DROPPED_ERROR);
+    expect(container.querySelector('a[href="/pal/chat"]')?.textContent).toContain("Ask in writing");
+    // What was heard before the drop stays readable.
+    expect(transcriptLines()).toEqual(["YouCheap pints near"]);
+  });
+
+  it.each([
+    ["the agent ended the call", { reason: "agent", closeCode: 1000 }],
+    ["the provider's session cap", { reason: "error", message: "max", context: { type: "max_duration_exceeded" } }],
+  ])("stays quiet when %s", async (_label, details) => {
+    const session = await startLiveSession();
+    await act(async () => {
+      voice.status = "disconnected";
+      session.onDisconnect?.(details);
+      root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+    });
+    await settle();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).toContain("Start voice chat");
   });
 
   it("never moves on the Pal's own words", async () => {
