@@ -9,10 +9,12 @@ vi.mock("next/navigation", () => ({
 }));
 const crew = vi.hoisted(() => ({
   token: "0123456789abcdef0123456789abcdef" as string | null,
+  // When set, the token read waits on this until the test resolves it.
+  pending: null as Promise<string | null> | null,
   outcome: "shared" as "shared" | "cancelled" | "whatsapp" | "failed",
   shared: [] as Array<{ title: string; text: string; url: string }>,
 }));
-vi.mock("@/lib/planInviteTokenClient", () => ({ ensurePlanInviteToken: async () => crew.token }));
+vi.mock("@/lib/planInviteTokenClient", () => ({ ensurePlanInviteToken: async () => (crew.pending ? await crew.pending : crew.token) }));
 vi.mock("@/lib/shareSheet", () => ({
   shareNightObject: async (input: { title: string; text: string; url: string }) => {
     crew.shared.push(input);
@@ -158,6 +160,7 @@ describe("the question on /pal", () => {
     crew.token = "0123456789abcdef0123456789abcdef";
     crew.outcome = "shared";
     crew.shared = [];
+    crew.pending = null;
     vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     vi.setSystemTime(LONDON_LATE);
   });
@@ -270,6 +273,25 @@ describe("the question on /pal", () => {
       expect(whoLink()).toBeUndefined();
       const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
       expect(new URL(open.href).pathname).toBe("/plan");
+    });
+
+    it("drops a plan whose window closes while its crew link is still being read", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      let resolveToken: (token: string | null) => void = () => undefined;
+      crew.pending = new Promise((resolve) => { resolveToken = resolve; });
+      // The plan's window closes at 23:35 London, five minutes from now.
+      writeActivePlan({ id: PLAN_ID, startTime: new Date(LONDON_LATE.getTime() - (8 * 60 - 5) * 60_000).toISOString(), stopIndex: 0, role: "host" });
+      await render();
+      expect(whoLink()).toBeDefined();
+      await act(async () => { vi.advanceTimersByTime(6 * 60_000); });
+      expect(whoLink()).toBeUndefined();
+      await act(async () => {
+        resolveToken("0123456789abcdef0123456789abcdef");
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(whoButton()).toBeUndefined();
+      expect(whoLink()).toBeUndefined();
     });
 
     it("starts offering the crew link when tonight's plan window opens on a page left open", async () => {

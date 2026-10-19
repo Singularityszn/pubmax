@@ -60,8 +60,12 @@ function useTonightsCrew(): Crew | null {
   useEffect(() => {
     let active = true;
     let timer = 0;
+    // Each read is a new generation, so a token read still out when the
+    // window closes (or the plan changes) can never put the old plan back.
+    let generation = 0;
     const read = () => {
       if (!active) return;
+      const mine = ++generation;
       const now = Date.now();
       const ref = readActivePlan();
       window.clearTimeout(timer);
@@ -72,7 +76,7 @@ function useTonightsCrew(): Crew | null {
       setCrew(planId ? { planId, inviteUrl: null } : null);
       if (!planId) return;
       void ensurePlanInviteToken(planId).then((token) => {
-        if (!active || readActivePlan()?.id !== planId || !token || !isClassicPlanInviteToken(token)) return;
+        if (!active || mine !== generation || !token || !isClassicPlanInviteToken(token)) return;
         setCrew({ planId, inviteUrl: absoluteUrl(planCrewSharePath(planId, token)) });
       });
     };
