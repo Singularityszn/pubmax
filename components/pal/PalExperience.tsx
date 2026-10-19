@@ -343,7 +343,7 @@ function PalHomeScreen({
           <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} />
         </div>
       </section>
-      <PalNightQuestion muted={pal.muted} />
+      <PalNightQuestion muted={pal.muted} palName={pal.name} />
       <PalYear palName={pal.name} print={genome.print} />
       <section className="palControls" aria-labelledby="pal-controls-title">
         <div>

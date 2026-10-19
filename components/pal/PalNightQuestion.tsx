@@ -1,21 +1,28 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
 import {
   msUntilPalNightBoundary,
   PAL_NIGHT_ANSWER_STORAGE_KEY,
   PAL_NIGHT_CHOICES,
   PAL_NIGHT_QUESTION,
+  palNightInviteText,
   palNightQuestionOpen,
   readPalNightAnswer,
   writePalNightAnswer,
   type PalNightChoice,
 } from "@/lib/palNightQuestion";
+import { isClassicPlanInviteToken, planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import { ensurePlanInviteToken } from "@/lib/planInviteTokenClient";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { shareNightObject } from "@/lib/shareSheet";
+import { siteOrigin } from "@/lib/siteUrl";
 import "./palNightQuestion.css";
 
 // The Pal's evening question on /pal (lib/palNightQuestion.ts). Each answer is
@@ -26,7 +33,81 @@ import "./palNightQuestion.css";
 
 type Asked = { open: boolean; answer: PalNightChoice | null };
 
-export default function PalNightQuestion({ muted }: { muted: boolean }) {
+// The crew link leaves the site, so it carries a host, as the plan page's own
+// invite does (components/plan/PlanInviteNextStep.tsx).
+function absoluteUrl(path: string): string {
+  try {
+    return new URL(path, siteOrigin(window.location.href) ?? window.location.origin).toString();
+  } catch {
+    return path;
+  }
+}
+
+type Crew = { planId: string; inviteUrl: string | null };
+type Sent = "idle" | "sent" | "failed";
+
+/**
+ * "Who's coming?": once tonight's plan is saved and on, the Pal hands the
+ * person its real crew link (`/plan/{id}#invite=…`), so mates join the same
+ * night. The invite token is read while the card is on screen, so the tap goes
+ * straight to the share sheet. Without a token it opens the plan's own invite
+ * tools, and it never shares a bare `/plan/{id}`, which cannot join.
+ */
+function PalNightCrew({ palName, choice }: { palName: string; choice: PalNightChoice }) {
+  const [crew, setCrew] = useState<Crew | null>(null);
+  const [sent, setSent] = useState<Sent>("idle");
+
+  useEffect(() => {
+    let active = true;
+    const read = () => {
+      if (!active) return;
+      const ref = readActivePlan();
+      const planId = ref && (ref.role === "host" || ref.role === "guest") && isPlanActiveNow(ref, Date.now()) ? ref.id : null;
+      setCrew(planId ? { planId, inviteUrl: null } : null);
+      if (!planId) return;
+      void ensurePlanInviteToken(planId).then((token) => {
+        if (!active || readActivePlan()?.id !== planId || !token || !isClassicPlanInviteToken(token)) return;
+        setCrew({ planId, inviteUrl: absoluteUrl(planCrewSharePath(planId, token)) });
+      });
+    };
+    queueMicrotask(read);
+    const unsubscribe = subscribeActivePlan(read);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  if (!crew) return null;
+  const invitePage = `/plan/${crew.planId}#share` as Route;
+  if (!crew.inviteUrl) {
+    return (
+      <Link className="palNightQuestionOpen" href={invitePage}>
+        Who&apos;s coming?
+      </Link>
+    );
+  }
+  const inviteUrl = crew.inviteUrl;
+  const share = async () => {
+    const outcome = await shareNightObject({ title: "Tonight", text: palNightInviteText(palName, choice), url: inviteUrl });
+    setSent(outcome === "failed" ? "failed" : outcome === "cancelled" ? "idle" : "sent");
+  };
+  return (
+    <>
+      <button type="button" className="palNightQuestionOpen" onClick={() => void share()}>
+        Who&apos;s coming?
+      </button>
+      {sent === "sent" ? <p className="palNightQuestionNote" role="status">Sent. Now they tap I&apos;m in.</p> : null}
+      {sent === "failed" ? (
+        <p className="palNightQuestionNote" role="status">
+          That didn&apos;t send. <Link href={invitePage}>Send it from the plan</Link>
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+export default function PalNightQuestion({ muted, palName }: { muted: boolean; palName: string }) {
   const [asked, setAsked] = useState<Asked | null>(null);
 
   useEffect(() => {
@@ -72,6 +153,7 @@ export default function PalNightQuestion({ muted }: { muted: boolean }) {
             Open the plan
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
+          <PalNightCrew palName={palName} choice={asked.answer} />
           <button type="button" className="palNightQuestionChange" onClick={changeMind}>
             Change my mind
           </button>

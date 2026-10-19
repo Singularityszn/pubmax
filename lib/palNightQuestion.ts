@@ -19,6 +19,8 @@ export type PalNightChoice = {
   hint: string;
   /** What the Pal says once the person has picked it. */
   reply: string;
+  /** The night in the invite the person sends: "Ripley's planning a proper sesh tonight." */
+  invite: string;
   /** The plan in the planner's own words: stops, mood and cheapest first. */
   plan: string;
 };
@@ -29,6 +31,7 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
     label: "Quiet couple",
     hint: "Two pubs, nothing pricey",
     reply: "A quiet couple it is. Two pubs, nothing pricey.",
+    invite: "a quiet couple",
     plan: "2 pubs tonight, quiet and not pricey",
   },
   {
@@ -36,6 +39,7 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
     label: "Proper sesh",
     hint: "Four pubs, cheapest first",
     reply: "Proper sesh it is. Four pubs, cheapest first.",
+    invite: "a proper sesh",
     plan: "4 pubs tonight, lively and cheap",
   },
   {
@@ -43,6 +47,7 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
     label: "Absolute carnage",
     hint: "Six pubs, cheapest first",
     reply: "Absolute carnage it is. Six pubs, cheapest first, and mind the last train.",
+    invite: "absolute carnage",
     plan: "6 pubs tonight, lively and cheap",
   },
 ];
@@ -64,6 +69,16 @@ export function msUntilPalNightBoundary(now: Date): number {
   const sinceMidnight = londonMsSinceMidnight(now);
   const noon = PAL_NIGHT_QUESTION_FROM_HOUR * 60 * 60 * 1000;
   return (sinceMidnight < noon ? noon : LONDON_DAY_MS) - sinceMidnight;
+}
+
+/**
+ * The words that ride with tonight's crew link. It names the Pal and the night,
+ * never the pubs, a price or a count, and asks the way the plan page already
+ * does ("Open the link and tap I'm in.").
+ */
+export function palNightInviteText(palName: string, choice: PalNightChoice): string {
+  const name = palName.trim() || "My Pal";
+  return `${name}'s planning ${choice.invite} tonight. Open the link and tap I'm in.`;
 }
 
 export function palNightChoice(id: unknown): PalNightChoice | null {

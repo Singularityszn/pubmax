@@ -7,8 +7,21 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => "/pal",
 }));
+const crew = vi.hoisted(() => ({
+  token: "0123456789abcdef0123456789abcdef" as string | null,
+  outcome: "shared" as "shared" | "cancelled" | "whatsapp" | "failed",
+  shared: [] as Array<{ title: string; text: string; url: string }>,
+}));
+vi.mock("@/lib/planInviteTokenClient", () => ({ ensurePlanInviteToken: async () => crew.token }));
+vi.mock("@/lib/shareSheet", () => ({
+  shareNightObject: async (input: { title: string; text: string; url: string }) => {
+    crew.shared.push(input);
+    return crew.outcome;
+  },
+}));
 
 import PalNightQuestion from "@/components/pal/PalNightQuestion";
+import { writeActivePlan } from "@/lib/activePlan";
 import { DEVICE_IDENTITY_LOCAL_KEYS } from "@/lib/deviceAccountIdentity";
 import { inferNightContext } from "@/lib/nightPlanning";
 import {
@@ -17,6 +30,7 @@ import {
   PAL_NIGHT_CHOICES,
   PAL_NIGHT_QUESTION,
   palNightChoice,
+  palNightInviteText,
   palNightQuestionOpen,
   readPalNightAnswer,
   writePalNightAnswer,
@@ -67,7 +81,10 @@ describe("the Pal's evening question", () => {
   });
 
   it("is pub language with no swearing, no exclamation and never a drink count", () => {
-    const lines = [PAL_NIGHT_QUESTION, ...PAL_NIGHT_CHOICES.flatMap((choice) => [choice.label, choice.hint, choice.reply])];
+    const lines = [
+      PAL_NIGHT_QUESTION,
+      ...PAL_NIGHT_CHOICES.flatMap((choice) => [choice.label, choice.hint, choice.reply, palNightInviteText("Ripley", choice)]),
+    ];
     for (const line of lines) {
       expect(line).not.toMatch(/!/);
       expect(line).not.toMatch(/[–—]/);
@@ -86,6 +103,13 @@ describe("the Pal's evening question", () => {
     expect(readPalNightAnswer(storage, new Date("2026-10-20T11:00:00Z"))).toBeNull();
     writePalNightAnswer(storage, null, LONDON_LATE);
     expect(readPalNightAnswer(storage, LONDON_LATE)).toBeNull();
+  });
+
+  it("invites the crew to the night in the Pal's name, never to a price or a count", () => {
+    const sesh = palNightChoice("sesh")!;
+    expect(palNightInviteText("Ripley", sesh)).toBe("Ripley's planning a proper sesh tonight. Open the link and tap I'm in.");
+    expect(palNightInviteText("  ", palNightChoice("quiet")!)).toBe("My Pal's planning a quiet couple tonight. Open the link and tap I'm in.");
+    for (const choice of PAL_NIGHT_CHOICES) expect(palNightInviteText("Ripley", choice)).not.toMatch(/\d|£/);
   });
 
   it("leaves the device with the account, so the next person is asked afresh", () => {
@@ -111,12 +135,15 @@ describe("the question on /pal", () => {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
-    await act(async () => root!.render(createElement(PalNightQuestion, { muted })));
+    await act(async () => root!.render(createElement(PalNightQuestion, { muted, palName: "Ripley" })));
     await act(async () => { await Promise.resolve(); });
   }
 
   beforeEach(() => {
     window.localStorage.clear();
+    crew.token = "0123456789abcdef0123456789abcdef";
+    crew.outcome = "shared";
+    crew.shared = [];
     vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
     vi.setSystemTime(LONDON_LATE);
   });
@@ -153,6 +180,69 @@ describe("the question on /pal", () => {
     await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Change my mind")!.click());
     expect(host.textContent).toContain(PAL_NIGHT_QUESTION);
     expect(window.localStorage.getItem(PAL_NIGHT_ANSWER_STORAGE_KEY)).toBeNull();
+  });
+
+  describe("Who's coming?", () => {
+    const PLAN_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const whoButton = () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Who's coming?");
+    const whoLink = () => [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Who's coming?");
+
+    function tonightsPlan(role: "host" | "guest" | null = "host") {
+      writeActivePlan({ id: PLAN_ID, startTime: new Date(LONDON_LATE.getTime() - 60 * 60_000).toISOString(), stopIndex: 0, role });
+    }
+
+    it("is not offered before tonight's plan is saved", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      await render();
+      expect(whoButton()).toBeUndefined();
+      expect(whoLink()).toBeUndefined();
+    });
+
+    it("shares tonight's real crew link in the Pal's words", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      tonightsPlan();
+      await render();
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => whoButton()!.click());
+      expect(crew.shared).toHaveLength(1);
+      expect(crew.shared[0]!.text).toBe("Ripley's planning a proper sesh tonight. Open the link and tap I'm in.");
+      expect(new URL(crew.shared[0]!.url).pathname).toBe(`/plan/${PLAN_ID}`);
+      expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
+      expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+    });
+
+    it("opens the plan's own invite tools when there is no crew link to hand out", async () => {
+      crew.token = null;
+      writePalNightAnswer(window.localStorage, "carnage", LONDON_LATE);
+      tonightsPlan("guest");
+      await render();
+      await act(async () => { await Promise.resolve(); });
+      expect(whoButton()).toBeUndefined();
+      expect(new URL(whoLink()!.href).pathname).toBe(`/plan/${PLAN_ID}`);
+      expect(new URL(whoLink()!.href).hash).toBe("#share");
+    });
+
+    it("points to the plan when the share does not go, and says nothing for a closed sheet", async () => {
+      writePalNightAnswer(window.localStorage, "quiet", LONDON_LATE);
+      tonightsPlan();
+      crew.outcome = "cancelled";
+      await render();
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => whoButton()!.click());
+      expect(host.textContent).not.toContain("Sent.");
+      crew.outcome = "failed";
+      await act(async () => whoButton()!.click());
+      const fallback = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Send it from the plan")!;
+      expect(new URL(fallback.href).hash).toBe("#share");
+    });
+
+    it("is not offered for a plan with no seat on it", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      tonightsPlan(null);
+      await render();
+      expect(whoButton()).toBeUndefined();
+      expect(whoLink()).toBeUndefined();
+    });
   });
 
   it("does not ask twice in one evening", async () => {

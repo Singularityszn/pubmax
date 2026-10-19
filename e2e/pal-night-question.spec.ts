@@ -68,3 +68,65 @@ test("the Pal asks what kind of night it is, and the answer opens that plan", as
   await page.waitForTimeout(600);
   await answered.screenshot({ path: `${SHOTS}/answered-390.png` });
 });
+
+test("once tonight's plan is saved, the Pal hands out the crew link", async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.install({ time: new Date("2026-10-19T18:30:00Z") });
+  await installAuthDoubles(page);
+  const planId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const inviteToken = "0123456789abcdef0123456789abcdef";
+  const now = "2026-10-04T12:00:00.000Z";
+  const serverPal = {
+    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
+    adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, name: "Ripley", muted: false, hidden: false,
+    proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
+  };
+  await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: serverPal, adultOnFile: true } }));
+  await page.route("**/api/pub-pal/memories", (route) => route.fulfill({ json: { memories: [] } }));
+  // The member's own plan read hands back the crew token, as it does for a host.
+  await page.route(`**/api/plans/${planId}`, (route) => route.fulfill({ json: { inviteToken, stops: [] } }));
+  await page.addInitScript(({ ownerId, id, appearance, personality, voice }) => {
+    const stamp = "2026-10-04T12:00:00.000Z";
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax_account_owner", ownerId);
+    window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
+      adultAttestedAt: stamp, appearance, personality, voice, muted: false, hidden: false,
+      proposalPreferences: {}, masteryPoints: 0, createdAt: stamp, updatedAt: stamp,
+    }));
+    // Tonight's answer, and the plan the host locked in for half eight.
+    window.localStorage.setItem("pubmax:pal-night-answer:v1", JSON.stringify({ evening: "2026-10-19", answer: "sesh" }));
+    window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
+      version: 1, id, startTime: "2026-10-19T19:30:00.000Z", stopIndex: 0, role: "host",
+    }));
+    // Capture the share sheet instead of opening it.
+    const shared: unknown[] = [];
+    (window as unknown as { __shared: unknown[] }).__shared = shared;
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data: unknown) => { shared.push(data); },
+    });
+  }, { ownerId: ACCOUNTS.A.id, id: planId, ...DEFAULT_PAL_DRAFT });
+  await seedSignedIn(page, "A");
+  await page.goto("/pal");
+
+  const card = page.getByTestId("pal-night-question");
+  await expect(card.getByRole("status").first()).toHaveText("Proper sesh it is. Four pubs, cheapest first.", { timeout: 60_000 });
+  const who = card.getByRole("button", { name: "Who's coming?" });
+  await expect(who).toBeVisible({ timeout: 30_000 });
+  await card.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await mkdir(SHOTS, { recursive: true });
+  await card.screenshot({ path: `${SHOTS}/crew-390.png` });
+
+  await who.click();
+  await expect(card).toContainText("Sent. Now they tap I'm in.");
+  const shared = await page.evaluate(() => (window as unknown as { __shared: Array<{ text: string; url: string }> }).__shared);
+  expect(shared).toHaveLength(1);
+  expect(shared[0]!.text).toBe("Ripley's planning a proper sesh tonight. Open the link and tap I'm in.");
+  expect(shared[0]!.url).toContain(`/plan/${planId}#invite=${inviteToken}`);
+});
