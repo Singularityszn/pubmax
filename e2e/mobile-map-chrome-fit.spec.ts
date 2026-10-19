@@ -1839,13 +1839,20 @@ for (const viewport of VIEWPORTS) {
 
     // The idle screen carries the location line; the answered screen carries
     // the price column, the patch-coverage note and the footer's two links.
+    //
+    // Each load waits for the streamed segment to land first. /near streams
+    // its body into a hidden `S:0` copy, and an update during hydration makes
+    // React render the body on the client while that copy is still in the
+    // document, so `.nmnHint` matched two nodes and broke strict mode on CI.
     const idle = await page.goto("/near");
     expect(idle?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator(".nmnHint")).toBeVisible();
     await expectTextClearOfCreateAction(page, [".nmnHint"]);
 
     const answered = await page.goto("/near?patch=soho");
     expect(answered?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator(".nmnCard").first()).toBeVisible();
     await expect(page.locator(".nmnPatchTier")).toBeVisible();
     // The collected line waits on the price-trust read, which lands after the
