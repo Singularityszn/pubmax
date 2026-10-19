@@ -155,6 +155,30 @@ describe("the postcard on the recap", () => {
     auth.userId = "owner";
   });
 
+  it("leaves the card when another tab hides or deletes the Pal", async () => {
+    store(pal());
+    await render();
+    expect(host.querySelector(".palPostcard")).not.toBeNull();
+
+    store(pal({ hidden: true }));
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_pub_pal_v1" }));
+    });
+    expect(host.querySelector(".palPostcard")).toBeNull();
+
+    store(pal());
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_pub_pal_v1" }));
+    });
+    expect(host.querySelector(".palPostcard")).not.toBeNull();
+
+    window.localStorage.removeItem("pubmax_pub_pal_v1");
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent("storage", { key: "pubmax_pub_pal_v1" }));
+    });
+    expect(host.querySelector(".palPostcard")).toBeNull();
+  });
+
   it("is never made for no Pal, a hidden Pal, or a night of one stop", async () => {
     await render();
     expect(host.querySelector("[data-testid='pal-postcard']")).toBeNull();

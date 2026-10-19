@@ -50,12 +50,17 @@ export default function PalPostcard({
   const [save, setSave] = useState<SaveState>("idle");
   const cardRef = useRef<HTMLElement>(null);
   // The stored Pal is a device cache, so it stands on the card only for the
-  // signed-in account that owns it.
+  // signed-in account that owns it. It is read again when another tab changes
+  // it, so a Pal hidden or deleted there leaves this card too.
   const accountId = useAuth().user?.id ?? null;
   useEffect(() => {
-    const stored = readLocalPal();
-    const own = stored && accountId && stored.ownerId === accountId ? stored : null;
-    queueMicrotask(() => setPal(own));
+    const read = () => {
+      const stored = readLocalPal();
+      setPal(stored && accountId && stored.ownerId === accountId ? stored : null);
+    };
+    queueMicrotask(read);
+    window.addEventListener("storage", read);
+    return () => window.removeEventListener("storage", read);
   }, [accountId]);
 
   const names = palPostcardStops(stops);

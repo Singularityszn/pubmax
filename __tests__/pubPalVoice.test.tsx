@@ -1238,6 +1238,51 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-c");
   });
 
+  it("lets a later line from the person retire a next-stop read still on its way", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+    let land: (body: unknown) => void = () => {};
+    planRead.read.mockReturnValue(new Promise((resolve) => { land = resolve; }));
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "What's next?" });
+      await Promise.resolve();
+    });
+    // The person changes their mind and asks for the plain map instead.
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Just show me the map" });
+    });
+    await act(async () => {
+      land({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".palVoiceMapCard")?.textContent).toContain("Opening the map");
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
+  });
+
+  it("opens nothing for a next-stop read that lands after an ordinary follow-up", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
+    let land: (body: unknown) => void = () => {};
+    planRead.read.mockReturnValue(new Promise((resolve) => { land = resolve; }));
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "What's next?" });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Actually, tell me about this pub" });
+    });
+    await act(async () => {
+      land({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
+      await Promise.resolve();
+    });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    expect(container.querySelector(".palVoiceMapCard")).toBeNull();
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
   it("leaves \"next stop\" to the Pal when no night is on", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const session = await startLiveSession();
