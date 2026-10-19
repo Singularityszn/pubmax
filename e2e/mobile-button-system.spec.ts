@@ -630,9 +630,12 @@ for (const width of [320, 390] as const) {
 // the "Cheapest pint" column on a borough table (head text 272 to 357). The
 // cell is scrolled to the control's own band, and its content box must end
 // before the control starts. The profile page hides the control, so it has no
-// lane (e2e/account-password.spec.ts).
+// lane (e2e/account-password.spec.ts). The borough table became a ranked row
+// list in the taste pass (18 Oct 2026): each pub is one row whose trailing
+// figure is its cheapest pint, so the row's content box (which ends where the
+// price ends) is what must stay out of the lane now.
 const COMPOSE_LANE_CELLS = [
-  { route: "/borough/southwark", cells: ".boroughPriceHead, .boroughPriceCell" },
+  { route: "/borough/southwark", cells: ".boroughPubRows .rowListItem" },
 ] as const;
 
 for (const surface of COMPOSE_LANE_CELLS) {

@@ -31,10 +31,10 @@
   min-height: 44px;
   padding: 4px 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font: 650 0.7rem/1 var(--font-sans);
+  font: 650 0.7rem/1 var(--font-body);
   cursor: pointer;
 }
 
@@ -129,9 +129,11 @@
     color var(--duration-base) var(--ease-out);
 }
 
-.tonightArcChipsSheet .tonightArcChip:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .tonightArcChipsSheet .tonightArcChip:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .tonightArcChipsSheet .tonightArcChip.isOn {

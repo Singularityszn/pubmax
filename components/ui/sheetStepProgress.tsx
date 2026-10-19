@@ -48,7 +48,7 @@ export default function SheetStepProgress({
           aria-current={step.state === "current" ? "step" : undefined}
         >
           <span className="sheetStepProgress__marker" aria-hidden="true">
-            {step.state === "settled" ? <Check size={13} /> : index + 1}
+            {step.state === "settled" ? <Check size={14} /> : index + 1}
           </span>
           <span className="sheetStepProgress__label">
             {step.label}{step.state === "skipped" ? " skipped" : ""}

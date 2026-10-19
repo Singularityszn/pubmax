@@ -28,7 +28,7 @@ export default function UkNationalBrowseBanner({
 
   return (
     <aside className="ukPlaceArrival" aria-label={label}>
-      <MapPin className="ukPlaceArrivalIcon" size={18} aria-hidden="true" />
+      <MapPin className="ukPlaceArrivalIcon" size={16} aria-hidden="true" />
       <span className="ukPlaceArrivalCopy">
         <strong>{copy.title}</strong>
         <span>{copy.body}</span>
@@ -39,7 +39,7 @@ export default function UkNationalBrowseBanner({
         onClick={() => setDismissed(true)}
         aria-label={`Dismiss ${label} note`}
       >
-        <X size={18} aria-hidden="true" />
+        <X size={20} aria-hidden="true" />
       </button>
     </aside>
   );

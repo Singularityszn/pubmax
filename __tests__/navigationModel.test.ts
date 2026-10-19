@@ -48,14 +48,19 @@ describe("PUBMAXX primary navigation", () => {
 
   it("lights Plan for the composer and a shared plan, and Social for its aliases", () => {
     const plan = PRIMARY_NAV_ITEMS.find((item) => item.key === "plan");
-    expect(plan?.match).toEqual(["/plan"]);
+    expect(plan?.match).toEqual(["/plan", "/crawls"]);
     expect(primaryNavKeyForPath("/plan")).toBe("plan");
     expect(primaryNavKeyForPath("/plan/abc123")).toBe("plan");
     expect(navPathMatches("/plan", plan!.match)).toBe(true);
     // Social owns its shell and every retired alias that still lands there.
-    for (const path of ["/social", "/discover", "/drinks", "/feed", "/stories", "/crawls/soho"]) {
+    for (const path of ["/social", "/discover", "/drinks", "/feed", "/stories"]) {
       expect(primaryNavKeyForPath(path)).toBe("social");
     }
+    // The crawl routes are walks to plan, reached from planning doors, so they
+    // light Plan rather than Social (taste pass, 18 Oct 2026).
+    expect(primaryNavKeyForPath("/crawls")).toBe("plan");
+    expect(primaryNavKeyForPath("/crawls/soho")).toBe("plan");
+    expect(primaryNavKeyForPath("/crawlspace")).toBeUndefined();
     expect(PRIMARY_NAV_ITEMS.find((item) => item.key === "social")?.match).toEqual([...SOCIAL_NAV_MATCH]);
     expect(primaryNavKeyForPath("/socialite")).toBeUndefined();
     expect(primaryNavKeyForPath("/borough")).toBeUndefined();

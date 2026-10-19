@@ -36,7 +36,7 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--panel, var(--paper));
+  background: var(--panel);
 }
 
 .listingsSkeletonTitle,
@@ -46,11 +46,11 @@
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--line-soft) 70%, transparent),
-    color-mix(in srgb, var(--brass) 12%, var(--panel)),
+    var(--panel),
     color-mix(in srgb, var(--line-soft) 70%, transparent)
   );
   background-size: 200% 100%;
-  animation: listingsSkeletonShimmer 1.6s var(--ease-in-out-strong, ease-in-out) infinite;
+  animation: listingsSkeletonShimmer 1.6s var(--ease-in-out-strong) infinite;
 }
 
 .listingsSkeletonTitle {

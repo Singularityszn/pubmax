@@ -506,10 +506,10 @@ describe("the borough price cell", () => {
     view.innerHTML = renderToStaticMarkup(await BoroughPage({
       params: Promise.resolve({ slug: "barking-and-dagenham" }),
     }));
-    const cell = view.querySelector(".boroughTable tbody .boroughPriceCell");
+    const cell = view.querySelector(".boroughPubRows .rowListTrailing .boroughLedgerLink");
     expect(cell).not.toBeNull();
     expect(cell?.textContent).toBe(figure);
-    expect(cell?.querySelectorAll(".boroughNoPrice")).toHaveLength(figure === "No price" ? 1 : 0);
+    expect(cell?.querySelectorAll(".listingNoFigure")).toHaveLength(figure === "No price" ? 1 : 0);
   });
 });
 

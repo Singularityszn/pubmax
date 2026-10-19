@@ -437,8 +437,15 @@ function AnswerCard({
   // one, and none for a row that records no read.
   const observedOn = typeof evidence === "object" ? evidence.observedOn : null;
   return (
+    // createFabLane: at rest on a phone the compose disc floats over this
+    // card's right edge, and "collected 2 October 2026" ran under it (taste
+    // plan, 18 Oct 2026), so the card keeps the control's lane.
     <article
-      className={photo ? "lpPubCard lpAnswerCard lpPubCard--photo" : "lpPubCard lpAnswerCard"}
+      className={
+        photo
+          ? "lpPubCard lpAnswerCard lpPubCard--photo createFabLane"
+          : "lpPubCard lpAnswerCard createFabLane"
+      }
       aria-labelledby="lp-answer-name"
     >
       {photo ? (

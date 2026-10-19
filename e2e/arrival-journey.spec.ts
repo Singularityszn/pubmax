@@ -235,7 +235,7 @@ test.describe("the two doors", () => {
 
     await page.getByRole("tab", { name: "New here" }).click();
     await expect(
-      page.getByRole("heading", { name: "Let's get you in", level: 1 }),
+      page.getByRole("heading", { name: "Make an account", level: 1 }),
     ).toBeVisible();
     await expect(page).toHaveURL(/mode=signup/);
     await page.screenshot({ path: `${SHOTS}/doors-2-signup.png` });

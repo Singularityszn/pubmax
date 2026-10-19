@@ -309,7 +309,7 @@ export default function PintDropComposer({
               if (venuePhoto) removePhoto("venue");
             }}
           >
-            <RefreshCw size={13} /> New shot
+            <RefreshCw size={14} /> New shot
           </button>
         ) : null}
         {dropMsg ? (
@@ -339,7 +339,7 @@ export default function PintDropComposer({
         aria-controls={extrasId}
         onClick={() => setExtrasOpen((open) => !open)}
       >
-        <ChevronDown size={15} aria-hidden="true" />
+        <ChevronDown size={16} aria-hidden="true" />
         {SPILL_EXTRAS_TOGGLE_LABEL}
       </button>
 

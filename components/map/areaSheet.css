@@ -18,10 +18,10 @@
 
 .areaSheetHeading {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 750;
   letter-spacing: 0.01em;
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
 }
 
 .areaSheetList {
@@ -42,9 +42,9 @@
   gap: 12px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--color-border, var(--line)) 82%, transparent);
-  background: color-mix(in srgb, var(--color-surface-raised, var(--panel-raised)) 88%, transparent);
-  color: var(--color-text, var(--ink));
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+  background: color-mix(in srgb, var(--color-surface-raised) 88%, transparent);
+  color: var(--color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -54,14 +54,20 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.areaSheetPub:hover,
 .areaSheetPub:focus-visible {
-  border-color: var(--color-accent, var(--accent-action));
-  background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 8%, var(--color-surface-raised, var(--panel-raised)));
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetPub:hover {
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
+  }
 }
 
 .areaSheetPub:focus-visible {
-  outline: 2px solid var(--color-accent, var(--accent-action));
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -89,18 +95,18 @@
 .areaSheetPrice {
   font-weight: 750;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
 }
 
 .areaSheetPrice.isUnpriced {
   font-weight: 600;
-  font-size: 0.78rem;
-  color: var(--color-text-soft, var(--ink-soft));
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
 }
 
 .areaSheetDistance {
-  font-size: 0.74rem;
-  color: var(--color-text-soft, var(--ink-soft));
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
 }
 
 .areaSheetSeeAll {
@@ -108,9 +114,9 @@
   min-height: 44px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px dashed color-mix(in srgb, var(--color-border, var(--line)) 70%, var(--color-accent, var(--accent-action)) 30%);
+  border: 1px dashed var(--color-border);
   background: transparent;
-  color: var(--color-text-soft, var(--ink-soft));
+  color: var(--color-text-soft);
   font: inherit;
   font-weight: 650;
   cursor: pointer;
@@ -119,21 +125,27 @@
     border-color var(--duration-base) var(--ease-out);
 }
 
-.areaSheetSeeAll:hover,
 .areaSheetSeeAll:focus-visible {
-  color: var(--color-text, var(--ink));
-  border-color: var(--color-accent, var(--accent-action));
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetSeeAll:hover {
+    color: var(--color-text);
+    border-color: var(--hairline-strong);
+  }
 }
 
 .areaSheetSeeAll:focus-visible {
-  outline: 2px solid var(--color-accent, var(--accent-action));
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 .areaSheetEmpty {
   margin: 0;
-  font-size: 0.82rem;
-  color: var(--color-text-soft, var(--ink-soft));
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
 }
 
 .areaSheetCoverage {
@@ -145,7 +157,7 @@
    first and the invitation second. */
 .areaSheetInvite {
   margin-top: 6px;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 /* "Use my location" — the first way out of this area, above the fixed twenty.
@@ -162,11 +174,11 @@
   padding: 10px 14px;
   border: 0;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 14%, var(--color-surface-raised, var(--panel-raised)));
+  background: var(--color-surface-raised);
   box-shadow:
     var(--shadow-sm),
-    inset 0 1px 0 color-mix(in srgb, var(--color-surface-raised, var(--panel-raised)) 70%, transparent);
-  color: var(--color-text, var(--ink));
+    inset 0 1px 0 color-mix(in srgb, var(--color-surface-raised) 70%, transparent);
+  color: var(--color-text);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -176,13 +188,18 @@
     transform var(--duration-fast) var(--ease-out-strong);
 }
 
-.areaSheetLocate:hover,
 .areaSheetLocate:focus-visible {
-  background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 22%, var(--color-surface-raised, var(--panel-raised)));
+  background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetLocate:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
+  }
 }
 
 .areaSheetLocate:focus-visible {
-  outline: 2px solid var(--color-accent, var(--accent-action));
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -202,9 +219,9 @@
    action that failed and the picker every one of those sentences points at. */
 .areaSheetLocateNote {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
-  color: var(--color-text-soft, var(--ink-soft));
+  color: var(--color-text-soft);
 }
 
 .areaSheetGrid {
@@ -218,10 +235,10 @@
 
 .areaSheetSubheading {
   margin: 4px 0 0;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 750;
   letter-spacing: 0.01em;
-  color: var(--color-text-soft, var(--ink-soft));
+  color: var(--color-text-soft);
 }
 
 .areaSheetChip {
@@ -234,9 +251,9 @@
   gap: 2px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--color-border, var(--line)) 70%, var(--color-accent, var(--accent-action)) 30%);
-  background: color-mix(in srgb, var(--color-surface-raised, var(--panel-raised)) 88%, transparent);
-  color: var(--color-text, var(--ink));
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-raised) 88%, transparent);
+  color: var(--color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -246,14 +263,20 @@
     transform var(--duration-fast) var(--ease-out);
 }
 
-.areaSheetChip:hover,
 .areaSheetChip:focus-visible {
-  border-color: var(--color-accent, var(--accent-action));
-  background: color-mix(in srgb, var(--color-accent, var(--accent-action)) 10%, var(--color-surface-raised, var(--panel-raised)));
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .areaSheetChip:hover {
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--color-surface-raised));
+  }
 }
 
 .areaSheetChip:focus-visible {
-  outline: 2px solid var(--color-accent, var(--accent-action));
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -273,15 +296,15 @@
 }
 
 .areaSheetChipCoverage {
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 650;
-  color: var(--color-text-soft, var(--ink-soft));
+  color: var(--color-text-soft);
 }
 
 .areaSheetChipCoverage[data-tone="capture"],
 .areaSheetChipCoverage[data-tone="review"],
 .areaSheetChipCoverage[data-tone="paused"] {
-  color: color-mix(in srgb, var(--color-text-soft, var(--ink-soft)) 55%, var(--color-accent, var(--accent-action)));
+  color: var(--color-text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

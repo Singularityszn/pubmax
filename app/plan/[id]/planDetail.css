@@ -6,3 +6,14 @@
   max-width: 1160px;
   padding-inline: 0;
 }
+
+/* The plan's lead photograph (page.tsx planLeadPhoto): the area the plan
+   already names, only when every stop is a short walk from it. It leads the
+   side column, which a phone reads straight under the head. No card: the
+   photograph and its caption sit on the page. */
+.planLeadPhotoCaption {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
