@@ -196,7 +196,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
           setOpen(next);
         }}
       >
-        <Plus size={24} strokeWidth={2.25} aria-hidden="true" />
+        <Plus size={24} aria-hidden="true" />
       </button>
     </div>
   );

@@ -127,7 +127,7 @@ export default function VenueTonightChips(
             data-kind={kind}
             data-reveal-delay={revealDatedCheck && !revealDatedCheckLate ? "2" : undefined}
           >
-            <Icon size={12} aria-hidden="true" />
+            <Icon size={14} aria-hidden="true" />
             {WHATS_ON_KIND_META[kind].badgeLabel}
           </span>
         );

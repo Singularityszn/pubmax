@@ -264,7 +264,7 @@ export default function CommentThread({
       }
       onClick={() => setOpen((v) => !v)}
     >
-      <MessageCircle size={16} strokeWidth={1.75} aria-hidden="true" />
+      <MessageCircle size={16} aria-hidden="true" />
       {loaded && count > 0 ? <span className="commentToggleCompactCount">{count}</span> : null}
     </button>
   ) : (

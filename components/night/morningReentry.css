@@ -51,11 +51,13 @@
   background: none;
   color: var(--ink-soft);
   cursor: pointer;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
-.morningCard__close:hover {
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .morningCard__close:hover {
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
 }
 
 .morningCard__head {
@@ -72,30 +74,30 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 999px;
+  border-radius: 50%;
   /* The fill is a translucent tint of the accent over whatever card carries
      the badge, so the glyph takes the accent's TINT ink: the raw coral measured
      2.75:1 against WCAG 1.4.11's 3:1 for a non-text mark. */
-  background: color-mix(in srgb, var(--brass) 18%, transparent);
-  color: var(--tint-ink-accent);
+  background: transparent;
+  color: var(--color-text-muted);
 }
 
 .morningCard__eyebrow {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 750;
   color: var(--ink);
 }
 
 .morningCard__lede {
   margin: 1px 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
 .morningCard__title {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink);
   overflow: hidden;
@@ -116,10 +118,11 @@
   min-height: 44px;
   width: 100%;
   padding: 0 16px;
-  border-radius: 999px;
-  background: var(--brass);
-  color: var(--color-on-accent-strong);
-  font-size: 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--control-secondary-border);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: none;
 }
@@ -137,6 +140,6 @@
 .morningCard__habit {
   margin: 0.35rem 0 0;
   color: color-mix(in srgb, var(--ink) 72%, transparent);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }

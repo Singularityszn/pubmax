@@ -388,8 +388,8 @@ test.describe("the inbox on a phone", () => {
     await expect(rows.first()).toHaveClass(/conversationItemUnread/);
     await expect(rows.first().locator(".conversationUnread")).toHaveText("2");
     await expect(rows.first().locator(".conversationTime")).toHaveText(/^\d+m$|^now$/);
-    // Signed in, the courtesy line about needing an account is not restated.
-    await expect(page.locator(".messagesCourtesyNote")).toHaveCount(0);
+    // Signed in, the inbox is a list of people, not the signed-out empty state.
+    await expect(page.locator(".messagesScreen--signedOut")).toHaveCount(0);
     await expectNoHorizontalOverflow(page, PHONE.width);
   });
 });

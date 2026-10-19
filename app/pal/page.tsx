@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import SiteNav from "@/components/nav/SiteNav";
 import PalExperience from "@/components/pal/PalExperience";
 import "./pal.css";
 
@@ -19,5 +20,13 @@ export const metadata: Metadata = {
 };
 
 export default function PalPage() {
-  return <PalExperience />;
+  // The shared top nav, like every other route: /pal at 1440 had none, so the
+  // Pal read as a microsite outside the app. The nav reads the session in the
+  // browser, so this document stays the same for every stranger.
+  return (
+    <>
+      <SiteNav />
+      <PalExperience />
+    </>
+  );
 }

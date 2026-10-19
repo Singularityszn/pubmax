@@ -17,13 +17,13 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
     <div className="londonRestaurant" data-london-restaurant={restaurant.id}>
       <div className="londonRestaurantHead">
         <span className="londonRestaurantTag">
-          <ForkKnife size={12} aria-hidden="true" />
+          <ForkKnife size={14} aria-hidden="true" />
           Restaurant
         </span>
         <h2 className="londonRestaurantName">{restaurant.name}</h2>
         {restaurant.address ? (
           <p className="londonRestaurantAddress">
-            <MapPin size={13} aria-hidden="true" />
+            <MapPin size={14} aria-hidden="true" />
             {restaurant.address}
           </p>
         ) : null}

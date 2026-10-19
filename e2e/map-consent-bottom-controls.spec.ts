@@ -22,7 +22,8 @@ async function prepareMap(page: Page, width: number, consent: boolean) {
   }, consent);
 
   await page.goto("/places");
-  await expect(page.locator(".placesCityLink").first()).toBeVisible();
+  // Places has painted its one city door (the list view since 18 Oct 2026).
+  await expect(page.locator("main [data-primary-action] a").first()).toBeVisible();
   await page.goto("/map/manchester");
   await expect(page.locator(".mapStage")).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });

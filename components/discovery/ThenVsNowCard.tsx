@@ -67,7 +67,7 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
       </div>
 
       <p className={`tvnDelta tvnDelta-${dir}`}>
-        <DirIcon size={15} aria-hidden="true" />
+        <DirIcon size={16} aria-hidden="true" />
         <span aria-hidden="true">
           {dir === "flat"
             ? "No change"

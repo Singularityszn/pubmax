@@ -67,13 +67,13 @@ export default function LondonFoodPlaceSheet({
     <div className="londonRestaurant" data-london-food-place={place.id}>
       <div className="londonRestaurantHead">
         <span className="londonRestaurantTag">
-          <CupSoda size={12} aria-hidden="true" />
+          <CupSoda size={14} aria-hidden="true" />
           Fast food
         </span>
         <h2 className="londonRestaurantName">{place.name}</h2>
         {place.address ? (
           <p className="londonRestaurantAddress">
-            <MapPin size={13} aria-hidden="true" />
+            <MapPin size={14} aria-hidden="true" />
             {place.address}
           </p>
         ) : null}
@@ -205,7 +205,7 @@ function FoodPlacePriceLog({
   return (
     <section className="venuePriceSubmit londonFoodPlaceLog" aria-labelledby={titleId}>
       <div className="vpsubHead">
-        <CupSoda size={15} aria-hidden="true" />
+        <CupSoda size={16} aria-hidden="true" />
         <h3 id={titleId} className="vpsubTitle">
           What did your Coke Zero or Diet Coke cost?
         </h3>
@@ -265,7 +265,7 @@ function FoodPlacePriceLog({
           onClick={() => receiptInputRef.current?.click()}
           disabled={submitting}
         >
-          <Camera size={15} aria-hidden="true" />
+          <Camera size={16} aria-hidden="true" />
           {receipt ? "Change the bill" : RECEIPT_PHOTO_ACTION}
         </button>
       </div>

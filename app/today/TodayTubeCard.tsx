@@ -20,7 +20,7 @@
 // unmount.
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, TrainFront } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { TUBE_WHEN_LABEL, type DaySlot } from "@/lib/dayGreeting";
 import { coarsenViewerPoint } from "@/lib/geo";
@@ -54,18 +54,12 @@ export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
   if (!disruption) return null;
 
   return (
-    <section className="todayCard" aria-labelledby="today-tube-title" data-testid="today-tube">
-      <div className="todayCardHead">
-        <span className="todayCardIcon" aria-hidden="true">
-          <TrainFront size={18} />
-        </span>
-        <div>
-          <p className="todayCardEyebrow">The Tube {TUBE_WHEN_LABEL[slot]}</p>
-          <h2 className="todayCardTitle" id="today-tube-title">
-            Worth planning around near {disruption.patchLabel}.
-          </h2>
-        </div>
-      </div>
+    // createFabLane: the warning's last words ran under the compose disc on a
+    // phone at rest (taste plan, 18 Oct 2026), so the section keeps its lane.
+    <section className="todayCard createFabLane" aria-labelledby="today-tube-title" data-testid="today-tube">
+      <h2 className="todayCardTitle" id="today-tube-title">
+        The Tube {TUBE_WHEN_LABEL[slot]}, near {disruption.patchLabel}
+      </h2>
       <p className="transportDisruption" data-testid="tfl-disruption">
         <AlertTriangle size={14} aria-hidden="true" className="transportDisruptionIcon" />
         <span className="transportDisruptionCopy">

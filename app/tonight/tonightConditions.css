@@ -9,7 +9,7 @@
   margin: 0 0 18px;
   padding: 11px 13px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--panel-raised);
 }
 
@@ -21,7 +21,7 @@
 
 .tonightConditionsCopy {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--ink-soft);
 }

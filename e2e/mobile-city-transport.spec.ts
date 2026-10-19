@@ -41,8 +41,11 @@ for (const city of ["manchester", "london"] as const) {
     const tflButton = await mobileMapShellControl(page, "tfl");
 
     if (city === "london") {
-      await expect(tflButton).toBeVisible();
+      // London reads its live status at once. An unavailable feed is not
+      // urgent, so the map edge carries no TfL control: the status rests in
+      // More map controls, Transit, which is opened below.
       await expect.poll(() => statusRequests.length).toBeGreaterThan(0);
+      await expect(tflButton).toHaveCount(0);
     } else {
       await expect(tflButton).toHaveCount(0);
       expect(statusRequests).toEqual([]);

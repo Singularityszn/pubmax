@@ -19,12 +19,12 @@ import { priceBandClass } from "@/lib/priceBand";
 import "./mapKey.css";
 
 function ShapeIcon({ id }: { id: string }) {
-  if (id === "pub-drink") return <Beer size={19} aria-hidden="true" />;
-  if (id === "bar") return <Martini size={19} aria-hidden="true" />;
-  if (id === "late-food") return <Utensils size={19} aria-hidden="true" />;
-  if (id === "restaurant") return <ForkKnife size={19} aria-hidden="true" />;
-  if (id === "base-pub") return <CircleDot size={19} aria-hidden="true" />;
-  return <Landmark size={19} aria-hidden="true" />;
+  if (id === "pub-drink") return <Beer size={20} aria-hidden="true" />;
+  if (id === "bar") return <Martini size={20} aria-hidden="true" />;
+  if (id === "late-food") return <Utensils size={20} aria-hidden="true" />;
+  if (id === "restaurant") return <ForkKnife size={20} aria-hidden="true" />;
+  if (id === "base-pub") return <CircleDot size={20} aria-hidden="true" />;
+  return <Landmark size={20} aria-hidden="true" />;
 }
 
 function EntryList({

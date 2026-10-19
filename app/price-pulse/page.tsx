@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
-import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import TrustPill from "@/components/ui/trust-pill";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import {
@@ -26,7 +26,7 @@ import {
 } from "@/lib/pricePulseExplainer";
 import { confirmedPricesForEditions, type PulseConfirmedPrice } from "@/lib/pricePulse.server";
 
-import "../legal.css";
+import "@/components/listing/listing.css";
 import "./price-pulse.css";
 
 // /price-pulse - what people are saying about pint prices this week, and where
@@ -40,6 +40,12 @@ import "./price-pulse.css";
 // No figure on this page is a PUBMAXX price. A line prints "Not checked by
 // PUBMAXX" unless the pub it names holds a Confirmed price, and then that price
 // sits beside the claim with its own date. Nothing here flows back to a pin.
+//
+// The page sits in the listing shell under the Screen head like its siblings
+// (taste plan, 18 Oct 2026), and it never opens on an empty state: with no
+// approved edition the explainer leads and one quiet line at the foot says
+// editions go up once checked. It used to open on "No edition is published
+// yet".
 
 const PAGE_PATH = "/price-pulse";
 const PAGE_TITLE = "Price Pulse";
@@ -68,7 +74,7 @@ function SourceLink({ source, dateMeans = "published" }: { source: PricePulseSou
   const day = formatPulseDay(source.publishedOn);
   return (
     <a
-      className="legalLink pulseSourceLink"
+      className="pulseSourceLink"
       href={source.url}
       rel="noopener noreferrer nofollow"
       target="_blank"
@@ -119,14 +125,14 @@ function Edition({
   const headingId = `edition-${edition.edition}-title`;
   return (
     <article className="pulseEdition" id={`edition-${edition.edition}`} aria-labelledby={headingId}>
-      <p className="legalUpdated">
+      <p className="pulseEditionDates">
         Edition of {formatPulseDay(edition.edition)}. Covers {formatPulseDay(edition.windowStart)} to{" "}
         {formatPulseDay(edition.windowEnd)}.
       </p>
-      <Heading id={headingId} className={headingLevel === "h2" ? "legalH2" : "legalH3"}>
+      <Heading id={headingId} className={headingLevel === "h2" ? "listingSectionTitle" : "pulseH3"}>
         {edition.title}
       </Heading>
-      <p className="legalBody">{edition.summary}</p>
+      <p className="pulseBody">{edition.summary}</p>
       <ul className="pulseItems">
         {edition.items.map((item) => (
           <PulseItem
@@ -140,6 +146,14 @@ function Edition({
   );
 }
 
+// WHERE YOUR £6 GOES, as one bar (taste plan, 18 Oct 2026). Three parts of one
+// whole in neutral ink steps, darkest for the two taxes, with a 2px gap between
+// the segments and no track behind them; the labels sit over the bar, the two
+// taxes named together over their share and everything else over the rest.
+// It used to paint duty in coral (the one primary's colour), fill a grey track
+// that "Everything else" almost matched, and key it with 10px squares far
+// below. The terms under the bar carry each part's own rule in its segment's
+// shade, so the key is beside the figure it names.
 function WhereYourSixGoes() {
   const split = splitPintPrice();
   const parts = [
@@ -147,26 +161,40 @@ function WhereYourSixGoes() {
     { id: "duty", label: "Beer duty", gbp: split.dutyGbp },
     { id: "rest", label: "Everything else", gbp: split.restGbp },
   ] as const;
+  const taxGbp = split.vatGbp + split.dutyGbp;
   const rate = (id: "vat" | "duty") => EXPLAINER_RATES.find((r) => r.id === id);
 
   return (
-    <section className="legalSection pulseExplainer" id="where-your-6-goes" aria-labelledby="where-your-6-goes-title">
-      <h2 id="where-your-6-goes-title" className="legalH2">
+    <section className="pulseSection pulseExplainer" id="where-your-6-goes" aria-labelledby="where-your-6-goes-title">
+      <h2 id="where-your-6-goes-title" className="listingSectionTitle">
         Where your {EXAMPLE_PINT_LABEL} goes
       </h2>
-      <p className="legalBody">
+      <p className="pulseBody">
         A {EXAMPLE_PINT_LABEL} pint of {EXAMPLE_ABV_PERCENT}% draught lager, split by
         the tax rates the government publishes.
       </p>
 
-      <div className="pulseSplitBar" aria-hidden="true">
-        {parts.map((part) => (
-          <span
-            key={part.id}
-            className={`pulseSplitSegment pulseSplitSegment--${part.id}`}
-            style={{ flexGrow: part.gbp }}
-          />
-        ))}
+      <div className="pulseSplitChart" aria-hidden="true">
+        <div
+          className="pulseSplitLabels"
+          style={{ gridTemplateColumns: `${taxGbp}fr ${split.restGbp}fr` }}
+        >
+          <span className="pulseSplitLabel">
+            Tax <b className="pulseSplitLabelFigure">{formatPintMoney(taxGbp)}</b>
+          </span>
+          <span className="pulseSplitLabel">
+            Everything else <b className="pulseSplitLabelFigure">{formatPintMoney(split.restGbp)}</b>
+          </span>
+        </div>
+        <div className="pulseSplitBar">
+          {parts.map((part) => (
+            <span
+              key={part.id}
+              className={`pulseSplitSegment pulseSplitSegment--${part.id}`}
+              style={{ flexGrow: part.gbp }}
+            />
+          ))}
+        </div>
       </div>
 
       <dl className="pulseSplit">
@@ -174,10 +202,7 @@ function WhereYourSixGoes() {
           const r = part.id === "rest" ? undefined : rate(part.id);
           return (
             <div key={part.id} className="pulseSplitRow" data-part={part.id}>
-              <dt>
-                <i className={`pulseSplitKey pulseSplitSegment--${part.id}`} aria-hidden="true" />
-                {part.label}
-              </dt>
+              <dt>{part.label}</dt>
               <dd className="pulseSplitFigure">{formatPintMoney(part.gbp)}</dd>
               <dd className="pulseSplitNote">
                 {r ? (
@@ -196,7 +221,7 @@ function WhereYourSixGoes() {
       <div className="pulseViews">
         {EXPLAINER_VIEWS.map((view) => (
           <section key={view.id} className="pulseView" aria-labelledby={`view-${view.id}`}>
-            <h3 id={`view-${view.id}`} className="legalH3">{view.heading}</h3>
+            <h3 id={`view-${view.id}`} className="pulseH3">{view.heading}</h3>
             <ul className="pulseViewPoints">
               {view.points.map((point) => (
                 <li key={point.source.url}>
@@ -209,7 +234,7 @@ function WhereYourSixGoes() {
         ))}
       </div>
 
-      <p className="legalBody">
+      <p className="pulseBody">
         The UK Budget is on {formatPulseDay(BUDGET_DAY)}. If it changes duty or VAT, we change these
         figures.
       </p>
@@ -225,42 +250,40 @@ export default async function PricePulsePage() {
   return (
     <>
       <SiteNav />
-      <main id="main" className="legalPage pricePulsePage">
-        <header className="legalHead">
-          <p className="legalEyebrow">Price Pulse</p>
-          <h1 className="legalTitle">What people are saying about pint prices</h1>
-          <p className="legalLede">
-            A figure on this page is what someone said or published. It is not a PUBMAXX price.
+      <main id="main" className="pricePulsePage listingShell">
+        <Screen
+          as="section"
+          className="pricePulseScreen"
+          kicker="Price Pulse"
+          title="What people are saying about pint prices"
+          titleId="pricePulseHeading"
+          lede="A figure on this page is what someone said or published. It is not a PUBMAXX price."
+        >
+          {latest ? <Edition edition={latest} prices={prices} headingLevel="h2" /> : null}
+
+          <WhereYourSixGoes />
+
+          {archive.length > 0 ? (
+            <section className="pulseSection" aria-labelledby="pulse-archive-title">
+              <h2 id="pulse-archive-title" className="listingSectionTitle">Earlier editions</h2>
+              {archive.map((edition) => (
+                <details key={edition.edition} className="pulseArchiveEntry">
+                  <summary>
+                    {edition.title}, {formatPulseDay(edition.edition)}
+                  </summary>
+                  <Edition edition={edition} prices={prices} headingLevel="h3" />
+                </details>
+              ))}
+            </section>
+          ) : null}
+
+          <p className="pulseFoot">
+            {latest ? null : (
+              <>Weekly editions of what people are saying go up here once each is checked by hand. </>
+            )}
+            <Link href="/how-we-estimate" className="listingLink">How we label a price</Link>
           </p>
-        </header>
-
-        {latest ? (
-          <Edition edition={latest} prices={prices} headingLevel="h2" />
-        ) : (
-          <EmptyState title="No edition is published yet">
-            Each edition is checked by hand before it goes up.
-          </EmptyState>
-        )}
-
-        <WhereYourSixGoes />
-
-        {archive.length > 0 ? (
-          <section className="legalSection" aria-labelledby="pulse-archive-title">
-            <h2 id="pulse-archive-title" className="legalH2">Earlier editions</h2>
-            {archive.map((edition) => (
-              <details key={edition.edition} className="pulseArchiveEntry">
-                <summary>
-                  {edition.title}, {formatPulseDay(edition.edition)}
-                </summary>
-                <Edition edition={edition} prices={prices} headingLevel="h3" />
-              </details>
-            ))}
-          </section>
-        ) : null}
-
-        <p className="legalBody pulseFoot">
-          <Link href="/how-we-estimate" className="legalLink">How we label a price</Link>
-        </p>
+        </Screen>
       </main>
     </>
   );

@@ -501,7 +501,7 @@ export default function FirstRunOnboarding({
                 <div className="firstRunAreaList" aria-label="Reviewed London route areas">
                   {reviewedAreas.map((area) => (
                     <article key={area.name}>
-                      <MapPinned size={19} aria-hidden="true" />
+                      <MapPinned size={20} aria-hidden="true" />
                       {/* The stamp rides INSIDE the text block, so a short
                           phone can fold it onto the way-home line
                           (app/onboarding/onboarding.css, the short phone). */}
@@ -565,7 +565,7 @@ export default function FirstRunOnboarding({
                       >
                         <span>{choice.label}</span>
                         <small>{choice.note}</small>
-                        {selected ? <Check size={18} aria-hidden="true" /> : null}
+                        {selected ? <Check size={16} aria-hidden="true" /> : null}
                       </button>
                     );
                   })}
@@ -591,13 +591,13 @@ export default function FirstRunOnboarding({
               beginAnswer();
               goTo(step === "companion" ? resultStep : previous);
             }}>
-              <ArrowLeft size={18} aria-hidden="true" /> Back
+              <ArrowLeft size={16} aria-hidden="true" /> Back
             </button>
           ) : null}
           <button type="button" className="firstRunPrimary pressable" disabled={primaryDisabled} onClick={advance}>
-            {step === "location" ? <LocateFixed size={18} aria-hidden="true" /> : null}
+            {step === "location" ? <LocateFixed size={16} aria-hidden="true" /> : null}
             {primaryLabel}
-            {step !== "location" ? <ArrowRight size={18} aria-hidden="true" /> : null}
+            {step !== "location" ? <ArrowRight size={16} aria-hidden="true" /> : null}
           </button>
         </div>
       </footer>
