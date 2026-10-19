@@ -32,7 +32,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
-import { isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
+import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import { parseSiteHarvestLedgerText } from "../../../lib/siteHarvestLedgerCore.ts";
 
 const ROOT = process.cwd();
@@ -92,6 +92,10 @@ function pageWords(body) {
     .trim();
 }
 
+function discardBody(response) {
+  response.body?.cancel().catch(() => {});
+}
+
 /** The page's own words around the first recorded price, or why there are none. */
 async function readEvidence(url, rows, robots) {
   const readAt = new Date().toISOString();
@@ -101,6 +105,20 @@ async function readEvidence(url, rows, robots) {
   let body;
   try {
     const response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(25_000) });
+    // The host picks the last hop, so permission is asked again where we landed:
+    // the source table first, then that page's own robots rules.
+    const landing = harvestRedirectLanding(url, response.url);
+    if (landing.outcome === "refused") {
+      discardBody(response);
+      return { evidence: `not re-read: redirected to ${landing.url}, refused by source policy`, readAt };
+    }
+    if (landing.outcome === "redirected") {
+      const landed = await robots(landing.url);
+      if (!landed.allowed) {
+        discardBody(response);
+        return { evidence: `not re-read: redirected to ${landing.url}, robots ${landed.reason}`, readAt };
+      }
+    }
     if (!response.ok) return { evidence: `not re-read: HTTP ${response.status}`, readAt };
     if (/pdf/i.test(response.headers.get("content-type") ?? "")) {
       return { evidence: "not re-read as text: the page is a PDF", readAt };
