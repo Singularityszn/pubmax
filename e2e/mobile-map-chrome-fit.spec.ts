@@ -1985,7 +1985,9 @@ for (const viewport of VIEWPORTS) {
 // to four when Out and Places folded, then rose to five with Social, and a
 // number written here fails the day the row changes for a reason this file has
 // no opinion on. What it holds is that the row is the primary set entire, that
-// Map leads it, and that every column still clears the tap floor.
+// Map leads it, and that every column still clears the tap floor. The Pub
+// Pal's own door rides beside the set, never in it (captain, 19 Oct 2026), so
+// the row is the set plus that one door.
 for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px phone chrome leads with Map, Social after Plan`, async ({
     page,
@@ -1996,7 +1998,8 @@ for (const viewport of VIEWPORTS) {
     await expect(primary.locator("a").first()).toHaveAttribute("href", "/map");
     await expect(primary.getByRole("link", { name: "Tonight", exact: true })).toHaveCount(1);
     await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
-    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length);
+    await expect(primary.locator('a[href="/pal"]')).toHaveCount(1);
+    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length + 1);
     for (const tab of await primary.locator("a").all()) {
       const box = await tab.boundingBox();
       expect(box, "every primary tab has a box").not.toBeNull();
