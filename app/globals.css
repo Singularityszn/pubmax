@@ -4561,7 +4561,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    hit area hanging below that line would leave the 56px row. */
 .analyticsConsentPrompt a {
   display: inline-block;
+  box-sizing: border-box;
   min-width: 44px;
+  min-height: 44px;
   padding: 24px 4px 6px;
   margin: -24px -4px -6px;
   color: inherit;
@@ -4772,7 +4774,9 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   }
 
   .analyticsConsentPrompt p {
-    font-size: var(--text-xs);
+    /* The smaller step on the near tie (0.72rem sat between 2xs and xs), so
+       the sentence keeps the card one 56px row at 320 wide. */
+    font-size: var(--text-2xs);
     line-height: 1.25;
   }
 
