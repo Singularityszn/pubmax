@@ -36,6 +36,58 @@ const IMAGE_H = 900;
 
 type SaveState = "idle" | "working" | "saved" | "failed";
 
+const POSTCARD_FILE = "pal-postcard.png";
+
+/** What the card shows, or null when there is no postcard to make. */
+function postcardContent(
+  pal: PubPal | null,
+  stops: readonly string[],
+  title: string,
+  completedAt: string | null,
+): PostcardContent | null {
+  const names = palPostcardStops(stops);
+  if (!pal || pal.hidden || names.length < 2) return null;
+  const slug = pubPalMascotSlugFor(pal.appearance.species);
+  if (!slug) return null;
+  return {
+    pal,
+    slug,
+    genome: palGenomeFor(pal.id, pal.personality),
+    names,
+    line: palCheerLine(pal.name, "crawl-finished", stops.length),
+    title,
+    date: palPostcardDate(completedAt),
+  };
+}
+
+function downloadPostcard(file: File): void {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * Share the card, or download it. `navigator.share` is the first thing called,
+ * because iOS refuses a share that comes after an await in the tap. A closed
+ * sheet is a choice; a refused one falls back to the download.
+ */
+async function shareOrDownload(file: File, palName: string): Promise<SaveState> {
+  if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: `A postcard from ${palName}` });
+      return "saved";
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") return "idle";
+      // NotAllowedError and the rest: the download still saves the card.
+    }
+  }
+  downloadPostcard(file);
+  return "saved";
+}
+
 export default function PalPostcard({
   stops,
   title,
@@ -62,60 +114,64 @@ export default function PalPostcard({
     return subscribeLocalPal(read);
   }, [accountId]);
 
-  const names = palPostcardStops(stops);
-  if (!pal || pal.hidden || names.length < 2) return null;
-  const slug = pubPalMascotSlugFor(pal.appearance.species);
-  if (!slug) return null;
-  const genome = palGenomeFor(pal.id, pal.personality);
+  // The image is drawn ahead, once the card is on screen, so a tap on Save
+  // postcard can hand it to the share sheet at once: iOS refuses a share that
+  // waits on image loads or a canvas first.
+  const preparedRef = useRef<File | null>(null);
+  const stopsKey = stops.join("\n");
+  useEffect(() => {
+    preparedRef.current = null;
+    const content = postcardContent(pal, stopsKey.split("\n"), title, completedAt);
+    const card = cardRef.current;
+    if (!content || !card) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      drawPostcard(card, content)
+        .then((blob) => {
+          if (!cancelled) preparedRef.current = new File([blob], POSTCARD_FILE, { type: "image/png" });
+        })
+        .catch(() => {
+          // A tap draws it again, and says so if that fails too.
+        });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [pal, stopsKey, title, completedAt]);
+
+  const content = postcardContent(pal, stops, title, completedAt);
+  if (!content) return null;
+  const { pal: shown, genome, names, line, date } = content;
   const points = palPostcardPoints(names.length, VIEW_W, VIEW_H, VIEW_INSET, VIEW_TOP);
   const last = points[points.length - 1]!;
-  const line = palCheerLine(pal.name, "crawl-finished", stops.length);
-  const date = palPostcardDate(completedAt);
 
   const onSave = async () => {
     const card = cardRef.current;
     if (!card || save === "working") return;
+    const prepared = preparedRef.current;
+    if (prepared) {
+      // Nothing is awaited before the share sheet is asked.
+      setSave("working");
+      setSave(await shareOrDownload(prepared, shown.name));
+      return;
+    }
     setSave("working");
     try {
-      const blob = await drawPostcard(card, {
-        pal,
-        slug,
-        genome,
-        names,
-        line,
-        title,
-        date,
-      });
-      const file = new File([blob], "pal-postcard.png", { type: "image/png" });
-      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: `A postcard from ${pal.name}` });
-        } catch (cause) {
-          // Closing the share sheet is a choice, not a failure.
-          if (cause instanceof DOMException && cause.name === "AbortError") {
-            setSave("idle");
-            return;
-          }
-          throw cause;
-        }
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = file.name;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      }
-      setSave("saved");
+      const blob = await drawPostcard(card, content);
+      const file = new File([blob], POSTCARD_FILE, { type: "image/png" });
+      preparedRef.current = file;
+      setSave(await shareOrDownload(file, shown.name));
     } catch {
       setSave("failed");
     }
   };
 
+
   return (
     <section className="palPostcardSection" aria-labelledby="pal-postcard-title">
       <h2 id="pal-postcard-title" className="type-card-title palPostcardHeading">
-        A postcard from {pal.name}
+        A postcard from {shown.name}
       </h2>
       <figure className="palPostcard" ref={cardRef} data-testid="pal-postcard">
         <span className="palPostcardStamp" aria-hidden="true">
@@ -154,7 +210,7 @@ export default function PalPostcard({
               ...(palGenomeStyle(genome) as React.CSSProperties),
             }}
           >
-            <PubPalMascot species={pal.appearance.species} size={64} circular decorative className="palPostcardFace" />
+            <PubPalMascot species={shown.appearance.species} size={64} circular decorative className="palPostcardFace" />
           </span>
         </div>
         <figcaption className="palPostcardCaption">

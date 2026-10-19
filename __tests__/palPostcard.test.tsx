@@ -263,6 +263,48 @@ describe("the postcard on the recap", () => {
       Object.assign(navigator, { canShare: undefined, share: undefined });
     });
 
+    it("downloads the image when the device refuses the share sheet", async () => {
+      // iOS refuses navigator.share without a fresh tap (NotAllowedError).
+      store(pal());
+      await render();
+      fakeCanvas();
+      vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:postcard", revokeObjectURL: () => {} }));
+      const clicked: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+        clicked.push(this.download);
+      });
+      Object.assign(navigator, {
+        canShare: () => true,
+        share: async () => {
+          throw new DOMException("needs a fresh tap", "NotAllowedError");
+        },
+      });
+      await act(async () => saveButton().click());
+      expect(clicked).toEqual(["pal-postcard.png"]);
+      expect(status()).toBe("Postcard ready.");
+      Object.assign(navigator, { canShare: undefined, share: undefined });
+    });
+
+    it("draws the image ahead, so the tap asks the share sheet before any wait", async () => {
+      fakeCanvas();
+      store(pal());
+      await render();
+      // The card draws its image once it is on screen.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      const share = vi.fn(async () => {});
+      Object.assign(navigator, { canShare: () => true, share });
+      // Synchronously inside the tap: no image load or canvas is awaited first.
+      act(() => saveButton().click());
+      expect(share).toHaveBeenCalledOnce();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(status()).toBe("Postcard ready.");
+      Object.assign(navigator, { canShare: undefined, share: undefined });
+    });
+
     it("downloads the image where the device cannot share files", async () => {
       store(pal());
       await render();
