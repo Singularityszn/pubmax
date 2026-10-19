@@ -182,6 +182,30 @@ describe("the Pal on the map", () => {
     marker.destroy();
   });
 
+  it("lands again when the pin it stands beside changes band", () => {
+    store(pal());
+    const marker = createPalMapMarker(map);
+    marker.perch([-0.1, 51.5], { cheap: false });
+    const element = markerHarness.instances[0]!.options.element;
+    expect(element.dataset.palPin).toBeUndefined();
+
+    // A fresh price paints the same pin cheap: the Pal hops.
+    marker.perch([-0.1, 51.5], { cheap: true });
+    expect(element.dataset.palPin).toBe("cheap");
+    expect(element.classList.contains("isCheering")).toBe(true);
+
+    // The same pin in the same band does nothing new.
+    element.classList.remove("isCheering");
+    marker.perch([-0.1, 51.5], { cheap: true });
+    expect(element.classList.contains("isCheering")).toBe(false);
+
+    // And back out of the cheap band.
+    marker.perch([-0.1, 51.5], { cheap: false });
+    expect(element.dataset.palPin).toBeUndefined();
+    expect(element.classList.contains("isLanding")).toBe(true);
+    marker.destroy();
+  });
+
   it("walks a crawl once, standing on the line, then rests beside the last stop", () => {
     store(pal());
     const marker = createPalMapMarker(map);

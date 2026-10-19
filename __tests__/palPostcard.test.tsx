@@ -102,6 +102,13 @@ describe("the postcard's layout", () => {
     // 00:40 on Monday in London is still Sunday's night out.
     expect(palPostcardDate("2026-10-18T23:40:00.000Z")).toBe("Sunday 18 October 2026");
     expect(palPostcardDate("2026-10-17T21:15:00.000Z")).toBe("Saturday 17 October 2026");
+    // The clocks go forward at 01:00 UTC on 29 March 2026: 05:30 UTC is 06:30
+    // in London, so a morning finish keeps its own date.
+    expect(palPostcardDate("2026-03-29T05:30:00Z")).toBe("Sunday 29 March 2026");
+    expect(palPostcardDate("2026-03-29T04:30:00Z")).toBe("Saturday 28 March 2026");
+    // And back at 01:00 UTC on 25 October 2026: 05:30 UTC is 05:30 in London.
+    expect(palPostcardDate("2026-10-25T05:30:00Z")).toBe("Saturday 24 October 2026");
+    expect(palPostcardDate("2026-10-01T00:30:00Z")).toBe("Wednesday 30 September 2026");
     expect(palPostcardDate(null)).toBeNull();
     expect(palPostcardDate("not a date")).toBeNull();
   });

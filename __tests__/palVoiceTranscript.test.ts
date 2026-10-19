@@ -106,13 +106,19 @@ describe("the voice panel cues", () => {
 
 describe("the next stop of a night", () => {
   it("hears the ways a person asks for the next stop", () => {
-    for (const ask of ["Next stop", "take me to the next pub", "Where next?", "where's next", "where to next", "What's next?"]) {
+    for (const ask of ["Next stop", "take me to the next pub", "Where next?", "where's next", "where to next", "What's next?", "what's next tonight", "next pub this time of night"]) {
       expect(palAsksForNextStop(ask)).toBe(true);
     }
   });
 
   it("does not hear a refusal, or a sentence about something else", () => {
     for (const line of ["Don't take me to the next stop yet", "not the next pub", "I liked this stop", "next week maybe", "stop"]) {
+      expect(palAsksForNextStop(line)).toBe(false);
+    }
+  });
+
+  it("does not hear a question about another day", () => {
+    for (const line of ["What's next tomorrow?", "what's next week", "where next weekend", "what is next on Saturday"]) {
       expect(palAsksForNextStop(line)).toBe(false);
     }
   });

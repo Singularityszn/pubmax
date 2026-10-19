@@ -4307,10 +4307,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     }
     palVisitKeyRef.current = "";
     const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
-    // The Pal reads the band the pin itself paints, from the pins' own data.
+    // The Pal reads the band the pin itself paints, from the pins' own data,
+    // so it re-reads whenever the pins' data is rebuilt above.
     const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
     palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
-  }, [routeCoordKey, routeIds, selectedVenueId, venues, mapReady]);
+  }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {

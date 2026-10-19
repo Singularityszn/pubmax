@@ -253,7 +253,9 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
         perchedAt = null;
         return;
       }
-      const key = `${lngLat[0].toFixed(6)},${lngLat[1].toFixed(6)}`;
+      // The band is part of the perch, so a pin repainted cheap (or no longer
+      // cheap) under the Pal lands it again in its new band.
+      const key = `${lngLat[0].toFixed(6)},${lngLat[1].toFixed(6)}|${pin?.cheap ? "cheap" : ""}`;
       if (key === perchedAt) return;
       perchedAt = key;
       place(lngLat, PERCH_OFFSET);

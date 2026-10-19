@@ -59,26 +59,42 @@ export function palPostcardStops(names: readonly string[]): string[] {
   return [...clean.slice(0, PAL_POSTCARD_MAX_STOPS - 1), clean[clean.length - 1]!];
 }
 
-// A night that ends after midnight belongs to the evening it started on.
-const NIGHT_ROLLOVER_MS = 6 * 60 * 60 * 1000;
+// A night that ends after midnight belongs to the evening it started on: the
+// London wall-clock hour, so the clock change never moves the line.
+const NIGHT_ROLLOVER_HOUR = 6;
+
+const LONDON_PARTS = new Intl.DateTimeFormat("en-GB", {
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  hourCycle: "h23",
+  timeZone: "Europe/London",
+});
+
+const CARD_DATE = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 /**
  * The date line, in London time: "Saturday 17 October 2026". A night finished
- * before six in the morning is dated the evening before.
+ * before six in the morning, London time, is dated the evening before.
  */
 export function palPostcardDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
-  const finished = new Date(iso).getTime();
-  if (Number.isNaN(finished)) return null;
-  const date = new Date(finished - NIGHT_ROLLOVER_MS);
+  const finished = new Date(iso);
+  if (Number.isNaN(finished.getTime())) return null;
+  const london = LONDON_PARTS.formatToParts(finished);
+  const value = (type: Intl.DateTimeFormatPartTypes) => Number(london.find((entry) => entry.type === type)?.value);
+  const rollBack = value("hour") < NIGHT_ROLLOVER_HOUR ? 1 : 0;
+  // The London calendar date at noon UTC, so its weekday never shifts.
+  const day = new Date(Date.UTC(value("year"), value("month") - 1, value("day") - rollBack, 12));
   // Built from its parts, so every browser writes it the same way.
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/London",
-  }).formatToParts(date);
+  const parts = CARD_DATE.formatToParts(day);
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)?.value ?? "";
   return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}`;
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bird } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { readLocalPal } from "@/lib/localPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
@@ -18,9 +19,12 @@ import "./palNav.css";
 // one talks to it. It is a door, not a sixth destination in the loop
 // (navigationModel.ts keeps the five), and it is there from the first paint.
 //
-// Only a person's OWN stored Pal puts a face on it. A stranger, or a person
-// who hid their Pal from shortcuts, sees a drawn bird, so the door costs a
-// stranger no image request on any page. A muted Pal is shown asleep, and a
+// Only a person's OWN stored Pal puts a face on it: the Pal stored on this
+// device must belong to the account signed in now, because signing out does
+// not clear it and a shared device must not show the last account's Pal to
+// the next. A stranger, a signed-out device, another account, or a person who
+// hid their Pal from shortcuts sees a drawn bird, so the door costs a stranger
+// no image request on any page. A muted Pal is shown asleep, and a
 // Pal moment (lib/palMoments.ts) makes the face hop once.
 
 const PAL_NAV_HREF = "/pal";
@@ -28,9 +32,12 @@ const PAL_NAV_HREF = "/pal";
 /** How long the face hops after a Pal moment. */
 const PAL_NAV_CHEER_MS = 1_200;
 
-/** The Pal whose face the door may show: the person's own, and not hidden. */
-export function palForNav(pal: PubPal | null): PubPal | null {
-  if (!pal || pal.hidden) return null;
+/**
+ * The Pal whose face the door may show: the one stored on this device, owned
+ * by the account signed in now, and not hidden.
+ */
+export function palForNav(pal: PubPal | null, accountId: string | null): PubPal | null {
+  if (!pal || pal.hidden || !accountId || pal.ownerId !== accountId) return null;
   return pubPalMascotSlugFor(pal.appearance.species) ? pal : null;
 }
 
@@ -45,16 +52,17 @@ export function palNavActive(pathname: string): boolean {
 }
 
 function usePalForNav(pathname: string): { pal: PubPal | null; cheering: boolean } {
+  const accountId = useAuth().user?.id ?? null;
   const [pal, setPal] = useState<PubPal | null>(null);
   const [cheering, setCheering] = useState(false);
   // Read after mount and on every page change, so a Pal made, renamed or
   // hidden on /pal shows here as soon as the person leaves that page.
   useEffect(() => {
-    const read = () => setPal(palForNav(readLocalPal()));
+    const read = () => setPal(palForNav(readLocalPal(), accountId));
     queueMicrotask(read);
     window.addEventListener("storage", read);
     return () => window.removeEventListener("storage", read);
-  }, [pathname]);
+  }, [pathname, accountId]);
   useEffect(() => {
     let timer = 0;
     const unsubscribe = subscribePalMoments(() => {

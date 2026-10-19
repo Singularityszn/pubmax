@@ -4,12 +4,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const nav = vi.hoisted(() => ({ pathname: "/tonight" }));
+const auth = vi.hoisted(() => ({ userId: "owner" as string | null }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => nav.pathname,
 }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ signedIn: false }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.userId ? { id: auth.userId } : null }) }));
 
 import MobileTabBar, { dockColumnForTab, PAL_DOCK_COLUMN } from "@/components/nav/MobileTabBar";
 import { PalDockButton, PalSiteNavButton, palForNav, palNavActive, palNavLabel } from "@/components/nav/PalNavButton";
@@ -51,6 +53,7 @@ async function render(element: React.ReactElement) {
 beforeEach(() => {
   window.localStorage.clear();
   nav.pathname = "/tonight";
+  auth.userId = "owner";
 });
 afterEach(() => {
   act(() => root?.unmount());
@@ -61,9 +64,14 @@ afterEach(() => {
 
 describe("the Pal's own door", () => {
   it("shows only the person's own Pal, never a hidden one or one with no photograph", () => {
-    expect(palForNav(null)).toBeNull();
-    expect(palForNav(pal({ hidden: true }))).toBeNull();
-    expect(palForNav(pal())?.name).toBe("Ripley");
+    expect(palForNav(null, "owner")).toBeNull();
+    expect(palForNav(pal({ hidden: true }), "owner")).toBeNull();
+    expect(palForNav(pal(), "owner")?.name).toBe("Ripley");
+  });
+
+  it("never wears a Pal another account left on this device", () => {
+    expect(palForNav(pal(), "someone-else")).toBeNull();
+    expect(palForNav(pal(), null)).toBeNull();
   });
 
   it("names the door for the Pal it shows", () => {
@@ -102,6 +110,21 @@ describe("the Pal's own door", () => {
     expect(link.getAttribute("aria-label")).toBe("Pub Pal, Ripley");
     expect(link.querySelector(".palNavFace img")).not.toBeNull();
     expect(link.querySelector(".palNavFace")!.getAttribute("data-pal-state")).toBe("sleeping");
+  });
+
+  it("keeps the bird after the owner signs out, or for another account", async () => {
+    store(pal());
+    auth.userId = null;
+    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
+    expect(host.querySelector("img")).toBeNull();
+    act(() => root?.unmount());
+    host.remove();
+
+    auth.userId = "someone-else";
+    await render(createElement(PalDockButton, { pathname: "/tonight" }));
+    expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
+    expect(host.querySelector("img")).toBeNull();
   });
 
   it("marks itself as the page on /pal", async () => {

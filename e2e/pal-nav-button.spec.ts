@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The Pub Pal's own door (components/nav/PalNavButton.tsx): raised out of the
 // phone dock between Tonight and Plan, and a named button in the desktop bar.
@@ -10,7 +11,20 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 const SHOTS = "artifacts/pal-nav-button";
 
 async function seed(page: Page, { theme, withPal }: { theme: "light" | "dark"; withPal: boolean }): Promise<void> {
-  await page.addInitScript(({ theme: chosen, withPal: seeded, appearance, personality, voice }) => {
+  // The door wears a stored Pal only for the account that owns it, so the
+  // person with a Pal is signed in as account A.
+  if (withPal) {
+    await installAuthDoubles(page);
+    const now = "2026-10-04T12:00:00.000Z";
+    const serverPal = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id, name: "Ripley",
+      adultAttestedAt: now, ...DEFAULT_PAL_DRAFT, muted: false, hidden: false,
+      proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
+    };
+    await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal: serverPal, adultOnFile: true } }));
+    await page.route("**/api/pub-pal/memories", (route) => route.fulfill({ json: { memories: [] } }));
+  }
+  await page.addInitScript(({ theme: chosen, withPal: seeded, ownerId, appearance, personality, voice }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -19,12 +33,13 @@ async function seed(page: Page, { theme, withPal }: { theme: "light" | "dark"; w
     window.localStorage.setItem("pubmax-theme", chosen);
     if (seeded) {
       window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
         adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
         proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
       }));
     }
-  }, { theme, withPal, ...DEFAULT_PAL_DRAFT });
+  }, { theme, withPal, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT });
+  if (withPal) await seedSignedIn(page, "A");
 }
 
 for (const width of [320, 390]) {
