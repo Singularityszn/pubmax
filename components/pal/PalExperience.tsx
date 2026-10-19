@@ -44,6 +44,7 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PalNightQuestion from "./PalNightQuestion";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
 import { usePalHead3D } from "./usePalHead3D";
@@ -342,6 +343,7 @@ function PalHomeScreen({
           <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} palName={pal.name} signal={voiceSignal} appearance={pal.appearance} genome={genome} />
         </div>
       </section>
+      <PalNightQuestion muted={pal.muted} />
       <PalYear palName={pal.name} print={genome.print} />
       <section className="palControls" aria-labelledby="pal-controls-title">
         <div>

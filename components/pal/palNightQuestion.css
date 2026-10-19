@@ -1,0 +1,68 @@
+/* PalNightQuestion.tsx: the Pal's evening question on /pal. Ink and tokens,
+   like the year card below it: the answers are the shapes of a plan, never a
+   score or a drink count, so nothing here is coral, brass or the cheap-price
+   green. The choices reuse the onboarding .palChoice cards from app/pal/pal.css. */
+.palNightQuestion {
+  width: min(84rem, 100%);
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+.palNightQuestionLine {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.25;
+}
+.palNightQuestionChoices {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.palNightQuestion .palChoice {
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.palNightQuestion .palChoice:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+.palNightQuestionActions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+/* The hero's "Plan with" is the page's one coral primary, so this door is ink. */
+.palNightQuestionOpen {
+  min-height: 44px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.palNightQuestionOpen:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+.palNightQuestionChange {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
