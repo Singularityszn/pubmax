@@ -151,7 +151,7 @@
 
 /* The narrowest phones keep both answers on one row by tightening the label
    padding, never by dropping one. */
-@media (max-width: 359px) {
+@media (max-width: 360px) {
   .mapArrivalCardActions {
     gap: 6px;
   }

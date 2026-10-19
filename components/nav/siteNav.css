@@ -557,7 +557,7 @@ button.siteNavMoreItem {
 /* Laptop/tablet density: keep navigation usable but avoid two-row pills that
    collide with map/search chrome. Primary route links stay visible; ambient
    utilities collapse away until phone bottom navigation takes over. */
-@media (max-width: 1180px) {
+@media (max-width: 1279px) {
   .siteNavBar {
     gap: 8px;
     padding: 8px 10px;

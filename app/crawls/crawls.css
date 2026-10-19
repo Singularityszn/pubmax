@@ -28,7 +28,7 @@
   max-width: 47.5rem;
 }
 
-/* From 1100px the data column holds two: the list at the reading width and,
+/* From 1024px (the desktop breakpoint) the data column holds two: the list at the reading width and,
    beside it, the featured crawl as a sticky pane (the DesktopRail pattern,
    components/desktop/DesktopRail.tsx: sticky, clear of the floating nav,
    aligned to the top). It is the SAME element placed in the second column,
@@ -36,7 +36,7 @@
    meet it where the DOM puts it: after the route packs, before the list.
    Everything else stays in the first column, one row each, so the pane's
    span covers the whole list. A phone keeps the one column. */
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .crawlLayout {
     display: grid;
     grid-template-columns: minmax(0, var(--content-max)) minmax(0, 1fr);
@@ -229,7 +229,7 @@
   padding-inline: var(--space-5);
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .curatedPhoto .placePhoto__frame {
     aspect-ratio: 4 / 3;
   }

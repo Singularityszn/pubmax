@@ -748,11 +748,11 @@
    around the column opened about 1,000px of empty rail beside the lede, the
    defect D8 was filed for, so the editorial rail lives in the rail too.
 
-   Below 1100px the rail contributes no box, so a phone and a tablet read one
+   Below 1024px the rail contributes no box, so a phone and a tablet read one
    column in DOM order: head, lede, weather, credits, cheap pints, chain
    blocks, vibe chips, the full Deals and Music lanes, the editorial rail, the
    soft plans, the area news, the rest, and the way-onward row. */
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .tonightPage {
     max-width: var(--content-max-wide);
   }

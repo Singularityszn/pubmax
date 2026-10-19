@@ -44,7 +44,7 @@
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 641px) {
   .dealsTonightList {
     grid-template-columns: 1fr 1fr;
   }

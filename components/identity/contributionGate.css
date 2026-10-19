@@ -107,7 +107,7 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .contributionGateBackdrop {
     align-items: end;
     padding: 0;

@@ -232,7 +232,7 @@
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .factStatTable th[scope="row"],
   .factStatTable td {
     padding: 11px 12px;

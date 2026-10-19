@@ -126,7 +126,7 @@
 
 /* ── Tablet: two-column grid ───────────────────────────────────────────── */
 
-@media (min-width: 700px) and (max-width: 959px) {
+@media (min-width: 641px) and (max-width: 1023px) {
   .lpCollageMosaic {
     display: grid;
     grid-auto-flow: row;
@@ -152,7 +152,7 @@
 /* Every photo has a named cell (its `cell` in lib/landingLondonCollage.ts), so
    the ten photos fill four columns by five rows exactly and no empty cell is
    left at the end. Add a row here when a photo is added there. */
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .lpCollageMosaic {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

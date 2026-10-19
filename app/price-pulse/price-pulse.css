@@ -2,7 +2,7 @@
    (components/listing/listing.css); everything under the head reads in the
    reading column. Tokens only, so both themes track. Nothing is coral: coral
    is the Screen primary's alone, and this page paints none. Phone first: one
-   column at 390px, the two explainer views sit side by side from 720px. */
+   column at 390px, the two explainer views sit side by side from 641px. */
 
 .pricePulsePage {
   padding-block: var(--space-2) calc(var(--space-12) + env(safe-area-inset-bottom, 0px));
@@ -276,7 +276,7 @@
   margin: 0 0 var(--space-4);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 641px) {
   .pulseViews {
     grid-template-columns: 1fr 1fr;
   }

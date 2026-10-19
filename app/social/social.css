@@ -791,7 +791,7 @@ span.socialPostAvatar {
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
 }
 
-@media (min-width: 700px) {
+@media (min-width: 641px) {
   .socialComposerBackdrop { place-items: center; }
   .socialComposer { border-radius: 20px; }
 }

@@ -1,12 +1,12 @@
 /* Compact /tonight rail summary. It stands in for the full Deals and Music
-   lanes, so it shows only where the rail does: from 1100px, the one breakpoint
+   lanes, so it shows only where the rail does: from 1024px, the one breakpoint
    where the phone lanes hide. Below it phones read the full lanes. */
 
 .tonightOnTonightSummary {
   display: none;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1024px) {
   .tonightOnTonightSummary {
     display: block;
     margin: 0;

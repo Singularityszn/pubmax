@@ -85,7 +85,7 @@
 
 .planPage__side { display: grid; gap: 20px; }
 
-@media (min-width: 761px) {
+@media (min-width: 901px) {
   .planPage__hero {
     margin: clamp(36px, 4vw, 56px) auto clamp(28px, 3vw, 40px);
   }
@@ -1178,7 +1178,7 @@ html[data-theme="dark"] .planShare { border-radius: var(--radius); }
 html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .planPage__grid { grid-template-columns: 1fr; }
   .planPage__side { order: -1; }
   .planPage__hero { margin-top: 50px; }
@@ -1516,7 +1516,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     background: var(--plan-accent-strong);
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .invitePreview { padding-left: 0; }
 }
 

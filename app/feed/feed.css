@@ -1485,7 +1485,7 @@
 
 }
 
-@media (max-width: 540px) {
+@media (max-width: 640px) {
   /* Emoji-only reaction tokens on phones — a comfortable square tap target
      instead of a cramped pill, so thumbs land cleanly. */
   .feedReactLabel {

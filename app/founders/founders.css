@@ -132,7 +132,7 @@
 
 /* Two boards on a wide screen, numbers reading down the first and on into the
    second: at eleven names a tight six and five, at a hundred two even boards. */
-@media (min-width: 900px) {
+@media (min-width: 901px) {
   .foundersList {
     columns: 2;
     column-gap: var(--space-10);

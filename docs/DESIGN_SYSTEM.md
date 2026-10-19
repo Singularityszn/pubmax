@@ -68,6 +68,7 @@ refuses, and add your assertion there rather than minting a second gate.
 | A tab row is one tab stop: a roving `tabIndex`, the arrows, Home and End, and the selected tab in `--state-selected-*` ink | Spacing, radius, shadow > Tabs | `__tests__/tablistKeyboard.test.tsx`, `__tests__/visualDiscipline.test.ts` |
 | A hue is never text on a tint of itself: the tint inks | Colour > A hue on a tint of itself | `__tests__/accentInkContrast.test.ts` |
 | An icon draws at one of four sizes and at Lucide's own stroke | Spacing, radius, shadow > Icons; `lib/iconScale.ts` | `__tests__/iconScale.test.ts` |
+| A media query cuts the screen at a named breakpoint, or at a measured figure in the allowlist | Spacing, radius, shadow > Breakpoints; `lib/breakpoints.ts` | `__tests__/breakpoints.test.ts` |
 | The browser bar matches the page under it, in each theme | Day/night coherence; `lib/browserBarColor.ts` | `__tests__/browserBarColor.test.ts` |
 | The map retry notice uses semantic ink for readable text in both themes | `.mapSoftRetry` in `app/globals.css` | `__tests__/mapSoftRetryContrast.test.ts` |
 | A price wears its band and no other colour | `docs/PRICE_BANDS.md` | `__tests__/priceBand.test.ts`, `__tests__/priceBandSurfaces.test.ts` |
@@ -454,6 +455,28 @@ adding the class is optional, additive polish.
 --radius-lg    18px      sheets / bottom-drawer corners
 --radius-pill 999px      pills, avatar-style chips
 ```
+
+### Breakpoints
+
+The screen is cut at five named widths and nowhere else. `lib/breakpoints.ts`
+(`BREAKPOINTS`) owns the figures. This build has no `@custom-media`, so a
+stylesheet writes the figure by hand, and `__tests__/breakpoints.test.ts`
+fails a `@media` width in `app/` or `components/` that is not in this table
+or in the test's commented allowlist. Each boundary is one line: the narrow
+side reads `max-width`, the wide side `min-width` one pixel up.
+
+| Name | Narrow side | Wide side | What changes there |
+|---|---|---|---|
+| `phoneSmall` | `max-width: 360px` | `min-width: 361px` | The smallest phones squeeze a row; nothing is redesigned. |
+| `phone` | `max-width: 640px` | `min-width: 641px` | The tab-bar boundary: at or under 640 the bottom tab bar owns navigation. `MOBILE_MEDIA_QUERY` reads it. |
+| `tablet` | `max-width: 900px` | `min-width: 901px` | Single-column page layouts end; side columns start. |
+| `desktop` | `max-width: 1023px` | `min-width: 1024px` | The sticky desktop rail, the map's docked venue drawer and the two-column Tonight, Crawls and Historic layouts. |
+| `wide` | `max-width: 1279px` | `min-width: 1280px` | Extra columns and the roomier hero; the full site-nav row. |
+
+A rule for "a narrow phone" takes `phone`, not a figure between 360 and 640.
+A width kept outside the set (the map's 768 sheet band, the site nav's 767
+row, the landing hero's 960 and the map's 1371 zoom lane) is measured, and
+its reason is written beside it in the allowlist. The allowlist only shrinks.
 
 ### Shadow: night bloom (dark) vs paper-lift (light)
 

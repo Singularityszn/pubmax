@@ -333,11 +333,11 @@ html[data-theme="dark"] .permalink__primary {
   width: 100%;
 }
 
-/* ── Phone (≤440px) ──────────────────────────────────────────────────────
+/* ── Phone (≤640px) ──────────────────────────────────────────────────────
    Let the two actions grow to full-width thumb targets rather than squashing
    into a cramped side-by-side row, and give the wax-seal stamp a touch more
    clearance from the mat edge so it never clips the page gutter. */
-@media (max-width: 440px) {
+@media (max-width: 640px) {
   .permalink__actions {
     gap: 10px;
   }

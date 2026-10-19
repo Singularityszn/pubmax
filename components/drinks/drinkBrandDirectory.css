@@ -268,7 +268,7 @@
    so a row whose details ever come back short cannot slide its action into a
    sibling's column. Scoped above the collapse breakpoint, because the
    single-column grid below it would grow implicit tracks. */
-@media (min-width: 561px) {
+@media (min-width: 641px) {
   .drinkBrandDirectory__details--withAction .drinkBrandDirectory__contribution {
     grid-column: 5;
   }
@@ -365,7 +365,7 @@
   outline-offset: 3px;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .drinkBrandLanding,
   .drinkBrandAreaLanding {
     padding: 16px 12px calc(96px + env(safe-area-inset-bottom));

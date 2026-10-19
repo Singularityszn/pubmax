@@ -208,7 +208,7 @@
   cursor: pointer;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .accountOnboardingBackdrop {
     align-items: end;
     padding: 0;

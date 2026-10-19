@@ -1241,7 +1241,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 /* Tighter tab spacing keeps all five tabs in one row at the common 400px and
    430px phone widths. Large text wraps the strip instead (the ≤640 block
    above). */
-@media (max-width: 430px) {
+@media (max-width: 640px) {
   .venueTabs {
     gap: 2px;
   }
@@ -1358,8 +1358,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
 /* ── Desktop docked-panel treatment (N3) ─────────────────────────────────────
    ≥1024px matches the app's established "real desktop" cut (see globals.css
-   .logDropBar / .mapLegend @media (max-width: 1050px) — the inverse of that
-   is roughly here) rather than the 641px mobile-gesture cut above, which only
+   .logDropBar / .mapLegend @media (max-width: 1023px), its exact inverse) rather than the 641px mobile-gesture cut above, which only
    tells us the drag-sheet is off; a narrow tablet width still wants the
    mobile-shaped strip. Scoped to the right drawer that actually hosts the
    open right drawer so the planner's left drawer — a different, already

@@ -161,7 +161,7 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 390px) {
+@media (max-width: 640px) {
   .venueGettingThere__routes {
     flex-direction: column;
     gap: 6px;

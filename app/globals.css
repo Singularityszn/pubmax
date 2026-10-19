@@ -299,6 +299,19 @@
   --text-xl: 1.74rem;
   --text-2xl: 2.13rem;
   --text-3xl: 2.6rem;
+  /* — Breakpoints: five named widths, and no others (lib/breakpoints.ts,
+       docs/DESIGN_SYSTEM.md > Breakpoints). A custom property cannot sit in a
+       media query and this build has no @custom-media, so each stylesheet
+       writes the figure; __tests__/breakpoints.test.ts holds every @media
+       width in app/ and components/ to this table.
+         phoneSmall  max-width: 360px   / min-width: 361px
+         phone       max-width: 640px   / min-width: 641px   (the tab bar)
+         tablet      max-width: 900px   / min-width: 901px
+         desktop     max-width: 1023px  / min-width: 1024px  (the rail)
+         wide        max-width: 1279px  / min-width: 1280px
+       A measured exception (the map's 768 sheet band, the site nav's 767 row,
+       the landing hero's 960, the map's 1371 zoom lane) is named with its
+       reason in the test's allowlist, which only shrinks. */
   --leading-tight: 1.12;
   --leading-snug: 1.35;
   --leading-normal: 1.5;
@@ -2492,7 +2505,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   outline-offset: 2px;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .mapSearchEmpty {
     align-items: stretch;
     flex-wrap: wrap;
@@ -2845,7 +2858,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   background: var(--river-bright);
 }
 
-@media (hover: none), (pointer: coarse), (max-width: 700px) {
+@media (hover: none), (pointer: coarse), (max-width: 640px) {
   .venueHoverCard {
     display: none;
   }
@@ -5096,7 +5109,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1023px) {
   .logDropBar {
     position: sticky;
     bottom: 8px;
@@ -5231,7 +5244,7 @@ button:disabled {
   }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1023px) {
   .mapLegend {
     left: 10px;
     right: 10px;
@@ -5254,7 +5267,7 @@ button:disabled {
 }
 
 /* ── Phone: map stays the hero, rails read as scrollable bottom sheets ──────
-   The ≤1050px rule already stacks to one column (map first, order:-1). Here we
+   The ≤1023px rule already stacks to one column (map first, order:-1). Here we
    make it feel like a phone app: a taller map hero, comfortable padding, and
    the two panels as rounded "sheets" that overlap up under the map with their
    own scroll. Pure CSS — no JS to drag/collapse, so the sheets simply live in
@@ -5694,7 +5707,7 @@ button:disabled {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .controlRail,
   .routePanel {
     padding-left: 14px;

@@ -260,7 +260,7 @@
 }
 
 /* Give the sheet a touch more room on narrow phones. */
-@media (max-width: 400px) {
+@media (max-width: 640px) {
   .a2hsTitle {
     font-size: var(--text-lg);
   }

@@ -554,7 +554,7 @@
   outline-offset: -3px;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .tonightLaneTitleRow {
     gap: 6px;
   }

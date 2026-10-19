@@ -981,7 +981,7 @@
   font-size: var(--text-sm);
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .roundShell {
     padding-top: 14px;
     gap: 16px;

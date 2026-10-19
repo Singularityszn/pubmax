@@ -106,7 +106,7 @@
   line-height: 1.4;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .mapExperienceLensHead {
     align-items: flex-start;
     flex-direction: column;

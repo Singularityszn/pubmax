@@ -359,7 +359,7 @@
 
 /* --- responsive to 375px -------------------------------------------------- */
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   .storyStops::before {
     left: 14px;
   }

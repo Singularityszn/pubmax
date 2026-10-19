@@ -200,7 +200,7 @@
   margin-left: auto;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .authCallbackNotice--confirm {
     align-items: stretch;
     flex-direction: column;
@@ -303,7 +303,7 @@
 /* Full vs. short label: only one renders at a time (both are real text, not a
    display:none replacement of the accessible name — each button keeps its own
    aria-label regardless of which is visible). Default (room to spare) shows
-   the full label; tight containers / ≤720px viewports swap to short provider
+   the full label; tight containers / ≤900px viewports swap to short provider
    names so the provider buttons never crowd or clip. */
 .authSignInLabelShort {
   display: none;
@@ -379,8 +379,8 @@
 }
 
 /* Viewport fallback for browsers without container queries (same thresholds
-   as before this fix). Order after @container so ≤480 still wins on phones. */
-@media (max-width: 720px) {
+   as before this fix). Order after @container so ≤640 still wins on phones. */
+@media (max-width: 900px) {
   .authSignIn {
     padding: 0.5rem 0.65rem;
     font-size: var(--text-sm);
@@ -402,7 +402,7 @@
    The one surface that genuinely can't afford labels — the floating map nav —
    keeps its own icon-only override (globals.css .siteNavBarFloating rules),
    and the standard nav hides .authUser entirely at this width (siteNav.css). */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .authProviders {
     gap: 0.4rem;
     flex-wrap: wrap;
@@ -1240,7 +1240,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .claimNightDialog {
     padding: 1.15rem 1.1rem 1.05rem;
   }

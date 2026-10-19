@@ -754,7 +754,7 @@
    At phone widths the four-column leaderboard would squash; keep it readable
    by trimming the gutters and dropping the least-load-bearing column (Area)
    so the pub name and its price stamp stay legible on a 375px screen. */
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .discoverPage {
     padding: 18px var(--page-gutter) var(--space-12);
   }
@@ -857,7 +857,7 @@
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .discoverExplore.catShowcase {
     padding: 12px;
   }
@@ -1050,7 +1050,7 @@
 }
 
 /* Wave K3 — after base wrap rule so mobile horizontal scroll wins. */
-@media (max-width: 560px) {
+@media (max-width: 640px) {
   .discoverCuisineChips {
     flex-wrap: nowrap;
     overflow-x: auto;

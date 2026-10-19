@@ -572,7 +572,7 @@ body:has(.mobileMapUtilityCorner) {
   }
 }
 
-@media (max-width: 390px) {
+@media (max-width: 640px) {
   .mobileTabBar {
     padding-inline: 10px;
   }

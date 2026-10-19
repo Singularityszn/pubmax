@@ -91,7 +91,7 @@ body:has(.palExperience) {
 /* The head keeps the Screen's own measure, so the heading sets on two
    balanced lines rather than three in an 11ch column. */
 .palMeeting .screenHead { max-width: 36rem; padding-block: 0; }
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   /* The head starts under the nav rather than floating in the middle of a
      viewport-tall stage. With the glow field gone the portrait box no longer
      needs the empty margin it was drawn into, so the box is tighter and the
@@ -352,7 +352,7 @@ body:has(.palExperience) {
   .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   body:has(.palOnboarding) .mobileTabBar { display: none; }
   /* House tab-bar + pill clearance: bind the bottom pad to the shared --tabbar-h
      token (mobileNav.css) + the home-indicator inset + the re-open pill's
