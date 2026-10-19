@@ -447,19 +447,18 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   const summary = fold.locator("summary");
   await expect(summary).toHaveText("Last train");
   await expect(fold).not.toHaveAttribute("open", "");
+  // The Overview rows that land after their own reads (the area price line
+  // and the food hygiene rating) move the summary by about 80px three to five
+  // seconds after the sheet opens on a slow runner. A tap whose press and
+  // release straddled that move went to the row that moved in, and Playwright
+  // does not retry it, so the fold stayed shut on CI. Wait for both rows, then
+  // take ONE tap: a fold that needs a second tap is a failure.
+  await expect(overview.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 20_000 });
+  await expect(overview.locator(".venueHygiene")).toBeVisible({ timeout: 20_000 });
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
-  // The Overview rows above the fold land after their own reads: the hygiene
-  // rating alone pushes the summary down 62px, three to five seconds after
-  // the sheet opens on a slow runner. When one lands between the press and
-  // the release, the click goes to the row that moved in and Playwright does
-  // not retry it, so the fold stayed shut on CI. Retry the TAP until the fold
-  // takes it (e2e/AGENTS.md, "A LONE CLICK IS NOT A WAIT FOR HYDRATION"); a
-  // fold that no tap opens still fails.
-  await expect(async () => {
-    await summary.click();
-    await expect(fold).toHaveAttribute("open", "", { timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  await summary.click();
+  await expect(fold).toHaveAttribute("open", "");
   await expect(fold.getByLabel("Last Pint")).toBeVisible();
 
   await portal.getByRole("tab", { name: "Lore", exact: true }).click();
