@@ -4,7 +4,7 @@ import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Route, CalendarClock, Images } from "lucide-react";
-import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
@@ -15,6 +15,7 @@ import {
   primaryNavLabel,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
+import { PalDockButton } from "@/components/nav/PalNavButton";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
@@ -45,6 +46,11 @@ import "./mobileNav.css";
 // reached from the map's city chip, so neither is a tab any more. Compose lives
 // on the floating + action, never in this row.
 //
+// Between Tonight and Plan the Pub Pal rises out of the rail (PalNavButton.tsx):
+// the person's own Pal, a door to /pal rather than a sixth destination, by the
+// captain's call (19 Oct 2026). It takes its own column, so the row has
+// PAL_DOCK_COLUMN + 1 more columns than tabs, and the gliding highlight skips it.
+//
 // Social is named for its launch state. While the friends launch is rolled
 // back, its accessible name is "Social preview" and the dock shows the word
 // "Social" with the preview dot, because "Social preview" in a fifth of a
@@ -68,6 +74,14 @@ type Tab = {
 };
 
 const warmedTabs = new Set<string>();
+
+/** The column the Pal's raised button takes, between Tonight and Plan. */
+export const PAL_DOCK_COLUMN = 2;
+
+/** The rail column a tab sits in, once the Pal has taken its own. */
+export function dockColumnForTab(tabIndex: number): number {
+  return tabIndex < PAL_DOCK_COLUMN ? tabIndex : tabIndex + 1;
+}
 const subscribeHydration = () => () => {};
 
 // Map follows preferred city after mount, with /map as the server fallback.
@@ -166,6 +180,10 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
   const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
+  // With no tab lit (the Pal's own page, or a route no tab owns) the well
+  // fades out where it stands, at a real column, so it never slides out of
+  // the rail on its way.
+  const activeColumn = activeIndex === -1 ? 0 : dockColumnForTab(activeIndex);
   const warmTab = useCallback(
     (href: NextRoute) => {
       warmNavRoute(router, href, warmedTabs);
@@ -194,7 +212,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           --tab-inset), so the CSS never assumes a tab total. */}
       <ul
         className="mobileTabList"
-        style={{ "--tab-count": tabs.length } as CSSProperties}
+        style={{ "--tab-count": tabs.length + 1 } as CSSProperties}
       >
         {/* Gliding active-tab highlight. A decorative li (not a nav item) so it
             can sit inside the ul without breaking the list semantics; screen
@@ -206,46 +224,53 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           aria-hidden="true"
           style={
             {
-              "--active-index": activeIndex,
+              "--active-index": activeColumn,
               opacity: activeIndex === -1 ? 0 : 1,
             } as CSSProperties
           }
         />
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
           return (
-            <li key={tab.label} className="mobileTabItem">
-              <Link
-                href={tab.href}
-                // The bar sits in the viewport on every page, so Next's
-                // automatic prefetch fires for all five tab destinations while the
-                // current page is still painting. This component already owns a
-                // intent warm below replaces it. Leaving the automatic one on
-                // top downloads unrelated route code before the current page is
-                // useful.
-                prefetch={false}
-                className={"mobileTab pressable" + (active ? " isActive" : "")}
-                aria-label={tab.ariaLabel}
-                aria-current={active ? "page" : undefined}
-                onPointerDown={() => warmTab(tab.href)}
-                onClick={onPrimaryTabNavigate}
-                onMouseEnter={() => warmTab(tab.href)}
-                onFocus={() => warmTab(tab.href)}
-                onTouchStart={() => warmTab(tab.href)}
-              >
-                <span className="mobileTabIcon" aria-hidden="true">
-                  <Icon
-                    size={20}
-                    fill="none"
-                  />
-                </span>
-                <span className="mobileTabLabel">
-                  <span className="mobileTabLabelText">{tab.label}</span>
-                  {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
-                </span>
-              </Link>
-            </li>
+            <Fragment key={tab.label}>
+              {index === PAL_DOCK_COLUMN ? (
+                <li className="mobileTabPalItem">
+                  <PalDockButton pathname={pathname} onNavigate={onPrimaryTabNavigate} />
+                </li>
+              ) : null}
+              <li className="mobileTabItem">
+                <Link
+                  href={tab.href}
+                  // The bar sits in the viewport on every page, so Next's
+                  // automatic prefetch fires for all five tab destinations while the
+                  // current page is still painting. This component already owns a
+                  // intent warm below replaces it. Leaving the automatic one on
+                  // top downloads unrelated route code before the current page is
+                  // useful.
+                  prefetch={false}
+                  className={"mobileTab pressable" + (active ? " isActive" : "")}
+                  aria-label={tab.ariaLabel}
+                  aria-current={active ? "page" : undefined}
+                  onPointerDown={() => warmTab(tab.href)}
+                  onClick={onPrimaryTabNavigate}
+                  onMouseEnter={() => warmTab(tab.href)}
+                  onFocus={() => warmTab(tab.href)}
+                  onTouchStart={() => warmTab(tab.href)}
+                >
+                  <span className="mobileTabIcon" aria-hidden="true">
+                    <Icon
+                      size={20}
+                      fill="none"
+                    />
+                  </span>
+                  <span className="mobileTabLabel">
+                    <span className="mobileTabLabelText">{tab.label}</span>
+                    {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
+                  </span>
+                </Link>
+              </li>
+            </Fragment>
           );
         })}
       </ul>

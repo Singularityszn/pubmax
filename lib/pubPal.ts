@@ -41,6 +41,7 @@ export const PAL_ANIMATION_STATES = [
   "speaking",
   "celebrating",
   "sleeping",
+  "waking",
   "error",
 ] as const;
 export type PalAnimationState = (typeof PAL_ANIMATION_STATES)[number];

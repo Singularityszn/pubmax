@@ -8,6 +8,10 @@ import {
   appendPalVoiceLine,
   correctPalVoiceLine,
   palAsksForMap,
+  palAsksForNextStop,
+  palVoiceMapIntent,
+  palNextStop,
+  palNightStopsFrom,
   palVoiceLine,
   PAL_VOICE_TRANSCRIPT_MAX_LINES,
   tentativeUserTranscriptFrom,
@@ -98,5 +102,92 @@ describe("the voice panel cues", () => {
       // A cue is a blip, not a track: anything larger was not trimmed.
       expect(statSync(file).size, src).toBeLessThan(40_000);
     }
+  });
+});
+
+// One table for every line the voice panel can act on, so a rule change is
+// read against all the others at once. Each row: the line, what it means with
+// a night on, and what it means with no night on.
+const VOICE_MAP_TABLE: ReadonlyArray<readonly [string, "next-stop" | "map" | null, "map" | null]> = [
+  // Next-stop asks.
+  ["Next stop", "next-stop", null],
+  ["What's next?", "next-stop", null],
+  ["where to next", "next-stop", null],
+  ["take me to the next pub", "next-stop", null],
+  ["what's next tonight", "next-stop", null],
+  // "Stop" inside the ask is the noun, never a refusal.
+  ["Next stop please", "next-stop", null],
+  ["ok next stop then", "next-stop", null],
+  // Map asks.
+  ["Open the map", "map", "map"],
+  ["map please", "map", "map"],
+  ["can you show me the pub map", "map", "map"],
+  // A line that asks for both: the next stop wins while a night is on.
+  ["Show me the map for the next stop", "next-stop", "map"],
+  ["open the map, where to next?", "next-stop", "map"],
+  // Another day, before or after the ask.
+  ["What's next tomorrow?", null, null],
+  ["Tomorrow, what's next?", null, null],
+  ["where next weekend", null, null],
+  ["on Friday where to next", null, null],
+  // A refusal, before or after the ask.
+  ["Don't take me to the next stop yet", null, null],
+  ["not the next pub", null, null],
+  ["What is next, but do not open it yet?", null, null],
+  ["what's next? don't open it", null, null],
+  ["where to next, no need to show me", null, null],
+  ["don't show me the map", null, null],
+  ["not the map yet", null, null],
+  // Not an ask at all.
+  ["I liked this stop", null, null],
+  ["stop", null, null],
+  ["next week maybe", null, null],
+  ["tell me about this pub", null, null],
+];
+
+describe("what the voice panel does with a line", () => {
+  it.each(VOICE_MAP_TABLE)("%s", (line, withNight, withoutNight) => {
+    expect(palVoiceMapIntent(line, true)).toBe(withNight);
+    expect(palVoiceMapIntent(line, false)).toBe(withoutNight);
+  });
+});
+
+describe("the next stop of a night", () => {
+  it("hears the ways a person asks for the next stop", () => {
+    for (const ask of ["Next stop", "take me to the next pub", "Where next?", "where's next", "where to next", "What's next?", "what's next tonight", "next pub this time of night"]) {
+      expect(palAsksForNextStop(ask)).toBe(true);
+    }
+  });
+
+  it("does not hear a refusal, or a sentence about something else", () => {
+    for (const line of ["Don't take me to the next stop yet", "not the next pub", "I liked this stop", "next week maybe", "stop"]) {
+      expect(palAsksForNextStop(line)).toBe(false);
+    }
+  });
+
+  it("does not hear a question about another day", () => {
+    for (const line of ["What's next tomorrow?", "what's next week", "where next weekend", "what is next on Saturday", "Tomorrow, what's next?", "on Friday where to next"]) {
+      expect(palAsksForNextStop(line)).toBe(false);
+    }
+  });
+
+  it("goes to the stop after the person's own cursor, and stays on the last", () => {
+    const stops = [
+      { venueId: "venue-a", venueName: "A" },
+      { venueId: "venue-b", venueName: "B" },
+      { venueId: "venue c", venueName: "C" },
+    ];
+    expect(palNextStop(stops, 0)).toEqual({ href: "/map?sel=venue-b", venueName: "B" });
+    expect(palNextStop(stops, 1)).toEqual({ href: "/map?sel=venue%20c", venueName: "C" });
+    expect(palNextStop(stops, 2)).toEqual({ href: "/map?sel=venue%20c", venueName: "C" });
+    expect(palNextStop(stops, -3)).toEqual({ href: "/map?sel=venue-b", venueName: "B" });
+    expect(palNextStop([], 0)).toBeNull();
+  });
+
+  it("reads only well-formed stops from a plan body", () => {
+    expect(palNightStopsFrom(null)).toEqual([]);
+    expect(palNightStopsFrom({ stops: "x" })).toEqual([]);
+    expect(palNightStopsFrom({ stops: [{ venueId: "v1", venueName: "One", position: 0 }, { venueId: 2 }, null] }))
+      .toEqual([{ venueId: "v1", venueName: "One" }]);
   });
 });

@@ -389,7 +389,7 @@ body:has(.mobileMapUtilityCorner) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 5;
+    --tab-count: 6;
     --tab-inset: 4px;
     /* THE PRESSED RAIL. The dock is a raised mat and the page you are on is a
        well pressed into it (the bar-mat tactility in docs/DESIGN_SYSTEM.md),
@@ -406,8 +406,12 @@ body:has(.mobileMapUtilityCorner) {
     box-shadow:
       0 -2px 10px color-mix(in srgb, var(--ink-deep) 6%, transparent),
       0 10px 24px -10px color-mix(in srgb, var(--ink-deep) 32%, transparent);
-    /* Clip the gliding highlight to the pill's own rounded rect (#1544). */
-    overflow: hidden;
+    /* The rail does not clip: the Pub Pal's face rises out of it
+       (PalNavButton.tsx). The gliding highlight stays inside the rounded rect
+       by its own geometry (#1544): it is inset by --tab-inset, one column
+       wide, and with no tab lit it fades where it stands rather than sliding
+       to a column outside the rail. */
+    overflow: visible;
     pointer-events: auto;
   }
 

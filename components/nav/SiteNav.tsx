@@ -8,6 +8,7 @@ import { useMemo, useSyncExternalStore } from "react";
 
 import IntentLink from "@/components/nav/IntentLink";
 import MessagesLink from "@/components/nav/MessagesLink";
+import { PalSiteNavButton } from "@/components/nav/PalNavButton";
 import NotificationBell from "@/components/nav/NotificationBell";
 import SiteNavMore, {
   siteNavMoreItems,
@@ -151,6 +152,10 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
           theme row. Social is a primary tab, so it is not repeated here. Desktop
           only — siteNav.css hides .siteNavMore at ≤640 so mobile is
           unchanged. */}
+      {/* The Pub Pal's own door (PalNavButton.tsx): the person's Pal and its
+          name, first among the actions. Hidden <=640px, where it rises out of
+          the phone dock instead. */}
+      <PalSiteNavButton pathname={pathname} />
       <SiteNavMore items={moreItems} />
       {/* Moment compose (desktop). On phones the floating create action owns
           this; the top bar has no such affordance, so desktop users reach

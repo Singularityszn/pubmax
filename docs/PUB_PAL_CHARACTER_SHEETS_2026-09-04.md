@@ -104,5 +104,5 @@ board compares like with like.
 - The seven forms remain distinguishable at 36 px and full portrait size.
 - Every 512 webp square stays under `PAL_MASCOT_WEBP_512_BUDGET`.
 - Hologram, chrome and glass treatments in `PubPalAppearance.material` change the portrait frame and nothing in the bitmap.
-- Listening, thinking, speaking, celebrating, sleeping and error states do not imply an unconfirmed action.
+- Listening, thinking, speaking, celebrating, sleeping, waking and error states do not imply an unconfirmed action.
 - No alcohol quantity, ranking or reward behaviour is encoded in the character system.
