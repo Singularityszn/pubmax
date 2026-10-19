@@ -173,7 +173,7 @@ export default function ControlRail({
     <aside className="controlRail">
       <div className="brandBlock">
         <div className="brandMark">
-          <Beer size={22} />
+          <Beer size={20} />
         </div>
         <div>
           <p className="eyebrow">PUBMAXX</p>
@@ -187,14 +187,14 @@ export default function ControlRail({
           aria-pressed={mode === "suggest"}
           onClick={() => onModeChange("suggest")}
         >
-          <Sparkles size={15} /> Suggest a crawl
+          <Sparkles size={16} /> Suggest a crawl
         </button>
         <button
           className={mode === "build" ? "selected" : ""}
           aria-pressed={mode === "build"}
           onClick={() => onModeChange("build")}
         >
-          <Hand size={15} /> Build your own
+          <Hand size={16} /> Build your own
         </button>
       </div>
 
@@ -205,7 +205,7 @@ export default function ControlRail({
         onClick={onNearbyCrawl}
         disabled={nearbyLoading}
       >
-        <LocateFixed size={15} />
+        <LocateFixed size={16} />
         {nearbyLoading ? "Finding your location…" : "Pubs near me"}
       </button>
       {nearbyError ? (
@@ -220,14 +220,14 @@ export default function ControlRail({
           {builtCount} stop{builtCount === 1 ? "" : "s"} picked.
           {builtCount > 0 ? (
             <button className="clearBtn" onClick={onClearBuilt}>
-              <Trash2 size={13} /> Clear
+              <Trash2 size={14} /> Clear
             </button>
           ) : null}
         </p>
       ) : null}
 
       <label className="searchBox">
-        <Search size={18} />
+        <Search size={16} />
         <input
           id="railSearchInput"
           aria-label="Search pubs and areas"
@@ -260,7 +260,7 @@ export default function ControlRail({
               </span>
               <span className="featuredBlurb">{crawl.blurb}</span>
               <span className="featuredMapCta">
-                <MapPinned size={13} aria-hidden="true" />
+                <MapPinned size={14} aria-hidden="true" />
                 Map route
               </span>
             </button>
@@ -349,7 +349,7 @@ export default function ControlRail({
           <span>Story filters</span>
           {filtersDirty ? (
             <button className="resetBtn" style={{ marginLeft: "auto" }} onClick={resetFilters}>
-              <Trash2 size={12} /> Reset
+              <Trash2 size={14} /> Reset
             </button>
           ) : null}
         </div>
@@ -550,7 +550,7 @@ export default function ControlRail({
       {showWriterCard ? (
         <section className="writerCard">
           <div className="writerHeader">
-            <Camera size={18} />
+            <Camera size={16} />
             <div>
               <p className="eyebrow">{writerProfile.handle}</p>
               <h2>{writerProfile.name}</h2>
@@ -559,11 +559,11 @@ export default function ControlRail({
           <p>{writerProfile.summary}</p>
           <div className="writerFacts">
             <span>
-              <BookOpen size={15} />
+              <BookOpen size={16} />
               {writerProfile.bookTitle}
             </span>
             <span>
-              <Anchor size={15} />
+              <Anchor size={16} />
               Narrowboat London
             </span>
           </div>
@@ -576,7 +576,7 @@ export default function ControlRail({
             {pubSources.map((source) => (
               <a key={source.url} href={source.url} target="_blank" rel="noreferrer">
                 {source.title}
-                <ExternalLink size={13} />
+                <ExternalLink size={14} />
               </a>
             ))}
           </div>

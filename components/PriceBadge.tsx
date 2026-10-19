@@ -1,6 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
 
-import { priceBandClass, type PriceBand } from "@/lib/priceBand";
+import {
+  priceBand,
+  priceBandAreaForVenue,
+  priceBandClass,
+  priceBandNote,
+  type PriceBand,
+} from "@/lib/priceBand";
+import { formatGbp } from "@/lib/formatGbp";
 
 import styles from "./PriceBadge.module.css";
 
@@ -52,5 +59,38 @@ export default function PriceBadge({
     <span className={classes} style={style} title={title}>
       {children}
     </span>
+  );
+}
+
+/**
+ * A PINT figure, banded. The one way a pint price is printed on a list row:
+ * the band comes from the venue's own city terciles (lib/priceBand.ts) and the
+ * band's own sentence rides the title, so a row never restates either. A
+ * figure that is not a pint (a deal, a meal) uses `PriceBadge` with no band.
+ */
+export function PintPriceBadge({
+  priceGbp,
+  venueId = null,
+  label,
+  className,
+}: {
+  priceGbp: number;
+  /** Decides whose terciles the figure is cut against; null reads the dataset's. */
+  venueId?: string | null;
+  /** The printed figure when the caller already formatted it ("£4.80"). */
+  label?: string;
+  className?: string;
+}) {
+  const area = priceBandAreaForVenue(venueId);
+  const band = priceBand(priceGbp, area);
+  return (
+    <PriceBadge
+      variant="current"
+      band={band}
+      title={band ? priceBandNote(band, area) : undefined}
+      className={className}
+    >
+      {label ?? formatGbp(priceGbp)}
+    </PriceBadge>
   );
 }

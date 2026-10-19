@@ -20,7 +20,7 @@
   /* --ink-soft, not --muted: this block sits on the amber plaque surface, where
      muted small text lands under 4.5:1 in the dark theme. */
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -29,7 +29,7 @@
 .venuePriceThen .vptLine {
   margin: 6px 0 0;
   color: var(--ink);
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.4;
   /* A price is a number to be compared, so the figures line up. */
@@ -46,9 +46,9 @@
 }
 
 .venuePriceThen .vptThen {
-  /* The price role, pulled toward ink so the figure clears AA against the
-     plaque surface in both themes rather than relying on its size. */
-  color: color-mix(in srgb, var(--accent-price-ink) 62%, var(--ink));
+  /* A figure in a sentence is ink: a price wears its band or nothing, never
+     a second price colour (docs/DESIGN_SYSTEM.md "Status and price"). */
+  color: var(--ink);
 }
 
 .venuePriceThen .vptNow {
@@ -58,7 +58,7 @@
 .venuePriceThen .vptMovement {
   margin: 3px 0 0;
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -66,7 +66,7 @@
 .venuePriceThen .vptSource {
   margin: 7px 0 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -81,7 +81,7 @@
 .venuePriceThen .vptNote {
   margin: 4px 0 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 500;
   line-height: 1.35;
 }

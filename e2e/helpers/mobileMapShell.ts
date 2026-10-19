@@ -40,10 +40,12 @@ export async function expectMobileMapShellReady(
 
 /**
  * The controls the phone shell owns (components/mobile/MobileMapShell.tsx):
- * the top bar's Search, Filters and More map controls, and the map edge's TfL
- * chip and Near me button. Search, Filters, TfL and Near me have namesakes on
- * the desktop toolbar and in sheets, so each is scoped to the shell's own
- * container rather than found by name across the page.
+ * the top bar's Search, Filters and More map controls, and the map edge's Near
+ * me button and TfL control. TfL is painted on the edge only while a tube line
+ * is badly disrupted (`routeTubeStatus(page, "urgent")` below); otherwise its
+ * home is the Transit tab of More map controls. Search, Filters, TfL and Near
+ * me have namesakes on the desktop toolbar and in sheets, so each is scoped to
+ * the shell's own container rather than found by name across the page.
  */
 export type MobileMapShellControl = "search" | "filters" | "more" | "tfl" | "nearMe";
 
@@ -76,4 +78,35 @@ export async function mobileMapShellControl(
 ): Promise<Locator> {
   await expectMobileMapShellReady(page, timeout);
   return shellControlLocator(page, control);
+}
+
+/**
+ * A deterministic London status feed, so a spec says which TfL state it means
+ * rather than inheriting whatever the network answers. "urgent" carries one
+ * line with Severe delays (`isUrgentTubeStatus`, lib/mapChromeTiers.ts), which
+ * is what puts the TfL control on the phone map edge; "routine" carries only a
+ * minor delay and a planned closure, so the resting map shows no TfL control
+ * and the feed lives in More map controls, Transit.
+ */
+export async function routeTubeStatus(page: Page, kind: "urgent" | "routine"): Promise<void> {
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: new Date().toISOString(),
+        signals: [],
+        tubeLines:
+          kind === "urgent"
+            ? [
+                { line: "Central", status: "Minor delays" },
+                { line: "Victoria", status: "Severe delays", disruption: "Signal failure" },
+              ]
+            : [
+                { line: "Central", status: "Minor delays" },
+                { line: "Jubilee", status: "Planned closure" },
+              ],
+      }),
+    }),
+  );
 }

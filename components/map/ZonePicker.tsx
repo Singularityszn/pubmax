@@ -129,7 +129,7 @@ export default function ZonePicker({
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
       >
-        <MapPin size={15} aria-hidden="true" />
+        <MapPin size={16} aria-hidden="true" />
         <span>{active === null ? "Zone" : `Zone ${active}`}</span>
       </button>
       {open ? (

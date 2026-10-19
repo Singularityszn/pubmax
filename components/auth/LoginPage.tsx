@@ -85,7 +85,7 @@ const DOORS: Record<
   },
   signup: {
     tab: "New here",
-    title: "Let's get you in",
+    title: "Make an account",
     lead: "Log a pint price, plan a crawl, keep your nights. Takes a handle and a minute.",
     emailLabel: "Create your account with email",
     emailCta: "Email me a sign-up link",

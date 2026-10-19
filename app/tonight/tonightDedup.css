@@ -16,11 +16,11 @@
   width: fit-content;
   min-height: 36px;
   padding: 4px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
   list-style: none; /* drop the native disclosure triangle */
@@ -28,9 +28,11 @@
 .tonightRowMoreToggle::-webkit-details-marker {
   display: none;
 }
-.tonightRowMoreToggle:hover {
-  color: var(--ink);
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+@media (hover: hover) and (pointer: fine) {
+  .tonightRowMoreToggle:hover {
+    color: var(--ink);
+    border-color: var(--state-selected-border);
+  }
 }
 .tonightRowMoreToggle:focus-visible {
   outline: 2px solid var(--brass);
@@ -38,7 +40,7 @@
 }
 
 .tonightRowMoreChevron {
-  transition: transform 160ms var(--ease-out, ease);
+  transition: transform 160ms var(--ease-out);
 }
 .tonightRowMore[open] .tonightRowMoreChevron {
   transform: rotate(180deg);
@@ -72,13 +74,15 @@
   gap: 12px;
   min-height: 40px;
   padding: 6px 10px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   color: var(--ink);
   text-decoration: none;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
-a.tonightRowMoreLink:hover {
-  background: var(--panel-raised);
+@media (hover: hover) and (pointer: fine) {
+  a.tonightRowMoreLink:hover {
+    background: var(--panel-raised);
+  }
 }
 a.tonightRowMoreLink:focus-visible {
   outline: 2px solid var(--brass);
@@ -98,7 +102,7 @@ a.tonightRowMoreLink:focus-visible {
 
 .tonightRowMoreWalk {
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -106,12 +110,12 @@ a.tonightRowMoreLink:focus-visible {
 .tonightRowMoreAccept {
   min-height: 44px;
   padding: 6px 12px;
-  border: 1px solid var(--state-active-border);
-  border-radius: var(--control-radius, 14px);
-  background: var(--state-active-surface);
-  color: var(--state-active-ink);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 750;
   cursor: pointer;
 }

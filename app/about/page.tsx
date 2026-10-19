@@ -3,12 +3,14 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
+import PriceBadge from "@/components/PriceBadge";
 import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
 import Screen from "@/components/ui/screen";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
-import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
+import { loadAboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { priceBand } from "@/lib/priceBand";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { HELLO_EMAIL, HELLO_MAILTO } from "@/lib/siteContact";
 
@@ -74,31 +76,14 @@ function fmtGbp(n: number | null): string {
   }).format(n);
 }
 
-type Stat = { value: string; label: string; note: string };
+/** A figure inside a sentence: the data face, in ink, with no tile around it. */
+function Figure({ children }: { children: string }) {
+  return <span className="aboutFigure">{children}</span>;
+}
 
-function tractionStats(s: AboutStats): Stat[] {
-  return [
-    {
-      value: fmtInt(s.pubsTracked),
-      label: "pubs tracked",
-      note: "each with a price on record",
-    },
-    {
-      value: fmtInt(s.pintPricesObserved),
-      label: "pint prices on record",
-      note: "readings with their source status shown",
-    },
-    {
-      value: fmtInt(s.historicPubsCited),
-      label: "historic pubs cited",
-      note: "one sourced fact each",
-    },
-    {
-      value: fmtInt(s.citiesCovered),
-      label: "UK cities live",
-      note: "London first, more to browse",
-    },
-  ];
+/** A pint price in a sentence wears its band, like every pint price. */
+function Pint({ gbp }: { gbp: number | null }) {
+  return <PriceBadge band={priceBand(gbp)}>{fmtGbp(gbp)}</PriceBadge>;
 }
 
 export default async function AboutPage() {
@@ -145,10 +130,6 @@ export default async function AboutPage() {
       sameAs: ["https://x.com/karansznx"],
     },
   };
-
-  const cheapest = fmtGbp(stats.cheapestPint);
-  const average = fmtGbp(stats.averagePint);
-  const dearest = fmtGbp(stats.dearestPint);
 
   return (
     <main id="main" className="aboutPage">
@@ -281,37 +262,32 @@ export default async function AboutPage() {
         </figure>
       </section>
 
-      {/* ── Traction / numbers (real, computed at build) ───────── */}
-      <section className="aboutSection aboutTraction" aria-labelledby="traction">
+      {/* ── Traction / numbers (real, computed at request time). One
+          sentence of figures, not a grid of KPI tiles. ──────────── */}
+      <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
-        <p className="aboutBody aboutTractionIntro">
-          Every number here is counted from the same public data the app runs
-          on.
+        <p className="aboutBody">
+          PUBMAXX holds a price for <Figure>{fmtInt(stats.pubsTracked)}</Figure>{" "}
+          pubs from <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint
+          prices on record, each with its source status shown.{" "}
+          <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
+          a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
+          cities are live, London first. Every figure here is counted from the
+          same public data the app runs on.
         </p>
-        <dl className="aboutStatGrid">
-          {tractionStats(stats).map((stat) => (
-            <div key={stat.label} className="aboutStat">
-              <dt className="aboutStatValue">{stat.value}</dt>
-              <dd className="aboutStatBody">
-                <span className="aboutStatLabel">{stat.label}</span>
-                <span className="aboutStatNote">{stat.note}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
         <p className="aboutPriceLine">
-          Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
+          Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
           boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
-          <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>. The average listed
-          pint across <strong>{fmtInt(stats.pubsTracked)}</strong> London pubs
-          is <span className="aboutPriceStamp">{average}</span>, the same
-          figure the homepage gives, taken from each pub&rsquo;s cheapest pint.
+          <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
+          <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
+          <Figure>{fmtInt(stats.pubsTracked)}</Figure> London pubs is{" "}
+          <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
+          taken from each pub&rsquo;s cheapest pint.
         </p>
       </section>
 
       {/* ── Press appendix (kit + journalist hooks) ─────────────── */}
-      <section className="aboutSection aboutPress" aria-labelledby="press">
+      <section className="aboutSection" aria-labelledby="press">
         <h2 id="press" className="aboutH2">Press appendix</h2>
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
@@ -459,6 +435,7 @@ export default async function AboutPage() {
               href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
               target="_blank"
               rel="noopener noreferrer"
+              className="aboutLink"
             >
               Open Government Licence v3.0
             </a>

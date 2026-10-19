@@ -31,36 +31,44 @@ export default function RoundCodeJoin(): React.JSX.Element {
   }
 
   return (
-    <form className="roundCodeJoin" onSubmit={open}>
-      <div className="roundStarterRow">
-        <input
-          type="text"
-          className="roundCodeJoinInput"
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value);
-            if (error) setError(null);
-          }}
-          placeholder="Round code"
-          aria-label="Round code"
-          aria-describedby={error ? "round-code-join-error" : undefined}
-          aria-invalid={error ? true : undefined}
-          autoComplete="off"
-          autoCapitalize="characters"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="go"
-          maxLength={ROUND_CODE_LENGTH + 4}
-        />
-        <button type="submit" className="roundCodeJoinBtn">
-          Open the Round
-        </button>
-      </div>
-      {error ? (
-        <p id="round-code-join-error" className="roundCodeJoinError" role="alert">
-          {error}
+    <details className="roundCodeJoin">
+      <summary className="roundCodeJoinSummary">Open a round code</summary>
+      <form className="roundCodeJoinForm" onSubmit={open}>
+        <label className="roundStarterLabel" htmlFor="round-code-join-input">
+          Round code
+        </label>
+        <p className="roundStarterBlurb" id="round-code-join-hint">
+          The {ROUND_CODE_LENGTH} letters and numbers whoever started it shared.
         </p>
-      ) : null}
-    </form>
+        <div className="roundStarterRow">
+          <input
+            id="round-code-join-input"
+            type="text"
+            className="roundCodeJoinInput"
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value);
+              if (error) setError(null);
+            }}
+            aria-describedby={error ? "round-code-join-hint round-code-join-error" : "round-code-join-hint"}
+            aria-invalid={error ? true : undefined}
+            autoComplete="off"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            maxLength={ROUND_CODE_LENGTH + 4}
+          />
+          <button type="submit" className="roundCodeJoinBtn">
+            Open
+          </button>
+        </div>
+        {error ? (
+          <p id="round-code-join-error" className="roundCodeJoinError" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </form>
+    </details>
   );
 }

@@ -1,16 +1,15 @@
-/* Durable Crawl Story poster (/crawls/[slug]). A collectible field-guide poster,
-   not a SaaS card: the route name in Georgia serif, numbered stops as stamps
-   running down a single brass dashed spine, a receipt-style round total at the
-   foot, and vibe tags as little brass stamps. All selectors are new + scoped to
-   this route; every value leans on the existing design tokens so the poster
-   inherits the "printed guidebook" theme. Mirrors app/crawls/crawls.css on
-   purpose (the anonymous poster) while adding the signature brass spine. */
+/* Durable Crawl Story poster (/crawls/[slug]). A collectible poster, not a
+   SaaS card: numbered stops down one dashed spine, a receipt-style round total
+   at the foot, and vibe tags as small neutral stamps. Tokens only. Coral is
+   the Screen primary's alone (taste plan, 18 Oct 2026): the spine, the stop
+   numbers, the tags, the total and the Chaos Score were all coral and are now
+   ink and hairline. Mirrors app/crawls/crawls.css (the anonymous poster). */
 
 .storyShell {
   min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
-  padding: 24px 16px 88px;
+  padding: var(--space-6) var(--page-gutter) var(--space-12);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -22,7 +21,7 @@
   max-width: 640px;
   display: flex;
   gap: 18px;
-  font-size: 14px;
+  font-size: var(--text-sm);
 }
 
 .storyNav a {
@@ -33,8 +32,12 @@
   text-decoration: none;
 }
 
-.storyNav a:hover {
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .storyNav a:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 /* --- poster --------------------------------------------------------------- */
@@ -72,8 +75,10 @@
   text-decoration: none;
   font-weight: inherit;
 }
-.storyAuthorLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .storyAuthorLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Author-only controls (delete). Sits under the primary actions. */
@@ -84,7 +89,20 @@
   align-items: flex-start;
 }
 
-/* Vibe tags as little brass stamps. */
+/* The patch the route walks through, when we hold an honest photograph of it
+   (components/listing/placePhotoRules.ts). It leads the poster under the head and
+   carries its place and credit under it. */
+.storyPhoto {
+  margin-top: var(--space-5);
+}
+
+/* A lead, not the poster: wide and shallow, so the stops start on the first
+   screen of a laptop. */
+.storyPhoto .placePhoto__frame {
+  aspect-ratio: 2 / 1;
+}
+
+/* Vibe tags as small neutral stamps (the badge trio). */
 .storyTags {
   list-style: none;
   margin: 16px 0 0;
@@ -96,15 +114,15 @@
 
 .storyTag {
   padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--brass);
-  color: var(--brass);
-  font-size: 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--badge-border);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.3px;
 }
 
-/* --- stops: numbered stamps down a single brass dashed spine -------------- */
+/* --- stops: numbered stamps down a single dashed spine --------------------- */
 
 .storyStops {
   list-style: none;
@@ -113,8 +131,8 @@
   position: relative;
 }
 
-/* The signature element: one continuous brass dashed line the numbered stamps
-   sit on, like a route drawn down a guidebook page. Sits behind the stamps. */
+/* One continuous dashed line the numbered stamps sit on, like a route drawn
+   down a guidebook page. Sits behind the stamps. */
 .storyStops::before {
   content: "";
   position: absolute;
@@ -122,8 +140,7 @@
   bottom: 30px;
   left: 15px;
   width: 0;
-  border-left: 2px dashed var(--brass);
-  opacity: 0.55;
+  border-left: 2px dashed var(--hairline-strong);
 }
 
 .storyStop {
@@ -148,11 +165,13 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--brass);
-  color: var(--panel-raised);
-  font-family: var(--font-garamond, var(--serif));
+  border: 1px solid var(--hairline-strong);
+  background: var(--panel-raised);
+  color: var(--color-text);
+  font-family: var(--font-data);
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
   box-shadow: 0 0 0 4px var(--paper); /* punch the stamp out of the spine */
 }
 
@@ -164,29 +183,32 @@
 
 .storyStopName {
   display: inline-block;
-  font-size: 17px;
+  font-size: var(--text-base);
   line-height: 1.25;
   font-weight: 700;
   color: var(--ink);
   text-decoration: none;
 }
 
-.storyStopName:hover {
-  color: var(--brass);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .storyStopName:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 
 .storyStopNote {
   margin: 4px 0 0;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
 .storyStopPrice {
   flex: 0 0 auto;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 17px;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
   padding-top: 4px;
@@ -200,9 +222,9 @@
   justify-content: space-between;
   margin-top: 18px;
   padding: 16px 18px;
-  border: 1px solid var(--brass);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
 }
 
 .storyReceipt > span {
@@ -220,9 +242,10 @@
 }
 
 .storyReceipt strong {
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 28px;
-  color: var(--brass);
+  font-family: var(--font-data);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
 }
 
 /* --- actions -------------------------------------------------------------- */
@@ -243,8 +266,8 @@
   gap: 8px;
   min-height: 44px;
   padding: 11px 18px;
-  border-radius: var(--radius-sm, 10px);
-  font-size: 15px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -255,19 +278,22 @@
   transition: border-color 0.15s ease;
 }
 
-.storySecondaryBtn:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .storySecondaryBtn:hover {
+    border-color: var(--state-selected-border);
+    background: var(--state-selected-surface);
+  }
 }
 
 .storySecondaryBtn:focus-visible,
 .storyStopName:focus-visible,
 .storyNav a:focus-visible {
-  outline: 2px solid var(--brass);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 /* --- Chaos Score (issue #30) ------------------------------------------------
-   A small brass-bordered badge, same family as .storyReceipt but visually
+   A small dashed-edge badge, same family as .storyReceipt but visually
    distinct (rounded score "coin" + grade/line) so it reads as a fun aside,
    never as another financial figure. Entirely optional/playful — no emoji,
    copy stays dry per the rubric in lib/chaosScore.ts. */
@@ -278,8 +304,8 @@
   gap: 16px;
   margin-top: 14px;
   padding: 14px 18px;
-  border: 1px dashed var(--brass);
-  border-radius: 12px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius);
   background: var(--panel-raised);
 }
 
@@ -288,14 +314,15 @@
   display: flex;
   align-items: baseline;
   gap: 2px;
-  font-family: var(--font-garamond, var(--serif));
-  font-size: 34px;
+  font-family: var(--font-data);
+  font-size: var(--text-2xl);
   font-weight: 700;
-  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
 }
 
 .storyChaosScore small {
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 400;
   color: var(--ink-soft);
 }
@@ -307,13 +334,13 @@
 }
 
 .storyChaosGrade {
-  font-size: 14px;
+  font-size: var(--text-sm);
   letter-spacing: 0.3px;
   color: var(--ink);
 }
 
 .storyChaosLine {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--ink-soft);
 }
 
@@ -326,18 +353,13 @@
 
 .storyFootnote {
   margin: 22px 0 0;
-  text-align: center;
-  font-family: var(--font-garamond, var(--serif));
-  font-style: italic;
-  color: var(--ink-soft);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 /* --- responsive to 375px -------------------------------------------------- */
 
-@media (max-width: 520px) {
-  .storyShell {
-    padding: 18px 12px 40px;
-  }
+@media (max-width: 640px) {
   .storyStops::before {
     left: 14px;
   }

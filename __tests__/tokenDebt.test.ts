@@ -1,0 +1,112 @@
+// Token debt only goes down (taste plan, 18 Oct 2026, change 6).
+//
+// The audit counted 170 font sizes against a scale of nine, 90 corners
+// against a scale of four and 138 shadows against six. A raw figure is how a
+// screen drifts from the rest: it does not follow the theme, and a raw rem
+// does not grow when a reader picks large text, where every --text-* token
+// does (app/globals.css, html[data-text-scale="large"]).
+//
+// Three things are pinned:
+//   1. A bare var() names a token that exists. An undefined token is not a
+//      quiet default: inside a `font:` shorthand it voids the whole
+//      declaration, which is how two map chip rows lost their size and weight.
+//   2. The corner scale has four sizes. 14px is not one of them.
+//   3. Each kind of raw figure has a ceiling at the measured count. Lower the
+//      ceiling in the commit that pays some down; never raise it.
+
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const ROOT = process.cwd();
+
+function files(dir: string, test: (name: string) => boolean): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    if (name === "node_modules") continue;
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) out.push(...files(full, test));
+    else if (test(name)) out.push(full);
+  }
+  return out;
+}
+
+const CSS = ["app", "components"].flatMap((d) => files(join(ROOT, d), (n) => n.endsWith(".css")));
+const SOURCES = ["app", "components", "lib"].flatMap((d) =>
+  files(join(ROOT, d), (n) => /\.(?:tsx?|mjs)$/.test(n) && !n.endsWith(".d.ts")),
+);
+
+const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
+const sheets = CSS.map((file) => ({ file: relative(ROOT, file), css: stripComments(readFileSync(file, "utf8")) }));
+
+function count(pattern: RegExp): number {
+  return sheets.reduce((sum, { css }) => sum + (css.match(pattern)?.length ?? 0), 0);
+}
+
+describe("token debt", () => {
+  it("names only tokens that exist in a bare var()", () => {
+    const declared = new Set<string>();
+    for (const { css } of sheets) for (const m of css.matchAll(/(--[\w-]+)\s*:/g)) if (m[1]) declared.add(m[1]);
+    // A token a component sets from script (style={{ "--x": ... }}) is declared there.
+    const script = SOURCES.map((file) => readFileSync(file, "utf8")).join("\n");
+
+    const undefinedTokens: string[] = [];
+    for (const { file, css } of sheets) {
+      for (const m of css.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)) {
+        const token = m[1];
+        if (token && !declared.has(token) && !script.includes(token)) undefinedTokens.push(`${file} :: ${token}`);
+      }
+    }
+    expect([...new Set(undefinedTokens)].sort()).toEqual([]);
+  });
+
+  it("keeps the corner scale to four sizes, with no 14px step", () => {
+    const fourteen = sheets
+      .filter(({ css }) => /border-radius:[^;]*\b14px|--(?:control|topbar|map-chrome)-radius:\s*14px/.test(css))
+      .map(({ file }) => file);
+    expect(fourteen).toEqual([]);
+  });
+
+  // Measured on 18 Oct 2026 after the first snap: 1,022 font sizes within 5% of
+  // a step, 492 corners and 978 dead fallbacks went to tokens. The second pass
+  // (19 Oct 2026) took every font size within 10% of a step (476; on a near
+  // tie the smaller step, so no control grew) and 63 shadows: elevation went
+  // to --shadow, --shadow-sm, --shadow-inset-press or the map overlay pair,
+  // and decoration (in-flow card lifts, inset highlights, glows) went.
+  // What stays raw on purpose: seven micro stamps under 0.62rem (bar tab,
+  // Spill composer, Tonight lane, Pub Pal, zone index) and feed.css's 2.35rem
+  // display figure; focus and selection rings, marker halos, the live-dot
+  // pulses, the crop mask, the Pub Pal halo, the tab bar's two-way lift and
+  // the phone sheet's upward shadow, none of which is an elevation step.
+  const CEILINGS = {
+    "raw font sizes": { pattern: /font-size:\s*[0-9.]+(?:px|rem)\b/g, max: 8 },
+    "raw corners": { pattern: /border-radius:\s*(?!0[\s;])[0-9.]+(?:px|rem)\b/g, max: 30 },
+    "raw shadows": { pattern: /box-shadow:\s*(?:inset\s+)?-?[0-9]/g, max: 46 },
+    "var() fallbacks": { pattern: /var\(--[\w-]+\s*,/g, max: 210 },
+  } as const;
+
+  // A fallback on a custom property that only script sets (the Pal's head and
+  // genome inputs, a map delay) is that input's default, not a dead fallback on
+  // a declared token, so the fallback ceiling does not count it.
+  const declaredInCss = new Set<string>();
+  for (const { css } of sheets) for (const m of css.matchAll(/(--[\w-]+)\s*:/g)) if (m[1]) declaredInCss.add(m[1]);
+  const scriptText = SOURCES.map((file) => readFileSync(file, "utf8")).join("\n");
+  function deadFallbacks(): number {
+    let total = 0;
+    for (const { css } of sheets) {
+      for (const m of css.matchAll(/var\((--[\w-]+)\s*,/g)) {
+        const token = m[1];
+        if (token && !declaredInCss.has(token) && scriptText.includes(token)) continue;
+        total += 1;
+      }
+    }
+    return total;
+  }
+
+  for (const [name, { pattern, max }] of Object.entries(CEILINGS)) {
+    it(`holds ${name} at or under ${max}`, () => {
+      expect(name === "var() fallbacks" ? deadFallbacks() : count(pattern)).toBeLessThanOrEqual(max);
+    });
+  }
+});

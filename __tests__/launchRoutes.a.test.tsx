@@ -168,7 +168,7 @@ describe("launch routes (group a) carry one primary action", () => {
     const rendered = renderTonight();
     expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
     expect(rendered).toMatch(
-      /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map"[^>]*>See them on the map<\/a>/,
+      /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/,
     );
   });
 });

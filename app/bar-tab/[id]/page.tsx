@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
 import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
 import ShareBar from "@/components/share/ShareBar";
@@ -17,7 +18,6 @@ import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { venueMapUrl } from "@/lib/venueIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
-import { formatGbp } from "@/lib/venues";
 
 import "./barTab.css";
 
@@ -149,7 +149,7 @@ export default async function BarTabPage({ params }: PageProps) {
           {barTab.cheapestGbp !== null ? (
             <span className="barTabCheapest" title="Cheapest pint on the tab">
               <span className="barTabCheapestLabel">From</span>
-              <span className="barTabCheapestValue">{formatGbp(barTab.cheapestGbp)}</span>
+              <PintPriceBadge priceGbp={barTab.cheapestGbp} venueId={canonicalId} />
             </span>
           ) : null}
           <span className="barTabCount">
@@ -189,7 +189,7 @@ export default async function BarTabPage({ params }: PageProps) {
         <ul className="barTabGrid" aria-label={`Recent pints at ${venue.name}`}>
           {barTab.tiles.map((tile) => (
             <li key={tile.id} className="barTabCell">
-              <Tile tile={tile} venueName={venue.name} />
+              <Tile tile={tile} venueName={venue.name} venueId={canonicalId} />
             </li>
           ))}
         </ul>
@@ -198,8 +198,12 @@ export default async function BarTabPage({ params }: PageProps) {
   );
 }
 
-function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
-  const price = typeof tile.priceGbp === "number" ? formatGbp(tile.priceGbp) : null;
+function Tile({ tile, venueName, venueId }: { tile: BarTabTile; venueName: string; venueId: string }) {
+  // A pint price wears its band through the one price look (components/PriceBadge.tsx).
+  const price =
+    typeof tile.priceGbp === "number" ? (
+      <PintPriceBadge priceGbp={tile.priceGbp} venueId={venueId} className="barTabTilePrice" />
+    ) : null;
 
   if (tile.kind === "photo" && tile.photoUrl) {
     return (
@@ -213,7 +217,7 @@ function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
           loading="lazy"
           unoptimized
         />
-        {price ? <span className="barTabTilePrice">{price}</span> : null}
+        {price}
       </Link>
     );
   }
@@ -222,7 +226,7 @@ function Tile({ tile, venueName }: { tile: BarTabTile; venueName: string }) {
   return (
     <Link className="barTabTile barTabTile--receipt" href={`/p/${tile.id}`}>
       <span className="barTabTileEyebrow">Pint Drop</span>
-      <span className="barTabTileReceiptPrice">{price ?? "A memory"}</span>
+      {price ?? <span className="barTabTileMemory">A memory</span>}
       {tile.drink ? <span className="barTabTileDrink">{tile.drink}</span> : null}
       {tile.note ? <span className="barTabTileNote">{tile.note}</span> : null}
     </Link>

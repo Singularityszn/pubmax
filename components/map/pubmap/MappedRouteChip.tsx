@@ -31,7 +31,7 @@ export function MappedRouteChip({
       <div>
         <strong>{stopCount} stops mapped</strong>
         <span>
-          <Footprints size={12} aria-hidden="true" />
+          <Footprints size={14} aria-hidden="true" />
           {totalKm.toFixed(1)} km, {totalMinutes} min walk
         </span>
       </div>

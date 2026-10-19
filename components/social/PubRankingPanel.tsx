@@ -119,7 +119,7 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
               {row.score !== null ? (
                 <span className="pubRanking__score" aria-label={`${row.score.toFixed(1)} out of 10`}>{row.score.toFixed(1)}</span>
               ) : row.stars !== null ? (
-                <ReviewStars rating={row.stars} size={12} label={scope === "lot" ? `Your lot average ${row.stars} out of 5` : undefined} />
+                <ReviewStars rating={row.stars} size={14} label={scope === "lot" ? `Your lot average ${row.stars} out of 5` : undefined} />
               ) : null}
             </li>
           ))}

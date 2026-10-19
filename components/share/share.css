@@ -14,7 +14,7 @@
 .shareBar__label {
   font-family: var(--serif);
   font-style: italic;
-  font-size: 13px;
+  font-size: var(--text-sm);
   letter-spacing: 0.02em;
   color: var(--muted);
   margin-right: 2px;
@@ -33,7 +33,7 @@
   /* A circular icon control keeps the pill (owner ruling 2026-07-23), the
      shape the header's own icon controls wear; a 6px square was the one
      third shape on the profile. */
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel);
   color: var(--ink-soft);
   cursor: pointer;
@@ -46,10 +46,12 @@
     transform 0.12s ease;
 }
 
-.shareBar__btn:hover {
-  color: var(--color-accent-ink);
-  border-color: var(--brass);
-  background: var(--panel-raised);
+@media (hover: hover) and (pointer: fine) {
+  .shareBar__btn:hover {
+    color: var(--ink);
+    border-color: var(--hairline-strong);
+    background: var(--panel-raised);
+  }
 }
 
 /* A stamp being pressed — a hair of travel on click. */
@@ -67,15 +69,15 @@
 }
 
 .shareBar__toggle[aria-expanded="true"] {
-  color: var(--color-accent-ink);
-  border-color: var(--brass);
+  color: var(--state-selected-ink);
+  border-color: var(--state-selected-border);
   background: var(--panel-raised);
 }
 
 .shareBar__btn:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  color: var(--brass);
+  color: var(--ink);
   border-color: var(--brass);
 }
 

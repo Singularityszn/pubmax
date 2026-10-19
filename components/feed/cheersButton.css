@@ -11,11 +11,11 @@
   /* Thumb-sized: comfortably clears the 44px touch-target floor. */
   min-height: 44px;
   padding: 10px 18px;
-  border: 1.5px solid var(--brass);
-  border-radius: 999px;
+  border: 1.5px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
-  color: var(--color-accent-ink);
-  font-size: 0.9rem;
+  color: var(--ink);
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -29,8 +29,10 @@
     box-shadow 0.18s ease;
 }
 
-.cheersBtn:hover {
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtn:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  }
 }
 
 .cheersBtn:active {
@@ -43,21 +45,23 @@
   outline-offset: 2px;
 }
 
-/* Cheered "on" state — a firm brass fill so the acknowledgement reads at a glance
-   (not by colour alone: the glyph + text + fill all shift). */
+/* Cheered "on" state — a toggle that is on is a selection, so it reads in the
+   neutral selected row, never coral (docs/DESIGN_SYSTEM.md "Coral is spent
+   twice"). Not by colour alone: the glyph tilts and the text changes too. */
 .cheersBtn.isCheered {
-  background: var(--brass);
-  border-color: var(--brass);
-  color: var(--paper);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-deep, #0f1c16) 40%, transparent);
+  background: var(--state-selected-surface);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-ink);
 }
 
-.cheersBtn.isCheered:hover {
-  background: color-mix(in srgb, var(--brass) 90%, var(--ink-deep, #0f1c16));
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtn.isCheered:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--state-selected-surface));
+  }
 }
 
 .cheersGlyph {
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   line-height: 1;
   /* A tiny lift on cheer, so the glyph "pops" as the state flips. */
   transition: transform 0.18s ease;
@@ -89,7 +93,7 @@
 }
 
 .cheersBtn.isInking .cheersGlyph {
-  animation: cheersPop 0.3s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  animation: cheersPop 0.3s var(--ease-spring);
 }
 
 .cheersText {
@@ -100,17 +104,17 @@
 .cheersCount {
   min-width: 1.2em;
   padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
 .cheersBtn.isCheered .cheersCount {
-  background: color-mix(in srgb, var(--paper) 24%, transparent);
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
 /* Pressed-ink pulse — a radial ink-stamp that blooms from centre on tap, echoing
@@ -123,8 +127,8 @@
   margin: auto;
   width: 8px;
   height: 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 45%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
   transform: scale(0);
   animation: cheersInk 0.42s ease-out;
   pointer-events: none;
@@ -165,23 +169,25 @@
 
 /* On the 9:16 Spill card the button sits over the dark bottom scrim, where the
    paper-toned panel fill would fight the photo. This variant reads on the scrim:
-   a translucent frosted pill that turns solid brass when cheered. Mount with
+   a translucent frosted pill that turns solid white when cheered. Mount with
    className="cheersBtnOnScrim". */
 .cheersBtnOnScrim {
-  background: color-mix(in srgb, var(--ink-deep, #0f1c16) 46%, transparent);
-  border-color: color-mix(in srgb, var(--brass-bright, #d3a44a) 70%, transparent);
-  color: #fff;
+  background: color-mix(in srgb, var(--ink-deep) 46%, transparent);
+  border-color: color-mix(in srgb, var(--color-on-photo) 45%, transparent);
+  color: var(--color-on-photo);
   backdrop-filter: blur(2px);
 }
 
-.cheersBtnOnScrim:hover {
-  background: color-mix(in srgb, var(--ink-deep, #0f1c16) 62%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtnOnScrim:hover {
+    background: color-mix(in srgb, var(--ink-deep) 62%, transparent);
+  }
 }
 
 .cheersBtnOnScrim.isCheered {
-  background: var(--brass-bright, #d3a44a);
-  border-color: var(--brass-bright, #d3a44a);
-  color: var(--ink-deep, #0f1c16);
+  background: var(--color-on-photo);
+  border-color: var(--color-on-photo);
+  color: var(--ink-deep);
 }
 
 .cheersBtnOnScrim .cheersCount {
@@ -189,38 +195,40 @@
 }
 
 .cheersBtnOnScrim.isCheered .cheersCount {
-  background: color-mix(in srgb, var(--ink-deep, #0f1c16) 20%, transparent);
+  background: color-mix(in srgb, var(--ink-deep) 20%, transparent);
 }
 
 /* ── E5: category-tinted Cheers (opt-in via .cheersBtnCat) ─────────────────
    When a drop's category is a confident read, the CheersButton inherits
    `--feed-cat` (set on the enclosing .feedCard) so the ACTIVE state blooms in
-   the drink family's colour instead of plain brass. Resting state stays brass
-   (reads as a button first); only the cheered affirmation carries the hue, with
+   the drink family's colour instead of the neutral selection. Resting state
+   stays neutral (reads as a button first); only the cheered affirmation carries the hue, with
    glyph + fill still shifting (never colour alone). */
 .cheersBtnCat.isCheered {
-  background: var(--feed-cat, var(--brass));
-  border-color: var(--feed-cat, var(--brass));
+  background: var(--feed-cat, var(--ink));
+  border-color: var(--feed-cat, var(--ink));
   color: var(--paper);
 }
-.cheersBtnCat.isCheered:hover {
-  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 88%, var(--ink-deep, #0f1c16));
+@media (hover: hover) and (pointer: fine) {
+  .cheersBtnCat.isCheered:hover {
+    background: color-mix(in srgb, var(--feed-cat, var(--ink)) 88%, var(--ink-deep));
+  }
 }
 .cheersBtnCat.isInking::after {
-  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 45%, transparent);
+  background: color-mix(in srgb, var(--feed-cat, var(--ink)) 45%, transparent);
 }
 .cheersBtnOnScrim.cheersBtnCat.isCheered {
-  background: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
-  border-color: color-mix(in srgb, var(--feed-cat, var(--brass)) 82%, #ffffff);
-  color: var(--ink-deep, #0f1c16);
+  background: color-mix(in srgb, var(--feed-cat, var(--ink)) 82%, #ffffff);
+  border-color: color-mix(in srgb, var(--feed-cat, var(--ink)) 82%, #ffffff);
+  color: var(--ink-deep);
 }
 
 /* ── U2: inline failure prompt ───────────────────────────────────────────────────
    Shown for a few seconds when the toggle POST failed (anonymous store gating
    answers 503, or the network dropped). Same quiet shape as .saveToListToast,
    but on its own raised panel so it stays readable over the Spill card's dark
-   scrim as well as the plain receipt card. Warm brass on paper — honest, not
-   an error klaxon. */
+   scrim as well as the plain receipt card. Ink on paper — honest, not an
+   error klaxon. */
 .cheersGatePrompt {
   margin: 8px 0 0;
   padding: 6px 12px;
@@ -228,7 +236,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
-  color: var(--color-accent-ink);
-  font-size: 13px;
+  color: var(--ink);
+  font-size: var(--text-sm);
   line-height: 1.4;
 }

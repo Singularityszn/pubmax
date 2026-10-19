@@ -3,12 +3,12 @@
 .venueOccupancy {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+  border-top: 1px solid var(--line);
 }
 
 .venueOccupancyQuestion {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-base);
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink);
@@ -16,7 +16,7 @@
 
 .venueOccupancyReading {
   margin: 6px 0 0;
-  font-size: 16px;
+  font-size: var(--text-base);
   line-height: 1.35;
   color: var(--ink);
   overflow-wrap: anywhere;
@@ -52,10 +52,10 @@
   min-width: 44px;
   padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -73,15 +73,18 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 16px;
+  font-size: var(--text-base);
   font-weight: 600;
-  /* A coral WORD, so the accent's ink rather than its fill colour. */
-  color: var(--color-accent-ink);
+  /* A link is an ink word with an underline; coral is spent on the sheet's
+     one primary (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .venueOccupancyError {
   margin: 8px 0 0;
-  font-size: 16px;
+  font-size: var(--text-base);
   color: var(--ink-soft);
 }
 
@@ -91,6 +94,6 @@
 
 .venueOccupancyFlagged {
   margin: 8px 0 0;
-  font-size: 16px;
+  font-size: var(--text-base);
   color: var(--ink-soft);
 }
