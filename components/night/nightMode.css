@@ -178,7 +178,7 @@ html:has(.nightPill) {
   background: var(--badge-surface);
   color: var(--ink);
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
 }
 
@@ -494,7 +494,7 @@ html:has(.nightPill) {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--ink) 5%, transparent);
-  font-size: 15px;
+  font-size: var(--text-base);
   color: var(--ink);
 }
 
@@ -551,7 +551,7 @@ html:has(.nightPill) {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink);
-  font-size: 20px;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.2;
 }
@@ -561,7 +561,7 @@ html:has(.nightPill) {
   align-items: center;
   gap: 6px;
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 500;
 }
 

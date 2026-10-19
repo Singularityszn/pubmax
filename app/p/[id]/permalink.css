@@ -48,7 +48,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--text-base);
   text-decoration: none;
 }
 
@@ -63,7 +63,7 @@
   margin-bottom: 14px;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-decoration: none;
@@ -85,7 +85,7 @@
   background: var(--panel);
   padding: 8px;
   border-radius: var(--radius-sm);
-  box-shadow: 0 8px 18px rgba(24, 34, 26, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .permalink__photo {
@@ -126,11 +126,11 @@
   position: absolute;
   right: -6px;
   bottom: -12px;
-  box-shadow: 0 6px 14px rgba(24, 34, 26, 0.22);
+  box-shadow: var(--shadow-sm);
 }
 
 .permalink__stampLabel {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 700;
@@ -138,13 +138,13 @@
 
 .permalink__stampPrice {
   font-family: var(--serif);
-  font-size: 30px;
+  font-size: var(--text-xl);
   font-weight: 700;
   margin: 2px 0;
 }
 
 .permalink__stampUnit {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -237,7 +237,7 @@
   min-height: 44px;
   border-radius: var(--radius-sm);
   padding: 11px 18px;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 600;
   text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;

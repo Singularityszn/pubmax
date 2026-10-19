@@ -46,7 +46,7 @@
 .landingPhotoCredit {
   margin: 0;
   color: var(--landing-photo-ink-soft);
-  font-size: 0.625rem;
+  font-size: var(--text-2xs);
   line-height: 1.35;
   text-wrap: pretty;
 }

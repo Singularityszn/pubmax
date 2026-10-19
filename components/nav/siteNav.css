@@ -465,7 +465,7 @@ button.siteNavMoreItem {
 
 .siteNavCmdkKbd {
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -576,7 +576,7 @@ button.siteNavMoreItem {
 
 @media (max-width: 900px) {
   .siteNavBrand {
-    font-size: 0.94rem;
+    font-size: var(--text-base);
   }
 
   /* Densest band for the link row: the ⌘K hint is the most expendable item
@@ -755,7 +755,7 @@ button.siteNavMoreItem {
     padding: 0 2px;
     border-radius: var(--radius-sm);
     color: var(--ink);
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     font-family: var(--font-display);
     font-weight: 800;
     line-height: 1;

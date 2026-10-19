@@ -82,7 +82,7 @@
 .feedSightingDrink {
   grid-column: 1;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.25;
   color: var(--ink);
   display: -webkit-box;
@@ -109,7 +109,7 @@
 
 .feedSightingSource {
   grid-column: 1 / -1;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.3;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -126,7 +126,7 @@
   background: var(--brass);
   color: var(--paper);
   font-weight: 650;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   text-decoration: none;
   border: 1px solid color-mix(in srgb, var(--brass) 70%, var(--ink) 30%);
 }

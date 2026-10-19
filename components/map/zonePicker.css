@@ -71,7 +71,7 @@
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--panel-raised);
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+  box-shadow: var(--shadow);
 }
 
 .zonePicker.isInline {

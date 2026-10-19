@@ -14,7 +14,7 @@
   padding: 10px 0;
   margin: -10px 0;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--ledger-muted, #6b6257);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -61,7 +61,7 @@
 }
 
 .operatorRailBody {
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--ledger-muted, #6b6257);
   margin: 0 0 0.75rem;
@@ -85,7 +85,7 @@
 .operatorRailField select,
 .operatorRailField textarea {
   font: inherit;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--ledger-rule, rgba(0, 0, 0, 0.18));
   border-radius: var(--radius-sm);
@@ -106,7 +106,7 @@
   background: var(--ledger-ink, #2b2620);
   color: var(--ledger-bg, #fff);
   font: inherit;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   padding: 0.5rem 0.9rem;
   cursor: pointer;

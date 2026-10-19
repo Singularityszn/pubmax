@@ -167,7 +167,7 @@
 
 .menuHub__label {
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
 }

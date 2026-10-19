@@ -772,7 +772,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   .drinkSubtypeChip {
     min-height: 36px;
     padding: 4px 12px;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
   }
 
   /* Sheet / onboarding / detail collision. Planner peek/half leave the

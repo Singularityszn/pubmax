@@ -34,7 +34,7 @@
   content: "+";
   margin-left: auto;
   color: var(--muted);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
 }
 
 .venueOverviewMore[open] > summary::after,

@@ -67,7 +67,6 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 80%, transparent);
 }
 
 .venuePriceEntryPanel > .venueCommunitySignals:first-child {
@@ -186,7 +185,7 @@
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "kern" 0;
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--ink-soft);
@@ -205,7 +204,7 @@
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "kern" 0;
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -229,7 +228,7 @@
      fill stays, the coral glow under it went (a fill is the mark). */
   background: var(--accent-action);
   color: var(--color-on-accent);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -398,7 +397,7 @@
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "kern" 0;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--ink);
@@ -440,7 +439,7 @@
   min-height: 44px;
   align-items: center;
   color: var(--ink);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 750;
   text-underline-offset: 3px;
   touch-action: manipulation;
@@ -600,7 +599,7 @@
 
 .vpsigFormTitle {
   margin: 0 0 7px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   color: var(--ink);
 }

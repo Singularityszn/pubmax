@@ -43,13 +43,13 @@
 
 .venueAwardTitle {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.25;
   color: var(--accent-price-ink);
 }
 
 .venueAwardSource {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--accent-price-ink);
   opacity: 0.8;
 }

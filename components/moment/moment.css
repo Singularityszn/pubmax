@@ -162,7 +162,7 @@
     border-color: var(--hairline-strong);
   }
 }
-.momentMediaPicker strong { color: var(--ink); font-size: 0.9375rem; }
+.momentMediaPicker strong { color: var(--ink); font-size: var(--text-base); }
 .momentMediaPicker span { color: var(--muted); font-size: var(--text-xs); max-width: 30ch; text-align: center; }
 .momentMediaPickerLine { display: block; text-wrap: balance; }
 .momentMediaPicker input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }
@@ -194,7 +194,7 @@
   border-radius: 18px 18px 10px 10px;
   background: var(--paper);
   color: var(--ink);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 30%);
+  box-shadow: var(--shadow);
 }
 .momentEditorHeader {
   min-height: 56px;
@@ -296,7 +296,7 @@
   border-radius: var(--radius-lg);
   background: var(--panel);
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 800;
 }
 @media (hover: hover) and (pointer: fine) {

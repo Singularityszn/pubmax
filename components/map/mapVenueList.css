@@ -108,7 +108,7 @@
 
 .mapVenueListTitle {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   font-weight: 850;
   color: var(--ink);
 }
@@ -344,7 +344,7 @@
 .mapVenueListEmpty {
   margin: 0;
   padding: 16px 16px 20px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--muted);
 }

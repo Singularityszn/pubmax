@@ -20,7 +20,7 @@
   border-radius: 1.25rem;
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: 0 24px 70px color-mix(in srgb, var(--ink-deep) 30%, transparent);
+  box-shadow: var(--shadow);
 }
 
 .accountOnboardingLoadError {
@@ -33,7 +33,6 @@
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink-deep) 12%, transparent);
 }
 
 .accountOnboardingHead {
@@ -53,7 +52,7 @@
 
 .accountOnboardingEyebrow {
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.01em;
 }

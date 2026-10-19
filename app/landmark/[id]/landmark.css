@@ -9,7 +9,7 @@
 }
 
 .landmarkChapterEyebrow {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--ink-soft);
@@ -38,7 +38,7 @@
 
 .landmarkChapterPhoto figcaption {
   padding: 6px 10px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--ink-soft);
   background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
@@ -51,7 +51,7 @@
 }
 
 .landmarkChapterHistory {
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   line-height: 1.55;
   margin: 0 0 12px;
 }
@@ -97,7 +97,7 @@
 
 .landmarkChapterSectionTitle {
   font-family: var(--serif);
-  font-size: 1.25rem;
+  font-size: var(--text-md);
   margin: 0 0 10px;
 }
 
@@ -136,7 +136,7 @@
 /* The straight-line caveat, once, under the section head. */
 .landmarkChapterCaveat {
   margin: 0 0 10px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--ink-soft);
 }

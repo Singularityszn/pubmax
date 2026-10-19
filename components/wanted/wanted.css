@@ -6,14 +6,14 @@
 
 .wantedPanel__title {
   margin: 0 0 0.35rem;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--ink);
 }
 
 .wantedPanel__lede {
   margin: 0 0 0.85rem;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
   color: var(--muted);
 }
@@ -131,7 +131,7 @@
 .wantedPanel__empty,
 .wantedFulfilNote {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
   color: var(--muted);
 }
@@ -262,14 +262,14 @@
 
 .wantedRow__noteLabel {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .wantedPromotion label {
   display: grid;
   gap: 0.25rem;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .wantedPromotion select,
@@ -294,7 +294,7 @@
 .wantedPromotion [role="status"] {
   max-width: 16rem;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .wantedPromotionState {

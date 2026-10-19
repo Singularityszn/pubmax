@@ -73,7 +73,7 @@
 
 .weAreOutPrivacy {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -131,7 +131,7 @@
 .weAreOutDoneTitle {
   margin: 0;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   color: var(--ink);
 }
 

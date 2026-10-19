@@ -34,7 +34,7 @@
 .unverifiedPubName {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.32rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1.15;
   color: var(--ink);
@@ -74,7 +74,7 @@
 .unverifiedPubLead {
   margin: 14px 0 0;
   color: var(--ink-soft);
-  font-size: 0.94rem;
+  font-size: var(--text-base);
   line-height: 1.45;
 }
 
@@ -85,7 +85,7 @@
 .unverifiedPubSource {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -122,7 +122,7 @@
 .unverifiedPubLore p {
   margin: 0;
   color: var(--ink);
-  font-size: 0.94rem;
+  font-size: var(--text-base);
   line-height: 1.45;
 }
 
@@ -132,7 +132,7 @@
   gap: 8px;
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 /* What Wikidata records about this pub: one statement per line, each linked,

@@ -144,7 +144,7 @@
     grid-column: 1 / -1;
     grid-row: 2;
     padding-left: 6px;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     line-height: 1.25;
   }
 }

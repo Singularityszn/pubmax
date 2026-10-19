@@ -34,7 +34,7 @@
 .nationalPintLine {
   margin: 6px 0 0;
   color: var(--ink);
-  font-size: 20px;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.35;
   /* A price is a number to be compared, so the figures line up. */

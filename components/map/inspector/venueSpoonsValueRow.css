@@ -59,7 +59,7 @@
   margin: 0;
   min-width: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .venueSpoonsValueStanding {

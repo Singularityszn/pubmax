@@ -84,7 +84,7 @@
 
 .morningCard__eyebrow {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-base);
   font-weight: 750;
   color: var(--ink);
 }

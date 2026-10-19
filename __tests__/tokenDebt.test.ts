@@ -69,11 +69,20 @@ describe("token debt", () => {
   });
 
   // Measured on 18 Oct 2026 after the first snap: 1,022 font sizes within 5% of
-  // a step, 492 corners and 978 dead fallbacks went to tokens.
+  // a step, 492 corners and 978 dead fallbacks went to tokens. The second pass
+  // (19 Oct 2026) took every font size within 10% of a step (476; on a near
+  // tie the smaller step, so no control grew) and 63 shadows: elevation went
+  // to --shadow, --shadow-sm, --shadow-inset-press or the map overlay pair,
+  // and decoration (in-flow card lifts, inset highlights, glows) went.
+  // What stays raw on purpose: seven micro stamps under 0.62rem (bar tab,
+  // Spill composer, Tonight lane, Pub Pal, zone index) and feed.css's 2.35rem
+  // display figure; focus and selection rings, marker halos, the live-dot
+  // pulses, the crop mask, the Pub Pal halo, the tab bar's two-way lift and
+  // the phone sheet's upward shadow, none of which is an elevation step.
   const CEILINGS = {
-    "raw font sizes": { pattern: /font-size:\s*[0-9.]+(?:px|rem)\b/g, max: 484 },
+    "raw font sizes": { pattern: /font-size:\s*[0-9.]+(?:px|rem)\b/g, max: 8 },
     "raw corners": { pattern: /border-radius:\s*(?!0[\s;])[0-9.]+(?:px|rem)\b/g, max: 30 },
-    "raw shadows": { pattern: /box-shadow:\s*(?:inset\s+)?-?[0-9]/g, max: 109 },
+    "raw shadows": { pattern: /box-shadow:\s*(?:inset\s+)?-?[0-9]/g, max: 46 },
     "var() fallbacks": { pattern: /var\(--[\w-]+\s*,/g, max: 291 },
   } as const;
 

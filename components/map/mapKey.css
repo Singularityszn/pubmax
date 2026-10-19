@@ -21,7 +21,7 @@
 .mapKeyNote {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -41,7 +41,7 @@
   gap: 7px;
   min-width: 0;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .mapKeyPriceSwatch {
@@ -92,7 +92,7 @@
   background: var(--panel-raised);
   box-shadow: 0 0 0 1px var(--ink-deep);
   color: var(--ink);
-  font-size: 0.64rem;
+  font-size: var(--text-2xs);
   font-weight: 850;
 }
 
@@ -161,7 +161,7 @@
 
 .mapKeyItem strong {
   color: var(--ink);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
 }
 
 .mapKeyItem small {
@@ -326,7 +326,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 
 .mapKeyRouteStopNumber {
   color: var(--paper);
-  font-size: 0.64rem;
+  font-size: var(--text-2xs);
   font-weight: 850;
   line-height: 1;
 }
@@ -354,7 +354,7 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 
 .mapKeyTrustList small {
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
