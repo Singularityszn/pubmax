@@ -99,7 +99,7 @@ describe("the Pal's evening question", () => {
   it("is pub language with no swearing, no exclamation and never a drink count", () => {
     const lines = [
       PAL_NIGHT_QUESTION,
-      ...PAL_NIGHT_CHOICES.flatMap((choice) => [choice.label, choice.hint, choice.reply, palNightInviteText("Ripley", choice)]),
+      ...PAL_NIGHT_CHOICES.flatMap((choice) => [choice.label, choice.hint, choice.reply]), palNightInviteText("Ripley"),
     ];
     for (const line of lines) {
       expect(line).not.toMatch(/!/);
@@ -121,11 +121,12 @@ describe("the Pal's evening question", () => {
     expect(readPalNightAnswer(storage, LONDON_LATE)).toBeNull();
   });
 
-  it("invites the crew to the night in the Pal's name, never to a price or a count", () => {
-    const sesh = palNightChoice("sesh")!;
-    expect(palNightInviteText("Ripley", sesh)).toBe("Ripley's planning a proper sesh tonight. Open the link and tap I'm in.");
-    expect(palNightInviteText("  ", palNightChoice("quiet")!)).toBe("My Pal's planning a quiet couple tonight. Open the link and tap I'm in.");
-    for (const choice of PAL_NIGHT_CHOICES) expect(palNightInviteText("Ripley", choice)).not.toMatch(/\d|£/);
+  it("invites the crew to tonight in the Pal's name, never to a price, a count or the evening's answer", () => {
+    expect(palNightInviteText("Ripley")).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
+    expect(palNightInviteText("  ")).toBe("My Pal's got a plan for tonight. Open the link and tap I'm in.");
+    expect(palNightInviteText("Ripley")).not.toMatch(/\d|£/);
+    // The saved plan may not be the one the answer made, so the words never name the answer.
+    for (const choice of PAL_NIGHT_CHOICES) expect(palNightInviteText("Ripley").toLowerCase()).not.toContain(choice.label.toLowerCase());
   });
 
   it("leaves the device with the account, so the next person is asked afresh", () => {
@@ -222,7 +223,7 @@ describe("the question on /pal", () => {
       await act(async () => { await Promise.resolve(); });
       await act(async () => whoButton()!.click());
       expect(crew.shared).toHaveLength(1);
-      expect(crew.shared[0]!.text).toBe("Ripley's planning a proper sesh tonight. Open the link and tap I'm in.");
+      expect(crew.shared[0]!.text).toBe("Ripley's got a plan for tonight. Open the link and tap I'm in.");
       expect(new URL(crew.shared[0]!.url).pathname).toBe(`/plan/${PLAN_ID}`);
       expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
       expect(host.textContent).toContain("Sent. Now they tap I'm in.");
@@ -255,6 +256,33 @@ describe("the question on /pal", () => {
       await act(async () => whoButton()!.click());
       const fallback = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Send it from the plan")!;
       expect(new URL(fallback.href).hash).toBe("#share");
+    });
+
+    it("says a WhatsApp draft is ready to send, never that it was sent", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      tonightsPlan();
+      crew.outcome = "whatsapp";
+      await render();
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => whoButton()!.click());
+      expect(host.textContent).not.toContain("Sent.");
+      expect(host.textContent).toContain("Ready in WhatsApp. Send it, then they tap I'm in.");
+    });
+
+    it("forgets the last share when another tab swaps tonight's plan", async () => {
+      writePalNightAnswer(window.localStorage, "sesh", LONDON_LATE);
+      tonightsPlan();
+      await render();
+      await act(async () => { await Promise.resolve(); });
+      await act(async () => whoButton()!.click());
+      expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+      await act(async () => {
+        writeActivePlan({ id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", startTime: new Date(LONDON_LATE.getTime() - 60 * 60_000).toISOString(), stopIndex: 0, role: "host" });
+        await Promise.resolve();
+      });
+      await act(async () => { await Promise.resolve(); });
+      expect(whoButton()).toBeDefined();
+      expect(host.textContent).not.toContain("Sent.");
     });
 
     it("stops offering last night's plan on a page left open past its window", async () => {

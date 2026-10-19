@@ -44,7 +44,7 @@ function absoluteUrl(path: string): string {
 }
 
 type Crew = { planId: string; inviteUrl: string | null };
-type Sent = "idle" | "sent" | "failed";
+type Sent = "idle" | "sent" | "whatsapp" | "failed";
 
 // setTimeout holds at most this many milliseconds; a plan further off than
 // that is simply re-checked when this timer runs out.
@@ -98,7 +98,7 @@ function useTonightsCrew(): Crew | null {
  * straight to the share sheet. Without a token it opens the plan's own invite
  * tools, and it never shares a bare `/plan/{id}`, which cannot join.
  */
-function PalNightCrew({ crew, palName, choice }: { crew: Crew; palName: string; choice: PalNightChoice }) {
+function PalNightCrew({ crew, palName }: { crew: Crew; palName: string }) {
   const [sent, setSent] = useState<Sent>("idle");
 
   const invitePage = `/plan/${crew.planId}#share` as Route;
@@ -111,8 +111,9 @@ function PalNightCrew({ crew, palName, choice }: { crew: Crew; palName: string; 
   }
   const inviteUrl = crew.inviteUrl;
   const share = async () => {
-    const outcome = await shareNightObject({ title: "Tonight", text: palNightInviteText(palName, choice), url: inviteUrl });
-    setSent(outcome === "failed" ? "failed" : outcome === "cancelled" ? "idle" : "sent");
+    const outcome = await shareNightObject({ title: "Tonight", text: palNightInviteText(palName), url: inviteUrl });
+    // A WhatsApp fallback only opens a draft, so it is ready to send, not sent.
+    setSent(outcome === "failed" ? "failed" : outcome === "cancelled" ? "idle" : outcome === "whatsapp" ? "whatsapp" : "sent");
   };
   return (
     <>
@@ -120,6 +121,7 @@ function PalNightCrew({ crew, palName, choice }: { crew: Crew; palName: string; 
         Who&apos;s coming?
       </button>
       {sent === "sent" ? <p className="palNightQuestionNote" role="status">Sent. Now they tap I&apos;m in.</p> : null}
+      {sent === "whatsapp" ? <p className="palNightQuestionNote" role="status">Ready in WhatsApp. Send it, then they tap I&apos;m in.</p> : null}
       {sent === "failed" ? (
         <p className="palNightQuestionNote" role="status">
           That didn&apos;t send. <Link href={invitePage}>Send it from the plan</Link>
@@ -180,7 +182,7 @@ export default function PalNightQuestion({ muted, palName }: { muted: boolean; p
             Open the plan
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
-          {crew ? <PalNightCrew crew={crew} palName={palName} choice={asked.answer} /> : null}
+          {crew ? <PalNightCrew key={crew.planId} crew={crew} palName={palName} /> : null}
           <button type="button" className="palNightQuestionChange" onClick={changeMind}>
             Change my mind
           </button>

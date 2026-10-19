@@ -19,8 +19,6 @@ export type PalNightChoice = {
   hint: string;
   /** What the Pal says once the person has picked it. */
   reply: string;
-  /** The night in the invite the person sends: "Ripley's planning a proper sesh tonight." */
-  invite: string;
   /** The plan in the planner's own words: stops, mood and a value budget. */
   plan: string;
 };
@@ -31,7 +29,6 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
     label: "Quiet couple",
     hint: "Two quiet pubs, on a budget",
     reply: "A quiet couple it is. Two quiet pubs, on a budget.",
-    invite: "a quiet couple",
     plan: "2 pubs tonight, quiet and not pricey",
   },
   {
@@ -39,7 +36,6 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
     label: "Proper sesh",
     hint: "Four lively pubs, on a budget",
     reply: "Proper sesh it is. Four lively pubs, on a budget.",
-    invite: "a proper sesh",
     plan: "4 pubs tonight, lively and cheap",
   },
   {
@@ -47,7 +43,6 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
     label: "Absolute carnage",
     hint: "Six lively pubs, on a budget",
     reply: "Absolute carnage it is. Six lively pubs, on a budget, and mind the last train.",
-    invite: "absolute carnage",
     plan: "6 pubs tonight, lively and cheap",
   },
 ];
@@ -79,13 +74,15 @@ export function msUntilPalNightBoundary(now: Date): number {
 }
 
 /**
- * The words that ride with tonight's crew link. It names the Pal and the night,
- * never the pubs, a price or a count, and asks the way the plan page already
- * does ("Open the link and tap I'm in.").
+ * The words that ride with tonight's crew link. They name the Pal and tonight,
+ * never the pubs, a price or a count, and ask the way the plan page already
+ * does ("Open the link and tap I'm in."). They never name the evening's answer:
+ * the saved plan may not be the one the answer made, so the words could
+ * describe a different night.
  */
-export function palNightInviteText(palName: string, choice: PalNightChoice): string {
+export function palNightInviteText(palName: string): string {
   const name = palName.trim() || "My Pal";
-  return `${name}'s planning ${choice.invite} tonight. Open the link and tap I'm in.`;
+  return `${name}'s got a plan for tonight. Open the link and tap I'm in.`;
 }
 
 export function palNightChoice(id: unknown): PalNightChoice | null {
