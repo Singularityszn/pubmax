@@ -150,6 +150,17 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 16.4, drinkLabel: "Cantillon Gueuze" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15, drinkLabel: "Cantillon Rose de Gambrinus 37.5cl" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15 },
+  // An 11% Aperol filed as alcohol-free. A 0.05% or 0.5% beer stays beer: only
+  // an exact zero strength or alcohol-free wording files as alcohol-free.
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "alcohol-free", priceGbp: 6.5, drinkLabel: "Aperol 11%" },
+  // A liqueur filed as coffee, a witbier as a soft drink, desserts as wine, and
+  // a calorie line that is the elderflower spritz already quarantined above.
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "coffee", priceGbp: 5, drinkLabel: "Kahlúa Coffee Liqueur 16%" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "coffee", priceGbp: 6.5, drinkLabel: "Malibu 18%" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "soft-drink", priceGbp: 7, drinkLabel: "Queer Flowers Belgian Witbier 4%" },
+  { sourceUrl: "https://watermanstw9.co.uk/menu", category: "wine", priceGbp: 7, drinkLabel: "Ice Cream Vanilla, Chocolate or Pistachio (v/gf)" },
+  { sourceUrl: "https://watermanstw9.co.uk/menu", category: "wine", priceGbp: 7, drinkLabel: "Sorbet Lemon or Raspberry (v/gf)" },
+  { sourceUrl: "https://www.thepaternoster.com/food-drink/", category: "wine", priceGbp: 5.45, drinkLabel: "88kcal" },
   // Shard 3. The Imperial Arms PDF reads its columns out of order, so liqueurs
   // land as coffee, gins as vodka and 0.5% beers as beer, and one £7.40 figure
   // lands under five spirits. The Greyhound page mixes its food menu in.

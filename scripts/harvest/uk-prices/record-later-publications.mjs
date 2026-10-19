@@ -32,7 +32,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
-import { isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
+import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import { parseSiteHarvestLedgerText } from "../../../lib/siteHarvestLedgerCore.ts";
 
 const ROOT = process.cwd();
@@ -92,20 +92,53 @@ function pageWords(body) {
     .trim();
 }
 
-/** The page's own words around the first recorded price, or why there are none. */
-async function readEvidence(url, rows, robots) {
+/** Two spellings of one page: `https://a.example` and `https://a.example/`. */
+function sameResource(a, b) {
+  try {
+    return new URL(a).href === new URL(b).href;
+  } catch {
+    return a === b;
+  }
+}
+
+function discardBody(response) {
+  response.body?.cancel().catch(() => {});
+}
+
+/**
+ * The page's own words around the first recorded price, or why there are none.
+ * `evidenceUrl` is the page that served those words: the landing URL when the
+ * source redirected, so a receipt never names a page that did not serve it.
+ */
+export async function readEvidence(url, rows, robots, fetchImpl = fetch) {
   const readAt = new Date().toISOString();
   if (!isHarvestableOperatorUrl(url)) return { evidence: `not re-read: refused by source policy`, readAt };
   const decision = await robots(url);
   if (!decision.allowed) return { evidence: `not re-read: robots ${decision.reason}`, readAt };
   let body;
+  let evidenceUrl = url;
   try {
-    const response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(25_000) });
+    const response = await fetchImpl(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(25_000) });
+    // The host picks the last hop, so permission is asked again where we landed:
+    // the source table first, then that page's own robots rules.
+    const landing = harvestRedirectLanding(url, response.url);
+    if (landing.outcome === "refused") {
+      discardBody(response);
+      return { evidence: `not re-read: redirected to ${landing.url}, refused by source policy`, readAt };
+    }
+    if (landing.outcome === "redirected") {
+      const landed = await robots(landing.url);
+      if (!landed.allowed) {
+        discardBody(response);
+        return { evidence: `not re-read: redirected to ${landing.url}, robots ${landed.reason}`, readAt };
+      }
+    }
     if (!response.ok) return { evidence: `not re-read: HTTP ${response.status}`, readAt };
     if (/pdf/i.test(response.headers.get("content-type") ?? "")) {
       return { evidence: "not re-read as text: the page is a PDF", readAt };
     }
     body = await response.text();
+    evidenceUrl = landing.url;
   } catch (error) {
     return { evidence: `not re-read: ${String(error).slice(0, 120)}`, readAt };
   }
@@ -117,10 +150,10 @@ async function readEvidence(url, rows, robots) {
     const match = new RegExp(`£\\s?${figure}(?![0-9])`).exec(words);
     if (match) {
       const start = Math.max(0, match.index - EXCERPT_CHARS / 2);
-      return { evidence: words.slice(start, start + EXCERPT_CHARS), readAt };
+      return { evidence: words.slice(start, start + EXCERPT_CHARS), evidenceUrl, readAt };
     }
   }
-  return { evidence: "re-read: no recorded figure is on the page now", readAt };
+  return { evidence: "re-read: no recorded figure is on the page now", evidenceUrl, readAt };
 }
 
 async function main() {
@@ -160,10 +193,20 @@ async function main() {
   for (const group of groups.values()) {
     ordered.push(...group.lines);
     const rows = parseSiteHarvestLedgerText(`${group.lines.join("\n")}\n`);
-    const { evidence, readAt } = await readEvidence(group.sourceUrl, rows, robots);
+    const { evidence, evidenceUrl, readAt } = await readEvidence(group.sourceUrl, rows, robots);
     const evidencePath = `${EVIDENCE_DIR}/${slugOf(group.sourceUrl, group.observedAt)}.json`;
     const evidenceText = `${JSON.stringify(
-      { version: 1, sourceUrl: group.sourceUrl, observedAt: group.observedAt, evidence, evidenceReadAt: readAt, reader: READER, rows },
+      {
+        version: 1,
+        sourceUrl: group.sourceUrl,
+        observedAt: group.observedAt,
+        evidence,
+        // Named only when the re-read landed on another page than the source.
+        ...(evidenceUrl && !sameResource(evidenceUrl, group.sourceUrl) ? { evidenceUrl } : {}),
+        evidenceReadAt: readAt,
+        reader: READER,
+        rows,
+      },
       null,
       2,
     )}\n`;
@@ -187,4 +230,6 @@ async function main() {
   writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
 }
 
-await main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await main();
+}
