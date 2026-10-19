@@ -20,13 +20,13 @@ export function SearchField({ className, value, onChange, label = "Search pubs",
     // :focus-visible rule drew a ring inside this one, so a focused field read
     // as two stacked outlines.
     <label className={cn("houseSearchField flex min-h-11 items-center gap-2 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 focus-within:ring-2 focus-within:ring-[var(--brass)]", className)}>
-      <Search size={18} aria-hidden="true" />
+      <Search size={16} aria-hidden="true" />
       <span className="sr-only">{label}</span>
       {/* The inner ring and Chrome's own cancel glyph are both suppressed in
           globals.css: a utility class loses to the global :focus-visible and
           UA rules it has to beat. See .houseSearchField there. */}
       <input ref={inputRef} className="min-w-0 flex-1 border-0 bg-transparent text-base text-[var(--color-text)] outline-none" type="search" aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} {...props} />
-      {value ? <IconButton variant="ghost" className="-mr-2" aria-label="Clear search" onClick={clear}><X size={17} /></IconButton> : null}
+      {value ? <IconButton variant="ghost" className="-mr-2" aria-label="Clear search" onClick={clear}><X size={16} /></IconButton> : null}
     </label>
   );
 }

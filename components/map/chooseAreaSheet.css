@@ -11,23 +11,23 @@
 .chooseAreaSearch input {
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid var(--hairline, var(--line));
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   background: var(--panel);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-base);
 }
 
 .chooseAreaSectionTitle {
   margin: 0;
-  color: var(--color-text-soft, var(--ink-soft));
+  color: var(--color-text-soft);
   font-size: var(--text-sm);
   font-weight: 700;
   line-height: var(--leading-snug);
 }
 
 .chooseAreaDesktopTitle {
-  color: var(--color-text, var(--ink));
+  color: var(--color-text);
   font-family: var(--font-display);
   font-size: var(--text-lg);
   letter-spacing: var(--tracking-tight);
@@ -58,25 +58,31 @@
   text-align: left;
 }
 
-.chooseAreaRow:hover,
 .chooseAreaRow:focus-visible {
-  border-color: var(--hairline, var(--line));
+  border-color: var(--hairline);
   background: color-mix(in srgb, var(--panel) 70%, transparent);
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .chooseAreaRow:hover {
+    border-color: var(--hairline);
+    background: color-mix(in srgb, var(--panel) 70%, transparent);
+  }
+}
+
 .chooseAreaRowName {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .chooseAreaRowMeta {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   white-space: nowrap;
 }
 
 .chooseAreaNote {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
   color: var(--muted);
 }
@@ -90,7 +96,7 @@
   max-height: min(70vh, 640px);
   overflow: auto;
   padding: 16px;
-  border: 1px solid var(--hairline, var(--line));
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   box-shadow: var(--shadow);
@@ -117,15 +123,20 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
 
-.chooseAreaDesktopClose:hover,
 .chooseAreaDesktopClose:focus-visible {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chooseAreaDesktopClose:hover {
+    color: var(--ink);
+  }
 }
 
 .chooseAreaDesktopScrim {

@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
-import EmptyState from "@/components/ui/empty-state";
 import NationalPintBenchmarks from "@/components/pintindex/NationalPintBenchmarks";
 import BoroughCoverageStatus from "@/components/pintindex/BoroughCoverageStatus";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
@@ -20,9 +19,10 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
-import { computeZonePintIndex } from "@/lib/zones";
+import { computeZonePintIndex, formatZoneGbp, type ZonePintIndex } from "@/lib/zones";
 import PintIndexScreen from "./PintIndexScreen";
 
+import "@/components/listing/listing.css";
 import "./pint-index.css";
 
 const SITE_URL = "https://pubmaxxing.com";
@@ -58,6 +58,16 @@ export async function generateMetadata(): Promise<Metadata> {
       description: PAGE_DESCRIPTION,
     },
   };
+}
+
+// THE HEAD SAYS LONDON'S OWN FIGURE FIRST (taste plan, 18 Oct 2026). The page
+// opened on a heading and a button, then three figures counted by other
+// people, before a reader met a London price. The zone medians are London's,
+// measured here, so the lede states the dearest and cheapest zone in one line.
+// It says nothing when fewer than two zones clear the floor (lib/zones.ts).
+function zoneLede(index: ZonePintIndex | null): string | null {
+  if (!index?.dearest || !index.cheapest || index.dearest.zone === index.cheapest.zone) return null;
+  return `Zone ${index.dearest.zone}'s median cheapest pint is ${formatZoneGbp(index.dearest.medianGbp)}. Zone ${index.cheapest.zone}'s is ${formatZoneGbp(index.cheapest.medianGbp)}.`;
 }
 
 function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCount: number) {
@@ -107,18 +117,25 @@ export default async function PintIndexPage() {
   const national = citableNationalBenchmarks(NATIONAL_PINT_BENCHMARKS);
   const dearestPint = summary.dearestPint;
 
+  const ledeZones = zoneLede(zoneIndex);
+  const ledeWindow = window
+    ? `Prices seen: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`
+    : null;
+  const lede = [ledeZones, ledeWindow].filter(Boolean).join(" ") || undefined;
+
+  // London's own figures come first, then the reader's own patch, then the
+  // league and its history; the national yardstick follows them, because it is
+  // context for London's numbers rather than the answer. A section with no
+  // rows renders nothing: "No borough league yet" was a whole section saying
+  // there was nothing in it (taste plan, 18 Oct 2026).
   return (
-    <main id="main" className="pintIndexPage">
+    <main id="main" className="pintIndexPage listingShell">
       {jsonLd ? <JsonLd data={jsonLd} nonce={nonce} /> : null}
       <SiteNav />
 
       <PintIndexScreen
         title={PAGE_TITLE}
-        lede={
-          window
-            ? `Prices seen: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`
-            : undefined
-        }
+        lede={lede}
         csvHref={rows.length > 0 ? "/pint-index/data.csv" : undefined}
       >
         {summary.averageGbp !== null ? (
@@ -130,26 +147,13 @@ export default async function PintIndexPage() {
           </dl>
         ) : null}
 
-        {national.length > 0 ? (
-          <section className="pintIndexSection" aria-labelledby="nationalHeading">
-            <h2 id="nationalHeading" className="pintIndexSectionTitle">What a pint costs nationally</h2>
-            <p className="pintIndexSectionDek">
-              None of these figures are ours. They are here so the prices on this
-              page have something to sit against, and each one names who counted
-              it, when, and exactly what they counted. A national cask ale is not
-              a London pint.
-            </p>
-            <NationalPintBenchmarks rows={national} headingId="nationalHeading" />
-          </section>
-        ) : null}
-
         <section className="pintIndexSection" aria-labelledby="zoneHeading">
-          <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
-          <p className="pintIndexNote">
+          <h2 id="zoneHeading" className="listingSectionTitle">By fare zone</h2>
+          <p className="listingSectionDek">
             A pint in Zone 1 costs more than Zone 3. Here&rsquo;s how much more. Each pub
-            is placed in its <strong>nearest station&rsquo;s</strong>{" "}TfL fare zone
-            (a documented approximation, not an area boundary), then we take the
-            median of every zone&rsquo;s listed cheapest pint.
+            is placed in its nearest station&rsquo;s TfL fare zone (a documented
+            approximation, not an area boundary), then we take the median of every
+            zone&rsquo;s listed cheapest pint.
           </p>
           <ZonePintIndexStrip index={zoneIndex ?? computeZonePintIndex([])} />
         </section>
@@ -159,33 +163,21 @@ export default async function PintIndexPage() {
           surface="index"
         />
 
-        <BoroughCoverageStatus rows={seedBoroughCoverage} />
-
-        <section className="pintIndexSection" aria-labelledby="leagueHeading">
-          <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
-          {rows.length === 0 ? (
-            <EmptyState
-              title="No borough league yet."
-              action={<Link prefetch={false} href="/map">Find a pub and log a price</Link>}
-            >
-              The zone strip shows the wider price picture by fare zone. The league
-              only ranks boroughs using dated prices with a public source.
-            </EmptyState>
-          ) : (
+        {rows.length > 0 ? (
+          <section className="pintIndexSection" aria-labelledby="leagueHeading">
+            <h2 id="leagueHeading" className="listingSectionTitle">Borough league table</h2>
             <PintIndexLeagueTable
               rows={rows}
               caption="London boroughs ranked by average eligible pint price"
             />
-          )}
-          {rows.length > 0 ? (
-            <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
-          ) : null}
-        </section>
+            <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV)</a>
+          </section>
+        ) : null}
 
         {dearestPint ? (
           <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
-            <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
-            <p className="pintIndexSectionDek">
+            <h2 id="dearestHeading" className="listingSectionTitle">The dearest end</h2>
+            <p className="listingSectionDek">
               Cheapest first is the default above, because that is what you want
               on a Friday. This is the same table the other way up, ranked on the
               priciest pint each borough has on record. At the top of this dataset:{" "}
@@ -200,9 +192,24 @@ export default async function PintIndexPage() {
           </section>
         ) : null}
 
+        <BoroughCoverageStatus rows={seedBoroughCoverage} />
+
+        {national.length > 0 ? (
+          <section className="pintIndexSection" aria-labelledby="nationalHeading">
+            <h2 id="nationalHeading" className="listingSectionTitle">Against the national figures</h2>
+            <p className="listingSectionDek">
+              None of these figures are ours. They are here so the prices on this
+              page have something to sit against, and each one names who counted
+              it, when, and exactly what they counted. A national cask ale is not
+              a London pint.
+            </p>
+            <NationalPintBenchmarks rows={national} headingId="nationalHeading" />
+          </section>
+        ) : null}
+
         <section className="pintIndexSection" aria-labelledby="editionsHeading">
-          <h2 id="editionsHeading" className="pintIndexSectionTitle">Dated editions</h2>
-          <p className="pintIndexSectionDek">
+          <h2 id="editionsHeading" className="listingSectionTitle">Dated editions</h2>
+          <p className="listingSectionDek">
             This page moves as prices land, which is no use to anyone quoting it.
             So every closed month also gets its own page, frozen the day it goes
             up. {pintIndexMonthLabel(openMonth)} closes on{" "}
@@ -213,9 +220,9 @@ export default async function PintIndexPage() {
         </section>
 
         <section className="pintIndexSection" aria-labelledby="methodHeading">
-          <h2 id="methodHeading" className="pintIndexSectionTitle">Method and sources</h2>
-          <p className="pintIndexNote pintIndexMethodLede">Only prices with a public source and date are published. Older map-only prices stay out.</p>
+          <h2 id="methodHeading" className="listingSectionTitle">Method and sources</h2>
           <div className="pintIndexProse">
+            <p>Only prices with a public source and date are published. Older map-only prices stay out.</p>
             <p><strong>What counts.</strong> Community submissions, a pub or brewery&rsquo;s own published material, and properly licensed open data may enter the public Index only with a public source URL and price date.</p>
             <p><strong>Boroughs.</strong> We place coordinates inside versioned Greater London boundary shapes. A point outside every shape gets no borough. We never assign it to an arbitrary nearby one.</p>
             <p><strong>What stays out.</strong> The map may still use an older price baseline. Those rows stay out of this public Index, its CSV and its structured data.</p>
@@ -223,7 +230,9 @@ export default async function PintIndexPage() {
           </div>
         </section>
 
-        <p className="pintIndexFootnote"><Link href="/historic">Explore cited historic pubs →</Link> · <Link prefetch={false} href="/map">Open the map →</Link></p>
+        <p className="pintIndexFootnote">
+          <Link href="/historic" className="listingLink">Explore cited historic pubs</Link>
+        </p>
       </PintIndexScreen>
     </main>
   );

@@ -7,19 +7,21 @@
   min-height: 48px;
   padding: 12px 22px;
   font: inherit;
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
   background: var(--panel-raised);
-  border: 2px solid var(--brass);
-  border-radius: var(--radius-sm, 8px);
+  border: 2px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.ledgerReadButton:hover {
-  background: var(--brass);
-  color: var(--color-on-accent, #fdfaf2);
+@media (hover: hover) and (pointer: fine) {
+  .ledgerReadButton:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
 }
 
 .ledgerReadButton[aria-pressed="true"] {
@@ -29,12 +31,12 @@
 }
 
 /* Pressed is ink on paper in the light theme. Both tokens flip in dark, so it
-   would paint near-black text on a near-black fill. Dark wears the house
-   primary instead: coral with on-accent ink, like the Ledger's other primaries. */
+   would paint near-black text on a near-black fill. Dark wears the neutral
+   selected row instead: pressed is a selection, never coral. */
 html[data-theme="dark"] .ledgerReadButton[aria-pressed="true"] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--state-selected-surface);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-ink);
 }
 
 .ledgerReadButton:focus-visible {

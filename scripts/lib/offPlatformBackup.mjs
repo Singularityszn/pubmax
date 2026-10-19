@@ -31,8 +31,11 @@ export const MAX_RETENTION_WEEKS = 8;
 const PRUNE_AFTER_MS = PRUNE_AFTER_WEEKS * 7 * 24 * 60 * 60 * 1000;
 const MAX_RETENTION_MS = MAX_RETENTION_WEEKS * 7 * 24 * 60 * 60 * 1000;
 // Public data, the account table and what the auth schema needs to restore
-// sign-in, storage object rows, and the migration ledger.
-export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations"];
+// sign-in, storage object rows, the migration ledger, and pubmax_private: the
+// RLS helper functions every policy calls and two private tables. Without it a
+// restore loses about 31 policies and the auth.users trigger (restore proof,
+// 18 October 2026).
+export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations", "pubmax_private"];
 
 /** Connection settings as PG* variables, so the password never rides in an argument list. */
 export function pgEnvFromUrl(connectionString) {

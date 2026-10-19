@@ -22,7 +22,7 @@
 .feedSightingsTitle {
   margin: 0;
   padding: 4px 2px;
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 650;
   line-height: 1.3;
   color: var(--ink);
@@ -33,9 +33,9 @@
 .feedSightingsLede {
   margin: 0;
   padding: 0 2px;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
-  color: var(--ink-soft, var(--muted));
+  color: var(--ink-soft);
 }
 
 /* ── Strip: a quiet cluster below real user drops ────────────────────────── */
@@ -82,7 +82,7 @@
 .feedSightingDrink {
   grid-column: 1;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1.25;
   color: var(--ink);
   display: -webkit-box;
@@ -94,9 +94,9 @@
 
 .feedSightingVenue {
   grid-column: 1 / -1;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.3;
-  color: var(--ink-soft, var(--muted));
+  color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
 
@@ -109,9 +109,9 @@
 
 .feedSightingSource {
   grid-column: 1 / -1;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.3;
-  color: var(--muted, var(--ink-soft));
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 
@@ -122,11 +122,11 @@
   min-height: 44px;
   margin-top: 2px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--brass);
   color: var(--paper);
   font-weight: 650;
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   text-decoration: none;
   border: 1px solid color-mix(in srgb, var(--brass) 70%, var(--ink) 30%);
 }
@@ -140,6 +140,6 @@
 
 @media (hover: hover) {
   .feedSighting:hover {
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }

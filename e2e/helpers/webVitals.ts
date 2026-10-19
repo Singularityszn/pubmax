@@ -319,7 +319,7 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
   "/tonight": {
     selector: "[data-primary-action] a, [data-primary-action] button",
     kind: "click",
-    label: "See them on the map",
+    label: "Open the map",
   },
   "/today": {
     selector: "[data-primary-action] a, [data-primary-action] button",

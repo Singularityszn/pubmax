@@ -116,7 +116,7 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   );
   await page.getByRole("button", { name: "Discard draft" }).click();
 
-  const startRound = page.getByRole("button", { name: "Start Round", exact: true });
+  const startRound = page.getByRole("button", { name: "Start the round", exact: true });
   await expect(startRound).toBeEnabled();
   for (const viewport of MOBILE_VIEWPORTS) {
     await page.setViewportSize(viewport);

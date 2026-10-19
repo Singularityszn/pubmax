@@ -166,7 +166,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
 
       {deltaGbp !== null && pct !== null ? (
         <p className={`vpsDelta vpsDelta-${dir}`}>
-          <DirIcon size={15} aria-hidden="true" />
+          <DirIcon size={16} aria-hidden="true" />
           <span aria-hidden="true">
             {dir === "flat"
               ? "No change from the earlier price"

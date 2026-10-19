@@ -20,15 +20,15 @@ import {
   Footprints,
   LocateFixed,
   MapPin,
-  Route as RouteIcon,
-  TrainFront,
   Tv,
   X,
 } from "lucide-react";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
+import PriceBadge from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
+import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
@@ -49,6 +49,8 @@ import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";
@@ -107,6 +109,7 @@ import {
   tonightEmptyLead,
   tonightHeldRowCount,
   tonightListingsNoteLine,
+  tonightMusicLaneObservedAt,
   tonightNoteOffersRetry,
   tonightPaintStatus,
   tonightPicksState,
@@ -149,8 +152,14 @@ type LocationStatus = "idle" | "requesting" | "unavailable";
 // answer, and NEVER `asOf`: that field is the freshest of the bundled
 // artifacts and the rows, so a quiet night took its date off a snapshot file
 // and told a phone the night was checked two weeks ago (captain 6 Sep 2026).
+//
+// A read with no observed day is undated too. `checkedLabel(null)` answers the
+// sentence "No date on this yet", and set inside the chain it printed "No
+// events listed · No date on this yet · via what's-on" on a phone (taste
+// plan, 18 Oct 2026); null hands it to the one undated sentence instead.
 function freshnessLabel(kind: TonightFreshnessKind, observedAt: string | null): string | null {
-  return kind === "unknown" ? null : checkedLabel(observedAt);
+  if (kind === "unknown" || !observedAt) return null;
+  return checkedLabel(observedAt);
 }
 
 // The sourced pub suggestions are counted once: the credit row and the empty
@@ -177,6 +186,24 @@ function TonightUnmatchedNotice({ out }: { out: TonightOutAnswer }): ReactNode {
   return <p className="tonightProvenance">Some event listings are not matched to a pub.</p>;
 }
 
+// The rail leads with a photograph of the place the page is about: the Night
+// Area the reader told us (the same coarse area the news rail reads), else
+// London when the heading is London's. Never a pub's photograph: those go
+// only to the recommended pub they are of.
+function tonightPagePhotos(
+  photos: TonightPhotos | undefined,
+  area: string | null,
+): { lead: PlacePhotoData | null; pubs: TonightPhotos["pubPhotos"] | undefined } {
+  if (!photos) return { lead: null, pubs: undefined };
+  const lead = (area ? photos.areaPhotos[area] : undefined) ?? photos.londonPhoto;
+  return { lead, pubs: photos.pubPhotos };
+}
+
+function TonightRailPhoto({ photo }: { photo: PlacePhotoData | null }) {
+  if (!photo) return null;
+  return <PlacePhoto className="tonightRailPhoto" photo={photo} sizes="360px" />;
+}
+
 // Presentation order is independent of grouping: Deals/Music full lanes follow
 // the main list on phones. Desktop keeps a compact rail summary instead
 // (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
@@ -199,7 +226,6 @@ function isThinNight(empty: boolean, ready: boolean, listingCount: number): bool
 
 type QuietAlternative = {
   href: Route;
-  icon: typeof TrainFront;
   title: string;
   sub: string;
 };
@@ -210,13 +236,11 @@ type QuietAlternative = {
 const QUIET_ALTERNATIVES: QuietAlternative[] = [
   {
     href: "/map",
-    icon: TrainFront,
     title: "Check your last train home",
     sub: "Open a pub's Getting Home tab on the map",
   },
   {
     href: "/crawls",
-    icon: RouteIcon,
     title: "Browse crawls",
     sub: "Multi-stop routes worth planning around",
   },
@@ -235,6 +259,16 @@ function initialWhatsOnView(answer: LoadWhatsOnResult | null): Pick<
     kindObservedAt: answer?.kindObservedAt ?? EMPTY_KIND_OBSERVED_AT,
   };
 }
+
+/** The photographs the server resolved for this page (app/tonight/page.tsx). */
+export type TonightPhotos = {
+  /** A recommended pub's own photograph, by venue id. */
+  pubPhotos: Readonly<Record<string, PlacePhotoData>>;
+  /** Each Night Area's photograph, by area slug. */
+  areaPhotos: Readonly<Record<string, PlacePhotoData>>;
+  /** London's, for the page when no area is known. */
+  londonPhoto: PlacePhotoData | null;
+};
 
 type InitialListings = {
   whatsOn: LoadWhatsOnResult | null;
@@ -269,6 +303,7 @@ export default function TonightClient({
   hypedPubs,
   cheapPints,
   initialListings,
+  photos,
 }: {
   initialListings?: InitialListings;
   /** Server-composed quiet-pint module; null outside a quiet window. */
@@ -281,6 +316,8 @@ export default function TonightClient({
   hypedPubs?: readonly HypedPub[];
   /** Cheapest listed pints, for the nights nothing is on. */
   cheapPints?: readonly TonightCheapPint[];
+  /** Honest photographs only: a pub's own, an area's, London's. */
+  photos?: TonightPhotos;
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -585,16 +622,27 @@ export default function TonightClient({
   const secondaryHeroes = withoutTonightChainRows(
     groupedSecondaryAll.map((group) => group.row),
   );
+  // The music lane mixes What's-On and Out cards, so one stamp has to cover
+  // both reads, each dated by its own evidence (lib/tonightOutListings.ts).
+  const musicLaneObservedAt = useMemo(
+    () =>
+      tonightMusicLaneObservedAt({
+        rows: withoutTonightChainRows(groupedSecondaryAll.map((group) => group.row)),
+        outEvents: outBody?.events ?? [],
+        kindObservedAt,
+        outObservedAt: outBody?.observedAt,
+      }),
+    [groupedSecondaryAll, outBody, kindObservedAt],
+  );
   const secondaryLanes = (
     <>
       <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
-      {/* The music lane is dated by the MUSIC feed, never by the freshest thing
-          on the page: the deals feed is rebuilt far more often, and borrowing
-          its date would claim gigs were confirmed on a day nobody looked. */}
-      <MusicTonightLane rows={secondaryHeroes} asOf={kindObservedAt.music} />
+      <MusicTonightLane rows={secondaryHeroes} asOf={musicLaneObservedAt} />
     </>
   );
   const mobileLanes = mobileSecondaryLanes(secondaryLanes);
+  const newsArea = areaNewsSlug(tonightNear);
+  const { lead: leadPhoto, pubs: pubPhotos } = tonightPagePhotos(photos, newsArea);
   const summaryRows = grouped.map((group) => group.row);
 
   return (
@@ -608,8 +656,11 @@ export default function TonightClient({
       <SiteNav active="tonight" />
       <NowSegment current="tonight" />
 
-      {/* Screen composition follows docs/design/LAUNCH_SCREENS.md. The
-          answer-before-actions contract belongs to
+      {/* Screen composition follows docs/design/LAUNCH_SCREENS.md: the one
+          painted primary, "Open the map", sits in the head with its one
+          quiet secondary beside it. The head is short enough now (no credits,
+          no chips above the list) that the first pub still clears a phone's
+          tab bar with the row in it; the rule and its measure are in
           docs/rules/app-landing-city-and-listing-pages.md. */}
       <Screen
         as="div"
@@ -619,7 +670,7 @@ export default function TonightClient({
         titleId="tonight-title"
         primary={
           <Link prefetch={false} href="/map" className="tonightFootLink">
-            See them on the map
+            Open the map
           </Link>
         }
         secondary={
@@ -627,14 +678,17 @@ export default function TonightClient({
             Find my pint
           </Link>
         }
-        actionsAfterContent
       >
       <div className="tonightPrimary" data-status={listingsStatus}>
       {/* The lede membership follows the Tonight rule in
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
-      <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
+      <TonightHypedPubs
+        rows={hypedPubs}
+        selectableVenueIds={selectableVenueIds}
+        photos={pubPhotos}
+      />
       {listingLede ? <p className="screenLede">{listingLede}</p> : null}
       <TonightListingsNotice
         state={listingsState}
@@ -715,19 +769,22 @@ export default function TonightClient({
                 <>
                   <div className="tonightRowMeta">
                     <span className="tonightRowKind" data-kind={row.kind}>
-                      <KindIcon size={12} aria-hidden="true" />
+                      <KindIcon size={14} aria-hidden="true" />
                       {meta.label}
                     </span>
                     {newSinceLastLook[groupIndex] ? <NewSinceMarker /> : null}
+                    {/* A listing's figure is a deal's or a meal's, never a
+                        pint's, so its badge stays neutral: a band is a claim
+                        about a pint alone (lib/priceBand.ts). */}
                     {barePrice !== null ? (
-                      <span className="tonightRowPrice">
+                      <PriceBadge className="tonightRowPrice">
                         £{barePrice.toFixed(2)}
-                      </span>
+                      </PriceBadge>
                     ) : null}
                   </div>
                   <h2 className="tonightRowTitle">{row.title}</h2>
                   <p className="tonightRowPlace">
-                    <MapPin size={13} aria-hidden="true" />
+                    <MapPin size={14} aria-hidden="true" />
                     <span>{row.placeName}</span>
                   </p>
                   <div className="tonightRowFacts">
@@ -737,7 +794,7 @@ export default function TonightClient({
                     ) : null}
                     {walk ? (
                       <span className="tonightRowWalk">
-                        <Footprints size={12} aria-hidden="true" />
+                        <Footprints size={14} aria-hidden="true" />
                         {walk}
                       </span>
                     ) : null}
@@ -751,12 +808,12 @@ export default function TonightClient({
                       {link.external ? (
                         <>
                           {sourceLabel}
-                          <ExternalLink size={13} aria-hidden="true" />
+                          <ExternalLink size={14} aria-hidden="true" />
                         </>
                       ) : (
                         <>
                           Open on map
-                          <ArrowRight size={13} aria-hidden="true" />
+                          <ArrowRight size={14} aria-hidden="true" />
                         </>
                       )}
                     </span>
@@ -800,7 +857,7 @@ export default function TonightClient({
                       onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
                     >
                       Open on map
-                      <ArrowRight size={13} aria-hidden="true" />
+                      <ArrowRight size={14} aria-hidden="true" />
                     </Link>
                   ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
@@ -836,7 +893,7 @@ export default function TonightClient({
                               : null;
                           const altPlace = (
                             <span className="tonightRowMorePlace">
-                              <MapPin size={12} aria-hidden="true" />
+                              <MapPin size={14} aria-hidden="true" />
                               {alt.placeName}
                             </span>
                           );
@@ -936,6 +993,11 @@ export default function TonightClient({
       {/* The rail's membership and order belong to the Tonight rule in
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. */}
       <aside className="tonightContext" aria-label="Tonight at a glance">
+        {/* Wide screens only: the rail is where a reader looks up from the
+            list, and on a phone the photograph would stand between the head
+            and the first pub (tonight.css). Hidden, the lazy image is never
+            fetched. */}
+        <TonightRailPhoto photo={leadPhoto} />
         {ready ? (
           <TonightOnTonightSummary
             now={renderedAt}
@@ -1003,7 +1065,9 @@ export default function TonightClient({
               </VibeChipLink>
             ),
           )}
-          {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => (
+          {/* In a quiet hour the Ideas list below carries these same three
+              plans as rows, so the chips do not say them a second time. */}
+          {(softPlansWindow ? [] : TONIGHT_SOFT_PLAN_CHIPS).map((chip) => (
             <VibeChipLink
               key={chip.id}
               href={planOccasionHref(chip.id, { src: "tonight-vibes" })}
@@ -1031,7 +1095,7 @@ export default function TonightClient({
             Area (never stored), else the heart of the viewer's remembered patch.
             This is the area they told us, so there is no new location ask. */}
         <div className="tonightRail">
-          <AreaNewsRail area={areaNewsSlug(tonightNear)} />
+          <AreaNewsRail area={newsArea} />
         </div>
 
         {/* What /out carried before it became a redirect here: the open plans
@@ -1056,29 +1120,21 @@ export default function TonightClient({
       ) : null}
 
       {thinNight ? (
-        <section className="tonightQuiet" aria-label="More ways to plan tonight">
-          <p className="tonightQuietLede">
-            More ways to plan tonight:
-          </p>
-          <ul className="tonightQuietList">
-            {QUIET_ALTERNATIVES.map((alt) => {
-              const Icon = alt.icon;
-              return (
-                <li key={alt.title} className="tonightQuietRow">
-                  <Link prefetch={false} href={alt.href} className="tonightQuietLink pressable">
-                    <span className="tonightQuietIcon" aria-hidden="true">
-                      <Icon size={17} />
-                    </span>
-                    <span className="tonightQuietBody">
-                      <span className="tonightQuietTitle">{alt.title}</span>
-                      <span className="tonightQuietSub">{alt.sub}</span>
-                    </span>
-                    <ArrowRight size={15} aria-hidden="true" className="tonightQuietArrow" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <section className="tonightQuiet tonightSection" aria-labelledby="tonight-quiet-title">
+          <h2 className="tonightQuietLede tonightSectionTitle" id="tonight-quiet-title">
+            More ways to plan tonight
+          </h2>
+          <RowList className="tonightQuietList">
+            {QUIET_ALTERNATIVES.map((alt) => (
+              <RowListItem
+                key={alt.title}
+                className="tonightQuietRow createFabLane"
+                href={alt.href}
+                title={alt.title}
+                meta={alt.sub}
+              />
+            ))}
+          </RowList>
         </section>
       ) : null}
 
@@ -1094,7 +1150,7 @@ export default function TonightClient({
             aria-expanded={locationExpanded}
             onClick={() => setLocationOpen((open) => !open)}
           >
-            <LocateFixed size={15} aria-hidden="true" />
+            <LocateFixed size={16} aria-hidden="true" />
             <span className="tonightLocationToggleLabel">
               Walk times and last train
             </span>
@@ -1122,7 +1178,7 @@ export default function TonightClient({
                   className="tonightLocationButton"
                   onClick={clearLocation}
                 >
-                  <X size={15} aria-hidden="true" />
+                  <X size={16} aria-hidden="true" />
                   {LOCATION_REMOVE_LABEL}
                 </button>
               ) : (
@@ -1132,7 +1188,7 @@ export default function TonightClient({
                   onClick={requestLocation}
                   disabled={locationStatus === "requesting"}
                 >
-                  <LocateFixed size={15} aria-hidden="true" />
+                  <LocateFixed size={16} aria-hidden="true" />
                   {locationStatus === "requesting"
                     ? LOCATION_FINDING_LABEL
                     : locationStatus === "unavailable"

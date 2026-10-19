@@ -21,6 +21,7 @@ import {
 import { formatPrice } from "@/lib/venues";
 import PintIndexScreen from "../PintIndexScreen";
 
+import "@/components/listing/listing.css";
 import "../pint-index.css";
 
 // One dated edition of the public London Pint Index: /pint-index/2026-06.
@@ -106,7 +107,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
   const { corrections, revision, publishedAt } = edition.archive;
 
   return (
-    <main id="main" className="pintIndexPage">
+    <main id="main" className="pintIndexPage listingShell">
       <JsonLd data={jsonLd} nonce={nonce} />
       <SiteNav />
 
@@ -164,7 +165,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
           )}
           {rows.length > 0 ? (
             <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
-              Download {label} (CSV) ↓
+              Download {label} (CSV)
             </a>
           ) : null}
         </section>
@@ -200,7 +201,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
         </section>
 
         <p className="pintIndexFootnote">
-          <Link href="/pint-index">See the live index →</Link> · <Link prefetch={false} href="/map">Open the map →</Link>
+          <Link href="/pint-index" className="listingLink">See the live index</Link>
         </p>
       </PintIndexScreen>
     </main>

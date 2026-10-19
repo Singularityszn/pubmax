@@ -320,7 +320,7 @@ export default function PlanStopList({
                       aria-label={swapLabel(stop, index)}
                       title={stop.alternatives.length > 0 ? `${stop.alternatives.length} other pubs` : undefined}
                     >
-                      <ArrowLeftRight size={18} aria-hidden="true" />
+                      <ArrowLeftRight size={20} aria-hidden="true" />
                     </button>
                     {canDelete ? (
                       // A mouse cannot swipe, so in a list too narrow for Remove
@@ -334,7 +334,7 @@ export default function PlanStopList({
                         aria-expanded={revealedKey === stop.key}
                         aria-label={`Show Remove for stop ${index + 1}`}
                       >
-                        <Ellipsis size={18} aria-hidden="true" />
+                        <Ellipsis size={20} aria-hidden="true" />
                       </button>
                     ) : null}
                   </div>

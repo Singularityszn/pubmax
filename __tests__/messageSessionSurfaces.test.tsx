@@ -289,7 +289,7 @@ describe("message sign-in doors", () => {
     expect(link()?.textContent).toContain(createdGroup.title);
     expect(host.textContent).not.toContain("Your messages start here");
     expect(host.textContent).not.toContain("Couldn’t");
-    expect(host.textContent).not.toContain("Sign in to message");
+    expect(host.textContent).not.toContain("Your conversations show here.");
     expect(host.textContent).not.toContain("With you in a sec.");
     if (cancel) expect(cancel).toHaveBeenCalledOnce();
   });
@@ -360,19 +360,20 @@ describe("message sign-in doors", () => {
   it("says sign in on the first paint to a session that has answered nobody", () => {
     const html = renderToString(createElement(MessagesInboxClient));
 
-    expect(html).toContain("Sign in to message");
+    expect(html).toContain("Your conversations show here.");
+    expect(html).toContain('href="/login?mode=signin&amp;from=%2Fmessages"');
     expect(html).not.toContain("With you in a sec.");
   });
 
   it("ignores an old anonymous inbox result once the session is signed in", async () => {
     await render(createElement(MessagesInboxClient));
-    expect(host.textContent).toContain("Sign in to message");
+    expect(host.textContent).toContain("Your conversations show here.");
 
     fetchState.pending = true;
     signedIn();
     await render(createElement(MessagesInboxClient));
 
-    expect(host.textContent).not.toContain("Sign in to message");
+    expect(host.textContent).not.toContain("Your conversations show here.");
     await releaseFetch();
   });
 

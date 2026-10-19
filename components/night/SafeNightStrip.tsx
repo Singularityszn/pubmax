@@ -179,7 +179,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
         aria-controls={bodyId}
       >
         <span className="nightSafe__title">
-          <LifeBuoy size={15} aria-hidden="true" />
+          <LifeBuoy size={16} aria-hidden="true" />
           Look after each other
         </span>
         <ChevronDown className="nightSafe__chevron" size={16} aria-hidden="true" data-open={open ? "" : undefined} />
@@ -192,11 +192,11 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
           </p>
           <p className="nightSafe__line">
             <a className="nightSafe__tel" href="tel:999">
-              <Phone size={13} aria-hidden="true" /> 999
+              <Phone size={14} aria-hidden="true" /> 999
             </a>{" "}
             for emergencies.{" "}
             <a className="nightSafe__tel" href="tel:116123">
-              <Phone size={13} aria-hidden="true" /> 116 123
+              <Phone size={14} aria-hidden="true" /> 116 123
             </a>{" "}
             for Samaritans, any time.
           </p>
@@ -233,7 +233,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
                 className="nightSafe__share"
                 onClick={() => void (isPlanShare ? sharePlan() : shareVenue())}
               >
-                <Share2 size={15} aria-hidden="true" />
+                <Share2 size={16} aria-hidden="true" />
                 {isPlanShare ? "Share plan link" : "Share this pin"}
               </button>
             ) : null}

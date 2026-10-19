@@ -1,0 +1,41 @@
+# Exact gitleaks findings from the full-history scan of 18 October 2026 that are
+# not secrets. Each line is one finding (commit:file:rule:line), so it never
+# covers a later commit. Rules and reasons: .gitleaks.toml.
+
+# invite token printed by the permission-matrix test against its throwaway cluster
+ac301ca263387e8a2196b8f66d871fcdfa23d3e9:docs/proof/ios-push-ask-2026-10-08/full-verify.txt:generic-api-key:1441
+
+# test fixture value
+3b27ad7617c279cf864f67b464be916d6f4a7627:__tests__/pubPalAgentScriptCheck.test.ts:generic-api-key:10
+91b57d07164947ca9c7a84af1bf357d5f07f3651:__tests__/planCrewAnalytics.test.tsx:generic-api-key:42
+a07cbae160552f51a102fc0eca3bf5b6b364761c:__tests__/pubPalAgentScriptDryRun.test.ts:generic-api-key:10
+cbc6e7e19de24db1555aca44c3c71d6ca1bc0ac4:__tests__/planInviteWhatsAppHref.test.tsx:generic-api-key:15
+e188a1d0ec987c1368ffd6a957dc8cc08a2999ac:__tests__/clientErrorRoute.test.ts:generic-api-key:82
+
+# a LinkedIn handle in harvested OpenStreetMap data
+231c03e9b17b7df86024ddb53284894f9b706f13:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+774eae281d53bac133026a3bef6176c8a7e433db:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+931ebc0c2bc1f807eeca7c9f900b76747e3d3e04:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+eef66577e3c3c25fcbaadb8b657ea757fcbc2f56:data/osm/uk/raw/chunk_lat55.80_lon-3.70.json:linkedin-client-secret:1
+
+# placeholder key in a skill doc example
+dde6fb95729459f58d1acb736c9d092f5cbcb1d1:.agents/skills/capacitor-security/SKILL.md:generic-api-key:82
+fbceef96205988987a929fa6b01d70677647e42f:skills/api-design/SKILL.md:generic-api-key:307
+
+# draft request key (a uuid) in a proof capture
+3a7b31e3cbb94bb7359750ec2a878a6276bc4d9a:docs/proof/social-galleries/clear-race-before.json:generic-api-key:77
+786a5672b83414bb47a9cda5baacbb4230cdc72b:docs/proof/social-galleries/clear-race-before.json:generic-api-key:77
+
+# plan invite token from the preview proof run (its README: no production data touched)
+6db6b5630c4da9a2abe475411af1397924432479:docs/proof/plan-rehydration-flag/after-api.json:generic-api-key:1
+6db6b5630c4da9a2abe475411af1397924432479:docs/proof/plan-rehydration-flag/after-guest-api.json:generic-api-key:1
+
+# public page token in a scraped third-party page (untracked since 820bb2664)
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/impeccable.style.html:generic-api-key:92
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_changelog.html:generic-api-key:65
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_designing.html:generic-api-key:191
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_docs.html:generic-api-key:43
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_faq.html:generic-api-key:36
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_live-mode.html:generic-api-key:137
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_slop.html:generic-api-key:177
+0792bdf96c955fba0aef07e8855bc7b138319d88:.firecrawl/design-skills/pages/impeccable.style_tutorials_getting-started.html:generic-api-key:121
