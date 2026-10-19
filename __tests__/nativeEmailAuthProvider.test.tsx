@@ -394,6 +394,21 @@ describe("installed iPhone email link, relay and App consumer", () => {
     expect(h.navigate).toHaveBeenCalledWith("/u/you");
   });
 
+  it("finishes an email sign-in in progress when the provider check refuses a social start", async () => {
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test", "/u/you")).status).toBe("sent"); });
+    const callback = await emailCallback();
+    let releaseToken!: () => void;
+    h.tokenDelay = new Promise<void>((resolve) => { releaseToken = resolve; });
+    await openApp(callback);
+    await vi.waitFor(() => expect(h.tokenRequests).toBe(1));
+    h.providerRefused = true;
+    await act(async () => { expect((await actions.signInWithGoogle()).error).toBe("Google sign-in is unavailable right now."); });
+    await act(async () => { releaseToken(); });
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    expect(h.authenticate).not.toHaveBeenCalled();
+    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+  });
+
   it("ends a sent link once the provider check lets a social start begin", async () => {
     await act(async () => { expect((await actions.signInWithEmail("native@example.test")).status).toBe("sent"); });
     await act(async () => { await actions.signInWithGoogle(); });

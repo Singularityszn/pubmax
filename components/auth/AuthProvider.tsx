@@ -1000,23 +1000,25 @@ export function AuthProvider({
     }).catch(() => {});
   }, [router]);
 
-  // The claim keeps a sent email link: the provider check may still refuse
-  // this start, and then the email form still says the link was sent.
+  // A tap only reserves its place. The provider check may still refuse it, and
+  // a refused tap must not end a sent link or an email sign-in in progress.
+  // A cancel or a newer start during the check ends the reservation.
   const claimNativeIOSOAuth = useCallback(() => {
     if (typeof window === "undefined" || nativePlatform() !== "ios") return null;
-    const installation = cancelPendingNativeAuth(true);
-    return { installation, ticket: nativeAuthLifetime.current.begin() };
-  }, [cancelPendingNativeAuth]);
+    return nativeAuthLifetime.current.reserve();
+  }, []);
 
   const startNativeIOSOAuth = useCallback(async (
     provider: "google" | "apple" | "azure",
-    { installation, ticket }: NonNullable<ReturnType<typeof claimNativeIOSOAuth>>,
+    reservation: NonNullable<ReturnType<typeof claimNativeIOSOAuth>>,
     next?: string,
   ): Promise<AuthStartResult | { useExistingOAuth: true }> => {
+    if (!reservation.current()) return { error: null };
+    // The provider passed its check, so this start now replaces older native work.
+    const installation = cancelPendingNativeAuth();
+    const ticket = nativeAuthLifetime.current.begin();
     await installation;
     if (!ticket.current()) return { error: null };
-    // The provider passed its check, so this start now replaces a sent link.
-    discardNativeEmailAttempt(browserLocalStorage(), browserSessionStorage(), window.location.origin);
     const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!ticket.current()) return { error: null };
     if (!supabase) return { error: "Sign-in is not configured." };
@@ -1071,7 +1073,7 @@ export function AuthProvider({
     if (!completed) return { error: AUTH_PROVIDER_INCOMPLETE_MESSAGE };
     finishNativeSignIn(completed, ticket.current);
     return { error: null };
-  }, [finishNativeSignIn]);
+  }, [cancelPendingNativeAuth, finishNativeSignIn]);
 
   const nativeEmailCallbacks = useRef(new Set<string>());
   // Links this document already answered, so a second copy stays quiet.
