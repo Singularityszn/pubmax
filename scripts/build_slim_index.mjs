@@ -36,6 +36,7 @@ import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { legacyCheapestPriceEvidence } from "../lib/legacyPriceEvidence.mjs";
 import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { cheapestPriceReadDay } from "../lib/priceReadDay.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -174,7 +175,7 @@ const FAMOUS_SLIM_KINDS = new Set(["bar", "food", "restaurant"]);
 function shippedFamousVenueIds(payload) {
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
   return rows
-    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind))
+    .filter((row) => row && FAMOUS_SLIM_KINDS.has(row.kind) && (row.anchorLabel || !row.id?.startsWith("venue-")))
     .map((row) => row.id);
 }
 
@@ -821,16 +822,7 @@ async function readBundleSoftDrinkSubtypes() {
   return byVenue;
 }
 
-async function main() {
-  const rawText = await readFile(RAW_PATH, "utf8");
-  const rows = JSON.parse(rawText);
-  if (!Array.isArray(rows)) {
-    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
-  }
-
-  const scrapedIds = await readScrapedIds();
-  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
-
+function groupLondonRows(rows) {
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
   // Map preserves insertion order and reads name/coords/borough off `first`
@@ -849,6 +841,20 @@ async function main() {
     if (bucket) bucket.push(row);
     else grouped.set(key, [row]);
   }
+  return { grouped, droppedOob };
+}
+
+async function main() {
+  const rawText = await readFile(RAW_PATH, "utf8");
+  const rows = JSON.parse(rawText);
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  const scrapedIds = await readScrapedIds();
+  const bundleSoftDrinkSubtypes = await readBundleSoftDrinkSubtypes();
+
+  const { grouped, droppedOob } = groupLondonRows(rows);
   if (droppedOob > 0) {
     console.log(`dropped ${droppedOob} row(s) outside Greater London bounds`);
   }
@@ -937,8 +943,11 @@ async function main() {
     if (zone === null) zoneUnknown += 1;
     else zoneCounts[zone] = (zoneCounts[zone] ?? 0) + 1;
 
+    const kind = legacyOsmVenueKind(groupRows);
     slim.push({
       id,
+      kind,
+      ...(kind === "bar" ? { legacyOsmBar: true } : {}),
       name: String(first.pub_name),
       lat,
       lng,

@@ -185,14 +185,14 @@ describe("famous venue seeds", () => {
   });
 
   describe("slim rebuild", () => {
-    type SlimPayload = { generatedAt: string; rows: { id: string; kind: string }[] };
+    type SlimPayload = { generatedAt: string; rows: { id: string; kind: string; anchorLabel?: string }[] };
     const committedSlim = (): SlimPayload =>
       JSON.parse(
         readFileSync(path.join(ROOT, "public", "data", "venues_slim.json"), "utf8"),
       ) as SlimPayload;
     const shippedFamousIds = (payload: SlimPayload) =>
       payload.rows
-        .filter((row) => ["bar", "food", "restaurant"].includes(row.kind))
+        .filter((row) => ["bar", "food", "restaurant"].includes(row.kind) && (row.anchorLabel || !row.id.startsWith("venue-")))
         .map((row) => row.id)
         .sort();
     const keptIds = (result: { rows: { id: string }[] }) =>
