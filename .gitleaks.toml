@@ -51,3 +51,10 @@ regexes = [
   '''^pre-0125-''',
   '''^completion-''',
 ]
+
+[[allowlists]]
+description = "The counting placeholder for a plan crew invite token in the Pal's Who's coming? tests. The crew link takes exactly 32 hex characters (isClassicPlanInviteToken), so it cannot carry a fixture- prefix. Only this one sequence matches, never another hex value."
+regexTarget = "secret"
+regexes = [
+  '''^0123456789abcdef0123456789abcdef$''',
+]
