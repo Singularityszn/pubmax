@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import PalRecommendationMap from "@/components/pal/PalRecommendationMap";
 import Screen from "@/components/ui/screen";
 import { Button } from "@/components/ui/button";
 
@@ -56,12 +57,12 @@ import {
 import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
 import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import {
-  palAsksForMap,
   palNextStop,
   palNightStopsFrom,
+  palAsksForMap,
   palVoiceMapIntent,
 } from "@/lib/palVoiceTranscript";
-import { palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
+import { palMapAskTarget, palPubAskVenue, type PalMapAskVenue } from "@/lib/palMapAsk";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
@@ -301,6 +302,7 @@ export default function PalChat() {
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const newestAnswerRef = useRef<HTMLDivElement | null>(null);
   // The composer is pinned over the foot of the page and rides up by the
   // keyboard's own inset; when the keyboard is up the tab bar has stepped
   // aside, so the bar's lane is not reserved under it.
@@ -353,6 +355,11 @@ export default function PalChat() {
   // composer is pinned over its foot; the region's own scrollTop is set too
   // for the one case where it is the scroller (a bounded host).
   useEffect(() => {
+    const last = entries.at(-1);
+    if (!pending && last?.kind === "answer" && last.answer.cards.length > 0 && newestAnswerRef.current?.scrollIntoView) {
+      newestAnswerRef.current.scrollIntoView({ block: "start" });
+      return;
+    }
     const node = scrollRef.current;
     if (node) node.scrollTop = node.scrollHeight;
     if (entries.length === 0 && !pending) return;
@@ -391,7 +398,7 @@ export default function PalChat() {
         if (venue) {
           href = resolvePalVenueOpenTarget(venue.id, knownVenueIds).href;
           line = `Opening ${venue.name}`;
-        } else if (!palAsksForMap(text)) {
+        } else if (palMapAskTarget(text)?.kind !== "last" || !palAsksForMap(text)) {
           return false;
         }
       }
@@ -614,6 +621,7 @@ export default function PalChat() {
   }, []);
 
   const empty = entries.length === 0 && !pending;
+  const mappedAnswerId = entries.findLast((entry) => entry.kind === "answer" && entry.answer.cards.length > 0)?.id;
   // Tonight-at-a-glance data: the same /api/whats-on spine the map fetches,
   // enabled only while the transcript is empty (one light fetch; the glance
   // leaves the moment the conversation starts).
@@ -750,8 +758,10 @@ export default function PalChat() {
               );
             }
             const { answer, locality, proposals, recall } = entry;
+            const actions = proposals.filter((proposal) => proposal.kind !== "open_venue"
+              || !answer.cards.some((card) => card.venueId === proposal.venueId));
             return (
-              <div key={entry.id} className="palChatRow palChatRow--pal">
+              <div key={entry.id} className="palChatRow palChatRow--pal" ref={entry.id === entries.at(-1)?.id ? newestAnswerRef : undefined}>
                 <p
                   className={`palChatBubble${
                     answer.status === "empty" ? " palChatBubble--empty" : ""
@@ -775,9 +785,10 @@ export default function PalChat() {
                     {palLocalityLine(locality)}
                   </p>
                 ) : null}
-                {proposals.length > 0 ? (
+                {entry.id === mappedAnswerId ? <PalRecommendationMap cards={answer.cards} /> : null}
+                {actions.length > 0 ? (
                   <ul className="palChatProposals" aria-label="Suggested actions">
-                    {proposals.map((proposal) => (
+                    {actions.map((proposal) => (
                       <li key={proposal.id} className="palChatProposal">
                         {proposal.kind === "draft_plan" ? (
                           <IntentLink

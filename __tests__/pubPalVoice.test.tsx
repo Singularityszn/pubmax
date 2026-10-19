@@ -1031,7 +1031,9 @@ describe("Pub Pal voice controls", () => {
 type LiveSession = {
   onConnect?: () => void;
   onDisconnect?: (details?: unknown) => void;
-  onMessage?: (message: { role: string; message: string }) => void;
+  onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
+  onAgentToolRequest?: (event: { tool_call_id: string; event_id: number }) => void;
+  onAgentToolResponse?: (event: { tool_call_id: string; event_id: number; tool_name: string; is_error: boolean; is_called: boolean; full_tool_result: string }) => void;
   onAgentResponseCorrection?: (event: { original_agent_response: string; corrected_agent_response: string }) => void;
   onDebug?: (event: unknown) => void;
 };
@@ -1071,6 +1073,36 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
+  it("shows sourced voice results and discards responses superseded by another question or an ended session", async () => {
+    const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    const session = await startLiveSession();
+    const result = (id: string, eventId: number, name: string) => ({
+      tool_call_id: id, event_id: eventId, tool_name: "search_venues", is_error: false, is_called: true,
+      full_tool_result: JSON.stringify({ result: {
+        ok: true, tool: "search_venues", answerHint: "Listed pubs.",
+        cards: [{ key: id, venueId: "venue-lamb", title: name, place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+      } }),
+    });
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Find pubs in Soho", event_id: 4 });
+      session.onAgentToolRequest?.({ tool_call_id: "first", event_id: 4 });
+      session.onAgentToolResponse?.(result("first", 4, "The Lamb"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("Source read 2 October 2026");
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Actually Camden", event_id: 7 });
+      session.onAgentToolResponse?.(result("first", 4, "Old result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    await act(async () => {
+      session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7 });
+      session.onDisconnect?.();
+      session.onAgentToolResponse?.(result("second", 7, "Late result"));
+    });
+    expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    canvas.mockRestore();
+  });
   it("prints what the person said and what the Pal answered, by name", async () => {
     const session = await startLiveSession();
     expect(container.textContent).toContain("Talk to Ripley.");

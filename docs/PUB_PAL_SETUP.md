@@ -198,6 +198,11 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    slow tool's checking line that outlasts the settle window would be returned
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
+   Voice also needs `agent_tool_response_full_payload` to show the actual
+   returned pub cards, their fitted map and memory-confirmation cards. The
+   browser uses the tool result, never pub names or prices parsed from speech.
+   Requests for one to six pubs pass a result count to `search_venues`.
+   An upper pint-price limit filters eligible records before ranking.
    The script also sets how the agent hears a person in a pub. Turn-taking is
    `turn_eagerness: "patient"`, so a pause in the middle of a sentence does not
    end the person's turn. `transcribe_on_disabled_interruptions: true` keeps
@@ -217,12 +222,12 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    and never from the request body. Typed chat puts the same lines ahead of the
    ask on the server, or one line saying nothing is confirmed, so it does not
    need the tool. A second Pal-only webhook, `propose_memory`, adds a memory card
-   to a typed chat for the bound account, only when that Pal has memory
+   to a typed or voice chat for the bound account, only when that Pal has memory
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
-   them off. It refuses in a voice call, where no card can be shown. It
+   them off. Voice displays the card from `agent_tool_response_full_payload`. It
    saves nothing: the memory exists once the person taps
-   Confirm, which posts to `POST /api/pub-pal/memories`. Before the card is
-   made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
+   Confirm, which posts to `POST /api/pub-pal/memories`. Speech alone cannot
+   confirm it. Before the card is made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
    confirmed memories: a fact they already have makes no card, and one that
    replaces or withdraws a memory makes an "Update" or "Forget" card that
    PATCHes or DELETEs that memory on Confirm. The card sends the value it
@@ -234,9 +239,9 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    most 300 tokens for any input. It is built only from the person's own older
    asks and never used as a fact source.
    Both paths also carry a **taste read** (`lib/palTaste.ts`, read by
-   `lib/palTaste.server.ts`) worked out from what the signed-in person logged
-   themselves: diary visits and ratings, their own pint drops (drink, pint
-   price, vibe tags) and their saved pubs. Typed chat puts it after the
+   `lib/palTaste.server.ts`) from the verified owner's declared favourite drink
+   and their own records: diary visits and ratings, pint drops (drink, pint
+   price, vibe tags) and saved pubs. Typed chat puts it after the
    memories, in the person's voice; voice gets it inside the `recall_memories`
    answer. It runs beside the signed-URL request with a 900 ms budget and a
    two-minute in-process cache, so a turn does not wait on it, and a slow or

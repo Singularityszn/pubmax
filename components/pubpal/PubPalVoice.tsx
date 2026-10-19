@@ -132,12 +132,13 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-function VoiceAvailabilityGate({ onStateChange, palName, signal, appearance, genome }: {
+function VoiceAvailabilityGate({ onStateChange, palName, signal, appearance, genome, onMemoryChange }: {
   onStateChange?: (state: PalAnimationState) => void;
   palName?: string;
   signal?: PalVoiceSignal;
   appearance?: PubPalAppearance;
   genome?: PalGenome;
+  onMemoryChange?: () => void;
 }) {
   const availability = useVoiceAvailability();
 
@@ -167,6 +168,7 @@ function VoiceAvailabilityGate({ onStateChange, palName, signal, appearance, gen
       signal={signal}
       appearance={appearance}
       genome={genome}
+      onMemoryChange={onMemoryChange}
     />
   );
 }
@@ -178,6 +180,7 @@ export default function PubPalVoice({
   signal,
   appearance,
   genome,
+  onMemoryChange,
 }: {
   muted?: boolean;
   onStateChange?: (state: PalAnimationState) => void;
@@ -189,6 +192,7 @@ export default function PubPalVoice({
   appearance?: PubPalAppearance;
   /** The Pal's genome, so the panel's head is held and moves like the big one. */
   genome?: PalGenome;
+  onMemoryChange?: () => void;
 }) {
   if (muted) return <PalVoiceMuted />;
   return (
@@ -198,6 +202,7 @@ export default function PubPalVoice({
       signal={signal}
       appearance={appearance}
       genome={genome}
+      onMemoryChange={onMemoryChange}
     />
   );
 }

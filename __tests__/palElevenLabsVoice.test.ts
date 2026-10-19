@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
+import { buildPalTaste } from "@/lib/palTaste";
 import {
   elevenLabsVoiceEnvKeyForSpecies,
   resolveElevenLabsVoiceIdForPal,
@@ -25,6 +26,16 @@ describe("resolveElevenLabsVoiceIdForPal", () => {
 
   beforeEach(() => { vi.unstubAllEnvs(); });
   afterEach(() => { vi.unstubAllEnvs(); });
+
+  it("greets a returning person with their own logged visit and price, without inventing a total spend", () => {
+    const taste = buildPalTaste({ diary: [], saved: [],
+      drops: [{ venueId: "crown", day: "2026-10-10", drink: "Camden Hells", pintPriceGbp: 5.8, vibeTags: [] }],
+      placeOf: () => ({ name: "The Crown", patch: "Soho" }),
+    });
+    const greeting = buildPalVoiceOverrides(basePal, { taste }).firstMessage;
+    expect(greeting).toBe("Hi, I'm Ripley. Last time, you logged The Crown on 10 October 2026, with Camden Hells at £5.80 a pint. Something similar tonight?");
+    expect(greeting).not.toContain("spent");
+  });
 
   it("names species env keys in uppercase", () => {
     expect(elevenLabsVoiceEnvKeyForSpecies("fox")).toBe("ELEVENLABS_VOICE_FOX");

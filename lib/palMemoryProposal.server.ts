@@ -31,7 +31,7 @@ export type PalProposeMemoryToolResult = {
 /**
  * Answer the propose webhook for one live conversation. The owner comes from the
  * server-side binding, never from the webhook body, and the proposal only lands
- * in a typed chat, where the card is visible, when that owner's Pal allows
+ * in a conversation with visible confirm cards, when that owner's Pal allows
  * memory proposals. The card it adds is the same
  * confirm card every proposal uses: the memory exists only once the person
  * confirms it through POST /api/pub-pal/memories.
@@ -58,9 +58,9 @@ export async function proposePalMemoryForConversation(
     return refuse(unavailable);
   }
   if (!binding) return refuse("No one is signed in to this conversation. Nothing was saved.");
-  if (binding.surface !== "text") {
+  if (binding.surface !== "text" && binding.surface !== "voice") {
     return refuse(
-      "Memory proposals are only offered in typed chat. Nothing was saved and no card was made, so do not mention one.",
+      "No memory card is available in this conversation. Nothing was saved, so do not mention a card.",
     );
   }
   const { ownerId } = binding;

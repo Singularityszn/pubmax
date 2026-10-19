@@ -302,6 +302,7 @@ describe("POST /api/ask", () => {
     ["search_venues", "Find cheap quiet pubs in Soho", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
     ["search_venues", "somewhere cheap and quiet", { mood: ["quiet"], groupSize: 2, maxPintPrice: 6 }],
     ["search_venues", "Somewhere cheap in Soho", { mood: [], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
+    ["search_venues", "Find four pubs in Soho under £6 a pint.", { mood: [], groupSize: 2, maxPintPrice: 6, area: "Soho" }],
   ] as const)("keeps the original constraints and price evidence at the %s tool boundary", async (tool, query, intent) => {
     const result = await runAskTool(tool, { query: "pubs" }, { cityId: "london", query, skipModel: true });
     expect(result.ok).toBe(true);

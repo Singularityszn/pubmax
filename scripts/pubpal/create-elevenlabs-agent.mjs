@@ -62,7 +62,7 @@ const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 /** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only memory tools. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
-    "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
+    "Find one to six listed pubs by mood, area, group size, and budget. Pass the requested result count as limit. Never invent venues.",
   whats_on:
     "Look up sourced What's On listings (quiz, sport, deals) for tonight or a weekday.",
   venue_heritage:
@@ -89,7 +89,7 @@ const TOOL_DESCRIPTIONS = {
   recall_memories:
     "On the first substantive request, read confirmed preferences before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
   propose_memory:
-    "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
+    "Propose one preference for the Pal to remember in typed or voice chat. Saves nothing until the person confirms the card in the app.",
 };
 
 function loadDotEnv() {
@@ -148,6 +148,7 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
   search_venues: {
     conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
+    limit: { type: "number", description: "Number of pub recommendations requested, from 1 to 6. This is not the number of people. Use 4 when no result count is requested." },
   },
   recall_memories: {
     conversation_id: conversationIdProperty(),
@@ -190,6 +191,7 @@ const CLIENT_EVENTS = [
   "agent_response_correction",
   "agent_tool_request",
   "agent_tool_response",
+  "agent_tool_response_full_payload",
   "agent_response_complete",
 ];
 

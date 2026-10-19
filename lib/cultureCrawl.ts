@@ -167,15 +167,15 @@ export type CultureWaypointDTO = {
  * or fare prices, so admission, food and transport are unknown for every
  * waypoint category. Drinks join them when any stop lacks a usable price.
  */
-export const CULTURE_UNKNOWN_COSTS = ["admission", "drinks", "food", "transport"] as const;
+const CULTURE_UNKNOWN_COSTS = ["admission", "drinks", "food", "transport"] as const;
 export type CultureUnknownCost = (typeof CULTURE_UNKNOWN_COSTS)[number];
 
 const ALWAYS_UNKNOWN_COSTS: readonly CultureUnknownCost[] = ["admission", "food", "transport"];
 
-export type CultureCostSource = { label: string; url: string; observedAt: string };
+type CultureCostSource = { label: string; url: string; observedAt: string };
 
 /** One recorded pint at a chosen stop, with the source and date it was read. */
-export type CultureKnownCost = {
+type CultureKnownCost = {
   venueId: string;
   venueName: string;
   pence: number;

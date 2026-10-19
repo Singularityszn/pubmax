@@ -33,7 +33,7 @@ type SessionOptions = {
 const signedInFetch: typeof fetch = (input, init) =>
   authedActionFetch(input, init ?? {}, { requiresIdentity: true });
 
-function askBodyToPal(body: unknown): PalChatResult {
+export function palChatResultFromBody(body: unknown): PalChatResult {
   // Prefer the Ask agent shape when present.
   const ask = answerFromBody(body);
   if (ask.status === "error") return ask;
@@ -172,7 +172,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
           ...(response.status === 401 ? { needsSignIn: true } : {}),
         };
       }
-      const result = askBodyToPal(body);
+      const result = palChatResultFromBody(body);
       const conversationId =
         body && typeof body === "object" && !Array.isArray(body)
           ? (body as Record<string, unknown>).conversationId

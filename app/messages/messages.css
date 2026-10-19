@@ -1453,8 +1453,8 @@ html[data-theme="dark"] .messageBubblePhoto {
     background: var(--messages-surface, var(--paper));
   }
 
-  .messagesThreadEmpty {
-    display: grid !important;
+  .messagesMainInbox .messagesThreadEmpty {
+    display: grid;
     place-items: center;
     padding: 1.5rem;
   }

@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 
 test("the cheapest-pint glance names no walk when nobody shared a location", async ({ page }) => {
   await page.goto("/pal/chat");
-  const glance = page.getByText(/^Cheapest round /);
+  const glance = page.getByRole("note", { name: "Listed price nearby", exact: true });
   await expect(glance).toBeVisible();
   await expect(glance).toContainText(/£\d+\.\d\d at /);
   await expect(glance).not.toContainText("on foot");

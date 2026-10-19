@@ -52,6 +52,17 @@ describe("palAsksForMap", () => {
   });
 });
 
+describe("map requests that still need an answer", () => {
+  it.each([
+    "Find me four pubs in Soho and show them on the map.",
+    "Show me quiet pubs in Soho on the map",
+    "Show me Soho on the map",
+    "Show me the map with four cheap pubs near Bank",
+  ])("keeps discovery in the conversation: %s", (query) => {
+    expect(palVoiceMapIntent(query, false)).toBeNull();
+  });
+});
+
 describe("the voice transcript", () => {
   it("drops empty lines and a Pal line sent twice", () => {
     const first = appendPalVoiceLine([], palVoiceLine("pal", "Evening."));

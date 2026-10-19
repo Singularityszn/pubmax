@@ -53,10 +53,12 @@ async function readTaste(ownerId: string): Promise<PalTaste | null> {
     diaryStore().listForOwner(ownerId),
     getVenueIndex(),
   ]);
-  const [drops, saved] = handle
+  const profile = handle ? await profileStore().getByHandle(handle) : null;
+  const ownedHandle = profile?.userId === ownerId && !profile.tombstonedAt ? handle : null;
+  const [drops, saved] = ownedHandle
     ? await Promise.all([
-        pintDropsStore().listVisible(undefined, { handle }, handle, null),
-        savedPubsStore(handle).listSaved({ handle }),
+        pintDropsStore().listVisible(undefined, { handle: ownedHandle }, ownedHandle, null),
+        savedPubsStore(ownedHandle).listSaved({ handle: ownedHandle }),
       ])
     : [[], []];
 
@@ -71,6 +73,7 @@ async function readTaste(ownerId: string): Promise<PalTaste | null> {
   };
 
   return buildPalTaste({
+    favouriteDrink: ownedHandle ? profile?.favouriteDrink : null,
     diary: diary.entries.map((entry) => ({
       venueId: entry.venueId,
       venueName: entry.venueName,

@@ -13,7 +13,7 @@
 // map in their own voice is the same as tapping the Map link, so the panel
 // opens /map with a beat to say "stay here".
 
-import { palMapAskTarget } from "@/lib/palMapAsk";
+import { palAsksForVenueDiscovery, palMapAskTarget } from "@/lib/palMapAsk";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export type PalVoiceSpeaker = "you" | "pal";
@@ -161,6 +161,7 @@ export function palAsksForNextStop(text: string): boolean {
  */
 export function palVoiceMapIntent(text: string, nightIsOn: boolean): "next-stop" | "pub" | "map" | null {
   if (nightIsOn && palAsksForNextStop(text)) return "next-stop";
+  if (palAsksForVenueDiscovery(text)) return null;
   // One pub on the map ("take me there", "where is The Lamb?"): the caller
   // names it (lib/palMapAsk.ts), else a map ask still opens the map.
   if (palMapAskTarget(text)) return "pub";

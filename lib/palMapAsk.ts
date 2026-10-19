@@ -11,6 +11,8 @@
 // NAMED in this conversation (its cards and proposals, or the newest Pal line
 // that names a listed pub); with none, nothing is invented.
 
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
+
 export type PalMapAskVenue = { id: string; name: string; sourceName?: string };
 
 export type PalMapAskTarget = { kind: "last" } | { kind: "named"; name: string };
@@ -66,6 +68,16 @@ export function palMapAskTarget(text: string): PalMapAskTarget | null {
     return { kind: "named", name };
   }
   return null;
+}
+
+/** A request for recommendations still needs an answer before any map move. */
+export function palAsksForVenueDiscovery(text: string): boolean {
+  const normalized = normalizeAsk(text);
+  if (/\b(?:pubs|bars|venues|places|somewhere|anywhere|a place)\b/.test(normalized)) return true;
+  const target = palMapAskTarget(text);
+  return target?.kind === "named" && NIGHT_PATCHES.some((patch) =>
+    nameKey(target.name) === nameKey(patch.label),
+  );
 }
 
 /** A pub name as a person would say it: no leading "the", no apostrophes. */

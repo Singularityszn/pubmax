@@ -47,14 +47,14 @@ function hear(socket: WebSocketRoute, text: string, tentative = false): void {
     : { type: "user_transcript", user_transcription_event: { user_transcript: text, event_id: eventId } }));
 }
 
-async function openLiveVoice(page: Page): Promise<WebSocketRoute> {
+async function openLiveVoice(page: Page, memoryProposals = false): Promise<WebSocketRoute> {
   const timestamp = "2026-10-04T12:00:00.000Z";
   const pal = {
     id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
     name: "Ripley", adultAttestedAt: timestamp,
     appearance: DEFAULT_PAL_DRAFT.appearance, personality: DEFAULT_PAL_DRAFT.personality,
     voice: DEFAULT_PAL_DRAFT.voice, muted: false, hidden: false,
-    proposalPreferences: { memories: false, routes: true }, masteryPoints: 0,
+    proposalPreferences: { memories: memoryProposals, routes: true }, masteryPoints: 0,
     createdAt: timestamp, updatedAt: timestamp,
   };
   await page.route("**/api/pub-pal", (route) => route.fulfill({ json: { pal, adultOnFile: true } }));
@@ -107,6 +107,59 @@ async function openLiveVoice(page: Page): Promise<WebSocketRoute> {
     await expect(page.getByRole("status").filter({ hasText: /Pal is (listening|talking)/ })).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
   return opened;
+}
+
+for (const width of [390, 1440]) {
+  test(`${width}px: real SDK tool events show four mapped pubs and require a tap before keeping a voice memory`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 1000 });
+    const socket = await openLiveVoice(page, true);
+    const query = "Find me four pubs in Soho and show them on the map.";
+    hear(socket, query);
+    const response = await page.request.post("/api/pub-pal/chat", { data: { query } });
+    expect(response.ok()).toBe(true);
+    const answer = await response.json();
+    expect(answer.cards).toHaveLength(4);
+    const deliver = (tool: string, result: unknown) => {
+      const request = { tool_name: tool, tool_call_id: `${tool}-${eventId}`, tool_type: "webhook", event_id: eventId };
+      socket.send(JSON.stringify({ type: "agent_tool_request", agent_tool_request: request }));
+      socket.send(JSON.stringify({ type: "agent_tool_response_full_payload", agent_tool_response_full_payload: {
+        ...request, is_error: false, is_called: true, full_tool_result: JSON.stringify({ result }),
+      } }));
+    };
+    deliver("search_venues", { ok: true, tool: "search_venues", answerHint: answer.answer, cards: answer.cards });
+    await expect(page.getByRole("list", { name: "Pubs from the voice answer" }).locator("li")).toHaveCount(4);
+    const map = page.getByRole("region", { name: "4 pubs on the map" });
+    await map.scrollIntoViewIfNeeded();
+    await expect(map.locator('[data-map-ready="true"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page).toHaveURL(/\/pal$/);
+    await mkdir("artifacts/pubpal-complete-1019", { recursive: true });
+    await page.screenshot({ path: `artifacts/pubpal-complete-1019/voice-map-${width}.png` });
+
+    let writes = 0;
+    const memories: Array<Record<string, unknown>> = [];
+    await page.route("**/api/pub-pal/memories", async (route) => {
+      if (route.request().method() === "POST") {
+        writes += 1;
+        const memory = { id: "voice-memory-1", ...route.request().postDataJSON(), provenance: "user_confirmed", createdAt: "2026-10-20T00:00:00Z", updatedAt: "2026-10-20T00:00:00Z" };
+        memories.push(memory);
+        return route.fulfill({ status: 201, json: { memory } });
+      }
+      return route.fulfill({ json: { memories } });
+    });
+    hear(socket, "I prefer cask ale.");
+    deliver("propose_memory", { ok: true, tool: "propose_memory", answerHint: "A card is waiting. Nothing is saved.", proposals: [{ id: "voice-test-memory-1", kind: "remember_memory", memoryKind: "drink_preference", value: "Cask ale", label: "Remember: Cask ale" }] });
+    const confirm = page.getByRole("button", { name: "Remember: Cask ale", exact: true });
+    await expect(confirm).toBeVisible();
+    expect(writes).toBe(0);
+    await confirm.click();
+    await expect(page.getByRole("status").filter({ hasText: "Saved: Cask ale" })).toBeVisible();
+    expect(writes).toBe(1);
+    await expect(page.locator(".palMemoryList")).toContainText("Cask ale");
+    await page.getByRole("button", { name: "End", exact: true }).click();
+    await page.reload();
+    await expect(page.locator(".palMemoryList")).toContainText("Cask ale");
+  });
 }
 
 for (const [width, theme] of [[390, "light"], [1280, "dark"]] as const) {

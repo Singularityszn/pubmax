@@ -6,6 +6,27 @@ import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
   it.each([
+    ["Find me two quiet pubs in Soho", 2],
+    ["Show me 6 pubs in Soho on the map", 6],
+    ["Find me three good places in Soho for six people", 3],
+    ["Find pubs in Soho for two people", 4],
+  ])("keeps the requested choices separate from the group size: %s", (query, limit) => {
+    expect(routeAskDeterministically(String(query))).toEqual([
+      { name: "search_venues", args: { query, limit } },
+    ]);
+  });
+  it.each([
+    "Find me four pubs in Soho and show them on the map.",
+    "Show me quiet pubs in Soho on the map",
+    "Show me four pubs in Soho",
+    "Find four pubs in Soho under £6 a pint.",
+  ])("answers discovery before offering map actions: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "search_venues", args: { query, limit: 4 } },
+    ]);
+  });
+
+  it.each([
     "Is the Tube running tonight?",
     "Are there Tube delays?",
     "Are Tube services delayed?",

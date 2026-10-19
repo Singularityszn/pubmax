@@ -122,6 +122,21 @@ describe("buildPalTaste", () => {
 });
 
 describe("palTastePreamble", () => {
+  it("recalls the last visit's recorded drink price without inventing a bill total", () => {
+    const last = buildPalTaste({
+      diary: [diary("crown", "2026-10-10")],
+      drops: [
+        drop("crown", "2026-10-10", { drink: "Camden Hells", pintPriceGbp: 5.8 }),
+        drop("crown", "2026-10-09", { drink: "Guinness", pintPriceGbp: 6.2 }),
+        drop("dog", "2026-10-09", { drink: "Ale", pintPriceGbp: 5 }),
+      ], saved: [], placeOf,
+    });
+    const context = palTastePreamble(last, "third").join("\n");
+    expect(context).toContain("At that visit they recorded Camden Hells at £5.80 a pint.");
+    expect(context).toContain("These are recorded prices, not a bill total or proof of what they drank.");
+    expect(context).not.toContain("£6.20");
+    expect(context).not.toContain("spent £");
+  });
   const taste = buildPalTaste({
     diary: [diary("crown", "2026-09-04", 5), diary("crown", "2026-09-11")],
     drops: [

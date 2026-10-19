@@ -1,4 +1,4 @@
-// The Pal's read of a person's taste, from what they logged themselves.
+// The Pal's taste read, from their declared favourite drink and their own logs.
 //
 // A taste read is the person's OWN history said back to their Pal: the pubs
 // they wrote in their diary, the drinks and prices they dropped, the vibes they
@@ -42,6 +42,7 @@ type PalTasteSavedInput = { venueId: string; venueName: string };
 export type PalTastePlace = { name: string; patch: string | null };
 
 export type PalTasteInput = {
+  favouriteDrink?: string | null;
   diary: readonly PalTasteDiaryInput[];
   drops: readonly PalTasteDropInput[];
   saved: readonly PalTasteSavedInput[];
@@ -49,10 +50,12 @@ export type PalTasteInput = {
 };
 
 export type PalTaste = {
+  /** The owner's explicit profile preference, not inferred from logged prices. */
+  declaredDrink?: string;
   /** Distinct pub-days across the diary and drops. */
   visits: number;
   distinctPubs: number;
-  lastVisit: { name: string; on: string } | null;
+  lastVisit: { name: string; on: string; recordedPints?: Array<{ drink: string; priceGbp: number }> } | null;
   patches: string[];
   regulars: string[];
   loved: string[];
@@ -132,7 +135,18 @@ function visitSignals(input: PalTasteInput, visitDays: Array<{ venueId: string; 
     if (!last || visit.day > last.day) last = visit;
   }
   const visits = [...pubs.values()].reduce((sum, entry) => sum + entry.count, 0);
-  const lastVisit = last ? { name: pubs.get(last.venueId)?.label ?? "", on: last.day } : null;
+  const lastVisit: PalTaste["lastVisit"] = last ? { name: pubs.get(last.venueId)?.label ?? "", on: last.day } : null;
+  if (last && lastVisit) {
+    const recorded = new Map<string, { drink: string; priceGbp: number }>();
+    for (const drop of input.drops) {
+      if (drop.venueId !== last.venueId || drop.day !== last.day) continue;
+      const drink = cleanText(drop.drink, DRINK_CAP);
+      const priceGbp = drop.pintPriceGbp;
+      if (!drink || priceGbp === null || !Number.isFinite(priceGbp) || priceGbp <= 0) continue;
+      recorded.set(`${drink.toLowerCase()}|${priceGbp}`, { drink, priceGbp });
+    }
+    if (recorded.size) lastVisit.recordedPints = [...recorded.values()].slice(0, MAX_LIST);
+  }
   return { pubs, patches, weekdays, visits, lastVisit };
 }
 
@@ -203,10 +217,12 @@ function favouriteNightOf(weekdays: Counts, visits: number): string | null {
 
 /** Null when the person has logged nothing the Pal could learn from. */
 export function buildPalTaste(input: PalTasteInput): PalTaste | null {
+  const declaredDrink = cleanText(input.favouriteDrink ?? "", DRINK_CAP);
   const nameOf: NameOf = (venueId, fallback = "") => cleanText(input.placeOf(venueId)?.name || fallback, NAME_CAP);
   const visitDays = visitDaysOf(input);
   const { pubs, patches, weekdays, visits, lastVisit } = visitSignals(input, visitDays, nameOf);
   const taste: PalTaste = {
+    ...(declaredDrink ? { declaredDrink } : {}),
     visits,
     distinctPubs: pubs.size,
     lastVisit,
@@ -219,7 +235,7 @@ export function buildPalTaste(input: PalTasteInput): PalTaste | null {
     wishlist: wishlistOf(input, new Set(visitDays.map((visit) => visit.venueId)), nameOf),
   };
   const empty =
-    taste.visits === 0 && taste.drinks.length === 0 && taste.vibes.length === 0 && taste.wishlist.length === 0;
+    !taste.declaredDrink && taste.visits === 0 && taste.drinks.length === 0 && taste.vibes.length === 0 && taste.wishlist.length === 0;
   return empty ? null : taste;
 }
 
@@ -252,10 +268,15 @@ export function palTastePreamble(taste: PalTaste | null, voice: keyof typeof VOI
   if (!taste) return [];
   const w = VOICES[voice];
   const lines: string[] = [];
+  if (taste.declaredDrink) lines.push(`- ${w.My} profile's favourite drink: ${taste.declaredDrink}. This is a preference ${w.i} entered, not evidence about a pub.`);
   if (taste.visits > 0 && taste.lastVisit?.name) {
     lines.push(
       `- ${w.I} ${w.have} logged ${taste.visits} ${taste.visits === 1 ? "visit" : "visits"} to ${taste.distinctPubs} ${taste.distinctPubs === 1 ? "pub" : "pubs"}, most recently ${taste.lastVisit.name} on ${shortDay(taste.lastVisit.on)}.`,
     );
+    if (taste.lastVisit.recordedPints?.length) {
+      const prices = taste.lastVisit.recordedPints.map((pint) => `${pint.drink} at ${formatPalTastePrice(pint.priceGbp)} a pint`);
+      lines.push(`- At that visit ${w.i} recorded ${listed(prices)}. These are recorded prices, not a bill total or proof of what ${w.i} drank.`);
+    }
   }
   if (taste.patches.length > 0) lines.push(`- ${w.My} usual patches: ${listed(taste.patches)}.`);
   if (taste.regulars.length > 0) lines.push(`- Pubs ${w.i} keep going back to: ${listed(taste.regulars)}.`);
@@ -274,7 +295,7 @@ export function palTastePreamble(taste: PalTaste | null, voice: keyof typeof VOI
   if (taste.wishlist.length > 0) lines.push(`- Saved but not tried yet: ${listed(taste.wishlist)}.`);
   if (lines.length === 0) return [];
   return [
-    `What ${w.my} own logs say about ${w.my} taste. It is ${w.my} history, never a fact about a pub or tonight's price:`,
+    `What ${w.my} ${taste.declaredDrink ? "profile and own logs" : "own logs"} say about ${w.my} taste. It is ${w.my} history, never a fact about a pub or tonight's price:`,
     ...lines,
   ];
 }

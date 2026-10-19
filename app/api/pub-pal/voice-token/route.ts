@@ -15,6 +15,7 @@ import {
 } from "@/lib/palVoiceMetering";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
+import { readPalTaste } from "@/lib/palTaste.server";
 import { fetchPalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
@@ -321,11 +322,13 @@ async function handleIssueToken(userId: string): Promise<Response> {
     return budgetRefusal;
   }
 
-  const overrides = buildPalVoiceOverrides(pal);
-
   let providerAllocated = false;
   try {
-    const session = await fetchPalSignedConversation({ apiKey, agentId });
+    const [session, taste] = await Promise.all([
+      fetchPalSignedConversation({ apiKey, agentId }),
+      readPalTaste(userId),
+    ]);
+    const overrides = buildPalVoiceOverrides(pal, { taste });
     if (!session.ok) {
       if (session.reason === "unreachable") {
         return publicApiError("The voice service didn't answer in time.", "PROVIDER_TIMEOUT", 504, {
