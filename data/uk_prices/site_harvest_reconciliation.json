@@ -10085,6 +10085,54 @@
         "rowCount": 7790,
         "siteHarvestRows": 3667
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-lambsurbiton-co-uk-bar-hire-london.json",
+      "sourceEvidenceSha256": "92fdfabbeef2c12879e8ab1de8198de721a27c7b6aa43e81b37127f154d91e00",
+      "sourceUrl": "https://www.lambsurbiton.co.uk/bar-hire-london",
+      "sourceObservedAt": "2026-10-19T15:58:39.531Z",
+      "addedRows": 2,
+      "currentLedger": {
+        "sha256": "f96e34ac6a2d6ffef37d7dfae0cd8dd1cfff60a45d23cee413ba3822c66030ad",
+        "rowCount": 3760,
+        "rowIdentitySetSha256": "565129e3d7f5e0bdd16f6072751d0b8c98e8920e8aa524400a4382dd0c67cefb"
+      },
+      "currentBundle": {
+        "rowCount": 7824,
+        "siteHarvestRows": 3701
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-thewarwickpimlico-co-uk-wine-list-html.json",
+      "sourceEvidenceSha256": "de0f1e216f0a3507ea740adf3d98dc28f0db89a76cd4fb3a702ef8967fc3bc07",
+      "sourceUrl": "https://www.thewarwickpimlico.co.uk/wine-list.html",
+      "sourceObservedAt": "2026-10-19T15:58:45.245Z",
+      "addedRows": 17,
+      "currentLedger": {
+        "sha256": "11fd218707f8d351bb990b2f457d13e9ef741401254330060ad72b59bed03f0b",
+        "rowCount": 3777,
+        "rowIdentitySetSha256": "41c3134f5d2fe9c93a78be5ae983ce8472759c8654ceba5bc21008cbe1e0a2d8"
+      },
+      "currentBundle": {
+        "rowCount": 7824,
+        "siteHarvestRows": 3701
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-10-19-thejollycoopers-co-uk-menus.json",
+      "sourceEvidenceSha256": "0cb90391cc41e5dac0ade6753c9746c3d97927d035898532f03ebc30113a2080",
+      "sourceUrl": "https://www.thejollycoopers.co.uk/menus/",
+      "sourceObservedAt": "2026-10-19T15:58:48.114Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "973355a788a5c449f8d1cc1eebd46d6ad3b967a26fcab8840e5afd1112a690bb",
+        "rowCount": 3792,
+        "rowIdentitySetSha256": "d869bb52cbe7adfce0abb058c135a16339b99c1f74103758346dfdc069a2ad66"
+      },
+      "currentBundle": {
+        "rowCount": 7824,
+        "siteHarvestRows": 3701
+      }
     }
   ]
 }
