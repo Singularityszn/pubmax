@@ -378,16 +378,21 @@ async function main() {
     const slug = slugFromMenuUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, transport, `${slug}.md`);
     const venueKey = resolveVenueKey(url, indexes, menuUrlToId, owners);
-    const owner = venueKey
-      ? menuOwnerVerdict(url, venueKeyPoint(venueKey), owners)
-      : { verdict: "owner-unknown" };
-    if (owner.verdict === "other-pub") {
+    // Asked twice: of the page requested, before any fetch, and of the page a
+    // live or cached fetch landed on, because a redirect can carry the request
+    // to another pub's menu on the same host.
+    const isWrongPub = (pageUrl) => {
+      const owner = venueKey
+        ? menuOwnerVerdict(pageUrl, venueKeyPoint(venueKey), owners)
+        : { verdict: "owner-unknown" };
+      if (owner.verdict !== "other-pub") return false;
       wrongPub += 1;
       console.warn(
-        `WRONG_PUB ${url} belongs to ${owner.owner.name}, ${owner.metres} m from ${venueKey.slice(0, 40)}…`,
+        `WRONG_PUB ${pageUrl} belongs to ${owner.owner.name}, ${owner.metres} m from ${venueKey.slice(0, 40)}…`,
       );
-      continue;
-    }
+      return true;
+    };
+    if (isWrongPub(url)) continue;
     let page;
     try {
       page = await scrapeMenu(url, cachePath, harvester);
@@ -413,6 +418,7 @@ async function main() {
     }
     scraped += 1;
     const { markdown, finalUrl } = page;
+    if (isWrongPub(finalUrl)) continue;
 
     if (!venueKey) {
       unmatched += 1;

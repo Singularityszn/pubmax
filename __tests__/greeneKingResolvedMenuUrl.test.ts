@@ -17,6 +17,8 @@ import { writeMenuPageCache } from "@/scripts/lib/harvestMenuCache.mjs";
 const REQUESTED_URL =
   "https://www.greeneking.co.uk/pubs/greater-london/prospect-of-whitby/menu";
 const FINAL_URL = `${REQUESTED_URL}?canonical=1`;
+// Another pub's menu on the same host, as a redirect could land on it.
+const OTHER_PUB_URL = "https://www.greeneking.co.uk/pubs/greater-london/other-arms/menu";
 const VENUE_KEY = "prospect of whitby|1 test street|51.50000|-0.10000";
 const temporaryRoots: string[] = [];
 
@@ -64,6 +66,13 @@ function makeFixture({ cached = false, ownerLat = 51.5 } = {}) {
           lng: -0.1,
           website: REQUESTED_URL.replace(/\/menu$/, ""),
         },
+        {
+          osmId: "node/2",
+          name: "The Other Arms",
+          lat: 51.52,
+          lng: -0.1,
+          website: OTHER_PUB_URL.replace(/\/menu$/, ""),
+        },
       ],
     })}\n`,
   );
@@ -102,7 +111,9 @@ export const createMenuPageHarvester = () => ({
     }
     return {
       markdown: ${JSON.stringify("### Soft Drinks\n\n#### Diet Coke\n\n£3.20\n")},
-      finalUrl: ${JSON.stringify(FINAL_URL)},
+      finalUrl: process.env.TEST_LAND_ON_OTHER_PUB === "1"
+        ? ${JSON.stringify(OTHER_PUB_URL)}
+        : ${JSON.stringify(FINAL_URL)},
     };
   },
 });
@@ -300,6 +311,30 @@ describe("Greene King resolved menu provenance", () => {
     expect(latest.updates).toContainEqual(
       expect.objectContaining({ drinkName: "Guest Cola" }),
     );
+  });
+
+  it("refuses a fetch that lands on another pub's menu", () => {
+    const root = makeFixture();
+    const script = join(root, "scripts/firecrawl_greene_king_prices.mjs");
+    const run = spawnSync(
+      process.execPath,
+      [
+        script,
+        "--limit",
+        "1",
+        "--urls-file",
+        join(root, "data/greene_king_london_menu_urls.txt"),
+      ],
+      { cwd: root, encoding: "utf8", env: { ...process.env, TEST_LAND_ON_OTHER_PUB: "1" } },
+    );
+
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stderr).toContain(`WRONG_PUB ${OTHER_PUB_URL} belongs to The Other Arms`);
+    expect(run.stdout).toContain("wrongPub=1");
+    const latest = JSON.parse(
+      readFileSync(join(root, "public/data/drink_price_updates/latest.json"), "utf8"),
+    );
+    expect(latest.updates).toEqual([]);
   });
 
   it("drops an existing Greene King row refused by current policy", () => {
