@@ -36,6 +36,7 @@ import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
+import { BROWSER_BAR_THEME_COLORS } from "@/lib/browserBarColor";
 import { readThemeInitSource } from "@/lib/themeInit.server";
 
 const themeInitSource = readThemeInitSource();
@@ -290,13 +291,11 @@ export const metadata: Metadata = {
   },
 };
 
-// theme_color matches --ink-deep (light tokens); viewport-fit=cover for
+// The browser bar matches the page under it: the light page floor by day and
+// the dark one by night (lib/browserBarColor.ts). viewport-fit=cover for
 // standalone PWA / notched phones.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0b0b0d" },
-    { media: "(prefers-color-scheme: dark)", color: "#060607" },
-  ],
+  themeColor: BROWSER_BAR_THEME_COLORS,
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

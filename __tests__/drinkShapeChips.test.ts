@@ -261,8 +261,10 @@ describe("drink chip styling ships with the component", () => {
     const background = /background:\s*([^;]+);/.exec(selected)?.[1] ?? "";
     expect(background).toBe("var(--panel-raised)");
     expect(selected).toMatch(/color:\s*var\(--ink\)/);
-    // Brass may cue selection (underline / inset), never own the fill.
-    expect(selected).toMatch(/var\(--brass\)/);
+    // The inset underline cues selection in ink, never coral: a selection is
+    // not an action (docs/DESIGN_SYSTEM.md "Coral is spent twice").
+    expect(selected).toMatch(/var\(--state-selected-border\)/);
+    expect(selected).not.toMatch(/var\(--brass/);
     expect(background).not.toMatch(/--brass/);
   });
 

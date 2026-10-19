@@ -127,7 +127,6 @@ describe("the ranking table", () => {
       createElement(SpoonsValueTable, {
         rows,
         cuts: spoonsValueCuts(rows),
-        modalMilliunits: 12_785,
       }),
     );
     expect(html).toContain('href="/map?sel=venue-uk-n1&amp;lens=spoons"');
@@ -167,10 +166,12 @@ describe("the ranking table", () => {
       createElement(SpoonsValueTable, {
         rows,
         cuts: spoonsValueCuts(rows),
-        modalMilliunits: 12_785,
       }),
     );
     expect(html).toContain("15.7 units");
+    // Units are not a price, so the figure wears no price band (taste plan,
+    // 18 Oct 2026): a green "15.7 units" read as a cheap pint.
+    expect(html).not.toContain("priceBand-");
     expect(html).toContain("£9.96");
     expect(html).toContain("3 pints of Sandford Orchards The General");
   });
@@ -180,7 +181,6 @@ describe("the ranking table", () => {
       createElement(SpoonsValueTable, {
         rows,
         cuts: spoonsValueCuts(rows),
-        modalMilliunits: 12_785,
       }),
     );
     expect(html).toContain("Rank is national");

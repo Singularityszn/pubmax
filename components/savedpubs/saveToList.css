@@ -12,19 +12,21 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border-radius: var(--control-radius, 14px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  background: var(--control-secondary-surface, var(--panel-raised));
+  padding: 0 var(--control-pad-x);
+  border-radius: var(--control-radius);
+  border: 1px solid var(--control-secondary-border);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   line-height: 1.15;
   cursor: pointer;
 }
-.saveToListToggle:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .saveToListToggle:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .saveToList {
@@ -43,22 +45,24 @@
 }
 .saveToListChip {
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
-.saveToListChip:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .saveToListChip:hover:not(:disabled) {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 /* A saved chip says so: filled in the brass wash with a tick, and the pressed
    state is announced (aria-pressed), so it is not colour alone. */
 .saveToListChip[aria-pressed="true"] {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
   color: var(--ink);
   font-weight: 650;
 }
@@ -80,18 +84,18 @@
   min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .saveToListCreate {
   padding: 6px 12px;
-  border-radius: 8px;
-  border: none;
-  background: var(--brass);
-  color: var(--panel-raised);
-  font-size: 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--control-secondary-border);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -102,8 +106,8 @@
 
 .saveToListToast {
   margin: 0;
-  font-size: 13px;
-  color: var(--brass);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 .saveToListClose {
@@ -111,7 +115,7 @@
   background: none;
   border: none;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: var(--text-sm);
   text-decoration: underline;
   cursor: pointer;
 }

@@ -55,7 +55,7 @@ export function ComposerPriceStep({
             aria-label="Decrease price by 10 pence"
             onClick={() => setDropForm({ ...dropForm, price: stepPrice(dropForm.price, -1) })}
           >
-            <Minus size={15} />
+            <Minus size={16} />
           </button>
           <input
             id={priceInputId}
@@ -70,7 +70,7 @@ export function ComposerPriceStep({
             aria-label="Increase price by 10 pence"
             onClick={() => setDropForm({ ...dropForm, price: stepPrice(dropForm.price, 1) })}
           >
-            <Plus size={15} />
+            <Plus size={16} />
           </button>
         </div>
         <div className="priceQuickAdds" role="group" aria-label="Quick-add price">

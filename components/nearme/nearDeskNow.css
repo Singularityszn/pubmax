@@ -1,8 +1,8 @@
 .ndnHero {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2, 8px);
-  padding: var(--space-4, 16px);
+  gap: var(--space-2);
+  padding: var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
@@ -11,7 +11,7 @@
 .ndnKind {
   margin: 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -20,7 +20,7 @@
 .ndnHeroName {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink);
@@ -39,14 +39,14 @@
 .ndnCardFact {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
 .ndnChecked {
   margin: 0;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .ndnHoursMore {
@@ -58,7 +58,7 @@
   display: flex;
   align-items: center;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   cursor: pointer;
   list-style: none;
 }
@@ -71,7 +71,7 @@
   margin: 0;
   max-width: 100%;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -84,12 +84,12 @@
   gap: 4px;
   width: 100%;
   min-height: 44px;
-  padding: var(--space-3, 12px) var(--space-2, 8px);
+  padding: var(--space-3) var(--space-2);
 }
 
 .ndnCardName {
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
 }
@@ -97,7 +97,7 @@
 .ndnEmpty {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: var(--text-base);
   line-height: 1.35;
   color: var(--ink);
 }
@@ -105,7 +105,7 @@
 .ndnSource {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 

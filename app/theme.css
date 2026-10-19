@@ -25,9 +25,9 @@ html:not([data-theme="dark"]) {
   .writerCard,
   .admin-card {
     transition:
-      background-color var(--duration-base, 0.18s) var(--ease-out, ease-out),
-      color var(--duration-base, 0.18s) var(--ease-out, ease-out),
-      border-color var(--duration-base, 0.18s) var(--ease-out, ease-out);
+      background-color var(--duration-base) var(--ease-out),
+      color var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out);
   }
 }
 
@@ -231,12 +231,14 @@ html[data-theme="dark"] .mapCompassBtn {
   box-shadow: var(--map-overlay-shadow-tight);
 }
 
-html[data-theme="dark"] .mapFitLondonBtn:hover,
-html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover,
-html[data-theme="dark"] .mapCompassBtn:hover {
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
-  color: var(--ink);
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="dark"] .mapFitLondonBtn:hover,
+  html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover,
+  html[data-theme="dark"] .mapCompassBtn:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
+    border-color: var(--hairline-strong);
+  }
 }
 
 html[data-theme="dark"] .mapRecenterBtn:disabled {
@@ -265,9 +267,7 @@ html[data-theme="dark"] .mobileTabList {
    as shadow on a near-black rail. */
 html[data-theme="dark"] .mobileTabHighlight {
   background: color-mix(in srgb, var(--ink-deep) 55%, var(--panel-raised));
-  box-shadow:
-    inset 0 1.5px 3px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-inset-press);
 }
 
 /* Desktop nav pill: neutral structural edge in dark (globals gives it a 30%
@@ -299,7 +299,7 @@ html[data-theme="dark"] .lpNav {
   width: 44px;
   height: 44px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--ink-soft);
   transition:
@@ -309,10 +309,12 @@ html[data-theme="dark"] .lpNav {
     transform 0.15s ease;
 }
 
-.themeToggle:hover {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  border-color: color-mix(in srgb, var(--brass) 30%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .themeToggle:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    border-color: var(--hairline-strong);
+  }
 }
 
 .themeToggle:focus-visible {
@@ -334,11 +336,13 @@ html[data-theme="dark"] .lpNav {
   box-shadow: var(--shadow);
 }
 
-.themeToggle.floating:hover {
-  color: var(--ink);
-  background: var(--panel-raised);
-  border-color: var(--brass);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .themeToggle.floating:hover {
+    color: var(--ink);
+    background: var(--panel-raised);
+    border-color: var(--hairline-strong);
+    transform: translateY(-1px);
+  }
 }
 
 html[data-theme="dark"] .planBtn.active {
@@ -355,7 +359,9 @@ html[data-theme="dark"] .planBtn.active {
       as an off-brand pink/coral leak against the near-black dark shell, and
       others (--cat-other) land as a dull off-brass tan — neither is the
       single coral action accent the dark chrome owns. Pin every route's
-      active pill back to brass in dark only; light keeps its category tints.
+      active pill to the neutral ink selection in dark (a selection is never
+      coral, docs/DESIGN_SYSTEM.md "Coral is spent twice"); light keeps its
+      category tints.
    2) Olive "dusk kitsch": the shared --paper/--panel/--panel-raised/--line
       tokens carry the M4 sage/green bias the map itself needs (see the
       --chrome-* token comment above). These three DOM-chrome surfaces read
@@ -365,10 +371,10 @@ html[data-theme="dark"] .planBtn.active {
       every descendant that reads var(--panel-raised) etc., so this is a
       three-rule fix rather than a chase through every consumer line. ═══════ */
 
-/* 1) Nav active pill - always coral in dark, regardless of data-cat. */
+/* 1) Nav active pill - the ink selection in dark, regardless of data-cat. */
 html[data-theme="dark"] .siteNavLink.isActive[data-cat] {
-  background: var(--brass);
-  color: var(--color-on-accent);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  color: var(--ink);
 }
 
 /* 2a) "Start with a story" map onboarding modal. */

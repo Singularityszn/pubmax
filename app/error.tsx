@@ -35,14 +35,13 @@ export default function Error({
         {/* An eyebrow with no border and no fill is plain text, not a stamp, so
             it is sentence case with tight tracking (docs/DESIGN_SYSTEM.md, caps
             policy: uppercase is reserved for a bordered or filled mark, and the
-            wide tracking only ever existed to make all-caps legible). And a
-            coral WORD takes the accent's ink: --brass reads 2.49:1 to 2.91:1 as
-            text on the light ladder, which is what --color-accent-ink exists
-            for; dark points that token back at the one coral. */}
+            wide tracking only ever existed to make all-caps legible). A kicker
+            is a label, so it takes the muted ink, never coral
+            (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */}
         <p
           style={{
             margin: "0 0 12px",
-            color: "var(--color-accent-ink)",
+            color: "var(--color-text-muted)",
             fontSize: "0.8rem",
             fontWeight: 700,
             letterSpacing: "0.01em",

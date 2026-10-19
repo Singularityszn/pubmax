@@ -42,13 +42,14 @@
   height: 7px;
   margin: -3.5px 0 0 -3.5px;
   border-radius: 50%;
-  background: var(--brass, #ff5a5f);
+  /* Coral is the one primary's; the cheer sparks are the pint's green and amber. */
+  background: var(--amber);
   opacity: 0;
 }
-.palCheerSparks i:nth-child(even) { background: var(--pint, #18a76d); }
+.palCheerSparks i:nth-child(even) { background: var(--pint); }
 .palCheerLine {
   margin: 0;
-  font: 600 14px/1.35 var(--font-display, inherit);
+  font: 600 14px/1.35 var(--font-display);
   color: var(--ink);
 }
 

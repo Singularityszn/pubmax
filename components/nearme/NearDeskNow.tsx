@@ -299,7 +299,7 @@ export default function NearDeskNow({
           titleId="near-title"
           primary={
             <button type="button" onClick={locate}>
-              <LocateFixed size={18} aria-hidden="true" /> Find a work spot
+              <LocateFixed size={16} aria-hidden="true" /> Find a work spot
             </button>
           }
         >
@@ -375,7 +375,7 @@ export default function NearDeskNow({
           <DeskDataCredit />
           <footer className="nmnFoot">
             <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
-              <RotateCw size={15} aria-hidden="true" /> Update location
+              <RotateCw size={16} aria-hidden="true" /> Update location
             </button>
           </footer>
         </>

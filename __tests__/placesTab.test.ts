@@ -29,9 +29,11 @@ import {
   PLACES_SET_CITY_LABEL,
   PLACES_SHOW_ALL_LABEL,
   PLACES_TITLE,
+  PLACES_LEDE,
+  PLACES_UK_LINE,
+  PLACES_UK_TITLE,
   PLACES_WAITLIST_HREF,
   PLACES_WAITLIST_LABEL,
-  PLACES_WAITLIST_TITLE,
   filterPlacesCityRows,
   parsePlacesCityParam,
   placesAreasEmptyLine,
@@ -168,7 +170,6 @@ describe("Places city chooser", () => {
   });
 
   it("offers a waitlist for every other city, by email", () => {
-    expect(PLACES_WAITLIST_TITLE).toBe("More cities when the prices are in.");
     expect(PLACES_WAITLIST_LABEL).toBe("Want your city next? Tell us.");
     expect(PLACES_WAITLIST_HREF).toBe("mailto:hello@pubmaxxing.com?subject=City%20request");
   });
@@ -262,10 +263,15 @@ describe("Places capability copy", () => {
   it("keeps plumbing words out of every sentence a reader sees", () => {
     const copy = [
       PLACES_TITLE,
+  PLACES_LEDE,
+  PLACES_UK_LINE,
+  PLACES_UK_TITLE,
       PLACES_KICKER,
       PLACES_SET_CITY_LABEL,
-      PLACES_WAITLIST_TITLE,
       PLACES_WAITLIST_LABEL,
+      PLACES_LEDE,
+      PLACES_UK_TITLE,
+      PLACES_UK_LINE,
       ...listEnabledCities().flatMap((city) => [
         placesPricesLine(city.id),
         placesAreasEmptyLine(city.id),
@@ -562,13 +568,18 @@ describe("Places screen", () => {
     expect(list).toContain(PLACES_TITLE);
     // Exactly one painted action per screen, counted the way coreUiAudit does.
     expect(list.match(/data-primary-action/g)?.length).toBe(1);
-    // Only the live city is a row; the rest is one waitlist line.
-    expect(list).toContain("London");
+    // ONE CITY SAYS SO (taste plan, 18 Oct 2026): the heading names London
+    // as the only city, the one door opens it and the city request sits
+    // beside that door. No city search field, no one-row city list, and no
+    // other city named.
+    expect(list).toContain("London only, for now.");
     expect(list).not.toContain("Manchester");
     expect(list).not.toContain(PLACES_PRICES_COMING_PILL);
-    expect(list).toContain(PLACES_PRICES_LISTED_PILL);
-    expect(list).toContain(PLACES_WAITLIST_TITLE);
+    expect(list).not.toContain(PLACES_PRICES_LISTED_PILL);
+    expect(list).not.toContain("Find a city");
+    expect(list).toMatch(/class="screenSecondary"><a[^>]*href="mailto:hello@pubmaxxing.com\?subject=City%20request"/);
     expect(list).toContain(PLACES_WAITLIST_LABEL);
+    expect(list).toContain(PLACES_UK_TITLE);
     expect(list).toContain("mailto:hello@pubmaxxing.com?subject=City%20request");
 
     const panel = renderToStaticMarkup(

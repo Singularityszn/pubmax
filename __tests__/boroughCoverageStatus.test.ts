@@ -156,7 +156,8 @@ describe("boroughCoverageSummary", () => {
 });
 
 describe("the borough coverage link", () => {
-  it("is coloured by the accent-ink token, not the browser's default link blue", () => {
+  // Ink, not coral: coral is the screen's one primary (taste plan, 18 Oct 2026).
+  it("is coloured by the text ink token, not the browser's default link blue", () => {
     const sheet = postcss.parse(
       readFileSync(join(process.cwd(), "components/pintindex/boroughCoverageStatus.css"), "utf8"),
     );
@@ -167,6 +168,6 @@ describe("the borough coverage link", () => {
         colours.push(decl.value.trim());
       });
     });
-    expect(colours).toEqual(["var(--color-accent-ink)"]);
+    expect(colours).toEqual(["var(--color-text)"]);
   });
 });

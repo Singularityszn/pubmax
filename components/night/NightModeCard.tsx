@@ -440,7 +440,7 @@ function NightModePill({
       autoFocus={restoreFocus}
       aria-label="Show tonight's plan"
     >
-      <MapPin size={15} aria-hidden="true" />
+      <MapPin size={16} aria-hidden="true" />
       Tonight
     </button>
   );
@@ -1068,7 +1068,7 @@ function NightModeSheet({
                   setRecapOpen(false);
                 }}
               >
-                <Trash2 size={15} aria-hidden="true" /> Discard local
+                <Trash2 size={16} aria-hidden="true" /> Discard local
                 recap
               </button>
               {/* The crafted morning-after recap page — the full memory, laid out. */}
@@ -1203,7 +1203,7 @@ function NightModeSheet({
           onClick={onCollapse}
           aria-label="Hide tonight's plan"
         >
-          <X size={18} aria-hidden="true" />
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
 
@@ -1261,12 +1261,12 @@ function NightModeSheet({
           <strong className="nightCard__nextName">{nextStop.venueName}</strong>
           {nextStopWalkMinutes !== null ? (
             <span className="nightCard__nextWalk">
-              <Footprints size={18} aria-hidden="true" />
+              <Footprints size={16} aria-hidden="true" />
               {nextStopWalkDescription(nextStopWalkMinutes)}
             </span>
           ) : null}
           <span className="nightCard__nextAction">
-            Here now <ChevronRight size={18} aria-hidden="true" />
+            Here now <ChevronRight size={16} aria-hidden="true" />
           </span>
         </button>
       ) : currentStop ? (
@@ -1285,7 +1285,7 @@ function NightModeSheet({
             onClick={() => setKeepAwake((value) => !value)}
           >
             <span className="nightCard__awakeLabel">
-              <MonitorSmartphone size={15} aria-hidden="true" />
+              <MonitorSmartphone size={16} aria-hidden="true" />
               Keep screen awake
             </span>
             <span
@@ -1746,7 +1746,7 @@ function LastTrainLine({
   const urgent = minsLeft <= 20;
   return (
     <div className="nightCard__train" data-urgent={urgent ? "" : undefined}>
-      <TrainFront size={15} aria-hidden="true" />
+      <TrainFront size={16} aria-hidden="true" />
       <span>
         {minsLeft > 0 ? (
           <>

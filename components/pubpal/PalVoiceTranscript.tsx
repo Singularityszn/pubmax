@@ -79,7 +79,7 @@ export default function PalVoiceTranscript({
           <span className="palVoiceSpeaker">
             {line.speaker === "you" ? "You" : palName}
             {line.via === "typed" ? (
-              <small><Keyboard size={11} aria-hidden="true" /> typed</small>
+              <small><Keyboard size={14} aria-hidden="true" /> typed</small>
             ) : null}
           </span>
           <p>{line.speaker === "pal" ? <RevealedWords text={line.text} /> : line.text}</p>
@@ -109,7 +109,7 @@ export default function PalVoiceTranscript({
           role="status"
           style={{ "--map-delay": `${PAL_VOICE_MAP_DELAY_MS}ms` } as React.CSSProperties}
         >
-          <MapPinned size={18} aria-hidden="true" />
+          <MapPinned size={20} aria-hidden="true" />
           <p>Opening the map</p>
           <button type="button" onClick={onStayHere}>Stay here</button>
         </li>

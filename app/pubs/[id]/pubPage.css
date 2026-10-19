@@ -1,5 +1,8 @@
 /* One pub, the way a booking app shows a restaurant: the photo, the name and
-   one action, then the sections a reader decides on, each a plain card. */
+   one action, then the sections a reader decides on. A section is a heading
+   with its rows under it, set off from the one above by a hairline and
+   space, never a card (DESIGN_SYSTEM.md "Edges: the de-box rule"): nothing
+   on this page is raised above the rest, so nothing wears a box. */
 
 .pubPage {
   min-height: 100dvh;
@@ -61,13 +64,6 @@
   font-weight: 650;
 }
 
-.pubPage__figure {
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--ink);
-}
-
 .pubPage__actions {
   display: flex;
   flex-wrap: wrap;
@@ -80,7 +76,7 @@
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -103,16 +99,30 @@
 
 .pubPage__section {
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--panel-raised);
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-soft);
 }
 
 .pubPage__section h2 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: var(--text-md);
+}
+
+/* A link inside a section reads in ink with an underline, never the user
+   agent's blue or a visited purple. */
+.pubPage__section p a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pubPage__section p a:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 .pubPage__pints {
@@ -124,10 +134,12 @@
 
 .pubPage__pints li {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line-soft);
 }
 
 .pubPage__pints li:first-child {
@@ -156,20 +168,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* What is there, said as one run of words. They are facts, not controls, so
+   they wear no pill: a border says "pick me" (the de-box rule). */
 .pubPage__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-1) 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  color: var(--ink);
+  font-size: var(--text-sm);
 }
 
-.pubPage__chips li {
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: var(--text-sm);
+.pubPage__chips li + li::before {
+  content: "\00b7";
+  content: "\00b7" / "";
+  padding-inline: var(--space-2);
+  color: var(--color-text-muted);
 }
 
 .pubPage__story {
@@ -192,7 +208,7 @@
 
 .pubPage__emptyTitle {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
 }
 
 .pubPage__unavailable {
@@ -248,5 +264,5 @@
   max-width: 320px;
   aspect-ratio: 4 / 5;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
