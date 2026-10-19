@@ -95,6 +95,14 @@ export type AskProposal =
       label: string;
       memoryKind: PubPalMemoryKind;
       value: string;
+      /**
+       * Set when the fact replaces (`update`) or withdraws (`delete`) one of the
+       * person's confirmed memories (`lib/palMemoryRelation.ts`). The old memory
+       * changes only when they confirm this card. Absent is an ordinary add.
+       */
+      relation?: "update" | "delete";
+      supersedesMemoryId?: string;
+      supersedesValue?: string;
     };
 
 export type AskTurn = {
