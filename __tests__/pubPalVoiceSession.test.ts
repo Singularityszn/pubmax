@@ -1,6 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPubPalVoiceStartController } from "@/lib/pubPalVoiceSession";
+import { createPubPalVoiceStartController, palVoiceLineDropped } from "@/lib/pubPalVoiceSession";
+
+describe("a voice line that drops", () => {
+  it.each([
+    ["a socket closed with an error code", { reason: "error", closeCode: 1006, message: "" }, true],
+    ["a socket error before close", { reason: "error", message: "Connection failed", context: { type: "error" } }, true],
+    ["the provider's own session cap", { reason: "error", message: "max", context: { type: "max_duration_exceeded" } }, false],
+    ["the agent ending the call", { reason: "agent", closeCode: 1000 }, false],
+    ["the person ending the call", { reason: "user" }, false],
+    ["no details at all", undefined, false],
+  ])("reads %s", (_label, details, dropped) => {
+    expect(palVoiceLineDropped(details)).toBe(dropped);
+  });
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

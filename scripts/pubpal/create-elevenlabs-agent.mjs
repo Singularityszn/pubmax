@@ -7,7 +7,7 @@
 // Captain, after this file changes, re-run once. Do not do this from an agent:
 //   npm run pubpal:agent -- --base-url https://pubmaxxing.com
 //
-// This script sets five things:
+// This script sets six things:
 //
 //   1. the webhook tools, the shared secret they present, and the speech
 //      around each call (a short checking line before the tool runs),
@@ -16,7 +16,9 @@
 //   3. a default voice, when one is set, plus greeting and voice-id overrides,
 //   4. the house first message and the propose-then-confirm rule (ADR 0006),
 //   5. signed-URL authentication, so a conversation starts only with a URL the
-//      sign-in, the voice cap and the spend budget handed out.
+//      sign-in, the voice cap and the spend budget handed out,
+//   6. how the agent hears a person in a pub: patient turn-taking, speech kept
+//      during a proposal, and London pub words for the recogniser.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -191,6 +193,63 @@ const CLIENT_EVENTS = [
   "agent_response_complete",
 ];
 
+// How the agent hears a person. The provider's defaults are tuned for a quick
+// phone line; a pub is loud and people pause mid-sentence ("somewhere in...
+// Soho"). Left at the defaults, the agent took the turn at that pause, so the
+// rest of the sentence arrived as a talk-over and the answer was to half of it.
+//
+// - `turn_eagerness: "patient"` waits longer at a pause before it answers.
+// - `transcribe_on_disabled_interruptions: true` keeps what the person says
+//   while a confirm proposal plays. The four confirm tools disable talk-over
+//   for their whole turn (ADR 0006), and without this flag every word spoken
+//   in that turn was dropped, not carried into the next one.
+// - `keywords` bias the recogniser to the names a London night uses. Only
+//   words that are hard to hear and common in asks go here, not a gazetteer.
+// - `quality` and `user_input_audio_format` restate the provider's defaults,
+//   so `--check` reports a dashboard change that would make the Pal hear worse.
+const PAL_TURN_CONFIG = {
+  turn_eagerness: "patient",
+  transcribe_on_disabled_interruptions: true,
+};
+
+const PAL_ASR_KEYWORDS = [
+  "PUBMAXX",
+  "Pub Pal",
+  "pint",
+  "Guinness",
+  "Spoons",
+  "Wetherspoons",
+  "Sam Smith's",
+  "Fuller's",
+  "Young's",
+  "Greene King",
+  "real ale",
+  "cask",
+  "pub crawl",
+  "last train",
+  "night bus",
+  "Soho",
+  "Camden",
+  "Shoreditch",
+  "Clerkenwell",
+  "Fitzrovia",
+  "Covent Garden",
+  "Borough",
+  "Bermondsey",
+  "Peckham",
+  "Brixton",
+  "Hackney",
+  "Dalston",
+  "Islington",
+  "Marylebone",
+];
+
+const PAL_ASR_CONFIG = {
+  quality: "high",
+  user_input_audio_format: "pcm_16000",
+  keywords: PAL_ASR_KEYWORDS,
+};
+
 function clientEvents(existing) {
   return [...new Set([...(Array.isArray(existing) ? existing : []), ...CLIENT_EVENTS])];
 }
@@ -293,6 +352,8 @@ function agentBody(toolIds) {
         max_duration_seconds: MAX_SESSION_SECONDS,
         client_events: clientEvents(),
       },
+      asr: structuredClone(PAL_ASR_CONFIG),
+      turn: { ...PAL_TURN_CONFIG },
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
@@ -448,6 +509,9 @@ function agentPatch(currentAgent, toolIds) {
     max_duration_seconds: MAX_SESSION_SECONDS,
     client_events: clientEvents(conversationConfig.conversation?.client_events),
   };
+  // Laid over the live sections, so a dashboard-only setting there is kept.
+  conversationConfig.asr = { ...(conversationConfig.asr ?? {}), ...structuredClone(PAL_ASR_CONFIG) };
+  conversationConfig.turn = { ...(conversationConfig.turn ?? {}), ...PAL_TURN_CONFIG };
   return mergeAgentPatch(currentAgent, {
     ...body,
     conversation_config: conversationConfig,
