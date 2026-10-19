@@ -65,6 +65,14 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: requests.authedActionFetch,
 }));
 
+// The listed pubs a "take me there" or "where is" ask is read against.
+vi.mock("@/lib/venuesSlim", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/venuesSlim")>()),
+  loadSlimVenuesForCity: async () => [
+    { id: "venue-lamb", name: "The Lamb", lat: 0, lng: 0, cheapestPrice: 5.2, borough: "Camden" },
+  ],
+}));
+
 vi.mock("@/lib/analytics", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/analytics")>()),
   trackEvent: analytics.trackEvent,
@@ -1171,6 +1179,37 @@ describe("Pub Pal voice transcript", () => {
     expect(transcriptLines()[0]).toContain("show me the map");
     await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
+  });
+
+  it("takes \"take me there\" to the pub the Pal just named out loud", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "The Lamb has a listed pint at £5.20." });
+    });
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Take me there" });
+    });
+    await act(async () => { await Promise.resolve(); });
+    expect(container.querySelector(".palVoiceMapCard")?.textContent).toContain("Opening The Lamb");
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-lamb");
+  });
+
+  it("opens a listed pub the person names in a typed ask", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await mountAvailable();
+    await typeAndSend("where is The Lamb?");
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-lamb");
+  });
+
+  it("asks the written Pal about \"take me there\" when no pub was named", async () => {
+    await mountAvailable();
+    await typeAndSend("take me there");
+    await act(async () => { await Promise.resolve(); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/pal/chat?ask=take+me+there");
   });
 
   it("opens the next stop of a night that is on, by name", async () => {
