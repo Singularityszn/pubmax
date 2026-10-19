@@ -3,7 +3,11 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
-import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import {
+  expectMobileMapShellReady,
+  mobileMapShellControl,
+  routeTubeStatus,
+} from "./helpers/mobileMapShell";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -15,6 +19,12 @@ import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobi
 // measurements below are the bar, the chip row, the bottom card (which carries
 // the plan door), the map-edge lane and the budget they may not exceed: THREE
 // resting layers, counted by `restingLayers` below.
+//
+// TfL left the resting map in the taste pass (18 Oct 2026): it is painted on
+// the map edge only while a line is badly disrupted, and its everyday home is
+// More map controls, Transit. A spec here names the feed it means through
+// `routeTubeStatus`, "routine" by default and "urgent" where the TfL control's
+// own berth is what is measured.
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -141,6 +151,7 @@ async function preparePhoneMap(
   viewport: (typeof VIEWPORTS)[number],
   reducedMotion: "reduce" | "no-preference" = "reduce",
   path = "/map",
+  tube: "urgent" | "routine" = "routine",
 ): Promise<void> {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ reducedMotion });
@@ -169,6 +180,7 @@ async function preparePhoneMap(
     });
   });
   await installPositiveTonightResponse(page);
+  await routeTubeStatus(page, tube);
 
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
@@ -180,8 +192,9 @@ async function openPhoneMap(
   viewport: (typeof VIEWPORTS)[number],
   reducedMotion: "reduce" | "no-preference" = "reduce",
   path = "/map",
+  tube: "urgent" | "routine" = "routine",
 ): Promise<void> {
-  await preparePhoneMap(page, viewport, reducedMotion, path);
+  await preparePhoneMap(page, viewport, reducedMotion, path, tube);
   // One bar: neither the old rail nor the map-floating category band.
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
   await expect(
@@ -428,7 +441,10 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px phone chrome is one bar sharing the shell boundary`, async ({
     page,
   }) => {
-    await openPhoneMap(page, viewport);
+    // A badly disrupted line, so the TfL control is on the edge and its berth
+    // is measured beside Near me.
+    await openPhoneMap(page, viewport, "reduce", "/map", "urgent");
+    await expect(await mobileMapShellControl(page, "tfl")).toBeVisible({ timeout: 20_000 });
     const layout = await shellLayout(page);
     console.log(
       `mobile-map-chrome-layout ${viewport.width}px ${JSON.stringify(layout)}`,
@@ -487,8 +503,8 @@ for (const viewport of VIEWPORTS) {
       "phone top chrome height",
     ).toBeLessThanOrEqual(60);
 
-    // The map-edge lane runs TfL at the top and Near me at the thumb, both
-    // right-aligned and both clear of the bar.
+    // The map-edge lane runs TfL at the top (while a line is badly disrupted)
+    // and Near me at the thumb, both right-aligned and both clear of the bar.
     expect(layout.utility.top, "TfL clears the bar").toBeGreaterThan(
       layout.topbar.bottom,
     );
@@ -614,9 +630,11 @@ for (const viewport of VIEWPORTS) {
     // The Tonight chip and the first-visit ask are not painted at rest.
     expect(layers.arrival, "the first-visit ask is answered").toBe(false);
     expect(layers.tonightChip, "no Tonight chip").toBe(false);
-    // The round map controls: TfL, Near me and the Create action on the right,
-    // and the credit (i) on the left. It is a control like Near me, not a band.
-    expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+    // The round map controls: Near me and the Create action on the right, and
+    // the credit (i) on the left. It is a control like Near me, not a band.
+    // TfL is not one of them on a routine night: it rests in More map
+    // controls, Transit, and comes to the edge only for a badly disrupted line.
+    expect(layers.edge.sort()).toEqual(["create", "credit", "locate"]);
     const { credit, card, locate } = layers;
     expect(credit, "the credit (i) is painted on the map").not.toBeNull();
     expect(card).not.toBeNull();
@@ -752,7 +770,9 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   page,
 }) => {
   const viewport = VIEWPORTS[2];
-  await openPhoneMap(page, viewport, "reduce", "/map?drink=wine");
+  // A badly disrupted line, so the safe-area check below reads both map-edge
+  // controls, TfL at the head of the lane and Near me at the thumb.
+  await openPhoneMap(page, viewport, "reduce", "/map?drink=wine", "urgent");
 
   const topbar = page.locator(".mobileMapTopbar");
   // The wordmark yields its column at 360px and below, so the place name is
@@ -832,6 +852,48 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
     Math.round(safeAreaLayout.locate.right),
     "both map-edge controls honour the safe-area inset",
   ).toBe(viewport.width - safeAreaRight);
+});
+
+test("390px TfL rests in More map controls and comes to the edge only when a line is badly disrupted", async ({
+  page,
+}) => {
+  const viewport = VIEWPORTS[0];
+  // A routine night: two updates, nothing urgent. The resting map paints no
+  // TfL control, and the same feed is one tap away in More map controls.
+  await openPhoneMap(page, viewport);
+  await expect(await mobileMapShellControl(page, "tfl")).toHaveCount(0);
+  const more = await mobileMapShellControl(page, "more");
+  await tapRenderedCentre(page, more, viewport.width, "More map controls");
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+  await expect(sheet).toHaveCount(1);
+  const transit = sheet
+    .getByRole("tablist", { name: "Map control sections" })
+    .getByRole("tab", { name: "Transit" });
+  await tapRenderedCentre(page, transit, viewport.width, "Transit tab");
+  await expect(transit).toHaveAttribute("aria-selected", "true");
+  await expect(sheet.getByRole("heading", { name: "Transport" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(sheet.locator("strong", { hasText: "Central" })).toBeVisible();
+  await dismissSheet(page);
+
+  // A badly disrupted line is news before the reader sets out, so it puts TfL
+  // back on the map edge with the one count that says so.
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await routeTubeStatus(page, "urgent");
+  await installPositiveTonightResponse(page);
+  await page.reload();
+  await expectMobileMapShellReady(page, 45_000);
+  const tfl = await mobileMapShellControl(page, "tfl");
+  await expect(tfl).toBeVisible({ timeout: 20_000 });
+  await expect(tfl.locator(".mobileMapCornerBadge")).toHaveText("1");
+  await expect(tfl).toHaveAccessibleName("TfL live: 1 line badly disrupted, 2 updates");
+  const layers = await restingLayers(page);
+  expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+  await tapRenderedCentre(page, tfl, viewport.width, "TfL live");
+  await expect(
+    page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),
+  ).toHaveCount(1);
 });
 
 test("320px limited map keeps its topbar and city menu inside the viewport", async ({
@@ -1054,7 +1116,9 @@ for (const viewport of VIEWPORTS) {
     // cannot happen - and whether it renders at all depends on a prompt
     // budget, so an undecided seed is nondeterministic as well as blind.
     await seedAnsweredConsentAndPal(page);
-    await openPhoneMap(page, viewport);
+    // A badly disrupted line, so TfL is painted at the head of the edge lane
+    // and the sweep measures it too.
+    await openPhoneMap(page, viewport, "reduce", "/map", "urgent");
     // The pill is stored-pal gated and mounts after a microtask.
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(".createFab")).toBeVisible();
@@ -1189,7 +1253,9 @@ for (const viewport of VIEWPORTS) {
     expect(closed.backgroundImage).not.toBe("none");
     expect(closed.backgroundRepeat).toBe("no-repeat");
     expect(closed.backgroundPosition).toBe("50% 50%");
-    expect(closed.backgroundSize).toBe("24px 24px");
+    // One glyph, at the 20px control size the bar and Near me wear
+    // (lib/iconScale.ts), never tiled.
+    expect(closed.backgroundSize).toBe("20px 20px");
     expect(closed.controlRadius).toBe("50%");
     expect(closed.controlColor).toBe(closed.surfaceColor);
     expect(closed.controlColor).not.toBe("rgba(0, 0, 0, 0)");

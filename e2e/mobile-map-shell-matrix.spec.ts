@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
-import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl, routeTubeStatus } from "./helpers/mobileMapShell";
 
 
 const VIEWPORTS = [
@@ -92,6 +92,8 @@ for (const viewport of VIEWPORTS) {
           },
         });
       }, theme);
+      // A routine night: TfL rests in More map controls, not on the edge.
+      await routeTubeStatus(page, "routine");
 
       const response = await page.goto("/map");
       expect(response?.status()).toBe(200);
@@ -138,10 +140,11 @@ for (const viewport of VIEWPORTS) {
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");
       await expect(utilityCorner).toBeVisible();
-      // The map edge holds TfL at the top and the Near me FAB at the thumb
+      // The map edge holds the Near me FAB at the thumb, and nothing else on a
+      // routine night: TfL comes to the edge only for a badly disrupted line
       // (components/mobile/MobileMapShell.tsx MapEdgeControls).
-      await expect(utilityCorner.getByRole("button")).toHaveCount(2);
-      await expect(await mobileMapShellControl(page, "tfl")).toHaveAccessibleName(/^TfL live/);
+      await expect(utilityCorner.getByRole("button")).toHaveCount(1);
+      await expect(await mobileMapShellControl(page, "tfl")).toHaveCount(0);
       await expect(nearMe).toHaveAttribute("aria-pressed", "true");
       await expect(utilityCorner.getByRole("button", { name: "List view of venues on the map" })).toHaveCount(0);
 
@@ -275,7 +278,7 @@ test("TfL badges a badly disrupted line, and only that", async ({ page }) => {
   );
 });
 
-test("TfL status is fresh in the rail before its grouped sheet opens", async ({ page }) => {
+test("TfL status is fresh in More map controls before its Transit tab opens", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -300,16 +303,22 @@ test("TfL status is fresh in the rail before its grouped sheet opens", async ({ 
 
   await page.goto("/map");
   const tflChip = await mobileMapShellControl(page, "tfl");
-  // Three routine updates are in the accessible name and the sheet, never a
-  // badge: a number on the resting map says something is urgent.
-  await expect(tflChip).toHaveAttribute("aria-label", "TfL live: 3 updates");
-  await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveCount(0);
-  expect(statusRequests).toBe(1);
+  // Three routine updates put nothing on the resting map: a TfL control there
+  // says something is urgent. The feed is read once all the same, so the
+  // Transit tab opens on fresh status rather than a second request.
+  await expect.poll(() => statusRequests).toBe(1);
+  await expect(await mobileMapShellControl(page, "nearMe")).toBeVisible();
+  await expect(tflChip).toHaveCount(0);
   await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]')).toHaveCount(0);
 
-  await tflChip.click();
-  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]');
+  await (await mobileMapShellControl(page, "more")).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
   await expect(sheet).toBeVisible();
+  await sheet
+    .getByRole("tablist", { name: "Map control sections" })
+    .getByRole("tab", { name: "Transit" })
+    .click();
+  expect(statusRequests).toBe(1);
   await expect(sheet.getByText(/Updated/)).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Alerts" })).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Transport" })).toBeVisible();

@@ -14,6 +14,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { SiteNavActions } from "@/components/nav/SiteNav";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
+import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 import type { PintPriceAverages } from "@/lib/pintSavings";
 import {
@@ -31,6 +32,7 @@ import { socialSurfaceName } from "@/lib/socialLaunch";
 import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
 import LandingHero from "./LandingHero";
+import LandingLondonCollage from "./LandingLondonCollage";
 import LandingSavings from "./LandingSavings";
 import "./landing.css";
 
@@ -52,6 +54,7 @@ export default function LandingPage({
   rail = [],
   averages = null,
   priceReadLine = null,
+  collagePrices = {},
   answers = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
@@ -66,6 +69,8 @@ export default function LandingPage({
   averages?: PintPriceAverages | null;
   /** When the prices behind that average were read (lib/landingPubCard.server.ts). */
   priceReadLine?: string | null;
+  /** Each photographed patch's cheapest nearby pint, for the founder collage. */
+  collagePrices?: Record<string, LondonCollageAreaPrice>;
   /** What is on today and what is on tonight, one sentence each. */
   answers?: LandingAnswers | null;
   socialFriendsLaunchEnabled?: boolean;
@@ -134,6 +139,12 @@ export default function LandingPage({
             phone order; the desktop only seats the picture and the rows beside
             the copy. */}
         <LandingHero card={card} archive={archive} rail={rail} averages={averages} />
+
+        {/* The founder's own photographs of London, each patch with the
+            cheapest listed pint a short walk from where it was taken. Straight
+            after the answer, so the second thing a visitor sees is the city
+            the prices come from (captain 18 Oct 2026). */}
+        <LandingLondonCollage areaPrices={collagePrices} />
 
         {answers ? <LandingAnswerCards answers={answers} /> : null}
 

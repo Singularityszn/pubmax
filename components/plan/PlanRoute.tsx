@@ -159,7 +159,7 @@ function StopEventBadge({ event }: { event: StopEventChip | undefined }) {
   const provenance = `${CONFIDENCE_LABEL[event.confidence]} · ${event.sourceLabel} · ${checkedLabel(event.observedAt).toLowerCase()}`;
   return (
     <span className="planRoute__event" data-kind={event.kind} title={provenance}>
-      <Icon size={12} aria-hidden="true" />
+      <Icon size={14} aria-hidden="true" />
       {event.label}
       <a
         className="planRoute__eventSource"

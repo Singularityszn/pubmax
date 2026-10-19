@@ -49,7 +49,7 @@ export default function CommunityPriceReport({
         onClick={() => communityPrices.reportPrice(id)}
         aria-label={`Report this community price at ${venueName}`}
       >
-        <Flag size={12} aria-hidden="true" /> Report
+        <Flag size={14} aria-hidden="true" /> Report
       </button>
       {error ? <small role="status">{error}</small> : null}
     </span>

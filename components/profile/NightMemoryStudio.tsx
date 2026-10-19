@@ -704,7 +704,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
               <p className="profileSectionKicker">{workspace.caller.canEdit ? "Editable Story preview" : "Story consent preview"}</p>
               <h4 id="story-review-title">{workspace.caller.canEdit ? "Review what people will see." : "Control which of your Moments may appear."}</h4>
             </div>
-            <span className="memoryStoryReview__privacy"><LockKeyhole size={15} aria-hidden="true" />{workspace.story.status === "draft" ? "Private until confirmed" : `Published · ${workspace.story.visibility}`}</span>
+            <span className="memoryStoryReview__privacy"><LockKeyhole size={16} aria-hidden="true" />{workspace.story.status === "draft" ? "Private until confirmed" : `Published · ${workspace.story.visibility}`}</span>
           </div>
 
           <form className="memoryStoryReview__copy" onSubmit={saveStoryPreview}>
@@ -778,19 +778,19 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           {workspace.story.status === "draft" && workspace.caller.canEdit ? (
             <div className="memoryStoryReview__controls">
               <form onSubmit={inviteContributor}>
-                <label><span><UserPlus size={15} aria-hidden="true" />Invite affected contributor</span><input value={inviteHandle} onChange={(event) => setInviteHandle(event.target.value)} placeholder="PUBMAXX handle" maxLength={30} /></label>
+                <label><span><UserPlus size={16} aria-hidden="true" />Invite affected contributor</span><input value={inviteHandle} onChange={(event) => setInviteHandle(event.target.value)} placeholder="PUBMAXX handle" maxLength={30} /></label>
                 <Button variant="secondary" type="submit" disabled={saving || !inviteHandle.trim()}>Invite</Button>
               </form>
               <div className="memoryStoryReview__publish">
                 <label><span>Audience</span><select value={publishVisibility} disabled={saving} onChange={(event) => { setPublishVisibility(event.target.value as "public" | "unlisted"); invalidatePublication(); }}><option value="unlisted">Anyone with the link</option><option value="public">Public in Stories</option></select></label>
-                <Button variant="secondary" type="button" disabled={saving || selectedMomentIds.length === 0} onClick={() => void proposePublication()}><Eye size={15} aria-hidden="true" />Review publication</Button>
+                <Button variant="secondary" type="button" disabled={saving || selectedMomentIds.length === 0} onClick={() => void proposePublication()}><Eye size={16} aria-hidden="true" />Review publication</Button>
               </div>
             </div>
           ) : null}
 
           {confirmation ? (
             <div className="memoryStoryReview__confirmation" role="group" aria-label="Confirm Story publication">
-              <Check size={18} aria-hidden="true" />
+              <Check size={16} aria-hidden="true" />
               <div><strong>Publish {confirmation.momentCount} Moment{confirmation.momentCount === 1 ? "" : "s"}?</strong><p>{confirmation.visibility === "public" ? "This Story will appear publicly in Stories." : "Only people with its link will be able to open it."} Consent is checked again when you confirm.</p></div>
               <Button variant="secondary" type="button" disabled={saving} onClick={() => void confirmPublication()}>{saving ? "Confirming…" : "Confirm publication"}</Button>
               <Button variant="secondary" type="button" className="memoryStoryReview__cancel" onClick={() => setConfirmation(null)}>Cancel</Button>

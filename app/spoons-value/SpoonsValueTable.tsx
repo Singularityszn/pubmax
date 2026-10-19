@@ -7,8 +7,6 @@ import {
   applySpoonsValueCut,
   formatBasketCost,
   formatUnitsLabel,
-  spoonsValueBand,
-  spoonsValueBandClass,
   spoonsValueMapHref,
   type SpoonsValueCut,
   type SpoonsValueCutId,
@@ -24,15 +22,18 @@ import {
  *
  * The table scrolls inside its own box on a phone rather than the page
  * scrolling sideways, and every pub the map could place is a link into it.
+ *
+ * UNITS ARE NOT A PRICE. The figure at the row's end is set as a plain figure
+ * in the data face, not in a price band's chip: a green "15.7 units" read as a
+ * cheap pint (taste plan, 18 Oct 2026). The map's Spoons lens still colours
+ * its pins by the modal round; that is a map key, and it says so.
  */
 export default function SpoonsValueTable({
   rows,
   cuts,
-  modalMilliunits,
 }: {
   rows: readonly SpoonsValueTableRow[];
   cuts: readonly SpoonsValueCut[];
-  modalMilliunits: number | null;
 }) {
   const [cut, setCut] = useState<SpoonsValueCutId>("all");
   const shown = useMemo(() => applySpoonsValueCut(rows, cut), [rows, cut]);
@@ -77,28 +78,33 @@ export default function SpoonsValueTable({
           <tbody>
             {shown.map((row) => {
               const href = spoonsValueMapHref(row);
-              const band = spoonsValueBand(row.milliunits, modalMilliunits);
               return (
                 <tr key={row.id}>
                   <td className="spoonsTableRank">{row.rank}</td>
+                  {/* The cell stays a table cell; the lines inside it stack in a
+                      block of their own. A grid on the cell itself took it out
+                      of the row, so the row's hairline stopped short of the
+                      rank column. */}
                   <th scope="row" className="spoonsTablePub">
-                    {href ? (
-                      <Link href={href} prefetch={false}>
-                        {row.name}
-                      </Link>
-                    ) : (
-                      <span>{row.name}</span>
-                    )}
-                    <span className="spoonsTableWhere">
-                      {[row.town, row.county].filter(Boolean).join(", ")}
-                    </span>
-                    <span className="spoonsTableRound">
-                      {`${row.round}, `}
-                      <span className="spoonsTableCost">{formatBasketCost(row.pence)}</span>
+                    <span className="spoonsTablePubLines">
+                      {href ? (
+                        <Link href={href} prefetch={false}>
+                          {row.name}
+                        </Link>
+                      ) : (
+                        <span>{row.name}</span>
+                      )}
+                      <span className="spoonsTableWhere">
+                        {[row.town, row.county].filter(Boolean).join(", ")}
+                      </span>
+                      <span className="spoonsTableRound">
+                        {`${row.round}, `}
+                        <span className="spoonsTableCost">{formatBasketCost(row.pence)}</span>
+                      </span>
                     </span>
                   </th>
                   <td className="spoonsTableUnits">
-                    <span className={`spoonsTableUnitsFigure ${spoonsValueBandClass(band)}`}>
+                    <span className="spoonsTableUnitsFigure">
                       {formatUnitsLabel(row.milliunits)}
                     </span>
                   </td>

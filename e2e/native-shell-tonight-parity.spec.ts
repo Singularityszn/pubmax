@@ -159,7 +159,10 @@ test("a shell cold start lands on the same /tonight a plain fetch serves", async
 }) => {
   test.setTimeout(90_000);
   const plain = orderInHtml(await (await request.get("/tonight")).text());
-  expect(plain).toEqual({ actionsAfterLede: true, actionRows: 1 });
+  // The way-onward row is in the head since the taste pass (18 Oct 2026):
+  // the head is short enough that the first pub still clears the tab bar.
+  // What this spec holds is that the shell and the web draw ONE order.
+  expect(plain).toEqual({ actionsAfterLede: false, actionRows: 1 });
 
   await bootAsShell(page);
   await page.goto("/");

@@ -299,6 +299,19 @@
   --text-xl: 1.74rem;
   --text-2xl: 2.13rem;
   --text-3xl: 2.6rem;
+  /* — Breakpoints: five named widths, and no others (lib/breakpoints.ts,
+       docs/DESIGN_SYSTEM.md > Breakpoints). A custom property cannot sit in a
+       media query and this build has no @custom-media, so each stylesheet
+       writes the figure; __tests__/breakpoints.test.ts holds every @media
+       width in app/ and components/ to this table.
+         phoneSmall  max-width: 360px   / min-width: 361px
+         phone       max-width: 640px   / min-width: 641px   (the tab bar)
+         tablet      max-width: 900px   / min-width: 901px
+         desktop     max-width: 1023px  / min-width: 1024px  (the rail)
+         wide        max-width: 1279px  / min-width: 1280px
+       A measured exception (the map's 768 sheet band, the site nav's 767 row,
+       the landing hero's 960, the map's 1371 zoom lane) is named with its
+       reason in the test's allowlist, which only shrinks. */
   --leading-tight: 1.12;
   --leading-snug: 1.35;
   --leading-normal: 1.5;
@@ -335,6 +348,10 @@
        reach for these instead of a literal. */
   --content-max: 640px;
   --content-max-wide: 1240px;
+  /* The data column the listing and index pages share (components/listing/
+     listing.css): wider than the reading column so a row can carry a name, its
+     meta and an end-aligned price, narrower than the wide compositions. */
+  --listing-max: 60rem;
 
   /* — Spacing scale: 4px base, used for new work; existing literal paddings
        are untouched. */
@@ -356,15 +373,13 @@
   --radius-sm: 6px;
   --radius-lg: 18px;
   --radius-pill: 999px;
-  /* — Control radius (owner ruling 2026-07-23): the text-button / CTA / control-
-       chip family moves off the pill and onto the top bar's 14px rectangle card
-       language (--topbar-radius, siteNav.css) — "more rectangular like the top
-       menu bar, more elegant". Icon dots (close X, FAB, avatar), tab-group chips,
-       the bottom tab bar and descriptive label/status pills keep their geometry;
-       this token only re-bases text buttons/CTAs/control chips. Consumed as
-       var(--control-radius, 14px) so routes that don't load this sheet still land
-       on the same value. */
-  --control-radius: 14px;
+  /* — Control radius: the role a text button, CTA or control chip takes. The
+       owner ruling of 2026-07-23 moved controls off the pill to a rectangle
+       ("more rectangular, more elegant"); the taste pass (18 Oct 2026) keeps
+       that and puts it on the four-size scale, so a control takes the default
+       8px corner and the 14px step is gone. Icon dots, tab-group chips, the
+       bottom tab bar and descriptive pills keep their own geometry. */
+  --control-radius: var(--radius);
   /* — The rest of the text-button family, so a control is one row of tokens
        rather than a per-surface restatement. Measured across the routes on
        2026-09-05 the same secondary wore five geometries (a 999px pill on
@@ -374,7 +389,7 @@
        pill, per the ruling above. */
   --control-height: 44px;
   --control-pad-x: 16px;
-  --control-font-size: 0.86rem;
+  --control-font-size: var(--text-sm);
   --control-font-weight: 700;
   --control-secondary-surface: var(--panel-raised);
   --control-secondary-border: var(--line);
@@ -384,7 +399,7 @@
   /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
        a deeper candle-glow in theme.css dark). --shadow-inset-* power the
        pressed-ink utility below and are shared by both themes. */
-  --shadow: 0 18px 45px rgba(60, 30, 20, 0.11), 0 8px 18px rgba(255, 90, 95, 0.07);
+  --shadow: 0 18px 45px rgba(60, 30, 20, 0.11), 0 8px 18px rgba(60, 30, 20, 0.05);
   --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
   --shadow-float: var(--shadow); /* chrome floating over the map (arc chips, arrival banner); follows the theme.css dark --shadow override */
   --shadow-inset-press: inset 0 1px 2px rgba(22, 18, 42, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
@@ -595,7 +610,7 @@ html:not([data-theme="dark"]) body {
      a stack of status tags. `--radius` at 8px is the same corner ratio on this
      box that the control token is on a button, so a price joins the shape
      family rather than borrowing another shape's meaning. */
-  border-radius: var(--radius, 8px);
+  border-radius: var(--radius);
   /* No bevel and no shine. The two inset shadows WERE the engraved reading,
      and a figure a drinker has to trust does not need a texture. */
   box-shadow: none;
@@ -735,23 +750,25 @@ button {
 }
 
 .loadingShell {
+  /* A held page is plain paper: no dot grid, no graph paper (docs/VOICE.md,
+     "Template patterns", dot-grid). The wait is the copy, not a texture. */
   min-height: 100dvh;
   display: grid;
   place-items: center;
   background: var(--paper);
-  background-image: radial-gradient(color-mix(in srgb, var(--brass) 8%, transparent) 1px, transparent 1px);
-  background-size: 22px 22px;
   text-align: center;
 }
 
-.loadingShell .eyebrow {
-  animation: pulse 1.6s ease-in-out infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .loadingShell .eyebrow {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
 }
 
 .loadingShell h1 {
-  margin: 6px 0 0;
-  font-family: var(--serif);
-  font-size: 1.6rem;
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
 }
 
 @keyframes pulse {
@@ -783,12 +800,12 @@ button {
      it. The persona card used to open over the toolbar's left end here. */
   --map-overlay-top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height, 60px) + 12px);
   --mobile-tab-clearance: calc(58px + env(safe-area-inset-bottom, 0px));
-  --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
-  --map-overlay-shadow-tight: 0 8px 18px rgba(44, 30, 62, 0.12);
+  --map-overlay-shadow: 0 12px 28px rgba(60, 30, 20, 0.14);
+  --map-overlay-shadow-tight: 0 8px 18px rgba(60, 30, 20, 0.12);
   /* Shared geometry for the floating Home bar + Search/Plan toolbar so they
      align as matching chrome cards on phone/tablet map. */
   --map-chrome-inset: 10px;
-  --map-chrome-radius: 14px;
+  --map-chrome-radius: var(--radius-lg);
   --map-chrome-gap: 6px;
   height: 100dvh;
   position: relative;
@@ -809,11 +826,10 @@ button {
   align-items: center;
   gap: 4px;
   padding: 5px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-pill);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 92%, transparent), color-mix(in srgb, var(--surface-tint-river) 82%, transparent));
-  box-shadow: 0 14px 34px rgba(44, 30, 62, 0.14), 0 5px 18px rgba(255, 90, 95, 0.08);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
 }
 
 .siteNav a {
@@ -823,14 +839,16 @@ button {
   padding: 0 10px;
   border-radius: var(--radius-pill);
   color: var(--ink-soft);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-decoration: none;
 }
 
-.siteNav a:hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .siteNav a:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
 }
 
 /* "You are here" is an ink tint, never a coral fill: see .siteNavLink.isActive
@@ -846,17 +864,17 @@ button {
   gap: 3px;
   margin: 8px 0 10px;
   padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, transparent);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--brass) 9%, transparent);
+  background: transparent;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
 }
 
 .demoDataNote span {
-  color: var(--brass);
-  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-2xs);
   font-weight: 900;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -865,23 +883,19 @@ button {
 .controlRail,
 .routePanel {
   z-index: var(--z-map-panel);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-tint-brass) 44%, var(--panel) 56%) 0%, var(--panel) 34%),
-    var(--panel);
+  background: var(--panel);
   overflow: auto;
   scrollbar-width: thin;
 }
 
 .controlRail {
-  border-right: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+  border-right: 1px solid var(--line);
   padding: 20px;
-  box-shadow: inset -4px 0 0 color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
 .routePanel {
   border-left: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
   padding: 20px;
-  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--river) 20%, transparent);
 }
 
 .brandBlock,
@@ -907,14 +921,14 @@ button {
   /* Cream, not on-accent: the river end of this gradient is a mid blue that
      dark ink fails against. On-inverse is the fixed cream for dark fills. */
   color: var(--color-on-inverse);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
 
 .eyebrow {
   margin: 0 0 4px;
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -937,7 +951,7 @@ h1 {
   margin-bottom: 0;
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
   line-height: 1.12;
   letter-spacing: -0.01em;
 }
@@ -946,7 +960,7 @@ h2 {
   margin-bottom: 0;
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 1.24rem;
+  font-size: var(--text-md);
   letter-spacing: -0.01em;
 }
 
@@ -954,7 +968,7 @@ h3 {
   margin-bottom: 6px;
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 1.16rem;
+  font-size: var(--text-md);
   letter-spacing: -0.005em;
 }
 
@@ -1009,7 +1023,7 @@ h3 {
 .sectionTitle,
 .inspectorTitle {
   color: var(--ink-soft);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.01em;
   margin-bottom: 12px;
@@ -1017,7 +1031,7 @@ h3 {
 
 .sectionTitle > svg,
 .inspectorTitle > svg {
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .segmented {
@@ -1036,8 +1050,10 @@ h3 {
   transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.segmented button:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .segmented button:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .segmented button.selected {
@@ -1049,7 +1065,7 @@ h3 {
 .featuredHint {
   margin: -4px 0 12px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -1063,12 +1079,9 @@ h3 {
   gap: 4px;
   padding: 11px 12px;
   text-align: left;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--brass) 22%);
-  border-left: 4px solid var(--brass);
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brass) 8%, var(--panel-raised)), var(--panel-raised) 58%),
-    var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
   color: var(--ink);
   transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -1110,22 +1123,22 @@ h3 {
   color: var(--pint);
 }
 
-.featuredCrawl:hover {
-  border-color: var(--brass);
-  border-left-color: var(--brass-bright);
-  box-shadow: var(--shadow);
-  transform: translateY(-1px);
-}
-
-.featuredCrawl[data-crawl-style="heritage"]:hover,
-.featuredCrawl[data-crawl-style="writerTrail"]:hover {
-  border-color: var(--river);
-  border-left-color: var(--river-bright);
-}
-
-.featuredCrawl[data-crawl-style="beerGarden"]:hover {
-  border-color: var(--pint);
-  border-left-color: color-mix(in srgb, var(--pint) 70%, white);
+@media (hover: hover) and (pointer: fine) {
+  .featuredCrawl:hover {
+    border-color: var(--hairline-strong);
+    border-left-color: var(--hairline-strong);
+    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+  }
+  .featuredCrawl[data-crawl-style="heritage"]:hover,
+  .featuredCrawl[data-crawl-style="writerTrail"]:hover {
+    border-color: var(--river);
+    border-left-color: var(--river-bright);
+  }
+  .featuredCrawl[data-crawl-style="beerGarden"]:hover {
+    border-color: var(--pint);
+    border-left-color: color-mix(in srgb, var(--pint) 70%, white);
+  }
 }
 
 .featuredCrawl:focus-visible {
@@ -1141,7 +1154,7 @@ h3 {
 }
 
 .featuredCrawlHead strong {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 700;
 }
 
@@ -1153,24 +1166,24 @@ h3 {
   min-height: 28px;
   margin-top: 2px;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
   color: var(--river);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 800;
 }
 
 .featuredCount {
   flex: none;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .featuredBlurb {
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -1189,7 +1202,7 @@ h3 {
 
 input[type="range"] {
   width: 100%;
-  accent-color: var(--brass);
+  accent-color: var(--state-selected-ink);
   margin-bottom: 14px;
 }
 
@@ -1206,12 +1219,14 @@ input[type="range"] {
   margin: 0 -8px;
   border-radius: var(--radius-sm);
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   transition: background 0.12s ease;
 }
 
-.toggles label:hover {
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .toggles label:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .toggles input {
@@ -1227,25 +1242,23 @@ input[type="range"] {
   gap: 10px;
 }
 
-.statsGrid div,
-.routeMetrics div {
+.statsGrid div {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
 }
 
-.statsGrid span,
-.routeMetrics small {
+.statsGrid span {
   display: block;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .statsGrid strong {
-  font-size: 1.4rem;
+  font-size: var(--text-lg);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1264,10 +1277,10 @@ input[type="range"] {
   transform: translateX(-50%);
   padding: 5px 9px;
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.03em;
   pointer-events: none;
@@ -1283,12 +1296,12 @@ input[type="range"] {
    parent .mapLoading chrome (pitched-London skeleton) remains the only status
    UI. Dark basemap ink keeps CLS at 0 when the WebGL canvas mounts over it. */
 .mapCanvasSkeleton {
-  background: var(--ink-deep, #090806);
+  background: var(--ink-deep);
   min-height: 100%;
 }
 [data-theme="light"] .mapCanvasSkeleton {
   /* Liberty/Positron-adjacent paper so light theme handoff is continuous. */
-  background: color-mix(in srgb, var(--paper, #faf8f5) 88%, var(--river, #5a7a8c) 12%);
+  background: color-mix(in srgb, var(--paper) 88%, var(--river) 12%);
 }
 
 .mapCameraControls {
@@ -1316,7 +1329,7 @@ input[type="range"] {
   color: var(--ink-soft);
   box-shadow: var(--map-overlay-shadow-tight);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -1326,12 +1339,14 @@ input[type="range"] {
     transform var(--duration-fast) var(--ease-out);
 }
 
-.mapFitLondonBtn:hover,
-.mapRecenterBtn:not(:disabled):hover,
-.mapCompassBtn:hover {
-  border-color: var(--ink-soft);
-  background: var(--panel);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mapFitLondonBtn:hover,
+  .mapRecenterBtn:not(:disabled):hover,
+  .mapCompassBtn:hover {
+    border-color: var(--ink-soft);
+    background: var(--panel);
+    color: var(--ink);
+  }
 }
 
 .mapFitLondonBtn:focus-visible,
@@ -1367,8 +1382,8 @@ input[type="range"] {
   gap: 10px;
   max-width: min(560px, calc(100vw - 32px));
   padding: 9px 10px 9px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--surface-tint-lager) 40%, var(--panel-raised)), var(--panel-raised));
   color: var(--ink);
@@ -1378,7 +1393,7 @@ input[type="range"] {
 
 .mappedRouteChip > svg {
   flex: 0 0 auto;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .mappedRouteChip div {
@@ -1393,7 +1408,7 @@ input[type="range"] {
 }
 
 .mappedRouteChip strong {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .mappedRouteChip span {
@@ -1401,7 +1416,7 @@ input[type="range"] {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -1413,19 +1428,21 @@ input[type="range"] {
   min-width: 44px;
   padding: 0 11px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.mappedRouteChip button:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .mappedRouteChip button:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 /* G3 — Place story deep-link onboarding chip (mirrors mappedRouteChip chrome). */
@@ -1439,8 +1456,8 @@ input[type="range"] {
   gap: 10px;
   max-width: min(560px, calc(100vw - 32px));
   padding: 9px 10px 9px 12px;
-  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 94%, transparent), color-mix(in srgb, var(--surface-tint-lager) 62%, transparent)),
     color-mix(in srgb, var(--panel-raised) 90%, transparent);
@@ -1464,12 +1481,12 @@ input[type="range"] {
 }
 
 .bandOnboardingChip strong {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .bandOnboardingChip span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   overflow-wrap: break-word;
   white-space: normal;
@@ -1483,19 +1500,21 @@ input[type="range"] {
   min-width: 32px;
   padding: 0 11px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.bandOnboardingChip button:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .bandOnboardingChip button:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 /* ── Map-first overlays: floating toolbar + sliding drawers ─────────────────*/
@@ -1513,7 +1532,7 @@ input[type="range"] {
   max-width: calc(100vw - 32px);
   padding: 7px 8px;
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* Wave J2 — solid raised panel + soft shadow; less frosted glass over the map. */
   background: var(--color-surface-raised);
   box-shadow: var(--map-overlay-shadow);
@@ -1532,7 +1551,7 @@ input[type="range"] {
   background: transparent;
   outline: none;
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   min-width: 168px;
   min-height: 44px;
 }
@@ -1544,14 +1563,16 @@ input[type="range"] {
   width: 20px;
   height: 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
 
-.mapToolbarClear:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mapToolbarClear:hover {
+    color: var(--ink);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1581,11 +1602,11 @@ input[type="range"] {
      stays, because this control floats over the map. Its ink is the locked
      coral pair's strong ink in both themes: dark retunes --color-on-accent to
      --ink-deep, which e2e/map-accessibility.spec.ts refuses on this CTA. */
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--color-accent);
   color: var(--color-on-accent-strong);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   letter-spacing: -0.01em;
   line-height: 1;
   white-space: nowrap;
@@ -1594,10 +1615,12 @@ input[type="range"] {
   box-sizing: border-box;
 }
 
-.planBtn:hover {
-  background: var(--color-accent-strong);
-  color: var(--color-on-accent-strong);
-  box-shadow: var(--shadow-btn-hover);
+@media (hover: hover) and (pointer: fine) {
+  .planBtn:hover {
+    background: var(--color-accent-strong);
+    color: var(--color-on-accent-strong);
+    box-shadow: var(--shadow-btn-hover);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1615,7 +1638,6 @@ input[type="range"] {
 .planBtn.active {
   background: linear-gradient(135deg, var(--ink-deep), color-mix(in srgb, var(--ink-deep) 70%, var(--river)));
   color: var(--color-on-inverse);
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--ink-deep) 28%, transparent);
 }
 
 .mapDrawer {
@@ -1847,15 +1869,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   width: 30px;
   height: 30px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--panel-raised);
   color: var(--muted);
   cursor: pointer;
 }
 
-.mapOnboardingClose:hover {
-  color: var(--ink);
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .mapOnboardingClose:hover {
+    color: var(--ink);
+    border-color: var(--hairline-strong);
+  }
 }
 
 .mapOnboardingCard .eyebrow {
@@ -1869,13 +1893,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-weight: 600;
   font-variation-settings: "SOFT" 0;
   color: var(--ink);
-  font-size: 1.4rem;
+  font-size: var(--text-lg);
 }
 
 .mapOnboardingLead {
   margin: 0 0 14px;
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -1893,17 +1917,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   padding: 11px 13px;
   text-align: left;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--panel);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.mapOnboardingCrawl:hover {
-  border-color: var(--brass);
-  border-left-color: var(--brass-bright);
-  background: var(--panel-raised);
+@media (hover: hover) and (pointer: fine) {
+  .mapOnboardingCrawl:hover {
+    border-color: var(--hairline-strong);
+    border-left-color: var(--hairline-strong);
+    background: var(--panel-raised);
+  }
 }
 
 .mapOnboardingCrawl:focus-visible {
@@ -1920,20 +1945,20 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .mapOnboardingCrawlHead strong {
   color: var(--ink);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .mapOnboardingCount {
   flex: none;
-  color: var(--brass);
-  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .mapOnboardingBlurb {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.4;
 }
 
@@ -1945,15 +1970,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
-.mapOnboardingDismiss:hover {
-  color: var(--ink);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .mapOnboardingDismiss:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1989,6 +2016,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   }
 }
 
+/* THE MAP'S HELD FRAME IS A PLAIN FIELD (taste pass, 18 Oct 2026). It used to
+   be a fake map built from spans (two streets, a river, four pins) on a dot
+   grid under a river-to-brick wash: a drawing of a screenshot, and the VOICE
+   dot-grid pattern, as the first frame of a map-first product. Now it is the
+   ground the basemap will paint on (--paper by day, --ink-deep by night), the
+   pint glass and its one line, and a hairline of progress. Nothing to decode,
+   nothing that pretends to be the map. */
 .mapLoading {
   position: absolute;
   inset: 0;
@@ -1996,193 +2030,57 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 14px;
-  padding: clamp(18px, 4vw, 34px);
+  padding: var(--space-4);
   pointer-events: none;
-  /* Wave J2 — match route skeleton paper/grain so chunk→canvas handoff holds one frame. */
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--river) 10%, transparent), transparent 30% 70%, color-mix(in srgb, var(--brass) 10%, transparent)),
-    radial-gradient(color-mix(in srgb, var(--brass) 12%, transparent) 1px, transparent 1px),
-    color-mix(in srgb, var(--paper) 88%, var(--ink-deep) 12%);
-  background-size: auto, 22px 22px, auto;
+  background: var(--paper);
   color: var(--ink);
 }
 
 [data-theme="dark"] .mapLoading {
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--river) 18%, transparent), transparent 30% 70%, color-mix(in srgb, var(--brick) 12%, transparent)),
-    radial-gradient(color-mix(in srgb, var(--brass) 14%, transparent) 1px, transparent 1px),
-    var(--ink-deep);
-  background-size: auto, 22px 22px, auto;
+  background: var(--ink-deep);
   color: var(--color-on-inverse);
 }
 
-.mapLoadingScene {
-  position: relative;
-  width: min(72vw, 390px);
-  /* Match .mapSkeletonMap (380×240 → 19:12) so route→canvas handoff doesn't jump. */
-  aspect-ratio: 19 / 12;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass-bright) 46%, transparent);
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--paper) 88%, var(--river) 12%) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in srgb, var(--paper) 90%, var(--brass) 10%) 1px, transparent 1px),
-    color-mix(in srgb, var(--panel) 92%, var(--river) 8%);
-  background-size: 42px 42px, 42px 42px, auto;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-}
-
-.mapLoadingScene::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    transparent 0 42%,
-    color-mix(in srgb, var(--brass) 10%, transparent) 42% 44%,
-    transparent 44%
-  );
-}
-
-.mapLoadingStreet,
-.mapLoadingRiver {
-  position: absolute;
-  left: -8%;
-  width: 116%;
-  border-radius: 999px;
-  transform-origin: center;
-}
-
-.mapLoadingStreet {
-  height: 2px;
-  background: rgba(154, 106, 36, 0.22);
-}
-
-.mapLoadingStreet--one {
-  top: 34%;
-  transform: rotate(-18deg);
-}
-
-.mapLoadingStreet--two {
-  top: 62%;
-  transform: rotate(28deg);
-}
-
-.mapLoadingRiver {
-  top: 52%;
-  height: 18px;
-  background: color-mix(in srgb, var(--river) 42%, transparent);
-  transform: rotate(-5deg);
-  opacity: 0.72;
-}
-
-.mapLoadingPin {
-  position: absolute;
-  width: 13px;
-  aspect-ratio: 1;
-  border: 2px solid rgba(255, 255, 255, 0.78);
-  border-radius: 50%;
-  box-shadow: 0 0 0 7px color-mix(in srgb, currentcolor 18%, transparent);
-  color: var(--pint);
-  animation: mapSkeletonPulse 1.55s ease-in-out infinite;
-}
-
-.mapLoadingPin--pint {
-  background: var(--pint);
-  color: var(--pint);
-}
-
-.mapLoadingPin--amber {
-  background: var(--amber);
-  color: var(--amber);
-  animation-delay: 0.22s;
-}
-
-.mapLoadingPin--brick {
-  background: var(--brick);
-  color: var(--brick);
-  animation-delay: 0.44s;
-}
-
-.mapLoadingPin--one {
-  top: 26%;
-  left: 25%;
-}
-
-.mapLoadingPin--two {
-  top: 36%;
-  left: 56%;
-}
-
-.mapLoadingPin--three {
-  top: 62%;
-  left: 70%;
-}
-
-.mapLoadingPin--four {
-  top: 66%;
-  left: 36%;
-  animation-delay: 0.66s;
-}
-
+/* The glass and its stack, one row, no pill around them. */
 .mapLoadingCopy {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  color: var(--ink);
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink-deep) 16%, transparent);
-  font-size: 0.88rem;
-  font-weight: 700;
-  line-height: 1.25;
+  gap: var(--space-3);
+  max-width: min(100%, 420px);
+  color: inherit;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
 }
 
-[data-theme="dark"] .mapLoadingCopy {
-  border-color: color-mix(in srgb, var(--brass-bright) 42%, transparent);
-  background: color-mix(in srgb, var(--ink-deep) 84%, transparent);
-  color: var(--color-on-inverse);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
-}
-
-/* The pill is ONE row: the pint glass, then this stack. Every line the frame
-   prints is a row of the stack, so a line added later drops UNDER the one
-   above it rather than growing the pill a third column at 390px. */
+/* Every line the frame prints is a row of this stack, so a line added later
+   drops UNDER the one above it rather than growing the row a third column at
+   390px. */
 .mapLoadingLines {
   display: flex;
   min-width: 0;
   flex-direction: column;
-}
-
-.mapLoadingEyebrow {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--color-text-muted);
-  font-family: var(--font-body);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  gap: var(--space-1);
 }
 
 .mapLoadingSlow {
   display: block;
-  margin-top: 4px;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 650;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
+/* A hairline under the line. It takes no room in the grid (the negative
+   bottom margin cancels its own box), so the glass and its line sit exactly
+   where the route skeleton put them and the handover does not jump. */
 .mapLoadingProgress {
-  width: min(88vw, 390px);
-  max-width: 100%;
-  height: 4px;
-  margin-top: 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--line) 70%, transparent);
+  width: min(60vw, 200px);
+  height: 2px;
+  margin-top: var(--space-4);
+  margin-bottom: calc(-1 * (var(--space-4) + 2px));
+  border-radius: var(--radius-pill);
+  background: var(--line-soft);
   overflow: hidden;
 }
 
@@ -2190,38 +2088,23 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--brass-bright);
-  transition: width 0.35s ease;
+  background: var(--color-text-muted);
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: no-preference) {
   .mapLoadingProgressBar {
-    transition: none;
+    transition: width var(--duration-slow) var(--ease-out);
   }
 }
 
-@media (max-width: 640px) {
-  .mapLoading {
-    padding: 16px;
-  }
-
-  .mapLoadingScene {
-    width: min(88vw, 390px);
-  }
-
-  .mapLoadingCopy {
-    width: min(86vw, 420px);
-    max-width: min(88vw, 390px);
-  }
-}
-
-/* Issue #35 — map loading skeleton. app/map/loading.tsx paints a pitched-London
-   impression (a river curve + pulsing price-coloured dots) during the route
-   chunk load; PubMap's .mapLoading (above) continues the SAME pint-glass pill
-   (glyph, gap and padding) while the WebGL canvas style loads, so the
-   transition reads as one held frame.
-   Every colour derives from existing tokens; reduced-motion holds the dots
-   still. --ink-deep backs the dark mode; the paper grid backs light. */
+/* Issue #35 — the route-level map skeleton (app/map/loading.tsx, through
+   components/map/MapLoadingSkeleton.tsx) is the SAME held frame one step
+   earlier, so it wears the same plain field and the same glass-and-line row,
+   and PubMap's .mapLoading (above) continues it without a repaint. Its drawn
+   map (an SVG of streets, a river and pulsing price dots on graph paper) is
+   retired with the frame's fake map: it stays out of the layout until the
+   component drops the markup. The heading is kept for assistive technology
+   and taken out of sight, because the live frame prints only the line. */
 .mapSkeleton {
   position: fixed;
   inset: 0;
@@ -2229,162 +2112,54 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: grid;
   place-items: center;
   min-height: 100dvh;
-  padding: clamp(18px, 4vw, 44px);
+  padding: var(--space-4);
   background: var(--paper);
-  background-image:
-    linear-gradient(90deg, rgba(47, 111, 143, 0.08), transparent 30% 70%, rgba(181, 73, 58, 0.08)),
-    radial-gradient(rgba(154, 106, 36, 0.13) 1px, transparent 1px);
-  background-size: auto, 22px 22px;
+  color: var(--ink);
 }
 
 [data-theme="dark"] .mapSkeleton {
   background: var(--ink-deep);
-  background-image:
-    linear-gradient(90deg, rgba(47, 111, 143, 0.2), transparent 30% 70%, rgba(181, 73, 58, 0.14)),
-    radial-gradient(rgba(211, 164, 74, 0.12) 1px, transparent 1px);
-  background-size: auto, 22px 22px;
+  color: var(--color-on-inverse);
 }
 
 .mapSkeletonInner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  width: min(86vw, 560px);
-}
-
-.mapSkeletonMap {
-  width: 100%;
-  aspect-ratio: 19 / 12;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
-  border-radius: var(--radius-sm);
-  /* Wave J2 — warmer paper wash so skeleton ↔ first pins share one atmosphere. */
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--paper) 82%, var(--river) 18%) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in srgb, var(--paper) 86%, var(--pint) 14%) 1px, transparent 1px),
-    color-mix(in srgb, var(--paper) 92%, var(--amber) 8%);
-  background-size: 42px 42px, 42px 42px, auto;
-  box-shadow: 0 24px 58px color-mix(in srgb, var(--ink-deep) 18%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--panel-raised) 70%, transparent);
-  animation: mapSkeletonEnter var(--duration-slow) var(--ease-out) both;
-}
-
-@keyframes mapSkeletonEnter {
-  from {
-    opacity: 0.72;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.mapSkeletonStreet {
-  stroke: var(--brass);
-  stroke-width: 1.3;
-  stroke-linecap: round;
-  opacity: 0.2;
-}
-
-.mapSkeletonStreet--minor {
-  stroke-width: 0.9;
-  opacity: 0.15;
-}
-
-.mapSkeletonRiver {
-  stroke: var(--river);
-  stroke-width: 12;
-  stroke-linecap: round;
-  opacity: 0.42;
-}
-
-.mapSkeletonPin {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mapSkeletonPulse 1.6s ease-in-out infinite;
-}
-
-.mapSkeletonDotHalo {
-  fill: rgba(211, 164, 74, 0.18);
-}
-
-.mapSkeletonDot {
-  stroke: rgba(255, 255, 255, 0.78);
-  stroke-width: 1.8;
-  filter: drop-shadow(0 3px 5px rgba(24, 34, 26, 0.18));
-}
-
-@keyframes mapSkeletonPulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.12);
-  }
+  width: min(100%, 560px);
 }
 
 .mapSkeletonCopy {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  max-width: min(100%, 420px);
   margin: 0;
-  max-width: min(86vw, 420px);
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 24%, var(--line));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
-  box-shadow: var(--shadow-sm);
-  color: var(--ink-soft);
+  color: inherit;
+  font-family: var(--font-body);
 }
 
 .mapSkeletonCopy h1 {
-  margin: 0 0 2px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: clamp(1rem, 2vw, 1.22rem);
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 1.15;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* The route skeleton and PubMap's own .mapLoading print the SAME sentence, one
-   after the other, and the handover is meant to read as one held frame. It did
-   not: this line was 0.84rem/650 and .mapLoadingCopy's is 0.88rem/700, so the
-   swap repainted one sentence 19% larger about 700 ms in. That is a new largest
-   contentful paint for a reader who has been shown nothing new, and it carried
-   the frame's own layout shift with it. The type is the live frame's, so the
-   first paint is already the final one. */
+/* The type is the live frame's, so the first paint is already the final one:
+   a size step at the handover is a new largest contentful paint for a reader
+   who has been shown nothing new. */
 .mapSkeletonCopy p {
   margin: 0;
-  font-size: 0.88rem;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-@media (max-width: 640px) {
-  .mapSkeletonInner {
-    width: min(100%, 560px);
-  }
-
-  .mapSkeletonCopy {
-    width: 100%;
-  }
-}
-
-/* Reduced motion: the field stays legible but still. */
-@media (prefers-reduced-motion: reduce) {
-  .mapSkeletonPin,
-  .mapLoadingPin {
-    animation: none;
-    opacity: 0.9;
-  }
-  .mapSkeletonMap {
-    animation: none;
-  }
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
 }
 
 /* POI category toggles — LEGACY (Wave J moved mid-map strip into Layers FAB).
@@ -2399,7 +2174,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 5px;
   padding: 5px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   box-shadow: var(--shadow);
 }
@@ -2410,10 +2185,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 5px;
   padding: 4px 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -2449,16 +2224,16 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 8px;
   padding: 7px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   box-shadow: var(--shadow);
 }
 
 .poiLabelCard .poiKind {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.01em;
 }
 
@@ -2469,14 +2244,16 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   width: 20px;
   height: 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
 
-.poiLabelCard button:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .poiLabelCard button:hover {
+    color: var(--ink);
+  }
 }
 
 .maplibreMap {
@@ -2514,19 +2291,19 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
   color: var(--ink);
   font: inherit;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
   box-shadow: var(--shadow);
 }
 
 .placeStoriesToggle.on {
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  color: var(--brass);
+  border-color: var(--state-selected-border);
+  color: var(--state-selected-ink);
 }
 
 .bandPicker {
@@ -2547,7 +2324,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .bandPickerLabel {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--muted);
@@ -2562,10 +2339,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .bandBtn {
   padding: 4px 9px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -2576,8 +2353,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--paper);
 }
 
-.bandBtn:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .bandBtn:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .bandActiveCard {
@@ -2587,14 +2366,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .bandActiveCopy {
   margin: 0 0 5px;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--ink-soft);
 }
 
 .bandActiveMeta {
   margin: 0 0 5px;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--muted);
 }
@@ -2603,9 +2382,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
-  color: var(--brass);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 /* Soft basemap retry chip — recoverable tile/WebGL failures after first paint.
@@ -2614,17 +2395,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   position: absolute;
   left: 50%;
   bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  z-index: var(--z-map-camera, 20);
+  z-index: var(--z-map-camera);
   display: flex;
   align-items: center;
   gap: 10px;
   max-width: min(360px, calc(100% - 24px));
   padding: 10px 12px 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass, #c4a35a) 55%, transparent);
-  border-radius: var(--radius-sm, 8px);
-  background: color-mix(in srgb, var(--ink-deep, #090806) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink-deep) 92%, transparent);
   color: var(--ink);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--map-overlay-shadow);
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
   /* The peek can mount after this notice. Its published berth must move
@@ -2633,13 +2414,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition-property: none;
 }
 [data-theme="light"] .mapSoftRetry {
-  background: color-mix(in srgb, var(--paper, #faf8f5) 94%, transparent);
-  color: var(--ink, #1a1814);
-  box-shadow: 0 8px 24px rgba(20, 16, 10, 0.12);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  color: var(--ink);
+  box-shadow: var(--map-overlay-shadow);
 }
 .mapSoftRetryMessage {
   flex: 1;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
   color: inherit;
 }
@@ -2648,22 +2429,24 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   min-width: 64px;
   min-height: 44px;
   padding: 5px 12px;
-  border: 1px solid var(--brass, #c4a35a);
-  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
-  font-family: var(--serif, inherit);
+  font-family: var(--serif);
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.02em;
   cursor: pointer;
 }
-.mapSoftRetryBtn:hover {
-  background: var(--brass, #c4a35a);
-  color: var(--ink-deep, #090806);
+@media (hover: hover) and (pointer: fine) {
+  .mapSoftRetryBtn:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
+  }
 }
 .mapSoftRetryBtn:focus-visible {
-  outline: 2px solid var(--brass, #c4a35a);
+  outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
@@ -2672,7 +2455,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   position: absolute;
   top: 50%;
   left: 50%;
-  z-index: var(--z-map-ask, 514);
+  z-index: var(--z-map-ask);
   display: flex;
   max-width: min(360px, calc(100% - 24px));
   align-items: center;
@@ -2698,19 +2481,21 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   min-height: var(--control-height);
   flex: 0 0 auto;
   padding: 7px 13px;
-  border: 1px solid var(--color-accent);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
   font-size: var(--text-xs);
   font-weight: 750;
   cursor: pointer;
 }
 
-.mapSearchEmptyAction:hover {
-  background: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .mapSearchEmptyAction:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--control-secondary-surface));
+    border-color: var(--hairline-strong);
+  }
 }
 
 .mapSearchEmptyAction:focus-visible {
@@ -2718,7 +2503,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   outline-offset: 2px;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 640px) {
   .mapSearchEmpty {
     align-items: stretch;
     flex-wrap: wrap;
@@ -2789,7 +2574,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   }
 }
   body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .mapFallbackRetry {
-    margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter, 20px)));
+    margin-inline: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
   }
 
 
@@ -2797,13 +2582,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-family: var(--serif);
   font-weight: 600;
   font-variation-settings: "SOFT" 0;
-  font-size: 1.15rem;
+  font-size: var(--text-md);
 }
 
 .mapFallback p {
   margin: 0 auto;
   max-width: 340px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--color-on-inverse);
 }
@@ -2835,15 +2620,20 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 0;
   background: none;
   font: inherit;
-  font-size: 0.72rem;
-  color: var(--brass);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
   opacity: 0.85;
   cursor: pointer;
 }
 
-.mapFallbackDisclosureToggle:hover,
 .mapFallbackDisclosureToggle:focus-visible {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mapFallbackDisclosureToggle:hover {
+    opacity: 1;
+  }
 }
 
 .mapFallbackDisclosureToggle:focus-visible {
@@ -2858,7 +2648,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   max-width: 340px;
   margin: 6px auto 0;
   font-family: var(--font-body);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   letter-spacing: 0.02em;
   line-height: 1.4;
   color: var(--color-on-inverse);
@@ -2872,14 +2662,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin-top: 14px;
   min-height: 44px;
   padding: 7px 20px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-on-inverse);
-  font-family: var(--serif, inherit);
+  font-family: var(--serif);
   font-weight: 600;
   font-variation-settings: "SOFT" 0;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   letter-spacing: 0.03em;
   cursor: pointer;
   transition:
@@ -2887,9 +2677,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     color 0.15s ease;
 }
 
-.mapFallbackRetry:hover {
-  background: var(--brass);
-  color: var(--ink-deep);
+@media (hover: hover) and (pointer: fine) {
+  .mapFallbackRetry:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
+  }
 }
 
 .mapFallbackRetry:focus-visible {
@@ -2924,27 +2716,32 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: background 0.15s ease;
 }
 
-.mapFallbackVenue:hover,
 .mapFallbackVenue:focus-visible {
   background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .mapFallbackVenue:hover {
+    background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+  }
+}
+
 .mapFallbackVenueName {
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .mapFallbackVenueMeta {
   flex-shrink: 0;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--color-on-inverse);
 }
 
 .mapFallbackBrowse {
   display: inline-block;
   margin-top: 10px;
-  color: var(--brass);
-  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -2961,11 +2758,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   width: min(292px, calc(100vw - 32px));
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--line) 68%, var(--pint) 32%);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   /* Wave J2 — solid panel-raised (no frost) so hover previews match landmark/hero cards. */
   background: var(--panel-raised);
   color: var(--ink);
-  box-shadow: var(--shadow, 0 18px 42px rgba(44, 30, 62, 0.18));
+  box-shadow: var(--shadow);
   pointer-events: none;
 }
 
@@ -2975,7 +2772,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   width: 72px;
   height: 72px;
   overflow: hidden;
-  border-radius: 13px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--pint) 16%, var(--panel));
 }
 
@@ -2996,7 +2793,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 1px solid color-mix(in srgb, var(--pint) 24%, transparent);
   color: var(--pint);
   font-family: var(--serif);
-  font-size: 1.55rem;
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
@@ -3010,7 +2807,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .venueHoverEyebrow {
   color: var(--color-text-muted);
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -3019,7 +2816,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   overflow: hidden;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   font-weight: 700;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -3028,13 +2825,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .venueHoverMeta {
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
 }
 
 .venueHoverProvenance {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -3046,7 +2843,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   align-items: center;
   gap: 5px;
   color: var(--river-bright);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -3059,7 +2856,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   background: var(--river-bright);
 }
 
-@media (hover: none), (pointer: coarse), (max-width: 700px) {
+@media (hover: none), (pointer: coarse), (max-width: 640px) {
   .venueHoverCard {
     display: none;
   }
@@ -3074,11 +2871,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   z-index: var(--z-map-base);
   max-width: 300px;
   padding: 13px 15px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-  border-radius: 18px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--brass) 9%, var(--panel-raised)), var(--panel-raised) 60%),
-    var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
   color: var(--ink);
   box-shadow: var(--shadow);
 }
@@ -3109,10 +2904,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .mapHeroCardHead span {
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--brass);
+  color: var(--color-text-muted);
 }
 
 .mapHeroCardHead button {
@@ -3122,15 +2917,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   width: 24px;
   height: 24px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
 
-.mapHeroCardHead button:hover {
-  color: var(--ink);
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .mapHeroCardHead button:hover {
+    color: var(--ink);
+    border-color: var(--hairline-strong);
+  }
 }
 
 .mapHeroCard strong {
@@ -3138,13 +2935,13 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-family: var(--serif);
   font-weight: 600;
   font-variation-settings: "SOFT" 0;
-  font-size: 1.02rem;
+  font-size: var(--text-base);
   line-height: 1.25;
 }
 
 .mapHeroCopy {
   margin: 6px 0 9px;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--ink-soft);
   overflow-wrap: break-word;
@@ -3152,18 +2949,20 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .mapHeroVisit {
   padding: 6px 14px;
-  border: 1px solid var(--brass);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-  font-size: 0.78rem;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--brass);
+  color: var(--color-text-muted);
   cursor: pointer;
 }
 
-.mapHeroVisit:hover {
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .mapHeroVisit:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
+  }
 }
 
 .modeToggle {
@@ -3188,13 +2987,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   background: transparent;
   color: var(--ink-soft);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.modeToggle button:hover:not(.selected) {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .modeToggle button:hover:not(.selected) {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .modeToggle button.selected {
@@ -3212,20 +3013,22 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   /* A secondary off the text-button row. It was coral words on a coral wash
      (--brass is 2.5:1 as text on the light panel), a second coral control in
      the planner beside the map's one primary. */
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   margin-bottom: 14px;
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
-  background: var(--control-secondary-surface, var(--panel-raised));
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
-  font-weight: var(--control-font-weight, 700);
-  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight);
+  font-size: var(--control-font-size);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.nearbyBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 5%, var(--control-secondary-surface, var(--panel-raised)));
+@media (hover: hover) and (pointer: fine) {
+  .nearbyBtn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 5%, var(--control-secondary-surface));
+  }
 }
 
 .nearbyBtn:focus-visible {
@@ -3241,7 +3044,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .nearbyError {
   margin: -6px 0 14px;
   color: var(--brick);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -3256,7 +3059,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-radius: var(--radius-sm);
   background: rgba(47, 143, 91, 0.08);
   color: var(--ink);
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   line-height: 1.45;
 }
 
@@ -3267,10 +3070,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 5px;
   padding: 5px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--brick);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -3279,10 +3082,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin-left: auto;
 }
 
-.clearBtn:hover,
-.resetBtn:hover {
-  border-color: var(--brick);
-  background: rgba(181, 73, 58, 0.06);
+@media (hover: hover) and (pointer: fine) {
+  .clearBtn:hover,
+  .resetBtn:hover {
+    border-color: var(--brick);
+    background: rgba(181, 73, 58, 0.06);
+  }
 }
 
 .shareBtn {
@@ -3291,20 +3096,27 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 6px;
   margin-left: auto;
   padding: 6px 12px;
-  border: 1px solid var(--brass);
-  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
-  color: var(--brass);
-  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
   font-weight: 700;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.shareBtn:hover,
 .shareBtn:focus-visible {
-  border-color: var(--brass-bright);
-  background: var(--brass);
-  color: var(--color-on-accent-strong);
+  border-color: var(--hairline-strong);
+  background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shareBtn:hover {
+    border-color: var(--hairline-strong);
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+    color: var(--ink);
+  }
 }
 
 .addStopBtn {
@@ -3312,15 +3124,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin-top: 12px;
   min-height: 44px;
   border: 1px solid var(--ink-deep);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--ink-deep);
   color: var(--color-on-inverse);
   font-weight: 700;
   transition: transform 0.12s ease, filter 0.15s ease;
 }
 
-.addStopBtn:hover {
-  filter: brightness(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .addStopBtn:hover {
+    filter: brightness(1.15);
+  }
 }
 
 .addStopBtn:active {
@@ -3332,7 +3146,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 1px dashed var(--line);
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   text-align: center;
 }
 
@@ -3348,8 +3162,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border: 1px solid color-mix(in srgb, var(--line) 80%, var(--pint) 20%);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink-deep) 14%, transparent);
-  font-size: 0.8rem;
+  box-shadow: var(--map-overlay-shadow-tight);
+  font-size: var(--text-xs);
   font-weight: 600;
 }
 
@@ -3363,7 +3177,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .mapLegend i {
   width: 10px;
   aspect-ratio: 1;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .mapLegend .green {
@@ -3411,7 +3225,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .writerCard p {
   margin-bottom: 10px;
   color: var(--ink);
-  font-size: 0.89rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -3430,25 +3244,27 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   min-height: 44px;
   padding: 4px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-decoration: none;
   transition: border-color 0.15s ease, transform 0.12s ease;
 }
 
-.sourceLinks a:hover {
-  border-color: var(--river);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .sourceLinks a:hover {
+    border-color: var(--river);
+    transform: translateY(-1px);
+  }
 }
 
 .writerCard ul {
   margin: 12px 0;
   padding-left: 18px;
   color: var(--muted);
-  font-size: 0.83rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -3466,9 +3282,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   align-items: center;
   gap: 5px;
   padding: 2px 8px 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid transparent;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -3478,7 +3294,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   content: "";
   width: 7px;
   aspect-ratio: 1;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: currentcolor;
 }
 
@@ -3501,9 +3317,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .provChip.demo {
-  color: var(--brass);
-  border-color: color-mix(in srgb, var(--brass) 40%, transparent);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--color-text-muted);
+  border-color: var(--line);
+  background: transparent;
 }
 
 /* Needs Source: unverified editorial — visibly distinct from Sourced. */
@@ -3537,11 +3353,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   align-items: center;
   min-height: 25px;
   padding: 3px 9px;
-  border: 1px solid var(--brass);
-  border-radius: 999px;
-  background: var(--surface-tint-brass);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
   color: var(--color-text-soft);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -3577,7 +3393,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -3590,7 +3406,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .contributorPrice small {
   flex: 1 1 100%;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -3618,9 +3434,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   text-underline-offset: 2px;
 }
 
-.contributorPrice a:hover,
-.priceSourceLink:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .contributorPrice a:hover,
+  .priceSourceLink:hover {
+    color: var(--ink);
+  }
 }
 
 /* First-drop nudge (Cycle-8 item 3) — the honest empty-price invitation shown
@@ -3636,9 +3454,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 8px 12px;
   margin: 10px 0;
   padding: 10px 11px;
-  border: 1px dashed color-mix(in srgb, var(--brass) 40%, var(--line));
+  border: 1px dashed var(--line);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised));
+  background: var(--panel-raised);
 }
 
 .firstDropNudgeLine {
@@ -3646,7 +3464,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   min-width: 0;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
@@ -3656,7 +3474,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   flex: 1 1 100%;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   line-height: 1.35;
 }
 
@@ -3673,15 +3491,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: var(--control-height, 44px);
+  min-height: var(--control-height);
   padding: 0 16px;
   border: 1px solid var(--accent-action);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--accent-action);
   color: var(--color-on-accent-strong);
   font: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   letter-spacing: -0.01em;
   line-height: 1.2;
   white-space: nowrap;
@@ -3693,10 +3511,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     border-color var(--duration-base) var(--ease-out);
 }
 
-.priceDoor:hover {
-  background: var(--accent-action-strong);
-  border-color: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+@media (hover: hover) and (pointer: fine) {
+  .priceDoor:hover {
+    background: var(--accent-action-strong);
+    border-color: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
 }
 
 .priceDoor:focus-visible {
@@ -3719,7 +3539,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .priceDoorAsk {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -3789,7 +3609,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .claimCard .claimEra {
   color: var(--river);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -3798,7 +3618,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .claimCard p {
   margin-bottom: 8px;
   color: var(--ink);
-  font-size: 0.87rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -3811,13 +3631,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   align-items: center;
   gap: 5px;
   color: var(--river);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-decoration: none;
 }
 
-.claimCard a:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .claimCard a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ── The Landlord: grounded heritage chat ─────────────────────────────── */
@@ -3842,8 +3664,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   transition: filter 0.15s ease;
 }
 
-.landlordBtn:hover {
-  filter: brightness(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .landlordBtn:hover {
+    filter: brightness(1.15);
+  }
 }
 
 .landlordBtn:disabled {
@@ -3879,10 +3703,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   justify-content: center;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
 }
 
 .landlordForm button:disabled {
@@ -3900,36 +3724,38 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .landlordSuggest button {
   padding: 5px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   transition: border-color 0.15s ease;
 }
 
-.landlordSuggest button:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .landlordSuggest button:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .landlordAnswer {
   margin-top: 12px;
   padding: 13px;
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
-  border-radius: 16px;
-  background: linear-gradient(180deg, var(--panel-raised) 0%, var(--surface-tint-brass) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
 }
 
 .landlordAnswer p {
   margin: 0;
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.55;
 }
 
 .landlordAnswer .landlordClarify {
   margin-top: 8px;
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
@@ -3939,15 +3765,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 7px;
   margin-top: 12px;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
 }
 
 .landlordThinking::before {
   content: "";
   width: 9px;
   aspect-ratio: 1;
-  border-radius: 999px;
-  background: var(--brass);
+  border-radius: var(--radius-pill);
+  background: var(--color-text-muted);
   animation: pulse 1.1s ease-in-out infinite;
 }
 
@@ -3964,10 +3790,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 5px;
   padding: 3px 9px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-decoration: none;
 }
@@ -3976,40 +3802,51 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   content: "";
   width: 6px;
   aspect-ratio: 1;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--river);
 }
 
-.citationChip:hover {
-  border-color: var(--river);
+@media (hover: hover) and (pointer: fine) {
+  .citationChip:hover {
+    border-color: var(--river);
+  }
 }
 
 .landlordMsg {
   margin-top: 10px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--brick);
 }
 
+/* The round's figures, read as one line: the figure, then what it counts.
+   No tile, no icon per figure (taste pass, 18 Oct 2026). */
 .routeMetrics {
-  margin: 16px 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  margin: var(--space-4) 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
 }
 
 .routeMetrics div {
   min-width: 0;
 }
 
-.routeMetrics div > svg {
-  color: var(--brass);
-}
-
 .routeMetrics span {
   display: block;
-  font-weight: 800;
+  font-family: var(--font-data);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  margin: 4px 0 2px;
+  color: var(--ink);
+}
+
+.routeMetrics .routeMetricsWord {
+  font-family: inherit;
+}
+
+.routeMetrics small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
 .routeList {
@@ -4021,8 +3858,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .routeList li {
-  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--brass) 24%);
-  border-radius: 17px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--panel-raised) 94%, var(--surface-tint-lager) 6%), var(--panel-raised)),
     var(--panel-raised);
@@ -4043,15 +3880,16 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-radius: inherit;
 }
 
-.routeList li:hover {
-  border-color: var(--brass);
-  transform: translateX(2px);
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--brass) 11%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .routeList li:hover {
+    border-color: var(--hairline-strong);
+    transform: translateX(2px);
+  }
 }
 
 .routeList li.active {
-  border-color: var(--brass);
-  box-shadow: 0 14px 30px color-mix(in srgb, var(--brass) 16%, transparent), inset 4px 0 0 var(--brass);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
 }
 
 .stopNumber {
@@ -4059,10 +3897,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, var(--brass), var(--river));
-  /* Cream for the same reason as .brandMark: the river end fails dark ink. */
-  color: var(--color-on-inverse);
-  border-radius: 999px;
+  /* A stop's number is a figure in ink, never a coral or river badge
+     (docs/DESIGN_SYSTEM.md "Coral is spent twice"). */
+  border: 1px solid var(--badge-border);
+  background: var(--badge-surface);
+  color: var(--ink);
+  border-radius: var(--radius-pill);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -4074,7 +3914,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .routeList strong {
-  font-size: 0.96rem;
+  font-size: var(--text-base);
 }
 
 .routeList p {
@@ -4084,7 +3924,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .routeList small {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 600;
 }
 
@@ -4100,10 +3940,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .routePaceBtn {
   padding: 4px 10px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -4115,14 +3955,14 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .routePaceTotal {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .routeSafetyNote {
   margin: -4px 0 12px;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--ink-soft);
 }
@@ -4135,17 +3975,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin: 0 0 12px;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--river) 34%, var(--line));
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--river) 8%, var(--panel-raised)), var(--panel-raised)),
     var(--panel-raised);
 }
 
 .routeMapPrompt.active {
-  border-color: color-mix(in srgb, var(--brass) 48%, var(--line));
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel-raised)), var(--panel-raised)),
-    var(--panel-raised);
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
 }
 
 .routeMapPrompt div {
@@ -4156,18 +3994,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .routeMapPrompt strong {
   color: var(--ink);
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
 }
 
 .routeMapPrompt span {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 650;
 }
 
 .routeMapPrompt small {
   color: var(--river);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 750;
 }
 
@@ -4178,12 +4016,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 6px;
   min-height: 36px;
   padding: 7px 11px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius-pill);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -4198,21 +4036,21 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   flex-wrap: wrap;
   margin: 2px 0 0 41px;
   padding: 4px 0 6px;
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   color: var(--muted);
   border-bottom: 1px dashed var(--line);
 }
 
 .routeLeg svg {
-  color: var(--brass);
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
 .routeLegOnWay {
   flex-basis: 100%;
   margin: 0;
-  font-size: 0.76rem;
-  color: var(--ink-soft, var(--muted));
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
 }
 
 .routeLegTransit {
@@ -4222,10 +4060,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 6px;
   margin: 2px 0 0;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--river) 12%, var(--panel-raised));
   color: var(--river);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -4235,16 +4073,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 5px;
   margin: 2px 0 0 41px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--line) 70%, var(--river) 30%);
   color: var(--river);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-decoration: none;
   width: fit-content;
 }
-.routeStopDirections:hover {
-  background: color-mix(in srgb, var(--river) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .routeStopDirections:hover {
+    background: color-mix(in srgb, var(--river) 10%, transparent);
+  }
 }
 
 /* Keyboard route-building path: filtered venue list with Add/Remove controls. */
@@ -4278,18 +4118,20 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: inherit;
 }
 
-.venuePickerList button:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .venuePickerList button:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .venuePickerList button[aria-pressed="true"] {
   border-color: var(--ink-deep);
-  box-shadow: inset 3px 0 0 var(--brass);
+  box-shadow: inset 3px 0 0 var(--state-selected-border);
 }
 
 .venuePickerList strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4301,9 +4143,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .venuePickerList .pickAction {
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -4323,7 +4165,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .description {
   margin-top: 10px;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -4381,29 +4223,23 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .dropCard .dropHandle {
   font-weight: 800;
-  font-size: 0.84rem;
+  font-size: var(--text-sm);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dropCard .dropPrice {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--pint);
-}
-
 .dropCard p {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--ink);
 }
 
 .dropCard small {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
 }
 
 .dropCard .dropFoot {
@@ -4483,10 +4319,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   left: 6px;
   bottom: 6px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 16, 12, 0.68);
   color: var(--color-on-photo);
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: lowercase;
   letter-spacing: 0.02em;
@@ -4515,17 +4351,19 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   flex: 0 0 auto;
   padding: 3px 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-.reportBtn:hover {
-  border-color: var(--brick);
-  color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .reportBtn:hover {
+    border-color: var(--brick);
+    color: var(--brick);
+  }
 }
 
 /* The pill stays small on purpose (it is the quietest control in the row), but
@@ -4576,11 +4414,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   gap: 3px;
   min-height: 84px;
   padding: 12px 10px;
-  border: 1px dashed var(--brass);
+  border: 1px dashed var(--hairline-strong);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--brass) 6%, transparent);
-  color: var(--brass);
-  font-size: 0.8rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
   font-weight: 800;
   text-align: center;
   cursor: pointer;
@@ -4588,13 +4426,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 .photoPick small {
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--muted);
 }
 
-.photoPick:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .photoPick:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .photoPick input[type="file"] {
@@ -4632,21 +4472,23 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   right: 5px;
   padding: 3px 8px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--brick);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
 }
 
-.photoRemove:hover {
-  border-color: var(--brick);
+@media (hover: hover) and (pointer: fine) {
+  .photoRemove:hover {
+    border-color: var(--brick);
+  }
 }
 
 .consentNote {
   margin: 0;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   line-height: 1.45;
 }
 
@@ -4699,7 +4541,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     max(6px, env(safe-area-inset-bottom))
     max(14px, env(safe-area-inset-left));
   border: 0;
-  border-top: 1px solid var(--hairline, var(--line));
+  border-top: 1px solid var(--hairline);
   border-radius: 0;
   background: var(--panel-raised);
   color: var(--ink);
@@ -4708,7 +4550,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .analyticsConsentPrompt p {
   min-width: 0;
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   line-height: 1.3;
 }
 
@@ -4719,7 +4561,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    hit area hanging below that line would leave the 56px row. */
 .analyticsConsentPrompt a {
   display: inline-block;
+  box-sizing: border-box;
   min-width: 44px;
+  min-height: 44px;
   padding: 24px 4px 6px;
   margin: -24px -4px -6px;
   color: inherit;
@@ -4738,23 +4582,28 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .analyticsConsentPromptActions button {
   min-width: 44px;
   min-height: 44px;
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--control-secondary-border, var(--line));
-  border-radius: var(--control-radius, 14px);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
   background: var(--panel);
   color: var(--ink);
   font-family: inherit;
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   line-height: 1;
   white-space: nowrap;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-.analyticsConsentPromptActions button:hover,
 .analyticsConsentPromptActions button:focus-visible {
   border-color: var(--brass);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .analyticsConsentPromptActions button:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 /* Any open map surface owns the reader's attention; the consent card must not
@@ -4794,31 +4643,31 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 @media (min-width: 641px) {
   body:has(.analyticsConsentPrompt):not(:has(.mapStage)) {
     padding-bottom: calc(
-      var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
+      var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom))
     );
   }
 
   /* The map fills the viewport, so its attribution moves above the docked
      consent strip instead of adding a scrollable foot to the document. */
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: var(--analytics-consent-clearance, 72px);
+    bottom: var(--analytics-consent-clearance);
   }
 
   body:has(.analyticsConsentPrompt) {
     --map-layers-bottom: calc(
-      var(--analytics-consent-clearance, 72px) + var(--map-layers-attrib-clearance)
+      var(--analytics-consent-clearance) + var(--map-layers-attrib-clearance)
     );
   }
 
   body:has(.analyticsConsentPrompt) .mapSoftRetry {
     bottom: calc(
-      var(--analytics-consent-clearance, 72px) + max(16px, env(safe-area-inset-bottom, 0px))
+      var(--analytics-consent-clearance) + max(16px, env(safe-area-inset-bottom, 0px))
     );
   }
 
   html:has(.analyticsConsentPrompt) {
     scroll-padding-bottom: calc(
-      var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
+      var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom))
     );
   }
 }
@@ -4925,7 +4774,9 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   }
 
   .analyticsConsentPrompt p {
-    font-size: 0.72rem;
+    /* The smaller step on the near tie (0.72rem sat between 2xs and xs), so
+       the sentence keeps the card one 56px row at 320 wide. */
+    font-size: var(--text-2xs);
     line-height: 1.25;
   }
 
@@ -4943,7 +4794,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 
   .analyticsConsentPromptActions button {
     padding-inline: 10px;
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
 
   /* NO MAP BERTH. On the phone map the card keeps this dock, and the outing
@@ -4988,7 +4839,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 
 @media (prefers-reduced-motion: no-preference) {
   .analyticsConsentPrompt {
-    animation: analytics-consent-arrive 160ms var(--ease-out, ease-out);
+    animation: analytics-consent-arrive 160ms var(--ease-out);
   }
 }
 
@@ -5006,7 +4857,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   padding: 13px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--brass) 5%, transparent);
+  background: transparent;
 }
 
 .dropComposer .composerRow {
@@ -5052,21 +4903,23 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
-  border: 1px solid var(--brass);
-  border-radius: var(--control-radius, 14px);
-  background: var(--brass);
-  color: var(--color-on-accent);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   text-decoration: none;
   transition: filter 0.15s ease;
 }
 
-.dropComposer button[type="submit"]:hover,
-.dropComposer .spillSubmitLink:hover {
-  filter: brightness(1.08);
+@media (hover: hover) and (pointer: fine) {
+  .dropComposer button[type="submit"]:hover,
+  .dropComposer .spillSubmitLink:hover {
+    filter: brightness(1.08);
+  }
 }
 
 .dropComposer button[type="submit"]:disabled {
@@ -5082,20 +4935,22 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   justify-content: center;
   margin-top: 12px;
   min-height: 44px;
-  border: 1px dashed var(--brass);
-  border-radius: var(--control-radius, 14px);
-  background: color-mix(in srgb, var(--brass) 6%, transparent);
-  color: var(--brass);
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-text-muted);
   font-weight: 700;
   transition: background 0.15s ease;
 }
 
-.composerToggle:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .composerToggle:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
 }
 
 .composerMsg {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 600;
 }
 
@@ -5115,21 +4970,22 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 }
 
 .composerMsgLink {
-  color: var(--brass);
+  color: var(--ink);
   font-weight: 700;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.15s ease;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
-.composerMsgLink:hover {
-  border-bottom-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .composerMsgLink:hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 .composerMsgLink:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Vibe tags ────────────────────────────────────────────────────────────
@@ -5146,7 +5002,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   padding: 0;
   margin-bottom: 6px;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -5162,18 +5018,20 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   min-height: 32px;
   padding: 4px 11px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: lowercase;
   cursor: pointer;
 }
 
-.vibeChip:hover:not(:disabled) {
-  border-color: var(--state-selected-border);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .vibeChip:hover:not(:disabled) {
+    border-color: var(--state-selected-border);
+    color: var(--ink);
+  }
 }
 
 .vibeChip.selected {
@@ -5206,7 +5064,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   border-color: var(--badge-border);
   background: var(--badge-surface);
   color: var(--badge-ink);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   cursor: default;
 }
 
@@ -5225,19 +5083,21 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   width: 100%;
   min-height: 48px;
   padding: 12px 16px;
-  border: 1px solid var(--brass);
-  border-radius: var(--control-radius, 14px);
-  background: var(--brass);
-  color: var(--color-on-accent);
-  font-size: 0.95rem;
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  font-size: var(--text-base);
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: filter 0.15s ease, transform 0.12s ease;
 }
 
-.logDropBtn:hover {
-  filter: brightness(1.08);
+@media (hover: hover) and (pointer: fine) {
+  .logDropBtn:hover {
+    filter: brightness(1.08);
+  }
 }
 
 .logDropBtn:focus-visible {
@@ -5251,7 +5111,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1023px) {
   .logDropBar {
     position: sticky;
     bottom: 8px;
@@ -5301,9 +5161,11 @@ button:disabled {
 }
 
 /* Hover warm-up (color/border only) for list-style controls. */
-.landlordSuggest button:hover,
-.citationChip:hover {
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .landlordSuggest button:hover,
+  .citationChip:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  }
 }
 
 .dropCard,
@@ -5311,17 +5173,21 @@ button:disabled {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.dropCard:hover,
-.claimCard:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .dropCard:hover,
+  .claimCard:hover {
+    border-color: var(--hairline-strong);
+  }
 }
 
 .venuePickerList button {
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.venuePickerList button:hover {
-  background: color-mix(in srgb, var(--brass) 7%, var(--panel-raised));
+@media (hover: hover) and (pointer: fine) {
+  .venuePickerList button:hover {
+    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5364,10 +5230,12 @@ button:disabled {
   }
 
   /* Featured cards and drop/claim cards lift a hair on hover. */
-  .featuredCrawl:hover,
-  .dropCard:hover,
-  .claimCard:hover {
-    transform: translateY(-1px);
+  @media (hover: hover) and (pointer: fine) {
+    .featuredCrawl:hover,
+    .dropCard:hover,
+    .claimCard:hover {
+      transform: translateY(-1px);
+    }
   }
 }
 
@@ -5378,7 +5246,7 @@ button:disabled {
   }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1023px) {
   .mapLegend {
     left: 10px;
     right: 10px;
@@ -5396,12 +5264,12 @@ button:disabled {
   .siteNav a {
     min-height: 28px;
     padding: 0 8px;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
   }
 }
 
 /* ── Phone: map stays the hero, rails read as scrollable bottom sheets ──────
-   The ≤1050px rule already stacks to one column (map first, order:-1). Here we
+   The ≤1023px rule already stacks to one column (map first, order:-1). Here we
    make it feel like a phone app: a taller map hero, comfortable padding, and
    the two panels as rounded "sheets" that overlap up under the map with their
    own scroll. Pure CSS — no JS to drag/collapse, so the sheets simply live in
@@ -5559,20 +5427,22 @@ button:disabled {
     min-height: 44px;
     margin: 12px 14px 2px;
     border: 1px solid color-mix(in srgb, var(--river) 34%, var(--line));
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background:
       linear-gradient(135deg, color-mix(in srgb, var(--river) 10%, var(--panel-raised)), var(--panel-raised));
     color: var(--river);
-    box-shadow: 0 12px 26px color-mix(in srgb, var(--ink) 10%, transparent);
+    box-shadow: var(--shadow-sm);
     font: inherit;
-    font-size: 0.86rem;
+    font-size: var(--text-sm);
     font-weight: 800;
     cursor: pointer;
   }
 
-  .plannerMapButton:hover {
-    border-color: var(--river);
-    background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+  @media (hover: hover) and (pointer: fine) {
+    .plannerMapButton:hover {
+      border-color: var(--river);
+      background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
+    }
   }
 
   /* Keep the floating theme toggle clear of the map legend and reachable, and
@@ -5624,8 +5494,8 @@ button:disabled {
     /* Declutter: chrome hugs corners; no mid-map POI/legend stack. */
     --map-mobile-hero-clearance: 0px;
     --map-mobile-legend-clearance: 0px;
-    --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
-    --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
+    --map-overlay-shadow: 0 8px 20px rgba(60, 30, 20, 0.12);
+    --map-overlay-shadow-tight: 0 5px 13px rgba(60, 30, 20, 0.11);
     /* Compact matched chrome: nav (~40px) + gap + safe area; toolbar controls use 44px targets. */
     --map-top-clearance: calc(
       10px + env(safe-area-inset-top, 0px) + 40px + var(--map-chrome-gap)
@@ -5690,8 +5560,8 @@ button:disabled {
   .mapRecenterBtn {
     min-height: 44px;
     padding: 0 9px;
-    font-size: 0.68rem;
-    border-radius: 999px;
+    font-size: var(--text-2xs);
+    border-radius: var(--radius-pill);
   }
 
   /* .mapToolbar / .mapLegend sheet-full, onboarding-open, and detail-open hide
@@ -5752,7 +5622,7 @@ button:disabled {
     align-items: stretch;
     gap: 8px;
     padding: 10px;
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
   }
 
   .bandOnboardingChip > div {
@@ -5828,7 +5698,7 @@ button:disabled {
   .mappedRouteChip,
   .activeRoundChip,
   .bandOnboardingChip {
-    border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
+    border-color: var(--line);
   }
 
   .mapDrawer.left.open,
@@ -5839,7 +5709,7 @@ button:disabled {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .controlRail,
   .routePanel {
     padding-left: 14px;
@@ -5847,7 +5717,7 @@ button:disabled {
   }
 
   h1 {
-    font-size: 1.34rem;
+    font-size: var(--text-lg);
   }
 
   .brandBlock {
@@ -5856,7 +5726,6 @@ button:disabled {
 
   /* Grids that were two/three columns get cramped on a phone — go single. */
   .statsGrid,
-  .routeMetrics,
   .photoRow,
   .dropComposer .composerRow,
   .dropPhotos {
@@ -5872,11 +5741,11 @@ button:disabled {
   /* Segmented + mode toggles stay two-up (short labels), just taller. */
   .segmented button,
   .modeToggle button {
-    font-size: 0.82rem;
+    font-size: var(--text-sm);
   }
 
   .statsGrid strong {
-    font-size: 1.24rem;
+    font-size: var(--text-md);
   }
 
   /* Landlord ask row: stack input above the send button so both stay ≥44px. */
@@ -5898,7 +5767,7 @@ button:disabled {
     bottom: calc(var(--mobile-tab-clearance) + var(--map-mobile-hero-clearance));
     gap: 8px 12px;
     padding: 8px 10px;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
   }
 
   .mappedRouteChip,
@@ -5911,13 +5780,13 @@ button:disabled {
   .mappedRouteChip strong,
   .activeRoundChip strong,
   .bandOnboardingChip strong {
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
   }
 
   .mappedRouteChip span,
   .activeRoundChip span,
   .bandOnboardingChip span {
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
   }
 
   .routeMapPrompt {
@@ -6152,13 +6021,12 @@ html[data-theme="dark"][data-legacy="1"] {
   z-index: 0;
   pointer-events: none;
   border-radius: inherit;
-  /* Two faint diagonal weaves + a soft brass wash = linen. Kept ~4% so it
+  /* Two faint diagonal ink weaves = linen. Kept ~4% so it
      reads as tactile grain, never as pattern. */
-  background-image:
-    repeating-linear-gradient(
+  background-image: repeating-linear-gradient(
       45deg,
-      color-mix(in srgb, var(--brass) 5%, transparent) 0,
-      color-mix(in srgb, var(--brass) 5%, transparent) 1px,
+      color-mix(in srgb, var(--ink) 3%, transparent) 0,
+      color-mix(in srgb, var(--ink) 3%, transparent) 1px,
       transparent 1px,
       transparent 4px
     ),

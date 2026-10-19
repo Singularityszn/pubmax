@@ -115,7 +115,7 @@ export default function NotificationBell(): React.JSX.Element | null {
         }
       }}
     >
-      <Bell size={18} aria-hidden="true" />
+      <Bell size={20} aria-hidden="true" />
       {socialFriendsLaunchEnabled && unread > 0 ? (
         // key={unread} remounts the badge whenever the count changes, so the
         // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —

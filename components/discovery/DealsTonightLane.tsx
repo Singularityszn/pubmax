@@ -114,7 +114,7 @@ export default function DealsTonightLane({
     <section className="dealsTonight" aria-labelledby="deals-tonight-title">
       <div className="dealsTonightHead">
         <h2 id="deals-tonight-title">
-          <PoundSterling size={18} aria-hidden="true" />
+          <PoundSterling size={16} aria-hidden="true" />
           <span>Deals tonight</span>
         </h2>
         <span className="dealsTonightChecked">

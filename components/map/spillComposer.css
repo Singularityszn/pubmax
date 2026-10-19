@@ -25,7 +25,7 @@
 
 .spillComposerIntro strong {
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-base);
   line-height: 1.18;
 }
 
@@ -49,7 +49,7 @@
   padding: 0;
   margin-bottom: 6px;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -66,21 +66,23 @@
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
   text-align: center;
 }
 
-.visibilityOption:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .visibilityOption:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .visibilityOption.selected {
-  border-color: var(--brass);
+  border-color: var(--state-selected-border);
   background: rgba(176, 129, 58, 0.14);
-  color: var(--brass);
+  color: var(--state-selected-ink);
 }
 
 .visibilityOption:focus-visible {
@@ -91,11 +93,11 @@
 .visibilityHelper {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .visibilitySegment {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -131,13 +133,13 @@
 .spillSignedOutNote {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .spillPostingAs {
   margin: 0;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .spillPostingAs strong {
@@ -148,16 +150,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: var(--control-height, 44px);
-  padding: 0 var(--control-pad-x, 16px);
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
   border: 1px dashed var(--line);
   /* The composer's controls share one corner: the submit, the steppers and
      this disclosure wore 6px, 6px and 10px beside each other. */
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
-  font-size: var(--control-font-size, 0.86rem);
-  font-weight: var(--control-font-weight, 700);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
   justify-self: start;
 }
@@ -176,9 +178,11 @@
   }
 }
 
-.spillExtrasToggle:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillExtrasToggle:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .spillExtrasToggle:focus-visible {
@@ -201,13 +205,13 @@
 .spillFieldLabel,
 .priceFieldLabel {
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
 .voiceAffordance {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -229,15 +233,17 @@
   min-width: 44px;
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius, 14px);
+  border-radius: var(--control-radius);
   background: var(--panel-raised);
   color: var(--ink);
   cursor: pointer;
 }
 
-.priceStepBtn:hover {
-  border-color: var(--brass);
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .priceStepBtn:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .priceStepBtn:focus-visible {
@@ -273,10 +279,10 @@
   overflow: hidden;
   white-space: nowrap;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -288,18 +294,20 @@
   grid-column: span 2;
 }
 
-.priceChip:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .priceChip:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .priceChip.selected {
-  border-color: var(--brass);
+  border-color: var(--state-selected-border);
   background: rgba(176, 129, 58, 0.14);
   /* The accent as a WORD takes --brass-ink, which is light-only and points back
      at --brass in dark, so one coral survives the theme (AGENTS.md, the
      accent-ink law). Bare --brass here read 2.9:1 on the tinted chip. */
-  color: var(--brass-ink);
+  color: var(--state-selected-ink);
 }
 
 /* The measure row's own rules live in components/map/measureChips.css, beside
@@ -339,9 +347,11 @@
   cursor: pointer;
 }
 
-.micBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .micBtn:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .micBtn:focus-visible {
@@ -390,7 +400,7 @@
 .spillStepEyebrow,
 .spillPreviewEyebrow {
   color: var(--ink-soft);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -398,7 +408,7 @@
 
 .spillCameraHint {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -409,9 +419,9 @@
   gap: 10px;
   align-items: stretch;
   padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--panel-raised) 88%, var(--brass) 12%);
+  background: var(--panel-raised);
 }
 
 .spillCaptureRail.hasShot {
@@ -443,7 +453,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: var(--brass-bright, #d8ab55);
+  color: var(--color-on-inverse);
 }
 
 .spillShotStamp {
@@ -456,10 +466,10 @@
   min-height: 28px;
   padding: 4px 9px;
   border: 1px solid rgba(216, 171, 85, 0.42);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--spill-veil-strong);
-  color: var(--brass-bright, #d8ab55);
-  font-size: 0.62rem;
+  color: var(--color-on-inverse);
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -481,7 +491,7 @@
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -503,9 +513,11 @@
   color: var(--brass);
 }
 
-.spillCameraBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillCameraBtn:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .spillCameraBtn:focus-within {
@@ -544,7 +556,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink-soft);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
 }
@@ -566,7 +578,7 @@
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 7px;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
   }
 
   .spillCameraFrame {
@@ -580,8 +592,8 @@
   .spillCameraBtn {
     min-height: 48px;
     padding: 10px 11px;
-    border-radius: 999px;
-    font-size: 0.84rem;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-sm);
     line-height: 1.15;
     text-align: center;
     white-space: normal;
@@ -599,9 +611,11 @@
   }
 }
 
-.spillSkipPhoto:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillSkipPhoto:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .spillSkipPhoto:focus-visible {
@@ -619,14 +633,16 @@
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
 
-.spillRetakeBtn:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillRetakeBtn:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 /* ── One-tap destination chips (PRD priority 2) ───────────────────────────────
@@ -642,7 +658,7 @@
   padding: 0;
   margin-bottom: 6px;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -656,23 +672,25 @@
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
 
-.destinationChip:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .destinationChip:hover:not(:disabled) {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .destinationChip.selected {
-  border-color: var(--brass);
+  border-color: var(--state-selected-border);
   background: rgba(176, 129, 58, 0.14);
-  color: var(--brass);
+  color: var(--state-selected-ink);
 }
 
 .destinationChip:disabled {
@@ -688,7 +706,7 @@
 .destinationHelper {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 
@@ -696,9 +714,9 @@
 .priceChipTag {
   margin-left: 5px;
   padding: 1px 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(176, 129, 58, 0.16);
-  color: var(--brass);
+  color: var(--color-text-muted);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -716,7 +734,7 @@
 .generationField legend {
   padding: 0;
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -730,23 +748,25 @@
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
 
-.generationChip:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .generationChip:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .generationChip.selected {
-  border-color: var(--brass);
+  border-color: var(--state-selected-border);
   background: rgba(176, 129, 58, 0.14);
-  color: var(--brass);
+  color: var(--state-selected-ink);
 }
 
 .generationChip:focus-visible {
@@ -757,9 +777,9 @@
 .spillDesktopCapture {
   grid-template-columns: 1fr 1fr;
   padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--panel-raised) 90%, var(--brass) 10%);
+  background: var(--panel-raised);
 }
 
 .spillCaptureIntro {
@@ -769,7 +789,7 @@
   justify-content: space-between;
   gap: 8px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -798,7 +818,7 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--spill-surface);
-  box-shadow: var(--shadow, 0 14px 30px rgba(24, 34, 26, 0.12));
+  box-shadow: var(--shadow);
 }
 
 .spillPreviewPhoto {
@@ -827,7 +847,7 @@
       transparent 42px
     ),
     #12100c;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-align: center;
   padding: 0 16px;
@@ -849,14 +869,13 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--spill-veil);
-  color: var(--brass-bright, #d8ab55);
+  color: var(--color-on-inverse);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
 }
 
 .spillPreviewVisibility {
@@ -872,22 +891,12 @@
   color: #cfc6b3;
 }
 
+/* Position only: the figure is the one price look (components/PriceBadge.tsx). */
 .spillPreviewPrice {
   position: absolute;
   top: 10px;
   right: 10px;
   z-index: 2;
-  padding: 5px 11px;
-  border-radius: 9px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 1rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px color-mix(in srgb, var(--brass) 40%, transparent);
 }
 
 .spillPreviewScrim {
@@ -922,13 +931,12 @@
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: var(--ink-deep, #1c231d);
-  color: var(--brass-bright, #d8ab55);
-  font-family: var(--font-garamond, var(--serif, Georgia), serif);
-  font-size: 0.92rem;
+  border-radius: 50%;
+  background: var(--ink-deep);
+  color: var(--color-on-inverse);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
 }
 
 .spillPreviewWhoText {
@@ -939,7 +947,7 @@
 
 .spillPreviewHandle {
   font-weight: 700;
-  font-size: 0.86rem;
+  font-size: var(--text-sm);
   color: #fbf6ea;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -947,7 +955,7 @@
 }
 
 .spillPreviewMeta {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: #d9cfba;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -956,8 +964,8 @@
 
 .spillPreviewNote {
   margin: 2px 0 0;
-  font-family: var(--font-garamond, var(--serif, Georgia), "Times New Roman", serif);
-  font-size: 0.92rem;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
   line-height: 1.45;
   color: #f3ecdc;
   display: -webkit-box;
@@ -1023,9 +1031,9 @@ html[data-legacy="1"] .spillPreviewNote {
   align-items: center;
   gap: 10px;
   padding: 8px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  background: transparent;
 }
 
 .spillReceiptReady img {
@@ -1042,7 +1050,7 @@ html[data-legacy="1"] .spillPreviewNote {
 .spillReceiptReadyName {
   flex: 1;
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 
@@ -1053,17 +1061,19 @@ html[data-legacy="1"] .spillPreviewNote {
   min-height: 34px;
   padding: 6px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--panel-raised);
   color: var(--ink-soft);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
 
-.spillReceiptRetake:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .spillReceiptRetake:hover {
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+  }
 }
 
 .spillReceiptRetake:focus-visible {
@@ -1077,6 +1087,6 @@ html[data-legacy="1"] .spillPreviewNote {
 .spillCaptureWhy {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }

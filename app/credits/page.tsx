@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import Kicker from "@/components/ui/kicker";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import SiteNav from "@/components/nav/SiteNav";
 import { DATA_CREDITS, DATA_CREDITS_PATH } from "@/lib/dataCredits";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 
@@ -34,9 +36,11 @@ export const metadata: Metadata = {
 
 export default function DataCreditsPage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       <header className="legalHead">
-        <p className="legalEyebrow">Small print</p>
+        <Kicker>Small print</Kicker>
         <h1 className="legalTitle">Where our data comes from</h1>
         <p className="legalLede">
           Most of what you see on PUBMAXX is other people&rsquo;s open data. A
@@ -125,5 +129,6 @@ export default function DataCreditsPage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

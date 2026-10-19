@@ -194,7 +194,7 @@ export default function SocialPostActions({
           aria-expanded={reportOpen}
           onClick={() => setReportOpen((open) => !open)}
         >
-          <Flag size={18} aria-hidden="true" />
+          <Flag size={20} aria-hidden="true" />
         </button>
       </div>
       {reportOpen ? (
