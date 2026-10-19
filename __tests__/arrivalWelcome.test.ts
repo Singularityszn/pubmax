@@ -160,7 +160,7 @@ describe("the arrival line", () => {
       "utf8",
     );
     expect(css).toMatch(
-      /\.arrivalWelcome\s*\{[^}]*z-index: calc\(var\(--z-modal, 1200\) - 1\)/,
+      /\.arrivalWelcome\s*\{[^}]*z-index: calc\(var\(--z-modal(?:, 1200)?\) - 1\)/,
     );
     expect(css).toMatch(/\.arrivalWelcome\s*\{[^}]*pointer-events: none/);
     expect(css).toMatch(/\.arrivalWelcomeDismiss\s*\{[^}]*pointer-events: auto/);

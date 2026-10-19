@@ -1,6 +1,7 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import type { Route } from "next";
 
+import { PintPriceBadge } from "@/components/PriceBadge";
+import { RowList, RowListItem } from "@/components/ui/row-list";
 import { formatSnapshotFrom } from "@/lib/dataFreshness";
 import { oldestPintRead } from "@/lib/drinks";
 import {
@@ -8,15 +9,15 @@ import {
   tonightCheapPintChainLabel,
   type TonightCheapPint,
 } from "@/lib/tonightCheapPints";
-import { formatPrice } from "@/lib/venues";
 
 /**
  * Real pubs on a quiet night, above the mood chips.
  *
  * A night with nothing listed is still a night out, and the answer to it is a
- * pub with a price on it rather than a question about a vibe. The caption
- * carries the collection day, because a listed price is a figure from a day and
- * says so wherever it appears.
+ * pub with a price on it rather than a question about a vibe. The section
+ * line carries the collection day ONCE, because a listed price is a figure
+ * from a day and every row here was read on it. Each figure wears its band
+ * through the one price badge, never a bare coloured number.
  */
 export default function TonightCheapPints({
   rows = [],
@@ -29,21 +30,28 @@ export default function TonightCheapPints({
   if (!show || rows.length === 0) return null;
   const observedAt = oldestPintRead(rows.map((row) => row.observedAt));
   return (
-    <section className="tonightCheapPints" aria-labelledby="tonight-cheap-pints-title">
-      <h2 className="tonightCheapPintsTitle" id="tonight-cheap-pints-title">
+    <section
+      className="tonightCheapPints tonightSection"
+      aria-labelledby="tonight-cheap-pints-title"
+    >
+      <h2 className="tonightCheapPintsTitle tonightSectionTitle" id="tonight-cheap-pints-title">
         {TONIGHT_CHEAP_PINTS_TITLE}
       </h2>
-      <ul className="tonightCheapPintsList" data-testid="tonight-cheap-pints">
-        {rows.map((row) => (
-          <li key={row.venueId} className="tonightCheapPintsRow">
-            <Link
-              prefetch={false}
-              className="tonightCheapPintsLink pressable"
-              href={`/map?sel=${encodeURIComponent(row.venueId)}`}
-            >
-              <span className="tonightCheapPintsBody">
-                <span className="tonightCheapPintsName">{row.name}</span>
-                <span className="tonightCheapPintsArea">
+      {observedAt ? (
+        <p className="tonightCheapPintsCredit tonightSectionLine">
+          {formatSnapshotFrom(new Date(observedAt))}
+        </p>
+      ) : null}
+      <div data-testid="tonight-cheap-pints">
+        <RowList className="tonightCheapPintsList">
+          {rows.map((row) => (
+            <RowListItem
+              key={row.venueId}
+              className="tonightCheapPintsRow createFabLane"
+              href={`/map?sel=${encodeURIComponent(row.venueId)}` as Route}
+              title={row.name}
+              meta={
+                <>
                   {row.borough}
                   {/* The chain is named on its one row, so a Wetherspoon price
                       never reads as a free house's. */}
@@ -53,17 +61,13 @@ export default function TonightCheapPints({
                       <span data-chain={row.chain}>{tonightCheapPintChainLabel(row.chain)}</span>
                     </>
                   ) : null}
-                </span>
-              </span>
-              <span className="tonightCheapPintsPrice">{formatPrice(row.priceGbp)}</span>
-              <ArrowRight size={15} aria-hidden="true" className="tonightCheapPintsArrow" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {observedAt ? (
-        <p className="tonightCheapPintsCredit">{formatSnapshotFrom(new Date(observedAt))}</p>
-      ) : null}
+                </>
+              }
+              trailing={<PintPriceBadge priceGbp={row.priceGbp} venueId={row.venueId} />}
+            />
+          ))}
+        </RowList>
+      </div>
     </section>
   );
 }

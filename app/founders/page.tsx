@@ -13,7 +13,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import EmptyState from "@/components/ui/empty-state";
@@ -106,6 +105,9 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
         titleId="founders-title"
         lede={FOUNDERS_WALL_LEDE}
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
+        // The roll is the answer, so it comes straight after the lede and the
+        // two ways onward follow it (honours board, captain 18 Oct 2026).
+        actionsAfterContent
         secondary={<Link prefetch={false} href="/social">Find your lot</Link>}
       >
         {wall.status === "ready" && wall.members.length ? (
@@ -124,16 +126,18 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
           <ol className="foundersList" aria-label="Founding members by number">
             {wall.members.map((member) => (
               <li key={member.number} className="foundersRow">
-                <span className="foundersNumber" aria-hidden="true">
-                  {member.number}
-                </span>
+                {/* The number, once: the page title already says what every
+                    row is, so no row repeats "Founding member" beside it. It is
+                    read aloud too, because the list's own position counts past
+                    a gap a departed founder leaves. */}
+                <span className="foundersNumber">{member.number}</span>
                 <HandleAvatar
                   handle={member.handle}
                   avatarUrl={member.avatarUrl}
                   displayName={member.displayName}
                   className="foundersAvatar"
                   imageClassName="foundersAvatar foundersAvatarImage"
-                  size={44}
+                  size={36}
                 />
                 <span className="foundersWho">
                   <Link
@@ -148,10 +152,6 @@ export default async function FoundersPage(): Promise<React.JSX.Element> {
                     </span>
                   ) : null}
                 </span>
-                <FoundingMemberMark
-                  number={member.number}
-                  className="foundingMarkBare foundersRowMark"
-                />
               </li>
             ))}
           </ol>

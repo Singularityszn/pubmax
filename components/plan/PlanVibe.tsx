@@ -138,7 +138,6 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
 
   return (
     <section className="planVibe" aria-labelledby="plan-vibe-title">
-      <p className="planPage__eyebrow">Crew vibe</p>
       <h2 id="plan-vibe-title">What&rsquo;s the vibe?</h2>
       {canVote ? (
         <>

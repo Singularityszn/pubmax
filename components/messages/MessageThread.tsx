@@ -1240,7 +1240,7 @@ export default function MessageThread({
               // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
               <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
             ) : (
-              <MapPin size={18} aria-hidden="true" className="composerPendingIcon" />
+              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
             )}
             <span className="composerPendingLabel">{pendingLabel(pending)}</span>
             <button type="button" className="composerPendingRemove" onClick={clearPending}>
@@ -1267,7 +1267,7 @@ export default function MessageThread({
                   setMobileAttachOpen(true);
                 }}
               >
-                <Plus size={22} aria-hidden="true" />
+                <Plus size={20} aria-hidden="true" />
               </button>
             ) : (
               <button

@@ -208,7 +208,7 @@ describe("price signature and map policy evidence", () => {
     // A price takes the button's corner RATIO, never its raw number: the
     // control token on a 28px box renders a stadium, and the stadium is the
     // pill this system reserves for icon controls and tab segments.
-    expect(plaque).toContain("border-radius: var(--radius, 8px);");
+    expect(plaque).toContain("border-radius: var(--radius);");
     expect(plaque).not.toContain("border-radius: var(--control-radius");
   });
 

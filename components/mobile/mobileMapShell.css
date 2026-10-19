@@ -241,7 +241,9 @@
   }
 
   /* COLLAPSED, the credit is one control and it takes this lane's own shape:
-     a 44px circle on the raised surface, exactly like the compass below it.
+     a 44px circle on the raised surface, exactly like the compass below it,
+     with the same hairline edge as Near me and the bar, because a licence
+     credit is the quietest thing on the map, never an outlined button.
      MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
      floor overflowed its own container and read as a white blob. */
   .appShell .mapStage
@@ -252,7 +254,7 @@
     height: var(--mobile-map-credit-size);
     min-height: var(--mobile-map-credit-size);
     padding: 0;
-    border: 1px solid var(--ink-soft);
+    border: 1px solid var(--hairline);
     border-radius: 50%;
     background: var(--color-surface-raised);
     box-shadow: var(--map-overlay-shadow-tight);
@@ -273,7 +275,7 @@
        a white blob read as a rendering defect rather than a control. */
     background-repeat: no-repeat;
     background-position: center;
-    background-size: 24px 24px;
+    background-size: 20px 20px;
     background-color: transparent;
     border-radius: 50%;
   }
@@ -307,14 +309,14 @@
        cuts the name is worse than one that never claimed it. The 360px rule
        below is what three controls plus a whole name cost on the narrowest
        phone. */
-    grid-template-columns: auto minmax(0, 1fr) repeat(3, var(--control-height, 44px));
+    grid-template-columns: auto minmax(0, 1fr) repeat(3, var(--control-height));
     align-items: center;
     gap: 2px;
     /* Vertical padding 3px (was 4px): 44px control row + 3+3 padding + 1+1
        border box-sizes to exactly 52px (--mobile-map-bar-h / --topbar-h), so
        the rendered height matches the standard + landing bars instead of
-       overshooting to 54px. Radius adopts the shared --topbar-radius (14px, was
-       --radius-lg 18px) so all four bars share one corner too. */
+       overshooting to 54px. Radius adopts the shared --topbar-radius (--radius-lg)
+       so all four bars share one corner too. */
     padding: 3px 5px 3px 12px;
     /* PASSIVE CHROME IS NEUTRAL. This bar used to copy SiteNav's brass-mix
        border and river-tinted gradient, so on one phone map screen the bottom
@@ -327,7 +329,7 @@
        answers light and dark. Geometry (padding, radius, 52px height) is
        unchanged; only the surface. */
     border: 1px solid var(--hairline);
-    border-radius: var(--topbar-radius, 14px);
+    border-radius: var(--topbar-radius, var(--radius-lg));
     background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
     /* Tight topbar shadow (landing mobile / SiteNav frame), not the desktop
        glass drop — that one carries a purple cast this map bar must not wear. */
@@ -341,36 +343,43 @@
     /* The base-pub arrival still renders brand, area, and Search. Keep its
        three children in explicit tracks so the implicit column cannot push
        Search outside the viewport while the first-visit card owns the map. */
-    grid-template-columns: minmax(64px, 1fr) minmax(0, 1fr) var(--control-height, 44px);
+    grid-template-columns: minmax(64px, 1fr) minmax(0, 1fr) var(--control-height);
   }
 
   /* The wordmark is a real link home, so it gets a real hit target: the text is
      14px tall, the tappable box is the full 44px bar row. */
-  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: var(--control-height, 44px); color: var(--color-text); font-size: .7rem; white-space: nowrap; text-decoration: none; }
+  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: var(--control-height); color: var(--color-text); font-size: var(--text-2xs); white-space: nowrap; text-decoration: none; }
 
   /* 320px is the narrowest phone this app is measured on, and three controls
      plus a readable place name is what it holds. The wordmark yields its
      column there: a truncated place name would leave the map claiming a name
      nobody can read, and the reader is already inside the app. */
   @media (max-width: 360px) {
-    .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) repeat(3, var(--control-height, 44px)); }
-    .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) var(--control-height, 44px); }
+    .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) repeat(3, var(--control-height)); }
+    .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) var(--control-height); }
     .mobileMapBrand { display: none; }
   }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   .citySwitcher--mobile { width: 100%; min-width: 0; }
   .citySwitcher--mobile .citySwitcherTrigger { display: flex; width: 100%; min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
-  .citySwitcher--mobile .citySwitcherTrigger:hover,
   .citySwitcher--mobile .citySwitcherTrigger:focus-visible,
   .citySwitcher--mobile.isOpen .citySwitcherTrigger { border: 0; background: var(--state-active-surface); color: var(--color-text); }
-  .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: .72rem; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .citySwitcher--mobile .citySwitcherTrigger:hover {
+      border: 0;
+      background: var(--state-active-surface);
+      color: var(--color-text);
+    }
+  }
+  .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: var(--text-xs); }
   .citySwitcher--mobile .citySwitcherLabelShort { display: none; }
   .mobileMapTopbar > button { border: 0; background: transparent; }
-  .mobileMapPalButton { color: var(--color-accent); }
-  .mobilePalAvatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--color-accent) 58%, var(--color-border)); border-radius: 50%; background: radial-gradient(circle at 38% 30%, color-mix(in srgb, white 20%, transparent), transparent 34%), color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); overflow: hidden; }
-  .mobilePalAvatar svg { width: 31px; height: 31px; overflow: visible; fill: color-mix(in srgb, var(--color-accent) 88%, white 6%); stroke: color-mix(in srgb, var(--color-accent) 70%, var(--color-text)); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
-  .mobilePalAvatarHead { fill: color-mix(in srgb, var(--color-accent) 23%, var(--color-surface)); }
-  .mobilePalAvatarBack { fill: color-mix(in srgb, var(--color-accent) 32%, var(--color-surface)); }
+  .mobileMapPalButton { color: var(--color-text-muted); }
+  .mobilePalAvatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--color-border); border-radius: 50%; background: radial-gradient(circle at 38% 30%, color-mix(in srgb, white 20%, transparent), transparent 34%), var(--color-surface); overflow: hidden; }
+  .mobilePalAvatar svg { width: 31px; height: 31px; overflow: visible; fill: var(--ink-soft); stroke: var(--ink); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+  .mobilePalAvatarHead { fill: color-mix(in srgb, var(--ink) 14%, var(--color-surface)); }
+  .mobilePalAvatarBack { fill: color-mix(in srgb, var(--ink) 24%, var(--color-surface)); }
   .mobilePalAvatarMuzzle { fill: color-mix(in srgb, white 14%, transparent); }
 
   .mobileMapSearchRow {
@@ -398,10 +407,10 @@
     min-height: 44px;
     padding: 6px 14px;
     border: 1px solid var(--color-border);
-    border-radius: var(--control-radius, 14px);
+    border-radius: var(--control-radius);
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     font: inherit;
     font-size: var(--text-sm);
     font-weight: 700;
@@ -448,10 +457,10 @@
     min-height: 44px;
     padding: 6px 14px;
     border: 1px solid var(--color-border);
-    border-radius: var(--control-radius, 14px);
+    border-radius: var(--control-radius);
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     font: inherit;
     font-size: var(--text-sm);
     font-weight: 700;
@@ -459,8 +468,8 @@
   }
   .mobileMapDrinkChip:active { transform: scale(.98); --shared-press-scale: 1; }
   .mobileMapDrinkChip.isActive {
-    border-color: color-mix(in srgb, var(--brass, #c8a24a) 45%, var(--color-border));
-    background: color-mix(in srgb, var(--brass, #c8a24a) 14%, var(--color-surface-raised));
+    border-color: var(--state-selected-border);
+    background: var(--state-selected-surface);
   }
   .mobileMapDrinkChipLabel {
     min-width: 0;
@@ -486,7 +495,7 @@
     height: 1.05rem;
     display: grid;
     place-items: center;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--line);
     background: var(--panel-raised);
     color: var(--ink);
@@ -505,7 +514,7 @@
     box-sizing: border-box;
     padding: 8px 14px;
     border: 1px solid var(--color-border);
-    border-radius: var(--control-radius, 14px);
+    border-radius: var(--control-radius);
     background: var(--color-surface-raised);
     color: var(--color-text);
     font: inherit;
@@ -516,7 +525,7 @@
   .mobileMapTonightLens:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   .mobileMapTonightLensText { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
   .mobileMapTonightLensText strong { font-size: var(--text-sm); font-weight: 700; }
-  .mobileMapTonightLensText small { font-size: .8125rem; color: var(--color-text-muted); }
+  .mobileMapTonightLensText small { font-size: var(--text-sm); color: var(--color-text-muted); }
   .mobileMapTonightLensChevron { flex: 0 0 auto; color: var(--color-text-muted); }
 
   /* The licence line in the Key tab, beside the map's own (i): body copy,
@@ -527,17 +536,19 @@
     margin-top: 16px;
     padding-top: 12px;
     border-top: 1px solid var(--color-border);
-    font-size: .8125rem;
+    font-size: var(--text-sm);
     line-height: 1.25rem;
     color: var(--color-text-muted);
   }
-  .mobileMapCredits h3 { margin: 0; font-size: .8125rem; font-weight: 700; color: var(--color-text); }
+  .mobileMapCredits h3 { margin: 0; font-size: var(--text-sm); font-weight: 700; color: var(--color-text); }
   .mobileMapCredits p { margin: 0; }
   .mobileMapCredits a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-  /* The map edge owns the two controls the bar cannot hold: TfL at the top,
-     Near me at the thumb. Both keep clear of the chrome, the plan pill, and
-     the right map edge, in the one published corner lane. */
+  /* The map edge owns the control the bar cannot hold: Near me at the thumb.
+     TfL joins it at the top only while a line is badly disrupted, so the
+     column packs to the foot and TfL alone pushes itself to the head. Both
+     keep clear of the chrome, the plan pill, and the right map edge, in the
+     one published corner lane. */
   .mobileMapUtilityCorner {
     position: fixed;
     right: var(--mobile-map-corner-inset);
@@ -548,15 +559,16 @@
     z-index: var(--z-map-toolbar);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-end;
     gap: 10px;
     pointer-events: none;
   }
 
-  /* Near me is the map's one primary action, so it leads on weight, not on the
-     accent: coral belongs to the landing CTA, the selected pin ring and the
-     active tab glyph alone (design judgement 2026-08-01, finding 2.1). */
+  /* Near me leads on place, not on weight or the accent: coral belongs to the
+     one primary and the create disc alone (design judgement 2026-08-01,
+     finding 2.1). It wears the same quiet surface as the bar and the drink
+     chip: the raised panel, a hairline edge and the tight map shadow. */
   .mobileMapLocateFab {
     position: relative;
     flex: 0 0 auto;
@@ -567,11 +579,11 @@
     place-items: center;
     width: var(--map-corner-locate-size);
     height: var(--map-corner-locate-size);
-    border: 1px solid var(--ink-soft);
+    border: 1px solid var(--hairline);
     border-radius: 50%;
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     pointer-events: auto;
     cursor: pointer;
   }
@@ -597,12 +609,15 @@
     min-width: var(--mobile-map-corner-btn);
     min-height: 44px;
     pointer-events: auto;
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
   }
   /* The status suffix ("?") rides inside the pill rather than spilling
-     past its edge: the icon size is a floor here, not a fixed width. */
+     past its edge: the icon size is a floor here, not a fixed width. The
+     auto margin holds TfL at the head of the column while Near me stays at
+     the thumb. */
   .mobileMapUtilityCorner > .mobileMapTflButton {
     width: auto;
+    margin-bottom: auto;
     padding-inline: 7px;
   }
   .mobileMapCornerSuffix { font-size: var(--text-2xs); font-weight: 700; margin-left: 2px; }
@@ -615,7 +630,7 @@
     padding: 2px 3px;
     display: grid;
     place-items: center;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--line);
     background: var(--panel-raised);
     color: var(--ink);
@@ -643,7 +658,7 @@
     box-sizing: border-box;
     padding: 10px 8px 10px 12px;
     border: 1px solid var(--color-border);
-    border-radius: var(--control-radius, 14px);
+    border-radius: var(--control-radius);
     background: var(--color-surface-raised);
     box-shadow: var(--shadow-sm);
     pointer-events: auto;
@@ -665,7 +680,7 @@
     min-height: 44px;
     padding-inline: 14px;
     border: 1px solid var(--ink-soft);
-    border-radius: var(--control-radius, 14px);
+    border-radius: var(--control-radius);
     background: transparent;
     color: var(--ink);
     font: inherit;
@@ -713,10 +728,10 @@
        action on the map. The bottom-nav Moment button keeps its own accent —
        that belongs to the nav's system, not this pill. */
     border: 1px solid var(--color-border);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--color-surface-raised);
     color: var(--color-text);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     font: inherit;
     transform: none;
   }
@@ -724,7 +739,7 @@
   .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }
   .mobilePlanActivation strong { font-size: var(--text-sm); font-weight: 800; white-space: nowrap; }
   .mobilePlanActivation small { margin-top: 3px; font-size: var(--text-2xs); font-weight: 700; opacity: .78; }
-  .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--color-accent-ink); }
+  .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--state-selected-ink); }
   .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
 
   /* THE BOTTOM CARD. One surface at the foot of the map holds the answer to
@@ -755,7 +770,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background: var(--color-surface-raised);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    box-shadow: var(--map-overlay-shadow-tight);
     /* The whole card is the gesture surface: a pull on it must never scroll
        the page or pan the map behind it. */
     touch-action: none;
@@ -767,7 +782,7 @@
      and never a hit target while it is gone. */
   .mapPeek[data-dragging="true"] { will-change: transform; }
   body:has(.mapPeek) .createFabRoot {
-    transition: opacity 160ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+    transition: opacity 160ms var(--ease-out-strong);
   }
   body:has(.mapPeek[data-dragging="true"]) .createFabRoot {
     opacity: 0;
@@ -788,7 +803,7 @@
     left: 50%;
     width: 36px;
     height: 4px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: color-mix(in srgb, var(--color-text-muted) 55%, transparent);
     transform: translateX(-50%);
     pointer-events: none;
@@ -820,7 +835,7 @@
   /* Press feedback on pointer-down, a tint rather than a scale: the row is wide
      and text-led, and a scaled line of copy reads as the text shaking. */
   .mapPeekAnswer {
-    transition: background-color var(--duration-press, 130ms) var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+    transition: background-color var(--duration-press) var(--ease-out-strong);
   }
   .mapPeekAnswer:not(.isQuiet):active {
     background: color-mix(in srgb, var(--color-text) 7%, transparent);
@@ -841,7 +856,7 @@
     flex-wrap: wrap;
     column-gap: 4px;
     min-width: 0;
-    font-size: .75rem;
+    font-size: var(--text-xs);
     line-height: .875rem;
     font-weight: 500;
     letter-spacing: .01em;
@@ -870,7 +885,7 @@
   .mapPeekPrice {
     flex: 0 0 auto;
     font-family: var(--font-data);
-    font-size: 1rem;
+    font-size: var(--text-base);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -881,16 +896,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: .9375rem;
+    font-size: var(--text-base);
     font-weight: 600;
   }
   .mapPeekWalk {
     flex: 0 0 auto;
-    font-size: .8125rem;
+    font-size: var(--text-sm);
     color: var(--color-text-muted);
     white-space: nowrap;
   }
-  .mapPeekHush { font-size: .9375rem; color: var(--color-text-muted); }
+  .mapPeekHush { font-size: var(--text-base); color: var(--color-text-muted); }
   /* The loading line holds the answer's own height so the card never resizes
      when the answer lands. */
   .mapPeekSkeleton { display: none; }
@@ -903,15 +918,15 @@
     min-height: 44px;
     padding: 0 8px;
     border: 0;
-    border-radius: var(--control-radius, 14px);
+    border-radius: var(--control-radius);
     background: transparent;
     color: var(--color-text);
     font: inherit;
-    font-size: .8125rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     cursor: pointer;
   }
-  .mapPeekList { transition: transform var(--duration-press, 130ms) var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)); }
+  .mapPeekList { transition: transform var(--duration-press) var(--ease-out-strong); }
   .mapPeekList:active { transform: scale(.97); --shared-press-scale: 1; }
   /* The plan door inside the card: same button, same 48px, recessed one step
      so the card reads as one surface with one primary reading order. */
@@ -1082,9 +1097,9 @@
   .mobileSharedSheetHeading { grid-column: 2; grid-row: 1; min-width: 0; padding-top: 10px; text-align: center; }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
   .mobileSharedSheetDetent:active { --shared-press-scale: 1; }
-  .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
+  .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
-  .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
+  .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--ink) 6%, var(--color-border)); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
   /* The sheet's way out is SurfaceNav now (components/ui/surfaceNav.css), which
      places itself in this grid and owns its own quiet resting state and focus
@@ -1186,7 +1201,7 @@
     line-height: 1.4;
   }
   .mobilePlannerIntent { display: grid; gap: 14px; margin: 0 0 18px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
-  .mobilePlannerIntentHeading { display: flex; align-items: flex-start; gap: 10px; color: var(--color-accent); }
+  .mobilePlannerIntentHeading { display: flex; align-items: flex-start; gap: 10px; color: var(--color-text-muted); }
   .mobilePlannerIntentHeading > div { display: grid; gap: 3px; color: var(--color-text); }
   .mobilePlannerIntentHeading h3, .mobilePlannerIntentHeading p { margin: 0; }
   .mobilePlannerIntentHeading h3 { font-size: var(--text-lg); }
@@ -1205,10 +1220,10 @@
   .mobilePlannerIntentGrid input, .mobilePlannerIntentGrid select { min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-text); font: inherit; }
   .mobilePlannerIntentChips { display: flex; gap: 6px; overflow-x: auto; touch-action: pan-y; scrollbar-width: none; }
   .mobilePlannerIntentChips::-webkit-scrollbar { display: none; }
-  .mobilePlannerIntentChips > button[aria-pressed="true"] { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); color: var(--tint-ink-accent); }
-  .mobilePlannerIntentError { margin: 0; color: var(--color-danger); font-size: var(--text-sm); }
+  .mobilePlannerIntentChips > button[aria-pressed="true"] { border-color: var(--state-selected-border); background: var(--state-selected-surface); color: var(--state-selected-ink); }
+  .mobilePlannerIntentError { margin: 0; color: var(--tint-ink-negative); font-size: var(--text-sm); }
   .mobilePlannerIntentPending { display: inline-flex; align-items: center; gap: 8px; }
-  .mobilePlannerConfidence { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-raised)); color: var(--tint-ink-accent); }
+  .mobilePlannerConfidence { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-text-muted); }
   .mobilePlannerConfidence > div { display: grid; gap: 3px; color: var(--color-text); }
   .mobilePlannerConfidence span, .mobilePlannerConfidence small { color: var(--color-text-soft); font-size: var(--text-xs); line-height: 1.35; }
   .mobilePlannerResult { display: grid; gap: 9px; }
@@ -1216,10 +1231,10 @@
   .mobilePlannerNextStep { margin: 0; color: var(--color-text); font-size: var(--text-xs); line-height: 1.4; font-weight: 600; }
   .mobilePlannerEndings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .mobilePlannerEndings > div { min-width: 0; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-raised); }
-  .mobilePlannerEndings > div[data-recommended="true"] { border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border)); }
+  .mobilePlannerEndings > div[data-recommended="true"] { border-color: var(--color-border); }
   .mobilePlannerEndings span { display: grid; gap: 2px; }
   .mobilePlannerEndings strong { color: var(--color-text); font-size: var(--text-xs); }
-  .mobilePlannerEndings small { color: var(--color-accent); font-size: var(--text-2xs); font-weight: 800; }
+  .mobilePlannerEndings small { color: var(--color-text-muted); font-size: var(--text-2xs); font-weight: 800; }
   .mobilePlannerEndings p { margin: 5px 0 0; color: var(--color-text-soft); font-size: var(--text-2xs); line-height: 1.3; overflow-wrap: anywhere; }
   .mobileMapFilters .drinkShapeChips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .mobileMapFilters .drinkShapeChip { min-height: 52px; width: 100%; justify-content: center; border: 1px solid var(--color-border-soft); background: var(--color-surface-raised); border-radius: var(--radius); }
@@ -1234,7 +1249,13 @@
   .mobileMapFilters .favoritePintControl { min-height: 44px; width: 100%; justify-content: space-between; }
   /* De-box: a trigger that opens a picker is not an input, so no box. */
   .mobileMapFilters .personaLensTrigger { min-height: 44px; width: 100%; justify-content: flex-start; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-text-soft); }
-  .mobileMapFilters .personaLensTrigger:hover { border: 0; background: color-mix(in srgb, var(--color-accent) 9%, transparent); color: var(--color-text); }
+  @media (hover: hover) and (pointer: fine) {
+    .mobileMapFilters .personaLensTrigger:hover {
+      border: 0;
+      background: color-mix(in srgb, var(--ink) 6%, transparent);
+      color: var(--color-text);
+    }
+  }
   .mobileMapFilters .personaLensTrigger.isActive { border: 0; background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
   /* De-box (design judgement 2026-08-01, finding 2.4): four price caps are ONE
      choice, so they are one segmented control - a single edge round the group,
@@ -1274,15 +1295,21 @@
   .mobileLayersTheme .themeToggle { flex: 0 0 44px; width: 44px; height: 44px; }
 
   .mobileTflGroups { display: grid; gap: 16px; }
-  .mobileTflGroups section { min-width: 0; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
+  /* Transit is TfL's everyday home now, so it reads as a list: a heading and
+     hairlines between the lines, never a box round each group. */
+  .mobileTflGroups section { min-width: 0; }
   .mobileTflGroups h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: var(--text-md); }
   .mobileTflGroups ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
   .mobileTflGroups li { min-width: 0; display: grid; gap: 3px; padding-block: 8px; border-top: 1px solid var(--color-border); overflow-wrap: anywhere; }
   .mobileTflGroups li:first-child { border-top: 0; }
   .mobileTflGroups p { margin: 0; color: var(--color-text-soft); }
   .mobileTflGroups span { color: var(--color-text-muted); font-size: var(--text-xs); }
-  .mobileTflGroups .mobileTflSource { min-height: 44px; display: inline-flex; align-items: center; justify-self: start; color: var(--color-accent-ink); font-size: var(--text-xs); text-decoration: none; }
-  .mobileTflGroups .mobileTflSource:hover { text-decoration: underline; }
+  .mobileTflGroups .mobileTflSource { min-height: 44px; display: inline-flex; align-items: center; justify-self: start; color: var(--color-text-muted); font-size: var(--text-xs); text-decoration: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .mobileTflGroups .mobileTflSource:hover {
+      text-decoration: underline;
+    }
+  }
   .mobileSheetEmpty, .mobileSheetSkeleton { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; }
   .mobileSheetEmpty p { margin: 0; color: var(--color-text-soft); }
 
@@ -1291,7 +1318,7 @@
   .mobilePalSummon img { display: block; border-radius: 50%; }
   .mobilePalSummon h3, .mobilePalSummon p { margin: 0; }
   .mobilePalSummon p { max-width: 32ch; color: var(--color-text-soft); }
-  .mobilePalSummon a { min-height: var(--control-height, 44px); display: inline-flex; align-items: center; padding: 0 var(--control-pad-x, 16px); border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent); font-weight: var(--control-font-weight, 700); text-decoration: none; }
+  .mobilePalSummon a { min-height: var(--control-height); display: inline-flex; align-items: center; padding: 0 var(--control-pad-x); border-radius: var(--control-radius); background: var(--color-accent); color: var(--color-on-accent); font-weight: var(--control-font-weight); text-decoration: none; }
   .mobilePalSummon small { display: flex; align-items: center; gap: 6px; max-width: 34ch; color: var(--color-text-muted); }
 
   /* THREE CELLS, THREE FLOORS. The figure's column is content-sized, and the
@@ -1334,8 +1361,8 @@
      A caption also takes a MEASURE, so it wraps under the thing it is about
      rather than running the length of the row: unmeasured, the standing line
      was what sized the figure column past the phrase beside it. */
-  .mobileVenuePeekSummary small { max-inline-size: 22ch; color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
-  .mobileVenuePeekSummary button { min-height: var(--control-height, 44px); padding: 0 var(--control-pad-x, 16px); border: 0; border-radius: var(--control-radius, 14px); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size, var(--text-sm)); font-weight: var(--control-font-weight, 700); }
+  .mobileVenuePeekSummary small { max-inline-size: 22ch; color: var(--color-text-muted); font-size: var(--text-2xs); line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
+  .mobileVenuePeekSummary button { min-height: var(--control-height); padding: 0 var(--control-pad-x); border: 0; border-radius: var(--control-radius); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--control-font-size); font-weight: var(--control-font-weight); }
   /* THE PLAN DOOR WRAPS RATHER THAN CLIPS. "Make it Stop 1" is the longest
      label the one plan door carries (lib/venuePlanDoor.ts), and at 320px with
      large text its one line is wider than the column the row can spare. It
@@ -1364,7 +1391,7 @@
      "Be the first" line, which is the invitation. */
   .mobileVenuePeekSummary .mobileVenuePeekDrop { min-width: 0; display: grid; gap: 2px; justify-items: start; align-content: center; min-height: 44px; padding: 6px 0; text-align: left; border: 0; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; }
   .mobileVenuePeekSummary .mobileVenuePeekDrop strong { white-space: normal; font-size: var(--text-base); line-height: 1.05; }
-  .mobileVenuePeekSummary .mobileVenuePeekDrop small { color: var(--color-accent); font-weight: 700; }
+  .mobileVenuePeekSummary .mobileVenuePeekDrop small { color: var(--color-text-muted); font-weight: 700; }
 }
 
 /* The peek summary is a MOBILE-only strip (styled solely inside the 640px

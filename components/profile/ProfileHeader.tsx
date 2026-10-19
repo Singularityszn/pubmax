@@ -202,7 +202,7 @@ export default function ProfileHeader({
             <p className="profileHandle">{displayHandle(handle)}</p>
             {homeCity ? (
               <p className="profileHomeCity">
-                <MapPin size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
+                <MapPin size={14} aria-hidden="true" />{" "}
                 {homeCity}
               </p>
             ) : null}

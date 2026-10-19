@@ -8,7 +8,7 @@ import type { HistoricFilterQuery } from "@/lib/pageFilters";
 
 const SORT_OPTIONS: { value: HistoricFilterQuery["sort"]; label: string }[] = [
   { value: "oldest", label: "Oldest first" },
-  { value: "az", label: "A–Z" },
+  { value: "az", label: "A to Z" },
   { value: "borough", label: "By borough" },
 ];
 

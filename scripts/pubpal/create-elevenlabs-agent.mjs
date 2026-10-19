@@ -182,6 +182,8 @@ const CLIENT_EVENTS = [
   "audio",
   "interruption",
   "user_transcript",
+  // The voice panel prints the words as they are heard (lib/palVoiceTranscript.ts).
+  "tentative_user_transcript",
   "agent_response",
   "agent_response_correction",
   "agent_tool_request",
