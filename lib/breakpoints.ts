@@ -21,8 +21,6 @@ export const BREAKPOINTS = {
   wide: { narrowMax: 1279, wideMin: 1280 },
 } as const;
 
-export type BreakpointName = keyof typeof BREAKPOINTS;
-
 export const MOBILE_MAX_WIDTH = BREAKPOINTS.phone.narrowMax;
 
 /** matchMedia query string for "is this a phone-sized viewport?". */

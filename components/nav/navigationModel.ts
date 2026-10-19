@@ -29,7 +29,7 @@ export const SOCIAL_NAV_MATCH: readonly string[] = [
 ];
 
 /** The routes Plan owns: the composer, a shared plan and the crawl routes. */
-export const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
+const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
 
 /**
  * The FIVE durable destinations in the PUBMAXX shell, and the ONE vocabulary
