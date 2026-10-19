@@ -102,7 +102,8 @@ export type UkPriceBundleRow = {
 
 /**
  * Source-ledger observations with a printed item that contradicts its assigned
- * category, or a beer line whose printed measure is a half and not a pint. Keep the observations in site_harvest.jsonl for audit, but do not
+ * category, or a beer line whose printed measure is a half or a bottle and not a
+ * pint. Keep the observations in site_harvest.jsonl for audit, but do not
  * let these exact claims become listed facts. Match the source and printed item
  * as well as category and price, so other drinks on these menus still publish.
  */
@@ -265,6 +266,10 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://venue5.com/drinks-menu/", category: "alcohol-free", priceGbp: 4.95, drinkLabel: "Desperado" },
   { sourceUrl: "https://venue5.com/drinks-menu/", category: "alcohol-free", priceGbp: 4.95, drinkLabel: "Desperado {5.9% ABV}" },
   { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 4.5 },
+  { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 4.95, drinkLabel: "Budweiser" },
+  { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 4.95, drinkLabel: "Budweiser {5.0% ABV}" },
+  { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 4.95, drinkLabel: "Peroni" },
+  { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 4.95, drinkLabel: "Peroni {5.1% ABV}" },
   { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 5, drinkLabel: "Fresh Passion Fruit" },
   { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 3.5, drinkLabel: "Guava" },
   { sourceUrl: "https://venue5.com/drinks-menu/", category: "beer", priceGbp: 3.5, drinkLabel: "Lychee" },
