@@ -19,6 +19,7 @@ vi.mock("@/lib/authedFetch", async (original) => ({
 }));
 
 import PalExperience from "@/components/pal/PalExperience";
+import { subscribeLocalPal } from "@/lib/localPal";
 import {
   anonymousPalDraftOwner,
   DEFAULT_PAL_DRAFT,
@@ -473,6 +474,40 @@ describe("Pub Pal control saving", () => {
     await act(async () => buttonContaining("Tap to mute everywhere").click());
     await settle();
     expect(portraitState()).toBe("sleeping");
+  });
+
+  it("tells the Pal's door in this same tab each time it saves the Pal", async () => {
+    await act(async () => root?.unmount());
+    const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const timestamp = "2026-10-04T12:00:00.000Z";
+    let pal: PubPal = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Moss", adultAttestedAt: timestamp,
+      appearance: DEFAULT_PAL_DRAFT.appearance, personality: DEFAULT_PAL_DRAFT.personality, voice: DEFAULT_PAL_DRAFT.voice,
+      muted: true, hidden: false, proposalPreferences: { memories: false, routes: true }, masteryPoints: 0,
+      createdAt: timestamp, updatedAt: timestamp,
+    };
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    transport.request.mockImplementation(async (input, init) => {
+      if (input === "/api/pub-pal" && init?.method === "PATCH") {
+        pal = { ...pal, ...(JSON.parse(String(init.body)) as Partial<PubPal>) };
+        return Response.json({ pal });
+      }
+      if (input === "/api/pub-pal") return Response.json({ pal, adultOnFile: true });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    // Browsers send "storage" only to other tabs, so this is the same-tab signal.
+    const heard = vi.fn();
+    const unsubscribe = subscribeLocalPal(heard);
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+    heard.mockClear();
+    await act(async () => buttonContaining("Tap to allow voice").click());
+    await settle();
+    expect(heard).toHaveBeenCalled();
+    expect(JSON.parse(window.localStorage.getItem("pubmax_pub_pal_v1") ?? "null")?.muted).toBe(false);
+    unsubscribe();
   });
 });
 

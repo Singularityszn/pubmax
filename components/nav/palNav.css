@@ -149,6 +149,25 @@
     background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
   }
 }
+/* The tablet band: the bar from 641px to 900px was measured with no room to
+   spare (components/nav/siteNav.css), so the door is the face alone there, a
+   44px disc like the More button, and the Pal's name stays in its accessible
+   name. Read off the rendered bar in e2e/pal-nav-button.spec.ts. */
+@media (max-width: 900px) {
+  .siteNavPal {
+    justify-content: center;
+    width: 44px;
+    padding: 0;
+  }
+  .siteNavPalName {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 @media (max-width: 640px) {
   .siteNavPal {
     display: none;

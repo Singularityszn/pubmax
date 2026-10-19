@@ -6,7 +6,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import { readLocalPal } from "@/lib/localPal";
+import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
 import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { subscribePalMoments } from "@/lib/palMoments";
 import type { PubPal } from "@/lib/pubPal";
@@ -55,13 +55,13 @@ function usePalForNav(pathname: string): { pal: PubPal | null; cheering: boolean
   const accountId = useAuth().user?.id ?? null;
   const [pal, setPal] = useState<PubPal | null>(null);
   const [cheering, setCheering] = useState(false);
-  // Read after mount and on every page change, so a Pal made, renamed or
-  // hidden on /pal shows here as soon as the person leaves that page.
+  // Read after mount, on every page change and whenever the stored Pal
+  // changes, in this tab or another, so a Pal made, renamed, hidden or deleted
+  // on /pal shows here at once.
   useEffect(() => {
     const read = () => setPal(palForNav(readLocalPal(), accountId));
     queueMicrotask(read);
-    window.addEventListener("storage", read);
-    return () => window.removeEventListener("storage", read);
+    return subscribeLocalPal(read);
   }, [pathname, accountId]);
   useEffect(() => {
     let timer = 0;

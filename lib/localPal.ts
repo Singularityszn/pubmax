@@ -20,3 +20,29 @@ export function readLocalPal(): PubPal | null {
     return null;
   }
 }
+
+// A browser sends `storage` only to OTHER tabs, so the page that writes the Pal
+// (PalExperience) says so in its own tab too, and a reader hears both.
+const LOCAL_PAL_CHANGED_EVENT = "pubmax:local-pal-changed";
+
+/** Tell this tab's readers that the stored Pal was written or removed. */
+export function announceLocalPalChange(): void {
+  try {
+    window.dispatchEvent(new Event(LOCAL_PAL_CHANGED_EVENT));
+  } catch {
+    // No window, no reader to tell.
+  }
+}
+
+/** Call `onChange` when the stored Pal changes in this tab or another. */
+export function subscribeLocalPal(onChange: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === LOCAL_PAL_KEY) onChange();
+  };
+  window.addEventListener(LOCAL_PAL_CHANGED_EVENT, onChange);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(LOCAL_PAL_CHANGED_EVENT, onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}

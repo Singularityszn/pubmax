@@ -13,7 +13,7 @@ import {
   palPostcardStops,
   type PalPostcardPoint,
 } from "@/components/pal/palPostcardLayout";
-import { readLocalPal } from "@/lib/localPal";
+import { readLocalPal, subscribeLocalPal } from "@/lib/localPal";
 import { PAL_PRINT_SIZE, palGenomeFor, palGenomeStyle, type PalGenome } from "@/lib/palGenome";
 import type { PubPal } from "@/lib/pubPal";
 import { pubPalMascotSlugFor, pubPalMascotSrc } from "@/lib/pubPalMascot";
@@ -50,8 +50,8 @@ export default function PalPostcard({
   const [save, setSave] = useState<SaveState>("idle");
   const cardRef = useRef<HTMLElement>(null);
   // The stored Pal is a device cache, so it stands on the card only for the
-  // signed-in account that owns it. It is read again when another tab changes
-  // it, so a Pal hidden or deleted there leaves this card too.
+  // signed-in account that owns it. It is read again when it changes, in this
+  // tab or another, so a Pal hidden or deleted leaves this card too.
   const accountId = useAuth().user?.id ?? null;
   useEffect(() => {
     const read = () => {
@@ -59,8 +59,7 @@ export default function PalPostcard({
       setPal(stored && accountId && stored.ownerId === accountId ? stored : null);
     };
     queueMicrotask(read);
-    window.addEventListener("storage", read);
-    return () => window.removeEventListener("storage", read);
+    return subscribeLocalPal(read);
   }, [accountId]);
 
   const names = palPostcardStops(stops);

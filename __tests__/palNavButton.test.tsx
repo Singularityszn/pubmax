@@ -15,6 +15,7 @@ vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: auth.u
 
 import MobileTabBar, { dockColumnForTab, PAL_DOCK_COLUMN } from "@/components/nav/MobileTabBar";
 import { PalDockButton, PalSiteNavButton, palForNav, palNavActive, palNavLabel } from "@/components/nav/PalNavButton";
+import { announceLocalPalChange } from "@/lib/localPal";
 import { announcePalMoment } from "@/lib/palMoments";
 import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
 
@@ -125,6 +126,25 @@ describe("the Pal's own door", () => {
     await render(createElement(PalDockButton, { pathname: "/tonight" }));
     expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
     expect(host.querySelector("img")).toBeNull();
+  });
+
+  it("follows a Pal hidden or deleted in the same tab, with no page change", async () => {
+    store(pal());
+    await render(createElement(PalDockButton, { pathname: "/pal" }));
+    expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal, Ripley");
+
+    store(pal({ hidden: true }));
+    await act(async () => { announceLocalPalChange(); });
+    expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
+    expect(host.querySelector("img")).toBeNull();
+
+    store(pal({ name: "Moss" }));
+    await act(async () => { announceLocalPalChange(); });
+    expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal, Moss");
+
+    window.localStorage.removeItem("pubmax_pub_pal_v1");
+    await act(async () => { announceLocalPalChange(); });
+    expect(host.querySelector("a")!.getAttribute("aria-label")).toBe("Pub Pal");
   });
 
   it("marks itself as the page on /pal", async () => {

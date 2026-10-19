@@ -112,6 +112,41 @@ test("on a short phone the face sits inside the rail, clear of the page above it
   await page.screenshot({ path: `${SHOTS}/dock-320x568.png`, clip: { x: 0, y: rail.y - 40, width: 320, height: 568 - (rail.y - 40) } });
 });
 
+// The tablet bar was measured with no room to spare, and a signed-in bar also
+// carries alerts, messages and the account. The door is a face-only disc there,
+// so every destination stays pressable and the bar never scrolls sideways.
+for (const width of [641, 700, 768, 900] as const) {
+  test(`${width}px: the Pal's door fits the signed-in tablet bar`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 900 });
+    await seed(page, { theme: "light", withPal: true });
+    await page.goto("/tonight");
+    const bar = page.getByRole("navigation", { name: "Site navigation" });
+    const door = bar.getByRole("link", { name: "Pub Pal, Ripley", exact: true });
+    await expect(door).toBeVisible({ timeout: 60_000 });
+    const box = (await door.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeLessThanOrEqual(46);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    const findings = await page.evaluate(() => {
+      const covered: string[] = [];
+      const pressable = [...document.querySelectorAll(".siteNavLinks .siteNavLink"), document.querySelector("a.siteNavPal")];
+      for (const link of pressable) {
+        if (!link) continue;
+        const rect = link.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        if (!hit || !link.contains(hit)) covered.push(link.textContent?.trim() ?? "?");
+      }
+      return { covered, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+    expect(findings.covered).toEqual([]);
+    expect(findings.overflow).toBeLessThanOrEqual(0);
+    await mkdir(SHOTS, { recursive: true });
+    const barBox = (await bar.boundingBox())!;
+    await page.screenshot({ path: `${SHOTS}/tablet-${width}.png`, clip: { x: 0, y: barBox.y, width, height: barBox.height + 8 } });
+  });
+}
+
 test("the desktop bar names the person's Pal and opens /pal", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1280, height: 800 });

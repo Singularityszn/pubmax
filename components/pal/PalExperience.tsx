@@ -52,7 +52,7 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
-import { LOCAL_PAL_KEY } from "@/lib/localPal";
+import { announceLocalPalChange, LOCAL_PAL_KEY } from "@/lib/localPal";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { useStepHistory } from "@/lib/useStepHistory";
 
@@ -149,6 +149,7 @@ function writeStored(key: string, value: unknown): void {
   } catch {
     // The cache is a convenience; the server holds the truth.
   }
+  if (key === LOCAL_PAL_KEY) announceLocalPalChange();
 }
 
 function removeStored(key: string): void {
@@ -157,6 +158,7 @@ function removeStored(key: string): void {
   } catch {
     // As above.
   }
+  if (key === LOCAL_PAL_KEY) announceLocalPalChange();
 }
 
 function readStored(key: string): string | null {
