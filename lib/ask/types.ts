@@ -80,6 +80,12 @@ export type AskProposal =
       lat: number;
       lng: number;
       place?: string;
+      /**
+       * The listed pub the point is, when there is one. A surface off the map
+       * opens this pub, because the map only takes `?lat=&lng=` outside a
+       * curated city (`parseUkPlaceMapArrival`).
+       */
+      venueId?: string;
     }
   | {
       id: string;

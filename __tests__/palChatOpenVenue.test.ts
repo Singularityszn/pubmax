@@ -10,6 +10,8 @@ const askSession = vi.hoisted(() => vi.fn());
 const loadSlim = vi.hoisted(() => vi.fn());
 const loadSlimResult = vi.hoisted(() => vi.fn());
 const sessionAnswer = vi.hoisted(() => ({ value: null as unknown }));
+const activePlan = vi.hoisted(() => ({ value: null as unknown, on: false }));
+const planRead = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -37,6 +39,13 @@ vi.mock("@/lib/venuesSlim", () => ({
 }));
 vi.mock("@/lib/palChatClient", () => ({
   createPalChatSession: () => askSession,
+}));
+vi.mock("@/lib/activePlan", () => ({
+  readActivePlan: () => activePlan.value,
+  isPlanActiveNow: () => activePlan.on,
+}));
+vi.mock("@/components/plan/usePlanMemberRead", () => ({
+  readPlanMemberProjection: planRead,
 }));
 
 import PalChat from "@/components/pal/PalChat";
@@ -76,6 +85,9 @@ beforeEach(async () => {
     ],
   });
   sessionAnswer.value = answer;
+  activePlan.value = null;
+  activePlan.on = false;
+  planRead.mockReset().mockResolvedValue(null);
   askSession.mockReset().mockImplementation(() => Promise.resolve(sessionAnswer.value));
   container = document.createElement("div");
   document.body.append(container);
@@ -157,8 +169,32 @@ describe("Pal venue card navigation", () => {
     if (!confirm) throw new Error("Fly-to proposal not found");
     await act(async () => confirm.click());
 
-    expect(router.push).toHaveBeenCalledWith("/map?lat=51.513&lng=-0.089&place=Bank");
+    // The map drops ?lat=&lng= for a point inside London, so a bare London
+    // point opens the London map rather than a link that lands on nothing.
+    expect(router.push).toHaveBeenCalledWith("/map");
     expect(trackEvent).toHaveBeenCalledWith("concierge_result_tap");
+  });
+
+  it("opens the pub a fly-to names, selected on the map", async () => {
+    sessionAnswer.value = {
+      ...answer,
+      proposals: [{
+        id: "fly:venue-a",
+        kind: "fly_to",
+        label: "Fly to The Anchor",
+        lat: 51.46,
+        lng: -0.11,
+        place: "The Anchor",
+        venueId: "venue-a",
+      }],
+    };
+    await askPal("take me to The Anchor");
+
+    const confirm = container.querySelector<HTMLButtonElement>(".palChatProposalConfirm");
+    if (!confirm) throw new Error("Fly-to proposal not found");
+    await act(async () => confirm.click());
+
+    expect(router.push).toHaveBeenCalledWith("/map?sel=venue-a");
   });
 
   it("routes a card press through the router and keeps tap analytics", async () => {
@@ -214,5 +250,46 @@ describe("Pal venue card navigation", () => {
 
     expect(router.push).toHaveBeenCalledWith("/map?mapNotice=unknown");
     expect(new URL(defined(router.push.mock.calls[0])[0], "https://pubmaxxing.test").searchParams.has("sel")).toBe(false);
+  });
+});
+
+describe("Pal map asks in the written chat", () => {
+  it("opens the map when the person asks for it, without asking the Pal", async () => {
+    await askPal("show me the map");
+
+    expect(askSession).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Opening the map");
+    expect(router.push).toHaveBeenCalledWith("/map");
+  });
+
+  it("opens the next stop of a planned night that is on", async () => {
+    activePlan.value = { id: "plan-1", stopIndex: 0 };
+    activePlan.on = true;
+    planRead.mockResolvedValue({
+      stops: [
+        { venueId: "venue-a", venueName: "The Anchor" },
+        { venueId: "venue-b", venueName: "The Crown" },
+      ],
+    });
+    await askPal("where next?");
+
+    expect(askSession).not.toHaveBeenCalled();
+    expect(planRead).toHaveBeenCalledWith("plan-1");
+    expect(container.textContent).toContain("Opening The Crown, your next stop");
+    expect(router.push).toHaveBeenCalledWith("/map?sel=venue-b");
+  });
+
+  it("asks the Pal about a next stop when no night is on", async () => {
+    await askPal("next stop");
+
+    expect(askSession).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("asks the Pal when the person refuses the map", async () => {
+    await askPal("don't show me the map, just a cheap pint");
+
+    expect(askSession).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

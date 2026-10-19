@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   PAL_UNMATCHED_VENUE_NOTICE,
+  palFlyToHref,
   palKnownVenueIds,
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
@@ -65,5 +66,34 @@ describe("resolvePalVenueOpenTarget", () => {
       href: "/map?mapNotice=unknown",
       notice: PAL_UNMATCHED_VENUE_NOTICE,
     });
+  });
+});
+
+describe("palFlyToHref", () => {
+  const known = new Set(["venue-a"]);
+
+  it("opens the pub a fly names, because the map drops ?lat=&lng= inside London", () => {
+    const href = palFlyToHref(
+      { lat: 51.5113, lng: -0.119747, place: "The Anchor", venueId: "venue-a" },
+      known,
+    );
+    expect(href).toBe(venueMapUrl("venue-a"));
+    expect(new URL(href, "https://pubmaxxing.test").searchParams.has("lat")).toBe(false);
+  });
+
+  it("keeps the map-owned refusal for a named pub the index does not list", () => {
+    expect(
+      palFlyToHref({ lat: 51.5, lng: -0.1, place: "Gone", venueId: "venue-gone" }, known),
+    ).toBe("/map?mapNotice=unknown");
+  });
+
+  it("opens the city map for a bare point inside a curated city, never a dropped arrival", () => {
+    expect(palFlyToHref({ lat: 51.513, lng: -0.089, place: "Bank" }, known)).toBe("/map");
+  });
+
+  it("keeps the place arrival for a point outside every curated city", () => {
+    expect(
+      palFlyToHref({ lat: 53.3800941, lng: -1.4789213, place: "Sheffield" }, known),
+    ).toBe("/map?place=Sheffield&lat=53.3800941&lng=-1.4789213");
   });
 });
