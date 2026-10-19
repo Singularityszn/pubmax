@@ -118,3 +118,53 @@ export function palAsksForMap(text: string): boolean {
   // "Don't show me the map" and "not the map yet" are not asks.
   return !MAP_NEGATION_RE.test(normalized.slice(0, verb.index + verb[0].length));
 }
+
+// A planned night's next stop: "next stop", "the next pub", "where next",
+// "where to next", "what's next". Only the person's own words, and only while
+// a night is on (the session checks), so a question about tomorrow is not one.
+const NEXT_STOP_RE =
+  /\b(?:next\s+(?:stop|pub|bar|one|place)|where(?:'s|\s+is)?\s+next|where\s+to\s+next|what'?s\s+next|what\s+is\s+next)\b/;
+const NEXT_STOP_NEGATION_RE = /\b(?:don'?t|do not|dont|never|not|no need to|stop)\b/;
+
+/** Does the person ask, in their own words, for the next stop of their night? */
+export function palAsksForNextStop(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .replace(/[’`]/g, "'")
+    .replace(/[^a-z'\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const ask = NEXT_STOP_RE.exec(normalized);
+  if (!ask) return false;
+  // "Don't take me to the next stop yet" is not an ask. "Stop" inside the ask
+  // itself ("next stop") is the noun, so only the words before it are read.
+  return !NEXT_STOP_NEGATION_RE.test(normalized.slice(0, ask.index));
+}
+
+type PalNightStop = { venueId: string; venueName: string };
+
+/**
+ * Where "next stop" goes: the stop after the one the person reached (their own
+ * Night Mode cursor), or the last stop once they are on it. Null with no stops.
+ */
+export function palNextStop(
+  stops: readonly PalNightStop[],
+  stopIndex: number,
+): { href: string; venueName: string } | null {
+  if (!stops.length) return null;
+  const at = Number.isInteger(stopIndex) && stopIndex >= 0 ? stopIndex : 0;
+  const next = stops[Math.min(at + 1, stops.length - 1)]!;
+  if (!next.venueId) return null;
+  return { href: `/map?sel=${encodeURIComponent(next.venueId)}`, venueName: next.venueName };
+}
+
+/** The night's stops from a plan read body, or none. */
+export function palNightStopsFrom(body: unknown): PalNightStop[] {
+  const stops = (body as { stops?: unknown } | null)?.stops;
+  if (!Array.isArray(stops)) return [];
+  return stops
+    .filter((stop): stop is PalNightStop =>
+      Boolean(stop) && typeof stop.venueId === "string" && typeof stop.venueName === "string")
+    .map(({ venueId, venueName }) => ({ venueId, venueName }));
+}
+

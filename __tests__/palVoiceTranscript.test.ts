@@ -8,6 +8,9 @@ import {
   appendPalVoiceLine,
   correctPalVoiceLine,
   palAsksForMap,
+  palAsksForNextStop,
+  palNextStop,
+  palNightStopsFrom,
   palVoiceLine,
   PAL_VOICE_TRANSCRIPT_MAX_LINES,
   tentativeUserTranscriptFrom,
@@ -98,5 +101,39 @@ describe("the voice panel cues", () => {
       // A cue is a blip, not a track: anything larger was not trimmed.
       expect(statSync(file).size, src).toBeLessThan(40_000);
     }
+  });
+});
+
+describe("the next stop of a night", () => {
+  it("hears the ways a person asks for the next stop", () => {
+    for (const ask of ["Next stop", "take me to the next pub", "Where next?", "where's next", "where to next", "What's next?"]) {
+      expect(palAsksForNextStop(ask)).toBe(true);
+    }
+  });
+
+  it("does not hear a refusal, or a sentence about something else", () => {
+    for (const line of ["Don't take me to the next stop yet", "not the next pub", "I liked this stop", "next week maybe", "stop"]) {
+      expect(palAsksForNextStop(line)).toBe(false);
+    }
+  });
+
+  it("goes to the stop after the person's own cursor, and stays on the last", () => {
+    const stops = [
+      { venueId: "venue-a", venueName: "A" },
+      { venueId: "venue-b", venueName: "B" },
+      { venueId: "venue c", venueName: "C" },
+    ];
+    expect(palNextStop(stops, 0)).toEqual({ href: "/map?sel=venue-b", venueName: "B" });
+    expect(palNextStop(stops, 1)).toEqual({ href: "/map?sel=venue%20c", venueName: "C" });
+    expect(palNextStop(stops, 2)).toEqual({ href: "/map?sel=venue%20c", venueName: "C" });
+    expect(palNextStop(stops, -3)).toEqual({ href: "/map?sel=venue-b", venueName: "B" });
+    expect(palNextStop([], 0)).toBeNull();
+  });
+
+  it("reads only well-formed stops from a plan body", () => {
+    expect(palNightStopsFrom(null)).toEqual([]);
+    expect(palNightStopsFrom({ stops: "x" })).toEqual([]);
+    expect(palNightStopsFrom({ stops: [{ venueId: "v1", venueName: "One", position: 0 }, { venueId: 2 }, null] }))
+      .toEqual([{ venueId: "v1", venueName: "One" }]);
   });
 });

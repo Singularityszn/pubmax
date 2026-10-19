@@ -62,6 +62,9 @@ import {
   appendPalVoiceLine,
   correctPalVoiceLine,
   palAsksForMap,
+  palAsksForNextStop,
+  palNextStop,
+  palNightStopsFrom,
   palVoiceLine,
   PAL_VOICE_MAP_DELAY_MS,
   PAL_VOICE_MAP_HREF,
@@ -69,6 +72,8 @@ import {
   type PalVoiceLine,
 } from "@/lib/palVoiceTranscript";
 import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
+import { isPlanActiveNow, readActivePlan } from "@/lib/activePlan";
+import { readPlanMemberProjection } from "@/components/plan/usePlanMemberRead";
 import type { PalGenome } from "@/lib/palGenome";
 
 type VoiceTokenResponse = {
@@ -179,6 +184,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
   const [tentative, setTentative] = useState("");
   const [awaitingPal, setAwaitingPal] = useState(false);
   const [mapPending, setMapPending] = useState(false);
+  const [mapLabel, setMapLabel] = useState("Opening the map");
   const mapTimerRef = useRef<number | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [startupStopped, setStartupStopped] = useState(false);
@@ -201,20 +207,38 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
 
   // The person asked for the map in their own words. Leaving /pal ends the
   // voice session through the unmount below, so the allowance is released.
-  const openMap = useCallback((): void => {
+  const openMap = useCallback((href: string = PAL_VOICE_MAP_HREF, label = "Opening the map"): void => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
+    setMapLabel(label);
     setMapPending(true);
     // The cue belongs to a live voice chat; a typed ask with no session is silent.
     if (liveRef.current) playPalVoiceSound("map");
     mapTimerRef.current = window.setTimeout(() => {
       mapTimerRef.current = null;
-      router.push(PAL_VOICE_MAP_HREF);
+      router.push(href as Route);
     }, PAL_VOICE_MAP_DELAY_MS);
   }, [router]);
   const openMapRef = useRef(openMap);
   useEffect(() => {
     openMapRef.current = openMap;
   }, [openMap]);
+
+  // "Next stop" during a planned night that is on: the map opens on the stop
+  // after the one the person reached (their own Night Mode cursor). With no
+  // night on it is an ordinary question for the Pal, so it answers false.
+  const nightIsOn = useCallback((): boolean => isPlanActiveNow(readActivePlan(), Date.now()), []);
+  const openNextStop = useCallback(async (): Promise<void> => {
+    const plan = readActivePlan();
+    if (!plan) return;
+    const next = palNextStop(palNightStopsFrom(await readPlanMemberProjection(plan.id)), plan.stopIndex);
+    if (next) openMapRef.current(next.href, `Opening ${next.venueName}, your next stop`);
+    else openMapRef.current();
+  }, []);
+  const nightIsOnRef = useRef(nightIsOn);
+  const openNextStopRef = useRef(openNextStop);
+  useEffect(() => {
+    openNextStopRef.current = openNextStop;
+  }, [openNextStop]);
   useEffect(() => () => {
     if (mapTimerRef.current !== null) window.clearTimeout(mapTimerRef.current);
   }, []);
@@ -400,6 +424,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
             setTentative("");
             setAwaitingPal(true);
             if (palAsksForMap(content)) openMapRef.current();
+            else if (palAsksForNextStop(content) && nightIsOnRef.current()) void openNextStopRef.current();
             const conversationId = conversationIdRef.current;
             if (!conversationId) return;
             void syncVoiceToolTurn({
@@ -509,6 +534,12 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
       openMap();
       return;
     }
+    if (palAsksForNextStop(value) && nightIsOn()) {
+      setLines((current) => appendPalVoiceLine(current, palVoiceLine("you", value, "typed")));
+      setText("");
+      void openNextStop();
+      return;
+    }
     if (status !== "connected") {
       // No live conversation: sendUserMessage would throw and the Pal would
       // sit on "thinking" forever. Ask the written Pal instead.
@@ -576,6 +607,7 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
         thinking={awaitingPal && live && !isSpeaking}
         live={live}
         mapPending={mapPending}
+        mapLabel={mapLabel}
         onStayHere={stayHere}
       />
       <div className="palVoiceActions">

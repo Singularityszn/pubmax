@@ -38,6 +38,7 @@ export default function PalVoiceTranscript({
   thinking,
   live,
   mapPending,
+  mapLabel = "Opening the map",
   onStayHere,
 }: {
   lines: readonly PalVoiceLine[];
@@ -50,6 +51,8 @@ export default function PalVoiceTranscript({
   thinking: boolean;
   live: boolean;
   mapPending: boolean;
+  /** What the map card says: the map, or the night's next stop by name. */
+  mapLabel?: string;
   onStayHere: () => void;
 }) {
   const logRef = useRef<HTMLOListElement>(null);
@@ -110,7 +113,7 @@ export default function PalVoiceTranscript({
           style={{ "--map-delay": `${PAL_VOICE_MAP_DELAY_MS}ms` } as React.CSSProperties}
         >
           <MapPinned size={18} aria-hidden="true" />
-          <p>Opening the map</p>
+          <p>{mapLabel}</p>
           <button type="button" onClick={onStayHere}>Stay here</button>
         </li>
       ) : null}
