@@ -150,12 +150,9 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 16.4, drinkLabel: "Cantillon Gueuze" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15, drinkLabel: "Cantillon Rose de Gambrinus 37.5cl" },
   { sourceUrl: "https://www.thebluemonklondon.com/bar", category: "wine", priceGbp: 12.15 },
-  // A strength in the printed label that contradicts the heading: an 11% Aperol
-  // filed as alcohol-free, and three 0.05% to 0.5% beers filed as beer.
+  // An 11% Aperol filed as alcohol-free. A 0.05% or 0.5% beer stays beer: only
+  // an exact zero strength or alcohol-free wording files as alcohol-free.
   { sourceUrl: "https://blackcapcamden.co.uk", category: "alcohol-free", priceGbp: 6.5, drinkLabel: "Aperol 11%" },
-  { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 7, drinkLabel: "Queer Bold AF Pale Ale 0.5%" },
-  { sourceUrl: "https://theblacksmithsse16.com/drink", category: "beer", priceGbp: 6.7, drinkLabel: "Adnams Ghost Ship Pale Ale 0.05%" },
-  { sourceUrl: "https://thecottonmillpub.com", category: "beer", priceGbp: 5, drinkLabel: "Adnams 0.5% Ghost ship" },
   // A liqueur filed as coffee, a witbier as a soft drink, desserts as wine, and
   // a calorie line that is the elderflower spritz already quarantined above.
   { sourceUrl: "https://blackcapcamden.co.uk", category: "coffee", priceGbp: 5, drinkLabel: "Kahlúa Coffee Liqueur 16%" },
