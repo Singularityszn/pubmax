@@ -48,7 +48,7 @@ export const PAL_NIGHT_CHOICES: readonly PalNightChoice[] = [
 ];
 
 /** The first London hour the Pal asks, and it asks until midnight. */
-export const PAL_NIGHT_QUESTION_FROM_HOUR = 12;
+const PAL_NIGHT_QUESTION_FROM_HOUR = 12;
 
 /** Is it a time of day the Pal asks? Noon to midnight, London time. */
 export function palNightQuestionOpen(now: Date): boolean {
