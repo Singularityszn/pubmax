@@ -209,6 +209,10 @@ describe("the question on /pal", () => {
       expect(new URL(crew.shared[0]!.url).pathname).toBe(`/plan/${PLAN_ID}`);
       expect(new URL(crew.shared[0]!.url).hash).toBe("#invite=0123456789abcdef0123456789abcdef");
       expect(host.textContent).toContain("Sent. Now they tap I'm in.");
+      // With tonight's plan saved, Open the plan goes to it, never to a fresh one.
+      const open = [...host.querySelectorAll<HTMLAnchorElement>("a")].find((link) => link.textContent === "Open the plan")!;
+      expect(new URL(open.href).pathname).toBe(`/plan/${PLAN_ID}`);
+      expect(new URL(open.href).search).toBe("");
     });
 
     it("opens the plan's own invite tools when there is no crew link to hand out", async () => {

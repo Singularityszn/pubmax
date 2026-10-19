@@ -46,17 +46,9 @@ function absoluteUrl(path: string): string {
 type Crew = { planId: string; inviteUrl: string | null };
 type Sent = "idle" | "sent" | "failed";
 
-/**
- * "Who's coming?": once tonight's plan is saved and on, the Pal hands the
- * person its real crew link (`/plan/{id}#invite=…`), so mates join the same
- * night. The invite token is read while the card is on screen, so the tap goes
- * straight to the share sheet. Without a token it opens the plan's own invite
- * tools, and it never shares a bare `/plan/{id}`, which cannot join.
- */
-function PalNightCrew({ palName, choice }: { palName: string; choice: PalNightChoice }) {
+/** Tonight's saved plan with a seat on it, and its crew link once read. */
+function useTonightsCrew(): Crew | null {
   const [crew, setCrew] = useState<Crew | null>(null);
-  const [sent, setSent] = useState<Sent>("idle");
-
   useEffect(() => {
     let active = true;
     const read = () => {
@@ -77,8 +69,19 @@ function PalNightCrew({ palName, choice }: { palName: string; choice: PalNightCh
       unsubscribe();
     };
   }, []);
+  return crew;
+}
 
-  if (!crew) return null;
+/**
+ * "Who's coming?": once tonight's plan is saved and on, the Pal hands the
+ * person its real crew link (`/plan/{id}#invite=…`), so mates join the same
+ * night. The invite token is read while the card is on screen, so the tap goes
+ * straight to the share sheet. Without a token it opens the plan's own invite
+ * tools, and it never shares a bare `/plan/{id}`, which cannot join.
+ */
+function PalNightCrew({ crew, palName, choice }: { crew: Crew; palName: string; choice: PalNightChoice }) {
+  const [sent, setSent] = useState<Sent>("idle");
+
   const invitePage = `/plan/${crew.planId}#share` as Route;
   if (!crew.inviteUrl) {
     return (
@@ -109,6 +112,7 @@ function PalNightCrew({ palName, choice }: { palName: string; choice: PalNightCh
 
 export default function PalNightQuestion({ muted, palName }: { muted: boolean; palName: string }) {
   const [asked, setAsked] = useState<Asked | null>(null);
+  const crew = useTonightsCrew();
 
   useEffect(() => {
     let active = true;
@@ -149,11 +153,15 @@ export default function PalNightQuestion({ muted, palName }: { muted: boolean; p
       <section className="palNightQuestion" aria-label="Tonight" data-testid="pal-night-question">
         <p className="palNightQuestionLine" role="status">{asked.answer.reply}</p>
         <div className="palNightQuestionActions">
-          <Link className="palNightQuestionOpen" href={planPalRouteHandoffHref(asked.answer.plan)}>
+          {/* Once tonight's plan is saved, the door goes to it, never to a fresh one. */}
+          <Link
+            className="palNightQuestionOpen"
+            href={crew ? (`/plan/${crew.planId}` as Route) : planPalRouteHandoffHref(asked.answer.plan)}
+          >
             Open the plan
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
-          <PalNightCrew palName={palName} choice={asked.answer} />
+          {crew ? <PalNightCrew crew={crew} palName={palName} choice={asked.answer} /> : null}
           <button type="button" className="palNightQuestionChange" onClick={changeMind}>
             Change my mind
           </button>

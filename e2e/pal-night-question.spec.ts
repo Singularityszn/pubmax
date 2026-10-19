@@ -51,10 +51,12 @@ test("the Pal asks what kind of night it is, and the answer opens that plan", as
     await expect(choice).toBeVisible();
     await expect.poll(async () => (await choice.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   }
-  await card.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
   await mkdir(SHOTS, { recursive: true });
-  await card.screenshot({ path: `${SHOTS}/question-390.png` });
+  await expect(async () => {
+    await card.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await card.screenshot({ path: `${SHOTS}/question-390.png` });
+  }).toPass({ timeout: 30_000 });
 
   await card.getByRole("link", { name: /Proper sesh/ }).click();
   await expect(page).toHaveURL(/\/plan\?query=4\+pubs\+tonight%2C\+lively\+and\+cheap/);
@@ -64,9 +66,11 @@ test("the Pal asks what kind of night it is, and the answer opens that plan", as
   const answered = page.getByTestId("pal-night-question");
   await expect(answered.getByRole("status")).toHaveText("Proper sesh it is. Four pubs, cheapest first.", { timeout: 60_000 });
   await expect(answered.getByRole("link", { name: "Open the plan" })).toBeVisible();
-  await answered.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
-  await answered.screenshot({ path: `${SHOTS}/answered-390.png` });
+  await expect(async () => {
+    await answered.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await answered.screenshot({ path: `${SHOTS}/answered-390.png` });
+  }).toPass({ timeout: 30_000 });
 });
 
 test("once tonight's plan is saved, the Pal hands out the crew link", async ({ page }) => {
@@ -118,10 +122,13 @@ test("once tonight's plan is saved, the Pal hands out the crew link", async ({ p
   await expect(card.getByRole("status").first()).toHaveText("Proper sesh it is. Four pubs, cheapest first.", { timeout: 60_000 });
   const who = card.getByRole("button", { name: "Who's coming?" });
   await expect(who).toBeVisible({ timeout: 30_000 });
-  await card.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
+  // The page renders again as the server's Pal and the plan read land.
   await mkdir(SHOTS, { recursive: true });
-  await card.screenshot({ path: `${SHOTS}/crew-390.png` });
+  await expect(async () => {
+    await card.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await card.screenshot({ path: `${SHOTS}/crew-390.png` });
+  }).toPass({ timeout: 30_000 });
 
   await who.click();
   await expect(card).toContainText("Sent. Now they tap I'm in.");
