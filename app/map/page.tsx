@@ -1,10 +1,9 @@
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import { mapPricesReadLine } from "@/lib/mapLoadingCopy";
 import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
@@ -59,7 +58,7 @@ export default async function MapPage() {
       <PubMaxingShell
         cityId="london"
         zonePintIndex={zonePintIndex}
-        pricesReadLine={mapPricesReadLine(formatObservedDate(PINT_DATASET_OBSERVED_AT))}
+        pricesReadLine={mapPricesReadLineFor("london")}
       />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

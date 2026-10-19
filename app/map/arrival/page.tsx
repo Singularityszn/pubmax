@@ -4,9 +4,8 @@ import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import { mapPricesReadLine } from "@/lib/mapLoadingCopy";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 import { pintShareCardVenue, pintShareMetadata } from "@/lib/pintShare";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import {
@@ -144,7 +143,7 @@ export default async function MapArrivalPage({
   const pricesReadLine =
     placeArrival || ukNationalBrowse
       ? null
-      : mapPricesReadLine(formatObservedDate(PINT_DATASET_OBSERVED_AT));
+      : mapPricesReadLineFor("london");
   return (
     <>
       <PubMaxingShell

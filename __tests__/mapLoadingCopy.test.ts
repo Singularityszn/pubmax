@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -9,6 +12,7 @@ import {
   mapPricesReadLine,
 } from "@/lib/mapLoadingCopy";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
+import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 
 describe("mapLoadingCopy", () => {
   it("names the city in the primary loading line", () => {
@@ -169,5 +173,20 @@ describe("resolveMapDisplayName", () => {
     expect(line).toBe("London pint prices: a snapshot from 2 October 2026.");
     expect(line).not.toMatch(/newest|latest/i);
     expect(mapPricesReadLine("  ")).toBeNull();
+  });
+});
+
+// Codex on #2276: /map printed the snapshot line and /map/london did not. Every
+// London map route now asks one helper, and only London gets a line.
+describe("mapPricesReadLineFor", () => {
+  it("gives London its snapshot line and every other city none", () => {
+    expect(mapPricesReadLineFor("london")).toMatch(/^London pint prices: a snapshot from \d{1,2} \w+ \d{4}\.$/);
+    expect(mapPricesReadLineFor("manchester")).toBeNull();
+  });
+
+  it("is what every London map route hands the shell", () => {
+    for (const page of ["app/map/page.tsx", "app/map/[city]/page.tsx", "app/map/arrival/page.tsx"]) {
+      expect(readFileSync(join(process.cwd(), page), "utf8"), page).toContain("mapPricesReadLineFor(");
+    }
   });
 });
