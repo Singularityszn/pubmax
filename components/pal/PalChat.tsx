@@ -435,6 +435,7 @@ export default function PalChat() {
             value: proposal.value,
             relation: proposal.relation,
             supersedesMemoryId: proposal.supersedesMemoryId,
+            supersedesValue: proposal.supersedesValue,
           },
           auth,
         );

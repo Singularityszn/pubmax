@@ -280,6 +280,28 @@ describe("propose, then the person confirms: no case leaves two memories about o
     return listed.value;
   }
 
+  /** The person's Confirm tap, with the fields PalChat passes from the card. */
+  function confirmCard(card: Extract<AskProposal, { kind: "remember_memory" }>) {
+    return confirmPalMemoryProposal(
+      {
+        id: card.id,
+        memoryKind: card.memoryKind,
+        value: card.value,
+        relation: card.relation,
+        supersedesMemoryId: card.supersedesMemoryId,
+        supersedesValue: card.supersedesValue,
+      },
+      { userId: OWNER, accessToken: OWNER },
+      routes,
+    );
+  }
+
+  async function proposeCard(fact: { kind: string; value: string }) {
+    const card = (await propose(fact)).cards.at(-1);
+    if (card?.kind !== "remember_memory" || !card.supersedesMemoryId) throw new Error("expected a replacement card");
+    return card;
+  }
+
   it.each(cases)("$id", async (testCase) => {
     const realIds = new Map<string, string>();
     for (const memory of [...testCase.existing].reverse()) {
@@ -303,11 +325,7 @@ describe("propose, then the person confirms: no case leaves two memories about o
     expect(card.relation).toBe(testCase.expected === "add" ? undefined : testCase.expected);
     if (testCase.target) expect(card.supersedesMemoryId).toBe(realIds.get(testCase.target));
 
-    const outcome = await confirmPalMemoryProposal(
-      { id: card.id, memoryKind: card.memoryKind, value: card.value, relation: card.relation, supersedesMemoryId: card.supersedesMemoryId },
-      { userId: OWNER, accessToken: OWNER },
-      routes,
-    );
+    const outcome = await confirmCard(card);
     expect(outcome).toEqual({ ok: true });
 
     const after = await confirmed();
@@ -321,7 +339,10 @@ describe("propose, then the person confirms: no case leaves two memories about o
     expect(values).not.toContain(target.value);
     if (testCase.expected === "update") {
       expect(after.length).toBe(testCase.existing.length);
-      expect(after.find((memory) => memory.id === realIds.get(target.id))?.value).toBe(testCase.newFact.value);
+      const replaced = after.find((memory) => memory.id === realIds.get(target.id));
+      expect(replaced?.value).toBe(testCase.newFact.value);
+      // The new fact's kind wins, except a bare correction, which keeps the subject it corrects.
+      expect(replaced?.kind).toBe(testCase.newFact.kind === "correction" ? target.kind : testCase.newFact.kind);
     } else {
       expect(after.length).toBe(testCase.existing.length - 1);
     }
@@ -342,13 +363,58 @@ describe("propose, then the person confirms: no case leaves two memories about o
       }),
       { params: Promise.resolve({ memoryId: card.supersedesMemoryId }) },
     );
-    const outcome = await confirmPalMemoryProposal(
-      { id: card.id, memoryKind: card.memoryKind, value: card.value, relation: card.relation, supersedesMemoryId: card.supersedesMemoryId },
-      { userId: OWNER, accessToken: OWNER },
-      routes,
-    );
+    const outcome = await confirmCard(card);
 
     expect(outcome).toEqual({ ok: true });
     expect((await confirmed()).map((memory) => memory.value)).toEqual(["Has gone off lager"]);
+  });
+
+  it("refuses a second update card once the first has replaced the memory", async () => {
+    const seeded = await confirmPalMemoryResult(OWNER, { kind: "drink_preference", value: "Loves lager" });
+    if (!seeded.ok) throw new Error("seed failed");
+    judge.expect = { value: "Loves lager", relation: "update" };
+    const first = await proposeCard({ kind: "drink_preference", value: "Has gone off lager" });
+    const second = await proposeCard({ kind: "drink_preference", value: "Drinks only stout now" });
+
+    expect(await confirmCard(first)).toEqual({ ok: true });
+    const stale = await confirmCard(second);
+
+    expect(stale).toEqual({ ok: false, error: expect.stringContaining("changed since this card was made") });
+    expect((await confirmed()).map((memory) => memory.value)).toEqual(["Has gone off lager"]);
+  });
+
+  it("refuses a forget card once the person has edited the memory", async () => {
+    const seeded = await confirmPalMemoryResult(OWNER, { kind: "accessibility_preference", value: "Needs step-free access" });
+    if (!seeded.ok) throw new Error("seed failed");
+    judge.expect = { value: "Needs step-free access", relation: "delete" };
+    const card = await proposeCard({ kind: "accessibility_preference", value: "No longer needs step-free access" });
+    expect(card.relation).toBe("delete");
+
+    const edited = await PATCH_MEMORY(
+      new Request(`http://localhost/api/pub-pal/memories/${card.supersedesMemoryId}`, {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${OWNER}`, "content-type": "application/json" },
+        body: JSON.stringify({ value: "Needs step-free access and a lift" }),
+      }),
+      { params: Promise.resolve({ memoryId: card.supersedesMemoryId as string }) },
+    );
+    expect(edited.status).toBe(200);
+
+    expect(await confirmCard(card)).toEqual({ ok: false, error: expect.stringContaining("changed since this card was made") });
+    expect((await confirmed()).map((memory) => memory.value)).toEqual(["Needs step-free access and a lift"]);
+  });
+
+  it("still deletes from the Pal page, which names no expected value", async () => {
+    const seeded = await confirmPalMemoryResult(OWNER, { kind: "drink_preference", value: "Loves lager" });
+    if (!seeded.ok) throw new Error("seed failed");
+    const response = await DELETE_MEMORY(
+      new Request(`http://localhost/api/pub-pal/memories/${seeded.value.id}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${OWNER}` },
+      }),
+      { params: Promise.resolve({ memoryId: seeded.value.id }) },
+    );
+    expect(response.status).toBe(200);
+    expect(await confirmed()).toEqual([]);
   });
 });

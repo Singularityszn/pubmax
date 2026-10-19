@@ -218,7 +218,9 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    made, `lib/palMemoryRelation.server.ts` sorts the fact against the person's
    confirmed memories: a fact they already have makes no card, and one that
    replaces or withdraws a memory makes an "Update" or "Forget" card that
-   PATCHes or DELETEs that memory on Confirm. Without a TypeSafe key only exact
+   PATCHes or DELETEs that memory on Confirm. The card sends the value it
+   showed as replaced, and the route answers 409 when the memory has changed
+   since, so a stale card never overwrites a newer fact. Without a TypeSafe key only exact
    duplicates are caught and every other offer is an ordinary card. Typed chat also carries
    a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at

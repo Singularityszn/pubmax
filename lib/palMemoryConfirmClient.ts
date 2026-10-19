@@ -9,6 +9,7 @@ import { discardBody } from "@/lib/responseBody";
 import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
 const SAVE_FAILED = "Couldn't save that memory.";
+const CARD_STALE = "That memory has changed since this card was made. Ask the Pal again.";
 
 type ConfirmOutcome = { ok: true } | { ok: false; error: string; needsSignIn?: boolean };
 
@@ -26,6 +27,7 @@ export async function confirmPalMemoryProposal(
     value: string;
     relation?: "update" | "delete";
     supersedesMemoryId?: string;
+    supersedesValue?: string;
   },
   auth: AccountAuthSnapshot | null,
   request?: typeof fetch,
@@ -43,13 +45,17 @@ function memoryWrite(input: {
   value: string;
   relation?: "update" | "delete";
   supersedesMemoryId?: string;
+  supersedesValue?: string;
 }): { path: string; init: RequestInit } {
   if (input.relation && input.supersedesMemoryId) {
     const path = `/api/pub-pal/memories/${encodeURIComponent(input.supersedesMemoryId)}`;
-    if (input.relation === "delete") return { path, init: { method: "DELETE" } };
+    // The value the card showed as replaced: the route refuses the write if the memory changed since.
+    const expected = input.supersedesValue ? { expectedValue: input.supersedesValue } : {};
+    const headers = { "Content-Type": "application/json" };
+    if (input.relation === "delete") return { path, init: { method: "DELETE", headers, body: JSON.stringify(expected) } };
     return {
       path,
-      init: { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: input.value }) },
+      init: { method: "PATCH", headers, body: JSON.stringify({ kind: input.memoryKind, value: input.value, ...expected }) },
     };
   }
   return {
@@ -80,6 +86,10 @@ async function postMemory(
       discardBody(response);
       const fresh = memoryWrite({ memoryKind: input.memoryKind, value: input.value });
       response = await accountBoundFetch(auth, fresh.path, fresh.init, request);
+    }
+    if (response.status === 409) {
+      discardBody(response);
+      return { ok: false, error: CARD_STALE };
     }
     if (response.status === 401) {
       discardBody(response);

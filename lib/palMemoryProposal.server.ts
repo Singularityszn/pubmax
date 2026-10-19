@@ -105,7 +105,17 @@ export async function proposePalMemoryForConversation(
   const id = `remember:${randomUUID()}`;
   const proposal: AskProposal =
     related.relation === "update" && old
-      ? { id, kind: "remember_memory", label: `Update: ${value}`, memoryKind, value, relation: "update", supersedesMemoryId: old.id, supersedesValue: old.value }
+      ? {
+          id,
+          kind: "remember_memory",
+          label: `Update: ${value}`,
+          // A "correction" names no subject of its own, so the replaced memory keeps its kind.
+          memoryKind: memoryKind === "correction" ? old.kind : memoryKind,
+          value,
+          relation: "update",
+          supersedesMemoryId: old.id,
+          supersedesValue: old.value,
+        }
       : related.relation === "delete" && old
         ? { id, kind: "remember_memory", label: `Forget: ${old.value}`, memoryKind: old.kind, value: old.value, relation: "delete", supersedesMemoryId: old.id, supersedesValue: old.value }
         : { id, kind: "remember_memory", label: `Remember: ${value}`, memoryKind, value };
