@@ -53,10 +53,12 @@ import {
 import {
   createPubPalVoiceStartController,
   PAL_MICROPHONE_PERMISSION_ERROR,
+  PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
   PAL_VOICE_START_TIMEOUT_ERROR,
   PAL_VOICE_START_TIMEOUT_MS,
   PubPalVoiceStartError,
+  palVoiceLineDropped,
 } from "@/lib/pubPalVoiceSession";
 import {
   appendPalVoiceLine,
@@ -508,16 +510,23 @@ function VoiceControls({ onStateChange, resetPendingSession, text, setText, erro
               void stop(attempt, "cap");
             }, maxSessionSeconds * 1000);
           },
-          onDisconnect: () => {
+          onDisconnect: (details?: unknown) => {
             attempt.voiceEndReason ??= "disconnect";
             if (!ownsAttempt(attempt)) return;
-            if (attempt.connectedAt !== null) playPalVoiceSound("end");
+            const wasLive = attempt.connectedAt !== null;
+            if (wasLive) playPalVoiceSound("end");
             conversationIdRef.current = null;
             startController.settle();
             setIsStarting(false);
             setStartupStopped(true);
             attempt.cancelled = true;
             attempt.sdkSessionStarted = false;
+            // A line that dropped mid-call says so, instead of going quiet
+            // while the person is still talking.
+            if (wasLive && palVoiceLineDropped(details)) {
+              setError(PAL_VOICE_LINE_DROPPED_ERROR);
+              onStateChange?.("error");
+            }
             void finalizeSession(attempt);
           },
           onError: (message) => {

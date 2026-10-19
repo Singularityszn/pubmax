@@ -198,6 +198,13 @@ Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base
    slow tool's checking line that outlasts the settle window would be returned
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
+   The script also sets how the agent hears a person in a pub. Turn-taking is
+   `turn_eagerness: "patient"`, so a pause in the middle of a sentence does not
+   end the person's turn. `transcribe_on_disabled_interruptions: true` keeps
+   what the person says while a confirm proposal plays, because those turns
+   cannot be talked over and the words were dropped before. The recogniser gets
+   a short list of London pub words (`asr.keywords`). Until the captain re-runs
+   `npm run pubpal:agent`, `--check` reports these fields as drift.
    Typed chat can also stream. A caller that sends `Accept: application/x-ndjson`
    to `/api/pub-pal/chat` gets the answer text as the agent writes it
    (`agent_chat_response_part`, which text-only mode always sends), then one
