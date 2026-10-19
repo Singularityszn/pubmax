@@ -73,6 +73,27 @@ describe("pubpal:agent dry run", () => {
     expect(body.platform_settings.privacy.delete_transcript_and_pii).toBe(true);
   });
 
+  it("provisions an agent that waits at a pause and keeps speech said during a proposal", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    // The provider default ("normal") took the turn at a mid-sentence pause.
+    expect(body.conversation_config.turn).toEqual({
+      turn_eagerness: "patient",
+      transcribe_on_disabled_interruptions: true,
+    });
+    // The confirm tools disable talk-over for their whole turn, which is why
+    // speech in that turn must still be transcribed.
+    const confirmTools = body.webhook_tools.filter(
+      (tool: { interruption_mode?: string }) => tool.interruption_mode === "disable_during_tool_and_turn",
+    );
+    expect(confirmTools.length).toBeGreaterThan(0);
+    expect(body.conversation_config.asr).toMatchObject({ quality: "high", user_input_audio_format: "pcm_16000" });
+    const keywords: string[] = body.conversation_config.asr.keywords;
+    expect(keywords).toEqual(expect.arrayContaining(["PUBMAXX", "Wetherspoons", "Shoreditch", "pint"]));
+    expect(new Set(keywords.map((word) => word.toLowerCase())).size).toBe(keywords.length);
+    expect(keywords.length).toBeLessThanOrEqual(50);
+  });
+
   it("prints the agent it would write without printing the shared secret", () => {
     const result = dryRun();
     expect(result.status).toBe(0);

@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
 
 import { routeHygieneBadge } from "./helpers/hygieneBadge";
+import { routeLateVenueRows } from "./helpers/lateVenueRows";
 
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
@@ -480,13 +481,17 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
 });
 
 /**
- * The Overview rows that render only after their own read answers (the area
- * price line and the food hygiene rating) sit below the getting-home fold, so
- * the fold's summary does not move under a finger once it is painted.
+ * The Overview rows that render only after their own read answers (the Spoons
+ * value row, "What it used to cost", the area price line and the food hygiene
+ * rating) sit below the getting-home fold, so the fold's summary does not move
+ * under a finger once it is painted.
  */
 test("the getting-home fold stays put while the late Overview rows land", async ({ page }) => {
-  // The pin needs the hygiene row to land, so it may not hang on the live FSA service.
+  // The pin needs every late row to land. The hygiene row may not hang on the
+  // live FSA service, and Arnos Arms is neither a ranked Wetherspoons nor a pub
+  // with a dated history price, so it borrows real answers for both.
   await routeHygieneBadge(page);
+  await routeLateVenueRows(page, ARNOS_ARMS_ID, "Arnos Arms");
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
@@ -504,12 +509,14 @@ test("the getting-home fold stays put while the late Overview rows land", async 
     });
   const before = await offset(summary);
 
-  const hygiene = overview.locator(".venueHygiene");
-  const areaPrice = overview.locator(".venueAreaPriceCompare");
-  await expect(hygiene).toBeVisible({ timeout: 20_000 });
-  await expect(areaPrice).toBeVisible({ timeout: 20_000 });
+  const lateRows = [
+    overview.locator(".venueSpoonsValue"),
+    overview.locator(".venuePriceThen"),
+    overview.locator(".venueAreaPriceCompare"),
+    overview.locator(".venueHygiene"),
+  ];
+  for (const row of lateRows) await expect(row).toBeVisible({ timeout: 20_000 });
 
   expect(await offset(summary), "the fold summary did not move").toBe(before);
-  expect(await offset(areaPrice)).toBeGreaterThan(before);
-  expect(await offset(hygiene)).toBeGreaterThan(before);
+  for (const row of lateRows) expect(await offset(row)).toBeGreaterThan(before);
 });

@@ -19,6 +19,7 @@ import {
   recordCorrectedRows,
   rejectClosedPrRows,
   resumeCheckpoint,
+  rewritePriceFile,
   runCityPass,
   TERMINAL_VENUE_RETRY_MS,
 } from "@/scripts/enrich_city_pubs_tavily.mjs";
@@ -291,6 +292,19 @@ async function night(
 
 const priceRows = (state: Checkpoint) =>
   state.prices.map((row) => [row.venueKey.split("|")[0], row.drinkName, row.priceGbp]);
+
+describe("the nightly London pass rewrites only the prices it owns", () => {
+  it("keeps a reviewed import's receipt beside the updates", () => {
+    const receipt = { sourceId: "youngs-official", inputSha256: "a".repeat(64), itemCount: 22 };
+    const body = rewritePriceFile(
+      { version: 1, generatedAt: "2026-10-13T10:19:25.911Z", updates: [{ drinkName: "Old" }], reviewedImports: [receipt] },
+      { generatedAt: OBSERVED_AT, updates: [{ drinkName: "New" }] },
+    );
+    expect(body.reviewedImports).toEqual([receipt]);
+    expect(body.updates).toEqual([{ drinkName: "New" }]);
+    expect(body.generatedAt).toBe(OBSERVED_AT);
+  });
+});
 
 describe("the nightly London pass keeps going and keeps what it found", () => {
   beforeEach(() => vi.stubEnv("TYPESAFE_API_KEY", ""));

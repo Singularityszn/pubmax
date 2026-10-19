@@ -13,9 +13,15 @@ permissions:
 
 concurrency:
   # One group per pull request: a newer head cancels that pull request's
-  # older run. Every other run (main push, schedule, dispatch) gets a
-  # group of its own, so GitHub never drops it while it waits.
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  # older run. Main pushes share one group (captain, 19 Oct 2026): the run
+  # in progress finishes, and only the newest push waits behind it, because
+  # GitHub keeps one waiting run per group and cancels the older one. Each
+  # push holds 3 of the free plan's 5 macOS runners, and on 19 Oct 22 merges
+  # queued 66 macOS jobs that held pull requests up to 72 minutes. The
+  # newest main commit holds every older one, so main is still tested.
+  # The schedule and a dispatch each get a group of their own, so GitHub
+  # never drops one while it waits.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main-push' || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 

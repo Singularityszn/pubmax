@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.lambsurbiton.co.uk/bar-hire-london",
+  "observedAt": "2026-10-19T15:58:39.531Z",
+  "evidence": "ides £140 Bar Prices include delivery, erection and collection Brushed aluminium front, Birch wood bar top 1.2X2.5m 1.2X5m £150 £200 Ale Dispense Installation Charge £60 1 Barrel Stillage 8 Barrel Stillage Cooling Jackets Remote Cooler 1-6 Barrels Taps Drip Buckets Product Boards ​ £5 £50 £5 £40 £3 £2 £2 Lager Dispense Installation Charge £60 Subject to Survey Tap & Cooling System CO2 Beer Festival Package Thursday-Tuesday 8 Barrel Stillage 10 Cooling Jackets 2 Remote Coolers 8 Taps 8 Drip Buckets 8 Product Boards 1 Installation Total VAT Total £100 £20 £50.00 £50.00 £80.00 £24.00 £16.00 £16.0",
+  "evidenceReadAt": "2026-10-19T15:59:26.354Z",
+  "reader": "scripts/harvest/uk-prices/run.mjs --london --exa-sites --exa-sites-only (Exa-found site, address check, shared ukPriceCrawl rules, live robots)",
+  "rows": [
+    {
+      "host": "lambsurbiton.co.uk",
+      "venueId": "venue-uk-w444073006",
+      "osmId": "way/444073006",
+      "name": "The Lamb",
+      "postcode": "KT6 5NF",
+      "lat": 51.3920141,
+      "lng": -0.3114144,
+      "category": "beer",
+      "priceGbp": 2,
+      "sourceUrl": "https://www.lambsurbiton.co.uk/bar-hire-london",
+      "observedAt": "2026-10-19T15:58:39.531Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5
+    },
+    {
+      "host": "lambsurbiton.co.uk",
+      "venueId": "venue-uk-w444073006",
+      "osmId": "way/444073006",
+      "name": "The Lamb",
+      "postcode": "KT6 5NF",
+      "lat": 51.3920141,
+      "lng": -0.3114144,
+      "category": "beer",
+      "priceGbp": 5,
+      "drinkLabel": "ge Cooling Jackets Remote Cooler 1-6 Barrels Taps Drip Buckets Product Boards ​",
+      "sourceUrl": "https://www.lambsurbiton.co.uk/bar-hire-london",
+      "observedAt": "2026-10-19T15:58:39.531Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5
+    }
+  ]
+}

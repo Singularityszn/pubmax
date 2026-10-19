@@ -112,6 +112,7 @@ function asProposals(raw: unknown): AskProposal[] {
         lat: record.lat,
         lng: record.lng,
         ...(typeof record.place === "string" ? { place: record.place } : {}),
+        ...(str(record.venueId) ? { venueId: str(record.venueId) } : {}),
       });
       continue;
     }
