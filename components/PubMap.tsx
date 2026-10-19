@@ -376,6 +376,7 @@ const LogIntentFallback = dynamic(
   { ssr: false },
 );
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
+import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
@@ -3484,6 +3485,9 @@ export default function PubMap({
     () => planStopsToRouteVenues(activePlanStops, venueById),
     [activePlanStops, venueById],
   );
+  // Pals walk together: the crew's opted-in Pals walk only the plan's own
+  // route, never a crawl the reader is building beside it.
+  const crewPals = useCrewPals();
   const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
     mode,
     builtIds,
@@ -6839,6 +6843,12 @@ export default function PubMap({
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
+        crewPals={
+          activePlanRoute.length > 1 &&
+          routeForMap.map((venue) => venue.id).join(",") === activePlanRoute.map((venue) => venue.id).join(",")
+            ? crewPals
+            : undefined
+        }
         selectedVenueId={selectedVenueId}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}

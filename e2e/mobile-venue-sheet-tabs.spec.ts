@@ -437,6 +437,8 @@ for (const width of [320, 390, 430] as const) {
  * sheet: the getting-home fold on the Overview, and Ask inside Lore.
  */
 test("the getting-home fold and Ask are one tap from their tabs", async ({ page }) => {
+  // The wait below needs the hygiene row, so it may not hang on the live FSA service.
+  await routeHygieneBadge(page);
   const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
   expect(response?.status()).toBe(200);
 
@@ -449,6 +451,13 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   const summary = fold.locator(":scope > summary");
   await expect(summary).toHaveText("Last train");
   await expect(fold).not.toHaveAttribute("open", "");
+  // The Overview rows that land after their own reads (the area price line
+  // and the food hygiene rating) arrive three to five seconds after the sheet
+  // opens on a slow runner. They sit below the fold now (the pin below holds
+  // that), but wait for both anyway, so nothing in the Overview is still
+  // landing when the tap goes in.
+  await expect(overview.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 20_000 });
+  await expect(overview.locator(".venueHygiene")).toBeVisible({ timeout: 20_000 });
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
   // The sheet keeps changing height after it opens (the command bar lands in

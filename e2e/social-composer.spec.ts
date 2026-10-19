@@ -239,7 +239,29 @@ test("account-bound drafts isolate text and photo while two tabs warn", async ({
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Alice private draft");
   await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "alice.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await dialog.getByLabel("Photo description").fill("Alice photo");
-  await page.waitForTimeout(400);
+  // The second tab restores what the first one stored: the text on a 300ms
+  // debounce into localStorage, the photo into IndexedDB. Wait for both.
+  await expect.poll(() => page.evaluate(async (key) => {
+    const text = localStorage.getItem(key) ?? "";
+    const photo = await new Promise<boolean>((resolve) => {
+      const request = indexedDB.open("pubmaxx-social-drafts-v1", 1);
+      // Never create the store from here: the composer's own open must run the upgrade.
+      request.onupgradeneeded = () => request.transaction?.abort();
+      request.onerror = () => resolve(false);
+      request.onsuccess = () => {
+        const db = request.result;
+        try {
+          const read = db.transaction("photos").objectStore("photos").get(key);
+          read.onsuccess = () => { db.close(); resolve(read.result instanceof File); };
+          read.onerror = () => { db.close(); resolve(false); };
+        } catch {
+          db.close();
+          resolve(false);
+        }
+      };
+    });
+    return text.includes("Alice private draft") && text.includes("Alice photo") && photo;
+  }, `pubmaxx:social-composer:v1:${scope}:new`)).toBe(true);
   const second = await context.newPage(); await second.goto("/social"); await second.getByRole("button", { name: "Post", exact: true }).click();
   await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Alice private draft");
   await expect(second.getByLabel("Photo description")).toHaveValue("Alice photo");

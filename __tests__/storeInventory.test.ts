@@ -149,8 +149,8 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
   "lib/pubPalStore.ts": {
     class: "legacy-exception",
     selector: "inline",
-    inlineBranches: 8,
-    reason: "Result-typed operations branch inline over two maps; no interface pair to select.",
+    inlineBranches: 9,
+    reason: "Result-typed operations branch inline over two maps; no interface pair to select. The crew list (listCrewVisiblePalsResult) is one more read of the same two maps.",
   },
   "lib/pubPalToolTurnStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/pushTokenStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
