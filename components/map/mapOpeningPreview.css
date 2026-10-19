@@ -50,6 +50,71 @@ html[data-map-preview="done"] .mapOpeningPreview {
   }
 }
 
+/* THE GROUND: the opening basemap as a picture (lib/mapOpeningSnapshot.ts),
+   flat on the same tilted plane as the discs, so the browser projects every
+   street where the engine will paint it. It sits UNDER the map stage (which is
+   also z-index 0 and comes later in the document), so the stage's chrome, the
+   loading line and the discs all stay on top of it. While it shows, the paper
+   between it and the reader is see-through and the canvas is held transparent, so a
+   half-drawn engine frame never covers it; at "done" all three come back at
+   once, which on the ordinary path is the frame the loading frame lifts in.
+
+   PHONES ONLY: the picture covers a portrait viewport up to 440 x 960 CSS px
+   (MAP_OPENING_SNAPSHOT_MAX_VIEWPORT, held to these numbers by
+   __tests__/mapOpeningSnapshot.test.ts). A larger one opens as it always did.
+   `:has()` keeps a browser without it from fetching a picture it would only
+   ever draw under the loading paper, and a background image under
+   `display: none` is never fetched, so a visit the preview is not on, and the
+   theme not in use, cost no bytes. */
+.mapOpeningGround {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+  /* Until the picture lands, the loading paper's own colour. */
+  background-color: var(--paper);
+}
+
+html[data-theme="dark"] .mapOpeningGround {
+  background-color: var(--ink-deep);
+}
+
+.mapOpeningGroundPicture {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  height: var(--h);
+  background: var(--ground-light) 0 0 / 100% 100% no-repeat;
+}
+
+html[data-theme="dark"] .mapOpeningGroundPicture {
+  background-image: var(--ground-dark);
+}
+
+@media (max-width: 440px) and (max-height: 960px) {
+  @supports (container-type: size) {
+    html[data-map-preview="on"]:has(.mapOpeningGround) .mapOpeningGround {
+      display: block;
+    }
+
+    html[data-map-preview="on"]:has(.mapOpeningGround) .mapSkeleton,
+    html[data-map-preview="on"]:has(.mapOpeningGround) .mapLoading {
+      background: transparent;
+    }
+
+    /* Transparent rather than hidden: the canvas is still there, takes a
+       touch (a drag moves the camera, which stands the preview down) and
+       reads as mounted to everything that asks. */
+    html[data-map-preview="on"]:has(.mapOpeningGround) .mapCanvasWrap {
+      opacity: 0;
+    }
+  }
+}
+
 .mapOpeningPreviewCamera {
   position: absolute;
   inset: 0;

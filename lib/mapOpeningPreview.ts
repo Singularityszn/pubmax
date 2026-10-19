@@ -320,18 +320,33 @@ export function openingDiscClaims(features: readonly GeoJSON.Feature[]): Opening
     }));
 }
 
-function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
-  const opening = MAP_OPENING_PREVIEW_CAMERA;
+/** A camera as the opening preview reads it. */
+export type OpeningCameraPose = MapOpeningFrame["camera"];
+
+/**
+ * Whether two cameras are the same view, to the engine's own floating point:
+ * within a ten-millionth of a degree of centre (about a centimetre) and a
+ * millionth of a zoom level, degree of pitch or degree of bearing.
+ */
+export function sameCameraPose(a: OpeningCameraPose, b: OpeningCameraPose): boolean {
   return (
-    // Within a ten-millionth of a degree (about a centimetre): the engine
-    // hands its centre back through its own floating point.
-    Math.abs(camera.center[0] - opening.center[0]) < 1e-7 &&
-    Math.abs(camera.center[1] - opening.center[1]) < 1e-7 &&
-    Math.abs(camera.zoom - opening.zoom) < 1e-6 &&
-    Math.abs(camera.pitch - opening.pitch) < 1e-6 &&
-    Math.abs(camera.bearing - opening.bearing) < 1e-6
+    Math.abs(a.center[0] - b.center[0]) < 1e-7 &&
+    Math.abs(a.center[1] - b.center[1]) < 1e-7 &&
+    Math.abs(a.zoom - b.zoom) < 1e-6 &&
+    Math.abs(a.pitch - b.pitch) < 1e-6 &&
+    Math.abs(a.bearing - b.bearing) < 1e-6
   );
 }
+
+function sameCamera(camera: MapOpeningFrame["camera"]): boolean {
+  return sameCameraPose(camera, MAP_OPENING_PREVIEW_CAMERA);
+}
+
+/**
+ * Marked when the preview stands down, so a timing can read the handoff and
+ * the canvas knows the preview no longer needs telling about a camera move.
+ */
+export const MAP_OPENING_PREVIEW_DONE_MARK = "pubmax:opening-preview-done";
 
 /**
  * Whether the frame the map is about to draw is the frame the preview drew:

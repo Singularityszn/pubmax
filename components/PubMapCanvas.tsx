@@ -239,7 +239,13 @@ import {
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
 import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
-import { MAP_OPENING_PREVIEW_RETRACT_EVENT, publishMapOpeningFrame } from "@/lib/mapOpeningPreview";
+import {
+  MAP_OPENING_PREVIEW_DONE_MARK,
+  MAP_OPENING_PREVIEW_RETRACT_EVENT,
+  publishMapOpeningFrame,
+  sameCameraPose,
+  type OpeningCameraPose,
+} from "@/lib/mapOpeningPreview";
 import {
   ARRIVAL_BEARING_POLL_MS,
   nextArrivalBearingWait,
@@ -1646,19 +1652,40 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       }
       markPubmaxTiming("pubmax:map-constructed");
       stopFollowingPixelRatio = followMapPixelRatio(map);
-      // A camera that moves before the pins are revealed (the arrival turn on
-      // a desktop that waits for its basemap, an opening location, a resumed
-      // view) is a frame the preview did not draw, and it must not hang in
-      // place while the ground slides under it: it stands down as the move
-      // STARTS. After the reveal the preview is gone and this listens no more.
+      // A camera that moves while the document's opening preview is up (the
+      // arrival turn, an opening location, a resumed view) is a frame the
+      // preview did not draw, and it must not hang in place while the ground
+      // slides under it: it stands down on the first frame the camera has
+      // MOVED. Not on `movestart`, which `resize()` also fires with the camera
+      // where it was: the phone's first resize stood the preview down within
+      // half a second of construction on every cold visit, seconds before the
+      // reveal (measured, 390x844, 4x CPU). Once the preview has stood down
+      // this listens no more.
       {
         const constructed = map;
-        const onOpeningMoveStart = () => {
-          constructed.off("movestart", onOpeningMoveStart);
-          if (performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0) return;
+        const poseOf = (): OpeningCameraPose => {
+          const centre = constructed.getCenter();
+          return {
+            center: [centre.lng, centre.lat],
+            zoom: constructed.getZoom(),
+            pitch: constructed.getPitch(),
+            bearing: constructed.getBearing(),
+          };
+        };
+        const constructedPose = poseOf();
+        // Padding moves the picture without moving the centre.
+        const paddingOf = () => JSON.stringify(constructed.getPadding());
+        const constructedPadding = paddingOf();
+        const onOpeningMove = () => {
+          if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) {
+            constructed.off("move", onOpeningMove);
+            return;
+          }
+          if (sameCameraPose(poseOf(), constructedPose) && paddingOf() === constructedPadding) return;
+          constructed.off("move", onOpeningMove);
           window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
         };
-        constructed.on("movestart", onOpeningMoveStart);
+        constructed.on("move", onOpeningMove);
       }
       onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();

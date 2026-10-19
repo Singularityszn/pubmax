@@ -3,7 +3,14 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { MAP_OPENING_PREVIEW_CAMERA } from "@/lib/mapOpeningPreview";
 import { openingPreviewDiscs, type OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
+import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
+import {
+  resolveOpeningGround,
+  type MapOpeningSnapshotMeta,
+  type OpeningGround,
+} from "@/lib/mapOpeningSnapshot";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 /**
@@ -27,4 +34,19 @@ export async function loadMapOpeningPreview(): Promise<OpeningPreviewDisc[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * The basemap picture to lay under those discs (lib/mapOpeningSnapshot.ts), or
+ * null when the committed snapshot was drawn for another camera than the one a
+ * cold first visit opens on. Read from the committed metadata at build, like
+ * the discs, so the document names only the picture for its own theme's rule.
+ */
+export function loadMapOpeningGround(): OpeningGround | null {
+  // JSON widens the centre to number[]; __tests__/mapOpeningSnapshot.test.ts
+  // holds the file to the shape.
+  return resolveOpeningGround(
+    mapOpeningSnapshot as unknown as MapOpeningSnapshotMeta,
+    MAP_OPENING_PREVIEW_CAMERA,
+  );
 }

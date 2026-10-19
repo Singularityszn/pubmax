@@ -2,7 +2,7 @@ import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
+import { loadMapOpeningGround, loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
@@ -42,6 +42,9 @@ export default async function MapPage() {
   // The prices a cold first visit's first frame will draw, drawn by this
   // document so they show before the map engine is ready (lib/mapOpeningPreview.ts).
   const openingDiscs = await loadMapOpeningPreview();
+  // The opening basemap as a picture, laid under those discs on a phone
+  // (lib/mapOpeningSnapshot.ts), or null when it was drawn for another camera.
+  const openingGround = loadMapOpeningGround();
   return (
     <>
       {/* defer, not a sync script. On a cold first visit - the one the
@@ -54,7 +57,7 @@ export default async function MapPage() {
           event it waits for, and document.currentScript is set for a deferred
           classic script, so the ?v= revision read is unchanged. */}
       <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
-      <MapOpeningPreview discs={openingDiscs} />
+      <MapOpeningPreview discs={openingDiscs} ground={openingGround} />
       <PubMaxingShell
         cityId="london"
         zonePintIndex={zonePintIndex}

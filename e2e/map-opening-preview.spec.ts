@@ -12,13 +12,33 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 type Disc = { id: number; x: number; y: number };
 type Reveal = { discs: Disc[]; painted: Disc[]; donuts: { x: number; y: number }[]; moved: boolean };
+type Handoff = { loadingFrameUp: boolean; ground: { left: number; top: number; right: number; bottom: number } | null };
 
 /** A cold first visit: the project's browser state, minus nothing it needs. */
 async function coldFirstVisit(page: Page) {
   await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
-    const target = window as Window & { __reveal?: unknown };
+    const target = window as Window & { __reveal?: unknown; __handoff?: Handoff | null; __groundSeen?: Handoff["ground"] };
     target.__reveal = null;
+    target.__handoff = null;
+    target.__groundSeen = null;
+    // What was on screen at the handoff: whether the map's loading frame still
+    // covered the canvas, and where the basemap picture lay while it showed.
+    new MutationObserver(() => {
+      const state = document.documentElement.dataset.mapPreview;
+      const picture = document.querySelector<HTMLElement>(".mapOpeningGroundPicture");
+      const ground = document.querySelector<HTMLElement>(".mapOpeningGround");
+      if (state === "on" && picture && ground && getComputedStyle(ground).display !== "none") {
+        const r = picture.getBoundingClientRect();
+        target.__groundSeen = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      }
+      if (state === "done" && !target.__handoff) {
+        target.__handoff = {
+          loadingFrameUp: Boolean(document.querySelector(".mapLoading")),
+          ground: target.__groundSeen ?? null,
+        };
+      }
+    }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-map-preview"] });
     window.addEventListener("pubmax:pins-visible", () => {
       // Read in the same task the reveal runs in: the frame both are about.
       const discs = [...document.querySelectorAll<HTMLElement>(".mapOpeningPreviewDisc")].map((el) => {
@@ -91,15 +111,27 @@ test.describe("the document's opening prices", () => {
     // check's (frameMatchesPreview, __tests__/mapOpeningPreview.test.ts): the
     // preview stands down before the reveal if the engine's discs differ.
 
-    // The preview has stood down, and the handoff was the reveal.
+    // The preview has stood down, and the handoff was the reveal: no earlier
+    // (a resize is not a camera move), and in the frame the loading frame
+    // lifted off the canvas rather than while it still covered it.
     await expect(page.locator("html")).toHaveAttribute("data-map-preview", "done");
     await expect(page.locator(".mapOpeningPreview")).toBeHidden();
+    await expect(page.locator(".mapOpeningGround")).toBeHidden();
     const [done, visible] = await page.evaluate(() => [
       performance.getEntriesByName("pubmax:opening-preview-done")[0]?.startTime ?? null,
       performance.getEntriesByName("pubmax:pins-visible")[0]?.startTime ?? null,
     ]);
     expect(done).not.toBeNull();
-    expect(done!).toBeLessThanOrEqual(visible! + 1);
+    expect(done!).toBeGreaterThanOrEqual(visible! - 1);
+    const handoff = await page.evaluate(() => (window as unknown as { __handoff: Handoff | null }).__handoff);
+    expect(handoff?.loadingFrameUp, "the loading frame still covered the canvas at the handoff").toBe(false);
+    // The basemap picture under the discs reached past every edge of the
+    // screen while it showed, so no edge of it was ever on screen.
+    expect(handoff?.ground, "the basemap picture never showed").not.toBeNull();
+    expect(handoff!.ground!.left).toBeLessThanOrEqual(0);
+    expect(handoff!.ground!.top).toBeLessThanOrEqual(0);
+    expect(handoff!.ground!.right).toBeGreaterThanOrEqual(390);
+    expect(handoff!.ground!.bottom).toBeGreaterThanOrEqual(844);
   });
 
   test("stand down on a desktop no later than the engine's reveal, aligned if the camera has not moved", async ({ page }) => {
@@ -115,7 +147,13 @@ test.describe("the document's opening prices", () => {
       arrival: performance.getEntriesByName("pubmax:camera-intent:arrival")[0]?.startTime ?? null,
     }));
     expect(marks.done).not.toBeNull();
-    expect(marks.done!).toBeLessThanOrEqual(marks.visible! + 1);
+    // At the reveal, or before it if the arrival turn ran first; never while
+    // the loading frame still covered the canvas.
+    const handoff = await page.evaluate(() => (window as unknown as { __handoff: Handoff | null }).__handoff);
+    if (marks.done! > marks.visible! + 1) expect(handoff?.loadingFrameUp).toBe(false);
+    // A desktop is wider than any picture of the opening streets, so it never
+    // showed one.
+    expect(handoff?.ground ?? null).toBeNull();
     // Where the camera was still the opening one at the reveal, the desktop's
     // own discs stand where the document's stood.
     if (!reveal.moved && (marks.arrival === null || marks.arrival > marks.visible!)) {

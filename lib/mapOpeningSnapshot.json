@@ -1,0 +1,47 @@
+{
+  "city": "london",
+  "camera": {
+    "center": [
+      -0.12,
+      51.52
+    ],
+    "zoom": 12,
+    "pitch": 38,
+    "bearing": 0
+  },
+  "ground": {
+    "x": -322,
+    "y": -848,
+    "width": 644,
+    "height": 1356
+  },
+  "maxViewport": {
+    "width": 440,
+    "height": 960
+  },
+  "marginPx": 24,
+  "pixelRatio": 1.25,
+  "styles": {
+    "light": "https://tiles.openfreemap.org/styles/positron",
+    "dark": "https://tiles.openfreemap.org/styles/dark"
+  },
+  "images": {
+    "light": {
+      "path": "/landing/map-opening/london-light.webp",
+      "bytes": 114310,
+      "sha256": "20e7cddaf1593c370882bda359d09e758ff5cd83de8759d6495ca5064dfc4eb0",
+      "width": 805,
+      "height": 1695
+    },
+    "dark": {
+      "path": "/landing/map-opening/london-dark.webp",
+      "bytes": 118244,
+      "sha256": "e880784c3d68314114e402456948b8dd55bf1e3b03dd197e9093a78510fab0c1",
+      "width": 805,
+      "height": 1695
+    }
+  },
+  "capturedOn": "2026-10-19",
+  "attribution": "OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
+  "regenerate": "npm run build:map-opening-snapshot -- --base-url=<a production server of this tree>"
+}
