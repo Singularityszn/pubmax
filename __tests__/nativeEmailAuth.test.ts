@@ -27,7 +27,7 @@ async function harness(email: string | null = "native@example.test", now = Date.
   const attempt = await beginCoordinatedAuthAttempt("https://pubmaxxing.com/map#return-fragment", undefined, { ...ownership, cryptoProvider: crypto, now });
   if (!attempt.ok) throw new Error(attempt.message);
   const prepared = await prepareNativeEmailReceipt(attempt, email, persistent.adapter, now, () => true, config);
-  if (!prepared) throw new Error("receipt failed");
+  if (prepared.status !== "prepared") throw new Error("receipt failed");
   const callback = new URL(prepared.receipt.callbackUrl); callback.searchParams.set("code", "email-code");
   const raw = (await GET(new Request(callback))).headers.get("location")!;
   let user: Record<string, unknown> = { ...session.user };
@@ -136,7 +136,7 @@ describe("native email PKCE transport and receipt", () => {
 
   it("does not create a receipt when durable storage refuses writes", async () => {
     const h = await harness();
-    expect(await prepareNativeEmailReceipt(h.attempt, "native@example.test", { getItem: () => null, setItem: () => { throw new Error("storage disabled"); }, removeItem: () => {} }, Date.now(), () => true, config)).toBeNull();
+    expect(await prepareNativeEmailReceipt(h.attempt, "native@example.test", { getItem: () => null, setItem: () => { throw new Error("storage disabled"); }, removeItem: () => {} }, Date.now(), () => true, config)).toEqual({ status: "storage" });
   });
 
   it("does not overwrite a newer receipt when an earlier crypto preparation finishes late", async () => {
@@ -149,9 +149,9 @@ describe("native email PKCE transport and receipt", () => {
     current = false;
     const newerAttempt = { ...h.attempt, id: "c".repeat(32), callbackUrl: h.attempt.callbackUrl.replace(h.attempt.id, "c".repeat(32)) };
     const newer = await prepareNativeEmailReceipt(newerAttempt, "native@example.test", h.persistent.adapter, Date.now(), () => true, config);
-    expect(newer).not.toBeNull();
+    expect(newer.status).toBe("prepared");
     finish(new ArrayBuffer(32));
-    expect(await earlier).toBeNull();
+    expect(await earlier).toEqual({ status: "obsolete" });
     expect(readNativeEmailReceipt(h.persistent.adapter, h.deps.origin)?.id).toBe(newerAttempt.id);
   });
 
@@ -227,5 +227,56 @@ describe("native email PKCE transport and receipt", () => {
       expect(h.persistent.adapter.getItem(NATIVE_EMAIL_RECEIPT_KEY)).not.toBeNull();
     }
     expect(h.request).not.toHaveBeenCalled(); expect(h.install).not.toHaveBeenCalled();
+  });
+});
+
+// An open chunked body, as a route handler answers: only cancel can end it.
+function openBody(status: number) {
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(new TextEncoder().encode("{")); },
+    cancel() { cancelled = true; },
+  });
+  return { response: new Response(body, { status }), cancelled: () => cancelled };
+}
+
+describe("native email responses it decides not to read", () => {
+  it("releases the OTP success body without changing the sent outcome", async () => {
+    const h = await harness();
+    const otp = openBody(200);
+    const request = vi.fn(async () => otp.response);
+    expect((await requestNativeEmailLink("native@example.test", h.prepared.receipt, h.prepared.challenge, config, request)).status).toBe("sent");
+    await vi.waitFor(() => expect(otp.cancelled()).toBe(true), { timeout: 1000 });
+  });
+
+  it("still reads an OTP refusal body for its outcome", async () => {
+    const h = await harness();
+    const refusal = Response.json({ error_code: "over_email_send_rate_limit" }, { status: 429 });
+    const result = await requestNativeEmailLink("native@example.test", h.prepared.receipt, h.prepared.challenge, config, vi.fn(async () => refusal));
+    expect(result.status).toBe("rate_limited");
+    expect(refusal.bodyUsed).toBe(true);
+  });
+
+  it.each([
+    ["token", "refusal"], ["token", "ownership loss"], ["user", "refusal"], ["user", "ownership loss"],
+  ] as const)("releases the unread %s body on %s without installing", async (stage, exit) => {
+    const h = await harness();
+    const unread = openBody(exit === "refusal" ? 400 : 200);
+    let current = true;
+    const request = vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname;
+      if (path === `/auth/v1/${stage}`) {
+        if (exit === "ownership loss") current = false;
+        return unread.response;
+      }
+      if (path === "/auth/v1/token") return Response.json(session);
+      return Response.json(session.user);
+    });
+    const result = await completeNativeEmailLink(h.raw, { ...h.deps, fetchImpl: request, current: () => current });
+    expect(result.status).toBe("failed");
+    expect(h.install).not.toHaveBeenCalled();
+    expect(request).toHaveBeenCalledTimes(stage === "token" ? 1 : 2);
+    expect(h.persistent.adapter.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
+    await vi.waitFor(() => expect(unread.cancelled()).toBe(true), { timeout: 1000 });
   });
 });

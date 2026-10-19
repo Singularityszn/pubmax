@@ -193,6 +193,9 @@ const NOT_REPO_PATHS = new Set([
   "supabase.auth.setSession",
   "supabasePlanStore.create",
   "webServer.env",
+  // Culture Crawl property names, not repository paths.
+  "budgetSummary.withinLimit",
+  "cultureOpener.costs",
   // Structured log event names, not paths.
   "out.provider_failed",
   "out.supply",

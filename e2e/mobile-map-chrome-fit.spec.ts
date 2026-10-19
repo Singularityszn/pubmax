@@ -5,6 +5,7 @@ import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 import {
   expectMobileMapShellReady,
+  forgetHeldTubeStatus,
   mobileMapShellControl,
   routeTubeStatus,
 } from "./helpers/mobileMapShell";
@@ -882,6 +883,7 @@ test("390px TfL rests in More map controls and comes to the edge only when a lin
   await page.unrouteAll({ behavior: "ignoreErrors" });
   await routeTubeStatus(page, "urgent");
   await installPositiveTonightResponse(page);
+  await forgetHeldTubeStatus(page);
   await page.reload();
   await expectMobileMapShellReady(page, 45_000);
   const tfl = await mobileMapShellControl(page, "tfl");
@@ -1834,13 +1836,17 @@ for (const viewport of VIEWPORTS) {
 
     // The idle screen carries the location line; the answered screen carries
     // the price column, the patch-coverage note and the footer's two links.
+    // /near streams its body into a hidden segment and React swaps it in on a
+    // timer, so until that lands the document can hold the hint twice.
     const idle = await page.goto("/near");
     expect(idle?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator(".nmnHint")).toBeVisible();
     await expectTextClearOfCreateAction(page, [".nmnHint"]);
 
     const answered = await page.goto("/near?patch=soho");
     expect(answered?.status()).toBe(200);
+    await expectStreamedPageSettled(page);
     await expect(page.locator(".nmnCard").first()).toBeVisible();
     await expect(page.locator(".nmnPatchTier")).toBeVisible();
     // The collected line waits on the price-trust read, which lands after the
