@@ -132,6 +132,7 @@ function buildBaseScratch(): string {
     join(scratchLib, "whatsOnRowShape.mjs"),
   );
   cpSync(join(ROOT, "lib", "httpUrl.mjs"), join(scratchLib, "httpUrl.mjs"));
+  cpSync(join(ROOT, "lib", "legacyOsmVenueKind.mjs"), join(scratchLib, "legacyOsmVenueKind.mjs"));
   // The UK place index is checked against the same name rule the chooser and
   // the builder share, which the script imports rather than restates.
   cpSync(
@@ -625,6 +626,27 @@ describe("validate-data.mjs drink-price-update extension", () => {
 });
 
 describe("validate-data.mjs slim venue index validation", () => {
+  it("accepts an OSM bar kind and rejects changing that arena bar into a pub", () => {
+    const scriptsDir = setupScratch({});
+    const slimPath = join(scriptsDir, "..", "public", "data", "venues_slim.json");
+    const payload = JSON.parse(readFileSync(slimPath, "utf8"));
+    const arena = payload.rows.find((row: { id: string }) => row.id === "venue-16cduf6");
+    expect(arena.kind).toBe("bar");
+    expect(runValidate(scriptsDir).code).toBe(0);
+    expect(arena.legacyOsmBar).toBe(true);
+    delete arena.legacyOsmBar;
+    writeScratchFile(slimPath, JSON.stringify(payload), "utf8");
+    const missingLineage = runValidate(scriptsDir);
+    expect(missingLineage.code).toBe(1);
+    expect(missingLineage.stdout).toContain("legacyOsmBar does not match recorded OSM lineage");
+    arena.legacyOsmBar = true;
+    arena.kind = "pub";
+    writeScratchFile(slimPath, JSON.stringify(payload), "utf8");
+    const result = runValidate(scriptsDir);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain("kind pub does not match expected bar");
+  });
+
   it("validates the shipped slim venue artifact against the full pint dataset", () => {
     const scriptsDir = setupScratch({});
     const { code, stdout } = runValidate(scriptsDir);

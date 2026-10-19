@@ -18,6 +18,7 @@
 // lib/out/venueMatch.server.ts.
 
 import { normalizeVenueIdentityName } from "@/scripts/lib/venueCanonicalization.mjs";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
   resolveVenueId,
@@ -63,6 +64,7 @@ export function buildOutVenueMatchIndex(
   const byNormalizedName = new Map<string, VenueResolverCandidate[]>();
   const venueIds = new Set<string>();
   for (const venue of venues) {
+    if (!isPubVenueKind(venue.kind)) continue;
     const normName = normalizeVenueIdentityName(venue.name);
     if (!normName) continue;
     const candidate: VenueResolverCandidate = {
