@@ -444,13 +444,22 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   await expect(overview).toBeVisible();
 
   const fold = overview.locator("#venueSection-getting-home");
-  const summary = fold.locator("summary");
+  const summary = fold.locator(":scope > summary");
   await expect(summary).toHaveText("Last train");
   await expect(fold).not.toHaveAttribute("open", "");
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
-  await summary.click();
-  await expect(fold).toHaveAttribute("open", "");
+  // The sheet keeps changing height after it opens (the command bar lands in
+  // its footer and the sheet re-caps), so the fold can move between the
+  // click's hit test and the press, and the tap lands beside it. Wait for the
+  // sheet to rest, then retry the tap until the fold opens. The tap is only
+  // repeated while the fold is still shut, so a slow toggle is never undone.
+  const sheet = portal.locator(".mobileSharedSheet");
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(async () => {
+    if ((await fold.getAttribute("open")) === null) await summary.click();
+    await expect(fold).toHaveAttribute("open", "", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(fold.getByLabel("Last Pint")).toBeVisible();
 
   await portal.getByRole("tab", { name: "Lore", exact: true }).click();
