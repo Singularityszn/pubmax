@@ -49,6 +49,8 @@ import TonightOpenPlans from "./TonightOpenPlans";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import TonightYourPubs from "./TonightYourPubs";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
+import PlacePhoto from "@/components/listing/PlacePhoto";
+import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePhotoRules";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";
@@ -178,6 +180,24 @@ function areaNewsSlug(
   return area?.slug ?? null;
 }
 
+// The rail leads with a photograph of the place the page is about: the Night
+// Area the reader told us (the same coarse area the news rail reads), else
+// London when the heading is London's. Never a pub's photograph: those go
+// only to the recommended pub they are of.
+function tonightPagePhotos(
+  photos: TonightPhotos | undefined,
+  area: string | null,
+): { lead: PlacePhotoData | null; pubs: TonightPhotos["pubPhotos"] | undefined } {
+  if (!photos) return { lead: null, pubs: undefined };
+  const lead = (area ? photos.areaPhotos[area] : undefined) ?? photos.londonPhoto;
+  return { lead, pubs: photos.pubPhotos };
+}
+
+function TonightRailPhoto({ photo }: { photo: PlacePhotoData | null }) {
+  if (!photo) return null;
+  return <PlacePhoto className="tonightRailPhoto" photo={photo} sizes="360px" />;
+}
+
 // Presentation order is independent of grouping: Deals/Music full lanes follow
 // the main list on phones. Desktop keeps a compact rail summary instead
 // (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
@@ -234,6 +254,16 @@ function initialWhatsOnView(answer: LoadWhatsOnResult | null): Pick<
   };
 }
 
+/** The photographs the server resolved for this page (app/tonight/page.tsx). */
+export type TonightPhotos = {
+  /** A recommended pub's own photograph, by venue id. */
+  pubPhotos: Readonly<Record<string, PlacePhotoData>>;
+  /** Each Night Area's photograph, by area slug. */
+  areaPhotos: Readonly<Record<string, PlacePhotoData>>;
+  /** London's, for the page when no area is known. */
+  londonPhoto: PlacePhotoData | null;
+};
+
 type InitialListings = {
   whatsOn: LoadWhatsOnResult | null;
   out: TonightOutAnswer;
@@ -267,6 +297,7 @@ export default function TonightClient({
   hypedPubs,
   cheapPints,
   initialListings,
+  photos,
 }: {
   initialListings?: InitialListings;
   /** Server-composed quiet-pint module; null outside a quiet window. */
@@ -279,6 +310,8 @@ export default function TonightClient({
   hypedPubs?: readonly HypedPub[];
   /** Cheapest listed pints, for the nights nothing is on. */
   cheapPints?: readonly TonightCheapPint[];
+  /** Honest photographs only: a pub's own, an area's, London's. */
+  photos?: TonightPhotos;
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -593,6 +626,8 @@ export default function TonightClient({
     </>
   );
   const mobileLanes = mobileSecondaryLanes(secondaryLanes);
+  const newsArea = areaNewsSlug(tonightNear);
+  const { lead: leadPhoto, pubs: pubPhotos } = tonightPagePhotos(photos, newsArea);
   const summaryRows = grouped.map((group) => group.row);
 
   return (
@@ -634,7 +669,11 @@ export default function TonightClient({
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
-      <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
+      <TonightHypedPubs
+        rows={hypedPubs}
+        selectableVenueIds={selectableVenueIds}
+        photos={pubPhotos}
+      />
       {listingLede ? <p className="screenLede">{listingLede}</p> : null}
       <TonightListingsNotice
         state={listingsState}
@@ -938,6 +977,11 @@ export default function TonightClient({
       {/* The rail's membership and order belong to the Tonight rule in
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. */}
       <aside className="tonightContext" aria-label="Tonight at a glance">
+        {/* Wide screens only: the rail is where a reader looks up from the
+            list, and on a phone the photograph would stand between the head
+            and the first pub (tonight.css). Hidden, the lazy image is never
+            fetched. */}
+        <TonightRailPhoto photo={leadPhoto} />
         {ready ? (
           <TonightOnTonightSummary
             now={renderedAt}
@@ -1035,7 +1079,7 @@ export default function TonightClient({
             Area (never stored), else the heart of the viewer's remembered patch.
             This is the area they told us, so there is no new location ask. */}
         <div className="tonightRail">
-          <AreaNewsRail area={areaNewsSlug(tonightNear)} />
+          <AreaNewsRail area={newsArea} />
         </div>
 
         {/* What /out carried before it became a redirect here: the open plans

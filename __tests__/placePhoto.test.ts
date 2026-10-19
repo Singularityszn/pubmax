@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  areaPlacePhoto,
+  areaRoutePlacePhoto,
   boroughPlacePhoto,
+  londonPlacePhoto,
   pubPlacePhoto,
   routePlacePhoto,
   PLACE_PHOTO_WALK_METRES,
 } from "@/components/listing/placePhotoRules";
-import { LANDING_PHOTO_SPOTS, LANDING_PHOTOS, PUB_PHOTOS } from "@/lib/landingImagery";
+import { AREA_PHOTOS, LANDING_PHOTO_SPOTS, LANDING_PHOTOS, PUB_PHOTOS } from "@/lib/landingImagery";
 import { LONDON_COLLAGE_PHOTOS } from "@/lib/landingLondonCollage";
 
 // The listing pages' photographs (taste plan, 18 Oct 2026). Three honesty
@@ -85,5 +88,63 @@ describe("routePlacePhoto", () => {
 
   it("walks the same half mile the landing collage prices", () => {
     expect(PLACE_PHOTO_WALK_METRES).toBe(800);
+  });
+});
+
+describe("areaPlacePhoto and londonPlacePhoto", () => {
+  it("leads an area with its own photograph, captioned with the place it shows", () => {
+    expect(areaPlacePhoto("bermondsey-london-bridge")).toMatchObject({
+      key: "landing:borough-market",
+      place: "Borough Market, Southwark",
+      scope: "area",
+      namesPlace: true,
+    });
+    expect(areaPlacePhoto("dalston")).toBeNull();
+    expect(areaPlacePhoto(null)).toBeNull();
+  });
+
+  it("never hands a pub photograph to an area", () => {
+    const pubPhotoIds = new Set(Object.values(PUB_PHOTOS));
+    for (const slug of Object.keys(AREA_PHOTOS)) {
+      const photo = areaPlacePhoto(slug);
+      expect(photo, slug).toBeTruthy();
+      expect(pubPhotoIds.has(photo!.key.replace("landing:", "")), slug).toBe(false);
+    }
+  });
+
+  it("names London's photograph by the place it really shows", () => {
+    expect(londonPlacePhoto()).toMatchObject({
+      key: "landing:city-of-london",
+      place: "The City of London",
+      scope: "london",
+      namesPlace: true,
+    });
+  });
+});
+
+describe("areaRoutePlacePhoto", () => {
+  const BOROUGH_STOPS = [
+    { lat: 51.5057, lng: -0.0907 },
+    { lat: 51.5047, lng: -0.0921 },
+    { lat: 51.5061, lng: -0.0915 },
+  ];
+
+  it("leads a plan with its named area's photograph when every stop is a short walk from it", () => {
+    expect(areaRoutePlacePhoto("bermondsey-london-bridge", BOROUGH_STOPS)?.key).toBe(
+      "landing:borough-market",
+    );
+  });
+
+  it("gives none when one stop strays, the area is another, or the photograph has no spot", () => {
+    expect(
+      areaRoutePlacePhoto("bermondsey-london-bridge", [...BOROUGH_STOPS, { lat: 51.4985, lng: -0.0712 }]),
+    ).toBeNull();
+    // The stops are by Borough Market, so Soho's photograph is not theirs.
+    expect(areaRoutePlacePhoto("piccadilly-soho", BOROUGH_STOPS)).toBeNull();
+    // Angel has a photograph but no recorded spot, so no walk can be measured.
+    expect(LANDING_PHOTO_SPOTS["angel-islington"]).toBeUndefined();
+    expect(areaRoutePlacePhoto("islington", [{ lat: 51.5322, lng: -0.1058 }])).toBeNull();
+    expect(areaRoutePlacePhoto("bermondsey-london-bridge", [])).toBeNull();
+    expect(areaRoutePlacePhoto(null, BOROUGH_STOPS)).toBeNull();
   });
 });

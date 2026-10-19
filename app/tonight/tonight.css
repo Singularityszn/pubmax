@@ -726,6 +726,14 @@
   display: none;
 }
 
+/* The rail's lead photograph is the place the page is about (TonightClient).
+   A phone reads one column, where it would stand between the head and the
+   first pub, so it is a wide-screen block only. Hidden, its lazy image is
+   never fetched. */
+.tonightRailPhoto {
+  display: none;
+}
+
 /* WIDE TONIGHT IS A COLUMN AND A RAIL (site audit D8, 13 Sep 2026). The rail
    held one 81px weather card beside 3,800px of column. It now holds what a
    reader turns to after the lede: the rail summary, the cheapest listed
@@ -819,5 +827,9 @@
 
   .tonightSecondaryLanes--mobile {
     display: none;
+  }
+
+  .tonightContext > .tonightRailPhoto {
+    display: grid;
   }
 }
