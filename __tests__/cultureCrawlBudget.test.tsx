@@ -8,7 +8,7 @@ import { CULTURE_WAYPOINT_UNKNOWN_NOTE, cleanCultureOpener } from "@/lib/culture
 
 // The opener is read off a generate response the way the composer reads it,
 // then rendered. The fixture is an ordinary gallery outing with three priced
-// pints and a chosen budget of £40 each. Its source date is a labelled test
+// pints and a chosen budget of £40 each. Its source is a labelled test
 // fixture, and this file never judges freshness. Nothing here proves
 // admission, opening times or a current price for the gallery.
 const PRICE_SOURCE = {
@@ -62,7 +62,7 @@ function parsed(html: string): HTMLElement {
 }
 
 describe("PlanCultureOpener shows a budget outing as known and unknown costs", () => {
-  it("itemises each recorded pint with its price and source date", () => {
+  it("itemises each recorded pint with its price and linked publisher, and no per-row date", () => {
     const html = render(galleryFragment(BUDGET_COSTS));
     const text = visibleText(html);
     for (const [name, price] of [
@@ -73,15 +73,29 @@ describe("PlanCultureOpener shows a budget outing as known and unknown costs", (
       expect(text).toContain(name);
       expect(text).toContain(price);
     }
-    const times = Array.from(parsed(html).querySelectorAll("time"));
-    expect(times).toHaveLength(3);
-    expect(times.map((time) => time.getAttribute("datetime"))).toEqual([
-      "2026-10-01T00:00:00.000Z",
-      "2026-10-01T00:00:00.000Z",
-      "2026-10-01T00:00:00.000Z",
+    // Listed prices carry no date of their own: only people-logged lanes do.
+    expect(parsed(html).querySelectorAll("time")).toHaveLength(0);
+    expect(text).not.toContain("1 Oct 2026");
+    const links = Array.from(parsed(html).querySelectorAll<HTMLAnchorElement>("[aria-label='Known costs'] a"));
+    expect(links.map((link) => [link.textContent, link.getAttribute("href"), link.getAttribute("rel")])).toEqual(
+      Array.from({ length: 3 }, () => [PRICE_SOURCE.label, PRICE_SOURCE.url, "noopener noreferrer"]),
+    );
+    expect(text).not.toContain("Link unavailable");
+  });
+
+  it("keeps a refused source URL as plain text and says the link is unavailable", () => {
+    const refused = { ...PRICE_SOURCE, url: "https://example.org/test fixture/pint-prices" };
+    const html = render(galleryFragment({
+      ...BUDGET_COSTS,
+      knownItems: KNOWN_PINTS.map((pint) => ({ ...pint, source: refused })),
+    }));
+    const known = parsed(html).querySelector("[aria-label='Known costs']");
+    expect(known?.querySelectorAll("a")).toHaveLength(0);
+    expect(Array.from(known?.querySelectorAll("li") ?? []).map((line) => line.textContent)).toEqual([
+      "Pint at The First Stop: £5.20, Test fixture pint price · Link unavailable",
+      "Pint at The Second Stop: £6.10, Test fixture pint price · Link unavailable",
+      "Pint at The Third Stop: £4.90, Test fixture pint price · Link unavailable",
     ]);
-    expect(times.map((time) => time.textContent)).toEqual(["1 Oct 2026", "1 Oct 2026", "1 Oct 2026"]);
-    expect(text.match(/Test fixture pint price/g) ?? []).toHaveLength(3);
   });
 
   it("labels the known subtotal as partial and lists the costs not known", () => {

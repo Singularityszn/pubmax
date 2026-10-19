@@ -6,6 +6,7 @@ import type {
   CultureUnknownCost,
 } from "@/lib/cultureCrawl";
 import { formatGbp } from "@/lib/formatGbp";
+import { firstHttp } from "@/lib/httpUrl";
 
 const UNKNOWN_COST_LABELS: Record<CultureUnknownCost, string> = {
   admission: "Admission",
@@ -14,21 +15,29 @@ const UNKNOWN_COST_LABELS: Record<CultureUnknownCost, string> = {
   transport: "Transport",
 };
 
-const OBSERVED_DATE = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "Europe/London",
-});
-
 function pounds(pence: number): string {
   return formatGbp(pence / 100);
 }
 
 /**
- * The pub side of the outing, beside the waypoint. Each recorded pint shows its
- * source and date. The sum is a partial subtotal, and the costs nobody has
- * priced are listed by name so the night never reads as fully costed.
+ * The publisher's label, linked when its recorded URL is safe. A refused URL
+ * keeps the label as plain text and says so (docs/VOICE.md).
+ */
+function CostSource({ label, url }: { label: string; url: string }) {
+  const href = firstHttp(url);
+  return href ? (
+    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+  ) : (
+    <>{label} · Link unavailable</>
+  );
+}
+
+/**
+ * The pub side of the outing, beside the waypoint. Each recorded pint names
+ * its publisher. These are listed prices, not ones people logged, so a row
+ * carries no date of its own (docs/VOICE.md). The sum is a partial subtotal,
+ * and the costs nobody has priced are listed by name so the night never reads
+ * as fully costed.
  */
 function PlanCultureCosts({ costs }: { costs: CultureOutingCostsDTO }) {
   return (
@@ -37,8 +46,8 @@ function PlanCultureCosts({ costs }: { costs: CultureOutingCostsDTO }) {
         <ul aria-label="Known costs">
           {costs.knownItems.map((item) => (
             <li key={item.venueId}>
-              Pint at {item.venueName}: {pounds(item.pence)}, {item.source.label},{" "}
-              <time dateTime={item.source.observedAt}>{OBSERVED_DATE.format(new Date(item.source.observedAt))}</time>
+              Pint at {item.venueName}: {pounds(item.pence)},{" "}
+              <CostSource label={item.source.label} url={item.source.url} />
             </li>
           ))}
         </ul>

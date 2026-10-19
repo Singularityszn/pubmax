@@ -201,9 +201,9 @@ async function generateCultureRoute() {
   const known = opener.querySelector("[aria-label='Known costs']");
   expect(known).not.toBeNull();
   expect([...known!.querySelectorAll("li")].map((line) => line.textContent)).toEqual([
-    "Pint at Pub A: £5.20, Test fixture pint price, 1 Oct 2026",
-    "Pint at Pub B: £6.10, Test fixture pint price, 1 Oct 2026",
-    "Pint at Pub C: £4.90, Test fixture pint price, 1 Oct 2026",
+    "Pint at Pub A: £5.20, Test fixture pint price",
+    "Pint at Pub B: £6.10, Test fixture pint price",
+    "Pint at Pub C: £4.90, Test fixture pint price",
   ]);
   expect(opener.textContent).toContain("Partial subtotal: £16.20 each, before the costs below.");
   expect([...opener.querySelectorAll("[aria-label='Costs not known'] li")].map((line) => line.textContent))
