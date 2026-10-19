@@ -5,6 +5,7 @@ import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 import {
   expectMobileMapShellReady,
+  forgetHeldTubeStatus,
   mobileMapShellControl,
   routeTubeStatus,
 } from "./helpers/mobileMapShell";
@@ -855,7 +856,6 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
 });
 
 test("390px TfL rests in More map controls and comes to the edge only when a line is badly disrupted", async ({
-  context,
   page,
 }) => {
   const viewport = VIEWPORTS[0];
@@ -880,24 +880,21 @@ test("390px TfL rests in More map controls and comes to the edge only when a lin
 
   // A badly disrupted line is news before the reader sets out, so it puts TfL
   // back on the map edge with the one count that says so.
-  //
-  // The bad night opens in a fresh tab, not a reload. A reload keeps this
-  // tab's sessionStorage, and lib/surfaceDataCache.ts reuses a status read
-  // younger than SURFACE_JUST_READ_MS without asking again. On a slow runner
-  // the routine read landed inside that window, answered the reload, and the
-  // TfL control never came to the edge.
-  await page.close();
-  const night = await context.newPage();
-  await preparePhoneMap(night, viewport, "reduce", "/map", "urgent");
-  const tfl = await mobileMapShellControl(night, "tfl");
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await routeTubeStatus(page, "urgent");
+  await installPositiveTonightResponse(page);
+  await forgetHeldTubeStatus(page);
+  await page.reload();
+  await expectMobileMapShellReady(page, 45_000);
+  const tfl = await mobileMapShellControl(page, "tfl");
   await expect(tfl).toBeVisible({ timeout: 20_000 });
   await expect(tfl.locator(".mobileMapCornerBadge")).toHaveText("1");
   await expect(tfl).toHaveAccessibleName("TfL live: 1 line badly disrupted, 2 updates");
-  const layers = await restingLayers(night);
+  const layers = await restingLayers(page);
   expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
-  await tapRenderedCentre(night, tfl, viewport.width, "TfL live");
+  await tapRenderedCentre(page, tfl, viewport.width, "TfL live");
   await expect(
-    night.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),
+    page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),
   ).toHaveCount(1);
 });
 
@@ -1839,11 +1836,8 @@ for (const viewport of VIEWPORTS) {
 
     // The idle screen carries the location line; the answered screen carries
     // the price column, the patch-coverage note and the footer's two links.
-    //
-    // Each load waits for the streamed segment to land first. /near streams
-    // its body into a hidden `S:0` copy, and an update during hydration makes
-    // React render the body on the client while that copy is still in the
-    // document, so `.nmnHint` matched two nodes and broke strict mode on CI.
+    // /near streams its body into a hidden segment and React swaps it in on a
+    // timer, so until that lands the document can hold the hint twice.
     const idle = await page.goto("/near");
     expect(idle?.status()).toBe(200);
     await expectStreamedPageSettled(page);
@@ -1997,7 +1991,9 @@ for (const viewport of VIEWPORTS) {
 // to four when Out and Places folded, then rose to five with Social, and a
 // number written here fails the day the row changes for a reason this file has
 // no opinion on. What it holds is that the row is the primary set entire, that
-// Map leads it, and that every column still clears the tap floor.
+// Map leads it, and that every column still clears the tap floor. The Pub
+// Pal's own door rides beside the set, never in it (captain, 19 Oct 2026), so
+// the row is the set plus that one door.
 for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px phone chrome leads with Map, Social after Plan`, async ({
     page,
@@ -2008,7 +2004,8 @@ for (const viewport of VIEWPORTS) {
     await expect(primary.locator("a").first()).toHaveAttribute("href", "/map");
     await expect(primary.getByRole("link", { name: "Tonight", exact: true })).toHaveCount(1);
     await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
-    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length);
+    await expect(primary.locator('a[href="/pal"]')).toHaveCount(1);
+    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length + 1);
     for (const tab of await primary.locator("a").all()) {
       const box = await tab.boundingBox();
       expect(box, "every primary tab has a box").not.toBeNull();

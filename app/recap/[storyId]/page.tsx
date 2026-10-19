@@ -8,13 +8,16 @@ import SiteNav from "@/components/nav/SiteNav";
 import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import RecapViewAnalytics from "@/components/plan/RecapViewAnalytics";
+import RecapVideoSection from "@/components/recap/RecapVideoSection";
 import type { RecapVisibility } from "@/lib/analyticsEvents";
 import { readPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { PUBLIC_RECAP_PHOTO_TTL_SECONDS, signedNightMomentPhotoUrl } from "@/lib/nightMomentMedia";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
-import { buildRecapShareText, composeRecapFromPublishedStory } from "@/lib/recapView";
+import { buildRecapVideoInput } from "@/lib/recapVideo";
+import { recapVideoEnabled } from "@/lib/recapVideoFlag.server";
+import { buildRecapShareText, composeRecapFromPublishedStory, selectPublishedRecapMoments } from "@/lib/recapView";
 
 import "../../plan/plan.css";
 import "../../plan/[id]/recap/recap.css";
@@ -90,10 +93,14 @@ export default async function PublicRecapPage({ params }: Props) {
   // Venue names for every venue referenced by a published moment.
   const venueIds = [...new Set(src.moments.map((m) => m.venueId).filter((v): v is string => Boolean(v)))];
   const venueNames = new Map<string, string>();
+  const venueCoords = new Map<string, { lat: number; lng: number }>();
   await Promise.all(
     venueIds.map(async (venueId) => {
       const venue = await getVenueDetail(venueId);
       if (venue?.name) venueNames.set(venueId, venue.name);
+      if (venue && Number.isFinite(venue.latitude) && Number.isFinite(venue.longitude)) {
+        venueCoords.set(venueId, { lat: venue.latitude, lng: venue.longitude });
+      }
     }),
   );
 
@@ -126,6 +133,15 @@ export default async function PublicRecapPage({ params }: Props) {
       if (url) photoUrls.set(photo.id, url);
     }),
   );
+
+  // The video shows only what this page shows: the same published moments.
+  const video = recapVideoEnabled()
+    ? buildRecapVideoInput({
+        view,
+        published: selectPublishedRecapMoments(src.moments, src.story),
+        coordsByVenueId: venueCoords,
+      })
+    : null;
 
   const shareText = buildRecapShareText({
     title: view.title,
@@ -161,6 +177,15 @@ export default async function PublicRecapPage({ params }: Props) {
           ) : null}
         </div>
       </header>
+
+      {video ? (
+        <section className="recapSection" style={step()} aria-labelledby="recap-video-title">
+          <h2 id="recap-video-title" className="type-card-title recapSection__title">
+            Watch the night back
+          </h2>
+          <RecapVideoSection input={video} />
+        </section>
+      ) : null}
 
       {view.route.length > 0 ? (
         <section className="recapSection" style={step()} aria-labelledby="recap-route-title">

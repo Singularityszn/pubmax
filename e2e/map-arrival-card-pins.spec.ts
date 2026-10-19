@@ -53,6 +53,13 @@ async function openFirstVisitMap(page: Page): Promise<void> {
 test.use({ hasTouch: true, viewport: PHONE, isMobile: true });
 
 test.describe("the first-visit card and the pin field", () => {
+  // Each wait above is allowed ARRIVAL_TIMEOUT_MS, but the project's 30 s test
+  // budget cut them short: on a slow software-GL runner the card and its pins
+  // arrived, and the test ran out of time while the card was still settling
+  // (#2276, Browser layout pins 3/3). The budget now covers the waits the
+  // spec already declares.
+  test.describe.configure({ timeout: 2 * ARRIVAL_TIMEOUT_MS });
+
   test("leaves the pins tappable while it is on screen", async ({ page }) => {
     await openFirstVisitMap(page);
 

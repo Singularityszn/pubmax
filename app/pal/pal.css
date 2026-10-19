@@ -201,6 +201,10 @@ body:has(.palExperience) {
   .palPortrait[data-pal-state="celebrating"] .palPortraitMascot { animation: palMascotCelebrate .8s var(--ease-out-strong) infinite alternate; transform-origin: center bottom; }
   .palPortrait[data-pal-state="sleeping"] .palPortraitMascot { animation: palMascotSleep 5s ease-in-out infinite; }
   .palPortrait[data-pal-state="error"] .palPortraitMascot { animation: palMascotError .32s steps(2, end) 3; }
+  /* The wake-up stretch: the photograph lifts out of its sleeping settle and
+     brightens back from the sleeping dim, once. */
+  .palPortrait[data-pal-state="waking"] .palPortraitMascot { animation: palMascotWake 1.3s var(--ease-out-strong) both; transform-origin: center bottom; }
+  .palPortrait[data-pal-state="waking"] .palPortraitMascot img { animation: palMascotWakeLight .7s ease-out both; }
 }
 
 .palProgress { width: min(84rem, 100%); height: 1px; margin: .5rem auto 0; background: var(--pal-line); }
@@ -469,6 +473,8 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 @keyframes palMascotCelebrate { to { transform: translateY(-10px) rotate(3deg) scale(1.025); } }
 @keyframes palMascotSleep { 50% { transform: translateY(4px) scale(.99); } }
 @keyframes palMascotError { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@keyframes palMascotWake { 0% { transform: translateY(4px) scale(.99); } 40% { transform: translateY(-12px) scale(1.04); } 62% { transform: translateY(-3px) rotate(-2deg); } 80% { transform: translateY(-5px) rotate(1.5deg); } 100% { transform: none; } }
+@keyframes palMascotWakeLight { from { filter: drop-shadow(0 .8rem 1.1rem color-mix(in srgb, var(--ink-deep) 30%, transparent)) brightness(.72); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }

@@ -9,7 +9,7 @@ import * as maplibregl from "maplibre-gl";
 
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import { probeWebGl2 } from "@/components/map/canvas/webgl";
-import { createPalMapMarker, type PalMapMarker } from "@/components/map/canvas/palMarker";
+import { createPalMapMarker, palPinIsCheap, type PalMapMarker } from "@/components/map/canvas/palMarker";
 import { palWalkPathFrom, palWalkStopsFromKey } from "@/components/map/canvas/palWalk";
 import {
   Crosshair,
@@ -4307,8 +4307,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     }
     palVisitKeyRef.current = "";
     const venue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : undefined;
-    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null);
-  }, [routeCoordKey, routeIds, selectedVenueId, venues, mapReady]);
+    // The Pal reads the band the pin itself paints, from the pins' own data,
+    // so it re-reads whenever the pins' data is rebuilt above.
+    const pin = venue ? pubsDataRef.current.features.find((feature) => feature.properties?.id === venue.id) : undefined;
+    palMarkerRef.current?.perch(venue ? [venue.longitude, venue.latitude] : null, { cheap: palPinIsCheap(pin?.properties) });
+  }, [routeCoordKey, routeIds, selectedVenueId, venues, venueSignals, favoritePint, drinkCategory, lensPrices, spoonsValue, mapReady]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {

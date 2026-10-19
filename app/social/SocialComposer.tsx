@@ -512,6 +512,9 @@ export default function SocialComposer({
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [extraPhotos, setExtraPhotos] = useState<ExtraPhotoDraft[]>([]);
   const [draftReady, setDraftReady] = useState(false);
+  // The pending debounced write of the draft. Clear draft cancels it first,
+  // or a write scheduled before the clear lands after it and restores the text.
+  const draftSaveTimerRef = useRef<number | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [mutationVersion, setMutationVersion] = useState(post?.mutationVersion ?? 0);
   const [busy, setBusy] = useState(false);
@@ -527,10 +530,6 @@ export default function SocialComposer({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // The debounced draft write below, held so Clear draft can cancel it. A
-  // write still pending from the last edit would otherwise land after the
-  // clear and put the cleared draft back for the next load.
-  const draftSaveTimerRef = useRef<number | null>(null);
   const venueListId = useId();
   const composerId = `social-composer-title-${post?.id ?? "new"}`;
 
@@ -619,7 +618,10 @@ export default function SocialComposer({
       localStorage.setItem(draftKey, JSON.stringify(draft));
     }, 300);
     draftSaveTimerRef.current = timer;
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      if (draftSaveTimerRef.current === timer) draftSaveTimerRef.current = null;
+    };
   }, [draft, draftKey, draftReady]);
 
   useEffect(() => {

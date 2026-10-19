@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
+import { SURFACE_CACHE_NAMESPACE } from "@/lib/surfaceDataCache";
 
 /**
  * Headroom past the product's ceiling. When the canvas never reports in, the
@@ -109,4 +110,16 @@ export async function routeTubeStatus(page: Page, kind: "urgent" | "routine"): P
       }),
     }),
   );
+}
+
+/**
+ * Forget the TfL feed the page already read, before a reload that must ask
+ * again. The phone map holds its last status answer in session storage
+ * (`useMobileTflStatus`, components/mobile/MobileTflPanel.tsx) and reuses it
+ * without a network read for `SURFACE_JUST_READ_MS`. A reload inside that
+ * window paints the held answer and never asks the route a spec just swapped
+ * in, so the new feed is only seen when the reload happens to land late.
+ */
+export async function forgetHeldTubeStatus(page: Page): Promise<void> {
+  await page.evaluate((key) => window.sessionStorage.removeItem(key), `${SURFACE_CACHE_NAMESPACE}/api/citymcp/status`);
 }

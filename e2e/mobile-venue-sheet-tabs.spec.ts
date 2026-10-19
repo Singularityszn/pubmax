@@ -448,25 +448,68 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   await expect(overview).toBeVisible();
 
   const fold = overview.locator("#venueSection-getting-home");
-  const summary = fold.locator("summary");
+  const summary = fold.locator(":scope > summary");
   await expect(summary).toHaveText("Last train");
   await expect(fold).not.toHaveAttribute("open", "");
   // The Overview rows that land after their own reads (the area price line
-  // and the food hygiene rating) move the summary by about 80px three to five
-  // seconds after the sheet opens on a slow runner. A tap whose press and
-  // release straddled that move went to the row that moved in, and Playwright
-  // does not retry it, so the fold stayed shut on CI. Wait for both rows, then
-  // take ONE tap: a fold that needs a second tap is a failure.
+  // and the food hygiene rating) arrive three to five seconds after the sheet
+  // opens on a slow runner. They sit below the fold now (the pin below holds
+  // that), but wait for both anyway, so nothing in the Overview is still
+  // landing when the tap goes in.
   await expect(overview.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 20_000 });
   await expect(overview.locator(".venueHygiene")).toBeVisible({ timeout: 20_000 });
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
-  await summary.click();
-  await expect(fold).toHaveAttribute("open", "");
+  // The sheet keeps changing height after it opens (the command bar lands in
+  // its footer and the sheet re-caps), so the fold can move between the
+  // click's hit test and the press, and the tap lands beside it. Wait for the
+  // sheet to rest, then retry the tap until the fold opens. The tap is only
+  // repeated while the fold is still shut, so a slow toggle is never undone.
+  const sheet = portal.locator(".mobileSharedSheet");
+  await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(async () => {
+    if ((await fold.getAttribute("open")) === null) await summary.click();
+    await expect(fold).toHaveAttribute("open", "", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(fold.getByLabel("Last Pint")).toBeVisible();
 
   await portal.getByRole("tab", { name: "Lore", exact: true }).click();
   const ask = portal.locator("#venuePanel-story #venueSection-ask");
   await expect(ask).toBeVisible();
   await expect(ask.getByRole("button", { name: /Tell me about this/ })).toBeVisible();
+});
+
+/**
+ * The Overview rows that render only after their own read answers (the area
+ * price line and the food hygiene rating) sit below the getting-home fold, so
+ * the fold's summary does not move under a finger once it is painted.
+ */
+test("the getting-home fold stays put while the late Overview rows land", async ({ page }) => {
+  // The pin needs the hygiene row to land, so it may not hang on the live FSA service.
+  await routeHygieneBadge(page);
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+  expect(response?.status()).toBe(200);
+
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const overview = portal.locator("#venuePanel-overview");
+  await expect(overview).toBeVisible();
+  const summary = overview.locator("#venueSection-getting-home > summary");
+  await expect(summary).toHaveText("Last train");
+  // Measured against the panel, so scrolling the sheet does not move it.
+  const offset = (target: Locator) =>
+    target.evaluate((element) => {
+      const panel = element.closest("#venuePanel-overview");
+      return Math.round(element.getBoundingClientRect().top - (panel?.getBoundingClientRect().top ?? 0));
+    });
+  const before = await offset(summary);
+
+  const hygiene = overview.locator(".venueHygiene");
+  const areaPrice = overview.locator(".venueAreaPriceCompare");
+  await expect(hygiene).toBeVisible({ timeout: 20_000 });
+  await expect(areaPrice).toBeVisible({ timeout: 20_000 });
+
+  expect(await offset(summary), "the fold summary did not move").toBe(before);
+  expect(await offset(areaPrice)).toBeGreaterThan(before);
+  expect(await offset(hygiene)).toBeGreaterThan(before);
 });

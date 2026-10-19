@@ -26,6 +26,9 @@ import "./palMarker.css";
 // - when the reader finishes a crawl or a planned night (lib/palMoments.ts) it
 //   runs to the last stop and celebrates with a burst of sparks, once; for a
 //   price the reader added it hops for joy where it stands;
+// - beside a pin painted in the cheapest band it lands with a happy hop. It
+//   reads the band the pin itself paints (palPinIsCheap), never a second copy
+//   of the price rules;
 // - it sits up and to the right of the pin, never over it, and takes no
 //   pointer events, so every pin under it stays tappable and the painted-pin
 //   probe still finds the pin it names;
@@ -53,9 +56,23 @@ type PalMapWalk = {
   road?: boolean;
 };
 
+/**
+ * Is this pin painted in the cheapest band? The same band the pin's colour and
+ * pill read (buildScene.ts): the Spoons value band where that lens stamps one,
+ * else the pub's price bucket. 0 is the cheapest of the four.
+ */
+export function palPinIsCheap(properties: { bucket?: unknown; spoonsBucket?: unknown } | null | undefined): boolean {
+  if (!properties) return false;
+  const painted = properties.spoonsBucket ?? properties.bucket;
+  return painted === 0;
+}
+
 export type PalMapMarker = {
-  /** Perch beside this point, or step off the map with null. Ends any walk. */
-  perch: (lngLat: LngLat | null) => void;
+  /**
+   * Perch beside this point, or step off the map with null. Ends any walk.
+   * Beside a pin painted in the cheapest band it lands with a happy hop.
+   */
+  perch: (lngLat: LngLat | null, pin?: { cheap: boolean }) => void;
   /** Walk this crawl route once, then rest beside its last stop. */
   walk: (route: PalMapWalk) => void;
   /** The reader tapped this stop of the crawl (its index): go to it. */
@@ -225,7 +242,7 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
   };
 
   const api: PalMapMarker = {
-    perch: (lngLat) => {
+    perch: (lngLat, pin) => {
       if (walk) {
         stopWalking();
         perchedAt = null;
@@ -236,11 +253,20 @@ export function createPalMapMarker(map: maplibregl.Map): PalMapMarker {
         perchedAt = null;
         return;
       }
-      const key = `${lngLat[0].toFixed(6)},${lngLat[1].toFixed(6)}`;
+      // The band is part of the perch, so a pin repainted cheap (or no longer
+      // cheap) under the Pal lands it again in its new band.
+      const key = `${lngLat[0].toFixed(6)},${lngLat[1].toFixed(6)}|${pin?.cheap ? "cheap" : ""}`;
       if (key === perchedAt) return;
       perchedAt = key;
       place(lngLat, PERCH_OFFSET);
-      restartClass("isLanding");
+      if (pin?.cheap) {
+        element.dataset.palPin = "cheap";
+        restartClass("isCheering");
+      } else {
+        delete element.dataset.palPin;
+        element.classList.remove("isCheering");
+        restartClass("isLanding");
+      }
     },
     walk: (route) => {
       const road = route.road === true;

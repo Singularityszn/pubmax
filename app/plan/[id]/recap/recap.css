@@ -364,3 +364,20 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* The recap video (PUBMAX_RECAP_VIDEO). A portrait frame, capped so it never
+   fills a desktop screen, with the same footprint while the Player loads. */
+.recapVideo {
+  max-width: 360px;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.recapVideo__placeholder {
+  width: 100%;
+  aspect-ratio: 1080 / 1920;
+  background: var(--panel);
+}

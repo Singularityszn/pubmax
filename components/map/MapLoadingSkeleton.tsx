@@ -25,11 +25,14 @@ type MapLoadingSkeletonProps = {
   cityDisplayName?: string;
   /** The route-level frame, which stands in for a page that owns its <main>. */
   routeLevel?: boolean;
+  /** The bundled London pint snapshot's date line, or null off London's bundled prices. */
+  pricesReadLine?: string | null;
 };
 
 export default function MapLoadingSkeleton({
   cityDisplayName = "",
   routeLevel = false,
+  pricesReadLine = null,
 }: MapLoadingSkeletonProps) {
   const Frame = routeLevel ? "section" : "main";
   return (
@@ -46,6 +49,7 @@ export default function MapLoadingSkeleton({
           <div>
             <h1>UK venue map</h1>
             <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>
+            {pricesReadLine ? <p className="mapSkeletonReads">{pricesReadLine}</p> : null}
           </div>
         </div>
       </div>

@@ -74,6 +74,11 @@ export function palHeadTarget(input: {
   } else if (state === "sleeping") {
     pose.pitch += 8;
     pose.roll = -4;
+  } else if (state === "waking") {
+    // Head up and a stretch, out of the sleeping droop.
+    pose.pitch -= 6;
+    pose.lift = 10;
+    pose.scale = 1.03;
   }
   if (mode === "listening") {
     // Leans in, and perks up on each syllable it hears.

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
+import { MapPricesReadContext } from "@/components/map/mapPricesReadContext";
 import PintLoader from "@/components/ui/pint-loader";
 import {
   MAP_LOADING_SLOW_AFTER_MS,
@@ -22,6 +23,7 @@ export default function MapLoadingFrame({
   openingLocationPromptActive?: boolean;
 }) {
   const [slow, setSlow] = useState(false);
+  const pricesRead = useContext(MapPricesReadContext);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSlow(true), MAP_LOADING_SLOW_AFTER_MS);
@@ -51,6 +53,7 @@ export default function MapLoadingFrame({
               : mapLoadingPrimaryLine(mapDisplayName)}
           </span>
           {slow ? <span className="mapLoadingSlow">{MAP_LOADING_SLOW_LINE}</span> : null}
+          {pricesRead ? <span className="mapLoadingReads">{pricesRead}</span> : null}
         </div>
       </div>
       {/* Decorative: this sits inside a polite live region, and a stepping
