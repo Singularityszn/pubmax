@@ -156,6 +156,14 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://blackcapcamden.co.uk", category: "beer", priceGbp: 7, drinkLabel: "Queer Bold AF Pale Ale 0.5%" },
   { sourceUrl: "https://theblacksmithsse16.com/drink", category: "beer", priceGbp: 6.7, drinkLabel: "Adnams Ghost Ship Pale Ale 0.05%" },
   { sourceUrl: "https://thecottonmillpub.com", category: "beer", priceGbp: 5, drinkLabel: "Adnams 0.5% Ghost ship" },
+  // A liqueur filed as coffee, a witbier as a soft drink, desserts as wine, and
+  // a calorie line that is the elderflower spritz already quarantined above.
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "coffee", priceGbp: 5, drinkLabel: "Kahlúa Coffee Liqueur 16%" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "coffee", priceGbp: 6.5, drinkLabel: "Malibu 18%" },
+  { sourceUrl: "https://blackcapcamden.co.uk", category: "soft-drink", priceGbp: 7, drinkLabel: "Queer Flowers Belgian Witbier 4%" },
+  { sourceUrl: "https://watermanstw9.co.uk/menu", category: "wine", priceGbp: 7, drinkLabel: "Ice Cream Vanilla, Chocolate or Pistachio (v/gf)" },
+  { sourceUrl: "https://watermanstw9.co.uk/menu", category: "wine", priceGbp: 7, drinkLabel: "Sorbet Lemon or Raspberry (v/gf)" },
+  { sourceUrl: "https://www.thepaternoster.com/food-drink/", category: "wine", priceGbp: 5.45, drinkLabel: "88kcal" },
   // Shard 3. The Imperial Arms PDF reads its columns out of order, so liqueurs
   // land as coffee, gins as vodka and 0.5% beers as beer, and one £7.40 figure
   // lands under five spirits. The Greyhound page mixes its food menu in.
