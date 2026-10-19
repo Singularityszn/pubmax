@@ -527,6 +527,10 @@ export default function SocialComposer({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // The debounced draft write below, held so Clear draft can cancel it. A
+  // write still pending from the last edit would otherwise land after the
+  // clear and put the cleared draft back for the next load.
+  const draftSaveTimerRef = useRef<number | null>(null);
   const venueListId = useId();
   const composerId = `social-composer-title-${post?.id ?? "new"}`;
 
@@ -552,6 +556,8 @@ export default function SocialComposer({
   }
 
   async function clearDraft() {
+    if (draftSaveTimerRef.current !== null) window.clearTimeout(draftSaveTimerRef.current);
+    draftSaveTimerRef.current = null;
     localStorage.removeItem(draftKey);
     await saveSocialDraftPhoto(draftKey, null).catch(() => undefined);
     setDraft(initialDraft(initialPostRef.current));
@@ -608,10 +614,11 @@ export default function SocialComposer({
 
   useEffect(() => {
     if (!draftReady) return;
-    const timer = window.setTimeout(
-      () => localStorage.setItem(draftKey, JSON.stringify(draft)),
-      300,
-    );
+    const timer = window.setTimeout(() => {
+      draftSaveTimerRef.current = null;
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    }, 300);
+    draftSaveTimerRef.current = timer;
     return () => window.clearTimeout(timer);
   }, [draft, draftKey, draftReady]);
 
