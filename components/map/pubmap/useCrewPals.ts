@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { isPlanActiveNow, readActivePlan, subscribeActivePlan } from "@/lib/activePlan";
 import { crewPalsFromBody, type CrewPal } from "@/lib/crewPals";
+import { discardBody } from "@/lib/responseBody";
 
 // Pals walk together: the opted-in Pals of the crew of the plan that is on
 // tonight, read once per plan from GET /api/plans/[id]/pals. The plan's own
@@ -35,7 +36,11 @@ export function useCrewPals(): readonly CrewPal[] {
       controller = request;
       if (active) setPals(NO_CREW);
       fetch(`/api/plans/${ref.id}/pals`, { cache: "no-store", signal: request.signal })
-        .then((response) => (response.ok ? response.json() : null))
+        .then((response) => {
+          if (response.ok) return response.json();
+          discardBody(response);
+          return null;
+        })
         .then((body: unknown) => {
           if (active && controller === request) setPals(crewPalsFromBody(body));
         })

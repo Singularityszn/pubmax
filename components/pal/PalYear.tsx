@@ -8,6 +8,7 @@ import { readProgress } from "@/lib/crawlCompletion";
 import { readNightsKept } from "@/lib/nightsKept";
 import { londonDayKey } from "@/lib/pintContributions";
 import { palYearFacts, palYearLines, type PalYearFacts } from "@/lib/palYear";
+import { discardBody } from "@/lib/responseBody";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import "./palYear.css";
 
@@ -20,7 +21,10 @@ import "./palYear.css";
 async function venueName(venueId: string, signal: AbortSignal): Promise<string | null> {
   try {
     const response = await fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      discardBody(response);
+      return null;
+    }
     const body = (await response.json()) as { venue?: { name?: unknown } };
     return typeof body.venue?.name === "string" && body.venue.name.trim() ? body.venue.name.trim() : null;
   } catch {
@@ -31,7 +35,10 @@ async function venueName(venueId: string, signal: AbortSignal): Promise<string |
 async function contributions(handle: string, signal: AbortSignal): Promise<{ pricesMapped: number; boroughs: number } | null> {
   try {
     const response = await fetch(`/api/pint-drops/stats?handle=${encodeURIComponent(handle)}`, { signal });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      discardBody(response);
+      return null;
+    }
     const body = (await response.json()) as { stats?: { pintsMapped?: unknown; byBorough?: unknown } };
     const priced = typeof body.stats?.pintsMapped === "number" ? body.stats.pintsMapped : 0;
     const boroughs = Array.isArray(body.stats?.byBorough) ? body.stats.byBorough.length : 0;
