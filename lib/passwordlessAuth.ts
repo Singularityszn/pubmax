@@ -6,7 +6,8 @@ export const MAGIC_LINK_ERROR_MESSAGE =
   "We could not send a sign-in link right now. Try again shortly.";
 
 export type MagicLinkResult = {
-  status: "sent" | "rate_limited" | "error";
+  /** "cancelled": a cancel or a newer action took the start over. Show nothing. */
+  status: "sent" | "rate_limited" | "error" | "cancelled";
   message: string;
 };
 

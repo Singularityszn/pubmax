@@ -6,6 +6,7 @@ import {
 import { storeReferralFollowHandle } from "@/lib/referralFollowBack";
 import { referralSignupClaimFromUrl } from "@/lib/referrals";
 import { normalizeHandle } from "@/lib/profiles";
+import { discardBody } from "@/lib/responseBody";
 
 type ReferralClaimRequest = (
   input: string,
@@ -58,7 +59,10 @@ export async function claimSignupReferral(
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code, authAttemptId, signupProof }),
       });
-      if (!current()) return;
+      if (!current()) {
+        discardBody(response);
+        return;
+      }
       if (response.ok) {
         const body = (await response.json().catch(() => null)) as
           | { inviterHandle?: unknown }

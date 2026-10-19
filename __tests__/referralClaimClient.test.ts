@@ -34,6 +34,22 @@ describe("same-journey referral claim", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
+  it("releases the unread claim body when ownership ends during the request", async () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("window", { sessionStorage: { setItem } });
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('{"inviterHandle":')); },
+      cancel() { cancelled = true; },
+    });
+    let current = true;
+    const request = vi.fn(async () => { current = false; return new Response(body, { status: 200 }); });
+    await claimSignupReferral("opaque_code_123456789", AUTH_ATTEMPT.id, "signed-proof", request, () => current);
+    expect(request).toHaveBeenCalledOnce();
+    expect(setItem).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(cancelled).toBe(true), { timeout: 1000 });
+  });
+
   it("does not retry under a new account after the original ownership expires", async () => {
     vi.useFakeTimers();
     const request = vi.fn().mockResolvedValueOnce(new Response(null, { status: 503 }));
