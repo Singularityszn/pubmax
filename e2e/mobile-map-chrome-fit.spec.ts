@@ -855,6 +855,7 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
 });
 
 test("390px TfL rests in More map controls and comes to the edge only when a line is badly disrupted", async ({
+  context,
   page,
 }) => {
   const viewport = VIEWPORTS[0];
@@ -879,20 +880,24 @@ test("390px TfL rests in More map controls and comes to the edge only when a lin
 
   // A badly disrupted line is news before the reader sets out, so it puts TfL
   // back on the map edge with the one count that says so.
-  await page.unrouteAll({ behavior: "ignoreErrors" });
-  await routeTubeStatus(page, "urgent");
-  await installPositiveTonightResponse(page);
-  await page.reload();
-  await expectMobileMapShellReady(page, 45_000);
-  const tfl = await mobileMapShellControl(page, "tfl");
+  //
+  // The bad night opens in a fresh tab, not a reload. A reload keeps this
+  // tab's sessionStorage, and lib/surfaceDataCache.ts reuses a status read
+  // younger than SURFACE_JUST_READ_MS without asking again. On a slow runner
+  // the routine read landed inside that window, answered the reload, and the
+  // TfL control never came to the edge.
+  await page.close();
+  const night = await context.newPage();
+  await preparePhoneMap(night, viewport, "reduce", "/map", "urgent");
+  const tfl = await mobileMapShellControl(night, "tfl");
   await expect(tfl).toBeVisible({ timeout: 20_000 });
   await expect(tfl.locator(".mobileMapCornerBadge")).toHaveText("1");
   await expect(tfl).toHaveAccessibleName("TfL live: 1 line badly disrupted, 2 updates");
-  const layers = await restingLayers(page);
+  const layers = await restingLayers(night);
   expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
-  await tapRenderedCentre(page, tfl, viewport.width, "TfL live");
+  await tapRenderedCentre(night, tfl, viewport.width, "TfL live");
   await expect(
-    page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),
+    night.locator('.mobileSheetPortal[data-sheet-kind="tfl"]:visible'),
   ).toHaveCount(1);
 });
 
