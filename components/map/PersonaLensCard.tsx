@@ -101,7 +101,7 @@ export default function PersonaLensCard({
         rel="noopener noreferrer"
       >
         {persona.sourceName}
-        <ExternalLink size={13} aria-hidden="true" />
+        <ExternalLink size={14} aria-hidden="true" />
       </a>
 
       <p className="personaLensCardDisclaimer">{PERSONA_DISCLAIMER}</p>

@@ -20,10 +20,10 @@
   gap: 5px;
   padding: 3px 9px;
   border: 1px solid color-mix(in srgb, var(--cat-coffee) 35%, var(--line));
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--cat-coffee) 10%, var(--panel-raised));
   color: var(--ink);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -35,8 +35,8 @@
 
 .coffeePilotName {
   margin: 0;
-  font-family: var(--font-display, var(--serif));
-  font-size: 1.32rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1.15;
   color: var(--ink);
@@ -47,8 +47,8 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.86rem;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
   line-height: 1.35;
 }
 
@@ -65,8 +65,8 @@
 
 .coffeePilotLead {
   margin: 14px 0 0;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.94rem;
+  color: var(--ink-soft);
+  font-size: var(--text-base);
   line-height: 1.45;
 }
 
@@ -90,14 +90,14 @@
 
 .coffeePilotDrink {
   color: var(--ink);
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   font-weight: 600;
 }
 
+/* A coffee is not a pint, so its figure wears the neutral plaque: the one
+   price look, unbanded (components/PriceBadge.tsx). Layout only here. */
 .coffeePilotFigure {
-  color: var(--ink);
-  font-size: 1.08rem;
-  font-variant-numeric: tabular-nums;
+  justify-self: end;
 }
 
 .coffeePilotSourceLink {
@@ -107,15 +107,15 @@
   gap: 4px;
   justify-self: start;
   min-height: 24px;
-  color: var(--ink-soft, var(--muted));
-  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
   text-decoration: underline;
 }
 
 .coffeePilotSource {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
 }
 

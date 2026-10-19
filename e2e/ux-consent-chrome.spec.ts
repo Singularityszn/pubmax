@@ -280,14 +280,14 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
   // painted one is the page a reader can Tab through.
   const socialPage = page.locator(".socialPage:visible");
   await expect(socialPage).toBeVisible({ timeout: 30_000 });
-  await expect(socialPage.locator('.socialRailEmpty[aria-busy="true"]')).toBeVisible();
+  await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
   const handle = socialPage.getByRole("searchbox", { name: "Search handles", exact: true });
   await expect(handle).toBeEnabled();
   for (let press = 0; press < 60 && !(await handle.evaluate((el) => el === document.activeElement)); press += 1) {
     await page.keyboard.press("Tab");
   }
   await expect(handle).toBeFocused();
-  await expect(socialPage.locator('.socialRailEmpty[aria-busy="true"]')).toBeVisible();
+  await expect(socialPage.locator('.socialDoorSlot[aria-busy="true"]')).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("social-focused-pending.png") });
   settleIdentity();
   await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });

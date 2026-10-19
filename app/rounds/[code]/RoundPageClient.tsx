@@ -460,7 +460,7 @@ function RoundBoard({
             aria-label={copied ? `Round code ${round.code} copied` : `Copy the Round code ${round.code}`}
           >
             {round.code}
-            {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+            {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           </button>
           {copied ? (
             <span className="roundCopyFeedback" role="status">
@@ -908,7 +908,7 @@ function RoundSpendComposer({
         className="roundPrimaryBtn roundRecordOpen"
         onClick={openForm}
       >
-        <ReceiptText size={17} aria-hidden="true" /> Put this round on the mat
+        <ReceiptText size={16} aria-hidden="true" /> Put this round on the mat
       </button>
     );
   }
@@ -929,7 +929,7 @@ function RoundSpendComposer({
             onClick={() => setOpen(false)}
             aria-label="Close round cost form"
           >
-            <X size={18} aria-hidden="true" />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 

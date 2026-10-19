@@ -90,7 +90,7 @@
     min-width: 0;
     max-width: 100%;
     justify-content: flex-start;
-    font-size: 1.02rem;
+    font-size: var(--text-base);
   }
 
   [data-native-shell][data-text-scale="large"] .siteNavActions {

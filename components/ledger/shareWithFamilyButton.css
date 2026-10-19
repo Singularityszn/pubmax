@@ -8,19 +8,21 @@
   min-height: 44px;
   padding: 10px 18px;
   font: inherit;
-  font-size: 0.98rem;
+  font-size: var(--text-base);
   font-weight: 700;
   color: var(--ink);
   background: var(--panel-raised);
-  border: 2px solid var(--brass);
-  border-radius: var(--radius-sm, 8px);
+  border: 2px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.familyShareButton:hover {
-  background: var(--brass);
-  color: var(--color-on-accent, #fdfaf2);
+@media (hover: hover) and (pointer: fine) {
+  .familyShareButton:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
 }
 
 .familyShareButton:focus-visible {

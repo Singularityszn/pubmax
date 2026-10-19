@@ -315,9 +315,14 @@ for (const viewport of WIDTHS) {
         .toBe("denied");
       if (arrival.path === "/tonight") {
         const firstPub = page.locator(".tonightHypedRow").first();
-        const mapAction = firstPub.getByRole("link", { name: "Open on map" });
+        // The way onto the map is the row itself since the taste pass (18 Oct
+        // 2026): the pub's name is the row's one link and its ::after covers
+        // the whole row (components/ui/row-list.tsx), so a thumb lands on the
+        // row's box rather than on a separate "Open on map" button.
+        const mapAction = firstPub.locator(".rowListTitleLink");
         await expect(mapAction).toBeVisible();
-        const actionBox = await mapAction.boundingBox();
+        await expect(mapAction).toHaveAttribute("href", /\/map/);
+        const actionBox = await firstPub.boundingBox();
         expect(actionBox?.height).toBeGreaterThanOrEqual(44);
         expect(boxesOverlap(actionBox as Box, box)).toBe(false);
         // Every card reads the same compact way: the reason folds behind "Why
@@ -417,8 +422,9 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toHaveCount(0);
 
-  await page.getByRole("list", { name: "Cities", exact: true })
-    .getByRole("link", { name: /London/ }).click();
+  // The list view is one door to the one city with listed prices (taste plan,
+  // 18 Oct 2026, "London only, for now"), so the city is chosen through it.
+  await page.locator("main [data-primary-action]").getByRole("link", { name: "Open London" }).click();
   await expect(page.getByRole("heading", { name: "London", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Set as my city", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("This is your city.");

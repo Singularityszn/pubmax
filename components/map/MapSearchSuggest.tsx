@@ -588,7 +588,7 @@ export default function MapSearchSuggest({
           onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
         >
           <span className="mapSearchSuggestRowMain">
-            <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+            <MapPin size={16} aria-hidden="true" className="mapSearchSuggestRowIcon" />
             <span className="mapSearchSuggestRowName">{area.name}</span>
             {area.contextLabel ? (
               <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
@@ -650,7 +650,7 @@ export default function MapSearchSuggest({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={dismissToolbarResults}
               >
-                <X size={17} aria-hidden="true" />
+                <X size={16} aria-hidden="true" />
               </IconButton>
             </div>
           ) : null}
@@ -674,7 +674,7 @@ export default function MapSearchSuggest({
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
                       <span className="mapSearchSuggestRowMain">
-                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <MapPin size={16} aria-hidden="true" className="mapSearchSuggestRowIcon" />
                         <span className="mapSearchSuggestRowName">{city.name}</span>
                         <span className="mapSearchSuggestBorough">City map</span>
                       </span>
@@ -713,7 +713,7 @@ export default function MapSearchSuggest({
                       onPointerEnter={() => chooseActiveIndex(index)}
                     >
                       <span className="mapSearchSuggestRowMain">
-                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <MapPin size={16} aria-hidden="true" className="mapSearchSuggestRowIcon" />
                         <span className="mapSearchSuggestRowName">{place.name}</span>
                         {place.contextLabel ? (
                           <span className="mapSearchSuggestBorough">{place.contextLabel}</span>

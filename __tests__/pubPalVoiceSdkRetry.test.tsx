@@ -31,6 +31,8 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: navigation.push }) }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: requests.authedActionFetch }));
+// jsdom cannot play audio; the cues are proved in pubPalVoice.test.tsx.
+vi.mock("@/components/pubpal/palVoiceSounds", () => ({ playPalVoiceSound: vi.fn() }));
 vi.mock("@/lib/analytics", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/analytics")>()),
   trackEvent: vi.fn(),

@@ -21,11 +21,15 @@ vi.mock("@/lib/useSocialFriendsLaunch", () => ({
 
 import FindYourLot from "@/components/social/FindYourLot";
 
-describe("FindYourLot signed-out invite action", () => {
-  it("renders one sign-in invite link", () => {
+describe("FindYourLot for a stranger", () => {
+  it("offers the handle search and no sign-in door of its own", () => {
+    // The page a stranger is on already carries the one sign-in door (the
+    // Social head), so this lane repeats none (taste plan, 18 Oct 2026).
     const html = renderToStaticMarkup(createElement(FindYourLot));
 
-    expect(html.match(/Sign in to invite/g)).toHaveLength(1);
-    expect(html).toContain('href="/login"');
+    expect(html).toContain('id="find-lot-title"');
+    expect(html).toContain('type="search"');
+    expect(html).not.toMatch(/Sign in/);
+    expect(html).not.toContain('href="/login"');
   });
 });

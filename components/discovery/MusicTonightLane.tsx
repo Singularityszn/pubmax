@@ -83,7 +83,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
     <section className="dealsTonight" aria-labelledby="music-tonight-title" data-coverage={thin ? "thin" : "ok"}>
       <div className="dealsTonightHead">
         <h2 id="music-tonight-title">
-          <Music2 size={18} aria-hidden="true" />
+          <Music2 size={16} aria-hidden="true" />
           <span>Live music tonight</span>
         </h2>
         <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>

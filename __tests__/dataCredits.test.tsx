@@ -16,6 +16,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// The shared top nav is a client component that needs the app router; these
+// pages are read as server markup, so the nav renders nothing here.
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+
 import DataCreditsPage from "@/app/credits/page";
 import sitemap from "@/app/sitemap";
 import PlaceIndexCredit from "@/components/city/PlaceIndexCredit";
