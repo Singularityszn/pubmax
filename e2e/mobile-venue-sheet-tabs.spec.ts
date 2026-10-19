@@ -449,8 +449,17 @@ test("the getting-home fold and Ask are one tap from their tabs", async ({ page 
   await expect(fold).not.toHaveAttribute("open", "");
   await summary.scrollIntoViewIfNeeded();
   await expectTapTarget(summary, "Last train fold");
-  await summary.click();
-  await expect(fold).toHaveAttribute("open", "");
+  // The Overview rows above the fold land after their own reads: the hygiene
+  // rating alone pushes the summary down 62px, three to five seconds after
+  // the sheet opens on a slow runner. When one lands between the press and
+  // the release, the click goes to the row that moved in and Playwright does
+  // not retry it, so the fold stayed shut on CI. Retry the TAP until the fold
+  // takes it (e2e/AGENTS.md, "A LONE CLICK IS NOT A WAIT FOR HYDRATION"); a
+  // fold that no tap opens still fails.
+  await expect(async () => {
+    await summary.click();
+    await expect(fold).toHaveAttribute("open", "", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(fold.getByLabel("Last Pint")).toBeVisible();
 
   await portal.getByRole("tab", { name: "Lore", exact: true }).click();
