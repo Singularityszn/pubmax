@@ -315,9 +315,14 @@
   white-space: nowrap;
 }
 
-.nmnCard:hover .nmnCardView,
 .nmnCard:focus-visible .nmnCardView {
   color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nmnCard:hover .nmnCardView {
+    color: var(--ink);
+  }
 }
 
 .nmnPriceCollected {

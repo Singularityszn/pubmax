@@ -1104,7 +1104,7 @@ function NearMeCardBody({
         {/* The cue names the row's tap. Keep remains a separate control. */}
         <span className="nmnCardView">
           {NEAR_ME_VIEW_LABEL}
-          <ChevronRight size={13} aria-hidden="true" />
+          <ChevronRight size={14} aria-hidden="true" />
         </span>
       </span>
     </>
