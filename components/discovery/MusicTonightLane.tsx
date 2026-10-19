@@ -9,7 +9,13 @@ import { useEffect, useState } from "react";
 import { Music2 } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
-import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  isValidWhatsOnRow,
+  MUSIC_LANE_MAX_CARDS,
+  musicLaneRows,
+  parseKindObservedAt,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
@@ -23,11 +29,11 @@ export type MusicTonightLaneProps = {
    *  filtered out here) and skip the self-fetch, so a host that already loaded the
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover. */
   rows?: WhatsOnRow[];
-  /** Freshest confirmation for MUSIC specifically. This lane is about one
-   *  source, so it may not borrow the page's freshest date: if only July
-   *  evidence exists for live music, July is what this line says however
-   *  recently another feed was rebuilt. Absent means we cannot date it, and
-   *  checkedLabel says exactly that. */
+  /** The day that covers every card the lane shows, from each card's own
+   *  read: on Tonight `tonightMusicLaneObservedAt` (lib/tonightOutListings.ts),
+   *  because the lane there mixes the What's-On and Out reads. Never a card's
+   *  bare `observedAt`, which for a live row can be the request instant. Absent
+   *  means we cannot date it, and checkedLabel says exactly that. */
   asOf?: string | null;
 };
 
@@ -43,39 +49,29 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
     const controller = new AbortController();
     void loadSurfaceJson<{
       rows?: unknown;
-      asOf?: unknown;
       kindObservedAt?: unknown;
     }>(
-      "/api/whats-on?kind=music&window=tonight&limit=8",
+      `/api/whats-on?kind=music&window=tonight&limit=${MUSIC_LANE_MAX_CARDS}`,
       {
         signal: controller.signal,
         validate: (body) => Array.isArray(body?.rows),
       },
       (body) => {
-        const rows = (Array.isArray(body.rows) ? body.rows : [])
-          .filter(isValidWhatsOnRow)
-          .slice(0, 8);
-        // Self-fetch mode asks for kind=music alone, so the response-level
-        // freshness IS this source's freshness; kindObservedAt.music is the
-        // same answer and is preferred when the server sends it.
-        const musicObservedAt = (body.kindObservedAt as Record<string, unknown> | undefined)?.music;
-        setState({
-          rows,
-          asOf:
-            typeof musicObservedAt === "string"
-              ? musicObservedAt
-              : typeof body.asOf === "string"
-                ? body.asOf
-                : null,
-        });
+        // An explicit predicate: `filter` passes the index as the second
+        // argument, which isValidWhatsOnRow reads as the clock.
+        const rows = musicLaneRows(
+          (Array.isArray(body.rows) ? body.rows : []).filter((row) => isValidWhatsOnRow(row)),
+        );
+        // Self-fetch asks for kind=music alone, so every card is a What's-On
+        // card and the music feed's own check covers them all. The page-level
+        // `asOf` is not used: it can be a bundled file's build time.
+        setState({ rows, asOf: parseKindObservedAt(body.kindObservedAt).music ?? null });
       },
     );
     return () => controller.abort();
   }, [provided]);
 
-  const rows = provided
-    ? providedRows.filter((row) => row.kind === "music").slice(0, 8)
-    : state.rows;
+  const rows = provided ? musicLaneRows(providedRows) : state.rows;
   const asOf = provided ? (providedAsOf ?? null) : state.asOf;
 
   if (rows.length === 0) return null;

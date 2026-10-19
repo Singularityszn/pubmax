@@ -23,6 +23,7 @@ import {
   coveringObservedAt,
   dedupeRows,
   filterNotPast,
+  musicLaneRows,
   type WhatsOnKind,
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
@@ -687,6 +688,22 @@ function outLaneCredit(
   observedAt: Record<string, string>,
 ): { text: string | null; dated: boolean } {
   if (rows.length === 0) return { text: null, dated: true };
+  const { labels, oldest, dated } = outLaneObservedAt(rows, observedAt);
+  const noun = rows.length === 1 ? "listing" : "listings";
+  const via = labels.length === 0 ? "" : ` via ${joinLabels(labels)}`;
+  const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
+  return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+}
+
+/**
+ * The day a set of Out rows was checked: the OLDEST of each publisher's
+ * freshest check, and undated when any publisher, or an unlabelled row, has
+ * none. The same answer dates the Out credit line and the live-music lane.
+ */
+function outLaneObservedAt(
+  rows: readonly WhatsOnRow[],
+  observedAt: Record<string, string>,
+): { labels: string[]; oldest: string | null; dated: boolean } {
   const freshestByLabel = new Map<string, string | null>();
   for (const row of rows) {
     const raw = row.source?.label?.trim() ?? "";
@@ -720,10 +737,51 @@ function outLaneCredit(
     if (!oldest || Date.parse(observed) < Date.parse(oldest)) oldest = observed;
   }
   const dated = everyLabelDated && oldest !== null;
-  const noun = rows.length === 1 ? "listing" : "listings";
-  const via = unlabelled ? "" : ` via ${joinLabels(labels)}`;
-  const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
-  return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+  return { labels, oldest, dated };
+}
+
+/**
+ * The day the live-music lane may claim it was checked, or null.
+ *
+ * ONE STAMP COVERS EVERY CARD IN THE LANE, so it takes the OLDEST check behind
+ * them and goes undated when it cannot date one. On Tonight the lane mixes two
+ * reads, and each card is dated by its own read's evidence, never by its
+ * `observedAt` alone: a What's-On card by `kindObservedAt.music`, because a
+ * LIVE row's `observedAt` is the request instant whenever the provider states
+ * no time (`mapThingsToDoToRows`) and the store already keeps that out of the
+ * map; an Out card by its publisher's check, as the Out credit line dates it.
+ * Which read a card came from is reference identity against the Out read's
+ * whole answer, Ticketmaster included, because the lane keeps those rows.
+ */
+export function tonightMusicLaneObservedAt(input: {
+  /** The rows handed to the lane; it shows `musicLaneRows` of them. */
+  rows: readonly WhatsOnRow[];
+  /** Everything the Out read returned, before any lane narrowed it. */
+  outEvents: readonly WhatsOnRow[];
+  /** The live read's own per-kind observation map. */
+  kindObservedAt: WhatsOnKindObservedAt;
+  /** The Out read's per-publisher observation map. */
+  outObservedAt?: Record<string, string> | undefined;
+}): string | null {
+  const laneRows = musicLaneRows(input.rows);
+  if (laneRows.length === 0) return null;
+  const { whatsOnCount, outRows } = tonightListingLanes(laneRows, [...input.outEvents]);
+  const checks: string[] = [];
+  if (whatsOnCount > 0) {
+    const music = input.kindObservedAt.music;
+    if (!music) return null;
+    checks.push(music);
+  }
+  if (outRows.length > 0) {
+    const out = outLaneObservedAt(outRows, input.outObservedAt ?? {});
+    if (!out.dated || !out.oldest) return null;
+    checks.push(out.oldest);
+  }
+  let oldest: string | null = null;
+  for (const at of checks) {
+    if (oldest === null || Date.parse(at) < Date.parse(oldest)) oldest = at;
+  }
+  return oldest;
 }
 
 export type TonightRowLinks = {

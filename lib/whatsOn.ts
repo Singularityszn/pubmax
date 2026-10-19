@@ -122,6 +122,14 @@ export type WhatsOnKindObservedAt = Partial<Record<WhatsOnKind, string>>;
 
 export const EMPTY_KIND_OBSERVED_AT: WhatsOnKindObservedAt = Object.freeze({});
 
+/** The most cards the live-music lane shows (components/discovery/MusicTonightLane.tsx). */
+export const MUSIC_LANE_MAX_CARDS = 8;
+
+/** The music cards that lane shows, in order, and so the cards its stamp covers. */
+export function musicLaneRows(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
+  return rows.filter((row) => row.kind === "music").slice(0, MUSIC_LANE_MAX_CARDS);
+}
+
 /** Read the per-kind map off an API body. An unknown kind or an unparseable
  *  time contributes nothing: an unusable value must not become a date printed
  *  beside a listing. */

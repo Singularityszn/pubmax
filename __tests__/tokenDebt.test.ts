@@ -74,12 +74,30 @@ describe("token debt", () => {
     "raw font sizes": { pattern: /font-size:\s*[0-9.]+(?:px|rem)\b/g, max: 484 },
     "raw corners": { pattern: /border-radius:\s*(?!0[\s;])[0-9.]+(?:px|rem)\b/g, max: 30 },
     "raw shadows": { pattern: /box-shadow:\s*(?:inset\s+)?-?[0-9]/g, max: 109 },
-    "var() fallbacks": { pattern: /var\(--[\w-]+\s*,/g, max: 291 },
+    "var() fallbacks": { pattern: /var\(--[\w-]+\s*,/g, max: 210 },
   } as const;
+
+  // A fallback on a custom property that only script sets (the Pal's head and
+  // genome inputs, a map delay) is that input's default, not a dead fallback on
+  // a declared token, so the fallback ceiling does not count it.
+  const declaredInCss = new Set<string>();
+  for (const { css } of sheets) for (const m of css.matchAll(/(--[\w-]+)\s*:/g)) if (m[1]) declaredInCss.add(m[1]);
+  const scriptText = SOURCES.map((file) => readFileSync(file, "utf8")).join("\n");
+  function deadFallbacks(): number {
+    let total = 0;
+    for (const { css } of sheets) {
+      for (const m of css.matchAll(/var\((--[\w-]+)\s*,/g)) {
+        const token = m[1];
+        if (token && !declaredInCss.has(token) && scriptText.includes(token)) continue;
+        total += 1;
+      }
+    }
+    return total;
+  }
 
   for (const [name, { pattern, max }] of Object.entries(CEILINGS)) {
     it(`holds ${name} at or under ${max}`, () => {
-      expect(count(pattern)).toBeLessThanOrEqual(max);
+      expect(name === "var() fallbacks" ? deadFallbacks() : count(pattern)).toBeLessThanOrEqual(max);
     });
   }
 });

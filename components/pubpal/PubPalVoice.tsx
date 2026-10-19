@@ -6,7 +6,9 @@ import Link from "next/link";
 import { Send } from "lucide-react";
 
 import { discardBody } from "@/lib/responseBody";
-import type { PalAnimationState } from "@/lib/pubPal";
+import type { PalAnimationState, PubPalAppearance } from "@/lib/pubPal";
+import type { PalVoiceSignal } from "@/lib/palVoiceSignal";
+import type { PalGenome } from "@/lib/palGenome";
 
 // The session half carries the ElevenLabs SDK, so it is fetched when the probe
 // says voice is on and never before. ssr:false because there is nothing to
@@ -130,7 +132,13 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+function VoiceAvailabilityGate({ onStateChange, palName, signal, appearance, genome }: {
+  onStateChange?: (state: PalAnimationState) => void;
+  palName?: string;
+  signal?: PalVoiceSignal;
+  appearance?: PubPalAppearance;
+  genome?: PalGenome;
+}) {
   const availability = useVoiceAvailability();
 
   // Tri-state: while the probe is out the control claims neither, because
@@ -152,16 +160,44 @@ function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalA
 
   if (availability === "unavailable") return <PalVoiceOffline />;
 
-  return <PubPalVoiceSession onStateChange={onStateChange} />;
+  return (
+    <PubPalVoiceSession
+      onStateChange={onStateChange}
+      palName={palName}
+      signal={signal}
+      appearance={appearance}
+      genome={genome}
+    />
+  );
 }
 
 export default function PubPalVoice({
   muted = false,
   onStateChange,
+  palName,
+  signal,
+  appearance,
+  genome,
 }: {
   muted?: boolean;
   onStateChange?: (state: PalAnimationState) => void;
+  /** The name the transcript prints beside the Pal's lines. */
+  palName?: string;
+  /** Where the live levels go, so the portrait can react to the voice. */
+  signal?: PalVoiceSignal;
+  /** The Pal's look, for the small live head inside the panel on a phone. */
+  appearance?: PubPalAppearance;
+  /** The Pal's genome, so the panel's head is held and moves like the big one. */
+  genome?: PalGenome;
 }) {
   if (muted) return <PalVoiceMuted />;
-  return <VoiceAvailabilityGate onStateChange={onStateChange} />;
+  return (
+    <VoiceAvailabilityGate
+      onStateChange={onStateChange}
+      palName={palName}
+      signal={signal}
+      appearance={appearance}
+      genome={genome}
+    />
+  );
 }
